@@ -426,6 +426,65 @@ func TestWhichExpImplementation(t *testing.T) {
 	}
 }
 
+// Test the overflow/underflow mask behavior that's breaking Exp_AVX2_F32x8
+func TestExpMaskBehavior(t *testing.T) {
+	input := []float32{0, 1, 2, -1, 0.5, -0.5, 0.1, -0.1}
+	x := archsimd.LoadFloat32x8Slice(input)
+
+	// Check what exp32_underflow contains
+	underflowVal := make([]float32, 8)
+	exp32_underflow.StoreSlice(underflowVal)
+	t.Logf("exp32_underflow: %v", underflowVal)
+
+	// Check what exp32_overflow contains
+	overflowVal := make([]float32, 8)
+	exp32_overflow.StoreSlice(overflowVal)
+	t.Logf("exp32_overflow: %v", overflowVal)
+
+	// Check the masks
+	underflowMask := x.Less(exp32_underflow)
+	_ = x.Greater(exp32_overflow) // Just checking it doesn't panic
+
+	// Create test result
+	testResult := archsimd.BroadcastFloat32x8(42.0)
+	resultVal := make([]float32, 8)
+	testResult.StoreSlice(resultVal)
+	t.Logf("Before merge: %v", resultVal)
+
+	// Apply underflow merge
+	merged := testResult.Merge(exp32_zero, underflowMask)
+	merged.StoreSlice(resultVal)
+	t.Logf("After underflow merge: %v", resultVal)
+
+	// All our inputs are > -87.33, so none should trigger underflow
+	for i := range resultVal {
+		if resultVal[i] != 42.0 {
+			t.Errorf("Underflow mask incorrectly triggered for input %v: got %v, want 42.0", input[i], resultVal[i])
+		}
+	}
+
+	// Test the Less operation directly
+	threshold := archsimd.BroadcastFloat32x8(-10.0)
+	testInputs := []float32{-20, -10, -5, 0, 5, 10, 20, -15}
+	testX := archsimd.LoadFloat32x8Slice(testInputs)
+	lessMask := testX.Less(threshold)
+
+	// Apply merge with lessMask
+	orig := archsimd.BroadcastFloat32x8(100.0)
+	zero := archsimd.BroadcastFloat32x8(0.0)
+	afterMerge := orig.Merge(zero, lessMask)
+	afterMerge.StoreSlice(resultVal)
+	t.Logf("Less than -10 test: inputs=%v result=%v", testInputs, resultVal)
+
+	// Expected: -20, -15 are < -10, so those should be 0, others should be 100
+	expected := []float32{0, 100, 100, 100, 100, 100, 100, 0}
+	for i := range expected {
+		if resultVal[i] != expected[i] {
+			t.Errorf("Less/Merge[%d]: input=%v got %v, want %v", i, testInputs[i], resultVal[i], expected[i])
+		}
+	}
+}
+
 // Step-by-step trace through Exp_AVX2_F32x8 to find where it fails
 func TestExpAVX2StepByStep(t *testing.T) {
 	input := []float32{0, 1, 2, -1, 0.5, -0.5, 0.1, -0.1}
