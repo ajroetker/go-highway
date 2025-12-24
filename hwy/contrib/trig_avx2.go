@@ -12,10 +12,10 @@ import (
 // AVX2 vectorized constants for trig32
 var (
 	// Range reduction constants (Cody-Waite)
-	// Using 4/π for reduction to [-π/4, π/4]
-	trig32_4overPi = archsimd.BroadcastFloat32x8(1.27323954473516268615) // 4/π
-	trig32_piOver4Hi = archsimd.BroadcastFloat32x8(0.78539816339744830962) // π/4 high
-	trig32_piOver4Lo = archsimd.BroadcastFloat32x8(3.061616997868383e-17)  // π/4 low
+	// Using 2/π for reduction to [-π/4, π/4] with π/2 intervals
+	trig32_2overPi   = archsimd.BroadcastFloat32x8(0.6366197723675814)     // 2/π
+	trig32_piOver2Hi = archsimd.BroadcastFloat32x8(1.5707963267948966)     // π/2 high
+	trig32_piOver2Lo = archsimd.BroadcastFloat32x8(6.123233995736766e-17)  // π/2 low
 
 	// sin(x) polynomial coefficients for |x| <= π/4
 	// sin(x) ≈ x * (1 + s1*x² + s2*x⁴ + s3*x⁶ + s4*x⁸)
@@ -48,9 +48,9 @@ var (
 
 // AVX2 vectorized constants for trig64
 var (
-	trig64_4overPi   = archsimd.BroadcastFloat64x4(1.27323954473516268615)
-	trig64_piOver4Hi = archsimd.BroadcastFloat64x4(0.7853981633974483096156608)
-	trig64_piOver4Lo = archsimd.BroadcastFloat64x4(3.0616169978683830179e-17)
+	trig64_2overPi   = archsimd.BroadcastFloat64x4(0.6366197723675814)
+	trig64_piOver2Hi = archsimd.BroadcastFloat64x4(1.5707963267948966192313216916398)
+	trig64_piOver2Lo = archsimd.BroadcastFloat64x4(6.123233995736766035868820147292e-17)
 
 	// Higher-degree polynomials for float64
 	trig64_s1 = archsimd.BroadcastFloat64x4(-0.16666666666666632)
@@ -131,14 +131,14 @@ func sinCos32Core(x archsimd.Float32x8) (sin, cos archsimd.Float32x8) {
 	// Save input for special case handling
 	origX := x
 
-	// Range reduction: k = round(x * 4/π)
-	// This gives us the quadrant/octant
-	k := x.Mul(trig32_4overPi).RoundToEven()
+	// Range reduction: k = round(x * 2/π)
+	// This gives us the quadrant (0-3)
+	k := x.Mul(trig32_2overPi).RoundToEven()
 	kInt := k.ConvertToInt32()
 
-	// r = x - k * (π/4) using Cody-Waite high/low for precision
-	r := x.Sub(k.Mul(trig32_piOver4Hi))
-	r = r.Sub(k.Mul(trig32_piOver4Lo))
+	// r = x - k * (π/2) using Cody-Waite high/low for precision
+	r := x.Sub(k.Mul(trig32_piOver2Hi))
+	r = r.Sub(k.Mul(trig32_piOver2Lo))
 	r2 := r.Mul(r)
 
 	// Compute sin(r) polynomial: sin(r) ≈ r * (1 + s1*r² + s2*r⁴ + s3*r⁶ + s4*r⁸)
@@ -239,13 +239,13 @@ func sinCos64Core(x archsimd.Float64x4) (sin, cos archsimd.Float64x4) {
 	// Save input for special case handling
 	origX := x
 
-	// Range reduction: k = round(x * 4/π)
-	k := x.Mul(trig64_4overPi).RoundToEven()
+	// Range reduction: k = round(x * 2/π)
+	k := x.Mul(trig64_2overPi).RoundToEven()
 	kInt := k.ConvertToInt64()
 
-	// r = x - k * (π/4) using Cody-Waite high/low for precision
-	r := x.Sub(k.Mul(trig64_piOver4Hi))
-	r = r.Sub(k.Mul(trig64_piOver4Lo))
+	// r = x - k * (π/2) using Cody-Waite high/low for precision
+	r := x.Sub(k.Mul(trig64_piOver2Hi))
+	r = r.Sub(k.Mul(trig64_piOver2Lo))
 	r2 := r.Mul(r)
 
 	// Compute sin(r) polynomial (higher degree for float64)

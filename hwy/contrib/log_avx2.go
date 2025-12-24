@@ -13,11 +13,11 @@ import (
 var (
 	// Polynomial coefficients for atanh-based log approximation
 	// ln((1+y)/(1-y)) = 2y(1 + y²/3 + y⁴/5 + y⁶/7 + ...)
-	log32_c1 = archsimd.BroadcastFloat32x8(0.6666666666666735130)  // 2/3
-	log32_c2 = archsimd.BroadcastFloat32x8(0.3999999999940941908)  // 2/5
-	log32_c3 = archsimd.BroadcastFloat32x8(0.2857142874366239149)  // 2/7
-	log32_c4 = archsimd.BroadcastFloat32x8(0.2222219843214978396)  // 2/9
-	log32_c5 = archsimd.BroadcastFloat32x8(0.1818357216161805012)  // 2/11
+	log32_c1 = archsimd.BroadcastFloat32x8(0.3333333333333367565)  // 1/3
+	log32_c2 = archsimd.BroadcastFloat32x8(0.1999999999970470954)  // 1/5
+	log32_c3 = archsimd.BroadcastFloat32x8(0.1428571437183119574)  // 1/7
+	log32_c4 = archsimd.BroadcastFloat32x8(0.1111109921607489198)  // 1/9
+	log32_c5 = archsimd.BroadcastFloat32x8(0.0909178608080902506)  // 1/11
 
 	// ln(2) split for precision
 	log32_ln2Hi = archsimd.BroadcastFloat32x8(0.693359375)
@@ -46,13 +46,13 @@ var (
 // AVX2 vectorized constants for log64
 var (
 	// Higher-degree polynomial for float64
-	log64_c1 = archsimd.BroadcastFloat64x4(0.6666666666666735130)
-	log64_c2 = archsimd.BroadcastFloat64x4(0.3999999999940941908)
-	log64_c3 = archsimd.BroadcastFloat64x4(0.2857142874366239149)
-	log64_c4 = archsimd.BroadcastFloat64x4(0.2222219843214978396)
-	log64_c5 = archsimd.BroadcastFloat64x4(0.1818357216161805012)
-	log64_c6 = archsimd.BroadcastFloat64x4(0.1531383769920937332)
-	log64_c7 = archsimd.BroadcastFloat64x4(0.1479819860511658591)
+	log64_c1 = archsimd.BroadcastFloat64x4(0.3333333333333367565)  // 1/3
+	log64_c2 = archsimd.BroadcastFloat64x4(0.1999999999970470954)  // 1/5
+	log64_c3 = archsimd.BroadcastFloat64x4(0.1428571437183119574)  // 1/7
+	log64_c4 = archsimd.BroadcastFloat64x4(0.1111109921607489198)  // 1/9
+	log64_c5 = archsimd.BroadcastFloat64x4(0.0909178608080902506)  // 1/11
+	log64_c6 = archsimd.BroadcastFloat64x4(0.0765691884960468666)  // 1/13
+	log64_c7 = archsimd.BroadcastFloat64x4(0.0739909930255829295)  // 1/15 (approx)
 
 	log64_ln2Hi = archsimd.BroadcastFloat64x4(0.6931471803691238)
 	log64_ln2Lo = archsimd.BroadcastFloat64x4(1.9082149292705877e-10)
