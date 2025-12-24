@@ -135,7 +135,10 @@ func Log_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	mAdjusted := m.Mul(log32_two)
 	expAdjusted := exp.Sub(log32_intOne)
 	m = m.Merge(mAdjusted, adjustMask)
-	exp = exp.Merge(expAdjusted, adjustMask.AsInt32x8Mask())
+	// Use float conversion to apply mask (exp values are small integers, no precision loss)
+	expFloat := exp.ConvertToFloat32()
+	expAdjustedFloat := expAdjusted.ConvertToFloat32()
+	exp = expFloat.Merge(expAdjustedFloat, adjustMask).ConvertToInt32()
 
 	// Transform: y = (m-1)/(m+1)
 	// This maps m in [sqrt(2)/2, sqrt(2)] to y in [-0.17, 0.17]
@@ -158,7 +161,7 @@ func Log_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 
 	// Reconstruct: ln(x) = e*ln(2) + ln(m)
 	// Use high/low split for ln(2) to maintain precision
-	expFloat := exp.ConvertToFloat32()
+	expFloat = exp.ConvertToFloat32()
 	result := expFloat.Mul(log32_ln2Hi)
 	result = result.Add(expFloat.Mul(log32_ln2Lo))
 	result = result.Add(lnM)
@@ -232,7 +235,10 @@ func Log_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	mAdjusted := m.Mul(log64_two)
 	expAdjusted := exp.Sub(log64_intOne)
 	m = m.Merge(mAdjusted, adjustMask)
-	exp = exp.Merge(expAdjusted, adjustMask.AsInt64x4Mask())
+	// Use float conversion to apply mask (exp values are small integers, no precision loss)
+	expFloat := exp.ConvertToFloat64()
+	expAdjustedFloat := expAdjusted.ConvertToFloat64()
+	exp = expFloat.Merge(expAdjustedFloat, adjustMask).ConvertToInt64()
 
 	// Transform: y = (m-1)/(m+1)
 	mMinus1 := m.Sub(log64_one)
@@ -254,7 +260,7 @@ func Log_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	lnM := log64_two.Mul(y).Mul(p)
 
 	// Reconstruct: ln(x) = e*ln(2) + ln(m)
-	expFloat := exp.ConvertToFloat64()
+	expFloat = exp.ConvertToFloat64()
 	result := expFloat.Mul(log64_ln2Hi)
 	result = result.Add(expFloat.Mul(log64_ln2Lo))
 	result = result.Add(lnM)

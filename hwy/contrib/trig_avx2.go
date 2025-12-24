@@ -168,9 +168,15 @@ func sinCos32Core(x archsimd.Float32x8) (sin, cos archsimd.Float32x8) {
 	negateMask := octant.And(trig32_intTwo).Equal(trig32_intTwo)
 
 	// For sin: select sin(r) or cos(r), then negate if needed
-	sinResult := sinR.Merge(cosR, useCosMask.AsFloat32x8Mask())
+	// Use bit-level reinterpretation to work with int masks
+	sinRBits := sinR.AsInt32x8()
+	cosRBits := cosR.AsInt32x8()
+	sinResultBits := sinRBits.Merge(cosRBits, useCosMask)
+	sinResult := sinResultBits.AsFloat32x8()
 	negSinResult := trig32_zero.Sub(sinResult)
-	sin = sinResult.Merge(negSinResult, negateMask.AsFloat32x8Mask())
+	negSinResultBits := negSinResult.AsInt32x8()
+	sinBits := sinResultBits.Merge(negSinResultBits, negateMask)
+	sin = sinBits.AsFloat32x8()
 
 	// For cos: it's shifted by 1 quadrant from sin
 	// cos(x) = sin(x + π/2), so we use k+1 for cos
@@ -178,9 +184,12 @@ func sinCos32Core(x archsimd.Float32x8) (sin, cos archsimd.Float32x8) {
 	useCosForCosMask := cosOctant.And(trig32_intOne).Equal(trig32_intOne)
 	negateCosMask := cosOctant.And(trig32_intTwo).Equal(trig32_intTwo)
 
-	cosResult := sinR.Merge(cosR, useCosForCosMask.AsFloat32x8Mask())
+	cosResultBits := sinRBits.Merge(cosRBits, useCosForCosMask)
+	cosResult := cosResultBits.AsFloat32x8()
 	negCosResult := trig32_zero.Sub(cosResult)
-	cos = cosResult.Merge(negCosResult, negateCosMask.AsFloat32x8Mask())
+	negCosResultBits := negCosResult.AsInt32x8()
+	cosBits := cosResultBits.Merge(negCosResultBits, negateCosMask)
+	cos = cosBits.AsFloat32x8()
 
 	// Handle special cases: ±Inf and NaN -> NaN
 	infMask := origX.Equal(trig32_inf).Or(origX.Equal(trig32_negInf))
@@ -260,19 +269,27 @@ func sinCos64Core(x archsimd.Float64x4) (sin, cos archsimd.Float64x4) {
 	useCosMask := octant.And(trig64_intOne).Equal(trig64_intOne)
 	negateMask := octant.And(trig64_intTwo).Equal(trig64_intTwo)
 
-	// For sin
-	sinResult := sinR.Merge(cosR, useCosMask.AsFloat64x4Mask())
+	// For sin: use bit-level reinterpretation to work with int masks
+	sinRBits := sinR.AsInt64x4()
+	cosRBits := cosR.AsInt64x4()
+	sinResultBits := sinRBits.Merge(cosRBits, useCosMask)
+	sinResult := sinResultBits.AsFloat64x4()
 	negSinResult := trig64_zero.Sub(sinResult)
-	sin = sinResult.Merge(negSinResult, negateMask.AsFloat64x4Mask())
+	negSinResultBits := negSinResult.AsInt64x4()
+	sinBits := sinResultBits.Merge(negSinResultBits, negateMask)
+	sin = sinBits.AsFloat64x4()
 
 	// For cos (shifted by 1 quadrant)
 	cosOctant := octant.Add(trig64_intOne).And(trig64_intThree)
 	useCosForCosMask := cosOctant.And(trig64_intOne).Equal(trig64_intOne)
 	negateCosMask := cosOctant.And(trig64_intTwo).Equal(trig64_intTwo)
 
-	cosResult := sinR.Merge(cosR, useCosForCosMask.AsFloat64x4Mask())
+	cosResultBits := sinRBits.Merge(cosRBits, useCosForCosMask)
+	cosResult := cosResultBits.AsFloat64x4()
 	negCosResult := trig64_zero.Sub(cosResult)
-	cos = cosResult.Merge(negCosResult, negateCosMask.AsFloat64x4Mask())
+	negCosResultBits := negCosResult.AsInt64x4()
+	cosBits := cosResultBits.Merge(negCosResultBits, negateCosMask)
+	cos = cosBits.AsFloat64x4()
 
 	// Handle special cases: ±Inf -> NaN
 	infMask := origX.Equal(trig64_inf).Or(origX.Equal(archsimd.BroadcastFloat64x4(math.Inf(-1))))

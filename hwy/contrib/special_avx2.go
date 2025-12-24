@@ -269,7 +269,7 @@ func erf32AVX2(v hwy.Vec[float32]) hwy.Vec[float32] {
 func Erf_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	// Handle sign: erf(-x) = -erf(x)
 	signMask := x.Less(sig32_zero)
-	absX := x.Abs()
+	absX := x.Max(sig32_zero.Sub(x)) // abs(x) = max(x, -x)
 
 	// t = 1 / (1 + p*|x|)
 	t := sig32_one.Div(sig32_one.Add(erf32_t.Mul(absX)))
@@ -327,7 +327,7 @@ func erf64AVX2(v hwy.Vec[float64]) hwy.Vec[float64] {
 func Erf_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	// Handle sign: erf(-x) = -erf(x)
 	signMask := x.Less(sig64_zero)
-	absX := x.Abs()
+	absX := x.Max(sig64_zero.Sub(x)) // abs(x) = max(x, -x)
 
 	// t = 1 / (1 + p*|x|)
 	t := sig64_one.Div(sig64_one.Add(erf64_t.Mul(absX)))
