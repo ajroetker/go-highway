@@ -3,8 +3,8 @@
 package sigmoid
 
 import (
-	"github.com/go-highway/highway/hwy"
-	"github.com/go-highway/highway/hwy/contrib"
+	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib"
 )
 
 // BaseSigmoid computes the sigmoid activation function: 1 / (1 + exp(-x))

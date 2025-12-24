@@ -4,7 +4,7 @@
 package sigmoid
 
 import (
-	"github.com/go-highway/highway/hwy/contrib"
+	"github.com/ajroetker/go-highway/hwy/contrib"
 	"simd/archsimd"
 )
 

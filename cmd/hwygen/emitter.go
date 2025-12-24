@@ -154,12 +154,12 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	if target.Name != "Fallback" {
 		fmt.Fprintf(&buf, "\t\"simd/archsimd\"\n")
 		if needsContrib {
-			fmt.Fprintf(&buf, "\t\"github.com/go-highway/highway/hwy/contrib\"\n")
+			fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy/contrib\"\n")
 		}
 	} else {
-		fmt.Fprintf(&buf, "\t\"github.com/go-highway/highway/hwy\"\n")
+		fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy\"\n")
 		if needsContrib {
-			fmt.Fprintf(&buf, "\t\"github.com/go-highway/highway/hwy/contrib\"\n")
+			fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy/contrib\"\n")
 		}
 	}
 	fmt.Fprintf(&buf, ")\n\n")

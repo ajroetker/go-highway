@@ -12,7 +12,7 @@ Write SIMD code once, run it on AVX2, AVX-512, or pure Go fallback.
 ## Installation
 
 ```bash
-go get github.com/go-highway/highway
+go get github.com/ajroetker/go-highway
 ```
 
 ## Quick Start
@@ -22,8 +22,8 @@ package main
 
 import (
     "fmt"
-    "github.com/go-highway/highway/hwy"
-    "github.com/go-highway/highway/hwy/contrib"
+    "github.com/ajroetker/go-highway/hwy"
+    "github.com/ajroetker/go-highway/hwy/contrib"
 )
 
 func main() {

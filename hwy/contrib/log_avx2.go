@@ -6,7 +6,7 @@ import (
 	"math"
 	"simd/archsimd"
 
-	"github.com/go-highway/highway/hwy"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 // AVX2 vectorized constants for log32

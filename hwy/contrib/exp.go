@@ -1,6 +1,6 @@
 package contrib
 
-import "github.com/go-highway/highway/hwy"
+import "github.com/ajroetker/go-highway/hwy"
 
 // Exp32 computes e^x for each lane of a float32 vector.
 // Maximum error: ~1 ULP for inputs in [-87, 88] (float32)

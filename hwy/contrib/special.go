@@ -1,6 +1,6 @@
 package contrib
 
-import "github.com/go-highway/highway/hwy"
+import "github.com/ajroetker/go-highway/hwy"
 
 // Tanh32 computes hyperbolic tangent tanh(x) = (e^x - e^-x) / (e^x + e^-x)
 // for each lane of a float32 vector.

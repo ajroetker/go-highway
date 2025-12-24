@@ -84,7 +84,7 @@ func TestParseSimpleFunction(t *testing.T) {
 
 	content := `package test
 
-import "github.com/go-highway/highway/hwy"
+import "github.com/ajroetker/go-highway/hwy"
 
 func BaseAdd[T hwy.Floats](a, b, result []T) {
 	size := min(len(a), len(b), len(result))
@@ -161,7 +161,7 @@ func TestGeneratorEndToEnd(t *testing.T) {
 	inputFile := filepath.Join(tmpDir, "add.go")
 	content := `package testadd
 
-import "github.com/go-highway/highway/hwy"
+import "github.com/ajroetker/go-highway/hwy"
 
 func BaseAdd[T hwy.Floats](a, b, result []T) {
 	size := min(len(a), len(b), len(result))

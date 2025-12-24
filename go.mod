@@ -1,3 +1,3 @@
-module github.com/go-highway/highway
+module github.com/ajroetker/go-highway
 
 go 1.26

@@ -6,7 +6,7 @@
 //
 // Basic usage:
 //
-//	import "github.com/go-highway/highway/hwy"
+//	import "github.com/ajroetker/go-highway/hwy"
 //
 //	// Load data into vectors
 //	a := hwy.Load(data1)

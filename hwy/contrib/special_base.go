@@ -3,7 +3,7 @@ package contrib
 import (
 	"math"
 
-	"github.com/go-highway/highway/hwy"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 func init() {

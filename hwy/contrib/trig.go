@@ -1,6 +1,6 @@
 package contrib
 
-import "github.com/go-highway/highway/hwy"
+import "github.com/ajroetker/go-highway/hwy"
 
 // Sin32 computes sine for each lane of a float32 vector (input in radians).
 // Maximum error: ~2 ULP

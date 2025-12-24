@@ -4,7 +4,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/go-highway/highway/hwy"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 func main() {

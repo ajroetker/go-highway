@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/go-highway/highway/hwy"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 // ULP (Units in the Last Place) comparison for floating-point accuracy testing

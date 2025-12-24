@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"simd/archsimd"
 
-	"github.com/go-highway/highway/hwy/contrib"
+	"github.com/ajroetker/go-highway/hwy/contrib"
 )
 
 func main() {

@@ -37,8 +37,8 @@
 // # Example Usage
 //
 //	import (
-//	    "github.com/go-highway/highway/hwy"
-//	    "github.com/go-highway/highway/hwy/contrib"
+//	    "github.com/ajroetker/go-highway/hwy"
+//	    "github.com/ajroetker/go-highway/hwy/contrib"
 //	)
 //
 //	func ProcessData(data []float32) []float32 {

@@ -1,6 +1,6 @@
 package contrib
 
-import "github.com/go-highway/highway/hwy"
+import "github.com/ajroetker/go-highway/hwy"
 
 // Horner evaluates a polynomial using Horner's method for efficient computation.
 // Given coefficients [c0, c1, c2, ..., cn], computes:

@@ -3,8 +3,8 @@
 package sigmoid
 
 import (
-	"github.com/go-highway/highway/hwy"
-	"github.com/go-highway/highway/hwy/contrib"
+	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib"
 )
 
 func BaseSigmoid_fallback(in []float32, out []float32) {
