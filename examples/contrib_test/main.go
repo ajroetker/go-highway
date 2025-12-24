@@ -1,0 +1,38 @@
+// Example demonstrating the refactored contrib package with AVX2 support.
+// This shows how hwygen-generated code can call contrib functions directly.
+
+//go:build amd64 && goexperiment.simd
+
+package main
+
+import (
+	"fmt"
+	"simd/archsimd"
+
+	"github.com/go-highway/highway/hwy/contrib"
+)
+
+func main() {
+	// Test Exp_AVX2_F32x8
+	input := archsimd.BroadcastFloat32x8(1.0)
+	result := contrib.Exp_AVX2_F32x8(input)
+
+	var values [8]float32
+	result.StoreSlice(values[:])
+
+	fmt.Printf("Exp(1.0) = %v\n", values[0])
+	fmt.Printf("Expected: ~2.71828\n")
+
+	// Test Exp_AVX2_F64x4
+	input64 := archsimd.BroadcastFloat64x4(2.0)
+	result64 := contrib.Exp_AVX2_F64x4(input64)
+
+	var values64 [4]float64
+	result64.StoreSlice(values64[:])
+
+	fmt.Printf("Exp(2.0) = %v\n", values64[0])
+	fmt.Printf("Expected: ~7.38906\n")
+
+	fmt.Println("\nContrib package refactoring successful!")
+	fmt.Println("AVX2-native functions are exported and callable directly.")
+}
