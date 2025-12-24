@@ -157,6 +157,27 @@ func TestExpAVX2Direct(t *testing.T) {
 	}
 }
 
+// Test that the hwy.Vec wrapper with 8 elements actually uses SIMD
+func TestExpVec8Elements(t *testing.T) {
+	// Use exactly 8 elements to ensure SIMD path runs (not scalar fallback)
+	input := []float32{0, 1, 2, -1, 0.5, -0.5, 0.1, -0.1}
+	v := hwy.Load(input)
+	result := Exp(v)
+	output := result.Data()
+
+	t.Logf("Input:  %v", input)
+	t.Logf("Output: %v", output)
+	t.Logf("NumLanes: %d, MaxLanes: %d", v.NumLanes(), hwy.MaxLanes[float32]())
+
+	for i := range input {
+		expected := float32(math.Exp(float64(input[i])))
+		t.Logf("[%d] input=%v output=%v expected=%v", i, input[i], output[i], expected)
+		if !closeEnough32(output[i], expected, 1e-4) {
+			t.Errorf("ExpVec8Elements[%d] input=%v: got %v, want %v", i, input[i], output[i], expected)
+		}
+	}
+}
+
 func closeEnough32(a, b, tol float32) bool {
 	if math.IsNaN(float64(a)) && math.IsNaN(float64(b)) {
 		return true
