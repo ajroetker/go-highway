@@ -5,21 +5,17 @@ package contrib
 import (
 	"math"
 	"simd/archsimd"
-
-	"github.com/ajroetker/go-highway/hwy"
 )
 
 // AVX2 vectorized constants for exp32
 var (
 	// ln(2) split for precision
-	exp32_ln2Hi   = archsimd.BroadcastFloat32x8(0.693359375)
-	exp32_ln2Lo   = archsimd.BroadcastFloat32x8(-2.12194440e-4)
-	exp32_invLn2  = archsimd.BroadcastFloat32x8(1.44269504088896341)
-	exp32_one     = archsimd.BroadcastFloat32x8(1.0)
-	exp32_half    = archsimd.BroadcastFloat32x8(0.5)
-	exp32_zero    = archsimd.BroadcastFloat32x8(0.0)
-	exp32_inf     = archsimd.BroadcastFloat32x8(float32PositiveInf())
-	exp32_negInf  = archsimd.BroadcastFloat32x8(float32NegativeInf())
+	exp32_ln2Hi  = archsimd.BroadcastFloat32x8(0.693359375)
+	exp32_ln2Lo  = archsimd.BroadcastFloat32x8(-2.12194440e-4)
+	exp32_invLn2 = archsimd.BroadcastFloat32x8(1.44269504088896341)
+	exp32_one    = archsimd.BroadcastFloat32x8(1.0)
+	exp32_zero   = archsimd.BroadcastFloat32x8(0.0)
+	exp32_inf    = archsimd.BroadcastFloat32x8(float32PositiveInf())
 
 	// Overflow/underflow thresholds
 	exp32_overflow  = archsimd.BroadcastFloat32x8(88.72283905206835)
@@ -35,8 +31,7 @@ var (
 	exp32_c6 = archsimd.BroadcastFloat32x8(0.001388888888888889)
 
 	// Constants for 2^k computation via IEEE 754 bit manipulation
-	exp32_bias     = archsimd.BroadcastInt32x8(127)
-	exp32_mantBits = archsimd.BroadcastInt32x8(23)
+	exp32_bias = archsimd.BroadcastInt32x8(127)
 )
 
 func float32PositiveInf() float32 {
@@ -44,47 +39,12 @@ func float32PositiveInf() float32 {
 	return math.Float32frombits(bits)
 }
 
-func float32NegativeInf() float32 {
-	bits := uint32(0xFF800000)
-	return math.Float32frombits(bits)
-}
-
-func init() {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		Exp32 = exp32AVX2
-		Exp64 = exp64AVX2
-	}
-}
-
-// exp32AVX2 computes e^x for 8 float32 values using AVX2 SIMD.
+// Exp_AVX2_F32x8 computes e^x for a single Float32x8 vector.
 //
 // Algorithm:
 // 1. Range reduction: x = k*ln(2) + r, where |r| <= ln(2)/2
 // 2. Polynomial approximation: e^r ≈ 1 + r + r²/2! + r³/3! + ...
 // 3. Reconstruction: e^x = 2^k * e^r
-func exp32AVX2(v hwy.Vec[float32]) hwy.Vec[float32] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	// Process 8 elements at a time
-	result := make([]float32, n)
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(data[i:])
-		out := Exp_AVX2_F32x8(x)
-		out.StoreSlice(result[i:])
-	}
-
-	// Handle tail with scalar fallback
-	for i := (n / 8) * 8; i < n; i++ {
-		result[i] = exp32Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
-// Exp_AVX2_F32x8 computes e^x for a single Float32x8 vector.
-// This is the exported function that hwygen-generated code can call directly.
 func Exp_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	// Create masks for special cases
 	overflowMask := x.Greater(exp32_overflow)
@@ -129,44 +89,14 @@ func Exp_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	return result
 }
 
-// exp32Scalar is the scalar fallback for tail elements.
-func exp32Scalar(x float32) float32 {
-	// Use the base implementation for scalar
-	v := hwy.Load([]float32{x})
-	result := exp32Base(v)
-	return result.Data()[0]
-}
-
-// exp64AVX2 computes e^x for float64 values using AVX2 SIMD.
-func exp64AVX2(v hwy.Vec[float64]) hwy.Vec[float64] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float64, n)
-
-	// Process 4 elements at a time (Float64x4)
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(data[i:])
-		out := Exp_AVX2_F64x4(x)
-		out.StoreSlice(result[i:])
-	}
-
-	// Handle tail with scalar fallback
-	for i := (n / 4) * 4; i < n; i++ {
-		result[i] = exp64Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // AVX2 vectorized constants for exp64
 var (
-	exp64_ln2Hi   = archsimd.BroadcastFloat64x4(0.6931471803691238)
-	exp64_ln2Lo   = archsimd.BroadcastFloat64x4(1.9082149292705877e-10)
-	exp64_invLn2  = archsimd.BroadcastFloat64x4(1.4426950408889634)
-	exp64_one     = archsimd.BroadcastFloat64x4(1.0)
-	exp64_zero    = archsimd.BroadcastFloat64x4(0.0)
-	exp64_inf     = archsimd.BroadcastFloat64x4(float64PositiveInf())
+	exp64_ln2Hi  = archsimd.BroadcastFloat64x4(0.6931471803691238)
+	exp64_ln2Lo  = archsimd.BroadcastFloat64x4(1.9082149292705877e-10)
+	exp64_invLn2 = archsimd.BroadcastFloat64x4(1.4426950408889634)
+	exp64_one    = archsimd.BroadcastFloat64x4(1.0)
+	exp64_zero   = archsimd.BroadcastFloat64x4(0.0)
+	exp64_inf    = archsimd.BroadcastFloat64x4(math.Inf(1))
 
 	exp64_overflow  = archsimd.BroadcastFloat64x4(709.782712893384)
 	exp64_underflow = archsimd.BroadcastFloat64x4(-708.3964185322641)
@@ -183,16 +113,10 @@ var (
 	exp64_c9  = archsimd.BroadcastFloat64x4(2.7557319223985893e-06)
 	exp64_c10 = archsimd.BroadcastFloat64x4(2.755731922398589e-07)
 
-	exp64_bias     = archsimd.BroadcastInt64x4(1023)
-	exp64_mantBits = archsimd.BroadcastInt64x4(52)
+	exp64_bias = archsimd.BroadcastInt64x4(1023)
 )
 
-func float64PositiveInf() float64 {
-	return math.Inf(1)
-}
-
 // Exp_AVX2_F64x4 computes e^x for a single Float64x4 vector.
-// This is the exported function that hwygen-generated code can call directly.
 func Exp_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	overflowMask := x.Greater(exp64_overflow)
 	underflowMask := x.Less(exp64_underflow)
@@ -226,11 +150,4 @@ func Exp_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	result = exp64_zero.Merge(result, underflowMask)
 
 	return result
-}
-
-// exp64Scalar is the scalar fallback for tail elements.
-func exp64Scalar(x float64) float64 {
-	v := hwy.Load([]float64{x})
-	result := exp64Base(v)
-	return result.Data()[0]
 }

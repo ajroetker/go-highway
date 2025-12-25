@@ -12,419 +12,185 @@ import (
 // This file provides zero-allocation Transform functions using AVX2 SIMD.
 // These functions process slices directly without the hwy.Vec abstraction overhead.
 
-// ExpTransform applies exp(x) to each element with zero allocations.
-// Caller must ensure len(output) >= len(input).
-func ExpTransform(input, output []float32) {
+// Function types for generic Transform operations.
+// These allow users to pass custom SIMD operations to Transform32/Transform64.
+type (
+	// VecFunc32 is a SIMD operation on 8 float32 values.
+	VecFunc32 func(archsimd.Float32x8) archsimd.Float32x8
+
+	// VecFunc64 is a SIMD operation on 4 float64 values.
+	VecFunc64 func(archsimd.Float64x4) archsimd.Float64x4
+
+	// ScalarFunc32 is a scalar operation on a single float32.
+	ScalarFunc32 func(float32) float32
+
+	// ScalarFunc64 is a scalar operation on a single float64.
+	ScalarFunc64 func(float64) float64
+)
+
+// Transform32 applies a SIMD operation to each element of input, storing results in output.
+// This is the generic primitive that all named transforms (ExpTransform, etc.) build upon.
+//
+// The simd function processes 8 elements at a time using AVX2.
+// The scalar function handles remaining elements (0-7) that don't fill a full vector.
+//
+// Example usage:
+//
+//	// Apply x² + x to all elements
+//	Transform32(input, output,
+//	    func(x archsimd.Float32x8) archsimd.Float32x8 {
+//	        return x.Mul(x).Add(x)
+//	    },
+//	    func(x float32) float32 { return x*x + x },
+//	)
+func Transform32(input, output []float32, simd VecFunc32, scalar ScalarFunc32) {
 	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		expTransformAVX2(input, output)
+		transform32AVX2(input, output, simd, scalar)
 	} else {
-		expTransformScalar(input, output)
+		transform32Scalar(input, output, scalar)
 	}
 }
 
-// ExpTransform64 applies exp(x) to each float64 element with zero allocations.
-func ExpTransform64(input, output []float64) {
+// Transform64 applies a SIMD operation to each element of input, storing results in output.
+// This is the generic primitive that all named transforms (ExpTransform64, etc.) build upon.
+//
+// The simd function processes 4 elements at a time using AVX2.
+// The scalar function handles remaining elements (0-3) that don't fill a full vector.
+func Transform64(input, output []float64, simd VecFunc64, scalar ScalarFunc64) {
 	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		expTransformAVX2_64(input, output)
+		transform64AVX2(input, output, simd, scalar)
 	} else {
-		expTransformScalar64(input, output)
+		transform64Scalar(input, output, scalar)
 	}
 }
 
-// LogTransform applies ln(x) to each element with zero allocations.
-func LogTransform(input, output []float32) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		logTransformAVX2(input, output)
-	} else {
-		logTransformScalar(input, output)
-	}
-}
-
-// LogTransform64 applies ln(x) to each float64 element with zero allocations.
-func LogTransform64(input, output []float64) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		logTransformAVX2_64(input, output)
-	} else {
-		logTransformScalar64(input, output)
-	}
-}
-
-// SinTransform applies sin(x) to each element with zero allocations.
-func SinTransform(input, output []float32) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		sinTransformAVX2(input, output)
-	} else {
-		sinTransformScalar(input, output)
-	}
-}
-
-// SinTransform64 applies sin(x) to each float64 element with zero allocations.
-func SinTransform64(input, output []float64) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		sinTransformAVX2_64(input, output)
-	} else {
-		sinTransformScalar64(input, output)
-	}
-}
-
-// CosTransform applies cos(x) to each element with zero allocations.
-func CosTransform(input, output []float32) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		cosTransformAVX2(input, output)
-	} else {
-		cosTransformScalar(input, output)
-	}
-}
-
-// CosTransform64 applies cos(x) to each float64 element with zero allocations.
-func CosTransform64(input, output []float64) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		cosTransformAVX2_64(input, output)
-	} else {
-		cosTransformScalar64(input, output)
-	}
-}
-
-// TanhTransform applies tanh(x) to each element with zero allocations.
-func TanhTransform(input, output []float32) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		tanhTransformAVX2(input, output)
-	} else {
-		tanhTransformScalar(input, output)
-	}
-}
-
-// TanhTransform64 applies tanh(x) to each float64 element with zero allocations.
-func TanhTransform64(input, output []float64) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		tanhTransformAVX2_64(input, output)
-	} else {
-		tanhTransformScalar64(input, output)
-	}
-}
-
-// SigmoidTransform applies sigmoid(x) = 1/(1+exp(-x)) to each element with zero allocations.
-func SigmoidTransform(input, output []float32) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		sigmoidTransformAVX2(input, output)
-	} else {
-		sigmoidTransformScalar(input, output)
-	}
-}
-
-// SigmoidTransform64 applies sigmoid(x) to each float64 element with zero allocations.
-func SigmoidTransform64(input, output []float64) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		sigmoidTransformAVX2_64(input, output)
-	} else {
-		sigmoidTransformScalar64(input, output)
-	}
-}
-
-// ErfTransform applies erf(x) to each element with zero allocations.
-func ErfTransform(input, output []float32) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		erfTransformAVX2(input, output)
-	} else {
-		erfTransformScalar(input, output)
-	}
-}
-
-// ErfTransform64 applies erf(x) to each float64 element with zero allocations.
-func ErfTransform64(input, output []float64) {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		erfTransformAVX2_64(input, output)
-	} else {
-		erfTransformScalar64(input, output)
-	}
-}
-
-// AVX2 implementations - Float32
-
-func expTransformAVX2(input, output []float32) {
+func transform32AVX2(input, output []float32, simd VecFunc32, scalar ScalarFunc32) {
 	n := min(len(input), len(output))
 
 	// Process 8 float32s at a time
 	for i := 0; i+8 <= n; i += 8 {
 		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Exp_AVX2_F32x8(x).StoreSlice(output[i:])
+		simd(x).StoreSlice(output[i:])
 	}
 
 	// Scalar tail
 	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(math.Exp(float64(input[i])))
+		output[i] = scalar(input[i])
 	}
 }
 
-func logTransformAVX2(input, output []float32) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Log_AVX2_F32x8(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(math.Log(float64(input[i])))
-	}
-}
-
-func sinTransformAVX2(input, output []float32) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Sin_AVX2_F32x8(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(math.Sin(float64(input[i])))
-	}
-}
-
-func cosTransformAVX2(input, output []float32) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Cos_AVX2_F32x8(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(math.Cos(float64(input[i])))
-	}
-}
-
-func tanhTransformAVX2(input, output []float32) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Tanh_AVX2_F32x8(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(math.Tanh(float64(input[i])))
-	}
-}
-
-func sigmoidTransformAVX2(input, output []float32) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Sigmoid_AVX2_F32x8(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(1.0 / (1.0 + math.Exp(-float64(input[i]))))
-	}
-}
-
-func erfTransformAVX2(input, output []float32) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(input[i:])
-		Erf_AVX2_F32x8(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		output[i] = float32(math.Erf(float64(input[i])))
-	}
-}
-
-// AVX2 implementations - Float64
-
-func expTransformAVX2_64(input, output []float64) {
+func transform64AVX2(input, output []float64, simd VecFunc64, scalar ScalarFunc64) {
 	n := min(len(input), len(output))
 
 	// Process 4 float64s at a time
 	for i := 0; i+4 <= n; i += 4 {
 		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Exp_AVX2_F64x4(x).StoreSlice(output[i:])
+		simd(x).StoreSlice(output[i:])
 	}
 
 	// Scalar tail
 	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = math.Exp(input[i])
+		output[i] = scalar(input[i])
 	}
 }
 
-func logTransformAVX2_64(input, output []float64) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Log_AVX2_F64x4(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = math.Log(input[i])
-	}
-}
-
-func sinTransformAVX2_64(input, output []float64) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Sin_AVX2_F64x4(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = math.Sin(input[i])
-	}
-}
-
-func cosTransformAVX2_64(input, output []float64) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Cos_AVX2_F64x4(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = math.Cos(input[i])
-	}
-}
-
-func tanhTransformAVX2_64(input, output []float64) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Tanh_AVX2_F64x4(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = math.Tanh(input[i])
-	}
-}
-
-func sigmoidTransformAVX2_64(input, output []float64) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Sigmoid_AVX2_F64x4(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = 1.0 / (1.0 + math.Exp(-input[i]))
-	}
-}
-
-func erfTransformAVX2_64(input, output []float64) {
-	n := min(len(input), len(output))
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(input[i:])
-		Erf_AVX2_F64x4(x).StoreSlice(output[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		output[i] = math.Erf(input[i])
-	}
-}
-
-// Scalar fallbacks (shared with transform.go for non-SIMD builds)
-
-func expTransformScalar(input, output []float32) {
+func transform32Scalar(input, output []float32, scalar ScalarFunc32) {
 	n := min(len(input), len(output))
 	for i := 0; i < n; i++ {
-		output[i] = float32(math.Exp(float64(input[i])))
+		output[i] = scalar(input[i])
 	}
 }
 
-func expTransformScalar64(input, output []float64) {
+func transform64Scalar(input, output []float64, scalar ScalarFunc64) {
 	n := min(len(input), len(output))
 	for i := 0; i < n; i++ {
-		output[i] = math.Exp(input[i])
+		output[i] = scalar(input[i])
 	}
 }
 
-func logTransformScalar(input, output []float32) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = float32(math.Log(float64(input[i])))
-	}
+// Scalar helper functions for tail elements
+func exp32Scalar(x float32) float32   { return float32(math.Exp(float64(x))) }
+func exp64Scalar(x float64) float64   { return math.Exp(x) }
+func log32Scalar(x float32) float32   { return float32(math.Log(float64(x))) }
+func log64Scalar(x float64) float64   { return math.Log(x) }
+func sin32Scalar(x float32) float32   { return float32(math.Sin(float64(x))) }
+func sin64Scalar(x float64) float64   { return math.Sin(x) }
+func cos32Scalar(x float32) float32   { return float32(math.Cos(float64(x))) }
+func cos64Scalar(x float64) float64   { return math.Cos(x) }
+func tanh32Scalar(x float32) float32  { return float32(math.Tanh(float64(x))) }
+func tanh64Scalar(x float64) float64  { return math.Tanh(x) }
+func sigmoid32Scalar(x float32) float32 { return float32(1.0 / (1.0 + math.Exp(-float64(x)))) }
+func sigmoid64Scalar(x float64) float64 { return 1.0 / (1.0 + math.Exp(-x)) }
+func erf32Scalar(x float32) float32   { return float32(math.Erf(float64(x))) }
+func erf64Scalar(x float64) float64   { return math.Erf(x) }
+
+// ExpTransform applies exp(x) to each element with zero allocations.
+// Caller must ensure len(output) >= len(input).
+func ExpTransform(input, output []float32) {
+	Transform32(input, output, Exp_AVX2_F32x8, exp32Scalar)
 }
 
-func logTransformScalar64(input, output []float64) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = math.Log(input[i])
-	}
+// ExpTransform64 applies exp(x) to each float64 element with zero allocations.
+func ExpTransform64(input, output []float64) {
+	Transform64(input, output, Exp_AVX2_F64x4, exp64Scalar)
 }
 
-func sinTransformScalar(input, output []float32) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = float32(math.Sin(float64(input[i])))
-	}
+// LogTransform applies ln(x) to each element with zero allocations.
+func LogTransform(input, output []float32) {
+	Transform32(input, output, Log_AVX2_F32x8, log32Scalar)
 }
 
-func sinTransformScalar64(input, output []float64) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = math.Sin(input[i])
-	}
+// LogTransform64 applies ln(x) to each float64 element with zero allocations.
+func LogTransform64(input, output []float64) {
+	Transform64(input, output, Log_AVX2_F64x4, log64Scalar)
 }
 
-func cosTransformScalar(input, output []float32) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = float32(math.Cos(float64(input[i])))
-	}
+// SinTransform applies sin(x) to each element with zero allocations.
+func SinTransform(input, output []float32) {
+	Transform32(input, output, Sin_AVX2_F32x8, sin32Scalar)
 }
 
-func cosTransformScalar64(input, output []float64) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = math.Cos(input[i])
-	}
+// SinTransform64 applies sin(x) to each float64 element with zero allocations.
+func SinTransform64(input, output []float64) {
+	Transform64(input, output, Sin_AVX2_F64x4, sin64Scalar)
 }
 
-func tanhTransformScalar(input, output []float32) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = float32(math.Tanh(float64(input[i])))
-	}
+// CosTransform applies cos(x) to each element with zero allocations.
+func CosTransform(input, output []float32) {
+	Transform32(input, output, Cos_AVX2_F32x8, cos32Scalar)
 }
 
-func tanhTransformScalar64(input, output []float64) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = math.Tanh(input[i])
-	}
+// CosTransform64 applies cos(x) to each float64 element with zero allocations.
+func CosTransform64(input, output []float64) {
+	Transform64(input, output, Cos_AVX2_F64x4, cos64Scalar)
 }
 
-func sigmoidTransformScalar(input, output []float32) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = float32(1.0 / (1.0 + math.Exp(-float64(input[i]))))
-	}
+// TanhTransform applies tanh(x) to each element with zero allocations.
+func TanhTransform(input, output []float32) {
+	Transform32(input, output, Tanh_AVX2_F32x8, tanh32Scalar)
 }
 
-func sigmoidTransformScalar64(input, output []float64) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = 1.0 / (1.0 + math.Exp(-input[i]))
-	}
+// TanhTransform64 applies tanh(x) to each float64 element with zero allocations.
+func TanhTransform64(input, output []float64) {
+	Transform64(input, output, Tanh_AVX2_F64x4, tanh64Scalar)
 }
 
-func erfTransformScalar(input, output []float32) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = float32(math.Erf(float64(input[i])))
-	}
+// SigmoidTransform applies sigmoid(x) = 1/(1+exp(-x)) to each element with zero allocations.
+func SigmoidTransform(input, output []float32) {
+	Transform32(input, output, Sigmoid_AVX2_F32x8, sigmoid32Scalar)
 }
 
-func erfTransformScalar64(input, output []float64) {
-	n := min(len(input), len(output))
-	for i := 0; i < n; i++ {
-		output[i] = math.Erf(input[i])
-	}
+// SigmoidTransform64 applies sigmoid(x) to each float64 element with zero allocations.
+func SigmoidTransform64(input, output []float64) {
+	Transform64(input, output, Sigmoid_AVX2_F64x4, sigmoid64Scalar)
+}
+
+// ErfTransform applies erf(x) to each element with zero allocations.
+func ErfTransform(input, output []float32) {
+	Transform32(input, output, Erf_AVX2_F32x8, erf32Scalar)
+}
+
+// ErfTransform64 applies erf(x) to each float64 element with zero allocations.
+func ErfTransform64(input, output []float64) {
+	Transform64(input, output, Erf_AVX2_F64x4, erf64Scalar)
 }

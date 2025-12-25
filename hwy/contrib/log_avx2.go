@@ -5,19 +5,17 @@ package contrib
 import (
 	"math"
 	"simd/archsimd"
-
-	"github.com/ajroetker/go-highway/hwy"
 )
 
 // AVX2 vectorized constants for log32
 var (
 	// Polynomial coefficients for atanh-based log approximation
 	// ln((1+y)/(1-y)) = 2y(1 + y²/3 + y⁴/5 + y⁶/7 + ...)
-	log32_c1 = archsimd.BroadcastFloat32x8(0.3333333333333367565)  // 1/3
-	log32_c2 = archsimd.BroadcastFloat32x8(0.1999999999970470954)  // 1/5
-	log32_c3 = archsimd.BroadcastFloat32x8(0.1428571437183119574)  // 1/7
-	log32_c4 = archsimd.BroadcastFloat32x8(0.1111109921607489198)  // 1/9
-	log32_c5 = archsimd.BroadcastFloat32x8(0.0909178608080902506)  // 1/11
+	log32_c1 = archsimd.BroadcastFloat32x8(0.3333333333333367565) // 1/3
+	log32_c2 = archsimd.BroadcastFloat32x8(0.1999999999970470954) // 1/5
+	log32_c3 = archsimd.BroadcastFloat32x8(0.1428571437183119574) // 1/7
+	log32_c4 = archsimd.BroadcastFloat32x8(0.1111109921607489198) // 1/9
+	log32_c5 = archsimd.BroadcastFloat32x8(0.0909178608080902506) // 1/11
 
 	// ln(2) split for precision
 	log32_ln2Hi = archsimd.BroadcastFloat32x8(0.693359375)
@@ -35,24 +33,22 @@ var (
 	log32_nan    = archsimd.BroadcastFloat32x8(float32(math.NaN()))
 
 	// Bit manipulation constants for IEEE 754
-	log32_mantMask  = archsimd.BroadcastInt32x8(0x007FFFFF)         // mantissa mask
-	log32_expMask   = archsimd.BroadcastInt32x8(0x7F800000)         // exponent mask
-	log32_expBias   = archsimd.BroadcastInt32x8(127)                // exponent bias
-	log32_normBits  = archsimd.BroadcastInt32x8(0x3F800000)         // 1.0 in IEEE 754
-	log32_intOne    = archsimd.BroadcastInt32x8(1)
-	log32_intZero   = archsimd.BroadcastInt32x8(0)
+	log32_mantMask = archsimd.BroadcastInt32x8(0x007FFFFF)  // mantissa mask
+	log32_expBias  = archsimd.BroadcastInt32x8(127)         // exponent bias
+	log32_normBits = archsimd.BroadcastInt32x8(0x3F800000)  // 1.0 in IEEE 754
+	log32_intOne   = archsimd.BroadcastInt32x8(1)
 )
 
 // AVX2 vectorized constants for log64
 var (
 	// Higher-degree polynomial for float64
-	log64_c1 = archsimd.BroadcastFloat64x4(0.3333333333333367565)  // 1/3
-	log64_c2 = archsimd.BroadcastFloat64x4(0.1999999999970470954)  // 1/5
-	log64_c3 = archsimd.BroadcastFloat64x4(0.1428571437183119574)  // 1/7
-	log64_c4 = archsimd.BroadcastFloat64x4(0.1111109921607489198)  // 1/9
-	log64_c5 = archsimd.BroadcastFloat64x4(0.0909178608080902506)  // 1/11
-	log64_c6 = archsimd.BroadcastFloat64x4(0.0765691884960468666)  // 1/13
-	log64_c7 = archsimd.BroadcastFloat64x4(0.0739909930255829295)  // 1/15 (approx)
+	log64_c1 = archsimd.BroadcastFloat64x4(0.3333333333333367565) // 1/3
+	log64_c2 = archsimd.BroadcastFloat64x4(0.1999999999970470954) // 1/5
+	log64_c3 = archsimd.BroadcastFloat64x4(0.1428571437183119574) // 1/7
+	log64_c4 = archsimd.BroadcastFloat64x4(0.1111109921607489198) // 1/9
+	log64_c5 = archsimd.BroadcastFloat64x4(0.0909178608080902506) // 1/11
+	log64_c6 = archsimd.BroadcastFloat64x4(0.0765691884960468666) // 1/13
+	log64_c7 = archsimd.BroadcastFloat64x4(0.0739909930255829295) // 1/15 (approx)
 
 	log64_ln2Hi = archsimd.BroadcastFloat64x4(0.6931471803691238)
 	log64_ln2Lo = archsimd.BroadcastFloat64x4(1.9082149292705877e-10)
@@ -67,43 +63,12 @@ var (
 	log64_nan    = archsimd.BroadcastFloat64x4(math.NaN())
 
 	log64_mantMask = archsimd.BroadcastInt64x4(0x000FFFFFFFFFFFFF)
-	log64_expMask  = archsimd.BroadcastInt64x4(0x7FF0000000000000)
 	log64_expBias  = archsimd.BroadcastInt64x4(1023)
 	log64_normBits = archsimd.BroadcastInt64x4(0x3FF0000000000000)
 	log64_intOne   = archsimd.BroadcastInt64x4(1)
 )
 
-func init() {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		Log32 = log32AVX2
-		Log64 = log64AVX2
-	}
-}
-
-// log32AVX2 computes ln(x) for float32 values using AVX2 SIMD.
-func log32AVX2(v hwy.Vec[float32]) hwy.Vec[float32] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float32, n)
-
-	// Process 8 elements at a time
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(data[i:])
-		out := Log_AVX2_F32x8(x)
-		out.StoreSlice(result[i:])
-	}
-
-	// Handle tail with scalar fallback
-	for i := (n / 8) * 8; i < n; i++ {
-		result[i] = log32Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Log_AVX2_F32x8 computes ln(x) for a single Float32x8 vector.
-// This is the exported function that hwygen-generated code can call directly.
 //
 // Algorithm:
 // 1. Range reduction: x = 2^e * m where 1 <= m < 2
@@ -183,37 +148,7 @@ func Log_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	return result
 }
 
-// log32Scalar is the scalar fallback for tail elements.
-func log32Scalar(x float32) float32 {
-	v := hwy.Load([]float32{x})
-	result := log32Base(v)
-	return result.Data()[0]
-}
-
-// log64AVX2 computes ln(x) for float64 values using AVX2 SIMD.
-func log64AVX2(v hwy.Vec[float64]) hwy.Vec[float64] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float64, n)
-
-	// Process 4 elements at a time (Float64x4)
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(data[i:])
-		out := Log_AVX2_F64x4(x)
-		out.StoreSlice(result[i:])
-	}
-
-	// Handle tail with scalar fallback
-	for i := (n / 4) * 4; i < n; i++ {
-		result[i] = log64Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Log_AVX2_F64x4 computes ln(x) for a single Float64x4 vector.
-// This is the exported function that hwygen-generated code can call directly.
 //
 // Algorithm: Same as F32x8 but with higher-degree polynomial for float64 precision.
 func Log_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
@@ -277,11 +212,4 @@ func Log_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	result = log64_posInf.Merge(result, infMask)
 
 	return result
-}
-
-// log64Scalar is the scalar fallback for tail elements.
-func log64Scalar(x float64) float64 {
-	v := hwy.Load([]float64{x})
-	result := log64Base(v)
-	return result.Data()[0]
 }

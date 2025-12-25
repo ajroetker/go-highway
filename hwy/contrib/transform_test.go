@@ -6,8 +6,6 @@ import (
 	"math"
 	"simd/archsimd"
 	"testing"
-
-	"github.com/ajroetker/go-highway/hwy"
 )
 
 const benchSize = 1024
@@ -232,11 +230,6 @@ func TestExp32Constants(t *testing.T) {
 	exp32_one.StoreSlice(oneOutput)
 	t.Logf("exp32_one: %v", oneOutput)
 
-	// Read exp32_half constant
-	halfOutput := make([]float32, 8)
-	exp32_half.StoreSlice(halfOutput)
-	t.Logf("exp32_half: %v", halfOutput)
-
 	// Read exp32_invLn2 constant
 	invLn2Output := make([]float32, 8)
 	exp32_invLn2.StoreSlice(invLn2Output)
@@ -251,13 +244,6 @@ func TestExp32Constants(t *testing.T) {
 	for i, v := range oneOutput {
 		if v != 1.0 {
 			t.Errorf("exp32_one[%d]: got %v, want 1.0", i, v)
-		}
-	}
-
-	// Verify exp32_half is correct (all 0.5)
-	for i, v := range halfOutput {
-		if v != 0.5 {
-			t.Errorf("exp32_half[%d]: got %v, want 0.5", i, v)
 		}
 	}
 
@@ -334,32 +320,10 @@ func TestExpAVX2Direct(t *testing.T) {
 	}
 }
 
-// Test that the hwy.Vec wrapper with 8 elements actually uses SIMD
-func TestExpVec8Elements(t *testing.T) {
-	// Use exactly 8 elements to ensure SIMD path runs (not scalar fallback)
-	input := []float32{0, 1, 2, -1, 0.5, -0.5, 0.1, -0.1}
-	v := hwy.Load(input)
-	result := Exp(v)
-	output := result.Data()
-
-	t.Logf("Input:  %v", input)
-	t.Logf("Output: %v", output)
-	t.Logf("NumLanes: %d, MaxLanes: %d", v.NumLanes(), hwy.MaxLanes[float32]())
-
-	for i := range input {
-		expected := float32(math.Exp(float64(input[i])))
-		t.Logf("[%d] input=%v output=%v expected=%v", i, input[i], output[i], expected)
-		if !closeEnough32(output[i], expected, 1e-4) {
-			t.Errorf("ExpVec8Elements[%d] input=%v: got %v, want %v", i, input[i], output[i], expected)
-		}
-	}
-}
-
-// Test that mimics exactly what exp32AVX2 does internally
-func TestExpMimicExp32AVX2(t *testing.T) {
+// Test that mimics exactly what the SIMD exp loop does
+func TestExpMimicLoop(t *testing.T) {
 	input := []float32{0, 1, 2, -1, 0.5, -0.5, 0.1, -0.1}
 
-	// This is exactly what exp32AVX2 does:
 	data := input
 	n := len(input)
 	result := make([]float32, n)
@@ -390,43 +354,12 @@ func TestExpMimicExp32AVX2(t *testing.T) {
 	for i := range input {
 		expected := float32(math.Exp(float64(input[i])))
 		if !closeEnough32(result[i], expected, 1e-4) {
-			t.Errorf("ExpMimicExp32AVX2[%d] input=%v: got %v, want %v", i, input[i], result[i], expected)
+			t.Errorf("ExpMimicLoop[%d] input=%v: got %v, want %v", i, input[i], result[i], expected)
 		}
 	}
 }
 
-// Test to verify which implementation is being used for Exp32
-func TestWhichExpImplementation(t *testing.T) {
-	// Check if Exp32 is the AVX2 version by comparing function pointers
-	// We can't directly compare function pointers, but we can check behavior
-
-	// The AVX2 version should process 8 elements at a time correctly
-	// The base version should also work but uses scalar math.Exp
-
-	t.Logf("hwy.CurrentLevel() = %v", hwy.CurrentLevel())
-	t.Logf("hwy.DispatchAVX2 = %v", hwy.DispatchAVX2)
-	t.Logf("AVX2 detected = %v", hwy.CurrentLevel() >= hwy.DispatchAVX2)
-
-	// Test with 8 elements to see if SIMD path is used
-	input := []float32{0, 1, 2, 3, 4, 5, 6, 7}
-	v := hwy.Load(input)
-
-	// Call Exp which uses Exp32
-	result := Exp(v)
-	output := result.Data()
-
-	t.Logf("Exp result: %v", output)
-
-	// Verify correctness
-	for i := range input {
-		expected := float32(math.Exp(float64(input[i])))
-		if !closeEnough32(output[i], expected, 1e-4) {
-			t.Errorf("Exp[%d]: got %v, want %v", i, output[i], expected)
-		}
-	}
-}
-
-// Test the overflow/underflow mask behavior that's breaking Exp_AVX2_F32x8
+// Test the overflow/underflow mask behavior
 func TestExpMaskBehavior(t *testing.T) {
 	input := []float32{0, 1, 2, -1, 0.5, -0.5, 0.1, -0.1}
 	x := archsimd.LoadFloat32x8Slice(input)
@@ -474,14 +407,9 @@ func TestExpMaskBehavior(t *testing.T) {
 	lessMask := testX.Less(threshold)
 
 	// Apply merge with lessMask
-	// Merge semantics: a.Merge(b, mask) returns a when TRUE, b when FALSE
-	// So orig.Merge(zero, lessMask) returns:
-	//   - orig (100) when lessMask is TRUE (x < -10)
-	//   - zero (0) when lessMask is FALSE (x >= -10)
-	// If we want 0 where x < threshold, we should use: zero.Merge(orig, lessMask)
 	orig := archsimd.BroadcastFloat32x8(100.0)
 	zero := archsimd.BroadcastFloat32x8(0.0)
-	afterMerge := zero.Merge(orig, lessMask) // Fixed: swap arguments for correct semantics
+	afterMerge := zero.Merge(orig, lessMask)
 	afterMerge.StoreSlice(resultVal)
 	t.Logf("Less than -10 test: inputs=%v result=%v", testInputs, resultVal)
 
@@ -796,50 +724,6 @@ func BenchmarkErfTransform_Stdlib(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := range input {
 			output[j] = float32(math.Erf(float64(input[j])))
-		}
-	}
-}
-
-// Benchmarks - Old Vec API comparison (to show allocation overhead)
-
-func BenchmarkExpVec(b *testing.B) {
-	data := make([]float32, benchSize)
-	for i := range data {
-		data[i] = float32(i) * 0.01
-	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(data); j += hwy.MaxLanes[float32]() {
-			end := j + hwy.MaxLanes[float32]()
-			if end > len(data) {
-				end = len(data)
-			}
-			v := hwy.Load(data[j:end])
-			result := Exp(v)
-			_ = result
-		}
-	}
-}
-
-func BenchmarkLogVec(b *testing.B) {
-	data := make([]float32, benchSize)
-	for i := range data {
-		data[i] = float32(i+1) * 0.01
-	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(data); j += hwy.MaxLanes[float32]() {
-			end := j + hwy.MaxLanes[float32]()
-			if end > len(data) {
-				end = len(data)
-			}
-			v := hwy.Load(data[j:end])
-			result := Log(v)
-			_ = result
 		}
 	}
 }

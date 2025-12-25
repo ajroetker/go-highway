@@ -189,6 +189,35 @@ GOEXPERIMENT=simd go1.26rc1 test -bench=. -benchmem ./hwy/contrib/...
 
 ## Future Extensions
 
-1. **Generic Transform**: `Transform[T](input, output []T, fn func(archsimd.Vec) archsimd.Vec)`
+1. ~~**Generic Transform**: `Transform[T](input, output []T, fn func(archsimd.Vec) archsimd.Vec)`~~ ✅ **IMPLEMENTED** as `Transform32`/`Transform64`
 2. **Buffer Pool**: Reusable buffers for repeated transforms
 3. **AVX512**: Same pattern with Float32x16/Float64x8
+
+## Implemented: Generic Transform API
+
+The generic Transform functions are now available:
+
+```go
+// Type definitions
+type VecFunc32 func(archsimd.Float32x8) archsimd.Float32x8
+type VecFunc64 func(archsimd.Float64x4) archsimd.Float64x4
+type ScalarFunc32 func(float32) float32
+type ScalarFunc64 func(float64) float64
+
+// Generic functions
+func Transform32(input, output []float32, simd VecFunc32, scalar ScalarFunc32)
+func Transform64(input, output []float64, simd VecFunc64, scalar ScalarFunc64)
+```
+
+Usage example:
+```go
+// Apply x² + x to all elements using SIMD
+Transform32(input, output,
+    func(x archsimd.Float32x8) archsimd.Float32x8 {
+        return x.Mul(x).Add(x)
+    },
+    func(x float32) float32 { return x*x + x },
+)
+```
+
+The named transforms (ExpTransform, etc.) are now built on top of Transform32/Transform64.

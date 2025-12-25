@@ -4,23 +4,21 @@ package contrib
 
 import (
 	"simd/archsimd"
-
-	"github.com/ajroetker/go-highway/hwy"
 )
 
 // AVX2 vectorized constants for special functions
 var (
 	// Sigmoid constants
-	sig32_zero      = archsimd.BroadcastFloat32x8(0.0)
-	sig32_one       = archsimd.BroadcastFloat32x8(1.0)
-	sig32_negOne    = archsimd.BroadcastFloat32x8(-1.0)
-	sig32_satHi     = archsimd.BroadcastFloat32x8(20.0)  // sigmoid saturates to 1
-	sig32_satLo     = archsimd.BroadcastFloat32x8(-20.0) // sigmoid saturates to 0
+	sig32_zero   = archsimd.BroadcastFloat32x8(0.0)
+	sig32_one    = archsimd.BroadcastFloat32x8(1.0)
+	sig32_negOne = archsimd.BroadcastFloat32x8(-1.0)
+	sig32_satHi  = archsimd.BroadcastFloat32x8(20.0)  // sigmoid saturates to 1
+	sig32_satLo  = archsimd.BroadcastFloat32x8(-20.0) // sigmoid saturates to 0
 
-	sig64_zero   = archsimd.BroadcastFloat64x4(0.0)
-	sig64_one    = archsimd.BroadcastFloat64x4(1.0)
-	sig64_satHi  = archsimd.BroadcastFloat64x4(36.0)
-	sig64_satLo  = archsimd.BroadcastFloat64x4(-36.0)
+	sig64_zero  = archsimd.BroadcastFloat64x4(0.0)
+	sig64_one   = archsimd.BroadcastFloat64x4(1.0)
+	sig64_satHi = archsimd.BroadcastFloat64x4(36.0)
+	sig64_satLo = archsimd.BroadcastFloat64x4(-36.0)
 
 	// Tanh constants
 	tanh32_two       = archsimd.BroadcastFloat32x8(2.0)
@@ -45,39 +43,7 @@ var (
 	erf64_t  = archsimd.BroadcastFloat64x4(0.3275911)
 )
 
-func init() {
-	if hwy.CurrentLevel() >= hwy.DispatchAVX2 {
-		Tanh32 = tanh32AVX2
-		Tanh64 = tanh64AVX2
-		Sigmoid32 = sigmoid32AVX2
-		Sigmoid64 = sigmoid64AVX2
-		Erf32 = erf32AVX2
-		Erf64 = erf64AVX2
-	}
-}
-
-// tanh32AVX2 computes tanh(x) for float32 values using AVX2 SIMD.
-func tanh32AVX2(v hwy.Vec[float32]) hwy.Vec[float32] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float32, n)
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(data[i:])
-		out := Tanh_AVX2_F32x8(x)
-		out.StoreSlice(result[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		result[i] = tanh32Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Tanh_AVX2_F32x8 computes tanh(x) for a single Float32x8 vector.
-// This is the exported function that hwygen-generated code can call directly.
 //
 // Algorithm: tanh(x) = 2*sigmoid(2x) - 1
 // For large |x|, tanh saturates to ±1.
@@ -87,7 +53,7 @@ func Tanh_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	sigTwoX := Sigmoid_AVX2_F32x8(twoX)
 	result := tanh32_two.Mul(sigTwoX).Sub(sig32_one)
 
-	// Handle saturation for large |x| (Merge: a.Merge(b, mask) returns a when TRUE, b when FALSE)
+	// Handle saturation (Merge: a.Merge(b, mask) returns a when TRUE, b when FALSE)
 	// For x > threshold, tanh ≈ 1; for x < -threshold, tanh ≈ -1
 	result = sig32_one.Merge(result, x.Greater(tanh32_threshold))
 	result = sig32_negOne.Merge(result, x.Less(sig32_zero.Sub(tanh32_threshold)))
@@ -95,34 +61,7 @@ func Tanh_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	return result
 }
 
-func tanh32Scalar(x float32) float32 {
-	v := hwy.Load([]float32{x})
-	result := tanh32Base(v)
-	return result.Data()[0]
-}
-
-// tanh64AVX2 computes tanh(x) for float64 values using AVX2 SIMD.
-func tanh64AVX2(v hwy.Vec[float64]) hwy.Vec[float64] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float64, n)
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(data[i:])
-		out := Tanh_AVX2_F64x4(x)
-		out.StoreSlice(result[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		result[i] = tanh64Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Tanh_AVX2_F64x4 computes tanh(x) for a single Float64x4 vector.
-// This is the exported function that hwygen-generated code can call directly.
 func Tanh_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	// tanh(x) = 2*sigmoid(2x) - 1
 	twoX := tanh64_two.Mul(x)
@@ -137,34 +76,7 @@ func Tanh_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	return result
 }
 
-func tanh64Scalar(x float64) float64 {
-	v := hwy.Load([]float64{x})
-	result := tanh64Base(v)
-	return result.Data()[0]
-}
-
-// sigmoid32AVX2 computes sigmoid(x) for float32 values using AVX2 SIMD.
-func sigmoid32AVX2(v hwy.Vec[float32]) hwy.Vec[float32] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float32, n)
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(data[i:])
-		out := Sigmoid_AVX2_F32x8(x)
-		out.StoreSlice(result[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		result[i] = sigmoid32Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Sigmoid_AVX2_F32x8 computes sigmoid(x) for a single Float32x8 vector.
-// This is the exported function that hwygen-generated code can call directly.
 //
 // Algorithm: sigmoid(x) = 1 / (1 + exp(-x))
 // For numerical stability, we clamp x to avoid exp overflow.
@@ -187,34 +99,7 @@ func Sigmoid_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	return result
 }
 
-func sigmoid32Scalar(x float32) float32 {
-	v := hwy.Load([]float32{x})
-	result := sigmoid32Base(v)
-	return result.Data()[0]
-}
-
-// sigmoid64AVX2 computes sigmoid(x) for float64 values using AVX2 SIMD.
-func sigmoid64AVX2(v hwy.Vec[float64]) hwy.Vec[float64] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float64, n)
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(data[i:])
-		out := Sigmoid_AVX2_F64x4(x)
-		out.StoreSlice(result[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		result[i] = sigmoid64Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Sigmoid_AVX2_F64x4 computes sigmoid(x) for a single Float64x4 vector.
-// This is the exported function that hwygen-generated code can call directly.
 func Sigmoid_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	// Clamp to avoid exp overflow
 	clampedX := x.Max(sig64_satLo).Min(sig64_satHi)
@@ -233,34 +118,7 @@ func Sigmoid_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	return result
 }
 
-func sigmoid64Scalar(x float64) float64 {
-	v := hwy.Load([]float64{x})
-	result := sigmoid64Base(v)
-	return result.Data()[0]
-}
-
-// erf32AVX2 computes erf(x) for float32 values using AVX2 SIMD.
-func erf32AVX2(v hwy.Vec[float32]) hwy.Vec[float32] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float32, n)
-
-	for i := 0; i+8 <= n; i += 8 {
-		x := archsimd.LoadFloat32x8Slice(data[i:])
-		out := Erf_AVX2_F32x8(x)
-		out.StoreSlice(result[i:])
-	}
-
-	for i := (n / 8) * 8; i < n; i++ {
-		result[i] = erf32Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Erf_AVX2_F32x8 computes erf(x) for a single Float32x8 vector.
-// This is the exported function that hwygen-generated code can call directly.
 //
 // Algorithm: Abramowitz & Stegun approximation 7.1.26
 // erf(x) ≈ 1 - (p1*t + p2*t² + p3*t³ + p4*t⁴ + p5*t⁵) * exp(-x²)
@@ -296,34 +154,7 @@ func Erf_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	return result
 }
 
-func erf32Scalar(x float32) float32 {
-	v := hwy.Load([]float32{x})
-	result := erf32Base(v)
-	return result.Data()[0]
-}
-
-// erf64AVX2 computes erf(x) for float64 values using AVX2 SIMD.
-func erf64AVX2(v hwy.Vec[float64]) hwy.Vec[float64] {
-	data := v.Data()
-	n := v.NumLanes()
-
-	result := make([]float64, n)
-
-	for i := 0; i+4 <= n; i += 4 {
-		x := archsimd.LoadFloat64x4Slice(data[i:])
-		out := Erf_AVX2_F64x4(x)
-		out.StoreSlice(result[i:])
-	}
-
-	for i := (n / 4) * 4; i < n; i++ {
-		result[i] = erf64Scalar(data[i])
-	}
-
-	return hwy.Load(result)
-}
-
 // Erf_AVX2_F64x4 computes erf(x) for a single Float64x4 vector.
-// This is the exported function that hwygen-generated code can call directly.
 func Erf_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	// Handle sign: erf(-x) = -erf(x)
 	signMask := x.Less(sig64_zero)
@@ -351,10 +182,4 @@ func Erf_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	result = negResult.Merge(result, signMask)
 
 	return result
-}
-
-func erf64Scalar(x float64) float64 {
-	v := hwy.Load([]float64{x})
-	result := erf64Base(v)
-	return result.Data()[0]
 }
