@@ -1,9 +1,9 @@
 //go:build amd64 && goexperiment.simd
 
-package contrib
+package math
 
 import (
-	"math"
+	stdmath "math"
 	"simd/archsimd"
 	"sync"
 )
@@ -183,4 +183,71 @@ func Exp_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
 	result = exp512_64_zero.Merge(result, underflowMask)
 
 	return result
+}
+
+// Constants for log/exp base conversions (AVX-512)
+var (
+	// log2(e) = 1.4426950408889634
+	log2e512_32 archsimd.Float32x16
+	log2e512_64 archsimd.Float64x8
+
+	// log10(e) = 0.4342944819032518
+	log10e512_32 archsimd.Float32x16
+	log10e512_64 archsimd.Float64x8
+
+	// ln(2) = 0.6931471805599453
+	ln2_512_32 archsimd.Float32x16
+	ln2_512_64 archsimd.Float64x8
+
+	// ln(10) = 2.302585092994046
+	ln10_512_32 archsimd.Float32x16
+	ln10_512_64 archsimd.Float64x8
+)
+
+var expVariants512Init sync.Once
+
+func initExpVariants512Constants() {
+	log2e512_32 = archsimd.BroadcastFloat32x16(1.4426950408889634)
+	log2e512_64 = archsimd.BroadcastFloat64x8(1.4426950408889634)
+
+	log10e512_32 = archsimd.BroadcastFloat32x16(0.4342944819032518)
+	log10e512_64 = archsimd.BroadcastFloat64x8(0.4342944819032518)
+
+	ln2_512_32 = archsimd.BroadcastFloat32x16(0.6931471805599453)
+	ln2_512_64 = archsimd.BroadcastFloat64x8(0.6931471805599453)
+
+	ln10_512_32 = archsimd.BroadcastFloat32x16(2.302585092994046)
+	ln10_512_64 = archsimd.BroadcastFloat64x8(2.302585092994046)
+}
+
+// Exp2_AVX512_F32x16 computes 2^x for a single Float32x16 vector.
+//
+// Uses the identity: 2^x = e^(x * ln(2))
+func Exp2_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	expVariants512Init.Do(initExpVariants512Constants)
+	xLn2 := x.Mul(ln2_512_32)
+	return Exp_AVX512_F32x16(xLn2)
+}
+
+// Exp2_AVX512_F64x8 computes 2^x for a single Float64x8 vector.
+func Exp2_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	expVariants512Init.Do(initExpVariants512Constants)
+	xLn2 := x.Mul(ln2_512_64)
+	return Exp_AVX512_F64x8(xLn2)
+}
+
+// Exp10_AVX512_F32x16 computes 10^x for a single Float32x16 vector.
+//
+// Uses the identity: 10^x = e^(x * ln(10))
+func Exp10_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	expVariants512Init.Do(initExpVariants512Constants)
+	xLn10 := x.Mul(ln10_512_32)
+	return Exp_AVX512_F32x16(xLn10)
+}
+
+// Exp10_AVX512_F64x8 computes 10^x for a single Float64x8 vector.
+func Exp10_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	expVariants512Init.Do(initExpVariants512Constants)
+	xLn10 := x.Mul(ln10_512_64)
+	return Exp_AVX512_F64x8(xLn10)
 }

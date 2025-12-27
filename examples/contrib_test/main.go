@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"simd/archsimd"
 
-	"github.com/ajroetker/go-highway/hwy/contrib"
+	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
 func main() {
 	// Test Exp_AVX2_F32x8
 	input := archsimd.BroadcastFloat32x8(1.0)
-	result := contrib.Exp_AVX2_F32x8(input)
+	result := math.Exp_AVX2_F32x8(input)
 
 	var values [8]float32
 	result.StoreSlice(values[:])
@@ -25,7 +25,7 @@ func main() {
 
 	// Test Exp_AVX2_F64x4
 	input64 := archsimd.BroadcastFloat64x4(2.0)
-	result64 := contrib.Exp_AVX2_F64x4(input64)
+	result64 := math.Exp_AVX2_F64x4(input64)
 
 	var values64 [4]float64
 	result64.StoreSlice(values64[:])

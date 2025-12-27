@@ -259,13 +259,9 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	selExpr := call.Fun.(*ast.SelectorExpr)
 
 	if ctx.target.Name == "Fallback" {
-		// For fallback, keep using hwy.* and contrib.* as-is
-		// The fallback uses the portable hwy API
-		if opInfo.Package == "contrib" {
-			selExpr.X = ast.NewIdent("contrib")
-		} else {
-			selExpr.X = ast.NewIdent("hwy")
-		}
+		// For fallback, keep using hwy.* for everything
+		// The portable hwy API handles all operations including contrib math
+		selExpr.X = ast.NewIdent("hwy")
 		selExpr.Sel.Name = funcName
 		return
 	}
@@ -288,10 +284,14 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		fullName = fmt.Sprintf("MaskLoad%sSlice", vecTypeName)
 		selExpr.X = ast.NewIdent("archsimd")
 	default:
-		// For contrib functions, add target and type suffix (e.g., Exp_AVX2_F32x8)
-		if opInfo.Package == "contrib" {
+		// For contrib functions, add target and type suffix (e.g., math.Exp_AVX2_F32x8)
+		if opInfo.SubPackage != "" {
 			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
-			selExpr.X = ast.NewIdent("contrib")
+			selExpr.X = ast.NewIdent(opInfo.SubPackage) // math, dot, matvec, algo
+		} else if opInfo.Package == "hwy" {
+			// Core ops from hwy package (e.g., hwy.Sqrt_AVX2_F32x8)
+			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			fullName = opInfo.Name
 			selExpr.X = ast.NewIdent("archsimd")

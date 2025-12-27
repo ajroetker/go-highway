@@ -23,7 +23,7 @@ package main
 import (
     "fmt"
     "github.com/ajroetker/go-highway/hwy"
-    "github.com/ajroetker/go-highway/hwy/contrib"
+    "github.com/ajroetker/go-highway/hwy/contrib/algo"
 )
 
 func main() {
@@ -37,9 +37,10 @@ func main() {
 
     fmt.Printf("Sum of doubled: %v\n", sum)
 
-    // Transcendental functions (exp, log, sin, cos, etc.)
-    exp := contrib.Exp(v)
-    fmt.Printf("Exp: %v\n", exp.Data())
+    // Transcendental functions using transforms
+    output := make([]float32, len(data))
+    algo.ExpTransform(data, output)
+    fmt.Printf("Exp: %v\n", output)
 }
 ```
 
@@ -53,6 +54,8 @@ GOEXPERIMENT=simd go run main.go
 
 ### Core Operations (`hwy` package)
 
+These are fundamental SIMD operations that map directly to hardware instructions:
+
 | Category | Operations |
 |----------|------------|
 | Load/Store | `Load`, `Store`, `Set`, `Zero`, `MaskLoad`, `MaskStore` |
@@ -62,16 +65,36 @@ GOEXPERIMENT=simd go run main.go
 | Comparison | `Equal`, `LessThan`, `GreaterThan` |
 | Conditional | `IfThenElse` |
 
-### Extended Math (`hwy/contrib` package)
+Low-level SIMD functions for direct archsimd usage:
+- `Sqrt_AVX2_F32x8`, `Sqrt_AVX2_F64x4` - Hardware sqrt (VSQRTPS/VSQRTPD)
+- `Sqrt_AVX512_F32x16`, `Sqrt_AVX512_F64x8` - AVX-512 variants
 
+### Extended Math (`hwy/contrib/algo` and `hwy/contrib/math` packages)
+
+The contrib package is organized into two subpackages:
+
+**Algorithm Transforms** (`hwy/contrib/algo`):
 | Function | Description |
 |----------|-------------|
-| `Exp` | Exponential (e^x) |
-| `Log` | Natural logarithm |
-| `Sin`, `Cos`, `SinCos` | Trigonometric functions |
-| `Tanh` | Hyperbolic tangent |
-| `Sigmoid` | Logistic function 1/(1+e^-x) |
-| `Erf` | Error function |
+| `ExpTransform`, `ExpTransform64` | Apply exp(x) to slices |
+| `LogTransform`, `LogTransform64` | Apply ln(x) to slices |
+| `SinTransform`, `SinTransform64` | Apply sin(x) to slices |
+| `CosTransform`, `CosTransform64` | Apply cos(x) to slices |
+| `TanhTransform`, `TanhTransform64` | Apply tanh(x) to slices |
+| `SigmoidTransform`, `SigmoidTransform64` | Apply 1/(1+e^-x) to slices |
+| `ErfTransform`, `ErfTransform64` | Apply erf(x) to slices |
+| `Transform32`, `Transform64` | Generic transforms with custom functions |
+
+**Low-Level Math** (`hwy/contrib/math`):
+| Function | Description |
+|----------|-------------|
+| `Exp_AVX2_F32x8`, `Exp_AVX2_F64x4` | Exponential on SIMD vectors |
+| `Log_AVX2_F32x8`, `Log_AVX2_F64x4` | Natural logarithm on SIMD vectors |
+| `Sin_AVX2_F32x8`, `Cos_AVX2_F32x8` | Trigonometric functions on SIMD vectors |
+| `Tanh_AVX2_F32x8` | Hyperbolic tangent on SIMD vectors |
+| `Sigmoid_AVX2_F32x8` | Logistic function on SIMD vectors |
+| `Erf_AVX2_F32x8` | Error function on SIMD vectors |
+| `Horner`, `Horner5`, `Horner7`, `Horner13` | Polynomial evaluation utilities |
 
 All functions support `float32` and `float64` with ~4 ULP accuracy.
 
@@ -100,7 +123,8 @@ GOEXPERIMENT=simd go test ./...
 HWY_NO_SIMD=1 GOEXPERIMENT=simd go test ./...
 
 # Benchmarks
-GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/...
+GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/algo/...
+GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/math/...
 ```
 
 ## Supported Architectures

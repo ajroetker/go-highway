@@ -1,9 +1,9 @@
 //go:build amd64 && goexperiment.simd
 
-package contrib
+package math
 
 import (
-	"math"
+	stdmath "math"
 	"simd/archsimd"
 	"sync"
 )
@@ -255,4 +255,57 @@ func Log_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
 	result = log512_64_posInf.Merge(result, infMask)
 
 	return result
+}
+
+// Constants for log base conversions (AVX-512)
+var (
+	// log2(e) = 1.4426950408889634
+	log2e_512_32 archsimd.Float32x16
+	log2e_512_64 archsimd.Float64x8
+
+	// log10(e) = 0.4342944819032518
+	log10e_512_32 archsimd.Float32x16
+	log10e_512_64 archsimd.Float64x8
+)
+
+var logVariants512Init sync.Once
+
+func initLogVariants512Constants() {
+	log2e_512_32 = archsimd.BroadcastFloat32x16(1.4426950408889634)
+	log2e_512_64 = archsimd.BroadcastFloat64x8(1.4426950408889634)
+
+	log10e_512_32 = archsimd.BroadcastFloat32x16(0.4342944819032518)
+	log10e_512_64 = archsimd.BroadcastFloat64x8(0.4342944819032518)
+}
+
+// Log2_AVX512_F32x16 computes log₂(x) for a single Float32x16 vector.
+//
+// Uses the identity: log₂(x) = ln(x) / ln(2) = ln(x) * log₂(e)
+func Log2_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	logVariants512Init.Do(initLogVariants512Constants)
+	lnX := Log_AVX512_F32x16(x)
+	return lnX.Mul(log2e_512_32)
+}
+
+// Log2_AVX512_F64x8 computes log₂(x) for a single Float64x8 vector.
+func Log2_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	logVariants512Init.Do(initLogVariants512Constants)
+	lnX := Log_AVX512_F64x8(x)
+	return lnX.Mul(log2e_512_64)
+}
+
+// Log10_AVX512_F32x16 computes log₁₀(x) for a single Float32x16 vector.
+//
+// Uses the identity: log₁₀(x) = ln(x) / ln(10) = ln(x) * log₁₀(e)
+func Log10_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	logVariants512Init.Do(initLogVariants512Constants)
+	lnX := Log_AVX512_F32x16(x)
+	return lnX.Mul(log10e_512_32)
+}
+
+// Log10_AVX512_F64x8 computes log₁₀(x) for a single Float64x8 vector.
+func Log10_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	logVariants512Init.Do(initLogVariants512Constants)
+	lnX := Log_AVX512_F64x8(x)
+	return lnX.Mul(log10e_512_64)
 }

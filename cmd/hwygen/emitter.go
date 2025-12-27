@@ -9,8 +9,44 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
+
+// ContribPackages tracks which contrib subpackages are needed for imports.
+type ContribPackages struct {
+	Math   bool // contrib/math (Exp, Log, Sin, etc.)
+	Dot    bool // contrib/dot (Dot product)
+	MatVec bool // contrib/matvec (Matrix-vector ops)
+	Algo   bool // contrib/algo (Transform utilities)
+}
+
+// detectContribPackages analyzes parsed functions to determine which contrib subpackages are used.
+func detectContribPackages(funcs []ParsedFunc, targets []Target) ContribPackages {
+	pkgs := ContribPackages{}
+
+	for _, pf := range funcs {
+		for _, call := range pf.HwyCalls {
+			// Check each target's OpMap for this function
+			for _, target := range targets {
+				if opInfo, ok := target.OpMap[call.FuncName]; ok {
+					switch opInfo.SubPackage {
+					case "math":
+						pkgs.Math = true
+					case "dot":
+						pkgs.Dot = true
+					case "matvec":
+						pkgs.MatVec = true
+					case "algo":
+						pkgs.Algo = true
+					}
+				}
+			}
+		}
+	}
+
+	return pkgs
+}
 
 // EmitDispatcher generates the runtime dispatch file.
 // This file contains:
@@ -139,7 +175,7 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath strin
 }
 
 // EmitTarget generates a target-specific implementation file.
-func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath string, needsContrib bool) error {
+func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath string, contribPkgs ContribPackages) error {
 	var buf bytes.Buffer
 
 	// File header
@@ -149,18 +185,40 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	}
 	fmt.Fprintf(&buf, "\npackage %s\n\n", pkgName)
 
-	// Imports
-	fmt.Fprintf(&buf, "import (\n")
+	// Build import list
+	imports := []string{}
+
 	if target.Name != "Fallback" {
-		fmt.Fprintf(&buf, "\t\"simd/archsimd\"\n")
-		if needsContrib {
-			fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy/contrib\"\n")
+		imports = append(imports, `"simd/archsimd"`)
+		// Add contrib subpackage imports for SIMD targets
+		if contribPkgs.Math {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/math"`)
+		}
+		if contribPkgs.Dot {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/dot"`)
+		}
+		if contribPkgs.MatVec {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
+		}
+		if contribPkgs.Algo {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/algo"`)
 		}
 	} else {
-		fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy\"\n")
-		if needsContrib {
-			fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy/contrib\"\n")
+		// Fallback uses the hwy package directly
+		imports = append(imports, `"github.com/ajroetker/go-highway/hwy"`)
+		// For fallback, we might still need contrib for scalar implementations
+		if contribPkgs.Math || contribPkgs.Dot || contribPkgs.MatVec || contribPkgs.Algo {
+			imports = append(imports, `stdmath "math"`) // Use standard math for fallback
 		}
+	}
+
+	// Sort imports for consistency
+	sort.Strings(imports)
+
+	// Write imports
+	fmt.Fprintf(&buf, "import (\n")
+	for _, imp := range imports {
+		fmt.Fprintf(&buf, "\t%s\n", imp)
 	}
 	fmt.Fprintf(&buf, ")\n\n")
 

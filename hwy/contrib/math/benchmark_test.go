@@ -1,9 +1,9 @@
 //go:build amd64 && goexperiment.simd
 
-package contrib
+package math
 
 import (
-	"math"
+	stdmath "math"
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"

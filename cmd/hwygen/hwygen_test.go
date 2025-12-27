@@ -299,3 +299,134 @@ func TestBuildDispatchFuncName(t *testing.T) {
 		})
 	}
 }
+
+func TestContribSubpackageImports(t *testing.T) {
+	// Create a temporary directory for test
+	tmpDir := t.TempDir()
+
+	// Create a test input file that uses contrib/math functions
+	inputFile := filepath.Join(tmpDir, "sigmoid.go")
+	content := `package testsigmoid
+
+import (
+	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib"
+)
+
+func BaseSigmoid[T hwy.Floats](input, output []T) {
+	size := min(len(input), len(output))
+	vOne := hwy.Set(T(1))
+	for i := 0; i < size; i += vOne.NumElements() {
+		x := hwy.Load(input[i:])
+		y := contrib.Sigmoid(x)
+		hwy.Store(y, output[i:])
+	}
+}
+`
+
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	// Create generator
+	gen := &Generator{
+		InputFile: inputFile,
+		OutputDir: tmpDir,
+		Targets:   []string{"avx2", "fallback"},
+	}
+
+	// Run generation
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	// Check AVX2 output file has contrib/math import
+	avx2Path := filepath.Join(tmpDir, "sigmoid_avx2.gen.go")
+	avx2Content, err := os.ReadFile(avx2Path)
+	if err != nil {
+		t.Fatalf("Failed to read AVX2 output: %v", err)
+	}
+
+	avx2Str := string(avx2Content)
+
+	// Should have contrib/math import for SIMD target
+	if !strings.Contains(avx2Str, `"github.com/ajroetker/go-highway/hwy/contrib/math"`) {
+		t.Error("AVX2 output missing contrib/math import")
+	}
+
+	// Should use math.Sigmoid_AVX2_F32x8 style function calls
+	if !strings.Contains(avx2Str, "math.Sigmoid_AVX2_") {
+		t.Error("AVX2 output missing math.Sigmoid_AVX2_ function call")
+	}
+
+	// Check fallback output uses hwy package
+	fallbackPath := filepath.Join(tmpDir, "sigmoid_fallback.gen.go")
+	fallbackContent, err := os.ReadFile(fallbackPath)
+	if err != nil {
+		t.Fatalf("Failed to read fallback output: %v", err)
+	}
+
+	fallbackStr := string(fallbackContent)
+
+	// Fallback should use hwy package
+	if !strings.Contains(fallbackStr, `"github.com/ajroetker/go-highway/hwy"`) {
+		t.Error("Fallback output missing hwy import")
+	}
+
+	// Fallback should use hwy.Sigmoid style function calls
+	if !strings.Contains(fallbackStr, "hwy.Sigmoid") {
+		t.Error("Fallback output missing hwy.Sigmoid function call")
+	}
+}
+
+func TestDetectContribPackages(t *testing.T) {
+	targets := []Target{AVX2Target(), FallbackTarget()}
+
+	tests := []struct {
+		name      string
+		calls     []HwyCall
+		wantMath  bool
+		wantDot   bool
+		wantAlgo  bool
+	}{
+		{
+			name:     "No contrib",
+			calls:    []HwyCall{{Package: "hwy", FuncName: "Add"}},
+			wantMath: false, wantDot: false, wantAlgo: false,
+		},
+		{
+			name:     "Math function",
+			calls:    []HwyCall{{Package: "contrib", FuncName: "Exp"}},
+			wantMath: true, wantDot: false, wantAlgo: false,
+		},
+		{
+			name:     "Dot function",
+			calls:    []HwyCall{{Package: "contrib", FuncName: "Dot"}},
+			wantMath: false, wantDot: true, wantAlgo: false,
+		},
+		{
+			name:      "Multiple functions",
+			calls:     []HwyCall{{Package: "contrib", FuncName: "Sigmoid"}, {Package: "contrib", FuncName: "Dot"}},
+			wantMath:  true,
+			wantDot:   true,
+			wantAlgo:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			funcs := []ParsedFunc{{HwyCalls: tt.calls}}
+			pkgs := detectContribPackages(funcs, targets)
+
+			if pkgs.Math != tt.wantMath {
+				t.Errorf("Math = %v, want %v", pkgs.Math, tt.wantMath)
+			}
+			if pkgs.Dot != tt.wantDot {
+				t.Errorf("Dot = %v, want %v", pkgs.Dot, tt.wantDot)
+			}
+			if pkgs.Algo != tt.wantAlgo {
+				t.Errorf("Algo = %v, want %v", pkgs.Algo, tt.wantAlgo)
+			}
+		})
+	}
+}

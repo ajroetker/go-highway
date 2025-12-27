@@ -442,3 +442,214 @@ func TestIsAligned(t *testing.T) {
 		t.Error("IsAligned: maxLanes+1 should not be aligned")
 	}
 }
+
+func TestAnd(t *testing.T) {
+	// Test with integers
+	a := Load([]uint32{0xFF00FF00, 0xAAAAAAAA, 0x12345678, 0xFFFFFFFF})
+	b := Load([]uint32{0x00FF00FF, 0x55555555, 0x87654321, 0x0F0F0F0F})
+	result := And(a, b)
+
+	expected := []uint32{0x00000000, 0x00000000, 0x02044200, 0x0F0F0F0F}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("And: lane %d: got 0x%08X, want 0x%08X", i, result.data[i], expected[i])
+		}
+	}
+
+	// Test with floats (bitwise on representation)
+	f1 := Set[float32](1.0)
+	f2 := Set[float32](2.0)
+	_ = And(f1, f2) // Just verify it doesn't panic
+}
+
+func TestOr(t *testing.T) {
+	a := Load([]uint32{0xFF00FF00, 0xAAAAAAAA, 0x12345678, 0x00000000})
+	b := Load([]uint32{0x00FF00FF, 0x55555555, 0x87654321, 0x0F0F0F0F})
+	result := Or(a, b)
+
+	expected := []uint32{0xFFFFFFFF, 0xFFFFFFFF, 0x97757779, 0x0F0F0F0F}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("Or: lane %d: got 0x%08X, want 0x%08X", i, result.data[i], expected[i])
+		}
+	}
+}
+
+func TestXor(t *testing.T) {
+	a := Load([]uint32{0xFF00FF00, 0xAAAAAAAA, 0x12345678, 0xFFFFFFFF})
+	b := Load([]uint32{0x00FF00FF, 0x55555555, 0x12345678, 0xFFFFFFFF})
+	result := Xor(a, b)
+
+	expected := []uint32{0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("Xor: lane %d: got 0x%08X, want 0x%08X", i, result.data[i], expected[i])
+		}
+	}
+}
+
+func TestNot(t *testing.T) {
+	a := Load([]uint32{0x00000000, 0xFFFFFFFF, 0xAAAAAAAA, 0x55555555})
+	result := Not(a)
+
+	expected := []uint32{0xFFFFFFFF, 0x00000000, 0x55555555, 0xAAAAAAAA}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("Not: lane %d: got 0x%08X, want 0x%08X", i, result.data[i], expected[i])
+		}
+	}
+}
+
+func TestAndNot(t *testing.T) {
+	a := Load([]uint32{0xFF00FF00, 0xAAAAAAAA, 0xFFFFFFFF, 0x00000000})
+	b := Load([]uint32{0xFFFFFFFF, 0xFFFFFFFF, 0x0F0F0F0F, 0x0F0F0F0F})
+	result := AndNot(a, b)
+
+	// (~a) & b
+	expected := []uint32{0x00FF00FF, 0x55555555, 0x00000000, 0x0F0F0F0F}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("AndNot: lane %d: got 0x%08X, want 0x%08X", i, result.data[i], expected[i])
+		}
+	}
+}
+
+func TestShiftLeft(t *testing.T) {
+	a := Load([]uint32{1, 2, 3, 4})
+	result := ShiftLeft(a, 2)
+
+	expected := []uint32{4, 8, 12, 16}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("ShiftLeft: lane %d: got %d, want %d", i, result.data[i], expected[i])
+		}
+	}
+
+	// Test with signed integers
+	b := Load([]int32{-1, -2, -3, -4})
+	result2 := ShiftLeft(b, 1)
+
+	expected2 := []int32{-2, -4, -6, -8}
+	for i := 0; i < len(expected2) && i < result2.NumLanes(); i++ {
+		if result2.data[i] != expected2[i] {
+			t.Errorf("ShiftLeft (signed): lane %d: got %d, want %d", i, result2.data[i], expected2[i])
+		}
+	}
+}
+
+func TestShiftRight(t *testing.T) {
+	// Unsigned shift (logical)
+	a := Load([]uint32{16, 8, 4, 2})
+	result := ShiftRight(a, 2)
+
+	expected := []uint32{4, 2, 1, 0}
+	for i := 0; i < len(expected) && i < result.NumLanes(); i++ {
+		if result.data[i] != expected[i] {
+			t.Errorf("ShiftRight (unsigned): lane %d: got %d, want %d", i, result.data[i], expected[i])
+		}
+	}
+
+	// Signed shift (arithmetic)
+	b := Load([]int32{-16, -8, 8, 4})
+	result2 := ShiftRight(b, 2)
+
+	expected2 := []int32{-4, -2, 2, 1}
+	for i := 0; i < len(expected2) && i < result2.NumLanes(); i++ {
+		if result2.data[i] != expected2[i] {
+			t.Errorf("ShiftRight (signed): lane %d: got %d, want %d", i, result2.data[i], expected2[i])
+		}
+	}
+}
+
+func TestIota(t *testing.T) {
+	v := Iota[int32]()
+
+	for i := 0; i < v.NumLanes(); i++ {
+		if v.data[i] != int32(i) {
+			t.Errorf("Iota: lane %d: got %d, want %d", i, v.data[i], i)
+		}
+	}
+
+	// Test with float32
+	vf := Iota[float32]()
+
+	for i := 0; i < vf.NumLanes(); i++ {
+		if vf.data[i] != float32(i) {
+			t.Errorf("Iota (float32): lane %d: got %f, want %f", i, vf.data[i], float32(i))
+		}
+	}
+}
+
+func TestSignBit(t *testing.T) {
+	// Test with float32
+	vf32 := SignBit[float32]()
+	for i := 0; i < vf32.NumLanes(); i++ {
+		// Should be -0.0, which has sign bit set
+		bits := math.Float32bits(vf32.data[i])
+		if bits != 0x80000000 {
+			t.Errorf("SignBit (float32): lane %d: got bits 0x%08X, want 0x80000000", i, bits)
+		}
+	}
+
+	// Test with float64
+	vf64 := SignBit[float64]()
+	for i := 0; i < vf64.NumLanes(); i++ {
+		bits := math.Float64bits(vf64.data[i])
+		if bits != 0x8000000000000000 {
+			t.Errorf("SignBit (float64): lane %d: got bits 0x%016X, want 0x8000000000000000", i, bits)
+		}
+	}
+
+	// Test with signed integer
+	vi32 := SignBit[int32]()
+	for i := 0; i < vi32.NumLanes(); i++ {
+		if vi32.data[i] != int32(-2147483648) {
+			t.Errorf("SignBit (int32): lane %d: got %d, want %d", i, vi32.data[i], int32(-2147483648))
+		}
+	}
+
+	// Test with unsigned integer
+	vu32 := SignBit[uint32]()
+	for i := 0; i < vu32.NumLanes(); i++ {
+		if vu32.data[i] != uint32(0x80000000) {
+			t.Errorf("SignBit (uint32): lane %d: got 0x%08X, want 0x80000000", i, vu32.data[i])
+		}
+	}
+}
+
+func TestReverse(t *testing.T) {
+	a := Load([]int32{1, 2, 3, 4, 5, 6, 7, 8})
+	result := Reverse(a)
+
+	n := result.NumLanes()
+	for i := 0; i < n; i++ {
+		expected := int32(n - i)
+		if i < len(a.data) {
+			expected = a.data[n-1-i]
+		}
+		if result.data[i] != expected {
+			t.Errorf("Reverse: lane %d: got %d, want %d", i, result.data[i], expected)
+		}
+	}
+}
+
+func TestBroadcast(t *testing.T) {
+	a := Load([]float32{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0})
+
+	// Broadcast lane 2 (value 3.0)
+	result := Broadcast(a, 2)
+
+	for i := 0; i < result.NumLanes(); i++ {
+		if i < len(a.data) && result.data[i] != 3.0 {
+			t.Errorf("Broadcast: lane %d: got %f, want 3.0", i, result.data[i])
+		}
+	}
+
+	// Test out of bounds
+	result2 := Broadcast(a, 100)
+	for i := 0; i < result2.NumLanes(); i++ {
+		if result2.data[i] != 0.0 {
+			t.Errorf("Broadcast (out of bounds): lane %d: got %f, want 0.0", i, result2.data[i])
+		}
+	}
+}

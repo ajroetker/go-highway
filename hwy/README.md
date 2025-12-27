@@ -139,21 +139,47 @@ func main() {
 
 ## Extended Math (contrib)
 
-The `hwy/contrib` package provides additional math functions:
+The `hwy/contrib` package is organized into subpackages:
+
+### Algorithm Transforms (`hwy/contrib/algo`)
+
+Apply operations to entire slices with zero allocation:
 
 ```go
-import "github.com/ajroetker/go-highway/hwy/contrib"
+import "github.com/ajroetker/go-highway/hwy/contrib/algo"
 
-// Exponential and logarithm
-result := contrib.Exp(vec)
-result := contrib.Log(vec)
+input := []float32{1.0, 2.0, 3.0, 4.0}
+output := make([]float32, len(input))
 
-// Trigonometry
-result := contrib.Sin(vec)
-result := contrib.Cos(vec)
+// Named transforms
+algo.ExpTransform(input, output)
+algo.LogTransform(input, output)
+algo.SinTransform(input, output)
 
-// Special functions
-result := contrib.Tanh(vec)
-result := contrib.Sigmoid(vec)
-result := contrib.Erf(vec)
+// Generic transform with custom operation
+algo.Transform32(input, output,
+    func(x archsimd.Float32x8) archsimd.Float32x8 {
+        return x.Mul(x)  // Square each element
+    },
+    func(x float32) float32 { return x * x },
+)
 ```
+
+### Low-Level Math (`hwy/contrib/math`)
+
+Direct SIMD vector operations:
+
+```go
+import "github.com/ajroetker/go-highway/hwy/contrib/math"
+
+// SIMD vector functions
+expX := math.Exp_AVX2_F32x8(x)
+logX := math.Log_AVX2_F32x8(x)
+sinX, cosX := math.SinCos_AVX2_F32x8(x)
+
+// Polynomial evaluation
+coeffs := []float32{1.0, 2.0, 3.0}
+result := math.Horner(x, coeffs)
+```
+
+See package documentation for complete API details.

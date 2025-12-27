@@ -199,6 +199,36 @@ func ReduceSum[T Lanes](v Vec[T]) T {
 	return sum
 }
 
+// ReduceMin returns the minimum value across all lanes.
+func ReduceMin[T Lanes](v Vec[T]) T {
+	if len(v.data) == 0 {
+		var zero T
+		return zero
+	}
+	min := v.data[0]
+	for i := 1; i < len(v.data); i++ {
+		if v.data[i] < min {
+			min = v.data[i]
+		}
+	}
+	return min
+}
+
+// ReduceMax returns the maximum value across all lanes.
+func ReduceMax[T Lanes](v Vec[T]) T {
+	if len(v.data) == 0 {
+		var zero T
+		return zero
+	}
+	max := v.data[0]
+	for i := 1; i < len(v.data); i++ {
+		if v.data[i] > max {
+			max = v.data[i]
+		}
+	}
+	return max
+}
+
 // Equal performs element-wise equality comparison.
 func Equal[T Lanes](a, b Vec[T]) Mask[T] {
 	n := len(a.data)
@@ -234,6 +264,32 @@ func GreaterThan[T Lanes](a, b Vec[T]) Mask[T] {
 	bits := make([]bool, n)
 	for i := 0; i < n; i++ {
 		bits[i] = a.data[i] > b.data[i]
+	}
+	return Mask[T]{bits: bits}
+}
+
+// LessEqual performs element-wise less-than-or-equal comparison.
+func LessEqual[T Lanes](a, b Vec[T]) Mask[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	bits := make([]bool, n)
+	for i := 0; i < n; i++ {
+		bits[i] = a.data[i] <= b.data[i]
+	}
+	return Mask[T]{bits: bits}
+}
+
+// GreaterEqual performs element-wise greater-than-or-equal comparison.
+func GreaterEqual[T Lanes](a, b Vec[T]) Mask[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	bits := make([]bool, n)
+	for i := 0; i < n; i++ {
+		bits[i] = a.data[i] >= b.data[i]
 	}
 	return Mask[T]{bits: bits}
 }
@@ -287,5 +343,370 @@ func MaskStore[T Lanes](mask Mask[T], v Vec[T], dst []T) {
 		if mask.bits[i] {
 			dst[i] = v.data[i]
 		}
+	}
+}
+
+// And performs element-wise bitwise AND.
+func And[T Lanes](a, b Vec[T]) Vec[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	result := make([]T, n)
+	for i := 0; i < n; i++ {
+		// Perform bitwise AND by reinterpreting as integers
+		result[i] = bitwiseAnd(a.data[i], b.data[i])
+	}
+	return Vec[T]{data: result}
+}
+
+// Or performs element-wise bitwise OR.
+func Or[T Lanes](a, b Vec[T]) Vec[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	result := make([]T, n)
+	for i := 0; i < n; i++ {
+		result[i] = bitwiseOr(a.data[i], b.data[i])
+	}
+	return Vec[T]{data: result}
+}
+
+// Xor performs element-wise bitwise XOR.
+func Xor[T Lanes](a, b Vec[T]) Vec[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	result := make([]T, n)
+	for i := 0; i < n; i++ {
+		result[i] = bitwiseXor(a.data[i], b.data[i])
+	}
+	return Vec[T]{data: result}
+}
+
+// Not performs element-wise bitwise NOT (ones complement).
+func Not[T Lanes](v Vec[T]) Vec[T] {
+	result := make([]T, len(v.data))
+	for i := 0; i < len(v.data); i++ {
+		result[i] = bitwiseNot(v.data[i])
+	}
+	return Vec[T]{data: result}
+}
+
+// AndNot performs element-wise bitwise AND NOT (~a & b).
+func AndNot[T Lanes](a, b Vec[T]) Vec[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	result := make([]T, n)
+	for i := 0; i < n; i++ {
+		result[i] = bitwiseAndNot(a.data[i], b.data[i])
+	}
+	return Vec[T]{data: result}
+}
+
+// ShiftLeft performs element-wise left shift by a constant number of bits.
+// Only valid for integer types.
+func ShiftLeft[T Integers](v Vec[T], bits int) Vec[T] {
+	result := make([]T, len(v.data))
+	for i := 0; i < len(v.data); i++ {
+		result[i] = shiftLeft(v.data[i], bits)
+	}
+	return Vec[T]{data: result}
+}
+
+// ShiftRight performs element-wise right shift by a constant number of bits.
+// For signed integers, this is arithmetic shift (sign-extended).
+// For unsigned integers, this is logical shift (zero-filled).
+func ShiftRight[T Integers](v Vec[T], bits int) Vec[T] {
+	result := make([]T, len(v.data))
+	for i := 0; i < len(v.data); i++ {
+		result[i] = shiftRight(v.data[i], bits)
+	}
+	return Vec[T]{data: result}
+}
+
+// Iota returns a vector with lanes set to [0, 1, 2, 3, ...].
+func Iota[T Lanes]() Vec[T] {
+	n := MaxLanes[T]()
+	data := make([]T, n)
+	for i := range data {
+		data[i] = T(i)
+	}
+	return Vec[T]{data: data}
+}
+
+// SignBit returns a vector with the sign bit set in each lane.
+// For floats, this is -0.0. For signed integers, this is the minimum value.
+// For unsigned integers, this is the high bit set.
+func SignBit[T Lanes]() Vec[T] {
+	n := MaxLanes[T]()
+	data := make([]T, n)
+	signBit := getSignBit[T]()
+	for i := range data {
+		data[i] = signBit
+	}
+	return Vec[T]{data: data}
+}
+
+// Reverse reverses the order of lanes in the vector.
+func Reverse[T Lanes](v Vec[T]) Vec[T] {
+	n := len(v.data)
+	result := make([]T, n)
+	for i := 0; i < n; i++ {
+		result[i] = v.data[n-1-i]
+	}
+	return Vec[T]{data: result}
+}
+
+// Broadcast broadcasts a single lane to all lanes in the vector.
+func Broadcast[T Lanes](v Vec[T], lane int) Vec[T] {
+	n := len(v.data)
+	if lane < 0 || lane >= n {
+		// Return zero vector if lane is out of bounds
+		return Zero[T]()
+	}
+	result := make([]T, n)
+	value := v.data[lane]
+	for i := range result {
+		result[i] = value
+	}
+	return Vec[T]{data: result}
+}
+
+// Helper functions for bitwise operations that work with any numeric type
+
+func bitwiseAnd[T Lanes](a, b T) T {
+	// Use type switch to handle different types
+	switch any(a).(type) {
+	case float32:
+		aU := math.Float32bits(float32(any(a).(float32)))
+		bU := math.Float32bits(float32(any(b).(float32)))
+		return T(any(math.Float32frombits(aU & bU)).(float32))
+	case float64:
+		aU := math.Float64bits(float64(any(a).(float64)))
+		bU := math.Float64bits(float64(any(b).(float64)))
+		return T(any(math.Float64frombits(aU & bU)).(float64))
+	case int8:
+		return T(any(int8(any(a).(int8)) & int8(any(b).(int8))).(int8))
+	case int16:
+		return T(any(int16(any(a).(int16)) & int16(any(b).(int16))).(int16))
+	case int32:
+		return T(any(int32(any(a).(int32)) & int32(any(b).(int32))).(int32))
+	case int64:
+		return T(any(int64(any(a).(int64)) & int64(any(b).(int64))).(int64))
+	case uint8:
+		return T(any(uint8(any(a).(uint8)) & uint8(any(b).(uint8))).(uint8))
+	case uint16:
+		return T(any(uint16(any(a).(uint16)) & uint16(any(b).(uint16))).(uint16))
+	case uint32:
+		return T(any(uint32(any(a).(uint32)) & uint32(any(b).(uint32))).(uint32))
+	case uint64:
+		return T(any(uint64(any(a).(uint64)) & uint64(any(b).(uint64))).(uint64))
+	default:
+		return a // Should never happen
+	}
+}
+
+func bitwiseOr[T Lanes](a, b T) T {
+	switch any(a).(type) {
+	case float32:
+		aU := math.Float32bits(float32(any(a).(float32)))
+		bU := math.Float32bits(float32(any(b).(float32)))
+		return T(any(math.Float32frombits(aU | bU)).(float32))
+	case float64:
+		aU := math.Float64bits(float64(any(a).(float64)))
+		bU := math.Float64bits(float64(any(b).(float64)))
+		return T(any(math.Float64frombits(aU | bU)).(float64))
+	case int8:
+		return T(any(int8(any(a).(int8)) | int8(any(b).(int8))).(int8))
+	case int16:
+		return T(any(int16(any(a).(int16)) | int16(any(b).(int16))).(int16))
+	case int32:
+		return T(any(int32(any(a).(int32)) | int32(any(b).(int32))).(int32))
+	case int64:
+		return T(any(int64(any(a).(int64)) | int64(any(b).(int64))).(int64))
+	case uint8:
+		return T(any(uint8(any(a).(uint8)) | uint8(any(b).(uint8))).(uint8))
+	case uint16:
+		return T(any(uint16(any(a).(uint16)) | uint16(any(b).(uint16))).(uint16))
+	case uint32:
+		return T(any(uint32(any(a).(uint32)) | uint32(any(b).(uint32))).(uint32))
+	case uint64:
+		return T(any(uint64(any(a).(uint64)) | uint64(any(b).(uint64))).(uint64))
+	default:
+		return a
+	}
+}
+
+func bitwiseXor[T Lanes](a, b T) T {
+	switch any(a).(type) {
+	case float32:
+		aU := math.Float32bits(float32(any(a).(float32)))
+		bU := math.Float32bits(float32(any(b).(float32)))
+		return T(any(math.Float32frombits(aU ^ bU)).(float32))
+	case float64:
+		aU := math.Float64bits(float64(any(a).(float64)))
+		bU := math.Float64bits(float64(any(b).(float64)))
+		return T(any(math.Float64frombits(aU ^ bU)).(float64))
+	case int8:
+		return T(any(int8(any(a).(int8)) ^ int8(any(b).(int8))).(int8))
+	case int16:
+		return T(any(int16(any(a).(int16)) ^ int16(any(b).(int16))).(int16))
+	case int32:
+		return T(any(int32(any(a).(int32)) ^ int32(any(b).(int32))).(int32))
+	case int64:
+		return T(any(int64(any(a).(int64)) ^ int64(any(b).(int64))).(int64))
+	case uint8:
+		return T(any(uint8(any(a).(uint8)) ^ uint8(any(b).(uint8))).(uint8))
+	case uint16:
+		return T(any(uint16(any(a).(uint16)) ^ uint16(any(b).(uint16))).(uint16))
+	case uint32:
+		return T(any(uint32(any(a).(uint32)) ^ uint32(any(b).(uint32))).(uint32))
+	case uint64:
+		return T(any(uint64(any(a).(uint64)) ^ uint64(any(b).(uint64))).(uint64))
+	default:
+		return a
+	}
+}
+
+func bitwiseNot[T Lanes](a T) T {
+	switch any(a).(type) {
+	case float32:
+		aU := math.Float32bits(float32(any(a).(float32)))
+		return T(any(math.Float32frombits(^aU)).(float32))
+	case float64:
+		aU := math.Float64bits(float64(any(a).(float64)))
+		return T(any(math.Float64frombits(^aU)).(float64))
+	case int8:
+		return T(any(^int8(any(a).(int8))).(int8))
+	case int16:
+		return T(any(^int16(any(a).(int16))).(int16))
+	case int32:
+		return T(any(^int32(any(a).(int32))).(int32))
+	case int64:
+		return T(any(^int64(any(a).(int64))).(int64))
+	case uint8:
+		return T(any(^uint8(any(a).(uint8))).(uint8))
+	case uint16:
+		return T(any(^uint16(any(a).(uint16))).(uint16))
+	case uint32:
+		return T(any(^uint32(any(a).(uint32))).(uint32))
+	case uint64:
+		return T(any(^uint64(any(a).(uint64))).(uint64))
+	default:
+		return a
+	}
+}
+
+func bitwiseAndNot[T Lanes](a, b T) T {
+	switch any(a).(type) {
+	case float32:
+		aU := math.Float32bits(float32(any(a).(float32)))
+		bU := math.Float32bits(float32(any(b).(float32)))
+		return T(any(math.Float32frombits((^aU) & bU)).(float32))
+	case float64:
+		aU := math.Float64bits(float64(any(a).(float64)))
+		bU := math.Float64bits(float64(any(b).(float64)))
+		return T(any(math.Float64frombits((^aU) & bU)).(float64))
+	case int8:
+		return T(any((^int8(any(a).(int8))) & int8(any(b).(int8))).(int8))
+	case int16:
+		return T(any((^int16(any(a).(int16))) & int16(any(b).(int16))).(int16))
+	case int32:
+		return T(any((^int32(any(a).(int32))) & int32(any(b).(int32))).(int32))
+	case int64:
+		return T(any((^int64(any(a).(int64))) & int64(any(b).(int64))).(int64))
+	case uint8:
+		return T(any((^uint8(any(a).(uint8))) & uint8(any(b).(uint8))).(uint8))
+	case uint16:
+		return T(any((^uint16(any(a).(uint16))) & uint16(any(b).(uint16))).(uint16))
+	case uint32:
+		return T(any((^uint32(any(a).(uint32))) & uint32(any(b).(uint32))).(uint32))
+	case uint64:
+		return T(any((^uint64(any(a).(uint64))) & uint64(any(b).(uint64))).(uint64))
+	default:
+		return a
+	}
+}
+
+func shiftLeft[T Integers](a T, bits int) T {
+	switch any(a).(type) {
+	case int8:
+		return T(any(int8(any(a).(int8)) << bits).(int8))
+	case int16:
+		return T(any(int16(any(a).(int16)) << bits).(int16))
+	case int32:
+		return T(any(int32(any(a).(int32)) << bits).(int32))
+	case int64:
+		return T(any(int64(any(a).(int64)) << bits).(int64))
+	case uint8:
+		return T(any(uint8(any(a).(uint8)) << bits).(uint8))
+	case uint16:
+		return T(any(uint16(any(a).(uint16)) << bits).(uint16))
+	case uint32:
+		return T(any(uint32(any(a).(uint32)) << bits).(uint32))
+	case uint64:
+		return T(any(uint64(any(a).(uint64)) << bits).(uint64))
+	default:
+		return a
+	}
+}
+
+func shiftRight[T Integers](a T, bits int) T {
+	// Right shift is arithmetic for signed, logical for unsigned
+	switch any(a).(type) {
+	case int8:
+		return T(any(int8(any(a).(int8)) >> bits).(int8))
+	case int16:
+		return T(any(int16(any(a).(int16)) >> bits).(int16))
+	case int32:
+		return T(any(int32(any(a).(int32)) >> bits).(int32))
+	case int64:
+		return T(any(int64(any(a).(int64)) >> bits).(int64))
+	case uint8:
+		return T(any(uint8(any(a).(uint8)) >> bits).(uint8))
+	case uint16:
+		return T(any(uint16(any(a).(uint16)) >> bits).(uint16))
+	case uint32:
+		return T(any(uint32(any(a).(uint32)) >> bits).(uint32))
+	case uint64:
+		return T(any(uint64(any(a).(uint64)) >> bits).(uint64))
+	default:
+		return a
+	}
+}
+
+func getSignBit[T Lanes]() T {
+	switch any(T(0)).(type) {
+	case float32:
+		// Sign bit set: -0.0
+		return T(any(math.Float32frombits(0x80000000)).(float32))
+	case float64:
+		// Sign bit set: -0.0
+		return T(any(math.Float64frombits(0x8000000000000000)).(float64))
+	case int8:
+		// Minimum value has sign bit set
+		return T(any(int8(-128)).(int8))
+	case int16:
+		return T(any(int16(-32768)).(int16))
+	case int32:
+		return T(any(int32(-2147483648)).(int32))
+	case int64:
+		return T(any(int64(-9223372036854775808)).(int64))
+	case uint8:
+		// High bit set
+		return T(any(uint8(0x80)).(uint8))
+	case uint16:
+		return T(any(uint16(0x8000)).(uint16))
+	case uint32:
+		return T(any(uint32(0x80000000)).(uint32))
+	case uint64:
+		return T(any(uint64(0x8000000000000000)).(uint64))
+	default:
+		return T(0)
 	}
 }

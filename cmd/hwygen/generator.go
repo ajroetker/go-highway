@@ -77,19 +77,8 @@ func (g *Generator) Run() error {
 	// 5. Emit target-specific files
 	baseFilename := getBaseFilename(g.InputFile)
 
-	// Detect if any function uses contrib
-	needsContrib := false
-	for _, pf := range funcs {
-		for _, call := range pf.HwyCalls {
-			if call.Package == "contrib" {
-				needsContrib = true
-				break
-			}
-		}
-		if needsContrib {
-			break
-		}
-	}
+	// Detect which contrib subpackages are needed
+	contribPkgs := detectContribPackages(funcs, targets)
 
 	for _, target := range targets {
 		funcDecls := targetFuncs[target.Name]
@@ -97,7 +86,7 @@ func (g *Generator) Run() error {
 			continue
 		}
 
-		if err := EmitTarget(funcDecls, target, g.PackageOut, baseFilename, g.OutputDir, needsContrib); err != nil {
+		if err := EmitTarget(funcDecls, target, g.PackageOut, baseFilename, g.OutputDir, contribPkgs); err != nil {
 			return fmt.Errorf("emit target %s: %w", target.Name, err)
 		}
 	}

@@ -1,4 +1,4 @@
-package contrib
+package math
 
 import "github.com/ajroetker/go-highway/hwy"
 
