@@ -33,9 +33,9 @@ var (
 	trig32_zero   = archsimd.BroadcastFloat32x8(0.0)
 	trig32_one    = archsimd.BroadcastFloat32x8(1.0)
 	trig32_negOne = archsimd.BroadcastFloat32x8(-1.0)
-	trig32_nan    = archsimd.BroadcastFloat32x8(float32(math.NaN()))
-	trig32_inf    = archsimd.BroadcastFloat32x8(float32(math.Inf(1)))
-	trig32_negInf = archsimd.BroadcastFloat32x8(float32(math.Inf(-1)))
+	trig32_nan    = archsimd.BroadcastFloat32x8(float32(stdstdmath.NaN()))
+	trig32_inf    = archsimd.BroadcastFloat32x8(float32(stdstdmath.Inf(1)))
+	trig32_negInf = archsimd.BroadcastFloat32x8(float32(stdstdmath.Inf(-1)))
 
 	// Integer constants for octant selection
 	trig32_intOne   = archsimd.BroadcastInt32x8(1)
@@ -68,8 +68,8 @@ var (
 	trig64_zero   = archsimd.BroadcastFloat64x4(0.0)
 	trig64_one    = archsimd.BroadcastFloat64x4(1.0)
 	trig64_negOne = archsimd.BroadcastFloat64x4(-1.0)
-	trig64_nan    = archsimd.BroadcastFloat64x4(math.NaN())
-	trig64_inf    = archsimd.BroadcastFloat64x4(math.Inf(1))
+	trig64_nan    = archsimd.BroadcastFloat64x4(stdmath.NaN())
+	trig64_inf    = archsimd.BroadcastFloat64x4(stdmath.Inf(1))
 
 	trig64_intOne   = archsimd.BroadcastInt64x4(1)
 	trig64_intTwo   = archsimd.BroadcastInt64x4(2)
@@ -247,7 +247,7 @@ func sinCos64Core(x archsimd.Float64x4) (sin, cos archsimd.Float64x4) {
 	cos = cosBits.AsFloat64x4()
 
 	// Handle special cases: ±Inf -> NaN
-	infMask := origX.Equal(trig64_inf).Or(origX.Equal(archsimd.BroadcastFloat64x4(math.Inf(-1))))
+	infMask := origX.Equal(trig64_inf).Or(origX.Equal(archsimd.BroadcastFloat64x4(stdmath.Inf(-1))))
 	sin = trig64_nan.Merge(sin, infMask)
 	cos = trig64_nan.Merge(cos, infMask)
 

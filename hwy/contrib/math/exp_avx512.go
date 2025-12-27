@@ -79,7 +79,7 @@ func initExp512Constants() {
 	exp512_64_invLn2 = archsimd.BroadcastFloat64x8(1.4426950408889634)
 	exp512_64_one = archsimd.BroadcastFloat64x8(1.0)
 	exp512_64_zero = archsimd.BroadcastFloat64x8(0.0)
-	exp512_64_inf = archsimd.BroadcastFloat64x8(math.Inf(1))
+	exp512_64_inf = archsimd.BroadcastFloat64x8(stdmath.Inf(1))
 	exp512_64_overflow = archsimd.BroadcastFloat64x8(709.782712893384)
 	exp512_64_underflow = archsimd.BroadcastFloat64x8(-708.3964185322641)
 	exp512_64_c1 = archsimd.BroadcastFloat64x8(1.0)

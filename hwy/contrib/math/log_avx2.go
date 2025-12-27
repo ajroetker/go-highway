@@ -28,9 +28,9 @@ var (
 	log32_sqrtHalf = archsimd.BroadcastFloat32x8(0.7071067811865476) // sqrt(2)/2
 
 	// Special values
-	log32_negInf = archsimd.BroadcastFloat32x8(float32(math.Inf(-1)))
-	log32_posInf = archsimd.BroadcastFloat32x8(float32(math.Inf(1)))
-	log32_nan    = archsimd.BroadcastFloat32x8(float32(math.NaN()))
+	log32_negInf = archsimd.BroadcastFloat32x8(float32(stdmath.Inf(-1)))
+	log32_posInf = archsimd.BroadcastFloat32x8(float32(stdmath.Inf(1)))
+	log32_nan    = archsimd.BroadcastFloat32x8(float32(stdmath.NaN()))
 
 	// Bit manipulation constants for IEEE 754
 	log32_mantMask = archsimd.BroadcastInt32x8(0x007FFFFF)  // mantissa mask
@@ -58,9 +58,9 @@ var (
 	log64_zero     = archsimd.BroadcastFloat64x4(0.0)
 	log64_sqrtHalf = archsimd.BroadcastFloat64x4(0.7071067811865476)
 
-	log64_negInf = archsimd.BroadcastFloat64x4(math.Inf(-1))
-	log64_posInf = archsimd.BroadcastFloat64x4(math.Inf(1))
-	log64_nan    = archsimd.BroadcastFloat64x4(math.NaN())
+	log64_negInf = archsimd.BroadcastFloat64x4(stdmath.Inf(-1))
+	log64_posInf = archsimd.BroadcastFloat64x4(stdmath.Inf(1))
+	log64_nan    = archsimd.BroadcastFloat64x4(stdmath.NaN())
 
 	log64_mantMask = archsimd.BroadcastInt64x4(0x000FFFFFFFFFFFFF)
 	log64_expBias  = archsimd.BroadcastInt64x4(1023)

@@ -22,11 +22,10 @@ func Dot_AVX2_F32x8(a, b []float32) float32 {
 	}
 
 	// Horizontal reduction: sum all 8 lanes
-	// Extract both halves (each is 128-bit with 4 float32s)
-	var result float32
-	for i := 0; i < 8; i++ {
-		result += sum.ExtractLane(i)
-	}
+	// Store vector to temp array and sum elements
+	var temp [8]float32
+	sum.StoreSlice(temp[:])
+	result := temp[0] + temp[1] + temp[2] + temp[3] + temp[4] + temp[5] + temp[6] + temp[7]
 
 	// Handle tail elements with scalar code
 	for i := (n / 8) * 8; i < n; i++ {
@@ -50,10 +49,10 @@ func Dot_AVX2_F64x4(a, b []float64) float64 {
 	}
 
 	// Horizontal reduction: sum all 4 lanes
-	var result float64
-	for i := 0; i < 4; i++ {
-		result += sum.ExtractLane(i)
-	}
+	// Store vector to temp array and sum elements
+	var temp [4]float64
+	sum.StoreSlice(temp[:])
+	result := temp[0] + temp[1] + temp[2] + temp[3]
 
 	// Handle tail elements with scalar code
 	for i := (n / 4) * 4; i < n; i++ {

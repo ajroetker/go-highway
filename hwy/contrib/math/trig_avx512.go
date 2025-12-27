@@ -101,9 +101,9 @@ func initTrig512Constants() {
 	trig512_32_zero = archsimd.BroadcastFloat32x16(0.0)
 	trig512_32_one = archsimd.BroadcastFloat32x16(1.0)
 	trig512_32_negOne = archsimd.BroadcastFloat32x16(-1.0)
-	trig512_32_nan = archsimd.BroadcastFloat32x16(float32(math.NaN()))
-	trig512_32_inf = archsimd.BroadcastFloat32x16(float32(math.Inf(1)))
-	trig512_32_negInf = archsimd.BroadcastFloat32x16(float32(math.Inf(-1)))
+	trig512_32_nan = archsimd.BroadcastFloat32x16(float32(stdmath.NaN()))
+	trig512_32_inf = archsimd.BroadcastFloat32x16(float32(stdmath.Inf(1)))
+	trig512_32_negInf = archsimd.BroadcastFloat32x16(float32(stdmath.Inf(-1)))
 
 	trig512_32_intOne = archsimd.BroadcastInt32x16(1)
 	trig512_32_intTwo = archsimd.BroadcastInt32x16(2)
@@ -132,8 +132,8 @@ func initTrig512Constants() {
 	trig512_64_zero = archsimd.BroadcastFloat64x8(0.0)
 	trig512_64_one = archsimd.BroadcastFloat64x8(1.0)
 	trig512_64_negOne = archsimd.BroadcastFloat64x8(-1.0)
-	trig512_64_nan = archsimd.BroadcastFloat64x8(math.NaN())
-	trig512_64_inf = archsimd.BroadcastFloat64x8(math.Inf(1))
+	trig512_64_nan = archsimd.BroadcastFloat64x8(stdmath.NaN())
+	trig512_64_inf = archsimd.BroadcastFloat64x8(stdmath.Inf(1))
 
 	trig512_64_intOne = archsimd.BroadcastInt64x8(1)
 	trig512_64_intTwo = archsimd.BroadcastInt64x8(2)
@@ -299,7 +299,7 @@ func sinCos512_64Core(x archsimd.Float64x8) (sin, cos archsimd.Float64x8) {
 	cos = cosBits.AsFloat64x8()
 
 	// Handle special cases: ±Inf -> NaN
-	infMask := origX.Equal(trig512_64_inf).Or(origX.Equal(archsimd.BroadcastFloat64x8(math.Inf(-1))))
+	infMask := origX.Equal(trig512_64_inf).Or(origX.Equal(archsimd.BroadcastFloat64x8(stdmath.Inf(-1))))
 	sin = trig512_64_nan.Merge(sin, infMask)
 	cos = trig512_64_nan.Merge(cos, infMask)
 

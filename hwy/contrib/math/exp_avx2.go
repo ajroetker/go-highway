@@ -96,7 +96,7 @@ var (
 	exp64_invLn2 = archsimd.BroadcastFloat64x4(1.4426950408889634)
 	exp64_one    = archsimd.BroadcastFloat64x4(1.0)
 	exp64_zero   = archsimd.BroadcastFloat64x4(0.0)
-	exp64_inf    = archsimd.BroadcastFloat64x4(math.Inf(1))
+	exp64_inf    = archsimd.BroadcastFloat64x4(stdmath.Inf(1))
 
 	exp64_overflow  = archsimd.BroadcastFloat64x4(709.782712893384)
 	exp64_underflow = archsimd.BroadcastFloat64x4(-708.3964185322641)
