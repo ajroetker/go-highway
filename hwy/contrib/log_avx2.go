@@ -173,9 +173,10 @@ func Log_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	// Merge semantics: a.Merge(b, mask) returns a when TRUE, b when FALSE
 	m = mAdjusted.Merge(m, adjustMask)
 	// Use float conversion to apply mask (exp values are small integers, no precision loss)
+	// Note: We keep expFloat as Float64x4 since AVX2 lacks vcvttpd2qq (float64→int64).
 	expFloat := exp.ConvertToFloat64()
 	expAdjustedFloat := expAdjusted.ConvertToFloat64()
-	exp = expAdjustedFloat.Merge(expFloat, adjustMask).ConvertToInt64()
+	expFloat = expAdjustedFloat.Merge(expFloat, adjustMask)
 
 	// Transform: y = (m-1)/(m+1)
 	mMinus1 := m.Sub(log64_one)
@@ -197,7 +198,6 @@ func Log_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	lnM := log64_two.Mul(y).Mul(p)
 
 	// Reconstruct: ln(x) = e*ln(2) + ln(m)
-	expFloat = exp.ConvertToFloat64()
 	result := expFloat.Mul(log64_ln2Hi)
 	result = result.Add(expFloat.Mul(log64_ln2Lo))
 	result = result.Add(lnM)

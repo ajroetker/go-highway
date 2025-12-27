@@ -180,7 +180,12 @@ func sinCos64Core(x archsimd.Float64x4) (sin, cos archsimd.Float64x4) {
 
 	// Range reduction: k = round(x * 2/π)
 	k := x.Mul(trig64_2overPi).RoundToEven()
-	kInt := k.ConvertToInt64()
+
+	// Note: AVX2 lacks vcvttpd2qq (float64→int64), so we use scalar conversion.
+	var kBuf [4]float64
+	k.StoreSlice(kBuf[:])
+	kIntBuf := [4]int64{int64(kBuf[0]), int64(kBuf[1]), int64(kBuf[2]), int64(kBuf[3])}
+	kInt := archsimd.LoadInt64x4Slice(kIntBuf[:])
 
 	// r = x - k * (π/2) using Cody-Waite high/low for precision
 	r := x.Sub(k.Mul(trig64_piOver2Hi))

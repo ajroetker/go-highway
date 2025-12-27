@@ -112,8 +112,6 @@ var (
 	exp64_c8  = archsimd.BroadcastFloat64x4(2.48015873015873e-05)
 	exp64_c9  = archsimd.BroadcastFloat64x4(2.7557319223985893e-06)
 	exp64_c10 = archsimd.BroadcastFloat64x4(2.755731922398589e-07)
-
-	exp64_bias = archsimd.BroadcastInt64x4(1023)
 )
 
 // Exp_AVX2_F64x4 computes e^x for a single Float64x4 vector.
@@ -139,9 +137,17 @@ func Exp_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	p = p.MulAdd(r, exp64_one)
 
 	// Scale by 2^k
-	kInt := kFloat.ConvertToInt64()
-	expBits := kInt.Add(exp64_bias).ShiftAllLeft(52)
-	scale := expBits.AsFloat64x4()
+	// Note: AVX2 lacks vcvttpd2qq (float64→int64), so we use scalar conversion.
+	// Store kFloat to memory, compute scale factors, load back.
+	var kBuf [4]float64
+	kFloat.StoreSlice(kBuf[:])
+
+	var scaleBuf [4]float64
+	for i := 0; i < 4; i++ {
+		k := int64(kBuf[i])
+		scaleBuf[i] = math.Float64frombits(uint64(k+1023) << 52)
+	}
+	scale := archsimd.LoadFloat64x4Slice(scaleBuf[:])
 
 	result := p.Mul(scale)
 
