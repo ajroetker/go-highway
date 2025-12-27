@@ -5,52 +5,116 @@ package contrib
 import (
 	"math"
 	"simd/archsimd"
+	"sync"
 )
+
+// Lazy initialization for AVX-512 constants to avoid executing AVX-512
+// instructions at package load time on machines without AVX-512 support.
+
+var trig512Init sync.Once
 
 // AVX-512 vectorized constants for trig32
 var (
 	// Range reduction constants (Cody-Waite)
 	// Using 2/π for reduction to [-π/4, π/4] with π/2 intervals
-	trig512_32_2overPi   = archsimd.BroadcastFloat32x16(0.6366197723675814)     // 2/π
-	trig512_32_piOver2Hi = archsimd.BroadcastFloat32x16(1.5707963267948966)     // π/2 high
-	trig512_32_piOver2Lo = archsimd.BroadcastFloat32x16(6.123233995736766e-17)  // π/2 low
+	trig512_32_2overPi   archsimd.Float32x16
+	trig512_32_piOver2Hi archsimd.Float32x16
+	trig512_32_piOver2Lo archsimd.Float32x16
 
 	// sin(x) polynomial coefficients for |x| <= π/4
 	// sin(x) ≈ x * (1 + s1*x² + s2*x⁴ + s3*x⁶ + s4*x⁸)
-	trig512_32_s1 = archsimd.BroadcastFloat32x16(-0.16666666641626524)    // -1/3!
-	trig512_32_s2 = archsimd.BroadcastFloat32x16(0.008333329385889463)    // 1/5!
-	trig512_32_s3 = archsimd.BroadcastFloat32x16(-0.00019839334836096632) // -1/7!
-	trig512_32_s4 = archsimd.BroadcastFloat32x16(2.718311493989822e-6)    // 1/9!
+	trig512_32_s1 archsimd.Float32x16
+	trig512_32_s2 archsimd.Float32x16
+	trig512_32_s3 archsimd.Float32x16
+	trig512_32_s4 archsimd.Float32x16
 
 	// cos(x) polynomial coefficients for |x| <= π/4
 	// cos(x) ≈ 1 + c1*x² + c2*x⁴ + c3*x⁶ + c4*x⁸
+	trig512_32_c1 archsimd.Float32x16
+	trig512_32_c2 archsimd.Float32x16
+	trig512_32_c3 archsimd.Float32x16
+	trig512_32_c4 archsimd.Float32x16
+
+	// Constants
+	trig512_32_zero   archsimd.Float32x16
+	trig512_32_one    archsimd.Float32x16
+	trig512_32_negOne archsimd.Float32x16
+	trig512_32_nan    archsimd.Float32x16
+	trig512_32_inf    archsimd.Float32x16
+	trig512_32_negInf archsimd.Float32x16
+
+	// Integer constants for octant selection
+	trig512_32_intOne   archsimd.Int32x16
+	trig512_32_intTwo   archsimd.Int32x16
+	trig512_32_intThree archsimd.Int32x16
+	trig512_32_intZero  archsimd.Int32x16
+)
+
+// AVX-512 vectorized constants for trig64
+var (
+	trig512_64_2overPi   archsimd.Float64x8
+	trig512_64_piOver2Hi archsimd.Float64x8
+	trig512_64_piOver2Lo archsimd.Float64x8
+
+	// Higher-degree polynomials for float64
+	trig512_64_s1 archsimd.Float64x8
+	trig512_64_s2 archsimd.Float64x8
+	trig512_64_s3 archsimd.Float64x8
+	trig512_64_s4 archsimd.Float64x8
+	trig512_64_s5 archsimd.Float64x8
+	trig512_64_s6 archsimd.Float64x8
+
+	trig512_64_c1 archsimd.Float64x8
+	trig512_64_c2 archsimd.Float64x8
+	trig512_64_c3 archsimd.Float64x8
+	trig512_64_c4 archsimd.Float64x8
+	trig512_64_c5 archsimd.Float64x8
+	trig512_64_c6 archsimd.Float64x8
+
+	trig512_64_zero   archsimd.Float64x8
+	trig512_64_one    archsimd.Float64x8
+	trig512_64_negOne archsimd.Float64x8
+	trig512_64_nan    archsimd.Float64x8
+	trig512_64_inf    archsimd.Float64x8
+
+	trig512_64_intOne   archsimd.Int64x8
+	trig512_64_intTwo   archsimd.Int64x8
+	trig512_64_intThree archsimd.Int64x8
+)
+
+func initTrig512Constants() {
+	// Float32 constants
+	trig512_32_2overPi = archsimd.BroadcastFloat32x16(0.6366197723675814)
+	trig512_32_piOver2Hi = archsimd.BroadcastFloat32x16(1.5707963267948966)
+	trig512_32_piOver2Lo = archsimd.BroadcastFloat32x16(6.123233995736766e-17)
+
+	trig512_32_s1 = archsimd.BroadcastFloat32x16(-0.16666666641626524)  // -1/3!
+	trig512_32_s2 = archsimd.BroadcastFloat32x16(0.008333329385889463) // 1/5!
+	trig512_32_s3 = archsimd.BroadcastFloat32x16(-0.00019839334836096632) // -1/7!
+	trig512_32_s4 = archsimd.BroadcastFloat32x16(2.718311493989822e-6)    // 1/9!
+
 	trig512_32_c1 = archsimd.BroadcastFloat32x16(-0.4999999963229337)   // -1/2!
 	trig512_32_c2 = archsimd.BroadcastFloat32x16(0.04166662453689337)   // 1/4!
 	trig512_32_c3 = archsimd.BroadcastFloat32x16(-0.001388731625493765) // -1/6!
 	trig512_32_c4 = archsimd.BroadcastFloat32x16(2.443315711809948e-5)  // 1/8!
 
-	// Constants
-	trig512_32_zero   = archsimd.BroadcastFloat32x16(0.0)
-	trig512_32_one    = archsimd.BroadcastFloat32x16(1.0)
+	trig512_32_zero = archsimd.BroadcastFloat32x16(0.0)
+	trig512_32_one = archsimd.BroadcastFloat32x16(1.0)
 	trig512_32_negOne = archsimd.BroadcastFloat32x16(-1.0)
-	trig512_32_nan    = archsimd.BroadcastFloat32x16(float32(math.NaN()))
-	trig512_32_inf    = archsimd.BroadcastFloat32x16(float32(math.Inf(1)))
+	trig512_32_nan = archsimd.BroadcastFloat32x16(float32(math.NaN()))
+	trig512_32_inf = archsimd.BroadcastFloat32x16(float32(math.Inf(1)))
 	trig512_32_negInf = archsimd.BroadcastFloat32x16(float32(math.Inf(-1)))
 
-	// Integer constants for octant selection
-	trig512_32_intOne   = archsimd.BroadcastInt32x16(1)
-	trig512_32_intTwo   = archsimd.BroadcastInt32x16(2)
+	trig512_32_intOne = archsimd.BroadcastInt32x16(1)
+	trig512_32_intTwo = archsimd.BroadcastInt32x16(2)
 	trig512_32_intThree = archsimd.BroadcastInt32x16(3)
-	trig512_32_intZero  = archsimd.BroadcastInt32x16(0)
-)
+	trig512_32_intZero = archsimd.BroadcastInt32x16(0)
 
-// AVX-512 vectorized constants for trig64
-var (
-	trig512_64_2overPi   = archsimd.BroadcastFloat64x8(0.6366197723675814)
+	// Float64 constants
+	trig512_64_2overPi = archsimd.BroadcastFloat64x8(0.6366197723675814)
 	trig512_64_piOver2Hi = archsimd.BroadcastFloat64x8(1.5707963267948966192313216916398)
 	trig512_64_piOver2Lo = archsimd.BroadcastFloat64x8(6.123233995736766035868820147292e-17)
 
-	// Higher-degree polynomials for float64
 	trig512_64_s1 = archsimd.BroadcastFloat64x8(-0.16666666666666632)
 	trig512_64_s2 = archsimd.BroadcastFloat64x8(0.008333333333332249)
 	trig512_64_s3 = archsimd.BroadcastFloat64x8(-0.00019841269840885721)
@@ -65,16 +129,16 @@ var (
 	trig512_64_c5 = archsimd.BroadcastFloat64x8(-2.7557314351390663e-7)
 	trig512_64_c6 = archsimd.BroadcastFloat64x8(2.0875723212981748e-9)
 
-	trig512_64_zero   = archsimd.BroadcastFloat64x8(0.0)
-	trig512_64_one    = archsimd.BroadcastFloat64x8(1.0)
+	trig512_64_zero = archsimd.BroadcastFloat64x8(0.0)
+	trig512_64_one = archsimd.BroadcastFloat64x8(1.0)
 	trig512_64_negOne = archsimd.BroadcastFloat64x8(-1.0)
-	trig512_64_nan    = archsimd.BroadcastFloat64x8(math.NaN())
-	trig512_64_inf    = archsimd.BroadcastFloat64x8(math.Inf(1))
+	trig512_64_nan = archsimd.BroadcastFloat64x8(math.NaN())
+	trig512_64_inf = archsimd.BroadcastFloat64x8(math.Inf(1))
 
-	trig512_64_intOne   = archsimd.BroadcastInt64x8(1)
-	trig512_64_intTwo   = archsimd.BroadcastInt64x8(2)
+	trig512_64_intOne = archsimd.BroadcastInt64x8(1)
+	trig512_64_intTwo = archsimd.BroadcastInt64x8(2)
 	trig512_64_intThree = archsimd.BroadcastInt64x8(3)
-)
+}
 
 // Sin_AVX512_F32x16 computes sin(x) for a single Float32x16 vector.
 //
@@ -87,6 +151,7 @@ var (
 //   - 2: -sin(r)
 //   - 3: -cos(r)
 func Sin_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	trig512Init.Do(initTrig512Constants)
 	sin, _ := sinCos512_32Core(x)
 	return sin
 }
@@ -168,6 +233,7 @@ func sinCos512_32Core(x archsimd.Float32x16) (sin, cos archsimd.Float32x16) {
 
 // Sin_AVX512_F64x8 computes sin(x) for a single Float64x8 vector.
 func Sin_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	trig512Init.Do(initTrig512Constants)
 	sin, _ := sinCos512_64Core(x)
 	return sin
 }
@@ -242,12 +308,14 @@ func sinCos512_64Core(x archsimd.Float64x8) (sin, cos archsimd.Float64x8) {
 
 // Cos_AVX512_F32x16 computes cos(x) for a single Float32x16 vector.
 func Cos_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	trig512Init.Do(initTrig512Constants)
 	_, cos := sinCos512_32Core(x)
 	return cos
 }
 
 // Cos_AVX512_F64x8 computes cos(x) for a single Float64x8 vector.
 func Cos_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	trig512Init.Do(initTrig512Constants)
 	_, cos := sinCos512_64Core(x)
 	return cos
 }
@@ -256,6 +324,7 @@ func Cos_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
 // This is more efficient than calling Sin and Cos separately as it shares
 // the range reduction computation.
 func SinCos_AVX512_F32x16(x archsimd.Float32x16) (sin, cos archsimd.Float32x16) {
+	trig512Init.Do(initTrig512Constants)
 	return sinCos512_32Core(x)
 }
 
@@ -263,5 +332,6 @@ func SinCos_AVX512_F32x16(x archsimd.Float32x16) (sin, cos archsimd.Float32x16) 
 // This is more efficient than calling Sin and Cos separately as it shares
 // the range reduction computation.
 func SinCos_AVX512_F64x8(x archsimd.Float64x8) (sin, cos archsimd.Float64x8) {
+	trig512Init.Do(initTrig512Constants)
 	return sinCos512_64Core(x)
 }

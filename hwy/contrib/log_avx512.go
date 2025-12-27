@@ -5,68 +5,103 @@ package contrib
 import (
 	"math"
 	"simd/archsimd"
+	"sync"
 )
+
+// Lazy initialization for AVX-512 constants to avoid executing AVX-512
+// instructions at package load time on machines without AVX-512 support.
+
+var log512Init sync.Once
 
 // AVX-512 vectorized constants for log32
 var (
-	// Polynomial coefficients for atanh-based log approximation
-	// ln((1+y)/(1-y)) = 2y(1 + y²/3 + y⁴/5 + y⁶/7 + ...)
-	log512_32_c1 = archsimd.BroadcastFloat32x16(0.3333333333333367565) // 1/3
-	log512_32_c2 = archsimd.BroadcastFloat32x16(0.1999999999970470954) // 1/5
-	log512_32_c3 = archsimd.BroadcastFloat32x16(0.1428571437183119574) // 1/7
-	log512_32_c4 = archsimd.BroadcastFloat32x16(0.1111109921607489198) // 1/9
-	log512_32_c5 = archsimd.BroadcastFloat32x16(0.0909178608080902506) // 1/11
-
-	// ln(2) split for precision
-	log512_32_ln2Hi = archsimd.BroadcastFloat32x16(0.693359375)
-	log512_32_ln2Lo = archsimd.BroadcastFloat32x16(-2.12194440e-4)
-
-	// Constants
-	log512_32_one      = archsimd.BroadcastFloat32x16(1.0)
-	log512_32_two      = archsimd.BroadcastFloat32x16(2.0)
-	log512_32_zero     = archsimd.BroadcastFloat32x16(0.0)
-	log512_32_sqrtHalf = archsimd.BroadcastFloat32x16(0.7071067811865476) // sqrt(2)/2
-
-	// Special values
-	log512_32_negInf = archsimd.BroadcastFloat32x16(float32(math.Inf(-1)))
-	log512_32_posInf = archsimd.BroadcastFloat32x16(float32(math.Inf(1)))
-	log512_32_nan    = archsimd.BroadcastFloat32x16(float32(math.NaN()))
-
-	// Bit manipulation constants for IEEE 754
-	log512_32_mantMask = archsimd.BroadcastInt32x16(0x007FFFFF) // mantissa mask
-	log512_32_expBias  = archsimd.BroadcastInt32x16(127)        // exponent bias
-	log512_32_normBits = archsimd.BroadcastInt32x16(0x3F800000) // 1.0 in IEEE 754
-	log512_32_intOne   = archsimd.BroadcastInt32x16(1)
+	log512_32_c1       archsimd.Float32x16
+	log512_32_c2       archsimd.Float32x16
+	log512_32_c3       archsimd.Float32x16
+	log512_32_c4       archsimd.Float32x16
+	log512_32_c5       archsimd.Float32x16
+	log512_32_ln2Hi    archsimd.Float32x16
+	log512_32_ln2Lo    archsimd.Float32x16
+	log512_32_one      archsimd.Float32x16
+	log512_32_two      archsimd.Float32x16
+	log512_32_zero     archsimd.Float32x16
+	log512_32_sqrtHalf archsimd.Float32x16
+	log512_32_negInf   archsimd.Float32x16
+	log512_32_posInf   archsimd.Float32x16
+	log512_32_nan      archsimd.Float32x16
+	log512_32_mantMask archsimd.Int32x16
+	log512_32_expBias  archsimd.Int32x16
+	log512_32_normBits archsimd.Int32x16
+	log512_32_intOne   archsimd.Int32x16
 )
 
 // AVX-512 vectorized constants for log64
 var (
-	// Higher-degree polynomial for float64
-	log512_64_c1 = archsimd.BroadcastFloat64x8(0.3333333333333367565) // 1/3
-	log512_64_c2 = archsimd.BroadcastFloat64x8(0.1999999999970470954) // 1/5
-	log512_64_c3 = archsimd.BroadcastFloat64x8(0.1428571437183119574) // 1/7
-	log512_64_c4 = archsimd.BroadcastFloat64x8(0.1111109921607489198) // 1/9
-	log512_64_c5 = archsimd.BroadcastFloat64x8(0.0909178608080902506) // 1/11
-	log512_64_c6 = archsimd.BroadcastFloat64x8(0.0765691884960468666) // 1/13
-	log512_64_c7 = archsimd.BroadcastFloat64x8(0.0739909930255829295) // 1/15 (approx)
+	log512_64_c1       archsimd.Float64x8
+	log512_64_c2       archsimd.Float64x8
+	log512_64_c3       archsimd.Float64x8
+	log512_64_c4       archsimd.Float64x8
+	log512_64_c5       archsimd.Float64x8
+	log512_64_c6       archsimd.Float64x8
+	log512_64_c7       archsimd.Float64x8
+	log512_64_ln2Hi    archsimd.Float64x8
+	log512_64_ln2Lo    archsimd.Float64x8
+	log512_64_one      archsimd.Float64x8
+	log512_64_two      archsimd.Float64x8
+	log512_64_zero     archsimd.Float64x8
+	log512_64_sqrtHalf archsimd.Float64x8
+	log512_64_negInf   archsimd.Float64x8
+	log512_64_posInf   archsimd.Float64x8
+	log512_64_nan      archsimd.Float64x8
+	log512_64_mantMask archsimd.Int64x8
+	log512_64_expBias  archsimd.Int64x8
+	log512_64_normBits archsimd.Int64x8
+	log512_64_intOne   archsimd.Int64x8
+)
 
+func initLog512Constants() {
+	// Float32 constants
+	log512_32_c1 = archsimd.BroadcastFloat32x16(0.3333333333333367565)
+	log512_32_c2 = archsimd.BroadcastFloat32x16(0.1999999999970470954)
+	log512_32_c3 = archsimd.BroadcastFloat32x16(0.1428571437183119574)
+	log512_32_c4 = archsimd.BroadcastFloat32x16(0.1111109921607489198)
+	log512_32_c5 = archsimd.BroadcastFloat32x16(0.0909178608080902506)
+	log512_32_ln2Hi = archsimd.BroadcastFloat32x16(0.693359375)
+	log512_32_ln2Lo = archsimd.BroadcastFloat32x16(-2.12194440e-4)
+	log512_32_one = archsimd.BroadcastFloat32x16(1.0)
+	log512_32_two = archsimd.BroadcastFloat32x16(2.0)
+	log512_32_zero = archsimd.BroadcastFloat32x16(0.0)
+	log512_32_sqrtHalf = archsimd.BroadcastFloat32x16(0.7071067811865476)
+	log512_32_negInf = archsimd.BroadcastFloat32x16(float32(math.Inf(-1)))
+	log512_32_posInf = archsimd.BroadcastFloat32x16(float32(math.Inf(1)))
+	log512_32_nan = archsimd.BroadcastFloat32x16(float32(math.NaN()))
+	log512_32_mantMask = archsimd.BroadcastInt32x16(0x007FFFFF)
+	log512_32_expBias = archsimd.BroadcastInt32x16(127)
+	log512_32_normBits = archsimd.BroadcastInt32x16(0x3F800000)
+	log512_32_intOne = archsimd.BroadcastInt32x16(1)
+
+	// Float64 constants
+	log512_64_c1 = archsimd.BroadcastFloat64x8(0.3333333333333367565)
+	log512_64_c2 = archsimd.BroadcastFloat64x8(0.1999999999970470954)
+	log512_64_c3 = archsimd.BroadcastFloat64x8(0.1428571437183119574)
+	log512_64_c4 = archsimd.BroadcastFloat64x8(0.1111109921607489198)
+	log512_64_c5 = archsimd.BroadcastFloat64x8(0.0909178608080902506)
+	log512_64_c6 = archsimd.BroadcastFloat64x8(0.0765691884960468666)
+	log512_64_c7 = archsimd.BroadcastFloat64x8(0.0739909930255829295)
 	log512_64_ln2Hi = archsimd.BroadcastFloat64x8(0.6931471803691238)
 	log512_64_ln2Lo = archsimd.BroadcastFloat64x8(1.9082149292705877e-10)
-
-	log512_64_one      = archsimd.BroadcastFloat64x8(1.0)
-	log512_64_two      = archsimd.BroadcastFloat64x8(2.0)
-	log512_64_zero     = archsimd.BroadcastFloat64x8(0.0)
+	log512_64_one = archsimd.BroadcastFloat64x8(1.0)
+	log512_64_two = archsimd.BroadcastFloat64x8(2.0)
+	log512_64_zero = archsimd.BroadcastFloat64x8(0.0)
 	log512_64_sqrtHalf = archsimd.BroadcastFloat64x8(0.7071067811865476)
-
 	log512_64_negInf = archsimd.BroadcastFloat64x8(math.Inf(-1))
 	log512_64_posInf = archsimd.BroadcastFloat64x8(math.Inf(1))
-	log512_64_nan    = archsimd.BroadcastFloat64x8(math.NaN())
-
+	log512_64_nan = archsimd.BroadcastFloat64x8(math.NaN())
 	log512_64_mantMask = archsimd.BroadcastInt64x8(0x000FFFFFFFFFFFFF)
-	log512_64_expBias  = archsimd.BroadcastInt64x8(1023)
+	log512_64_expBias = archsimd.BroadcastInt64x8(1023)
 	log512_64_normBits = archsimd.BroadcastInt64x8(0x3FF0000000000000)
-	log512_64_intOne   = archsimd.BroadcastInt64x8(1)
-)
+	log512_64_intOne = archsimd.BroadcastInt64x8(1)
+}
 
 // Log_AVX512_F32x16 computes ln(x) for a single Float32x16 vector.
 //
@@ -77,6 +112,8 @@ var (
 // 4. Polynomial: ln(m) = 2*y*(1 + c1*y^2 + c2*y^4 + ...)
 // 5. Reconstruct: ln(x) = e*ln(2) + ln(m)
 func Log_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	log512Init.Do(initLog512Constants)
+
 	// Save input for special case handling
 	origX := x
 
@@ -154,6 +191,8 @@ func Log_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 //
 // Algorithm: Same as F32x16 but with higher-degree polynomial for float64 precision.
 func Log_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	log512Init.Do(initLog512Constants)
+
 	// Save input for special case handling
 	origX := x
 

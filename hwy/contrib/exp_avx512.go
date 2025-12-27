@@ -5,61 +5,95 @@ package contrib
 import (
 	"math"
 	"simd/archsimd"
+	"sync"
 )
+
+// Lazy initialization for AVX-512 constants to avoid executing AVX-512
+// instructions at package load time on machines without AVX-512 support.
+
+var exp512Init sync.Once
 
 // AVX-512 vectorized constants for exp32
 var (
-	// ln(2) split for precision
-	exp512_32_ln2Hi  = archsimd.BroadcastFloat32x16(0.693359375)
-	exp512_32_ln2Lo  = archsimd.BroadcastFloat32x16(-2.12194440e-4)
+	exp512_32_ln2Hi     archsimd.Float32x16
+	exp512_32_ln2Lo     archsimd.Float32x16
+	exp512_32_invLn2    archsimd.Float32x16
+	exp512_32_one       archsimd.Float32x16
+	exp512_32_zero      archsimd.Float32x16
+	exp512_32_inf       archsimd.Float32x16
+	exp512_32_overflow  archsimd.Float32x16
+	exp512_32_underflow archsimd.Float32x16
+	exp512_32_c1        archsimd.Float32x16
+	exp512_32_c2        archsimd.Float32x16
+	exp512_32_c3        archsimd.Float32x16
+	exp512_32_c4        archsimd.Float32x16
+	exp512_32_c5        archsimd.Float32x16
+	exp512_32_c6        archsimd.Float32x16
+	exp512_32_bias      archsimd.Int32x16
+)
+
+// AVX-512 vectorized constants for exp64
+var (
+	exp512_64_ln2Hi     archsimd.Float64x8
+	exp512_64_ln2Lo     archsimd.Float64x8
+	exp512_64_invLn2    archsimd.Float64x8
+	exp512_64_one       archsimd.Float64x8
+	exp512_64_zero      archsimd.Float64x8
+	exp512_64_inf       archsimd.Float64x8
+	exp512_64_overflow  archsimd.Float64x8
+	exp512_64_underflow archsimd.Float64x8
+	exp512_64_c1        archsimd.Float64x8
+	exp512_64_c2        archsimd.Float64x8
+	exp512_64_c3        archsimd.Float64x8
+	exp512_64_c4        archsimd.Float64x8
+	exp512_64_c5        archsimd.Float64x8
+	exp512_64_c6        archsimd.Float64x8
+	exp512_64_c7        archsimd.Float64x8
+	exp512_64_c8        archsimd.Float64x8
+	exp512_64_c9        archsimd.Float64x8
+	exp512_64_c10       archsimd.Float64x8
+	exp512_64_bias      archsimd.Int64x8
+)
+
+func initExp512Constants() {
+	// Float32 constants
+	exp512_32_ln2Hi = archsimd.BroadcastFloat32x16(0.693359375)
+	exp512_32_ln2Lo = archsimd.BroadcastFloat32x16(-2.12194440e-4)
 	exp512_32_invLn2 = archsimd.BroadcastFloat32x16(1.44269504088896341)
-	exp512_32_one    = archsimd.BroadcastFloat32x16(1.0)
-	exp512_32_zero   = archsimd.BroadcastFloat32x16(0.0)
-	exp512_32_inf    = archsimd.BroadcastFloat32x16(float32PositiveInf())
-
-	// Overflow/underflow thresholds
-	exp512_32_overflow  = archsimd.BroadcastFloat32x16(88.72283905206835)
+	exp512_32_one = archsimd.BroadcastFloat32x16(1.0)
+	exp512_32_zero = archsimd.BroadcastFloat32x16(0.0)
+	exp512_32_inf = archsimd.BroadcastFloat32x16(float32PositiveInf())
+	exp512_32_overflow = archsimd.BroadcastFloat32x16(88.72283905206835)
 	exp512_32_underflow = archsimd.BroadcastFloat32x16(-87.33654475055310)
-
-	// Polynomial coefficients for exp(r) on [-ln(2)/2, ln(2)/2]
-	// Using Taylor series: 1 + r + r²/2! + r³/3! + r⁴/4! + r⁵/5! + r⁶/6!
 	exp512_32_c1 = archsimd.BroadcastFloat32x16(1.0)
 	exp512_32_c2 = archsimd.BroadcastFloat32x16(0.5)
 	exp512_32_c3 = archsimd.BroadcastFloat32x16(0.16666666666666666)
 	exp512_32_c4 = archsimd.BroadcastFloat32x16(0.041666666666666664)
 	exp512_32_c5 = archsimd.BroadcastFloat32x16(0.008333333333333333)
 	exp512_32_c6 = archsimd.BroadcastFloat32x16(0.001388888888888889)
-
-	// Constants for 2^k computation via IEEE 754 bit manipulation
 	exp512_32_bias = archsimd.BroadcastInt32x16(127)
-)
 
-// AVX-512 vectorized constants for exp64
-var (
-	exp512_64_ln2Hi  = archsimd.BroadcastFloat64x8(0.6931471803691238)
-	exp512_64_ln2Lo  = archsimd.BroadcastFloat64x8(1.9082149292705877e-10)
+	// Float64 constants
+	exp512_64_ln2Hi = archsimd.BroadcastFloat64x8(0.6931471803691238)
+	exp512_64_ln2Lo = archsimd.BroadcastFloat64x8(1.9082149292705877e-10)
 	exp512_64_invLn2 = archsimd.BroadcastFloat64x8(1.4426950408889634)
-	exp512_64_one    = archsimd.BroadcastFloat64x8(1.0)
-	exp512_64_zero   = archsimd.BroadcastFloat64x8(0.0)
-	exp512_64_inf    = archsimd.BroadcastFloat64x8(math.Inf(1))
-
-	exp512_64_overflow  = archsimd.BroadcastFloat64x8(709.782712893384)
+	exp512_64_one = archsimd.BroadcastFloat64x8(1.0)
+	exp512_64_zero = archsimd.BroadcastFloat64x8(0.0)
+	exp512_64_inf = archsimd.BroadcastFloat64x8(math.Inf(1))
+	exp512_64_overflow = archsimd.BroadcastFloat64x8(709.782712893384)
 	exp512_64_underflow = archsimd.BroadcastFloat64x8(-708.3964185322641)
-
-	// Higher-degree polynomial for float64 accuracy
-	exp512_64_c1  = archsimd.BroadcastFloat64x8(1.0)
-	exp512_64_c2  = archsimd.BroadcastFloat64x8(0.5)
-	exp512_64_c3  = archsimd.BroadcastFloat64x8(0.16666666666666666)
-	exp512_64_c4  = archsimd.BroadcastFloat64x8(0.041666666666666664)
-	exp512_64_c5  = archsimd.BroadcastFloat64x8(0.008333333333333333)
-	exp512_64_c6  = archsimd.BroadcastFloat64x8(0.001388888888888889)
-	exp512_64_c7  = archsimd.BroadcastFloat64x8(0.0001984126984126984)
-	exp512_64_c8  = archsimd.BroadcastFloat64x8(2.48015873015873e-05)
-	exp512_64_c9  = archsimd.BroadcastFloat64x8(2.7557319223985893e-06)
+	exp512_64_c1 = archsimd.BroadcastFloat64x8(1.0)
+	exp512_64_c2 = archsimd.BroadcastFloat64x8(0.5)
+	exp512_64_c3 = archsimd.BroadcastFloat64x8(0.16666666666666666)
+	exp512_64_c4 = archsimd.BroadcastFloat64x8(0.041666666666666664)
+	exp512_64_c5 = archsimd.BroadcastFloat64x8(0.008333333333333333)
+	exp512_64_c6 = archsimd.BroadcastFloat64x8(0.001388888888888889)
+	exp512_64_c7 = archsimd.BroadcastFloat64x8(0.0001984126984126984)
+	exp512_64_c8 = archsimd.BroadcastFloat64x8(2.48015873015873e-05)
+	exp512_64_c9 = archsimd.BroadcastFloat64x8(2.7557319223985893e-06)
 	exp512_64_c10 = archsimd.BroadcastFloat64x8(2.755731922398589e-07)
-
 	exp512_64_bias = archsimd.BroadcastInt64x8(1023)
-)
+}
 
 // Exp_AVX512_F32x16 computes e^x for a single Float32x16 vector.
 //
@@ -68,6 +102,8 @@ var (
 // 2. Polynomial approximation: e^r ≈ 1 + r + r²/2! + r³/3! + ...
 // 3. Reconstruction: e^x = 2^k * e^r
 func Exp_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	exp512Init.Do(initExp512Constants)
+
 	// Create masks for special cases
 	overflowMask := x.Greater(exp512_32_overflow)
 	underflowMask := x.Less(exp512_32_underflow)
@@ -113,6 +149,8 @@ func Exp_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 
 // Exp_AVX512_F64x8 computes e^x for a single Float64x8 vector.
 func Exp_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	exp512Init.Do(initExp512Constants)
+
 	overflowMask := x.Greater(exp512_64_overflow)
 	underflowMask := x.Less(exp512_64_underflow)
 

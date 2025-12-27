@@ -4,27 +4,69 @@ package contrib
 
 import (
 	"simd/archsimd"
+	"sync"
 )
+
+// Lazy initialization for AVX-512 constants to avoid executing AVX-512
+// instructions at package load time on machines without AVX-512 support.
+
+var special512Init sync.Once
 
 // AVX-512 vectorized constants for special functions
 var (
 	// Sigmoid constants
-	sig512_32_zero   = archsimd.BroadcastFloat32x16(0.0)
-	sig512_32_one    = archsimd.BroadcastFloat32x16(1.0)
-	sig512_32_negOne = archsimd.BroadcastFloat32x16(-1.0)
-	sig512_32_satHi  = archsimd.BroadcastFloat32x16(20.0)  // sigmoid saturates to 1
-	sig512_32_satLo  = archsimd.BroadcastFloat32x16(-20.0) // sigmoid saturates to 0
+	sig512_32_zero   archsimd.Float32x16
+	sig512_32_one    archsimd.Float32x16
+	sig512_32_negOne archsimd.Float32x16
+	sig512_32_satHi  archsimd.Float32x16
+	sig512_32_satLo  archsimd.Float32x16
 
-	sig512_64_zero  = archsimd.BroadcastFloat64x8(0.0)
-	sig512_64_one   = archsimd.BroadcastFloat64x8(1.0)
+	sig512_64_zero  archsimd.Float64x8
+	sig512_64_one   archsimd.Float64x8
+	sig512_64_satHi archsimd.Float64x8
+	sig512_64_satLo archsimd.Float64x8
+
+	// Tanh constants
+	tanh512_32_two       archsimd.Float32x16
+	tanh512_32_threshold archsimd.Float32x16
+
+	tanh512_64_two       archsimd.Float64x8
+	tanh512_64_threshold archsimd.Float64x8
+
+	// Erf constants (Abramowitz & Stegun approximation 7.1.26)
+	erf512_32_p1 archsimd.Float32x16
+	erf512_32_p2 archsimd.Float32x16
+	erf512_32_p3 archsimd.Float32x16
+	erf512_32_p4 archsimd.Float32x16
+	erf512_32_p5 archsimd.Float32x16
+	erf512_32_t  archsimd.Float32x16
+
+	erf512_64_p1 archsimd.Float64x8
+	erf512_64_p2 archsimd.Float64x8
+	erf512_64_p3 archsimd.Float64x8
+	erf512_64_p4 archsimd.Float64x8
+	erf512_64_p5 archsimd.Float64x8
+	erf512_64_t  archsimd.Float64x8
+)
+
+func initSpecial512Constants() {
+	// Sigmoid constants
+	sig512_32_zero = archsimd.BroadcastFloat32x16(0.0)
+	sig512_32_one = archsimd.BroadcastFloat32x16(1.0)
+	sig512_32_negOne = archsimd.BroadcastFloat32x16(-1.0)
+	sig512_32_satHi = archsimd.BroadcastFloat32x16(20.0)  // sigmoid saturates to 1
+	sig512_32_satLo = archsimd.BroadcastFloat32x16(-20.0) // sigmoid saturates to 0
+
+	sig512_64_zero = archsimd.BroadcastFloat64x8(0.0)
+	sig512_64_one = archsimd.BroadcastFloat64x8(1.0)
 	sig512_64_satHi = archsimd.BroadcastFloat64x8(36.0)
 	sig512_64_satLo = archsimd.BroadcastFloat64x8(-36.0)
 
 	// Tanh constants
-	tanh512_32_two       = archsimd.BroadcastFloat32x16(2.0)
+	tanh512_32_two = archsimd.BroadcastFloat32x16(2.0)
 	tanh512_32_threshold = archsimd.BroadcastFloat32x16(9.0) // tanh saturates beyond this
 
-	tanh512_64_two       = archsimd.BroadcastFloat64x8(2.0)
+	tanh512_64_two = archsimd.BroadcastFloat64x8(2.0)
 	tanh512_64_threshold = archsimd.BroadcastFloat64x8(19.0)
 
 	// Erf constants (Abramowitz & Stegun approximation 7.1.26)
@@ -33,21 +75,23 @@ var (
 	erf512_32_p3 = archsimd.BroadcastFloat32x16(1.421413741)
 	erf512_32_p4 = archsimd.BroadcastFloat32x16(-1.453152027)
 	erf512_32_p5 = archsimd.BroadcastFloat32x16(1.061405429)
-	erf512_32_t  = archsimd.BroadcastFloat32x16(0.3275911)
+	erf512_32_t = archsimd.BroadcastFloat32x16(0.3275911)
 
 	erf512_64_p1 = archsimd.BroadcastFloat64x8(0.254829592)
 	erf512_64_p2 = archsimd.BroadcastFloat64x8(-0.284496736)
 	erf512_64_p3 = archsimd.BroadcastFloat64x8(1.421413741)
 	erf512_64_p4 = archsimd.BroadcastFloat64x8(-1.453152027)
 	erf512_64_p5 = archsimd.BroadcastFloat64x8(1.061405429)
-	erf512_64_t  = archsimd.BroadcastFloat64x8(0.3275911)
-)
+	erf512_64_t = archsimd.BroadcastFloat64x8(0.3275911)
+}
 
 // Tanh_AVX512_F32x16 computes tanh(x) for a single Float32x16 vector.
 //
 // Algorithm: tanh(x) = 2*sigmoid(2x) - 1
 // For large |x|, tanh saturates to ±1.
 func Tanh_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	special512Init.Do(initSpecial512Constants)
+
 	// tanh(x) = 2*sigmoid(2x) - 1
 	twoX := tanh512_32_two.Mul(x)
 	sigTwoX := Sigmoid_AVX512_F32x16(twoX)
@@ -63,6 +107,8 @@ func Tanh_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 
 // Tanh_AVX512_F64x8 computes tanh(x) for a single Float64x8 vector.
 func Tanh_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	special512Init.Do(initSpecial512Constants)
+
 	// tanh(x) = 2*sigmoid(2x) - 1
 	twoX := tanh512_64_two.Mul(x)
 	sigTwoX := Sigmoid_AVX512_F64x8(twoX)
@@ -81,6 +127,8 @@ func Tanh_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
 // Algorithm: sigmoid(x) = 1 / (1 + exp(-x))
 // For numerical stability, we clamp x to avoid exp overflow.
 func Sigmoid_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	special512Init.Do(initSpecial512Constants)
+
 	// Clamp to avoid exp overflow
 	// For x > 20, sigmoid ≈ 1; for x < -20, sigmoid ≈ 0
 	clampedX := x.Max(sig512_32_satLo).Min(sig512_32_satHi)
@@ -101,6 +149,8 @@ func Sigmoid_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 
 // Sigmoid_AVX512_F64x8 computes sigmoid(x) for a single Float64x8 vector.
 func Sigmoid_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	special512Init.Do(initSpecial512Constants)
+
 	// Clamp to avoid exp overflow
 	clampedX := x.Max(sig512_64_satLo).Min(sig512_64_satHi)
 
@@ -125,6 +175,8 @@ func Sigmoid_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
 // where t = 1 / (1 + 0.3275911*|x|)
 // This has a maximum error of 1.5×10⁻⁷
 func Erf_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
+	special512Init.Do(initSpecial512Constants)
+
 	// Handle sign: erf(-x) = -erf(x)
 	signMask := x.Less(sig512_32_zero)
 	absX := x.Max(sig512_32_zero.Sub(x)) // abs(x) = max(x, -x)
@@ -156,6 +208,8 @@ func Erf_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 
 // Erf_AVX512_F64x8 computes erf(x) for a single Float64x8 vector.
 func Erf_AVX512_F64x8(x archsimd.Float64x8) archsimd.Float64x8 {
+	special512Init.Do(initSpecial512Constants)
+
 	// Handle sign: erf(-x) = -erf(x)
 	signMask := x.Less(sig512_64_zero)
 	absX := x.Max(sig512_64_zero.Sub(x)) // abs(x) = max(x, -x)
