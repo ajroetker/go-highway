@@ -39,31 +39,31 @@ func scale2kScalarUnrolled(kFloat archsimd.Float64x4) archsimd.Float64x4 {
 }
 
 // Approach 3: Magic number trick - embed k in mantissa, then bit manipulate
-// Uses the fact that adding 2^52 to a small integer k gives a float64
-// where the mantissa bits contain k.
+// Uses the fact that adding 2^52 to a positive integer embeds it in the mantissa.
+// We add an offset to ensure k is always positive before the trick.
 var (
 	magic64       = archsimd.BroadcastFloat64x4(0x1.0p52)          // 2^52
+	magicOffset64 = archsimd.BroadcastFloat64x4(1024.0)            // Offset to make k positive
 	magicAdjust64 = archsimd.BroadcastInt64x4(0x4330000000000000)  // Bits of 2^52
-	exp64Bias1023 = archsimd.BroadcastInt64x4(1023)                // Exponent bias
+	magicOne64    = archsimd.BroadcastInt64x4(1)                   // For adjustment
 )
 
 func scale2kMagic(kFloat archsimd.Float64x4) archsimd.Float64x4 {
-	// Add magic (2^52) to embed k in mantissa bits.
-	// For k in valid range, kFloat + 2^52 is exactly representable,
-	// and the low 52 bits of the int64 representation contain k (unsigned).
-	kPlusMagic := kFloat.Add(magic64)
+	// Add offset to ensure k is positive: k' = k + 1024
+	// For k in [-1022, 1024], k' is in [2, 2048]
+	kPositive := kFloat.Add(magicOffset64)
 
-	// Reinterpret as int64.
-	// bits = 0x433XXXXXXXXXXXXX where X encodes (2^52 + k) in mantissa
+	// Add magic (2^52) to embed k' in mantissa bits.
+	// Since k' > 0, the result has exponent 1075 and mantissa = k'.
+	kPlusMagic := kPositive.Add(magic64)
+
+	// Reinterpret as int64 and subtract magic to extract k'.
 	bits := kPlusMagic.AsInt64x4()
+	kPosInt := bits.Sub(magicAdjust64) // = k + 1024
 
-	// Subtract the magic constant to extract k.
-	// For k >= 0: bits - 0x4330000000000000 = k
-	// For k < 0: bits - 0x4330000000000000 = k (two's complement works out)
-	kInt := bits.Sub(magicAdjust64)
-
-	// Now construct 2^k: bit pattern is (k + 1023) << 52
-	expBits := kInt.Add(exp64Bias1023).ShiftAllLeft(52)
+	// Construct 2^k: bit pattern is (k + 1023) << 52
+	// Since kPosInt = k + 1024, we need (kPosInt - 1) << 52
+	expBits := kPosInt.Sub(magicOne64).ShiftAllLeft(52)
 	return expBits.AsFloat64x4()
 }
 
