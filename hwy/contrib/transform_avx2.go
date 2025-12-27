@@ -127,70 +127,126 @@ func erf64Scalar(x float64) float64   { return math.Erf(x) }
 // ExpTransform applies exp(x) to each element with zero allocations.
 // Caller must ensure len(output) >= len(input).
 func ExpTransform(input, output []float32) {
-	Transform32(input, output, Exp_AVX2_F32x8, exp32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Exp_AVX512_F32x16, exp32Scalar)
+	} else {
+		Transform32(input, output, Exp_AVX2_F32x8, exp32Scalar)
+	}
 }
 
 // ExpTransform64 applies exp(x) to each float64 element with zero allocations.
 func ExpTransform64(input, output []float64) {
-	Transform64(input, output, Exp_AVX2_F64x4, exp64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Exp_AVX512_F64x8, exp64Scalar)
+	} else {
+		Transform64(input, output, Exp_AVX2_F64x4, exp64Scalar)
+	}
 }
 
 // LogTransform applies ln(x) to each element with zero allocations.
 func LogTransform(input, output []float32) {
-	Transform32(input, output, Log_AVX2_F32x8, log32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Log_AVX512_F32x16, log32Scalar)
+	} else {
+		Transform32(input, output, Log_AVX2_F32x8, log32Scalar)
+	}
 }
 
 // LogTransform64 applies ln(x) to each float64 element with zero allocations.
 func LogTransform64(input, output []float64) {
-	Transform64(input, output, Log_AVX2_F64x4, log64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Log_AVX512_F64x8, log64Scalar)
+	} else {
+		Transform64(input, output, Log_AVX2_F64x4, log64Scalar)
+	}
 }
 
 // SinTransform applies sin(x) to each element with zero allocations.
 func SinTransform(input, output []float32) {
-	Transform32(input, output, Sin_AVX2_F32x8, sin32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Sin_AVX512_F32x16, sin32Scalar)
+	} else {
+		Transform32(input, output, Sin_AVX2_F32x8, sin32Scalar)
+	}
 }
 
 // SinTransform64 applies sin(x) to each float64 element with zero allocations.
 func SinTransform64(input, output []float64) {
-	Transform64(input, output, Sin_AVX2_F64x4, sin64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Sin_AVX512_F64x8, sin64Scalar)
+	} else {
+		Transform64(input, output, Sin_AVX2_F64x4, sin64Scalar)
+	}
 }
 
 // CosTransform applies cos(x) to each element with zero allocations.
 func CosTransform(input, output []float32) {
-	Transform32(input, output, Cos_AVX2_F32x8, cos32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Cos_AVX512_F32x16, cos32Scalar)
+	} else {
+		Transform32(input, output, Cos_AVX2_F32x8, cos32Scalar)
+	}
 }
 
 // CosTransform64 applies cos(x) to each float64 element with zero allocations.
 func CosTransform64(input, output []float64) {
-	Transform64(input, output, Cos_AVX2_F64x4, cos64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Cos_AVX512_F64x8, cos64Scalar)
+	} else {
+		Transform64(input, output, Cos_AVX2_F64x4, cos64Scalar)
+	}
 }
 
 // TanhTransform applies tanh(x) to each element with zero allocations.
 func TanhTransform(input, output []float32) {
-	Transform32(input, output, Tanh_AVX2_F32x8, tanh32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Tanh_AVX512_F32x16, tanh32Scalar)
+	} else {
+		Transform32(input, output, Tanh_AVX2_F32x8, tanh32Scalar)
+	}
 }
 
 // TanhTransform64 applies tanh(x) to each float64 element with zero allocations.
 func TanhTransform64(input, output []float64) {
-	Transform64(input, output, Tanh_AVX2_F64x4, tanh64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Tanh_AVX512_F64x8, tanh64Scalar)
+	} else {
+		Transform64(input, output, Tanh_AVX2_F64x4, tanh64Scalar)
+	}
 }
 
 // SigmoidTransform applies sigmoid(x) = 1/(1+exp(-x)) to each element with zero allocations.
 func SigmoidTransform(input, output []float32) {
-	Transform32(input, output, Sigmoid_AVX2_F32x8, sigmoid32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Sigmoid_AVX512_F32x16, sigmoid32Scalar)
+	} else {
+		Transform32(input, output, Sigmoid_AVX2_F32x8, sigmoid32Scalar)
+	}
 }
 
 // SigmoidTransform64 applies sigmoid(x) to each float64 element with zero allocations.
 func SigmoidTransform64(input, output []float64) {
-	Transform64(input, output, Sigmoid_AVX2_F64x4, sigmoid64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Sigmoid_AVX512_F64x8, sigmoid64Scalar)
+	} else {
+		Transform64(input, output, Sigmoid_AVX2_F64x4, sigmoid64Scalar)
+	}
 }
 
 // ErfTransform applies erf(x) to each element with zero allocations.
 func ErfTransform(input, output []float32) {
-	Transform32(input, output, Erf_AVX2_F32x8, erf32Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform32x16(input, output, Erf_AVX512_F32x16, erf32Scalar)
+	} else {
+		Transform32(input, output, Erf_AVX2_F32x8, erf32Scalar)
+	}
 }
 
 // ErfTransform64 applies erf(x) to each float64 element with zero allocations.
 func ErfTransform64(input, output []float64) {
-	Transform64(input, output, Erf_AVX2_F64x4, erf64Scalar)
+	if hwy.CurrentLevel() >= hwy.DispatchAVX512 {
+		Transform64x8(input, output, Erf_AVX512_F64x8, erf64Scalar)
+	} else {
+		Transform64(input, output, Erf_AVX2_F64x4, erf64Scalar)
+	}
 }

@@ -122,6 +122,16 @@ func AVX512Target() Target {
 
 			// Conditional
 			"IfThenElse": {Package: "", Name: "IfThenElse", IsMethod: false},
+
+			// Contrib math functions (package-level functions that take archsimd types)
+			// The transformer will add the target and type suffix (e.g., Exp -> Exp_AVX512_F32x16)
+			"Exp":     {Package: "contrib", Name: "Exp", IsMethod: false},
+			"Log":     {Package: "contrib", Name: "Log", IsMethod: false},
+			"Sin":     {Package: "contrib", Name: "Sin", IsMethod: false},
+			"Cos":     {Package: "contrib", Name: "Cos", IsMethod: false},
+			"Tanh":    {Package: "contrib", Name: "Tanh", IsMethod: false},
+			"Sigmoid": {Package: "contrib", Name: "Sigmoid", IsMethod: false},
+			"Erf":     {Package: "contrib", Name: "Erf", IsMethod: false},
 		},
 	}
 }

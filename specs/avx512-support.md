@@ -1,5 +1,7 @@
 # AVX512 Support
 
+**Status: ✅ Complete** (2025-12-26)
+
 Add AVX512 implementations for math functions in `hwy/contrib`.
 
 ## Prerequisites
