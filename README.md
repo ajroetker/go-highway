@@ -132,7 +132,7 @@ GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/math/...
 | Architecture | SIMD Width | Status |
 |--------------|------------|--------|
 | AMD64 AVX2 | 256-bit | Supported |
-| AMD64 AVX-512 | 512-bit | Planned |
+| AMD64 AVX-512 | 512-bit | Supported |
 | Pure Go | Scalar | Supported (fallback) |
 
 ## License

@@ -83,3 +83,21 @@ func Erf32Scalar(x float32) float32 { return float32(stdmath.Erf(float64(x))) }
 
 // Erf64Scalar computes erf(x) for a single float64.
 func Erf64Scalar(x float64) float64 { return stdmath.Erf(x) }
+
+// Asinh32Scalar computes asinh(x) for a single float32.
+func Asinh32Scalar(x float32) float32 { return float32(stdmath.Asinh(float64(x))) }
+
+// Asinh64Scalar computes asinh(x) for a single float64.
+func Asinh64Scalar(x float64) float64 { return stdmath.Asinh(x) }
+
+// Acosh32Scalar computes acosh(x) for a single float32.
+func Acosh32Scalar(x float32) float32 { return float32(stdmath.Acosh(float64(x))) }
+
+// Acosh64Scalar computes acosh(x) for a single float64.
+func Acosh64Scalar(x float64) float64 { return stdmath.Acosh(x) }
+
+// Atanh32Scalar computes atanh(x) for a single float32.
+func Atanh32Scalar(x float32) float32 { return float32(stdmath.Atanh(float64(x))) }
+
+// Atanh64Scalar computes atanh(x) for a single float64.
+func Atanh64Scalar(x float64) float64 { return stdmath.Atanh(x) }
