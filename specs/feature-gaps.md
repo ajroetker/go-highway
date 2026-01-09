@@ -71,7 +71,7 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | IsInf | ✅ | ❌ | Float infinity check |
 | IsFinite | ✅ | ❌ | Float finite check |
 
-### Memory Operations
+### Memory Operations ✅ **Gather/Scatter Implemented**
 
 | Operation | C++ Highway | go-highway | Notes |
 |-----------|-------------|------------|-------|
@@ -85,8 +85,10 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | Set (broadcast) | ✅ | ✅ | |
 | Zero | ✅ | ✅ | |
 | Undefined | ✅ | ❌ | Uninitialized vector |
-| GatherIndex | ✅ | ❌ | Indexed load |
-| ScatterIndex | ✅ | ❌ | Indexed store |
+| GatherIndex | ✅ | ✅ | Indexed load |
+| ScatterIndex | ✅ | ✅ | Indexed store |
+| GatherIndexMasked | ✅ | ✅ | Masked indexed load |
+| ScatterIndexMasked | ✅ | ✅ | Masked indexed store |
 | LoadDup128 | ✅ | ❌ | Load and duplicate |
 | LoadInterleaved | ✅ | ❌ | AoS to SoA |
 | StoreInterleaved | ✅ | ❌ | SoA to AoS |
@@ -153,18 +155,18 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | TrailingZeroCount | ✅ | ❌ | CTZ |
 | HighestSetBitIndex | ✅ | ❌ | BSR equivalent |
 
-### Type Conversion Operations ✅ **Implemented**
+### Type Conversion Operations ✅ **Promote/Demote Implemented**
 
 | Operation | C++ Highway | go-highway | Notes |
 |-----------|-------------|------------|-------|
 | ConvertTo | ✅ | ✅ | Float <-> Int conversion |
-| PromoteTo | ✅ | ❌ | Widen (e.g., f32 -> f64) |
-| DemoteTo | ✅ | ❌ | Narrow (e.g., f64 -> f32) |
-| PromoteUpperTo | ✅ | ❌ | Promote upper half |
-| PromoteLowerTo | ✅ | ❌ | Promote lower half |
-| ReorderDemote2To | ✅ | ❌ | Demote two vectors |
+| PromoteTo | ✅ | ✅ | Widen (e.g., f32 -> f64) |
+| DemoteTo | ✅ | ✅ | Narrow (e.g., f64 -> f32, saturating) |
+| PromoteUpperTo | ✅ | ✅ | Promote upper half |
+| PromoteLowerTo | ✅ | ✅ | Promote lower half |
+| ReorderDemote2To | ✅ | ✅ | Demote two vectors (DemoteTwo*) |
 | BitCast | ✅ | ✅ | Reinterpret bits |
-| TruncateTo | ✅ | ❌ | Truncate to narrower |
+| TruncateTo | ✅ | ✅ | Truncate to narrower (non-saturating) |
 | Round | ✅ | ✅ | Round to nearest int |
 | Trunc | ✅ | ✅ | Truncate toward zero |
 | Ceil | ✅ | ✅ | Round up |
@@ -290,6 +292,23 @@ The following features were added to close major gaps:
 - `MaskFromBits`, `BitsFromMask` - Bit conversion
 - `MaskAnd`, `MaskOr`, `MaskXor`, `MaskNot`, `MaskAndNot` - Logical operations
 
+### Gather/Scatter Operations (January 2026)
+- `GatherIndex` - Load elements from non-contiguous memory using indices
+- `GatherIndexMasked` - Masked gather with selective loading
+- `ScatterIndex` - Store elements to non-contiguous memory using indices
+- `ScatterIndexMasked` - Masked scatter with selective storing
+- `GatherIndexOffset` - Gather with base + index*scale addressing
+- `IndicesIota`, `IndicesStride`, `IndicesFromFunc` - Index vector creation utilities
+
+### Type Width Conversion Operations (January 2026)
+- **Float Promotion**: `PromoteF32ToF64`, `PromoteLowerF32ToF64`, `PromoteUpperF32ToF64`
+- **Float Demotion**: `DemoteF64ToF32`, `DemoteTwoF64ToF32`
+- **Signed Integer Promotion**: `PromoteI8ToI16`, `PromoteI16ToI32`, `PromoteI32ToI64` (with Lower/Upper variants)
+- **Unsigned Integer Promotion**: `PromoteU8ToU16`, `PromoteU16ToU32`, `PromoteU32ToU64` (with Lower/Upper variants)
+- **Signed Integer Demotion (Saturating)**: `DemoteI16ToI8`, `DemoteI32ToI16`, `DemoteI64ToI32`, `DemoteTwoI*` variants
+- **Unsigned Integer Demotion (Saturating)**: `DemoteU16ToU8`, `DemoteU32ToU16`, `DemoteU64ToU32`, `DemoteTwoU*` variants
+- **Truncating Demotion (Non-saturating)**: `TruncateI16ToI8`, `TruncateI32ToI16`, `TruncateI64ToI32`, and unsigned variants
+
 ---
 
 ## Priority Implementation Recommendations
@@ -299,10 +318,10 @@ The following features were added to close major gaps:
 1. **ARM NEON** - Architecture support
    - Enables Apple Silicon, mobile, AWS Graviton
 
-2. **Gather/Scatter** - Indexed memory access
+2. ~~**Gather/Scatter** - Indexed memory access~~ ✅ **IMPLEMENTED**
    - Important for sparse operations
 
-3. **Promote/Demote** - Width conversion
+3. ~~**Promote/Demote** - Width conversion~~ ✅ **IMPLEMENTED**
    - `PromoteTo`, `DemoteTo` for mixed-precision
 
 ### Medium Priority
@@ -310,7 +329,7 @@ The following features were added to close major gaps:
 4. **Bit Operations** - `PopCount`, `LeadingZeroCount`, `RotateRight`
    - Important for bit manipulation algorithms
 
-5. **Missing Math** - `Tan`, `Atan`, `Atan2`, `Pow`
+5. ~~**Missing Math** - `Tan`, `Atan`, `Atan2`, `Pow`~~ ✅ **Previously Implemented**
    - Complete transcendental coverage
 
 6. **Slide Operations** - `SlideUpLanes`, `SlideDownLanes`
@@ -331,12 +350,14 @@ The following features were added to close major gaps:
 ## What go-highway Does Well
 
 - Core arithmetic operations (Add, Sub, Mul, Div, FMA, Sqrt)
-- Transcendental math (Exp, Log, Sin, Cos, Tanh, Sigmoid, Erf)
+- Transcendental math (Exp, Log, Sin, Cos, Tan, Tanh, Sigmoid, Erf, Atan, Atan2, Pow)
 - Basic reductions (Sum, Min, Max)
 - Dot product and matrix-vector operations
 - **Shuffle/Permutation operations** (Reverse, Interleave, Concat, OddEven)
 - **Type conversions** (ConvertTo, Round, Trunc, Ceil, Floor, BitCast)
+- **Type width conversions** (PromoteTo, DemoteTo for all integer/float types)
 - **Compress/Expand operations** (Compress, Expand, CompressStore)
+- **Gather/Scatter operations** (GatherIndex, ScatterIndex, masked variants)
 - **Comprehensive mask operations** (CountTrue, AllTrue, FindFirstTrue, MaskFromBits)
 - Code generation tool (hwygen) for multi-target dispatch
 - Clean API leveraging Go generics
