@@ -75,3 +75,32 @@ func GtF32(a, b []float32, result []int32) { panic("NEON not available") }
 func GtI32(a, b, result []int32)           { panic("NEON not available") }
 func GeF32(a, b []float32, result []int32) { panic("NEON not available") }
 func GeI32(a, b, result []int32)           { panic("NEON not available") }
+
+// Bitwise operations (Phase 8)
+func AndI32(a, b, result []int32)                  { panic("NEON not available") }
+func OrI32(a, b, result []int32)                   { panic("NEON not available") }
+func XorI32(a, b, result []int32)                  { panic("NEON not available") }
+func AndNotI32(a, b, result []int32)               { panic("NEON not available") }
+func NotI32(a, result []int32)                     { panic("NEON not available") }
+func ShiftLeftI32(a []int32, shift int, result []int32)  { panic("NEON not available") }
+func ShiftRightI32(a []int32, shift int, result []int32) { panic("NEON not available") }
+
+// Mask operations (Phase 9)
+func IfThenElseF32(mask []int32, yes, no, result []float32) { panic("NEON not available") }
+func IfThenElseI32(mask, yes, no, result []int32)           { panic("NEON not available") }
+func CountTrueI32(mask []int32) int64                       { panic("NEON not available") }
+func AllTrueI32(mask []int32) bool                          { panic("NEON not available") }
+func AllFalseI32(mask []int32) bool                         { panic("NEON not available") }
+func FirstNI32(count int, result []int32)                   { panic("NEON not available") }
+func CompressF32(input []float32, mask []int32, result []float32) int64 {
+	panic("NEON not available")
+}
+func ExpandF32(input []float32, mask []int32, result []float32) { panic("NEON not available") }
+
+// Transcendental math operations (Phase 10)
+func ExpF32(input, result []float32)     { panic("NEON not available") }
+func LogF32(input, result []float32)     { panic("NEON not available") }
+func SinF32(input, result []float32)     { panic("NEON not available") }
+func CosF32(input, result []float32)     { panic("NEON not available") }
+func TanhF32(input, result []float32)    { panic("NEON not available") }
+func SigmoidF32(input, result []float32) { panic("NEON not available") }

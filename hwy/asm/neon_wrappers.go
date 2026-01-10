@@ -2,7 +2,9 @@
 
 package asm
 
-//go:generate go tool goat ../c/ops_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp"
+// -fno-builtin-memset prevents clang from optimizing NEON store loops into memset calls,
+// which don't exist in Go assembly context and cause runtime failures.
+//go:generate go tool goat ../c/ops_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
 
 import "unsafe"
 
@@ -523,4 +525,212 @@ func GeI32(a, b, result []int32) {
 	}
 	n := int64(len(a))
 	ge_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// Bitwise operations (Phase 8)
+
+// AndI32 performs bitwise AND: result[i] = a[i] & b[i]
+func AndI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	and_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// OrI32 performs bitwise OR: result[i] = a[i] | b[i]
+func OrI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	or_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// XorI32 performs bitwise XOR: result[i] = a[i] ^ b[i]
+func XorI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	xor_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// AndNotI32 performs bitwise AND-NOT: result[i] = a[i] & ~b[i]
+func AndNotI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	andnot_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// NotI32 performs bitwise NOT: result[i] = ~a[i]
+func NotI32(a, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	not_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ShiftLeftI32 performs left shift: result[i] = a[i] << shift
+func ShiftLeftI32(a []int32, shift int, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	s := int64(shift)
+	shl_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&s), unsafe.Pointer(&n))
+}
+
+// ShiftRightI32 performs arithmetic right shift: result[i] = a[i] >> shift
+func ShiftRightI32(a []int32, shift int, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	s := int64(shift)
+	shr_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&s), unsafe.Pointer(&n))
+}
+
+// Mask operations (Phase 9)
+
+// IfThenElseF32 selects elements: result[i] = mask[i] ? yes[i] : no[i]
+func IfThenElseF32(mask []int32, yes, no, result []float32) {
+	if len(mask) == 0 {
+		return
+	}
+	n := int64(len(mask))
+	ifthenelse_f32_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&yes[0]), unsafe.Pointer(&no[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// IfThenElseI32 selects elements: result[i] = mask[i] ? yes[i] : no[i]
+func IfThenElseI32(mask, yes, no, result []int32) {
+	if len(mask) == 0 {
+		return
+	}
+	n := int64(len(mask))
+	ifthenelse_i32_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&yes[0]), unsafe.Pointer(&no[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// CountTrueI32 counts non-zero elements in mask
+func CountTrueI32(mask []int32) int64 {
+	if len(mask) == 0 {
+		return 0
+	}
+	n := int64(len(mask))
+	var result int64
+	count_true_i32_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result), unsafe.Pointer(&n))
+	return result
+}
+
+// AllTrueI32 returns true if all mask elements are non-zero
+func AllTrueI32(mask []int32) bool {
+	if len(mask) == 0 {
+		return true
+	}
+	n := int64(len(mask))
+	var result int64
+	all_true_i32_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result), unsafe.Pointer(&n))
+	return result != 0
+}
+
+// AllFalseI32 returns true if all mask elements are zero
+func AllFalseI32(mask []int32) bool {
+	if len(mask) == 0 {
+		return true
+	}
+	n := int64(len(mask))
+	var result int64
+	all_false_i32_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result), unsafe.Pointer(&n))
+	return result != 0
+}
+
+// FirstNI32 generates a mask with first count elements set to -1, rest 0
+func FirstNI32(count int, result []int32) {
+	if len(result) == 0 {
+		return
+	}
+	n := int64(len(result))
+	c := int64(count)
+	firstn_i32_neon(unsafe.Pointer(&result[0]), unsafe.Pointer(&c), unsafe.Pointer(&n))
+}
+
+// CompressF32 packs elements where mask is non-zero
+// Returns the number of elements written to result
+func CompressF32(input []float32, mask []int32, result []float32) int64 {
+	if len(input) == 0 {
+		return 0
+	}
+	n := int64(len(input))
+	var count int64
+	compress_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&mask[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&count), unsafe.Pointer(&n))
+	return count
+}
+
+// ExpandF32 unpacks elements to positions where mask is non-zero
+func ExpandF32(input []float32, mask []int32, result []float32) {
+	if len(result) == 0 {
+		return
+	}
+	n := int64(len(result))
+	var count int64
+	expand_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&mask[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&count), unsafe.Pointer(&n))
+}
+
+// Transcendental math operations (Phase 10)
+
+// ExpF32 computes exponential: result[i] = exp(input[i])
+func ExpF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	exp_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LogF32 computes natural logarithm: result[i] = log(input[i])
+func LogF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	log_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// SinF32 computes sine: result[i] = sin(input[i])
+func SinF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	sin_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// CosF32 computes cosine: result[i] = cos(input[i])
+func CosF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	cos_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// TanhF32 computes hyperbolic tangent: result[i] = tanh(input[i])
+func TanhF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	tanh_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// SigmoidF32 computes sigmoid: result[i] = 1 / (1 + exp(-input[i]))
+func SigmoidF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	sigmoid_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
 }

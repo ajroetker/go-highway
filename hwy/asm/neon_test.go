@@ -1095,3 +1095,514 @@ func BenchmarkLtF32_NEON(b *testing.B) {
 		LtF32(a, bb, result)
 	}
 }
+
+// Phase 8: Bitwise Operations Tests
+
+func TestAndI32(t *testing.T) {
+	a := []int32{0xFF, 0xF0, 0x0F, 0x00, 0xFF00, 0x00FF, 0xFFFF, 0x1234}
+	b := []int32{0x0F, 0x0F, 0x0F, 0x0F, 0x0F0F, 0x0F0F, 0x0F0F, 0x00FF}
+	result := make([]int32, len(a))
+
+	AndI32(a, b, result)
+
+	for i := range a {
+		expected := a[i] & b[i]
+		if result[i] != expected {
+			t.Errorf("AndI32[%d]: got 0x%X, want 0x%X", i, result[i], expected)
+		}
+	}
+}
+
+func TestOrI32(t *testing.T) {
+	a := []int32{0xFF, 0xF0, 0x0F, 0x00, 0xFF00, 0x00FF, 0xFFFF, 0x1234}
+	b := []int32{0x0F, 0x0F, 0x0F, 0x0F, 0x0F0F, 0x0F0F, 0x0F0F, 0x00FF}
+	result := make([]int32, len(a))
+
+	OrI32(a, b, result)
+
+	for i := range a {
+		expected := a[i] | b[i]
+		if result[i] != expected {
+			t.Errorf("OrI32[%d]: got 0x%X, want 0x%X", i, result[i], expected)
+		}
+	}
+}
+
+func TestXorI32(t *testing.T) {
+	a := []int32{0xFF, 0xF0, 0x0F, 0x00, 0xFF00, 0x00FF, 0xFFFF, 0x1234}
+	b := []int32{0x0F, 0x0F, 0x0F, 0x0F, 0x0F0F, 0x0F0F, 0x0F0F, 0x00FF}
+	result := make([]int32, len(a))
+
+	XorI32(a, b, result)
+
+	for i := range a {
+		expected := a[i] ^ b[i]
+		if result[i] != expected {
+			t.Errorf("XorI32[%d]: got 0x%X, want 0x%X", i, result[i], expected)
+		}
+	}
+}
+
+func TestAndNotI32(t *testing.T) {
+	a := []int32{0xFF, 0xF0, 0x0F, 0x00, 0xFF00, 0x00FF, 0xFFFF, 0x1234}
+	b := []int32{0x0F, 0x0F, 0x0F, 0x0F, 0x0F0F, 0x0F0F, 0x0F0F, 0x00FF}
+	result := make([]int32, len(a))
+
+	AndNotI32(a, b, result)
+
+	for i := range a {
+		expected := a[i] & ^b[i]
+		if result[i] != expected {
+			t.Errorf("AndNotI32[%d]: got 0x%X, want 0x%X", i, result[i], expected)
+		}
+	}
+}
+
+func TestNotI32(t *testing.T) {
+	a := []int32{0x00000000, -1, 0x0F0F0F0F, -0x0F0F0F10, 0x12345678, -0x789ABCDF, 1, -2}
+	result := make([]int32, len(a))
+
+	NotI32(a, result)
+
+	for i := range a {
+		expected := ^a[i]
+		if result[i] != expected {
+			t.Errorf("NotI32[%d]: got 0x%X, want 0x%X", i, result[i], expected)
+		}
+	}
+}
+
+func TestShiftLeftI32(t *testing.T) {
+	a := []int32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]int32, len(a))
+
+	ShiftLeftI32(a, 2, result)
+
+	for i := range a {
+		expected := a[i] << 2
+		if result[i] != expected {
+			t.Errorf("ShiftLeftI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestShiftRightI32(t *testing.T) {
+	a := []int32{16, 32, 64, 128, -16, -32, -64, -128}
+	result := make([]int32, len(a))
+
+	ShiftRightI32(a, 2, result)
+
+	for i := range a {
+		expected := a[i] >> 2
+		if result[i] != expected {
+			t.Errorf("ShiftRightI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Phase 9: Mask Operations Tests
+
+func TestIfThenElseF32(t *testing.T) {
+	mask := []int32{-1, 0, -1, 0, -1, 0, -1, 0}
+	yes := []float32{10, 20, 30, 40, 50, 60, 70, 80}
+	no := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]float32, len(mask))
+
+	IfThenElseF32(mask, yes, no, result)
+
+	for i := range mask {
+		var expected float32
+		if mask[i] != 0 {
+			expected = yes[i]
+		} else {
+			expected = no[i]
+		}
+		if result[i] != expected {
+			t.Errorf("IfThenElseF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestIfThenElseI32(t *testing.T) {
+	mask := []int32{-1, 0, -1, 0, -1, 0, -1, 0}
+	yes := []int32{10, 20, 30, 40, 50, 60, 70, 80}
+	no := []int32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]int32, len(mask))
+
+	IfThenElseI32(mask, yes, no, result)
+
+	for i := range mask {
+		var expected int32
+		if mask[i] != 0 {
+			expected = yes[i]
+		} else {
+			expected = no[i]
+		}
+		if result[i] != expected {
+			t.Errorf("IfThenElseI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestCountTrueI32(t *testing.T) {
+	tests := []struct {
+		mask     []int32
+		expected int64
+	}{
+		{[]int32{-1, -1, -1, -1, -1, -1, -1, -1}, 8},
+		{[]int32{0, 0, 0, 0, 0, 0, 0, 0}, 0},
+		{[]int32{-1, 0, -1, 0, -1, 0, -1, 0}, 4},
+		{[]int32{-1, 0, 0, 0, 0, 0, 0, 0}, 1},
+	}
+
+	for _, tt := range tests {
+		result := CountTrueI32(tt.mask)
+		if result != tt.expected {
+			t.Errorf("CountTrueI32(%v): got %v, want %v", tt.mask, result, tt.expected)
+		}
+	}
+}
+
+func TestAllTrueI32(t *testing.T) {
+	tests := []struct {
+		mask     []int32
+		expected bool
+	}{
+		{[]int32{-1, -1, -1, -1, -1, -1, -1, -1}, true},
+		{[]int32{-1, -1, -1, -1, -1, -1, -1, 0}, false},
+		{[]int32{0, 0, 0, 0, 0, 0, 0, 0}, false},
+		{[]int32{1, 2, 3, 4, 5, 6, 7, 8}, true}, // any non-zero is true
+	}
+
+	for _, tt := range tests {
+		result := AllTrueI32(tt.mask)
+		if result != tt.expected {
+			t.Errorf("AllTrueI32(%v): got %v, want %v", tt.mask, result, tt.expected)
+		}
+	}
+}
+
+func TestAllFalseI32(t *testing.T) {
+	tests := []struct {
+		mask     []int32
+		expected bool
+	}{
+		{[]int32{0, 0, 0, 0, 0, 0, 0, 0}, true},
+		{[]int32{0, 0, 0, 0, 0, 0, 0, -1}, false},
+		{[]int32{-1, -1, -1, -1, -1, -1, -1, -1}, false},
+		{[]int32{0, 0, 0, 0, 0, 0, 0, 1}, false},
+	}
+
+	for _, tt := range tests {
+		result := AllFalseI32(tt.mask)
+		if result != tt.expected {
+			t.Errorf("AllFalseI32(%v): got %v, want %v", tt.mask, result, tt.expected)
+		}
+	}
+}
+
+func TestFirstNI32(t *testing.T) {
+	tests := []struct {
+		count    int
+		len      int
+		expected []int32
+	}{
+		{0, 8, []int32{0, 0, 0, 0, 0, 0, 0, 0}},
+		{3, 8, []int32{-1, -1, -1, 0, 0, 0, 0, 0}},
+		{8, 8, []int32{-1, -1, -1, -1, -1, -1, -1, -1}},
+		{4, 4, []int32{-1, -1, -1, -1}},
+	}
+
+	for _, tt := range tests {
+		result := make([]int32, tt.len)
+		FirstNI32(tt.count, result)
+		for i := range result {
+			if result[i] != tt.expected[i] {
+				t.Errorf("FirstNI32(%d)[%d]: got %v, want %v", tt.count, i, result[i], tt.expected[i])
+			}
+		}
+	}
+}
+
+func TestCompressF32(t *testing.T) {
+	input := []float32{10, 20, 30, 40, 50, 60, 70, 80}
+	mask := []int32{-1, 0, -1, 0, -1, 0, -1, 0}
+	result := make([]float32, len(input))
+
+	count := CompressF32(input, mask, result)
+
+	expected := []float32{10, 30, 50, 70}
+	if count != 4 {
+		t.Errorf("CompressF32: count = %v, want 4", count)
+	}
+	for i := int64(0); i < count; i++ {
+		if result[i] != expected[i] {
+			t.Errorf("CompressF32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+func TestExpandF32(t *testing.T) {
+	input := []float32{100, 200, 300, 400, 0, 0, 0, 0}
+	mask := []int32{-1, 0, -1, 0, -1, 0, -1, 0}
+	result := make([]float32, len(mask))
+
+	ExpandF32(input, mask, result)
+
+	expected := []float32{100, 0, 200, 0, 300, 0, 400, 0}
+	for i := range result {
+		if result[i] != expected[i] {
+			t.Errorf("ExpandF32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+// Phase 10: Transcendental Math Tests
+
+func TestExpF32(t *testing.T) {
+	input := []float32{0, 1, -1, 2, -2, 0.5, -0.5, 3}
+	result := make([]float32, len(input))
+
+	ExpF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Exp(float64(input[i])))
+		relErr := math.Abs(float64(result[i]-expected)) / math.Abs(float64(expected))
+		if relErr > 1e-5 {
+			t.Errorf("ExpF32[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestLogF32(t *testing.T) {
+	input := []float32{1, 2, 3, 4, 0.5, 10, 100, 0.1}
+	result := make([]float32, len(input))
+
+	LogF32(input, result)
+
+	// Polynomial approximations have lower precision than math.Log
+	// Expect ~0.2% relative error for SIMD implementations
+	for i := range input {
+		expected := float32(math.Log(float64(input[i])))
+		relErr := math.Abs(float64(result[i]-expected)) / math.Abs(float64(expected)+1e-10)
+		if relErr > 2e-3 {
+			t.Errorf("LogF32[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestSinF32(t *testing.T) {
+	input := []float32{0, 0.5, 1, 1.5, 2, 3, -1, -2}
+	result := make([]float32, len(input))
+
+	SinF32(input, result)
+
+	// 7th-order polynomial approximation achieves ~1e-4 accuracy
+	for i := range input {
+		expected := float32(math.Sin(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 {
+			t.Errorf("SinF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestCosF32(t *testing.T) {
+	input := []float32{0, 0.5, 1, 1.5, 2, 3, -1, -2}
+	result := make([]float32, len(input))
+
+	CosF32(input, result)
+
+	// 6th-order polynomial approximation achieves ~1e-3 accuracy
+	for i := range input {
+		expected := float32(math.Cos(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 {
+			t.Errorf("CosF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestTanhF32(t *testing.T) {
+	input := []float32{0, 0.5, 1, 2, -0.5, -1, -2, 3}
+	result := make([]float32, len(input))
+
+	TanhF32(input, result)
+
+	// Rational approximation achieves ~2e-3 accuracy
+	for i := range input {
+		expected := float32(math.Tanh(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 3e-3 {
+			t.Errorf("TanhF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestSigmoidF32(t *testing.T) {
+	input := []float32{0, 1, -1, 2, -2, 5, -5, 10}
+	result := make([]float32, len(input))
+
+	SigmoidF32(input, result)
+
+	// Sigmoid via exp approximation achieves ~1e-4 accuracy
+	for i := range input {
+		expected := float32(1.0 / (1.0 + math.Exp(-float64(input[i]))))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 2e-4 {
+			t.Errorf("SigmoidF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+// Non-aligned size tests for Phase 8-10
+func TestBitwiseNonAligned(t *testing.T) {
+	a := []int32{0xFF, 0xF0, 0x0F, 0x00, 0xFF00, 0x00FF, 0xFFFF}
+	b := []int32{0x0F, 0x0F, 0x0F, 0x0F, 0x0F0F, 0x0F0F, 0x0F0F}
+	result := make([]int32, len(a))
+
+	AndI32(a, b, result)
+
+	for i := range a {
+		expected := a[i] & b[i]
+		if result[i] != expected {
+			t.Errorf("AndI32 (non-aligned)[%d]: got 0x%X, want 0x%X", i, result[i], expected)
+		}
+	}
+}
+
+func TestMaskOpsNonAligned(t *testing.T) {
+	mask := []int32{-1, 0, -1, 0, -1, 0, -1}
+	yes := []float32{10, 20, 30, 40, 50, 60, 70}
+	no := []float32{1, 2, 3, 4, 5, 6, 7}
+	result := make([]float32, len(mask))
+
+	IfThenElseF32(mask, yes, no, result)
+
+	for i := range mask {
+		var expected float32
+		if mask[i] != 0 {
+			expected = yes[i]
+		} else {
+			expected = no[i]
+		}
+		if result[i] != expected {
+			t.Errorf("IfThenElseF32 (non-aligned)[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestTranscendentalNonAligned(t *testing.T) {
+	input := []float32{0, 1, -1, 2, -2, 0.5, -0.5}
+	result := make([]float32, len(input))
+
+	ExpF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Exp(float64(input[i])))
+		relErr := math.Abs(float64(result[i]-expected)) / math.Abs(float64(expected))
+		if relErr > 1e-5 {
+			t.Errorf("ExpF32 (non-aligned)[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Benchmarks for Phase 8-10 operations
+
+func BenchmarkAndI32_NEON(b *testing.B) {
+	n := 1024
+	a := make([]int32, n)
+	bb := make([]int32, n)
+	result := make([]int32, n)
+	for i := range a {
+		a[i] = int32(i * 0x10101)
+		bb[i] = int32(i * 0x01010)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		AndI32(a, bb, result)
+	}
+}
+
+func BenchmarkIfThenElseF32_NEON(b *testing.B) {
+	n := 1024
+	mask := make([]int32, n)
+	yes := make([]float32, n)
+	no := make([]float32, n)
+	result := make([]float32, n)
+	for i := range mask {
+		if i%2 == 0 {
+			mask[i] = -1
+		}
+		yes[i] = float32(i * 10)
+		no[i] = float32(i)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		IfThenElseF32(mask, yes, no, result)
+	}
+}
+
+func BenchmarkExpF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%10) - 5 // range [-5, 4]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		ExpF32(input, result)
+	}
+}
+
+func BenchmarkSinF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) * 0.01 // range [0, ~10]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		SinF32(input, result)
+	}
+}
+
+func BenchmarkTanhF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%20) - 10 // range [-10, 9]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		TanhF32(input, result)
+	}
+}
+
+func BenchmarkSigmoidF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%20) - 10 // range [-10, 9]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		SigmoidF32(input, result)
+	}
+}

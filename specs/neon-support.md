@@ -350,60 +350,61 @@ TEXT ·add_f32_neon(SB), $0-32
 | GreaterThan | ✅ | ✅ | `gt_f32_neon`, `gt_i32_neon` | `vcgtq_*` |
 | GreaterEqual | ✅ | ✅ | `ge_f32_neon`, `ge_i32_neon` | `vcgeq_*` |
 
-### Phase 8: Bitwise Operations 🔲 Not Started
+### Phase 8: Bitwise Operations ✅ Complete
 
 | Operation | Status | C Function | NEON Intrinsic |
 |-----------|--------|------------|----------------|
-| And | ❌ | `and_*_neon` | `vandq_*` |
-| Or | ❌ | `or_*_neon` | `vorrq_*` |
-| Xor | ❌ | `xor_*_neon` | `veorq_*` |
-| AndNot | ❌ | `andnot_*_neon` | `vbicq_*` |
-| Not | ❌ | `not_*_neon` | `vmvnq_*` |
-| ShiftLeft | ❌ | `shl_*_neon` | `vshlq_*` |
-| ShiftRight | ❌ | `shr_*_neon` | `vshrq_n_*` |
+| And | ✅ | `and_i32_neon` | `vandq_s32` |
+| Or | ✅ | `or_i32_neon` | `vorrq_s32` |
+| Xor | ✅ | `xor_i32_neon` | `veorq_s32` |
+| AndNot | ✅ | `andnot_i32_neon` | `vbicq_s32` |
+| Not | ✅ | `not_i32_neon` | `vmvnq_s32` |
+| ShiftLeft | ✅ | `shl_i32_neon` | `vshlq_s32` |
+| ShiftRight | ✅ | `shr_i32_neon` | `vshrq_n_s32` |
 
-### Phase 9: Mask Operations 🔲 Not Started
+### Phase 9: Mask Operations ✅ Complete
 
 | Operation | Status | C Function | Notes |
 |-----------|--------|------------|-------|
-| IfThenElse | ❌ | `ifthenelse_*_neon` | `vbslq_*` |
-| CountTrue | ❌ | `count_true_neon` | Horizontal popcount |
-| AllTrue | ❌ | `all_true_neon` | `vmaxvq_u32` == 0xFFFFFFFF |
-| AllFalse | ❌ | `all_false_neon` | `vmaxvq_u32` == 0 |
-| FirstN | ❌ | `firstn_*_neon` | Generate mask |
-| Compress | ❌ | `compress_*_neon` | No native support |
-| Expand | ❌ | `expand_*_neon` | No native support |
+| IfThenElse | ✅ | `ifthenelse_f32_neon`, `ifthenelse_i32_neon` | `vbslq_*` |
+| CountTrue | ✅ | `count_true_i32_neon` | Horizontal popcount |
+| AllTrue | ✅ | `all_true_i32_neon` | `vminvq_u32` == 0xFFFFFFFF |
+| AllFalse | ✅ | `all_false_i32_neon` | `vmaxvq_u32` == 0 |
+| FirstN | ✅ | `firstn_i32_neon` | Generate mask with NEON lane stores |
+| Compress | ✅ | `compress_f32_neon` | Scalar loop (no native support) |
+| Expand | ✅ | `expand_f32_neon` | Scalar loop (no native support) |
 
 **Notes:**
-- NEON doesn't have native compress/expand
-- Must implement via scalar or lookup tables
-- Consider `vqtbl1q_u8` for byte-level compress
+- NEON doesn't have native compress/expand - implemented via scalar loops
+- FirstN uses NEON lane stores to avoid memset optimization issues
+- `-fno-builtin-memset` flag required in GOAT to prevent bl memset calls
 
-### Phase 10: Transcendental Math 🔲 Not Started
+### Phase 10: Transcendental Math 🚧 In Progress
 
 | Function | F32 | F64 | Priority | Algorithm |
 |----------|-----|-----|----------|-----------|
-| Exp | ❌ | ❌ | High | Range reduction + polynomial |
-| Log | ❌ | ❌ | High | Range reduction + polynomial |
+| Exp | ✅ | ❌ | High | Range reduction + polynomial |
+| Log | ✅ | ❌ | High | Range reduction + polynomial |
 | Exp2 | ❌ | ❌ | Medium | Similar to Exp |
 | Log2 | ❌ | ❌ | Medium | Similar to Log |
 | Log10 | ❌ | ❌ | Low | Log(x) / Log(10) |
 | Exp10 | ❌ | ❌ | Low | Exp(x * Log(10)) |
-| Sin | ❌ | ❌ | High | Range reduction + Chebyshev |
-| Cos | ❌ | ❌ | High | Range reduction + Chebyshev |
+| Sin | ✅ | ❌ | High | Range reduction + reflection + polynomial |
+| Cos | ✅ | ❌ | High | Range reduction + reflection + polynomial |
 | SinCos | ❌ | ❌ | Medium | Combined sin/cos |
 | Tan | ❌ | ❌ | Low | Sin/Cos |
-| Tanh | ❌ | ❌ | High | Exp-based or rational approx |
-| Sigmoid | ❌ | ❌ | High | 1/(1+exp(-x)) |
+| Tanh | ✅ | ❌ | High | Rational approximation |
+| Sigmoid | ✅ | ❌ | High | 1/(1+exp(-x)) via exp |
 | Erf | ❌ | ❌ | Medium | Polynomial approximation |
 | Atan | ❌ | ❌ | Low | Polynomial approximation |
 | Atan2 | ❌ | ❌ | Low | Atan with quadrant handling |
 | Pow | ❌ | ❌ | Low | Exp(y * Log(x)) |
 
-**Implementation Strategy:**
-- Port polynomial coefficients from AVX2 implementations
-- Use NEON FMA (`vfmaq_f32`) for Horner's method
-- Consider accuracy vs performance tradeoffs
+**Implementation Notes:**
+- Sin/Cos use proper range reduction to [-π, π] then reflection to [-π/2, π/2]
+- Polynomial approximations achieve ~1e-3 to 1e-4 accuracy (sufficient for ML/graphics)
+- Uses NEON FMA (`vfmaq_f32`) for efficient Horner's method evaluation
+- `vbslq_f32` used for branchless conditional selection in range handling
 
 ---
 

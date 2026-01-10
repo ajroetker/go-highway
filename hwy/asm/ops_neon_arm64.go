@@ -169,3 +169,66 @@ func ge_f32_neon(a, b, result, len unsafe.Pointer)
 
 //go:noescape
 func ge_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func and_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func or_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func xor_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func andnot_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func not_i32_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func shl_i32_neon(a, result, shift, len unsafe.Pointer)
+
+//go:noescape
+func shr_i32_neon(a, result, shift, len unsafe.Pointer)
+
+//go:noescape
+func ifthenelse_f32_neon(mask, yes, no, result, len unsafe.Pointer)
+
+//go:noescape
+func ifthenelse_i32_neon(mask, yes, no, result, len unsafe.Pointer)
+
+//go:noescape
+func count_true_i32_neon(mask, result, len unsafe.Pointer)
+
+//go:noescape
+func all_true_i32_neon(mask, result, len unsafe.Pointer)
+
+//go:noescape
+func all_false_i32_neon(mask, result, len unsafe.Pointer)
+
+//go:noescape
+func firstn_i32_neon(result, count, len unsafe.Pointer)
+
+//go:noescape
+func compress_f32_neon(input, mask, result, count, len unsafe.Pointer)
+
+//go:noescape
+func expand_f32_neon(input, mask, result, count, len unsafe.Pointer)
+
+//go:noescape
+func exp_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func log_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func sin_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func cos_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func tanh_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func sigmoid_f32_neon(input, result, len unsafe.Pointer)

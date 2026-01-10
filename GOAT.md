@@ -35,6 +35,12 @@ func Add(a, b, c []float32) {
 - C functions must have void return types
 - `uint64_t` from the header <stdint.h> is not supported
 - C source file names should not begin with `_`.
+- **`else` clauses in conditionals are not supported** - The parser fails with "expected `}`" errors when encountering `else`. Rewrite code to avoid `else` by using multiple `if` statements or initializing values before conditionally updating them.
+- **No `__builtin_*` functions** - Calls to `__builtin_expf`, `__builtin_sqrtf`, etc. generate `bl` (branch-link) instructions to C library functions (`expf`, `sqrtf`, etc.) which don't exist in Go assembly context. Use polynomial approximations or other manual implementations instead.
+- **No `static inline` helper functions** - The parser fails on `static inline` function definitions. Inline all helper code directly where needed.
+- **No `union` type punning** - Union types for float/int bit reinterpretation cause parsing errors. Use alternative approaches like loop-based 2^k computation.
+- **No array initializers with variables** - `int arr[4] = {m0, m1, m2, m3}` causes parsing errors. Use explicit stores instead.
+- **Scalar loops may be optimized to `memset`** - Simple loops like `for (i = 0; i < n; i++) result[i] = 0;` may be optimized by the compiler into `memset` calls, which don't exist in Go assembly. Break the pattern by using NEON stores for the scalar remainder or add complexity to prevent the optimization.
 
 # ARM SME/SVE Support
 
