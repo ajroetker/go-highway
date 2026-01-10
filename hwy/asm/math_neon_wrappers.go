@@ -145,3 +145,30 @@ func SigmoidF64(input, result []float64) {
 	n := int64(len(input))
 	sigmoid_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
 }
+
+// Log10F32 computes log base 10: result[i] = log10(input[i])
+func Log10F32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	log10_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// Exp10F32 computes 10^x: result[i] = 10^input[i]
+func Exp10F32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	exp10_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// SinCosF32 computes both sin and cos: sin_result[i] = sin(input[i]), cos_result[i] = cos(input[i])
+func SinCosF32(input, sinResult, cosResult []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	sincos_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&sinResult[0]), unsafe.Pointer(&cosResult[0]), unsafe.Pointer(&n))
+}

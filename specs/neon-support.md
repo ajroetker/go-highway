@@ -396,9 +396,9 @@ TEXT ·add_f32_neon(SB), $0-32
 | Atan | ✅ | ❌ | Two-level range reduction + polynomial |
 | Atan2 | ✅ | ❌ | Atan with quadrant handling |
 | Pow | ✅ | ❌ | Exp(y * Log(x)) |
-| Log10 | ❌ | ❌ | Log(x) / Log(10) |
-| Exp10 | ❌ | ❌ | Exp(x * Log(10)) |
-| SinCos | ❌ | ❌ | Combined sin/cos |
+| Log10 | ✅ | ❌ | Log2(x) * log10(2) |
+| Exp10 | ✅ | ❌ | 2^(x * log2(10)) |
+| SinCos | ✅ | ❌ | Combined sin/cos (shared range reduction) |
 
 **Implementation Notes:**
 - Sin/Cos use proper range reduction to [-π, π] then reflection to [-π/2, π/2]
@@ -413,6 +413,9 @@ TEXT ·add_f32_neon(SB), $0-32
 |----------|------|--------|---------|
 | AtanF32 | 452 ns | 2200 ns | **4.9x** |
 | Log2F32 | 354 ns | 4095 ns | **11.6x** |
+| Log10F32 | 374 ns | 2795 ns | **7.5x** |
+| Exp10F32 | 235 ns | 4610 ns | **19.6x** |
+| SinCosF32 | 410 ns | 4844 ns | **11.8x** |
 | ExpF32 | ~200 ns | ~2000 ns | **~10x** |
 | SinF32 | ~180 ns | ~2200 ns | **~12x** |
 

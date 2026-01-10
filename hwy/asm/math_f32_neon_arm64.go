@@ -25,3 +25,12 @@ func exp2_f32_neon(input, result, len unsafe.Pointer)
 
 //go:noescape
 func log2_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func log10_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func exp10_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func sincos_f32_neon(input, sin_result, cos_result, len unsafe.Pointer)

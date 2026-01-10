@@ -505,3 +505,169 @@ void log2_f32_neon(float *input, float *result, long *len) {
         vst1q_f32(result + i, res);
     }
 }
+
+// Log10 float32: result[i] = log10(input[i])
+// Uses log10(x) = log2(x) * log10(2) = log2(x) * 0.30103
+void log10_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Constants
+    // log10(2) = 0.30102999566f, bits: 0x3E9A209B
+    float32x4_t v_log10_2 = vreinterpretq_f32_s32(vdupq_n_s32(0x3E9A209B));
+    float32x4_t v_inv_ln2 = vreinterpretq_f32_s32(vdupq_n_s32(0x3FB8AA3B));
+    float32x4_t v_one = vdupq_n_f32(1.0f);
+    float32x4_t v_sqrt2 = vdupq_n_f32(1.41421356237f);
+    float32x4_t v_half = vdupq_n_f32(0.5f);
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t x = vld1q_f32(input + i);
+
+        // Extract exponent and mantissa from IEEE float
+        int32x4_t xi = vreinterpretq_s32_f32(x);
+        int32x4_t exp_bits = vshrq_n_s32(xi, 23);
+        int32x4_t k = vsubq_s32(vandq_s32(exp_bits, vdupq_n_s32(0xFF)), vdupq_n_s32(127));
+
+        // Set exponent to 0 to get mantissa in [1, 2)
+        int32x4_t mantissa_bits = vorrq_s32(vandq_s32(xi, vdupq_n_s32(0x007FFFFF)), vdupq_n_s32(0x3F800000));
+        float32x4_t m = vreinterpretq_f32_s32(mantissa_bits);
+
+        // Range reduction with sqrt(2)
+        uint32x4_t need_adjust = vcgtq_f32(m, v_sqrt2);
+        float32x4_t m_adj = vmulq_f32(m, v_half);
+        m = vbslq_f32(need_adjust, m_adj, m);
+        int32x4_t k_adj = vaddq_s32(k, vdupq_n_s32(1));
+        k = vbslq_s32(need_adjust, k_adj, k);
+
+        // f = m - 1
+        float32x4_t f = vsubq_f32(m, v_one);
+
+        // Polynomial for log(1+f)
+        float32x4_t f2 = vmulq_f32(f, f);
+        float32x4_t f3 = vmulq_f32(f2, f);
+        float32x4_t f4 = vmulq_f32(f2, f2);
+        float32x4_t f5 = vmulq_f32(f4, f);
+
+        float32x4_t log_m = f;
+        log_m = vfmaq_f32(log_m, f2, vdupq_n_f32(-0.5f));
+        log_m = vfmaq_f32(log_m, f3, vdupq_n_f32(0.33333333f));
+        log_m = vfmaq_f32(log_m, f4, vdupq_n_f32(-0.25f));
+        log_m = vfmaq_f32(log_m, f5, vdupq_n_f32(0.2f));
+
+        // log2(x) = k + log(m) * inv_ln2
+        float32x4_t kf = vcvtq_f32_s32(k);
+        float32x4_t log2_x = vfmaq_f32(kf, log_m, v_inv_ln2);
+
+        // log10(x) = log2(x) * log10(2)
+        float32x4_t res = vmulq_f32(log2_x, v_log10_2);
+
+        vst1q_f32(result + i, res);
+    }
+}
+
+// Exp10 float32: result[i] = 10^input[i]
+// Uses 10^x = 2^(x * log2(10))
+void exp10_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Constants
+    // log2(10) = 3.321928095f, bits: 0x40549A78
+    float32x4_t v_log2_10 = vreinterpretq_f32_s32(vdupq_n_s32(0x40549A78));
+    float32x4_t v_ln2 = vreinterpretq_f32_s32(vdupq_n_s32(0x3F317218));
+    float32x4_t v_one = vdupq_n_f32(1.0f);
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t x = vld1q_f32(input + i);
+
+        // Convert to base 2: y = x * log2(10)
+        float32x4_t y = vmulq_f32(x, v_log2_10);
+
+        // Range reduction: 2^y = 2^k * 2^f where k = round(y), f = y - k
+        float32x4_t k = vrndnq_f32(y);
+        float32x4_t f = vsubq_f32(y, k);
+
+        // Convert f back to natural log domain: g = f * ln(2)
+        float32x4_t g = vmulq_f32(f, v_ln2);
+
+        // Polynomial for exp(g) where g is in [-ln(2)/2, ln(2)/2]
+        float32x4_t g2 = vmulq_f32(g, g);
+        float32x4_t g3 = vmulq_f32(g2, g);
+        float32x4_t g4 = vmulq_f32(g2, g2);
+
+        float32x4_t p = v_one;
+        p = vfmaq_f32(p, g, v_one);
+        p = vfmaq_f32(p, g2, vdupq_n_f32(0.5f));
+        p = vfmaq_f32(p, g3, vdupq_n_f32(0.16666667f));
+        p = vfmaq_f32(p, g4, vdupq_n_f32(0.04166667f));
+
+        // Scale by 2^k using IEEE float manipulation
+        int32x4_t ki = vcvtq_s32_f32(k);
+        int32x4_t scale_bits = vshlq_n_s32(vaddq_s32(ki, vdupq_n_s32(127)), 23);
+        float32x4_t scale = vreinterpretq_f32_s32(scale_bits);
+
+        float32x4_t res = vmulq_f32(p, scale);
+        vst1q_f32(result + i, res);
+    }
+}
+
+// SinCos float32: sin_result[i] = sin(input[i]), cos_result[i] = cos(input[i])
+// Computes both sin and cos together, sharing range reduction work
+void sincos_f32_neon(float *input, float *sin_result, float *cos_result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Constants
+    float32x4_t v_pi = vreinterpretq_f32_s32(vdupq_n_s32(0x40490FDB));
+    float32x4_t v_neg_pi = vnegq_f32(v_pi);
+    float32x4_t v_half_pi = vreinterpretq_f32_s32(vdupq_n_s32(0x3FC90FDB));
+    float32x4_t v_neg_half_pi = vnegq_f32(v_half_pi);
+    float32x4_t v_inv_pi = vreinterpretq_f32_s32(vdupq_n_s32(0x3EA2F983));
+    float32x4_t v_two = vdupq_n_f32(2.0f);
+    float32x4_t v_neg_one = vdupq_n_f32(-1.0f);
+    float32x4_t v_one = vdupq_n_f32(1.0f);
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t x = vld1q_f32(input + i);
+
+        // Range reduction to [-pi, pi]
+        float32x4_t k = vrndnq_f32(vmulq_f32(x, vmulq_f32(vdupq_n_f32(0.5f), v_inv_pi)));
+        x = vfmsq_f32(x, k, vmulq_f32(v_two, v_pi));
+
+        // === Sin computation ===
+        float32x4_t sin_x = x;
+        uint32x4_t need_pos_reflect = vcgtq_f32(sin_x, v_half_pi);
+        uint32x4_t need_neg_reflect = vcltq_f32(sin_x, v_neg_half_pi);
+        float32x4_t sin_x_pos_reflected = vsubq_f32(v_pi, sin_x);
+        float32x4_t sin_x_neg_reflected = vsubq_f32(v_neg_pi, sin_x);
+        sin_x = vbslq_f32(need_pos_reflect, sin_x_pos_reflected, sin_x);
+        sin_x = vbslq_f32(need_neg_reflect, sin_x_neg_reflected, sin_x);
+
+        float32x4_t sin_x2 = vmulq_f32(sin_x, sin_x);
+        float32x4_t sin_p = vdupq_n_f32(-0.0001984127f);
+        sin_p = vfmaq_f32(vdupq_n_f32(0.00833333f), sin_p, sin_x2);
+        sin_p = vfmaq_f32(vdupq_n_f32(-0.16666667f), sin_p, sin_x2);
+        sin_p = vfmaq_f32(vdupq_n_f32(1.0f), sin_p, sin_x2);
+        float32x4_t sin_val = vmulq_f32(sin_p, sin_x);
+
+        // === Cos computation ===
+        float32x4_t cos_x = vabsq_f32(x);
+        uint32x4_t cos_need_reflect = vcgtq_f32(cos_x, v_half_pi);
+        float32x4_t cos_x_reflected = vsubq_f32(v_pi, cos_x);
+        cos_x = vbslq_f32(cos_need_reflect, cos_x_reflected, cos_x);
+        float32x4_t cos_sign = vbslq_f32(cos_need_reflect, v_neg_one, v_one);
+
+        float32x4_t cos_x2 = vmulq_f32(cos_x, cos_x);
+        float32x4_t cos_p = vdupq_n_f32(-0.00138889f);
+        cos_p = vfmaq_f32(vdupq_n_f32(0.04166667f), cos_p, cos_x2);
+        cos_p = vfmaq_f32(vdupq_n_f32(-0.5f), cos_p, cos_x2);
+        cos_p = vfmaq_f32(vdupq_n_f32(1.0f), cos_p, cos_x2);
+        float32x4_t cos_val = vmulq_f32(cos_p, cos_sign);
+
+        vst1q_f32(sin_result + i, sin_val);
+        vst1q_f32(cos_result + i, cos_val);
+    }
+}

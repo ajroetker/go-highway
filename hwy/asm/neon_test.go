@@ -2141,3 +2141,159 @@ func BenchmarkSigmoidF64_NEON(b *testing.B) {
 		SigmoidF64(input, result)
 	}
 }
+
+// Log10, Exp10, SinCos Tests
+
+func TestLog10F32(t *testing.T) {
+	input := []float32{1, 10, 100, 1000, 0.1, 0.01, 2, 5}
+	result := make([]float32, len(input))
+
+	Log10F32(input, result)
+
+	for i := range input {
+		expected := float32(math.Log10(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 {
+			t.Errorf("Log10F32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestExp10F32(t *testing.T) {
+	input := []float32{0, 1, 2, -1, -2, 0.5, 1.5, 3}
+	result := make([]float32, len(input))
+
+	Exp10F32(input, result)
+
+	for i := range input {
+		expected := float32(math.Pow(10, float64(input[i])))
+		relErr := math.Abs(float64(result[i]-expected)) / (math.Abs(float64(expected)) + 1e-10)
+		if relErr > 1e-3 {
+			t.Errorf("Exp10F32[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestSinCosF32(t *testing.T) {
+	input := []float32{0, 0.5, 1.0, 1.5, 2.0, 3.14159, -1.0, -2.0}
+	sinResult := make([]float32, len(input))
+	cosResult := make([]float32, len(input))
+
+	SinCosF32(input, sinResult, cosResult)
+
+	for i := range input {
+		expectedSin := float32(math.Sin(float64(input[i])))
+		expectedCos := float32(math.Cos(float64(input[i])))
+		
+		sinErr := math.Abs(float64(sinResult[i] - expectedSin))
+		cosErr := math.Abs(float64(cosResult[i] - expectedCos))
+		
+		if sinErr > 1e-3 {
+			t.Errorf("SinCosF32[%d] sin: got %v, want %v (error: %v)", i, sinResult[i], expectedSin, sinErr)
+		}
+		if cosErr > 1e-3 {
+			t.Errorf("SinCosF32[%d] cos: got %v, want %v (error: %v)", i, cosResult[i], expectedCos, cosErr)
+		}
+	}
+}
+
+// Log10, Exp10, SinCos Benchmarks
+
+func BenchmarkLog10F32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i+1) * 0.1
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Log10F32(input, result)
+	}
+}
+
+func BenchmarkLog10F32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i+1) * 0.1
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Log10(float64(v)))
+		}
+	}
+}
+
+func BenchmarkExp10F32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%6) - 2 // range [-2, 3]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Exp10F32(input, result)
+	}
+}
+
+func BenchmarkExp10F32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%6) - 2
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Pow(10, float64(v)))
+		}
+	}
+}
+
+func BenchmarkSinCosF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	sinResult := make([]float32, n)
+	cosResult := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) * 0.01
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		SinCosF32(input, sinResult, cosResult)
+	}
+}
+
+func BenchmarkSinCosF32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	sinResult := make([]float32, n)
+	cosResult := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) * 0.01
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			sinResult[j] = float32(math.Sin(float64(v)))
+			cosResult[j] = float32(math.Cos(float64(v)))
+		}
+	}
+}
