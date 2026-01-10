@@ -1,35 +1,26 @@
-//go:build (!amd64 || !goexperiment.simd) && (!arm64 || noasm)
+//go:build arm64 && !noasm
 
 package algo
 
-import "math"
+import (
+	"math"
 
-// This file provides scalar fallback implementations for non-SIMD builds.
-// The AVX2 implementations in transform_avx2.go override these on amd64.
+	"github.com/ajroetker/go-highway/hwy/asm"
+)
 
-// Function types for generic Transform operations.
-// These allow users to pass custom operations to Transform32/Transform64.
-// On non-SIMD builds, the SIMD function is ignored and only scalar is used.
+// This file provides ARM NEON-accelerated implementations of transforms.
+// For operations not yet implemented in NEON assembly, we fall back to scalar.
+
+// Function types for generic Transform operations (same as scalar)
 type (
-	// VecFunc32 is a placeholder for SIMD operations (ignored on non-SIMD builds).
-	VecFunc32 func(interface{}) interface{}
-
-	// VecFunc64 is a placeholder for SIMD operations (ignored on non-SIMD builds).
-	VecFunc64 func(interface{}) interface{}
-
-	// ScalarFunc32 is a scalar operation on a single float32.
+	VecFunc32    func(interface{}) interface{}
+	VecFunc64    func(interface{}) interface{}
 	ScalarFunc32 func(float32) float32
-
-	// ScalarFunc64 is a scalar operation on a single float64.
 	ScalarFunc64 func(float64) float64
 )
 
-// Transform32 applies a scalar operation to each element of input, storing results in output.
-// On non-SIMD builds, the simd function is ignored.
-//
-// Example usage:
-//
-//	Transform32(input, output, nil, func(x float32) float32 { return x*x + x })
+// Transform32 applies a scalar operation to each element.
+// On ARM64, some operations use NEON assembly.
 func Transform32(input, output []float32, _ VecFunc32, scalar ScalarFunc32) {
 	n := min(len(input), len(output))
 	for i := 0; i < n; i++ {
@@ -37,8 +28,7 @@ func Transform32(input, output []float32, _ VecFunc32, scalar ScalarFunc32) {
 	}
 }
 
-// Transform64 applies a scalar operation to each element of input, storing results in output.
-// On non-SIMD builds, the simd function is ignored.
+// Transform64 applies a scalar operation to each element.
 func Transform64(input, output []float64, _ VecFunc64, scalar ScalarFunc64) {
 	n := min(len(input), len(output))
 	for i := 0; i < n; i++ {
@@ -74,8 +64,21 @@ func sigmoid64Scalar(x float64) float64   { return 1.0 / (1.0 + math.Exp(-x)) }
 func erf32Scalar(x float32) float32       { return float32(math.Erf(float64(x))) }
 func erf64Scalar(x float64) float64       { return math.Erf(x) }
 
+// NEON-accelerated transforms
+
+// SqrtTransform applies sqrt(x) to each element using NEON.
+func SqrtTransform(input, output []float32) {
+	asm.SqrtF32(input, output)
+}
+
+// SqrtTransform64 applies sqrt(x) to each float64 element (scalar fallback).
+func SqrtTransform64(input, output []float64) {
+	Transform64(input, output, nil, sqrt64Scalar)
+}
+
+// Scalar fallback transforms (NEON implementations to be added later)
+
 // ExpTransform applies exp(x) to each element.
-// Caller must ensure len(output) >= len(input).
 func ExpTransform(input, output []float32) {
 	Transform32(input, output, nil, exp32Scalar)
 }
@@ -193,14 +196,4 @@ func CoshTransform(input, output []float32) {
 // CoshTransform64 applies cosh(x) to each float64 element.
 func CoshTransform64(input, output []float64) {
 	Transform64(input, output, nil, cosh64Scalar)
-}
-
-// SqrtTransform applies sqrt(x) to each element.
-func SqrtTransform(input, output []float32) {
-	Transform32(input, output, nil, sqrt32Scalar)
-}
-
-// SqrtTransform64 applies sqrt(x) to each float64 element.
-func SqrtTransform64(input, output []float64) {
-	Transform64(input, output, nil, sqrt64Scalar)
 }
