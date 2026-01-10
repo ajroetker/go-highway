@@ -4,12 +4,12 @@
 
 A portable SIMD abstraction library for Go, inspired by Google's [Highway](https://github.com/google/highway) C++ library.
 
-Write SIMD code once, run it on AVX2, AVX-512, or pure Go fallback.
+Write SIMD code once, run it on AVX2, AVX-512, ARM NEON, or pure Go fallback.
 
 ## Requirements
 
 - Go 1.26+ (currently requires `go1.26rc1`)
-- `GOEXPERIMENT=simd` for hardware acceleration
+- `GOEXPERIMENT=simd` for AMD64 hardware acceleration (not needed for ARM64)
 
 ## Installation
 
@@ -135,6 +135,7 @@ GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/math/...
 |--------------|------------|--------|
 | AMD64 AVX2 | 256-bit | Supported |
 | AMD64 AVX-512 | 512-bit | Supported |
+| ARM64 NEON | 128-bit | Supported |
 | Pure Go | Scalar | Supported (fallback) |
 
 ## License

@@ -26,7 +26,7 @@ NEON is 128-bit SIMD:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Public API (hwy package)                  │
+│                    Public API (hwy package)                 │
 │         Load, Store, Add, Mul, Transform, etc.              │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -39,11 +39,11 @@ NEON is 128-bit SIMD:
                               │
               ┌───────────────┼───────────────┐
               │               │               │
-      ┌───────▼─────┐  ┌──────▼──────┐  ┌────▼──────────┐
-      │  hwy/c/*.c  │  │ hwy/asm/*.s │  │ hwy/asm/*.go  │
-      │ C + NEON    │→ │  Generated  │ + │  Wrappers    │
-      │ intrinsics  │  │  Assembly   │   │              │
-      └─────────────┘  └─────────────┘  └───────────────┘
+      ┌───────▼─────┐  ┌──────▼──────┐   ┌────▼──────────┐
+      │  hwy/c/*.c  │  │ hwy/asm/*.s │   │ hwy/asm/*.go  │
+      │ C + NEON    │→ │  Generated  │ + │  Wrappers     │
+      │ intrinsics  │  │  Assembly   │   │               │
+      └─────────────┘  └─────────────┘   └───────────────┘
 ```
 
 ## GOAT Workflow

@@ -14,7 +14,7 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | AVX-512 (AVX3) | ✅ | ✅ | Implemented |
 | AVX3_DL, ZEN4, SPR | ✅ | ❌ | Missing |
 | AVX10.2 | ✅ | ❌ | Missing |
-| ARM NEON | ✅ | ❌ Planned | Missing |
+| ARM NEON | ✅ | ✅ | Implemented |
 | ARM SVE/SVE2 | ✅ | ❌ Planned | Missing |
 | RISC-V (RVV) | ✅ | ❌ | Missing |
 | WebAssembly SIMD | ✅ | ❌ Planned | Missing |
@@ -22,12 +22,12 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | IBM Z (Z14/Z15) | ✅ | ❌ | Missing |
 | LoongArch (LSX/LASX) | ✅ | ❌ | Missing |
 
-**C++ Highway: 27 targets | go-highway: 3 (Scalar, AVX2, AVX-512)**
+**C++ Highway: 27 targets | go-highway: 4 (Scalar, AVX2, AVX-512, NEON)**
 
 ### Priority for New Architectures
 
-1. **ARM NEON** - High priority (mobile, Apple Silicon, AWS Graviton)
-2. **ARM SVE/SVE2** - Medium priority (modern ARM servers)
+1. ~~**ARM NEON**~~ ✅ **IMPLEMENTED** (mobile, Apple Silicon, AWS Graviton)
+2. **ARM SVE/SVE2** - High priority (modern ARM servers)
 3. **WebAssembly SIMD** - Medium priority (browser deployment)
 4. **RISC-V RVV** - Low priority (emerging)
 
@@ -368,7 +368,7 @@ The following features were added to close major gaps:
 
 ### High Priority (Most Impact)
 
-1. **ARM NEON** - Architecture support
+1. ~~**ARM NEON** - Architecture support~~ ✅ **IMPLEMENTED**
    - Enables Apple Silicon, mobile, AWS Graviton
 
 2. ~~**Gather/Scatter** - Indexed memory access~~ ✅ **IMPLEMENTED**
