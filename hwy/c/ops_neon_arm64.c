@@ -610,3 +610,382 @@ void reduce_sum_f64_neon(double *input, double *result, long *len) {
 
     *result = sum;
 }
+
+// ============================================================================
+// Type Conversions (Phase 5)
+// ============================================================================
+
+// Promote float32 to float64: result[i] = (double)input[i]
+void promote_f32_f64_neon(float *input, double *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 floats at a time (producing 8 doubles)
+    for (; i + 7 < n; i += 8) {
+        // Load 4 floats, convert to 2 doubles each
+        float32x4_t f0 = vld1q_f32(input + i);
+        float32x4_t f1 = vld1q_f32(input + i + 4);
+
+        // vcvt_f64_f32 converts low 2 floats to 2 doubles
+        // vcvt_high_f64_f32 converts high 2 floats to 2 doubles
+        float64x2_t d0 = vcvt_f64_f32(vget_low_f32(f0));
+        float64x2_t d1 = vcvt_high_f64_f32(f0);
+        float64x2_t d2 = vcvt_f64_f32(vget_low_f32(f1));
+        float64x2_t d3 = vcvt_high_f64_f32(f1);
+
+        vst1q_f64(result + i, d0);
+        vst1q_f64(result + i + 2, d1);
+        vst1q_f64(result + i + 4, d2);
+        vst1q_f64(result + i + 6, d3);
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(input + i);
+        float64x2_t d0 = vcvt_f64_f32(vget_low_f32(f));
+        float64x2_t d1 = vcvt_high_f64_f32(f);
+        vst1q_f64(result + i, d0);
+        vst1q_f64(result + i + 2, d1);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (double)input[i];
+    }
+}
+
+// Demote float64 to float32: result[i] = (float)input[i]
+void demote_f64_f32_neon(double *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 doubles at a time (producing 8 floats)
+    for (; i + 7 < n; i += 8) {
+        float64x2_t d0 = vld1q_f64(input + i);
+        float64x2_t d1 = vld1q_f64(input + i + 2);
+        float64x2_t d2 = vld1q_f64(input + i + 4);
+        float64x2_t d3 = vld1q_f64(input + i + 6);
+
+        // vcvt_f32_f64 converts 2 doubles to 2 floats (low half)
+        // vcvt_high_f32_f64 converts 2 doubles to high half of float32x4
+        float32x4_t f0 = vcvt_high_f32_f64(vcvt_f32_f64(d0), d1);
+        float32x4_t f1 = vcvt_high_f32_f64(vcvt_f32_f64(d2), d3);
+
+        vst1q_f32(result + i, f0);
+        vst1q_f32(result + i + 4, f1);
+    }
+
+    // Process 4 doubles at a time
+    for (; i + 3 < n; i += 4) {
+        float64x2_t d0 = vld1q_f64(input + i);
+        float64x2_t d1 = vld1q_f64(input + i + 2);
+        float32x4_t f = vcvt_high_f32_f64(vcvt_f32_f64(d0), d1);
+        vst1q_f32(result + i, f);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (float)input[i];
+    }
+}
+
+// Convert float32 to int32 (round toward zero): result[i] = (int)input[i]
+void convert_f32_i32_neon(float *input, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t f0 = vld1q_f32(input + i);
+        float32x4_t f1 = vld1q_f32(input + i + 4);
+        float32x4_t f2 = vld1q_f32(input + i + 8);
+        float32x4_t f3 = vld1q_f32(input + i + 12);
+
+        // vcvtq_s32_f32 converts with truncation toward zero
+        vst1q_s32(result + i, vcvtq_s32_f32(f0));
+        vst1q_s32(result + i + 4, vcvtq_s32_f32(f1));
+        vst1q_s32(result + i + 8, vcvtq_s32_f32(f2));
+        vst1q_s32(result + i + 12, vcvtq_s32_f32(f3));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(input + i);
+        vst1q_s32(result + i, vcvtq_s32_f32(f));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (int)input[i];
+    }
+}
+
+// Convert int32 to float32: result[i] = (float)input[i]
+void convert_i32_f32_neon(int *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t i0 = vld1q_s32(input + i);
+        int32x4_t i1 = vld1q_s32(input + i + 4);
+        int32x4_t i2 = vld1q_s32(input + i + 8);
+        int32x4_t i3 = vld1q_s32(input + i + 12);
+
+        vst1q_f32(result + i, vcvtq_f32_s32(i0));
+        vst1q_f32(result + i + 4, vcvtq_f32_s32(i1));
+        vst1q_f32(result + i + 8, vcvtq_f32_s32(i2));
+        vst1q_f32(result + i + 12, vcvtq_f32_s32(i3));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t iv = vld1q_s32(input + i);
+        vst1q_f32(result + i, vcvtq_f32_s32(iv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (float)input[i];
+    }
+}
+
+// Round to nearest (ties to even): result[i] = round(input[i])
+void round_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t f0 = vld1q_f32(input + i);
+        float32x4_t f1 = vld1q_f32(input + i + 4);
+        float32x4_t f2 = vld1q_f32(input + i + 8);
+        float32x4_t f3 = vld1q_f32(input + i + 12);
+
+        vst1q_f32(result + i, vrndnq_f32(f0));
+        vst1q_f32(result + i + 4, vrndnq_f32(f1));
+        vst1q_f32(result + i + 8, vrndnq_f32(f2));
+        vst1q_f32(result + i + 12, vrndnq_f32(f3));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(input + i);
+        vst1q_f32(result + i, vrndnq_f32(f));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = __builtin_roundf(input[i]);
+    }
+}
+
+// Truncate toward zero: result[i] = trunc(input[i])
+void trunc_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 15 < n; i += 16) {
+        float32x4_t f0 = vld1q_f32(input + i);
+        float32x4_t f1 = vld1q_f32(input + i + 4);
+        float32x4_t f2 = vld1q_f32(input + i + 8);
+        float32x4_t f3 = vld1q_f32(input + i + 12);
+
+        vst1q_f32(result + i, vrndq_f32(f0));
+        vst1q_f32(result + i + 4, vrndq_f32(f1));
+        vst1q_f32(result + i + 8, vrndq_f32(f2));
+        vst1q_f32(result + i + 12, vrndq_f32(f3));
+    }
+
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(input + i);
+        vst1q_f32(result + i, vrndq_f32(f));
+    }
+
+    for (; i < n; i++) {
+        result[i] = __builtin_truncf(input[i]);
+    }
+}
+
+// Ceiling (round up): result[i] = ceil(input[i])
+void ceil_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 15 < n; i += 16) {
+        float32x4_t f0 = vld1q_f32(input + i);
+        float32x4_t f1 = vld1q_f32(input + i + 4);
+        float32x4_t f2 = vld1q_f32(input + i + 8);
+        float32x4_t f3 = vld1q_f32(input + i + 12);
+
+        vst1q_f32(result + i, vrndpq_f32(f0));
+        vst1q_f32(result + i + 4, vrndpq_f32(f1));
+        vst1q_f32(result + i + 8, vrndpq_f32(f2));
+        vst1q_f32(result + i + 12, vrndpq_f32(f3));
+    }
+
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(input + i);
+        vst1q_f32(result + i, vrndpq_f32(f));
+    }
+
+    for (; i < n; i++) {
+        result[i] = __builtin_ceilf(input[i]);
+    }
+}
+
+// Floor (round down): result[i] = floor(input[i])
+void floor_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 15 < n; i += 16) {
+        float32x4_t f0 = vld1q_f32(input + i);
+        float32x4_t f1 = vld1q_f32(input + i + 4);
+        float32x4_t f2 = vld1q_f32(input + i + 8);
+        float32x4_t f3 = vld1q_f32(input + i + 12);
+
+        vst1q_f32(result + i, vrndmq_f32(f0));
+        vst1q_f32(result + i + 4, vrndmq_f32(f1));
+        vst1q_f32(result + i + 8, vrndmq_f32(f2));
+        vst1q_f32(result + i + 12, vrndmq_f32(f3));
+    }
+
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(input + i);
+        vst1q_f32(result + i, vrndmq_f32(f));
+    }
+
+    for (; i < n; i++) {
+        result[i] = __builtin_floorf(input[i]);
+    }
+}
+
+// ============================================================================
+// Memory Operations (Phase 4)
+// ============================================================================
+
+// Gather float32: result[i] = base[indices[i]]
+// NEON doesn't have native gather, so we use scalar loop with NEON stores
+void gather_f32_neon(float *base, int *indices, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements at a time using scalar gather + NEON store
+    for (; i + 3 < n; i += 4) {
+        float tmp[4];
+        tmp[0] = base[indices[i]];
+        tmp[1] = base[indices[i + 1]];
+        tmp[2] = base[indices[i + 2]];
+        tmp[3] = base[indices[i + 3]];
+        vst1q_f32(result + i, vld1q_f32(tmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = base[indices[i]];
+    }
+}
+
+// Gather float64: result[i] = base[indices[i]]
+void gather_f64_neon(double *base, int *indices, double *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 2 elements at a time
+    for (; i + 1 < n; i += 2) {
+        double tmp[2];
+        tmp[0] = base[indices[i]];
+        tmp[1] = base[indices[i + 1]];
+        vst1q_f64(result + i, vld1q_f64(tmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = base[indices[i]];
+    }
+}
+
+// Gather int32: result[i] = base[indices[i]]
+void gather_i32_neon(int *base, int *indices, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements at a time
+    for (; i + 3 < n; i += 4) {
+        int tmp[4];
+        tmp[0] = base[indices[i]];
+        tmp[1] = base[indices[i + 1]];
+        tmp[2] = base[indices[i + 2]];
+        tmp[3] = base[indices[i + 3]];
+        vst1q_s32(result + i, vld1q_s32(tmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = base[indices[i]];
+    }
+}
+
+// Scatter float32: base[indices[i]] = values[i]
+void scatter_f32_neon(float *values, int *indices, float *base, long *len) {
+    long n = *len;
+
+    // Scatter is inherently serial due to potential index conflicts
+    for (long i = 0; i < n; i++) {
+        base[indices[i]] = values[i];
+    }
+}
+
+// Scatter float64: base[indices[i]] = values[i]
+void scatter_f64_neon(double *values, int *indices, double *base, long *len) {
+    long n = *len;
+
+    for (long i = 0; i < n; i++) {
+        base[indices[i]] = values[i];
+    }
+}
+
+// Scatter int32: base[indices[i]] = values[i]
+void scatter_i32_neon(int *values, int *indices, int *base, long *len) {
+    long n = *len;
+
+    for (long i = 0; i < n; i++) {
+        base[indices[i]] = values[i];
+    }
+}
+
+// Masked load float32: result[i] = mask[i] ? input[i] : 0
+void masked_load_f32_neon(float *input, int *mask, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t v = vld1q_f32(input + i);
+        int32x4_t m = vld1q_s32(mask + i);
+        // Convert mask to all 1s or 0s: compare != 0
+        uint32x4_t cmp = vcgtq_s32(m, vdupq_n_s32(0));
+        // Use bit select: where mask is 1, use v; where 0, use zero
+        float32x4_t zero = vdupq_n_f32(0);
+        float32x4_t selected = vbslq_f32(cmp, v, zero);
+        vst1q_f32(result + i, selected);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = mask[i] ? input[i] : 0.0f;
+    }
+}
+
+// Masked store float32: if mask[i] then output[i] = input[i]
+void masked_store_f32_neon(float *input, int *mask, float *output, long *len) {
+    long n = *len;
+
+    // Masked store needs to preserve existing values, so process element by element
+    for (long i = 0; i < n; i++) {
+        if (mask[i]) {
+            output[i] = input[i];
+        }
+    }
+}

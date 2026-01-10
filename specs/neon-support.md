@@ -298,32 +298,32 @@ TEXT ·add_f32_neon(SB), $0-32
 | ReduceMin | ✅ | ❌ | `reduce_min_f32_neon` | Horizontal min |
 | ReduceMax | ✅ | ❌ | `reduce_max_f32_neon` | Horizontal max |
 
-### Phase 4: Memory Operations 🔲 Not Started
+### Phase 4: Memory Operations ✅ Complete
 
 | Operation | F32 | F64 | I32 | I64 | C Function | Priority |
 |-----------|-----|-----|-----|-----|------------|----------|
-| GatherIndex | ❌ | ❌ | ❌ | ❌ | `gather_*_neon` | High |
-| ScatterIndex | ❌ | ❌ | ❌ | ❌ | `scatter_*_neon` | High |
-| MaskedLoad | ❌ | ❌ | ❌ | ❌ | `masked_load_*_neon` | Medium |
-| MaskedStore | ❌ | ❌ | ❌ | ❌ | `masked_store_*_neon` | Medium |
+| GatherIndex | ✅ | ✅ | ✅ | ❌ | `gather_*_neon` | High |
+| ScatterIndex | ✅ | ✅ | ✅ | ❌ | `scatter_*_neon` | High |
+| MaskedLoad | ✅ | ❌ | ❌ | ❌ | `masked_load_*_neon` | Medium |
+| MaskedStore | ✅ | ❌ | ❌ | ❌ | `masked_store_*_neon` | Medium |
 
 **Notes:**
 - NEON doesn't have native gather/scatter instructions
-- Must implement as scalar loop with NEON load/store
-- Consider using `vld1q_lane_*` for partial vectorization
+- Implemented as scalar loop with NEON load/store for results
+- Scatter is inherently serial due to potential index conflicts
 
-### Phase 5: Type Conversions 🔲 Not Started
+### Phase 5: Type Conversions ✅ Complete
 
 | Operation | Status | C Function | Notes |
 |-----------|--------|------------|-------|
-| PromoteF32ToF64 | ❌ | `promote_f32_f64_neon` | `vcvt_f64_f32` |
-| DemoteF64ToF32 | ❌ | `demote_f64_f32_neon` | `vcvt_f32_f64` |
-| ConvertF32ToI32 | ❌ | `convert_f32_i32_neon` | `vcvtq_s32_f32` |
-| ConvertI32ToF32 | ❌ | `convert_i32_f32_neon` | `vcvtq_f32_s32` |
-| Round | ❌ | `round_f32_neon` | `vrndnq_f32` |
-| Trunc | ❌ | `trunc_f32_neon` | `vrndq_f32` |
-| Ceil | ❌ | `ceil_f32_neon` | `vrndpq_f32` |
-| Floor | ❌ | `floor_f32_neon` | `vrndmq_f32` |
+| PromoteF32ToF64 | ✅ | `promote_f32_f64_neon` | `vcvt_f64_f32` |
+| DemoteF64ToF32 | ✅ | `demote_f64_f32_neon` | `vcvt_f32_f64` |
+| ConvertF32ToI32 | ✅ | `convert_f32_i32_neon` | `vcvtq_s32_f32` |
+| ConvertI32ToF32 | ✅ | `convert_i32_f32_neon` | `vcvtq_f32_s32` |
+| Round | ✅ | `round_f32_neon` | `vrndnq_f32` |
+| Trunc | ✅ | `trunc_f32_neon` | `vrndq_f32` |
+| Ceil | ✅ | `ceil_f32_neon` | `vrndpq_f32` |
+| Floor | ✅ | `floor_f32_neon` | `vrndmq_f32` |
 
 ### Phase 6: Shuffle/Permutation 🔲 Not Started
 

@@ -55,3 +55,51 @@ func fma_f64_neon(a, b, c, result, len unsafe.Pointer)
 
 //go:noescape
 func reduce_sum_f64_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func promote_f32_f64_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func demote_f64_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func convert_f32_i32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func convert_i32_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func round_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func trunc_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func ceil_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func floor_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func gather_f32_neon(base, indices, result, len unsafe.Pointer)
+
+//go:noescape
+func gather_f64_neon(base, indices, result, len unsafe.Pointer)
+
+//go:noescape
+func gather_i32_neon(base, indices, result, len unsafe.Pointer)
+
+//go:noescape
+func scatter_f32_neon(values, indices, base, len unsafe.Pointer)
+
+//go:noescape
+func scatter_f64_neon(values, indices, base, len unsafe.Pointer)
+
+//go:noescape
+func scatter_i32_neon(values, indices, base, len unsafe.Pointer)
+
+//go:noescape
+func masked_load_f32_neon(input, mask, result, len unsafe.Pointer)
+
+//go:noescape
+func masked_store_f32_neon(input, mask, output, len unsafe.Pointer)

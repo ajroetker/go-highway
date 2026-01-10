@@ -307,3 +307,327 @@ func BenchmarkReduceSumF32_Scalar(b *testing.B) {
 		_ = sum
 	}
 }
+
+// Phase 5: Type Conversions Tests
+
+func TestPromoteF32ToF64(t *testing.T) {
+	input := []float32{1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5}
+	result := make([]float64, len(input))
+
+	PromoteF32ToF64(input, result)
+
+	for i := range input {
+		expected := float64(input[i])
+		if result[i] != expected {
+			t.Errorf("PromoteF32ToF64[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestDemoteF64ToF32(t *testing.T) {
+	input := []float64{1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5}
+	result := make([]float32, len(input))
+
+	DemoteF64ToF32(input, result)
+
+	for i := range input {
+		expected := float32(input[i])
+		if result[i] != expected {
+			t.Errorf("DemoteF64ToF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestConvertF32ToI32(t *testing.T) {
+	input := []float32{1.9, -2.9, 3.1, -4.1, 5.5, -6.5, 7.0, -8.0}
+	result := make([]int32, len(input))
+
+	ConvertF32ToI32(input, result)
+
+	for i := range input {
+		expected := int32(input[i]) // truncation toward zero
+		if result[i] != expected {
+			t.Errorf("ConvertF32ToI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestConvertI32ToF32(t *testing.T) {
+	input := []int32{1, -2, 3, -4, 5, -6, 7, -8}
+	result := make([]float32, len(input))
+
+	ConvertI32ToF32(input, result)
+
+	for i := range input {
+		expected := float32(input[i])
+		if result[i] != expected {
+			t.Errorf("ConvertI32ToF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestRoundF32(t *testing.T) {
+	input := []float32{1.4, 1.5, 1.6, 2.5, -1.4, -1.5, -1.6, -2.5}
+	result := make([]float32, len(input))
+
+	RoundF32(input, result)
+
+	// Note: NEON uses round-to-nearest-even for ties
+	expected := []float32{1, 2, 2, 2, -1, -2, -2, -2}
+	for i := range input {
+		if result[i] != expected[i] {
+			t.Errorf("RoundF32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+func TestTruncF32(t *testing.T) {
+	input := []float32{1.9, -1.9, 2.1, -2.1, 3.5, -3.5, 4.0, -4.0}
+	result := make([]float32, len(input))
+
+	TruncF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Trunc(float64(input[i])))
+		if result[i] != expected {
+			t.Errorf("TruncF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestCeilF32(t *testing.T) {
+	input := []float32{1.1, -1.1, 2.9, -2.9, 3.0, -3.0, 4.5, -4.5}
+	result := make([]float32, len(input))
+
+	CeilF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Ceil(float64(input[i])))
+		if result[i] != expected {
+			t.Errorf("CeilF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestFloorF32(t *testing.T) {
+	input := []float32{1.1, -1.1, 2.9, -2.9, 3.0, -3.0, 4.5, -4.5}
+	result := make([]float32, len(input))
+
+	FloorF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Floor(float64(input[i])))
+		if result[i] != expected {
+			t.Errorf("FloorF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Phase 4: Memory Operations Tests
+
+func TestGatherF32(t *testing.T) {
+	base := []float32{10, 20, 30, 40, 50, 60, 70, 80}
+	indices := []int32{7, 0, 3, 5, 2, 1, 6, 4}
+	result := make([]float32, len(indices))
+
+	GatherF32(base, indices, result)
+
+	for i := range indices {
+		expected := base[indices[i]]
+		if result[i] != expected {
+			t.Errorf("GatherF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestGatherF64(t *testing.T) {
+	base := []float64{10, 20, 30, 40, 50, 60, 70, 80}
+	indices := []int32{7, 0, 3, 5, 2, 1, 6, 4}
+	result := make([]float64, len(indices))
+
+	GatherF64(base, indices, result)
+
+	for i := range indices {
+		expected := base[indices[i]]
+		if result[i] != expected {
+			t.Errorf("GatherF64[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestGatherI32(t *testing.T) {
+	base := []int32{10, 20, 30, 40, 50, 60, 70, 80}
+	indices := []int32{7, 0, 3, 5, 2, 1, 6, 4}
+	result := make([]int32, len(indices))
+
+	GatherI32(base, indices, result)
+
+	for i := range indices {
+		expected := base[indices[i]]
+		if result[i] != expected {
+			t.Errorf("GatherI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestScatterF32(t *testing.T) {
+	values := []float32{100, 200, 300, 400}
+	indices := []int32{3, 1, 7, 5}
+	base := make([]float32, 8)
+
+	ScatterF32(values, indices, base)
+
+	for i := range indices {
+		if base[indices[i]] != values[i] {
+			t.Errorf("ScatterF32: base[%d] = %v, want %v", indices[i], base[indices[i]], values[i])
+		}
+	}
+}
+
+func TestScatterF64(t *testing.T) {
+	values := []float64{100, 200, 300, 400}
+	indices := []int32{3, 1, 7, 5}
+	base := make([]float64, 8)
+
+	ScatterF64(values, indices, base)
+
+	for i := range indices {
+		if base[indices[i]] != values[i] {
+			t.Errorf("ScatterF64: base[%d] = %v, want %v", indices[i], base[indices[i]], values[i])
+		}
+	}
+}
+
+func TestScatterI32(t *testing.T) {
+	values := []int32{100, 200, 300, 400}
+	indices := []int32{3, 1, 7, 5}
+	base := make([]int32, 8)
+
+	ScatterI32(values, indices, base)
+
+	for i := range indices {
+		if base[indices[i]] != values[i] {
+			t.Errorf("ScatterI32: base[%d] = %v, want %v", indices[i], base[indices[i]], values[i])
+		}
+	}
+}
+
+func TestMaskedLoadF32(t *testing.T) {
+	input := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	mask := []int32{1, 0, 1, 0, 1, 0, 1, 0}
+	result := make([]float32, len(input))
+
+	MaskedLoadF32(input, mask, result)
+
+	for i := range input {
+		var expected float32
+		if mask[i] != 0 {
+			expected = input[i]
+		} else {
+			expected = 0
+		}
+		if result[i] != expected {
+			t.Errorf("MaskedLoadF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestMaskedStoreF32(t *testing.T) {
+	input := []float32{100, 200, 300, 400, 500, 600, 700, 800}
+	mask := []int32{1, 0, 1, 0, 1, 0, 1, 0}
+	output := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+
+	MaskedStoreF32(input, mask, output)
+
+	for i := range input {
+		var expected float32
+		if mask[i] != 0 {
+			expected = input[i]
+		} else {
+			expected = float32(i + 1) // original value
+		}
+		if output[i] != expected {
+			t.Errorf("MaskedStoreF32[%d]: got %v, want %v", i, output[i], expected)
+		}
+	}
+}
+
+// Test non-aligned sizes for new operations
+func TestTypeConversionsNonAligned(t *testing.T) {
+	// Test with 7 elements (not multiple of 4)
+	f32 := []float32{1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5}
+	f64 := make([]float64, len(f32))
+
+	PromoteF32ToF64(f32, f64)
+
+	for i := range f32 {
+		expected := float64(f32[i])
+		if f64[i] != expected {
+			t.Errorf("PromoteF32ToF64 (non-aligned)[%d]: got %v, want %v", i, f64[i], expected)
+		}
+	}
+}
+
+func TestGatherNonAligned(t *testing.T) {
+	base := []float32{10, 20, 30, 40, 50, 60, 70, 80}
+	indices := []int32{7, 0, 3} // 3 elements
+	result := make([]float32, len(indices))
+
+	GatherF32(base, indices, result)
+
+	for i := range indices {
+		expected := base[indices[i]]
+		if result[i] != expected {
+			t.Errorf("GatherF32 (non-aligned)[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Benchmarks for new operations
+
+func BenchmarkGatherF32_NEON(b *testing.B) {
+	n := 1024
+	base := make([]float32, n)
+	indices := make([]int32, n)
+	result := make([]float32, n)
+	for i := range base {
+		base[i] = float32(i)
+		indices[i] = int32((i * 7) % n) // pseudo-random indices
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		GatherF32(base, indices, result)
+	}
+}
+
+func BenchmarkPromoteF32ToF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float32(i)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		PromoteF32ToF64(input, result)
+	}
+}
+
+func BenchmarkRoundF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) + 0.5
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		RoundF32(input, result)
+	}
+}
