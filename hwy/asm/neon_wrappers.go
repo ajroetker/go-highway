@@ -734,3 +734,4 @@ func SigmoidF32(input, result []float32) {
 	n := int64(len(input))
 	sigmoid_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
 }
+

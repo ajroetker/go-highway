@@ -2823,3 +2823,4 @@ void sigmoid_f32_neon(float *input, float *result, long *len) {
         result[i] = 1.0f / (1.0f + exp_neg_x);
     }
 }
+

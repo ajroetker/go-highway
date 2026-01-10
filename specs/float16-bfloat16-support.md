@@ -379,39 +379,340 @@ func DotF16(a, b Vec[Float16]) float32 {
 
 ## SIMD Implementations
 
-### AVX2 + F16C (Conversions Only)
+### GoAT C Source for ARM NEON Float16
 
-```go
-// hwy/promote_f16_avx2.go
-//go:build amd64 && goexperiment.simd
+```c
+// hwy/c/ops_f16_neon_arm64.c
+// Float16 operations for ARM64 with FP16 extension (ARMv8.2-A+)
+// Compile with: -march=armv8.2-a+fp16
 
-package hwy
+#include <arm_neon.h>
 
-import "simd/archsimd"
+// ============================================================================
+// Float16 Conversions
+// ============================================================================
 
-// PromoteF16ToF32_AVX2_Lower converts lower 4 Float16 to 4 float32.
-// Uses VCVTPH2PS instruction from F16C extension.
-func PromoteF16ToF32_AVX2_Lower(v [8]uint16) archsimd.Float32x4 {
-    // Load 64 bits (4 float16) into XMM
-    // VCVTPH2PS xmm, xmm/m64
-    // Returns Float32x4
+// Promote float16 to float32: result[i] = (float32)a[i]
+void promote_f16_to_f32_neon(unsigned short *a, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 float16 -> 8 float32 at a time
+    for (; i + 7 < n; i += 8) {
+        float16x8_t h = vld1q_f16((float16_t*)(a + i));
+        // Split into two float32x4
+        float32x4_t lo = vcvt_f32_f16(vget_low_f16(h));
+        float32x4_t hi = vcvt_f32_f16(vget_high_f16(h));
+        vst1q_f32(result + i, lo);
+        vst1q_f32(result + i + 4, hi);
+    }
+
+    // Process 4 at a time
+    for (; i + 3 < n; i += 4) {
+        float16x4_t h = vld1_f16((float16_t*)(a + i));
+        float32x4_t f = vcvt_f32_f16(h);
+        vst1q_f32(result + i, f);
+    }
+
+    // Scalar remainder (manual conversion)
+    for (; i < n; i++) {
+        // Inline float16 to float32 conversion
+        unsigned int bits = a[i];
+        unsigned int sign = (bits >> 15) & 1;
+        unsigned int exp = (bits >> 10) & 0x1F;
+        unsigned int mant = bits & 0x3FF;
+
+        unsigned int f32_bits;
+        if (exp == 0) {
+            if (mant == 0) {
+                f32_bits = sign << 31;
+            }
+            // Denormal handling simplified - treat as zero for now
+            f32_bits = sign << 31;
+        }
+        if (exp == 31) {
+            f32_bits = (sign << 31) | 0x7F800000 | (mant << 13);
+        }
+        if (exp != 0 && exp != 31) {
+            f32_bits = (sign << 31) | ((exp + 112) << 23) | (mant << 13);
+        }
+        // Store via pointer cast
+        *(unsigned int*)(result + i) = f32_bits;
+    }
 }
 
-// PromoteF16ToF32_AVX2 converts 8 Float16 to 8 float32.
-// Uses VCVTPH2PS instruction.
-func PromoteF16ToF32_AVX2(v [8]uint16) archsimd.Float32x8 {
-    // Load 128 bits (8 float16) into XMM
-    // VCVTPH2PS ymm, xmm/m128
-    // Returns Float32x8
+// Demote float32 to float16: result[i] = (float16)a[i]
+void demote_f32_to_f16_neon(float *a, unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 float32 -> 8 float16 at a time
+    for (; i + 7 < n; i += 8) {
+        float32x4_t lo = vld1q_f32(a + i);
+        float32x4_t hi = vld1q_f32(a + i + 4);
+        float16x4_t h_lo = vcvt_f16_f32(lo);
+        float16x4_t h_hi = vcvt_f16_f32(hi);
+        float16x8_t h = vcombine_f16(h_lo, h_hi);
+        vst1q_f16((float16_t*)(result + i), h);
+    }
+
+    // Process 4 at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t f = vld1q_f32(a + i);
+        float16x4_t h = vcvt_f16_f32(f);
+        vst1_f16((float16_t*)(result + i), h);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        // Simplified scalar conversion
+        unsigned int bits = *(unsigned int*)(a + i);
+        unsigned int sign = (bits >> 16) & 0x8000;
+        int exp = ((bits >> 23) & 0xFF) - 127 + 15;
+        unsigned int mant = bits & 0x7FFFFF;
+
+        unsigned short h;
+        if (exp <= 0) {
+            h = sign; // Underflow to zero
+        }
+        if (exp >= 31) {
+            h = sign | 0x7C00; // Overflow to infinity
+        }
+        if (exp > 0 && exp < 31) {
+            h = sign | (exp << 10) | (mant >> 13);
+        }
+        result[i] = h;
+    }
 }
 
-// DemoteF32ToF16_AVX2 converts 8 float32 to 8 Float16.
-// Uses VCVTPS2PH instruction with round-to-nearest-even.
-func DemoteF32ToF16_AVX2(v archsimd.Float32x8) [8]uint16 {
-    // VCVTPS2PH xmm/m128, ymm, imm8
-    // imm8 = 0 for round-to-nearest-even
+// ============================================================================
+// Float16 Arithmetic (Native - requires ARMv8.2-A+fp16)
+// ============================================================================
+
+// Vector addition: result[i] = a[i] + b[i]
+void add_f16_neon(unsigned short *a, unsigned short *b, unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 32 float16 at a time (4 vectors)
+    for (; i + 31 < n; i += 32) {
+        float16x8_t a0 = vld1q_f16((float16_t*)(a + i));
+        float16x8_t a1 = vld1q_f16((float16_t*)(a + i + 8));
+        float16x8_t a2 = vld1q_f16((float16_t*)(a + i + 16));
+        float16x8_t a3 = vld1q_f16((float16_t*)(a + i + 24));
+
+        float16x8_t b0 = vld1q_f16((float16_t*)(b + i));
+        float16x8_t b1 = vld1q_f16((float16_t*)(b + i + 8));
+        float16x8_t b2 = vld1q_f16((float16_t*)(b + i + 16));
+        float16x8_t b3 = vld1q_f16((float16_t*)(b + i + 24));
+
+        vst1q_f16((float16_t*)(result + i), vaddq_f16(a0, b0));
+        vst1q_f16((float16_t*)(result + i + 8), vaddq_f16(a1, b1));
+        vst1q_f16((float16_t*)(result + i + 16), vaddq_f16(a2, b2));
+        vst1q_f16((float16_t*)(result + i + 24), vaddq_f16(a3, b3));
+    }
+
+    // Process 8 at a time
+    for (; i + 7 < n; i += 8) {
+        float16x8_t av = vld1q_f16((float16_t*)(a + i));
+        float16x8_t bv = vld1q_f16((float16_t*)(b + i));
+        vst1q_f16((float16_t*)(result + i), vaddq_f16(av, bv));
+    }
+
+    // Scalar remainder via promote-compute-demote
+    for (; i < n; i++) {
+        float16x4_t av = vld1_dup_f16((float16_t*)(a + i));
+        float16x4_t bv = vld1_dup_f16((float16_t*)(b + i));
+        float16x4_t rv = vadd_f16(av, bv);
+        vst1_lane_f16((float16_t*)(result + i), rv, 0);
+    }
+}
+
+// FMA: result[i] = a[i] * b[i] + c[i]
+void fma_f16_neon(unsigned short *a, unsigned short *b, unsigned short *c,
+                  unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 7 < n; i += 8) {
+        float16x8_t av = vld1q_f16((float16_t*)(a + i));
+        float16x8_t bv = vld1q_f16((float16_t*)(b + i));
+        float16x8_t cv = vld1q_f16((float16_t*)(c + i));
+        // vfmaq_f16: c + a*b
+        vst1q_f16((float16_t*)(result + i), vfmaq_f16(cv, av, bv));
+    }
+
+    for (; i < n; i++) {
+        float16x4_t av = vld1_dup_f16((float16_t*)(a + i));
+        float16x4_t bv = vld1_dup_f16((float16_t*)(b + i));
+        float16x4_t cv = vld1_dup_f16((float16_t*)(c + i));
+        float16x4_t rv = vfma_f16(cv, av, bv);
+        vst1_lane_f16((float16_t*)(result + i), rv, 0);
+    }
 }
 ```
+
+### GoAT C Source for x86 F16C
+
+```c
+// hwy/c/ops_f16_x86.c
+// Float16 conversions for x86 with F16C extension
+// Compile with: -mf16c -mavx2
+
+#include <immintrin.h>
+
+// Promote float16 to float32 using F16C
+void promote_f16_to_f32_f16c(unsigned short *a, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 float16 -> 8 float32 at a time (AVX2)
+    for (; i + 7 < n; i += 8) {
+        __m128i h = _mm_loadu_si128((__m128i*)(a + i));
+        __m256 f = _mm256_cvtph_ps(h);  // VCVTPH2PS
+        _mm256_storeu_ps(result + i, f);
+    }
+
+    // Process 4 at a time (SSE)
+    for (; i + 3 < n; i += 4) {
+        __m128i h = _mm_loadl_epi64((__m128i*)(a + i));
+        __m128 f = _mm_cvtph_ps(h);  // VCVTPH2PS
+        _mm_storeu_ps(result + i, f);
+    }
+
+    // Scalar remainder (inline conversion)
+    for (; i < n; i++) {
+        unsigned int bits = a[i];
+        unsigned int sign = (bits >> 15) & 1;
+        unsigned int exp = (bits >> 10) & 0x1F;
+        unsigned int mant = bits & 0x3FF;
+
+        unsigned int f32_bits = 0;
+        if (exp == 0 && mant == 0) {
+            f32_bits = sign << 31;
+        }
+        if (exp == 0 && mant != 0) {
+            f32_bits = sign << 31; // Simplified: denormal -> zero
+        }
+        if (exp == 31) {
+            f32_bits = (sign << 31) | 0x7F800000 | (mant << 13);
+        }
+        if (exp > 0 && exp < 31) {
+            f32_bits = (sign << 31) | ((exp + 112) << 23) | (mant << 13);
+        }
+        *(unsigned int*)(result + i) = f32_bits;
+    }
+}
+
+// Demote float32 to float16 using F16C
+void demote_f32_to_f16_f16c(float *a, unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 float32 -> 8 float16 at a time (AVX2)
+    // imm8 = 0 for round-to-nearest-even
+    for (; i + 7 < n; i += 8) {
+        __m256 f = _mm256_loadu_ps(a + i);
+        __m128i h = _mm256_cvtps_ph(f, 0);  // VCVTPS2PH, round-to-nearest
+        _mm_storeu_si128((__m128i*)(result + i), h);
+    }
+
+    // Process 4 at a time (SSE)
+    for (; i + 3 < n; i += 4) {
+        __m128 f = _mm_loadu_ps(a + i);
+        __m128i h = _mm_cvtps_ph(f, 0);  // VCVTPS2PH
+        _mm_storel_epi64((__m128i*)(result + i), h);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        unsigned int bits = *(unsigned int*)(a + i);
+        unsigned int sign = (bits >> 16) & 0x8000;
+        int exp = ((bits >> 23) & 0xFF) - 127 + 15;
+        unsigned int mant = bits & 0x7FFFFF;
+
+        unsigned short h = 0;
+        if (exp <= 0) {
+            h = sign;
+        }
+        if (exp >= 31) {
+            h = sign | 0x7C00;
+        }
+        if (exp > 0 && exp < 31) {
+            h = sign | (exp << 10) | (mant >> 13);
+        }
+        result[i] = h;
+    }
+}
+```
+
+### Go Wrappers for GoAT-Generated Assembly
+
+```go
+// hwy/asm/f16_neon_wrappers.go
+//go:build arm64
+
+package asm
+
+import "unsafe"
+
+//go:generate go tool goat ../c/ops_f16_neon_arm64.c -O3 -e="--target=arm64 -march=armv8.2-a+fp16"
+
+// PromoteF16ToF32NEON converts float16 to float32 using NEON.
+func PromoteF16ToF32NEON(a []uint16, result []float32) {
+    if len(a) == 0 {
+        return
+    }
+    n := int64(min(len(a), len(result)))
+    promote_f16_to_f32_neon(
+        unsafe.Pointer(&a[0]),
+        unsafe.Pointer(&result[0]),
+        unsafe.Pointer(&n),
+    )
+}
+
+// DemoteF32ToF16NEON converts float32 to float16 using NEON.
+func DemoteF32ToF16NEON(a []float32, result []uint16) {
+    if len(a) == 0 {
+        return
+    }
+    n := int64(min(len(a), len(result)))
+    demote_f32_to_f16_neon(
+        unsafe.Pointer(&a[0]),
+        unsafe.Pointer(&result[0]),
+        unsafe.Pointer(&n),
+    )
+}
+
+// AddF16NEON adds two float16 vectors using native NEON FP16.
+func AddF16NEON(a, b, result []uint16) {
+    if len(a) == 0 {
+        return
+    }
+    n := int64(min(len(a), min(len(b), len(result))))
+    add_f16_neon(
+        unsafe.Pointer(&a[0]),
+        unsafe.Pointer(&b[0]),
+        unsafe.Pointer(&result[0]),
+        unsafe.Pointer(&n),
+    )
+}
+
+// Assembly function declarations (generated by GoAT)
+//go:noescape
+func promote_f16_to_f32_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func demote_f32_to_f16_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func add_f16_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func fma_f16_neon(a, b, c, result, len unsafe.Pointer)
+```
+
+### AVX2 + F16C via archsimd (Alternative)
 
 ### AVX-512 FP16 (Native Arithmetic)
 
@@ -673,7 +974,7 @@ func TestFloat16ToFloat32(t *testing.T) {
 
 ## File Summary
 
-### New Files
+### New Files - Go
 
 | File | Contents |
 |------|----------|
@@ -683,15 +984,41 @@ func TestFloat16ToFloat32(t *testing.T) {
 | `hwy/promote_bf16.go` | Scalar BFloat16 vector promotions/demotions |
 | `hwy/ops_f16.go` | Float16 arithmetic (promote-compute-demote) |
 | `hwy/ops_bf16.go` | BFloat16 arithmetic (promote-compute-demote) |
-| `hwy/promote_f16_avx2.go` | AVX2/F16C Float16 conversions |
-| `hwy/ops_f16_avx512.go` | AVX-512 FP16 native arithmetic |
-| `hwy/promote_bf16_avx512.go` | AVX-512 BF16 conversions |
-| `hwy/ops_bf16_avx512.go` | AVX-512 BF16 dot products |
 | `hwy/float16_test.go` | Comprehensive tests |
 | `hwy/bfloat16_test.go` | Comprehensive tests |
 | `hwy/contrib/exp_f16.go` | Math: Exp/Log for Float16 |
 | `hwy/contrib/trig_f16.go` | Math: Sin/Cos/Tan for Float16 |
 | `hwy/contrib/special_f16.go` | Math: Tanh/Sigmoid for Float16 |
+
+### New Files - GoAT C Sources
+
+| File | Contents | Compile Flags |
+|------|----------|---------------|
+| `hwy/c/ops_f16_neon_arm64.c` | NEON FP16 conversions + arithmetic | `-march=armv8.2-a+fp16` |
+| `hwy/c/ops_bf16_neon_arm64.c` | NEON BF16 conversions | `-march=armv8.2-a+bf16` |
+| `hwy/c/ops_f16_x86.c` | x86 F16C conversions | `-mf16c -mavx2` |
+| `hwy/c/ops_f16_avx512.c` | AVX-512 FP16 native ops | `-mavx512fp16` |
+| `hwy/c/ops_bf16_avx512.c` | AVX-512 BF16 dot products | `-mavx512bf16` |
+
+### New Files - GoAT Generated Assembly
+
+| File | Generated From |
+|------|----------------|
+| `hwy/asm/ops_f16_neon_arm64.s` | `ops_f16_neon_arm64.c` |
+| `hwy/asm/ops_bf16_neon_arm64.s` | `ops_bf16_neon_arm64.c` |
+| `hwy/asm/ops_f16_x86.s` | `ops_f16_x86.c` |
+| `hwy/asm/ops_f16_avx512.s` | `ops_f16_avx512.c` |
+| `hwy/asm/ops_bf16_avx512.s` | `ops_bf16_avx512.c` |
+
+### New Files - Go Wrappers
+
+| File | Contents |
+|------|----------|
+| `hwy/asm/f16_neon_wrappers.go` | Go wrappers for NEON FP16 assembly |
+| `hwy/asm/bf16_neon_wrappers.go` | Go wrappers for NEON BF16 assembly |
+| `hwy/asm/f16_x86_wrappers.go` | Go wrappers for x86 F16C assembly |
+| `hwy/asm/f16_avx512_wrappers.go` | Go wrappers for AVX-512 FP16 assembly |
+| `hwy/asm/bf16_avx512_wrappers.go` | Go wrappers for AVX-512 BF16 assembly |
 
 ### Modified Files
 
@@ -700,6 +1027,7 @@ func TestFloat16ToFloat32(t *testing.T) {
 | `hwy/types.go` | Add Float16Types constraint, update Floats |
 | `hwy/dispatch.go` | Add DispatchLevel comments for FP16 |
 | `hwy/dispatch_amd64_simd.go` | Add F16C, AVX512_FP16, AVX512_BF16 detection |
+| `hwy/dispatch_arm64.go` | Add FP16, BF16 extension detection |
 | `cmd/hwygen/targets.go` | Add Float16/BFloat16 support |
 | `specs/feature-gaps.md` | Update float16/bfloat16 status |
 
@@ -775,23 +1103,34 @@ func BenchmarkFloat16VsFloat32(b *testing.B) {
 ### Go Version
 
 - Go 1.22+: Generics support
-- Go 1.26+ (goexperiment.simd): Required for archsimd package
+- Go 1.26+ (goexperiment.simd): Required for archsimd package (x86 path)
 
-### archsimd Package
+### GoAT (Go Assembly Transpiler)
 
-The implementation depends on `simd/archsimd` supporting:
+For SIMD implementations, we use **GoAT** to transpile C code with intrinsics to Go assembly. This is the established pattern in go-highway (see `hwy/c/ops_neon_arm64.c`).
+
+**Advantages:**
+- Leverage compiler optimizations and auto-vectorization
+- Use native intrinsics (`arm_neon.h`, `immintrin.h`)
+- Maintainable C source, generated assembly
+- No CGO runtime overhead
+
+**Limitations (from GOAT.md):**
+- No `else` clauses - use multiple `if` statements
+- No `__builtin_*` functions - use polynomial approximations
+- No `static inline` helpers - inline all code
+- C functions must return `void`
+
+### archsimd Package (x86 fallback)
+
+For x86, we can also use `simd/archsimd` if it supports the required types:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | F16C detection | Need to verify | `archsimd.X86.F16C()` |
 | AVX-512 FP16 detection | Need to verify | `archsimd.X86.AVX512FP16()` |
 | AVX-512 BF16 detection | Need to verify | `archsimd.X86.AVX512BF16()` |
-| Float16x* types | Likely missing | May need to add or use raw intrinsics |
-
-If archsimd lacks these features, alternatives:
-1. Contribute to archsimd upstream
-2. Use Go assembly for critical intrinsics
-3. Use CGO with C intrinsics (last resort)
+| Float16x* types | Likely missing | Use GoAT instead |
 
 ---
 

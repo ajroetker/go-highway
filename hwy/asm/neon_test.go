@@ -308,6 +308,91 @@ func BenchmarkReduceSumF32_Scalar(b *testing.B) {
 	}
 }
 
+func BenchmarkSqrtF32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i + 1)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Sqrt(float64(v)))
+		}
+	}
+}
+
+func BenchmarkExpF32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) * 0.01
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Exp(float64(v)))
+		}
+	}
+}
+
+func BenchmarkSinF32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) * 0.01
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Sin(float64(v)))
+		}
+	}
+}
+
+func BenchmarkAtanF32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i-512) * 0.01 // range [-5.12, 5.11]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Atan(float64(v)))
+		}
+	}
+}
+
+func BenchmarkLog2F32_Scalar(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i+1) * 0.1 // range [0.1, 102.4]
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for j, v := range input {
+			result[j] = float32(math.Log2(float64(v)))
+		}
+	}
+}
+
 // Phase 5: Type Conversions Tests
 
 func TestPromoteF32ToF64(t *testing.T) {
@@ -1604,5 +1689,455 @@ func BenchmarkSigmoidF32_NEON(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		SigmoidF32(input, result)
+	}
+}
+
+// Additional F32 Transcendental Tests
+
+func TestTanF32(t *testing.T) {
+	// Avoid values near pi/2 where tan has asymptotes
+	input := []float32{0, 0.1, 0.5, 1.0, -0.1, -0.5, -1.0, 0.3}
+	result := make([]float32, len(input))
+
+	TanF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Tan(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		relErr := absErr / (math.Abs(float64(expected)) + 1e-10)
+		if absErr > 1e-3 && relErr > 1e-3 {
+			t.Errorf("TanF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestAtanF32(t *testing.T) {
+	input := []float32{0, 0.5, 1, 2, -0.5, -1, -2, 10}
+	result := make([]float32, len(input))
+
+	AtanF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Atan(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 {
+			t.Errorf("AtanF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestAtan2F32(t *testing.T) {
+	y := []float32{1, 1, -1, -1, 0, 1, 0, 2}
+	x := []float32{1, -1, 1, -1, 1, 0, -1, 2}
+	result := make([]float32, len(y))
+
+	Atan2F32(y, x, result)
+
+	for i := range y {
+		expected := float32(math.Atan2(float64(y[i]), float64(x[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 {
+			t.Errorf("Atan2F32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestPowF32(t *testing.T) {
+	base := []float32{2, 2, 2, 3, 10, 2.5, 4, 8}
+	exp := []float32{0, 1, 2, 2, 2, 2, 0.5, 0.333333}
+	result := make([]float32, len(base))
+
+	PowF32(base, exp, result)
+
+	for i := range base {
+		expected := float32(math.Pow(float64(base[i]), float64(exp[i])))
+		relErr := math.Abs(float64(result[i]-expected)) / (math.Abs(float64(expected)) + 1e-10)
+		if relErr > 1e-2 {
+			t.Errorf("PowF32[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestErfF32(t *testing.T) {
+	input := []float32{0, 0.5, 1, 1.5, 2, -0.5, -1, -2}
+	result := make([]float32, len(input))
+
+	ErfF32(input, result)
+
+	for i := range input {
+		expected := float32(math.Erf(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 {
+			t.Errorf("ErfF32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestExp2F32(t *testing.T) {
+	input := []float32{0, 1, 2, 3, -1, -2, 0.5, 4}
+	result := make([]float32, len(input))
+
+	Exp2F32(input, result)
+
+	for i := range input {
+		expected := float32(math.Pow(2, float64(input[i])))
+		relErr := math.Abs(float64(result[i]-expected)) / (math.Abs(float64(expected)) + 1e-10)
+		if relErr > 1e-4 {
+			t.Errorf("Exp2F32[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestLog2F32(t *testing.T) {
+	input := []float32{1, 2, 4, 8, 16, 0.5, 0.25, 3}
+	result := make([]float32, len(input))
+
+	Log2F32(input, result)
+
+	for i := range input {
+		expected := float32(math.Log2(float64(input[i])))
+		absErr := math.Abs(float64(result[i] - expected))
+		if absErr > 1e-3 { // SIMD polynomial approximation with sqrt(2) range reduction
+			t.Errorf("Log2F32[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+// F64 Transcendental Tests
+// Note: F64 functions use SIMD-only processing (multiples of 2 elements)
+
+func TestExp2F64(t *testing.T) {
+	input := []float64{0, 1, 2, 3, -1, -2, 0.5, 4}
+	result := make([]float64, len(input))
+
+	Exp2F64(input, result)
+
+	for i := range input {
+		expected := math.Pow(2, input[i])
+		relErr := math.Abs(result[i]-expected) / (math.Abs(expected) + 1e-15)
+		if relErr > 1e-10 {
+			t.Errorf("Exp2F64[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestLog2F64(t *testing.T) {
+	input := []float64{1, 2, 4, 8, 16, 0.5, 0.25, 3}
+	result := make([]float64, len(input))
+
+	Log2F64(input, result)
+
+	for i := range input {
+		expected := math.Log2(input[i])
+		absErr := math.Abs(result[i] - expected)
+		if absErr > 1e-3 { // Relaxed for SIMD polynomial approximation
+			t.Errorf("Log2F64[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestExpF64(t *testing.T) {
+	input := []float64{0, 1, -1, 2, -2, 0.5, -0.5, 3}
+	result := make([]float64, len(input))
+
+	ExpF64(input, result)
+
+	for i := range input {
+		expected := math.Exp(input[i])
+		relErr := math.Abs(result[i]-expected) / (math.Abs(expected) + 1e-15)
+		if relErr > 1e-10 {
+			t.Errorf("ExpF64[%d]: got %v, want %v (relative error: %v)", i, result[i], expected, relErr)
+		}
+	}
+}
+
+func TestLogF64(t *testing.T) {
+	input := []float64{1, 2, 3, 4, 0.5, 10, 100, 0.1}
+	result := make([]float64, len(input))
+
+	LogF64(input, result)
+
+	for i := range input {
+		expected := math.Log(input[i])
+		absErr := math.Abs(result[i] - expected)
+		if absErr > 1e-3 { // Relaxed for SIMD polynomial approximation
+			t.Errorf("LogF64[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestSinF64(t *testing.T) {
+	input := []float64{0, 0.5, 1, 1.5, 2, 3, -1, -2}
+	result := make([]float64, len(input))
+
+	SinF64(input, result)
+
+	for i := range input {
+		expected := math.Sin(input[i])
+		absErr := math.Abs(result[i] - expected)
+		if absErr > 1e-6 { // Relaxed for SIMD polynomial approximation
+			t.Errorf("SinF64[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestCosF64(t *testing.T) {
+	input := []float64{0, 0.5, 1, 1.5, 2, 3, -1, -2}
+	result := make([]float64, len(input))
+
+	CosF64(input, result)
+
+	for i := range input {
+		expected := math.Cos(input[i])
+		absErr := math.Abs(result[i] - expected)
+		if absErr > 1e-6 { // Relaxed for SIMD polynomial approximation
+			t.Errorf("CosF64[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestTanhF64(t *testing.T) {
+	input := []float64{0, 0.5, 1, 2, -0.5, -1, -2, 3}
+	result := make([]float64, len(input))
+
+	TanhF64(input, result)
+
+	for i := range input {
+		expected := math.Tanh(input[i])
+		absErr := math.Abs(result[i] - expected)
+		if absErr > 1e-10 {
+			t.Errorf("TanhF64[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+func TestSigmoidF64(t *testing.T) {
+	input := []float64{0, 1, -1, 2, -2, 5, -5, 10}
+	result := make([]float64, len(input))
+
+	SigmoidF64(input, result)
+
+	for i := range input {
+		expected := 1.0 / (1.0 + math.Exp(-input[i]))
+		absErr := math.Abs(result[i] - expected)
+		if absErr > 1e-10 {
+			t.Errorf("SigmoidF64[%d]: got %v, want %v (error: %v)", i, result[i], expected, absErr)
+		}
+	}
+}
+
+// Benchmarks for additional F32 transcendentals
+
+func BenchmarkTanF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i) * 0.001 // avoid asymptotes
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		TanF32(input, result)
+	}
+}
+
+func BenchmarkAtanF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%20) - 10
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		AtanF32(input, result)
+	}
+}
+
+func BenchmarkPowF32_NEON(b *testing.B) {
+	n := 1024
+	base := make([]float32, n)
+	exp := make([]float32, n)
+	result := make([]float32, n)
+	for i := range base {
+		base[i] = float32(i%10) + 1
+		exp[i] = float32(i%5) * 0.5
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		PowF32(base, exp, result)
+	}
+}
+
+func BenchmarkErfF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%10) - 5
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		ErfF32(input, result)
+	}
+}
+
+func BenchmarkExp2F32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i%16) - 8
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Exp2F32(input, result)
+	}
+}
+
+func BenchmarkLog2F32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i+1) * 0.1
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Log2F32(input, result)
+	}
+}
+
+// Benchmarks for F64 transcendentals
+
+func BenchmarkExp2F64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i%16) - 8
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Exp2F64(input, result)
+	}
+}
+
+func BenchmarkLog2F64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i+1) * 0.1
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		Log2F64(input, result)
+	}
+}
+
+func BenchmarkExpF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i%10) - 5
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		ExpF64(input, result)
+	}
+}
+
+func BenchmarkLogF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i+1) * 0.1
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		LogF64(input, result)
+	}
+}
+
+func BenchmarkSinF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i) * 0.01
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		SinF64(input, result)
+	}
+}
+
+func BenchmarkCosF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i) * 0.01
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		CosF64(input, result)
+	}
+}
+
+func BenchmarkTanhF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i%20) - 10
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		TanhF64(input, result)
+	}
+}
+
+func BenchmarkSigmoidF64_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float64, n)
+	result := make([]float64, n)
+	for i := range input {
+		input[i] = float64(i%20) - 10
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		SigmoidF64(input, result)
 	}
 }

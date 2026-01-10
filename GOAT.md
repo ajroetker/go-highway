@@ -41,6 +41,10 @@ func Add(a, b, c []float32) {
 - **No `union` type punning** - Union types for float/int bit reinterpretation cause parsing errors. Use alternative approaches like loop-based 2^k computation.
 - **No array initializers with variables** - `int arr[4] = {m0, m1, m2, m3}` causes parsing errors. Use explicit stores instead.
 - **Scalar loops may be optimized to `memset`** - Simple loops like `for (i = 0; i < n; i++) result[i] = 0;` may be optimized by the compiler into `memset` calls, which don't exist in Go assembly. Break the pattern by using NEON stores for the scalar remainder or add complexity to prevent the optimization.
+- **Double constants in scalar loops cause parser panic** - When using `double` constants that can't be represented with `fmov` immediate (like `0.6931471805599453`), clang stores them in `.rodata` and loads them with `adrp` + `ldr d_reg, [x_reg, :lo12:.LCPI...]`. GOAT's ARM64 parser panics with "index out of range [-1]" when parsing the `:lo12:` addressing mode. **Workarounds:**
+  - Use SIMD-only code without scalar remainder loops for F64 (process only multiples of 2 elements)
+  - Use `vreinterpretq_f64_s64(vdupq_n_s64(0x3FE62E42FEFA39EFLL))` to construct double constants from integer bit patterns in SIMD code
+  - Float constants work fine because clang uses `mov w_reg, #imm` + `fmov s_reg, w_reg` which GOAT can parse
 
 # ARM SME/SVE Support
 
