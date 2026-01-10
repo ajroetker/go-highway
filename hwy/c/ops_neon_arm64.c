@@ -989,3 +989,647 @@ void masked_store_f32_neon(float *input, int *mask, float *output, long *len) {
         }
     }
 }
+
+// ============================================================================
+// Shuffle/Permutation Operations (Phase 6)
+// ============================================================================
+
+// Reverse float32: result[n-1-i] = input[i]
+void reverse_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements at a time using NEON reverse
+    for (; i + 3 < n; i += 4) {
+        float32x4_t v = vld1q_f32(input + (n - i - 4));
+        // Reverse the 4 elements: vrev64 reverses within 64-bit halves, then ext swaps halves
+        float32x4_t rev = vrev64q_f32(v);
+        rev = vextq_f32(rev, rev, 2);
+        vst1q_f32(result + i, rev);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = input[n - 1 - i];
+    }
+}
+
+// Reverse float64: result[n-1-i] = input[i]
+void reverse_f64_neon(double *input, double *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 2 elements at a time
+    for (; i + 1 < n; i += 2) {
+        float64x2_t v = vld1q_f64(input + (n - i - 2));
+        // Swap the two elements
+        float64x2_t rev = vextq_f64(v, v, 1);
+        vst1q_f64(result + i, rev);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = input[n - 1 - i];
+    }
+}
+
+// Reverse2 float32: swap adjacent pairs [0,1,2,3] -> [1,0,3,2]
+void reverse2_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t v = vld1q_f32(input + i);
+        // vrev64 reverses pairs within 64-bit halves: [0,1,2,3] -> [1,0,3,2]
+        vst1q_f32(result + i, vrev64q_f32(v));
+    }
+
+    // Scalar remainder
+    for (; i + 1 < n; i += 2) {
+        result[i] = input[i + 1];
+        result[i + 1] = input[i];
+    }
+    if (i < n) {
+        result[i] = input[i];
+    }
+}
+
+// Reverse4 float32: reverse within groups of 4 [0,1,2,3,4,5,6,7] -> [3,2,1,0,7,6,5,4]
+void reverse4_f32_neon(float *input, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t v = vld1q_f32(input + i);
+        // First reverse pairs, then swap halves
+        float32x4_t rev = vrev64q_f32(v);
+        rev = vextq_f32(rev, rev, 2);
+        vst1q_f32(result + i, rev);
+    }
+
+    // Scalar remainder - reverse partial group
+    if (i < n) {
+        long remaining = n - i;
+        for (long j = 0; j < remaining; j++) {
+            result[i + j] = input[i + remaining - 1 - j];
+        }
+    }
+}
+
+// Broadcast float32: fill result with input[lane]
+void broadcast_f32_neon(float *input, float *result, long *lane, long *len) {
+    long n = *len;
+    long idx = *lane;
+    float value = input[idx];
+
+    long i = 0;
+    float32x4_t bcast = vdupq_n_f32(value);
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        vst1q_f32(result + i, bcast);
+        vst1q_f32(result + i + 4, bcast);
+        vst1q_f32(result + i + 8, bcast);
+        vst1q_f32(result + i + 12, bcast);
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        vst1q_f32(result + i, bcast);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = value;
+    }
+}
+
+// GetLane float32: extract a single lane value
+void getlane_f32_neon(float *input, float *result, long *lane) {
+    *result = input[*lane];
+}
+
+// InsertLane float32: insert value at specified lane
+void insertlane_f32_neon(float *input, float *result, float *value, long *lane, long *len) {
+    long n = *len;
+    long idx = *lane;
+
+    // Copy input to result
+    long i = 0;
+    for (; i + 3 < n; i += 4) {
+        vst1q_f32(result + i, vld1q_f32(input + i));
+    }
+    for (; i < n; i++) {
+        result[i] = input[i];
+    }
+
+    // Insert value at lane
+    result[idx] = *value;
+}
+
+// InterleaveLower float32: [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a0,b0,a1,b1]
+void interleave_lo_f32_neon(float *a, float *b, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements from each input, producing 4 interleaved elements
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        // zip1 interleaves lower halves: [a0,a1], [b0,b1] -> [a0,b0,a1,b1]
+        float32x4_t zipped = vzip1q_f32(av, bv);
+        vst1q_f32(result + i, zipped);
+    }
+
+    // Scalar remainder
+    long half = (n - i) / 2;
+    for (long j = 0; j < half; j++) {
+        result[i + 2*j] = a[i + j];
+        result[i + 2*j + 1] = b[i + j];
+    }
+}
+
+// InterleaveUpper float32: [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a2,b2,a3,b3]
+void interleave_hi_f32_neon(float *a, float *b, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 4 elements from each input
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        // zip2 interleaves upper halves: [a2,a3], [b2,b3] -> [a2,b2,a3,b3]
+        float32x4_t zipped = vzip2q_f32(av, bv);
+        vst1q_f32(result + i, zipped);
+    }
+
+    // Scalar remainder
+    long half = (n - i) / 2;
+    long start = (n - i) / 2;
+    for (long j = 0; j < half; j++) {
+        result[i + 2*j] = a[i + start + j];
+        result[i + 2*j + 1] = b[i + start + j];
+    }
+}
+
+// TableLookupBytes uint8: result[i] = tbl[idx[i] & 0x0F]
+// Uses NEON TBL instruction for byte-level lookup
+void tbl_u8_neon(unsigned char *tbl, unsigned char *idx, unsigned char *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Load the 16-byte table
+    uint8x16_t tbl_vec = vld1q_u8(tbl);
+
+    // Process 16 bytes at a time
+    for (; i + 15 < n; i += 16) {
+        uint8x16_t idx_vec = vld1q_u8(idx + i);
+        uint8x16_t res = vqtbl1q_u8(tbl_vec, idx_vec);
+        vst1q_u8(result + i, res);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        unsigned char index = idx[i];
+        result[i] = (index < 16) ? tbl[index] : 0;
+    }
+}
+
+// ============================================================================
+// Comparison Operations (Phase 7)
+// ============================================================================
+
+// Equal float32: result[i] = (a[i] == b[i]) ? 0xFFFFFFFF : 0
+void eq_f32_neon(float *a, float *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        float32x4_t b0 = vld1q_f32(b + i);
+        float32x4_t b1 = vld1q_f32(b + i + 4);
+        float32x4_t b2 = vld1q_f32(b + i + 8);
+        float32x4_t b3 = vld1q_f32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vceqq_f32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vceqq_f32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vceqq_f32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vceqq_f32(a3, b3)));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vceqq_f32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] == b[i]) ? -1 : 0;
+    }
+}
+
+// Equal int32: result[i] = (a[i] == b[i]) ? 0xFFFFFFFF : 0
+void eq_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vceqq_s32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vceqq_s32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vceqq_s32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vceqq_s32(a3, b3)));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vceqq_s32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] == b[i]) ? -1 : 0;
+    }
+}
+
+// NotEqual float32: result[i] = (a[i] != b[i]) ? 0xFFFFFFFF : 0
+void ne_f32_neon(float *a, float *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        float32x4_t b0 = vld1q_f32(b + i);
+        float32x4_t b1 = vld1q_f32(b + i + 4);
+        float32x4_t b2 = vld1q_f32(b + i + 8);
+        float32x4_t b3 = vld1q_f32(b + i + 12);
+
+        // NotEqual = NOT(Equal)
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vmvnq_u32(vceqq_f32(a0, b0))));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vmvnq_u32(vceqq_f32(a1, b1))));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vmvnq_u32(vceqq_f32(a2, b2))));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vmvnq_u32(vceqq_f32(a3, b3))));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vmvnq_u32(vceqq_f32(av, bv))));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] != b[i]) ? -1 : 0;
+    }
+}
+
+// NotEqual int32: result[i] = (a[i] != b[i]) ? 0xFFFFFFFF : 0
+void ne_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vmvnq_u32(vceqq_s32(a0, b0))));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vmvnq_u32(vceqq_s32(a1, b1))));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vmvnq_u32(vceqq_s32(a2, b2))));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vmvnq_u32(vceqq_s32(a3, b3))));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vmvnq_u32(vceqq_s32(av, bv))));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] != b[i]) ? -1 : 0;
+    }
+}
+
+// LessThan float32: result[i] = (a[i] < b[i]) ? 0xFFFFFFFF : 0
+void lt_f32_neon(float *a, float *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        float32x4_t b0 = vld1q_f32(b + i);
+        float32x4_t b1 = vld1q_f32(b + i + 4);
+        float32x4_t b2 = vld1q_f32(b + i + 8);
+        float32x4_t b3 = vld1q_f32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcltq_f32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcltq_f32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcltq_f32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcltq_f32(a3, b3)));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcltq_f32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] < b[i]) ? -1 : 0;
+    }
+}
+
+// LessThan int32: result[i] = (a[i] < b[i]) ? 0xFFFFFFFF : 0
+void lt_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcltq_s32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcltq_s32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcltq_s32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcltq_s32(a3, b3)));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcltq_s32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] < b[i]) ? -1 : 0;
+    }
+}
+
+// LessEqual float32: result[i] = (a[i] <= b[i]) ? 0xFFFFFFFF : 0
+void le_f32_neon(float *a, float *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        float32x4_t b0 = vld1q_f32(b + i);
+        float32x4_t b1 = vld1q_f32(b + i + 4);
+        float32x4_t b2 = vld1q_f32(b + i + 8);
+        float32x4_t b3 = vld1q_f32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcleq_f32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcleq_f32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcleq_f32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcleq_f32(a3, b3)));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcleq_f32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] <= b[i]) ? -1 : 0;
+    }
+}
+
+// LessEqual int32: result[i] = (a[i] <= b[i]) ? 0xFFFFFFFF : 0
+void le_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcleq_s32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcleq_s32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcleq_s32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcleq_s32(a3, b3)));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcleq_s32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] <= b[i]) ? -1 : 0;
+    }
+}
+
+// GreaterThan float32: result[i] = (a[i] > b[i]) ? 0xFFFFFFFF : 0
+void gt_f32_neon(float *a, float *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        float32x4_t b0 = vld1q_f32(b + i);
+        float32x4_t b1 = vld1q_f32(b + i + 4);
+        float32x4_t b2 = vld1q_f32(b + i + 8);
+        float32x4_t b3 = vld1q_f32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgtq_f32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcgtq_f32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcgtq_f32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcgtq_f32(a3, b3)));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgtq_f32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] > b[i]) ? -1 : 0;
+    }
+}
+
+// GreaterThan int32: result[i] = (a[i] > b[i]) ? 0xFFFFFFFF : 0
+void gt_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgtq_s32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcgtq_s32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcgtq_s32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcgtq_s32(a3, b3)));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgtq_s32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] > b[i]) ? -1 : 0;
+    }
+}
+
+// GreaterEqual float32: result[i] = (a[i] >= b[i]) ? 0xFFFFFFFF : 0
+void ge_f32_neon(float *a, float *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 floats at a time
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        float32x4_t b0 = vld1q_f32(b + i);
+        float32x4_t b1 = vld1q_f32(b + i + 4);
+        float32x4_t b2 = vld1q_f32(b + i + 8);
+        float32x4_t b3 = vld1q_f32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgeq_f32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcgeq_f32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcgeq_f32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcgeq_f32(a3, b3)));
+    }
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t bv = vld1q_f32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgeq_f32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] >= b[i]) ? -1 : 0;
+    }
+}
+
+// GreaterEqual int32: result[i] = (a[i] >= b[i]) ? 0xFFFFFFFF : 0
+void ge_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgeq_s32(a0, b0)));
+        vst1q_s32(result + i + 4, vreinterpretq_s32_u32(vcgeq_s32(a1, b1)));
+        vst1q_s32(result + i + 8, vreinterpretq_s32_u32(vcgeq_s32(a2, b2)));
+        vst1q_s32(result + i + 12, vreinterpretq_s32_u32(vcgeq_s32(a3, b3)));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vreinterpretq_s32_u32(vcgeq_s32(av, bv)));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] >= b[i]) ? -1 : 0;
+    }
+}

@@ -318,3 +318,209 @@ func MaskedStoreF32(input []float32, mask []int32, output []float32) {
 	n := int64(len(input))
 	masked_store_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&mask[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
 }
+
+// Shuffle/Permutation operations (Phase 6)
+
+// ReverseF32 reverses the order of elements: result[i] = input[n-1-i]
+func ReverseF32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	reverse_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ReverseF64 reverses the order of elements: result[i] = input[n-1-i]
+func ReverseF64(input, result []float64) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	reverse_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// Reverse2F32 swaps adjacent pairs: [0,1,2,3] -> [1,0,3,2]
+func Reverse2F32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	reverse2_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// Reverse4F32 reverses groups of 4: [0,1,2,3,4,5,6,7] -> [3,2,1,0,7,6,5,4]
+func Reverse4F32(input, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	n := int64(len(input))
+	reverse4_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// BroadcastF32 fills result with input[lane]
+func BroadcastF32(input []float32, lane int, result []float32) {
+	if len(input) == 0 || len(result) == 0 {
+		return
+	}
+	l := int64(lane)
+	n := int64(len(result))
+	broadcast_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&l), unsafe.Pointer(&n))
+}
+
+// GetLaneF32 extracts a single lane value
+func GetLaneF32(input []float32, lane int) float32 {
+	if len(input) == 0 || lane < 0 || lane >= len(input) {
+		return 0
+	}
+	var result float32
+	l := int64(lane)
+	getlane_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result), unsafe.Pointer(&l))
+	return result
+}
+
+// InsertLaneF32 inserts value at specified lane
+func InsertLaneF32(input []float32, lane int, value float32, result []float32) {
+	if len(input) == 0 {
+		return
+	}
+	l := int64(lane)
+	n := int64(len(input))
+	insertlane_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&value), unsafe.Pointer(&l), unsafe.Pointer(&n))
+}
+
+// InterleaveLowerF32 interleaves lower halves: [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a0,b0,a1,b1]
+func InterleaveLowerF32(a, b, result []float32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	interleave_lo_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// InterleaveUpperF32 interleaves upper halves: [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a2,b2,a3,b3]
+func InterleaveUpperF32(a, b, result []float32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	interleave_hi_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// TableLookupBytesU8 performs byte-level table lookup: result[i] = tbl[idx[i]]
+func TableLookupBytesU8(tbl, idx, result []uint8) {
+	if len(tbl) < 16 || len(idx) == 0 {
+		return
+	}
+	n := int64(len(idx))
+	tbl_u8_neon(unsafe.Pointer(&tbl[0]), unsafe.Pointer(&idx[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// Comparison operations (Phase 7)
+
+// EqF32 compares for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqF32(a, b []float32, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	eq_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// EqI32 compares for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	eq_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// NeF32 compares for inequality: result[i] = (a[i] != b[i]) ? -1 : 0
+func NeF32(a, b []float32, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	ne_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// NeI32 compares for inequality: result[i] = (a[i] != b[i]) ? -1 : 0
+func NeI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	ne_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LtF32 compares for less than: result[i] = (a[i] < b[i]) ? -1 : 0
+func LtF32(a, b []float32, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	lt_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LtI32 compares for less than: result[i] = (a[i] < b[i]) ? -1 : 0
+func LtI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	lt_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LeF32 compares for less or equal: result[i] = (a[i] <= b[i]) ? -1 : 0
+func LeF32(a, b []float32, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	le_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LeI32 compares for less or equal: result[i] = (a[i] <= b[i]) ? -1 : 0
+func LeI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	le_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// GtF32 compares for greater than: result[i] = (a[i] > b[i]) ? -1 : 0
+func GtF32(a, b []float32, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	gt_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// GtI32 compares for greater than: result[i] = (a[i] > b[i]) ? -1 : 0
+func GtI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	gt_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// GeF32 compares for greater or equal: result[i] = (a[i] >= b[i]) ? -1 : 0
+func GeF32(a, b []float32, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	ge_f32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// GeI32 compares for greater or equal: result[i] = (a[i] >= b[i]) ? -1 : 0
+func GeI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	ge_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}

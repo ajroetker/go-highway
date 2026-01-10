@@ -631,3 +631,467 @@ func BenchmarkRoundF32_NEON(b *testing.B) {
 		RoundF32(input, result)
 	}
 }
+
+// Phase 6: Shuffle/Permutation Tests
+
+func TestReverseF32(t *testing.T) {
+	input := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]float32, len(input))
+
+	ReverseF32(input, result)
+
+	for i := range input {
+		expected := input[len(input)-1-i]
+		if result[i] != expected {
+			t.Errorf("ReverseF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestReverseF64(t *testing.T) {
+	input := []float64{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]float64, len(input))
+
+	ReverseF64(input, result)
+
+	for i := range input {
+		expected := input[len(input)-1-i]
+		if result[i] != expected {
+			t.Errorf("ReverseF64[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestReverse2F32(t *testing.T) {
+	input := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]float32, len(input))
+
+	Reverse2F32(input, result)
+
+	// Expected: [2,1,4,3,6,5,8,7]
+	expected := []float32{2, 1, 4, 3, 6, 5, 8, 7}
+	for i := range input {
+		if result[i] != expected[i] {
+			t.Errorf("Reverse2F32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+func TestReverse4F32(t *testing.T) {
+	input := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]float32, len(input))
+
+	Reverse4F32(input, result)
+
+	// Expected: [4,3,2,1,8,7,6,5]
+	expected := []float32{4, 3, 2, 1, 8, 7, 6, 5}
+	for i := range input {
+		if result[i] != expected[i] {
+			t.Errorf("Reverse4F32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+func TestBroadcastF32(t *testing.T) {
+	input := []float32{10, 20, 30, 40}
+	result := make([]float32, 8)
+
+	BroadcastF32(input, 2, result) // Broadcast input[2] = 30
+
+	for i := range result {
+		if result[i] != 30 {
+			t.Errorf("BroadcastF32[%d]: got %v, want 30", i, result[i])
+		}
+	}
+}
+
+func TestGetLaneF32(t *testing.T) {
+	input := []float32{10, 20, 30, 40, 50, 60, 70, 80}
+
+	for i, expected := range input {
+		got := GetLaneF32(input, i)
+		if got != expected {
+			t.Errorf("GetLaneF32(%d): got %v, want %v", i, got, expected)
+		}
+	}
+}
+
+func TestInsertLaneF32(t *testing.T) {
+	input := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	result := make([]float32, len(input))
+
+	InsertLaneF32(input, 3, 999, result)
+
+	for i := range input {
+		var expected float32
+		if i == 3 {
+			expected = 999
+		} else {
+			expected = input[i]
+		}
+		if result[i] != expected {
+			t.Errorf("InsertLaneF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestInterleaveLowerF32(t *testing.T) {
+	a := []float32{1, 2, 3, 4}
+	b := []float32{10, 20, 30, 40}
+	result := make([]float32, len(a))
+
+	InterleaveLowerF32(a, b, result)
+
+	// Expected: [a0,b0,a1,b1] = [1,10,2,20]
+	expected := []float32{1, 10, 2, 20}
+	for i := range expected {
+		if result[i] != expected[i] {
+			t.Errorf("InterleaveLowerF32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+func TestInterleaveUpperF32(t *testing.T) {
+	a := []float32{1, 2, 3, 4}
+	b := []float32{10, 20, 30, 40}
+	result := make([]float32, len(a))
+
+	InterleaveUpperF32(a, b, result)
+
+	// Expected: [a2,b2,a3,b3] = [3,30,4,40]
+	expected := []float32{3, 30, 4, 40}
+	for i := range expected {
+		if result[i] != expected[i] {
+			t.Errorf("InterleaveUpperF32[%d]: got %v, want %v", i, result[i], expected[i])
+		}
+	}
+}
+
+func TestTableLookupBytesU8(t *testing.T) {
+	// Table: 0-15
+	tbl := make([]uint8, 16)
+	for i := range tbl {
+		tbl[i] = uint8(i * 10) // 0, 10, 20, ..., 150
+	}
+
+	idx := []uint8{0, 1, 2, 3, 15, 14, 13, 12, 0, 0, 0, 0, 5, 5, 5, 5}
+	result := make([]uint8, len(idx))
+
+	TableLookupBytesU8(tbl, idx, result)
+
+	for i := range idx {
+		var expected uint8
+		if idx[i] < 16 {
+			expected = tbl[idx[i]]
+		} else {
+			expected = 0
+		}
+		if result[i] != expected {
+			t.Errorf("TableLookupBytesU8[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Phase 7: Comparison Tests
+
+func TestEqF32(t *testing.T) {
+	a := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	b := []float32{1, 0, 3, 0, 5, 0, 7, 0}
+	result := make([]int32, len(a))
+
+	EqF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] == b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("EqF32[%d]: got %v, want %v (a=%v, b=%v)", i, result[i], expected, a[i], b[i])
+		}
+	}
+}
+
+func TestEqI32(t *testing.T) {
+	a := []int32{1, 2, 3, 4, 5, 6, 7, 8}
+	b := []int32{1, 0, 3, 0, 5, 0, 7, 0}
+	result := make([]int32, len(a))
+
+	EqI32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] == b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("EqI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestNeF32(t *testing.T) {
+	a := []float32{1, 2, 3, 4, 5, 6, 7, 8}
+	b := []float32{1, 0, 3, 0, 5, 0, 7, 0}
+	result := make([]int32, len(a))
+
+	NeF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] != b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("NeF32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestNeI32(t *testing.T) {
+	a := []int32{1, 2, 3, 4, 5, 6, 7, 8}
+	b := []int32{1, 0, 3, 0, 5, 0, 7, 0}
+	result := make([]int32, len(a))
+
+	NeI32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] != b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("NeI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestLtF32(t *testing.T) {
+	a := []float32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []float32{2, 3, 4, 5, 6, 4, 5, 3}
+	result := make([]int32, len(a))
+
+	LtF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] < b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("LtF32[%d]: got %v, want %v (a=%v < b=%v)", i, result[i], expected, a[i], b[i])
+		}
+	}
+}
+
+func TestLtI32(t *testing.T) {
+	a := []int32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []int32{2, 3, 4, 5, 6, 4, 5, 3}
+	result := make([]int32, len(a))
+
+	LtI32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] < b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("LtI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestLeF32(t *testing.T) {
+	a := []float32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []float32{1, 3, 3, 5, 2, 4, 4, 3}
+	result := make([]int32, len(a))
+
+	LeF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] <= b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("LeF32[%d]: got %v, want %v (a=%v <= b=%v)", i, result[i], expected, a[i], b[i])
+		}
+	}
+}
+
+func TestLeI32(t *testing.T) {
+	a := []int32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []int32{1, 3, 3, 5, 2, 4, 4, 3}
+	result := make([]int32, len(a))
+
+	LeI32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] <= b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("LeI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestGtF32(t *testing.T) {
+	a := []float32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []float32{2, 3, 4, 5, 6, 4, 5, 3}
+	result := make([]int32, len(a))
+
+	GtF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] > b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("GtF32[%d]: got %v, want %v (a=%v > b=%v)", i, result[i], expected, a[i], b[i])
+		}
+	}
+}
+
+func TestGtI32(t *testing.T) {
+	a := []int32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []int32{2, 3, 4, 5, 6, 4, 5, 3}
+	result := make([]int32, len(a))
+
+	GtI32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] > b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("GtI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestGeF32(t *testing.T) {
+	a := []float32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []float32{1, 3, 3, 5, 2, 4, 4, 3}
+	result := make([]int32, len(a))
+
+	GeF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] >= b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("GeF32[%d]: got %v, want %v (a=%v >= b=%v)", i, result[i], expected, a[i], b[i])
+		}
+	}
+}
+
+func TestGeI32(t *testing.T) {
+	a := []int32{1, 5, 3, 7, 2, 8, 4, 6}
+	b := []int32{1, 3, 3, 5, 2, 4, 4, 3}
+	result := make([]int32, len(a))
+
+	GeI32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] >= b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("GeI32[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Non-aligned size tests for new operations
+func TestShuffleNonAligned(t *testing.T) {
+	// Test with 7 elements (not multiple of 4)
+	input := []float32{1, 2, 3, 4, 5, 6, 7}
+	result := make([]float32, len(input))
+
+	ReverseF32(input, result)
+
+	for i := range input {
+		expected := input[len(input)-1-i]
+		if result[i] != expected {
+			t.Errorf("ReverseF32 (non-aligned)[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+func TestComparisonNonAligned(t *testing.T) {
+	// Test with 7 elements
+	a := []float32{1, 2, 3, 4, 5, 6, 7}
+	b := []float32{1, 0, 3, 0, 5, 0, 7}
+	result := make([]int32, len(a))
+
+	EqF32(a, b, result)
+
+	for i := range a {
+		expected := int32(0)
+		if a[i] == b[i] {
+			expected = -1
+		}
+		if result[i] != expected {
+			t.Errorf("EqF32 (non-aligned)[%d]: got %v, want %v", i, result[i], expected)
+		}
+	}
+}
+
+// Benchmarks for new operations
+
+func BenchmarkReverseF32_NEON(b *testing.B) {
+	n := 1024
+	input := make([]float32, n)
+	result := make([]float32, n)
+	for i := range input {
+		input[i] = float32(i)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		ReverseF32(input, result)
+	}
+}
+
+func BenchmarkEqF32_NEON(b *testing.B) {
+	n := 1024
+	a := make([]float32, n)
+	bb := make([]float32, n)
+	result := make([]int32, n)
+	for i := range a {
+		a[i] = float32(i)
+		bb[i] = float32(i % 10)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		EqF32(a, bb, result)
+	}
+}
+
+func BenchmarkLtF32_NEON(b *testing.B) {
+	n := 1024
+	a := make([]float32, n)
+	bb := make([]float32, n)
+	result := make([]int32, n)
+	for i := range a {
+		a[i] = float32(i)
+		bb[i] = float32(n - i)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		LtF32(a, bb, result)
+	}
+}

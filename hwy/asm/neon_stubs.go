@@ -44,6 +44,34 @@ func ScatterF32(values []float32, indices []int32, base []float32) {
 func ScatterF64(values []float64, indices []int32, base []float64) {
 	panic("NEON not available")
 }
-func ScatterI32(values []int32, indices []int32, base []int32)        { panic("NEON not available") }
-func MaskedLoadF32(input []float32, mask []int32, result []float32)   { panic("NEON not available") }
-func MaskedStoreF32(input []float32, mask []int32, output []float32)  { panic("NEON not available") }
+func ScatterI32(values []int32, indices []int32, base []int32)       { panic("NEON not available") }
+func MaskedLoadF32(input []float32, mask []int32, result []float32)  { panic("NEON not available") }
+func MaskedStoreF32(input []float32, mask []int32, output []float32) { panic("NEON not available") }
+
+// Shuffle/Permutation operations (Phase 6)
+func ReverseF32(input, result []float32)                              { panic("NEON not available") }
+func ReverseF64(input, result []float64)                              { panic("NEON not available") }
+func Reverse2F32(input, result []float32)                             { panic("NEON not available") }
+func Reverse4F32(input, result []float32)                             { panic("NEON not available") }
+func BroadcastF32(input []float32, lane int, result []float32)        { panic("NEON not available") }
+func GetLaneF32(input []float32, lane int) float32                    { panic("NEON not available") }
+func InsertLaneF32(input []float32, lane int, value float32, result []float32) {
+	panic("NEON not available")
+}
+func InterleaveLowerF32(a, b, result []float32)   { panic("NEON not available") }
+func InterleaveUpperF32(a, b, result []float32)   { panic("NEON not available") }
+func TableLookupBytesU8(tbl, idx, result []uint8) { panic("NEON not available") }
+
+// Comparison operations (Phase 7)
+func EqF32(a, b []float32, result []int32) { panic("NEON not available") }
+func EqI32(a, b, result []int32)           { panic("NEON not available") }
+func NeF32(a, b []float32, result []int32) { panic("NEON not available") }
+func NeI32(a, b, result []int32)           { panic("NEON not available") }
+func LtF32(a, b []float32, result []int32) { panic("NEON not available") }
+func LtI32(a, b, result []int32)           { panic("NEON not available") }
+func LeF32(a, b []float32, result []int32) { panic("NEON not available") }
+func LeI32(a, b, result []int32)           { panic("NEON not available") }
+func GtF32(a, b []float32, result []int32) { panic("NEON not available") }
+func GtI32(a, b, result []int32)           { panic("NEON not available") }
+func GeF32(a, b []float32, result []int32) { panic("NEON not available") }
+func GeI32(a, b, result []int32)           { panic("NEON not available") }

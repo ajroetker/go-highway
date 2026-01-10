@@ -103,3 +103,69 @@ func masked_load_f32_neon(input, mask, result, len unsafe.Pointer)
 
 //go:noescape
 func masked_store_f32_neon(input, mask, output, len unsafe.Pointer)
+
+//go:noescape
+func reverse_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func reverse_f64_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func reverse2_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func reverse4_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func broadcast_f32_neon(input, result, lane, len unsafe.Pointer)
+
+//go:noescape
+func getlane_f32_neon(input, result, lane unsafe.Pointer)
+
+//go:noescape
+func insertlane_f32_neon(input, result, value, lane, len unsafe.Pointer)
+
+//go:noescape
+func interleave_lo_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func interleave_hi_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func tbl_u8_neon(tbl, idx, result, len unsafe.Pointer)
+
+//go:noescape
+func eq_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func eq_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func ne_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func ne_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func lt_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func lt_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func le_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func le_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func gt_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func gt_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func ge_f32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func ge_i32_neon(a, b, result, len unsafe.Pointer)

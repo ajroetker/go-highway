@@ -325,30 +325,30 @@ TEXT ·add_f32_neon(SB), $0-32
 | Ceil | ✅ | `ceil_f32_neon` | `vrndpq_f32` |
 | Floor | ✅ | `floor_f32_neon` | `vrndmq_f32` |
 
-### Phase 6: Shuffle/Permutation 🔲 Not Started
+### Phase 6: Shuffle/Permutation ✅ Complete
 
 | Operation | Status | C Function | NEON Intrinsic |
 |-----------|--------|------------|----------------|
-| Reverse | ❌ | `reverse_*_neon` | `vrev64q_*` |
-| Reverse2 | ❌ | `reverse2_*_neon` | `vrev64q_*` |
-| Reverse4 | ❌ | `reverse4_*_neon` | `vextq_*` |
-| Broadcast | ❌ | `broadcast_*_neon` | `vdupq_laneq_*` |
-| GetLane | ❌ | `getlane_*_neon` | `vgetq_lane_*` |
-| InsertLane | ❌ | `insertlane_*_neon` | `vsetq_lane_*` |
-| InterleaveLower | ❌ | `interleave_lo_*_neon` | `vzip1q_*` |
-| InterleaveUpper | ❌ | `interleave_hi_*_neon` | `vzip2q_*` |
-| TableLookupBytes | ❌ | `tbl_*_neon` | `vqtbl1q_u8` |
+| Reverse | ✅ | `reverse_f32_neon`, `reverse_f64_neon` | `vrev64q_*`, `vextq_*` |
+| Reverse2 | ✅ | `reverse2_f32_neon` | `vrev64q_*` |
+| Reverse4 | ✅ | `reverse4_f32_neon` | `vrev64q_*`, `vextq_*` |
+| Broadcast | ✅ | `broadcast_f32_neon` | `vdupq_n_*` |
+| GetLane | ✅ | `getlane_f32_neon` | Scalar access |
+| InsertLane | ✅ | `insertlane_f32_neon` | Scalar access |
+| InterleaveLower | ✅ | `interleave_lo_f32_neon` | `vzip1q_*` |
+| InterleaveUpper | ✅ | `interleave_hi_f32_neon` | `vzip2q_*` |
+| TableLookupBytes | ✅ | `tbl_u8_neon` | `vqtbl1q_u8` |
 
-### Phase 7: Comparisons 🔲 Not Started
+### Phase 7: Comparisons ✅ Complete
 
 | Operation | F32 | I32 | C Function | NEON Intrinsic |
 |-----------|-----|-----|------------|----------------|
-| Equal | ❌ | ❌ | `eq_*_neon` | `vceqq_*` |
-| NotEqual | ❌ | ❌ | `ne_*_neon` | `vmvnq_u32(vceqq_*)` |
-| LessThan | ❌ | ❌ | `lt_*_neon` | `vcltq_*` |
-| LessEqual | ❌ | ❌ | `le_*_neon` | `vcleq_*` |
-| GreaterThan | ❌ | ❌ | `gt_*_neon` | `vcgtq_*` |
-| GreaterEqual | ❌ | ❌ | `ge_*_neon` | `vcgeq_*` |
+| Equal | ✅ | ✅ | `eq_f32_neon`, `eq_i32_neon` | `vceqq_*` |
+| NotEqual | ✅ | ✅ | `ne_f32_neon`, `ne_i32_neon` | `vmvnq_u32(vceqq_*)` |
+| LessThan | ✅ | ✅ | `lt_f32_neon`, `lt_i32_neon` | `vcltq_*` |
+| LessEqual | ✅ | ✅ | `le_f32_neon`, `le_i32_neon` | `vcleq_*` |
+| GreaterThan | ✅ | ✅ | `gt_f32_neon`, `gt_i32_neon` | `vcgtq_*` |
+| GreaterEqual | ✅ | ✅ | `ge_f32_neon`, `ge_i32_neon` | `vcgeq_*` |
 
 ### Phase 8: Bitwise Operations 🔲 Not Started
 
