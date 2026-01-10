@@ -6,6 +6,8 @@ import (
 	stdmath "math"
 	"simd/archsimd"
 	"testing"
+
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 // Phase 11 tests: Tan, Atan, Atan2, Asin, Acos, Pow, Expm1, Log1p
@@ -42,6 +44,10 @@ func TestTan_AVX2_F32x8(t *testing.T) {
 }
 
 func TestTan_AVX512_F32x16(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	tests := []struct {
 		name  string
 		input float32
@@ -291,6 +297,10 @@ func TestLog1p_SpecialCases(t *testing.T) {
 // ============================================================================
 
 func TestAtan_AVX512_F32x16(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	tests := []struct {
 		name  string
 		input float32
@@ -317,6 +327,10 @@ func TestAtan_AVX512_F32x16(t *testing.T) {
 }
 
 func TestAsin_AVX512_F32x16(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	tests := []struct {
 		name  string
 		input float32
@@ -343,6 +357,10 @@ func TestAsin_AVX512_F32x16(t *testing.T) {
 }
 
 func TestExpm1_AVX512_F32x16(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	x := archsimd.BroadcastFloat32x16(0.001)
 	result := Expm1_AVX512_F32x16(x)
 	var buf [16]float32
@@ -356,6 +374,10 @@ func TestExpm1_AVX512_F32x16(t *testing.T) {
 }
 
 func TestLog1p_AVX512_F32x16(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	x := archsimd.BroadcastFloat32x16(0.001)
 	result := Log1p_AVX512_F32x16(x)
 	var buf [16]float32

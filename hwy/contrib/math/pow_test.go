@@ -153,6 +153,10 @@ func TestPow_AVX2_F64x4(t *testing.T) {
 }
 
 func TestPow_AVX512_F32x16(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	tests := []struct {
 		name string
 		x    float32
@@ -187,6 +191,10 @@ func TestPow_AVX512_F32x16(t *testing.T) {
 }
 
 func TestPow_AVX512_F64x8(t *testing.T) {
+	if hwy.CurrentLevel() < hwy.DispatchAVX512 {
+		t.Skip("AVX-512 not available")
+	}
+
 	tests := []struct {
 		name string
 		x    float64
