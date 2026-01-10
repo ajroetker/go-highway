@@ -22,12 +22,14 @@ var (
 	asin32_nan      = archsimd.BroadcastFloat32x8(float32(stdmath.NaN()))
 
 	// Polynomial coefficients for asin(x) approximation on |x| < 0.5
-	// asin(x) ≈ x + x³*(p1 + x²*(p2 + x²*(p3 + x²*p4)))
-	// Minimax polynomial approximation
+	// asin(x) ≈ x + x³*(p1 + x²*(p2 + x²*(p3 + x²*(p4 + x²*(p5 + x²*p6)))))
+	// Taylor series coefficients for better accuracy at boundary
 	asin32_p1 = archsimd.BroadcastFloat32x8(0.16666666666666666)   // 1/6
 	asin32_p2 = archsimd.BroadcastFloat32x8(0.075)                 // 3/40
 	asin32_p3 = archsimd.BroadcastFloat32x8(0.04464285714285714)   // 15/336
 	asin32_p4 = archsimd.BroadcastFloat32x8(0.030381944444444444)  // 35/1152
+	asin32_p5 = archsimd.BroadcastFloat32x8(0.022372159090909092)  // 63/2816
+	asin32_p6 = archsimd.BroadcastFloat32x8(0.017352764423076923)  // 231/13312
 
 	// Float64 constants
 	asin64_zero     = archsimd.BroadcastFloat64x4(0.0)
@@ -67,9 +69,11 @@ func Asin_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 	largeMask := absX.Greater(asin32_half).Or(absX.Equal(asin32_half))
 
 	// ===== Small argument path: |x| < 0.5 =====
-	// asin(x) ≈ x + x³*(1/6 + x²*(3/40 + x²*(15/336 + x²*35/1152)))
+	// asin(x) ≈ x + x³*(p1 + x²*(p2 + x²*(p3 + x²*(p4 + x²*(p5 + x²*p6)))))
 	x2Small := x.Mul(x)
-	poly := asin32_p4.MulAdd(x2Small, asin32_p3)
+	poly := asin32_p6.MulAdd(x2Small, asin32_p5)
+	poly = poly.MulAdd(x2Small, asin32_p4)
+	poly = poly.MulAdd(x2Small, asin32_p3)
 	poly = poly.MulAdd(x2Small, asin32_p2)
 	poly = poly.MulAdd(x2Small, asin32_p1)
 	smallResult := x.Add(x.Mul(x2Small).Mul(poly))
@@ -85,7 +89,9 @@ func Asin_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
 
 	// Apply polynomial to sqrtArg
 	sqrtArg2 := sqrtArg.Mul(sqrtArg)
-	polyLarge := asin32_p4.MulAdd(sqrtArg2, asin32_p3)
+	polyLarge := asin32_p6.MulAdd(sqrtArg2, asin32_p5)
+	polyLarge = polyLarge.MulAdd(sqrtArg2, asin32_p4)
+	polyLarge = polyLarge.MulAdd(sqrtArg2, asin32_p3)
 	polyLarge = polyLarge.MulAdd(sqrtArg2, asin32_p2)
 	polyLarge = polyLarge.MulAdd(sqrtArg2, asin32_p1)
 	asinSqrtArg := sqrtArg.Add(sqrtArg.Mul(sqrtArg2).Mul(polyLarge))

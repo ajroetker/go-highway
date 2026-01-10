@@ -32,6 +32,8 @@ var (
 	asin512_32_p2 archsimd.Float32x16
 	asin512_32_p3 archsimd.Float32x16
 	asin512_32_p4 archsimd.Float32x16
+	asin512_32_p5 archsimd.Float32x16
+	asin512_32_p6 archsimd.Float32x16
 
 	// Float64x8 constants
 	asin512_64_zero     archsimd.Float64x8
@@ -68,6 +70,8 @@ func initAsin512Constants() {
 	asin512_32_p2 = archsimd.BroadcastFloat32x16(0.075)                 // 3/40
 	asin512_32_p3 = archsimd.BroadcastFloat32x16(0.04464285714285714)   // 15/336
 	asin512_32_p4 = archsimd.BroadcastFloat32x16(0.030381944444444444)  // 35/1152
+	asin512_32_p5 = archsimd.BroadcastFloat32x16(0.022372159090909092)  // 63/2816
+	asin512_32_p6 = archsimd.BroadcastFloat32x16(0.017352764423076923)  // 231/13312
 
 	// Float64x8 constants
 	asin512_64_zero = archsimd.BroadcastFloat64x8(0.0)
@@ -117,7 +121,9 @@ func Asin_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 
 	// ===== Small argument path: |x| < 0.5 =====
 	x2Small := x.Mul(x)
-	poly := asin512_32_p4.MulAdd(x2Small, asin512_32_p3)
+	poly := asin512_32_p6.MulAdd(x2Small, asin512_32_p5)
+	poly = poly.MulAdd(x2Small, asin512_32_p4)
+	poly = poly.MulAdd(x2Small, asin512_32_p3)
 	poly = poly.MulAdd(x2Small, asin512_32_p2)
 	poly = poly.MulAdd(x2Small, asin512_32_p1)
 	smallResult := x.Add(x.Mul(x2Small).Mul(poly))
@@ -130,7 +136,9 @@ func Asin_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {
 
 	// Apply polynomial to sqrtArg
 	sqrtArg2 := sqrtArg.Mul(sqrtArg)
-	polyLarge := asin512_32_p4.MulAdd(sqrtArg2, asin512_32_p3)
+	polyLarge := asin512_32_p6.MulAdd(sqrtArg2, asin512_32_p5)
+	polyLarge = polyLarge.MulAdd(sqrtArg2, asin512_32_p4)
+	polyLarge = polyLarge.MulAdd(sqrtArg2, asin512_32_p3)
 	polyLarge = polyLarge.MulAdd(sqrtArg2, asin512_32_p2)
 	polyLarge = polyLarge.MulAdd(sqrtArg2, asin512_32_p1)
 	asinSqrtArg := sqrtArg.Add(sqrtArg.Mul(sqrtArg2).Mul(polyLarge))
