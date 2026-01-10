@@ -295,3 +295,273 @@ func BenchmarkOddEven_F32(b *testing.B) {
 		_ = OddEven(a, bVec)
 	}
 }
+
+// Slide operation tests
+
+func TestSlideUpLanes(t *testing.T) {
+	t.Run("float32", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			input  []float32
+			offset int
+			expect []float32
+		}{
+			{
+				name:   "slide_by_0",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 0,
+				expect: []float32{1, 2, 3, 4, 5, 6, 7, 8},
+			},
+			{
+				name:   "slide_by_1",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 1,
+				expect: []float32{0, 1, 2, 3, 4, 5, 6, 7},
+			},
+			{
+				name:   "slide_by_2",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 2,
+				expect: []float32{0, 0, 1, 2, 3, 4, 5, 6},
+			},
+			{
+				name:   "slide_by_4",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 4,
+				expect: []float32{0, 0, 0, 0, 1, 2, 3, 4},
+			},
+			{
+				name:   "slide_by_7",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 7,
+				expect: []float32{0, 0, 0, 0, 0, 0, 0, 1},
+			},
+			{
+				name:   "slide_by_8_all_zeros",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 8,
+				expect: []float32{0, 0, 0, 0, 0, 0, 0, 0},
+			},
+			{
+				name:   "slide_by_negative",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: -1,
+				expect: []float32{1, 2, 3, 4, 5, 6, 7, 8},
+			},
+			{
+				name:   "slide_beyond_length",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 100,
+				expect: []float32{0, 0, 0, 0, 0, 0, 0, 0},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				v := Vec[float32]{data: tt.input}
+				result := SlideUpLanes(v, tt.offset)
+				if !reflect.DeepEqual(result.data, tt.expect) {
+					t.Errorf("SlideUpLanes() = %v, want %v", result.data, tt.expect)
+				}
+			})
+		}
+	})
+
+	t.Run("int32", func(t *testing.T) {
+		v := Vec[int32]{data: []int32{10, 20, 30, 40}}
+		result := SlideUpLanes(v, 2)
+		expect := []int32{0, 0, 10, 20}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("SlideUpLanes() = %v, want %v", result.data, expect)
+		}
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		v := Vec[float64]{data: []float64{1, 2, 3, 4}}
+		result := SlideUpLanes(v, 1)
+		expect := []float64{0, 1, 2, 3}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("SlideUpLanes() = %v, want %v", result.data, expect)
+		}
+	})
+}
+
+func TestSlideDownLanes(t *testing.T) {
+	t.Run("float32", func(t *testing.T) {
+		tests := []struct {
+			name   string
+			input  []float32
+			offset int
+			expect []float32
+		}{
+			{
+				name:   "slide_by_0",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 0,
+				expect: []float32{1, 2, 3, 4, 5, 6, 7, 8},
+			},
+			{
+				name:   "slide_by_1",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 1,
+				expect: []float32{2, 3, 4, 5, 6, 7, 8, 0},
+			},
+			{
+				name:   "slide_by_2",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 2,
+				expect: []float32{3, 4, 5, 6, 7, 8, 0, 0},
+			},
+			{
+				name:   "slide_by_4",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 4,
+				expect: []float32{5, 6, 7, 8, 0, 0, 0, 0},
+			},
+			{
+				name:   "slide_by_7",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 7,
+				expect: []float32{8, 0, 0, 0, 0, 0, 0, 0},
+			},
+			{
+				name:   "slide_by_8_all_zeros",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 8,
+				expect: []float32{0, 0, 0, 0, 0, 0, 0, 0},
+			},
+			{
+				name:   "slide_by_negative",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: -1,
+				expect: []float32{1, 2, 3, 4, 5, 6, 7, 8},
+			},
+			{
+				name:   "slide_beyond_length",
+				input:  []float32{1, 2, 3, 4, 5, 6, 7, 8},
+				offset: 100,
+				expect: []float32{0, 0, 0, 0, 0, 0, 0, 0},
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				v := Vec[float32]{data: tt.input}
+				result := SlideDownLanes(v, tt.offset)
+				if !reflect.DeepEqual(result.data, tt.expect) {
+					t.Errorf("SlideDownLanes() = %v, want %v", result.data, tt.expect)
+				}
+			})
+		}
+	})
+
+	t.Run("int32", func(t *testing.T) {
+		v := Vec[int32]{data: []int32{10, 20, 30, 40}}
+		result := SlideDownLanes(v, 2)
+		expect := []int32{30, 40, 0, 0}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("SlideDownLanes() = %v, want %v", result.data, expect)
+		}
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		v := Vec[float64]{data: []float64{1, 2, 3, 4}}
+		result := SlideDownLanes(v, 1)
+		expect := []float64{2, 3, 4, 0}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("SlideDownLanes() = %v, want %v", result.data, expect)
+		}
+	})
+}
+
+func TestSlide1Up(t *testing.T) {
+	t.Run("float32", func(t *testing.T) {
+		v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
+		result := Slide1Up(v)
+		expect := []float32{0, 1, 2, 3, 4, 5, 6, 7}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("Slide1Up() = %v, want %v", result.data, expect)
+		}
+	})
+
+	t.Run("int64", func(t *testing.T) {
+		v := Vec[int64]{data: []int64{10, 20, 30, 40}}
+		result := Slide1Up(v)
+		expect := []int64{0, 10, 20, 30}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("Slide1Up() = %v, want %v", result.data, expect)
+		}
+	})
+
+	t.Run("uint8", func(t *testing.T) {
+		v := Vec[uint8]{data: []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}}
+		result := Slide1Up(v)
+		expect := []uint8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("Slide1Up() = %v, want %v", result.data, expect)
+		}
+	})
+}
+
+func TestSlide1Down(t *testing.T) {
+	t.Run("float32", func(t *testing.T) {
+		v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
+		result := Slide1Down(v)
+		expect := []float32{2, 3, 4, 5, 6, 7, 8, 0}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("Slide1Down() = %v, want %v", result.data, expect)
+		}
+	})
+
+	t.Run("int64", func(t *testing.T) {
+		v := Vec[int64]{data: []int64{10, 20, 30, 40}}
+		result := Slide1Down(v)
+		expect := []int64{20, 30, 40, 0}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("Slide1Down() = %v, want %v", result.data, expect)
+		}
+	})
+
+	t.Run("uint8", func(t *testing.T) {
+		v := Vec[uint8]{data: []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}}
+		result := Slide1Down(v)
+		expect := []uint8{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0}
+		if !reflect.DeepEqual(result.data, expect) {
+			t.Errorf("Slide1Down() = %v, want %v", result.data, expect)
+		}
+	})
+}
+
+// Slide operation benchmarks
+
+func BenchmarkSlideUpLanes_F32(b *testing.B) {
+	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = SlideUpLanes(v, 3)
+	}
+}
+
+func BenchmarkSlideDownLanes_F32(b *testing.B) {
+	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = SlideDownLanes(v, 3)
+	}
+}
+
+func BenchmarkSlide1Up_F32(b *testing.B) {
+	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Slide1Up(v)
+	}
+}
+
+func BenchmarkSlide1Down_F32(b *testing.B) {
+	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Slide1Down(v)
+	}
+}

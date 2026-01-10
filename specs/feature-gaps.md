@@ -116,10 +116,10 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | DupOdd | ✅ | ✅ | Duplicate odd lanes |
 | SwapAdjacentBlocks | ✅ | ✅ | Swap 128-bit blocks |
 | Per4LaneBlockShuffle | ✅ | ❌ | Complex shuffle |
-| SlideUpLanes | ✅ | ❌ | Shift lanes up |
-| SlideDownLanes | ✅ | ❌ | Shift lanes down |
-| Slide1Up | ✅ | ❌ | Shift by 1 lane |
-| Slide1Down | ✅ | ❌ | Shift by 1 lane |
+| SlideUpLanes | ✅ | ✅ | Shift lanes up |
+| SlideDownLanes | ✅ | ✅ | Shift lanes down |
+| Slide1Up | ✅ | ✅ | Shift by 1 lane |
+| Slide1Down | ✅ | ✅ | Shift by 1 lane |
 
 ### Reduction Operations
 
@@ -135,7 +135,7 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | ExtractLane | ✅ | ✅ | Extract lane by index (same as GetLane) |
 | InsertLane | ✅ | ✅ | Insert into lane |
 
-### Bitwise Operations
+### Bitwise Operations ✅ **Bit Manipulation Implemented**
 
 | Operation | C++ Highway | go-highway | Notes |
 |-----------|-------------|------------|-------|
@@ -148,12 +148,12 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | ShiftRight | ✅ | ✅ | Per-lane shift |
 | ShiftLeftSame | ✅ | ✅ | All lanes same shift (same as ShiftLeft) |
 | ShiftRightSame | ✅ | ✅ | All lanes same shift (same as ShiftRight) |
-| RotateRight | ✅ | ❌ | Bit rotation |
-| ReverseBits | ✅ | ❌ | Reverse bit order |
-| PopCount | ✅ | ❌ | Count set bits |
-| LeadingZeroCount | ✅ | ❌ | CLZ |
-| TrailingZeroCount | ✅ | ❌ | CTZ |
-| HighestSetBitIndex | ✅ | ❌ | BSR equivalent |
+| RotateRight | ✅ | ✅ | Bit rotation |
+| ReverseBits | ✅ | ✅ | Reverse bit order |
+| PopCount | ✅ | ✅ | Count set bits |
+| LeadingZeroCount | ✅ | ✅ | CLZ |
+| TrailingZeroCount | ✅ | ✅ | CTZ |
+| HighestSetBitIndex | ✅ | ✅ | BSR equivalent |
 
 ### Type Conversion Operations ✅ **Promote/Demote Implemented**
 
@@ -309,6 +309,20 @@ The following features were added to close major gaps:
 - **Unsigned Integer Demotion (Saturating)**: `DemoteU16ToU8`, `DemoteU32ToU16`, `DemoteU64ToU32`, `DemoteTwoU*` variants
 - **Truncating Demotion (Non-saturating)**: `TruncateI16ToI8`, `TruncateI32ToI16`, `TruncateI64ToI32`, and unsigned variants
 
+### Bit Manipulation Operations (January 2026)
+- `PopCount` - Count set bits per lane
+- `LeadingZeroCount` - Count leading zeros (CLZ)
+- `TrailingZeroCount` - Count trailing zeros (CTZ)
+- `RotateRight` - Bit rotation right by constant
+- `ReverseBits` - Reverse bit order per lane
+- `HighestSetBitIndex` - Index of highest set bit (BSR equivalent)
+
+### Slide Operations (January 2026)
+- `SlideUpLanes` - Shift lanes up by N, fill low with zeros
+- `SlideDownLanes` - Shift lanes down by N, fill high with zeros
+- `Slide1Up` - Shift lanes up by 1
+- `Slide1Down` - Shift lanes down by 1
+
 ---
 
 ## Priority Implementation Recommendations
@@ -326,13 +340,13 @@ The following features were added to close major gaps:
 
 ### Medium Priority
 
-4. **Bit Operations** - `PopCount`, `LeadingZeroCount`, `RotateRight`
+4. ~~**Bit Operations** - `PopCount`, `LeadingZeroCount`, `RotateRight`~~ ✅ **IMPLEMENTED**
    - Important for bit manipulation algorithms
 
 5. ~~**Missing Math** - `Tan`, `Atan`, `Atan2`, `Pow`~~ ✅ **Previously Implemented**
    - Complete transcendental coverage
 
-6. **Slide Operations** - `SlideUpLanes`, `SlideDownLanes`
+6. ~~**Slide Operations** - `SlideUpLanes`, `SlideDownLanes`~~ ✅ **IMPLEMENTED**
    - Lane shifting operations
 
 ### Lower Priority
@@ -353,7 +367,8 @@ The following features were added to close major gaps:
 - Transcendental math (Exp, Log, Sin, Cos, Tan, Tanh, Sigmoid, Erf, Atan, Atan2, Pow)
 - Basic reductions (Sum, Min, Max)
 - Dot product and matrix-vector operations
-- **Shuffle/Permutation operations** (Reverse, Interleave, Concat, OddEven)
+- **Shuffle/Permutation operations** (Reverse, Interleave, Concat, OddEven, Slide)
+- **Bit manipulation** (PopCount, LeadingZeroCount, TrailingZeroCount, RotateRight, ReverseBits)
 - **Type conversions** (ConvertTo, Round, Trunc, Ceil, Floor, BitCast)
 - **Type width conversions** (PromoteTo, DemoteTo for all integer/float types)
 - **Compress/Expand operations** (Compress, Expand, CompressStore)

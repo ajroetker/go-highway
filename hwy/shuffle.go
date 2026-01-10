@@ -314,3 +314,65 @@ func sizeOf[T Lanes](v T) int {
 		return 0
 	}
 }
+
+// SlideUpLanes shifts all lanes up (toward higher indices) by the given offset.
+// Lower lanes are filled with zeros, upper lanes that slide out are discarded.
+// [1,2,3,4,5,6,7,8] with offset=2 -> [0,0,1,2,3,4,5,6]
+func SlideUpLanes[T Lanes](v Vec[T], offset int) Vec[T] {
+	n := len(v.data)
+	result := make([]T, n)
+
+	// Handle edge cases
+	if offset <= 0 {
+		copy(result, v.data)
+		return Vec[T]{data: result}
+	}
+	if offset >= n {
+		// All zeros (result is already zero-initialized)
+		return Vec[T]{data: result}
+	}
+
+	// Copy elements shifted up
+	// result[offset:n] = v.data[0:n-offset]
+	copy(result[offset:], v.data[:n-offset])
+	// result[0:offset] remains zero
+
+	return Vec[T]{data: result}
+}
+
+// SlideDownLanes shifts all lanes down (toward lower indices) by the given offset.
+// Upper lanes are filled with zeros, lower lanes that slide out are discarded.
+// [1,2,3,4,5,6,7,8] with offset=2 -> [3,4,5,6,7,8,0,0]
+func SlideDownLanes[T Lanes](v Vec[T], offset int) Vec[T] {
+	n := len(v.data)
+	result := make([]T, n)
+
+	// Handle edge cases
+	if offset <= 0 {
+		copy(result, v.data)
+		return Vec[T]{data: result}
+	}
+	if offset >= n {
+		// All zeros (result is already zero-initialized)
+		return Vec[T]{data: result}
+	}
+
+	// Copy elements shifted down
+	// result[0:n-offset] = v.data[offset:n]
+	copy(result[:n-offset], v.data[offset:])
+	// result[n-offset:n] remains zero
+
+	return Vec[T]{data: result}
+}
+
+// Slide1Up shifts all lanes up by 1, filling the first lane with zero.
+// [1,2,3,4,5,6,7,8] -> [0,1,2,3,4,5,6,7]
+func Slide1Up[T Lanes](v Vec[T]) Vec[T] {
+	return SlideUpLanes(v, 1)
+}
+
+// Slide1Down shifts all lanes down by 1, filling the last lane with zero.
+// [1,2,3,4,5,6,7,8] -> [2,3,4,5,6,7,8,0]
+func Slide1Down[T Lanes](v Vec[T]) Vec[T] {
+	return SlideDownLanes(v, 1)
+}

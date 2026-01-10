@@ -260,3 +260,89 @@ func SwapAdjacentBlocks_AVX2_F64x4(v archsimd.Float64x4) archsimd.Float64x4 {
 	result := [4]float64{data[2], data[3], data[0], data[1]}
 	return archsimd.LoadFloat64x4Slice(result[:])
 }
+
+// Slide operations
+
+// SlideUpLanes_AVX2_F32x8 shifts lanes up by offset, filling low lanes with zeros.
+// [1,2,3,4,5,6,7,8] with offset=2 -> [0,0,1,2,3,4,5,6]
+func SlideUpLanes_AVX2_F32x8(v archsimd.Float32x8, offset int) archsimd.Float32x8 {
+	if offset <= 0 {
+		return v
+	}
+	if offset >= 8 {
+		return archsimd.Float32x8{}
+	}
+	var data [8]float32
+	v.StoreSlice(data[:])
+	var result [8]float32
+	copy(result[offset:], data[:8-offset])
+	return archsimd.LoadFloat32x8Slice(result[:])
+}
+
+// SlideUpLanes_AVX2_F64x4 shifts lanes up by offset, filling low lanes with zeros.
+func SlideUpLanes_AVX2_F64x4(v archsimd.Float64x4, offset int) archsimd.Float64x4 {
+	if offset <= 0 {
+		return v
+	}
+	if offset >= 4 {
+		return archsimd.Float64x4{}
+	}
+	var data [4]float64
+	v.StoreSlice(data[:])
+	var result [4]float64
+	copy(result[offset:], data[:4-offset])
+	return archsimd.LoadFloat64x4Slice(result[:])
+}
+
+// SlideDownLanes_AVX2_F32x8 shifts lanes down by offset, filling high lanes with zeros.
+// [1,2,3,4,5,6,7,8] with offset=2 -> [3,4,5,6,7,8,0,0]
+func SlideDownLanes_AVX2_F32x8(v archsimd.Float32x8, offset int) archsimd.Float32x8 {
+	if offset <= 0 {
+		return v
+	}
+	if offset >= 8 {
+		return archsimd.Float32x8{}
+	}
+	var data [8]float32
+	v.StoreSlice(data[:])
+	var result [8]float32
+	copy(result[:8-offset], data[offset:])
+	return archsimd.LoadFloat32x8Slice(result[:])
+}
+
+// SlideDownLanes_AVX2_F64x4 shifts lanes down by offset, filling high lanes with zeros.
+func SlideDownLanes_AVX2_F64x4(v archsimd.Float64x4, offset int) archsimd.Float64x4 {
+	if offset <= 0 {
+		return v
+	}
+	if offset >= 4 {
+		return archsimd.Float64x4{}
+	}
+	var data [4]float64
+	v.StoreSlice(data[:])
+	var result [4]float64
+	copy(result[:4-offset], data[offset:])
+	return archsimd.LoadFloat64x4Slice(result[:])
+}
+
+// Slide1Up_AVX2_F32x8 shifts lanes up by 1, filling first lane with zero.
+// [1,2,3,4,5,6,7,8] -> [0,1,2,3,4,5,6,7]
+func Slide1Up_AVX2_F32x8(v archsimd.Float32x8) archsimd.Float32x8 {
+	return SlideUpLanes_AVX2_F32x8(v, 1)
+}
+
+// Slide1Up_AVX2_F64x4 shifts lanes up by 1, filling first lane with zero.
+func Slide1Up_AVX2_F64x4(v archsimd.Float64x4) archsimd.Float64x4 {
+	return SlideUpLanes_AVX2_F64x4(v, 1)
+}
+
+// Slide1Down_AVX2_F32x8 shifts lanes down by 1, filling last lane with zero.
+// [1,2,3,4,5,6,7,8] -> [2,3,4,5,6,7,8,0]
+func Slide1Down_AVX2_F32x8(v archsimd.Float32x8) archsimd.Float32x8 {
+	return SlideDownLanes_AVX2_F32x8(v, 1)
+}
+
+// Slide1Down_AVX2_F64x4 shifts lanes down by 1, filling last lane with zero.
+func Slide1Down_AVX2_F64x4(v archsimd.Float64x4) archsimd.Float64x4 {
+	return SlideDownLanes_AVX2_F64x4(v, 1)
+}
