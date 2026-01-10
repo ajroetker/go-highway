@@ -71,7 +71,7 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | IsInf | ✅ | ✅ | Float infinity check |
 | IsFinite | ✅ | ✅ | Float finite check |
 
-### Memory Operations ✅ **Gather/Scatter Implemented**
+### Memory Operations ✅ **Complete**
 
 | Operation | C++ Highway | go-highway | Notes |
 |-----------|-------------|------------|-------|
@@ -81,17 +81,17 @@ This document tracks feature parity between go-highway and Google's C++ Highway 
 | StoreU (unaligned) | ✅ | ✅ | Go handles alignment |
 | MaskedLoad | ✅ | ✅ | |
 | MaskedStore | ✅ | ✅ | |
-| BlendedStore | ✅ | ❌ | Conditional store |
+| BlendedStore | ✅ | ✅ | Conditional store |
 | Set (broadcast) | ✅ | ✅ | |
 | Zero | ✅ | ✅ | |
-| Undefined | ✅ | ❌ | Uninitialized vector |
+| Undefined | ✅ | ✅ | Uninitialized vector |
 | GatherIndex | ✅ | ✅ | Indexed load |
 | ScatterIndex | ✅ | ✅ | Indexed store |
 | GatherIndexMasked | ✅ | ✅ | Masked indexed load |
 | ScatterIndexMasked | ✅ | ✅ | Masked indexed store |
-| LoadDup128 | ✅ | ❌ | Load and duplicate |
-| LoadInterleaved | ✅ | ❌ | AoS to SoA |
-| StoreInterleaved | ✅ | ❌ | SoA to AoS |
+| LoadDup128 | ✅ | ✅ | Load and duplicate |
+| LoadInterleaved | ✅ | ✅ | AoS to SoA |
+| StoreInterleaved | ✅ | ✅ | SoA to AoS |
 
 ### Shuffle/Permutation Operations ✅ **Complete**
 
@@ -355,6 +355,13 @@ The following features were added to close major gaps:
 - `Cbrt` - Cube root
 - `Hypot` - sqrt(x² + y²) with numerical stability
 
+### Memory Operations (January 2026)
+- `BlendedStore` - Conditional store preserving existing values where mask is false
+- `Undefined` - Returns uninitialized vector (zero-initialized in Go for safety)
+- `LoadDup128` - Load 128-bit block and duplicate to fill wider vectors
+- `LoadInterleaved2/3/4` - Deinterleave AoS data into SoA vectors
+- `StoreInterleaved2/3/4` - Interleave SoA vectors into AoS format
+
 ---
 
 ## Priority Implementation Recommendations
@@ -407,6 +414,7 @@ The following features were added to close major gaps:
 - **Type width conversions** (PromoteTo, DemoteTo for all integer/float types)
 - **Compress/Expand operations** (Compress, Expand, CompressStore)
 - **Gather/Scatter operations** (GatherIndex, ScatterIndex, masked variants)
+- **Complete memory operations** (BlendedStore, Undefined, LoadDup128, LoadInterleaved, StoreInterleaved)
 - **Comprehensive mask operations** (CountTrue, AllTrue, FindFirstTrue, MaskFromBits, IfThenElseZero, ZeroIfNegative)
 - Code generation tool (hwygen) for multi-target dispatch
 - Clean API leveraging Go generics
