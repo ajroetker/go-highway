@@ -4,6 +4,7 @@ package hwy
 
 import (
 	"simd/archsimd"
+	"unsafe"
 )
 
 // This file provides AVX2 SIMD implementations of type promotion and demotion operations.
@@ -81,8 +82,8 @@ func PromoteI16ToI32_AVX2_Lower(v archsimd.Int32x8) archsimd.Int32x8 {
 	var data [8]int32
 	v.StoreSlice(data[:])
 
-	// Reinterpret the first 4 int32 slots as 8 int16 values
-	int16Data := (*[16]int16)((*[32]byte)((*[8]int32)(&data)))
+	// Reinterpret the int32 array as int16 values
+	int16Data := (*[16]int16)(unsafe.Pointer(&data))
 
 	var result [8]int32
 	for i := 0; i < 8; i++ {

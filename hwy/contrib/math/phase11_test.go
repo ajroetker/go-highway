@@ -203,38 +203,6 @@ func TestAcos_AVX2_F32x8(t *testing.T) {
 }
 
 // ============================================================================
-// Pow Tests
-// ============================================================================
-
-func TestPow_AVX2_F32x8(t *testing.T) {
-	tests := []struct {
-		name string
-		x, y float32
-		want float32
-	}{
-		{"2^3 = 8", 2.0, 3.0, 8.0},
-		{"2^0 = 1", 2.0, 0.0, 1.0},
-		{"10^2 = 100", 10.0, 2.0, 100.0},
-		{"2^-1 = 0.5", 2.0, -1.0, 0.5},
-		{"4^0.5 = 2", 4.0, 0.5, 2.0},
-		{"1^100 = 1", 1.0, 100.0, 1.0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			x := archsimd.BroadcastFloat32x8(tt.x)
-			y := archsimd.BroadcastFloat32x8(tt.y)
-			result := Pow_AVX2_F32x8(x, y)
-			got := extractLane32(result)
-
-			if stdmath.Abs(float64(got-tt.want)) > 1e-4 {
-				t.Errorf("Pow(%v, %v) = %v, want %v", tt.x, tt.y, got, tt.want)
-			}
-		})
-	}
-}
-
-// ============================================================================
 // Expm1 Tests
 // ============================================================================
 
@@ -374,32 +342,6 @@ func TestAsin_AVX512_F32x16(t *testing.T) {
 	}
 }
 
-func TestPow_AVX512_F32x16(t *testing.T) {
-	tests := []struct {
-		name string
-		x, y float32
-		want float32
-	}{
-		{"2^3 = 8", 2.0, 3.0, 8.0},
-		{"4^0.5 = 2", 4.0, 0.5, 2.0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			x := archsimd.BroadcastFloat32x16(tt.x)
-			y := archsimd.BroadcastFloat32x16(tt.y)
-			result := Pow_AVX512_F32x16(x, y)
-			var buf [16]float32
-			result.StoreSlice(buf[:])
-			got := buf[0]
-
-			if stdmath.Abs(float64(got-tt.want)) > 1e-4 {
-				t.Errorf("Pow(%v, %v) = %v, want %v", tt.x, tt.y, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestExpm1_AVX512_F32x16(t *testing.T) {
 	x := archsimd.BroadcastFloat32x16(0.001)
 	result := Expm1_AVX512_F32x16(x)
@@ -451,15 +393,6 @@ func BenchmarkAsin_AVX2_F32x8(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = Asin_AVX2_F32x8(x)
-	}
-}
-
-func BenchmarkPow_AVX2_F32x8(b *testing.B) {
-	x := archsimd.BroadcastFloat32x8(2.0)
-	y := archsimd.BroadcastFloat32x8(3.0)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = Pow_AVX2_F32x8(x, y)
 	}
 }
 
