@@ -11,14 +11,14 @@ func BaseApply_fallback(in []float32, out []float32, fn func(hwy.Vec[float32]) h
 	lanes := hwy.MaxLanes[float32]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load[float32](in[i:])
-		fn(x).Store(out[i:])
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := make([]float32, lanes)
 		copy(buf, in[i:i+remaining])
-		x := hwy.Load[float32](buf)
-		fn(x).Store(buf)
+		x := hwy.Load(buf)
+		hwy.Store(fn(x), buf)
 		copy(out[i:i+remaining], buf[:remaining])
 	}
 }
@@ -28,14 +28,14 @@ func BaseApply_fallback_Float64(in []float64, out []float64, fn func(hwy.Vec[flo
 	lanes := hwy.MaxLanes[float64]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load[float64](in[i:])
-		fn(x).Store(out[i:])
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := make([]float64, lanes)
 		copy(buf, in[i:i+remaining])
-		x := hwy.Load[float64](buf)
-		fn(x).Store(buf)
+		x := hwy.Load(buf)
+		hwy.Store(fn(x), buf)
 		copy(out[i:i+remaining], buf[:remaining])
 	}
 }

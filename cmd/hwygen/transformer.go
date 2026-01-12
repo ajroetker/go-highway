@@ -348,6 +348,12 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 				case "Store":
 					// Transform .Store(dst) -> .StoreSlice(dst)
 					sel.Sel.Name = "StoreSlice"
+				case "Data":
+					transformDataMethod(call, ctx)
+					return
+				case "GetBit":
+					transformGetBitMethod(call, ctx)
+					return
 				}
 			}
 		}
@@ -459,6 +465,170 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 	}
 }
 
+// transformDataMethod transforms v.Data() to a temporary slice.
+func transformDataMethod(call *ast.CallExpr, ctx *transformContext) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	vecExpr := sel.X
+	lanes := ctx.target.LanesFor(ctx.elemType)
+
+	// func() []T { var tmp [lanes]T; v.StoreSlice(tmp[:]); return tmp[:] }()
+
+	// var tmp [lanes]T
+	decl := &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok: token.VAR,
+			Specs: []ast.Spec{
+				&ast.ValueSpec{
+					Names: []*ast.Ident{ast.NewIdent("_simd_tmp")},
+					Type: &ast.ArrayType{
+						Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
+						Elt: ast.NewIdent(ctx.elemType),
+					},
+				},
+			},
+		},
+	}
+
+	// v.StoreSlice(tmp[:])
+	storeCall := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   cloneExpr(vecExpr),
+			Sel: ast.NewIdent("StoreSlice"),
+		},
+		Args: []ast.Expr{
+			&ast.SliceExpr{
+				X: ast.NewIdent("_simd_tmp"),
+			},
+		},
+	}
+
+	// return tmp[:]
+	retStmt := &ast.ReturnStmt{
+		Results: []ast.Expr{
+			&ast.SliceExpr{
+				X: ast.NewIdent("_simd_tmp"),
+			},
+		},
+	}
+
+	// Function literal
+	funcLit := &ast.FuncLit{
+		Type: &ast.FuncType{
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{Type: &ast.ArrayType{Elt: ast.NewIdent(ctx.elemType)}},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				decl,
+				&ast.ExprStmt{X: storeCall},
+				retStmt,
+			},
+		},
+	}
+
+	// Replace call with invocation
+	*call = ast.CallExpr{
+		Fun: funcLit,
+	}
+}
+
+// transformGetBitMethod transforms mask.GetBit(i) to check the i-th element.
+func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
+	if len(call.Args) != 1 {
+		return
+	}
+	indexExpr := call.Args[0]
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	maskExpr := sel.X
+	lanes := ctx.target.LanesFor(ctx.elemType)
+
+	// Determine int type for mask storage
+	var intType string
+	switch ctx.elemType {
+	case "float32", "int32":
+		intType = "uint32"
+	case "float64", "int64":
+		intType = "uint64"
+	default:
+		intType = "uint32"
+	}
+
+	// func() bool { var tmp [lanes]uint32; mask.StoreSlice(tmp[:]); return tmp[i] != 0 }()
+
+	// var tmp [lanes]uint32
+	decl := &ast.DeclStmt{
+		Decl: &ast.GenDecl{
+			Tok: token.VAR,
+			Specs: []ast.Spec{
+				&ast.ValueSpec{
+					Names: []*ast.Ident{ast.NewIdent("_simd_mask_tmp")},
+					Type: &ast.ArrayType{
+						Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
+						Elt: ast.NewIdent(intType),
+					},
+				},
+			},
+		},
+	}
+
+	// mask.StoreSlice(tmp[:])
+	storeCall := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   cloneExpr(maskExpr),
+			Sel: ast.NewIdent("StoreSlice"),
+		},
+		Args: []ast.Expr{
+			&ast.SliceExpr{
+				X: ast.NewIdent("_simd_mask_tmp"),
+			},
+		},
+	}
+
+	// return tmp[i] != 0
+	checkExpr := &ast.BinaryExpr{
+		X: &ast.IndexExpr{
+			X:     ast.NewIdent("_simd_mask_tmp"),
+			Index: cloneExpr(indexExpr),
+		},
+		Op: token.NEQ,
+		Y:  &ast.BasicLit{Kind: token.INT, Value: "0"},
+	}
+
+	retStmt := &ast.ReturnStmt{
+		Results: []ast.Expr{checkExpr},
+	}
+
+	funcLit := &ast.FuncLit{
+		Type: &ast.FuncType{
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{Type: ast.NewIdent("bool")},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				decl,
+				&ast.ExprStmt{X: storeCall},
+				retStmt,
+			},
+		},
+	}
+
+	*call = ast.CallExpr{
+		Fun: funcLit,
+	}
+}
+
 // transformToMethod converts hwy.Add(a, b) to a.Add(b) for SIMD targets.
 // For Fallback, keeps hwy.Add(a, b) as-is.
 func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *transformContext) {
@@ -542,6 +712,192 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				Sel: ast.NewIdent(methodName),
 			}
 			call.Args = nil
+		}
+
+	case "GetExponent":
+		if len(call.Args) >= 1 {
+			x := call.Args[0]
+			intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
+			if ctx.elemType == "float64" {
+				intVecTypeName = getVectorTypeNameForInt("int64", ctx.elemType, ctx.target)
+			}
+			pkgName := getVecPackageName(ctx.target)
+
+			// 1. x.AsInt32() / x.AsInt64()
+			var asIntMethod string
+			var shift int
+			var mask string
+			var bias string
+			var convertToFloatMethod string
+
+			if ctx.elemType == "float32" {
+				asIntMethod = "AsInt32x8"
+				// Check targets.go OpMap["AsInt32"].Name
+				if op, ok := ctx.target.OpMap["AsInt32"]; ok {
+					asIntMethod = op.Name
+				}
+				shift = 23
+				mask = "255" // 0xFF
+				bias = "127"
+				convertToFloatMethod = "ConvertToFloat32"
+			} else {
+				asIntMethod = "AsInt64x4"
+				if op, ok := ctx.target.OpMap["AsInt64"]; ok {
+					asIntMethod = op.Name
+				}
+				shift = 52
+				mask = "2047" // 0x7FF
+				bias = "1023"
+				convertToFloatMethod = "ConvertToFloat64"
+			}
+
+			// x.AsInt32()
+			expr := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   cloneExpr(x),
+					Sel: ast.NewIdent(asIntMethod),
+				},
+			}
+
+			// .ShiftAllRight(shift)
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent("ShiftAllRight"),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(shift)}},
+			}
+
+			// .And(Broadcast(mask))
+			broadcastMask := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + intVecTypeName),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: mask}},
+			}
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent("And"),
+				},
+				Args: []ast.Expr{broadcastMask},
+			}
+
+			// .Sub(Broadcast(bias))
+			broadcastBias := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + intVecTypeName),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: bias}},
+			}
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent("Sub"),
+				},
+				Args: []ast.Expr{broadcastBias},
+			}
+
+			// .ConvertToFloat()
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent(convertToFloatMethod),
+				},
+			}
+
+			*call = *expr
+		}
+
+	case "GetMantissa":
+		if len(call.Args) >= 1 {
+			x := call.Args[0]
+			intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
+			if ctx.elemType == "float64" {
+				intVecTypeName = getVectorTypeNameForInt("int64", ctx.elemType, ctx.target)
+			}
+			pkgName := getVecPackageName(ctx.target)
+
+			var asIntMethod string
+			var mask string
+			var one string
+			var asFloatMethod string
+
+			if ctx.elemType == "float32" {
+				asIntMethod = "AsInt32x8"
+				if op, ok := ctx.target.OpMap["AsInt32"]; ok {
+					asIntMethod = op.Name
+				}
+				mask = "8388607" // 0x7FFFFF
+				one = "1065353216" // 0x3F800000
+				asFloatMethod = "AsFloat32x8"
+				if op, ok := ctx.target.OpMap["AsFloat32"]; ok {
+					asFloatMethod = op.Name
+				}
+			} else {
+				asIntMethod = "AsInt64x4"
+				if op, ok := ctx.target.OpMap["AsInt64"]; ok {
+					asIntMethod = op.Name
+				}
+				mask = "4503599627370495" // 0x000FFFFFFFFFFFFF
+				one = "4607182418800017408" // 0x3FF0000000000000
+				asFloatMethod = "AsFloat64x4"
+				if op, ok := ctx.target.OpMap["AsFloat64"]; ok {
+					asFloatMethod = op.Name
+				}
+			}
+
+			// x.AsInt32()
+			expr := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   cloneExpr(x),
+					Sel: ast.NewIdent(asIntMethod),
+				},
+			}
+
+			// .And(Broadcast(mask))
+			broadcastMask := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + intVecTypeName),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: mask}},
+			}
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent("And"),
+				},
+				Args: []ast.Expr{broadcastMask},
+			}
+
+			// .Or(Broadcast(one))
+			broadcastOne := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + intVecTypeName),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: one}},
+			}
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent("Or"),
+				},
+				Args: []ast.Expr{broadcastOne},
+			}
+
+			// .AsFloat32()
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   expr,
+					Sel: ast.NewIdent(asFloatMethod),
+				},
+			}
+
+			*call = *expr
 		}
 
 	case "Abs":
