@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -135,19 +136,54 @@ func IsSliceFunction(pf *ParsedFunc) bool {
 // It uses `go tool github.com/gorse-io/goat` which requires goat to be
 // declared as a tool dependency in go.mod (via `go get -tool`).
 func runGOAT(cFile string) error {
-	cmd := exec.Command("go", "tool", "github.com/gorse-io/goat", cFile,
+	// Use the Go binary from GOROOT (same toolchain that built hwygen)
+	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
+
+	// Get absolute path for C file since we run from module root
+	absCFile, err := filepath.Abs(cFile)
+	if err != nil {
+		return fmt.Errorf("abs path: %w", err)
+	}
+
+	// Find module root (directory containing go.mod with tool directive)
+	modRoot, err := findModuleRoot()
+	if err != nil {
+		return fmt.Errorf("find module root: %w", err)
+	}
+
+	cmd := exec.Command(goBin, "tool", "github.com/gorse-io/goat", absCFile,
 		"-O3",
+		"-o", filepath.Dir(absCFile),
 		"-e=--target=arm64",
 		"-e=-march=armv8-a+simd+fp",
 		"-e=-fno-builtin-memset",
 	)
 
-	cmd.Dir = filepath.Dir(cFile)
+	cmd.Dir = modRoot
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, string(output))
 	}
 	return nil
+}
+
+// findModuleRoot walks up from the current directory to find go.mod.
+func findModuleRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("go.mod not found")
+		}
+		dir = parent
+	}
 }
 
 // goatPackageName derives the Go package name from a directory path,
