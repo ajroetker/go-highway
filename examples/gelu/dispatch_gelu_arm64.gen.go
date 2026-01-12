@@ -36,21 +36,21 @@ func GELUApprox[T hwy.Floats](input []T, output []T) {
 
 func init() {
 	if os.Getenv("HWY_NO_SIMD") != "" {
-		initFallback()
+		initGeluFallback()
 		return
 	}
-	initNEON()
+	initGeluNEON()
 	return
 }
 
-func initNEON() {
+func initGeluNEON() {
 	GELUFloat32 = BaseGELU_neon
 	GELUFloat64 = BaseGELU_neon_Float64
 	GELUApproxFloat32 = BaseGELUApprox_neon
 	GELUApproxFloat64 = BaseGELUApprox_neon_Float64
 }
 
-func initFallback() {
+func initGeluFallback() {
 	GELUFloat32 = BaseGELU_fallback
 	GELUFloat64 = BaseGELU_fallback_Float64
 	GELUApproxFloat32 = BaseGELUApprox_fallback

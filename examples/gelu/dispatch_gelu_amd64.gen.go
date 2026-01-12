@@ -37,35 +37,35 @@ func GELUApprox[T hwy.Floats](input []T, output []T) {
 
 func init() {
 	if os.Getenv("HWY_NO_SIMD") != "" {
-		initFallback()
+		initGeluFallback()
 		return
 	}
 	if archsimd.X86.AVX2() {
-		initAVX2()
+		initGeluAVX2()
 		return
 	}
 	if archsimd.X86.AVX512() {
-		initAVX512()
+		initGeluAVX512()
 		return
 	}
-	initFallback()
+	initGeluFallback()
 }
 
-func initAVX2() {
+func initGeluAVX2() {
 	GELUFloat32 = BaseGELU_avx2
 	GELUFloat64 = BaseGELU_avx2_Float64
 	GELUApproxFloat32 = BaseGELUApprox_avx2
 	GELUApproxFloat64 = BaseGELUApprox_avx2_Float64
 }
 
-func initAVX512() {
+func initGeluAVX512() {
 	GELUFloat32 = BaseGELU_avx512
 	GELUFloat64 = BaseGELU_avx512_Float64
 	GELUApproxFloat32 = BaseGELUApprox_avx512
 	GELUApproxFloat64 = BaseGELUApprox_avx512_Float64
 }
 
-func initFallback() {
+func initGeluFallback() {
 	GELUFloat32 = BaseGELU_fallback
 	GELUFloat64 = BaseGELU_fallback_Float64
 	GELUApproxFloat32 = BaseGELUApprox_fallback

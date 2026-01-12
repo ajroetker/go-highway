@@ -36,21 +36,21 @@ func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 
 func init() {
 	if os.Getenv("HWY_NO_SIMD") != "" {
-		initFallback()
+		initSoftmaxFallback()
 		return
 	}
-	initNEON()
+	initSoftmaxNEON()
 	return
 }
 
-func initNEON() {
+func initSoftmaxNEON() {
 	SoftmaxFloat32 = BaseSoftmax_neon
 	SoftmaxFloat64 = BaseSoftmax_neon_Float64
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_neon
 	SoftmaxScalarFloat64 = BaseSoftmaxScalar_neon_Float64
 }
 
-func initFallback() {
+func initSoftmaxFallback() {
 	SoftmaxFloat32 = BaseSoftmax_fallback
 	SoftmaxFloat64 = BaseSoftmax_fallback_Float64
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_fallback

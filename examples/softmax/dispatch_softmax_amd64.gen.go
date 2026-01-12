@@ -37,35 +37,35 @@ func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 
 func init() {
 	if os.Getenv("HWY_NO_SIMD") != "" {
-		initFallback()
+		initSoftmaxFallback()
 		return
 	}
 	if archsimd.X86.AVX2() {
-		initAVX2()
+		initSoftmaxAVX2()
 		return
 	}
 	if archsimd.X86.AVX512() {
-		initAVX512()
+		initSoftmaxAVX512()
 		return
 	}
-	initFallback()
+	initSoftmaxFallback()
 }
 
-func initAVX2() {
+func initSoftmaxAVX2() {
 	SoftmaxFloat32 = BaseSoftmax_avx2
 	SoftmaxFloat64 = BaseSoftmax_avx2_Float64
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_avx2
 	SoftmaxScalarFloat64 = BaseSoftmaxScalar_avx2_Float64
 }
 
-func initAVX512() {
+func initSoftmaxAVX512() {
 	SoftmaxFloat32 = BaseSoftmax_avx512
 	SoftmaxFloat64 = BaseSoftmax_avx512_Float64
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_avx512
 	SoftmaxScalarFloat64 = BaseSoftmaxScalar_avx512_Float64
 }
 
-func initFallback() {
+func initSoftmaxFallback() {
 	SoftmaxFloat32 = BaseSoftmax_fallback
 	SoftmaxFloat64 = BaseSoftmax_fallback_Float64
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_fallback
