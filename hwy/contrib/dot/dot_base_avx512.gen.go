@@ -12,7 +12,7 @@ func BaseDot_avx512(a []float32, b []float32) float32 {
 		return 0
 	}
 	n := min(len(a), len(b))
-	sum := archsimd.ZeroFloat32x16()
+	sum := archsimd.BroadcastFloat32x16(0)
 	lanes := 16
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
@@ -37,7 +37,7 @@ func BaseDot_avx512_Float64(a []float64, b []float64) float64 {
 		return 0
 	}
 	n := min(len(a), len(b))
-	sum := archsimd.ZeroFloat64x8()
+	sum := archsimd.BroadcastFloat64x8(0)
 	lanes := 8
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {

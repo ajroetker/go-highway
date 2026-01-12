@@ -81,7 +81,7 @@ func BaseSigmoidVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	satLo := hwy.Set[float32](float32(-20.0))
 	clampedX := hwy.Max(hwy.Min(x, satHi), satLo)
 	negX := hwy.Neg(clampedX)
-	expNegX := BaseExpVec[float32](negX)
+	expNegX := BaseExpVec_fallback(negX)
 	result := hwy.Div(one, hwy.Add(one, expNegX))
 	result = hwy.Merge(one, result, hwy.Greater(x, satHi))
 	result = hwy.Merge(zero, result, hwy.Less(x, satLo))
@@ -95,7 +95,7 @@ func BaseSigmoidVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	satLo := hwy.Set[float64](float64(-20.0))
 	clampedX := hwy.Max(hwy.Min(x, satHi), satLo)
 	negX := hwy.Neg(clampedX)
-	expNegX := BaseExpVec[float64](negX)
+	expNegX := BaseExpVec_fallback_Float64(negX)
 	result := hwy.Div(one, hwy.Add(one, expNegX))
 	result = hwy.Merge(one, result, hwy.Greater(x, satHi))
 	result = hwy.Merge(zero, result, hwy.Less(x, satLo))
@@ -109,7 +109,7 @@ func BaseTanhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	threshold := hwy.Set[float32](float32(tanhClamp_f32))
 	negThreshold := hwy.Neg(threshold)
 	twoX := hwy.Mul(two, x)
-	sigTwoX := BaseSigmoidVec[float32](twoX)
+	sigTwoX := BaseSigmoidVec_fallback(twoX)
 	result := hwy.Sub(hwy.Mul(two, sigTwoX), one)
 	result = hwy.Merge(one, result, hwy.Greater(x, threshold))
 	result = hwy.Merge(negOne, result, hwy.Less(x, negThreshold))
@@ -123,7 +123,7 @@ func BaseTanhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	threshold := hwy.Set[float64](float64(tanhClamp_f64))
 	negThreshold := hwy.Neg(threshold)
 	twoX := hwy.Mul(two, x)
-	sigTwoX := BaseSigmoidVec[float64](twoX)
+	sigTwoX := BaseSigmoidVec_fallback_Float64(twoX)
 	result := hwy.Sub(hwy.Mul(two, sigTwoX), one)
 	result = hwy.Merge(one, result, hwy.Greater(x, threshold))
 	result = hwy.Merge(negOne, result, hwy.Less(x, negThreshold))
@@ -451,7 +451,7 @@ func BaseErfVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	poly = hwy.Mul(poly, t)
 	x2 := hwy.Mul(absX, absX)
 	negX2 := hwy.Neg(x2)
-	expNegX2 := BaseExpVec[float32](negX2)
+	expNegX2 := BaseExpVec_fallback(negX2)
 	erfAbs := hwy.Sub(one, hwy.Mul(poly, expNegX2))
 	erfAbs = hwy.Max(hwy.Min(erfAbs, one), zero)
 	negErfAbs := hwy.Neg(erfAbs)
@@ -478,7 +478,7 @@ func BaseErfVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	poly = hwy.Mul(poly, t)
 	x2 := hwy.Mul(absX, absX)
 	negX2 := hwy.Neg(x2)
-	expNegX2 := BaseExpVec[float64](negX2)
+	expNegX2 := BaseExpVec_fallback_Float64(negX2)
 	erfAbs := hwy.Sub(one, hwy.Mul(poly, expNegX2))
 	erfAbs = hwy.Max(hwy.Min(erfAbs, one), zero)
 	negErfAbs := hwy.Neg(erfAbs)
@@ -488,38 +488,38 @@ func BaseErfVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 
 func BaseLog2Vec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	log2E := hwy.Set[float32](float32(log2E_f32))
-	lnX := BaseLogVec[float32](x)
+	lnX := BaseLogVec_fallback(x)
 	return hwy.Mul(lnX, log2E)
 }
 
 func BaseLog2Vec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	log2E := hwy.Set[float64](float64(log2E_f64))
-	lnX := BaseLogVec[float64](x)
+	lnX := BaseLogVec_fallback_Float64(x)
 	return hwy.Mul(lnX, log2E)
 }
 
 func BaseLog10Vec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	log10E := hwy.Set[float32](float32(log10E_f32))
-	lnX := BaseLogVec[float32](x)
+	lnX := BaseLogVec_fallback(x)
 	return hwy.Mul(lnX, log10E)
 }
 
 func BaseLog10Vec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	log10E := hwy.Set[float64](float64(log10E_f64))
-	lnX := BaseLogVec[float64](x)
+	lnX := BaseLogVec_fallback_Float64(x)
 	return hwy.Mul(lnX, log10E)
 }
 
 func BaseExp2Vec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	ln2 := hwy.Set[float32](float32(ln2_f32))
 	xLn2 := hwy.Mul(x, ln2)
-	return BaseExpVec[float32](xLn2)
+	return BaseExpVec_fallback(xLn2)
 }
 
 func BaseExp2Vec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	ln2 := hwy.Set[float64](float64(ln2_f64))
 	xLn2 := hwy.Mul(x, ln2)
-	return BaseExpVec[float64](xLn2)
+	return BaseExpVec_fallback_Float64(xLn2)
 }
 
 func BaseSinhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
@@ -574,7 +574,7 @@ func BaseAsinhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	x2Plus1 := hwy.Add(x2, one)
 	sqrtPart := hwy.Sqrt(x2Plus1)
 	arg := hwy.Add(x, sqrtPart)
-	return BaseLogVec[float32](arg)
+	return BaseLogVec_fallback(arg)
 }
 
 func BaseAsinhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
@@ -583,7 +583,7 @@ func BaseAsinhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	x2Plus1 := hwy.Add(x2, one)
 	sqrtPart := hwy.Sqrt(x2Plus1)
 	arg := hwy.Add(x, sqrtPart)
-	return BaseLogVec[float64](arg)
+	return BaseLogVec_fallback_Float64(arg)
 }
 
 func BaseAcoshVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
@@ -593,7 +593,7 @@ func BaseAcoshVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	x2Minus1 := hwy.Sub(x2, one)
 	sqrtPart := hwy.Sqrt(x2Minus1)
 	arg := hwy.Add(x, sqrtPart)
-	result := BaseLogVec[float32](arg)
+	result := BaseLogVec_fallback(arg)
 	oneMask := hwy.Equal(x, one)
 	result = hwy.Merge(zero, result, oneMask)
 	return result
@@ -606,7 +606,7 @@ func BaseAcoshVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	x2Minus1 := hwy.Sub(x2, one)
 	sqrtPart := hwy.Sqrt(x2Minus1)
 	arg := hwy.Add(x, sqrtPart)
-	result := BaseLogVec[float64](arg)
+	result := BaseLogVec_fallback_Float64(arg)
 	oneMask := hwy.Equal(x, one)
 	result = hwy.Merge(zero, result, oneMask)
 	return result
@@ -619,7 +619,7 @@ func BaseAtanhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 	onePlusX := hwy.Add(one, x)
 	oneMinusX := hwy.Sub(one, x)
 	ratio := hwy.Div(onePlusX, oneMinusX)
-	logRatio := BaseLogVec[float32](ratio)
+	logRatio := BaseLogVec_fallback(ratio)
 	result := hwy.Mul(half, logRatio)
 	zeroMask := hwy.Equal(x, zero)
 	result = hwy.Merge(zero, result, zeroMask)
@@ -633,7 +633,7 @@ func BaseAtanhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	onePlusX := hwy.Add(one, x)
 	oneMinusX := hwy.Sub(one, x)
 	ratio := hwy.Div(onePlusX, oneMinusX)
-	logRatio := BaseLogVec[float64](ratio)
+	logRatio := BaseLogVec_fallback_Float64(ratio)
 	result := hwy.Mul(half, logRatio)
 	zeroMask := hwy.Equal(x, zero)
 	result = hwy.Merge(zero, result, zeroMask)

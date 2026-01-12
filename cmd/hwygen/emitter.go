@@ -690,8 +690,14 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 		fmt.Fprintf(buf, "\tcase %s:\n", sliceType)
 
 		// Build the call with type assertions
+		// Check if return type is a type parameter that needs wrapping
+		needsReturnWrap := len(pf.Returns) > 0 && pf.Returns[0].Type == "T"
 		if len(pf.Returns) > 0 {
-			fmt.Fprintf(buf, "\t\treturn ")
+			if needsReturnWrap {
+				fmt.Fprintf(buf, "\t\treturn any(")
+			} else {
+				fmt.Fprintf(buf, "\t\treturn ")
+			}
 		} else {
 			fmt.Fprintf(buf, "\t\t")
 		}
@@ -710,7 +716,11 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 				fmt.Fprintf(buf, "%s", param.Name)
 			}
 		}
-		fmt.Fprintf(buf, ")\n")
+		fmt.Fprintf(buf, ")")
+		if needsReturnWrap {
+			fmt.Fprintf(buf, ").(T)")
+		}
+		fmt.Fprintf(buf, "\n")
 	}
 
 	fmt.Fprintf(buf, "\t}\n")
