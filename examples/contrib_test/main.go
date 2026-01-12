@@ -13,9 +13,9 @@ import (
 )
 
 func main() {
-	// Test Exp_AVX2_F32x8
+	// Test BaseExpVec_avx2
 	input := archsimd.BroadcastFloat32x8(1.0)
-	result := math.Exp_AVX2_F32x8(input)
+	result := math.BaseExpVec_avx2(input)
 
 	var values [8]float32
 	result.StoreSlice(values[:])
@@ -23,9 +23,9 @@ func main() {
 	fmt.Printf("Exp(1.0) = %v\n", values[0])
 	fmt.Printf("Expected: ~2.71828\n")
 
-	// Test Exp_AVX2_F64x4
+	// Test BaseExpVec_avx2_Float64
 	input64 := archsimd.BroadcastFloat64x4(2.0)
-	result64 := math.Exp_AVX2_F64x4(input64)
+	result64 := math.BaseExpVec_avx2_Float64(input64)
 
 	var values64 [4]float64
 	result64.StoreSlice(values64[:])

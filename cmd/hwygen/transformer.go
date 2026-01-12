@@ -551,21 +551,69 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 	maskExpr := sel.X
 	lanes := ctx.target.LanesFor(ctx.elemType)
 
-	// Determine int type for mask storage
-	var intType string
-	switch ctx.elemType {
-	case "float32", "int32":
-		intType = "uint32"
-	case "float64", "int64":
-		intType = "uint64"
-	default:
-		intType = "uint32"
+	// Use Int32 vector for extraction to match most masks used with GetBit
+	intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
+	pkgName := getVecPackageName(ctx.target)
+
+	// func() bool {
+	//   vOne := pkg.BroadcastInt32x4(1)
+	//   vZero := pkg.BroadcastInt32x4(0)
+	//   vMasked := vOne.Merge(vZero, mask)
+	//   var tmp [lanes]int32
+	//   vMasked.StoreSlice(tmp[:])
+	//   return tmp[i] != 0
+	// }()
+
+	// 1. vOne := pkg.BroadcastInt32x*(1)
+	vOneDecl := &ast.AssignStmt{
+		Lhs: []ast.Expr{ast.NewIdent("_vOne")},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + intVecTypeName),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "1"}},
+			},
+		},
 	}
 
-	// func() bool { var tmp [lanes]uint32; mask.StoreSlice(tmp[:]); return tmp[i] != 0 }()
+	// 2. vZero := pkg.BroadcastInt32x*(0)
+	vZeroDecl := &ast.AssignStmt{
+		Lhs: []ast.Expr{ast.NewIdent("_vZero")},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + intVecTypeName),
+				},
+				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+			},
+		},
+	}
 
-	// var tmp [lanes]uint32
-	decl := &ast.DeclStmt{
+	// 3. vMasked := vOne.Merge(vZero, mask)
+	vMaskedDecl := &ast.AssignStmt{
+		Lhs: []ast.Expr{ast.NewIdent("_vMasked")},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("_vOne"),
+					Sel: ast.NewIdent("Merge"),
+				},
+				Args: []ast.Expr{
+					ast.NewIdent("_vZero"),
+					cloneExpr(maskExpr),
+				},
+			},
+		},
+	}
+
+	// 4. var tmp [lanes]int32
+	tmpDecl := &ast.DeclStmt{
 		Decl: &ast.GenDecl{
 			Tok: token.VAR,
 			Specs: []ast.Spec{
@@ -573,17 +621,17 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 					Names: []*ast.Ident{ast.NewIdent("_simd_mask_tmp")},
 					Type: &ast.ArrayType{
 						Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
-						Elt: ast.NewIdent(intType),
+						Elt: ast.NewIdent("int32"),
 					},
 				},
 			},
 		},
 	}
 
-	// mask.StoreSlice(tmp[:])
+	// 5. vMasked.StoreSlice(tmp[:])
 	storeCall := &ast.CallExpr{
 		Fun: &ast.SelectorExpr{
-			X:   cloneExpr(maskExpr),
+			X:   ast.NewIdent("_vMasked"),
 			Sel: ast.NewIdent("StoreSlice"),
 		},
 		Args: []ast.Expr{
@@ -593,7 +641,7 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 		},
 	}
 
-	// return tmp[i] != 0
+	// 6. return tmp[i] != 0
 	checkExpr := &ast.BinaryExpr{
 		X: &ast.IndexExpr{
 			X:     ast.NewIdent("_simd_mask_tmp"),
@@ -617,7 +665,10 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 		},
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{
-				decl,
+				vOneDecl,
+				vZeroDecl,
+				vMaskedDecl,
+				tmpDecl,
 				&ast.ExprStmt{X: storeCall},
 				retStmt,
 			},
