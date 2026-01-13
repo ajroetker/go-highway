@@ -959,3 +959,173 @@ func SigmoidF32(input, result []float32) {
 	sigmoid_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
 }
 
+// ============================================================================
+// Int32 Arithmetic Operations
+// ============================================================================
+
+// AddI32 performs element-wise addition: result[i] = a[i] + b[i]
+func AddI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	add_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// SubI32 performs element-wise subtraction: result[i] = a[i] - b[i]
+func SubI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	sub_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// MulI32 performs element-wise multiplication: result[i] = a[i] * b[i]
+func MulI32(a, b, result []int32) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	mul_i32_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ============================================================================
+// Int64 Arithmetic Operations
+// ============================================================================
+
+// AddI64 performs element-wise addition: result[i] = a[i] + b[i]
+func AddI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	add_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// SubI64 performs element-wise subtraction: result[i] = a[i] - b[i]
+func SubI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	sub_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ============================================================================
+// Int64 Bitwise Operations
+// ============================================================================
+
+// AndI64 performs bitwise AND: result[i] = a[i] & b[i]
+func AndI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	and_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// OrI64 performs bitwise OR: result[i] = a[i] | b[i]
+func OrI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	or_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// XorI64 performs bitwise XOR: result[i] = a[i] ^ b[i]
+func XorI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	xor_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ============================================================================
+// Int64 Shift Operations
+// ============================================================================
+
+// ShiftLeftI64 performs left shift: result[i] = a[i] << shift
+func ShiftLeftI64(a []int64, shift int, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	s := int64(shift)
+	shl_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&s), unsafe.Pointer(&n))
+}
+
+// ShiftRightI64 performs arithmetic right shift: result[i] = a[i] >> shift
+func ShiftRightI64(a []int64, shift int, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	s := int64(shift)
+	shr_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&s), unsafe.Pointer(&n))
+}
+
+// ============================================================================
+// Int64 Comparison Operations
+// ============================================================================
+
+// EqI64 compares for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	eq_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// GtI64 compares for greater than: result[i] = (a[i] > b[i]) ? -1 : 0
+func GtI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	gt_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// GeI64 compares for greater or equal: result[i] = (a[i] >= b[i]) ? -1 : 0
+func GeI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	ge_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LtI64 compares for less than: result[i] = (a[i] < b[i]) ? -1 : 0
+func LtI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	lt_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// LeI64 compares for less or equal: result[i] = (a[i] <= b[i]) ? -1 : 0
+func LeI64(a, b, result []int64) {
+	if len(a) == 0 {
+		return
+	}
+	n := int64(len(a))
+	le_i64_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ============================================================================
+// Int64 If-Then-Else
+// ============================================================================
+
+// IfThenElseI64 selects elements: result[i] = mask[i] ? yes[i] : no[i]
+func IfThenElseI64(mask, yes, no, result []int64) {
+	if len(mask) == 0 {
+		return
+	}
+	n := int64(len(mask))
+	ifthenelse_i64_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&yes[0]), unsafe.Pointer(&no[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+

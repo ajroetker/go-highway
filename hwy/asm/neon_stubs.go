@@ -115,3 +115,25 @@ func SinF32(input, result []float32)     { panic("NEON not available") }
 func CosF32(input, result []float32)     { panic("NEON not available") }
 func TanhF32(input, result []float32)    { panic("NEON not available") }
 func SigmoidF32(input, result []float32) { panic("NEON not available") }
+
+// Int32 arithmetic operations
+func AddI32(a, b, result []int32) { panic("NEON not available") }
+func SubI32(a, b, result []int32) { panic("NEON not available") }
+func MulI32(a, b, result []int32) { panic("NEON not available") }
+
+// Int64 operations
+func AddI64(a, b, result []int64)                       { panic("NEON not available") }
+func SubI64(a, b, result []int64)                       { panic("NEON not available") }
+func AndI64(a, b, result []int64)                       { panic("NEON not available") }
+func OrI64(a, b, result []int64)                        { panic("NEON not available") }
+func XorI64(a, b, result []int64)                       { panic("NEON not available") }
+func ShiftLeftI64(a []int64, shift int, result []int64) { panic("NEON not available") }
+func ShiftRightI64(a []int64, shift int, result []int64) {
+	panic("NEON not available")
+}
+func EqI64(a, b, result []int64)                   { panic("NEON not available") }
+func GtI64(a, b, result []int64)                   { panic("NEON not available") }
+func GeI64(a, b, result []int64)                   { panic("NEON not available") }
+func LtI64(a, b, result []int64)                   { panic("NEON not available") }
+func LeI64(a, b, result []int64)                   { panic("NEON not available") }
+func IfThenElseI64(mask, yes, no, result []int64)  { panic("NEON not available") }

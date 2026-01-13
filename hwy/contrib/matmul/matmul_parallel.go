@@ -69,72 +69,10 @@ func ParallelMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 // ParallelMatMulFloat32 is the non-generic version for float32.
 func ParallelMatMulFloat32(a, b, c []float32, m, n, k int) {
-	if m*n*k < MinParallelOps {
-		BlockedMatMulFloat32(a, b, c, m, n, k)
-		return
-	}
-
-	numWorkers := runtime.GOMAXPROCS(0)
-	numStrips := (m + RowsPerStrip - 1) / RowsPerStrip
-
-	work := make(chan int, numStrips)
-	for strip := 0; strip < numStrips; strip++ {
-		work <- strip
-	}
-	close(work)
-
-	var wg sync.WaitGroup
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for strip := range work {
-				rowStart := strip * RowsPerStrip
-				rowEnd := min(rowStart+RowsPerStrip, m)
-				stripM := rowEnd - rowStart
-
-				aStrip := a[rowStart*k : rowEnd*k]
-				cStrip := c[rowStart*n : rowEnd*n]
-
-				BlockedMatMulFloat32(aStrip, b, cStrip, stripM, n, k)
-			}
-		}()
-	}
-	wg.Wait()
+	ParallelMatMul(a, b, c, m, n, k)
 }
 
 // ParallelMatMulFloat64 is the non-generic version for float64.
 func ParallelMatMulFloat64(a, b, c []float64, m, n, k int) {
-	if m*n*k < MinParallelOps {
-		BlockedMatMulFloat64(a, b, c, m, n, k)
-		return
-	}
-
-	numWorkers := runtime.GOMAXPROCS(0)
-	numStrips := (m + RowsPerStrip - 1) / RowsPerStrip
-
-	work := make(chan int, numStrips)
-	for strip := 0; strip < numStrips; strip++ {
-		work <- strip
-	}
-	close(work)
-
-	var wg sync.WaitGroup
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for strip := range work {
-				rowStart := strip * RowsPerStrip
-				rowEnd := min(rowStart+RowsPerStrip, m)
-				stripM := rowEnd - rowStart
-
-				aStrip := a[rowStart*k : rowEnd*k]
-				cStrip := c[rowStart*n : rowEnd*n]
-
-				BlockedMatMulFloat64(aStrip, b, cStrip, stripM, n, k)
-			}
-		}()
-	}
-	wg.Wait()
+	ParallelMatMul(a, b, c, m, n, k)
 }

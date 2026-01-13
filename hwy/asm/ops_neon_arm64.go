@@ -304,3 +304,51 @@ func tanh_f32_neon(input, result, len unsafe.Pointer)
 
 //go:noescape
 func sigmoid_f32_neon(input, result, len unsafe.Pointer)
+
+//go:noescape
+func add_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func sub_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func mul_i32_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func add_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func sub_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func and_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func or_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func xor_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func shl_i64_neon(a, result, shift, len unsafe.Pointer)
+
+//go:noescape
+func shr_i64_neon(a, result, shift, len unsafe.Pointer)
+
+//go:noescape
+func eq_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func gt_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func ge_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func lt_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func le_i64_neon(a, b, result, len unsafe.Pointer)
+
+//go:noescape
+func ifthenelse_i64_neon(mask, yes, no, result, len unsafe.Pointer)

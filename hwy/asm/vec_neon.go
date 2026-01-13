@@ -507,45 +507,35 @@ func BroadcastInt32x4(v int32) Int32x4 {
 // Add performs element-wise addition.
 func (v Int32x4) Add(other Int32x4) Int32x4 {
 	var result Int32x4
-	for i := 0; i < 4; i++ {
-		result[i] = v[i] + other[i]
-	}
+	AddI32(v[:], other[:], result[:])
 	return result
 }
 
 // Sub performs element-wise subtraction.
 func (v Int32x4) Sub(other Int32x4) Int32x4 {
 	var result Int32x4
-	for i := 0; i < 4; i++ {
-		result[i] = v[i] - other[i]
-	}
+	SubI32(v[:], other[:], result[:])
 	return result
 }
 
 // Mul performs element-wise multiplication.
 func (v Int32x4) Mul(other Int32x4) Int32x4 {
 	var result Int32x4
-	for i := 0; i < 4; i++ {
-		result[i] = v[i] * other[i]
-	}
+	MulI32(v[:], other[:], result[:])
 	return result
 }
 
 // ShiftAllLeft shifts all elements left by the given count.
 func (v Int32x4) ShiftAllLeft(count int) Int32x4 {
 	var result Int32x4
-	for i := 0; i < 4; i++ {
-		result[i] = v[i] << count
-	}
+	ShiftLeftI32(v[:], count, result[:])
 	return result
 }
 
 // ShiftAllRight shifts all elements right by the given count.
 func (v Int32x4) ShiftAllRight(count int) Int32x4 {
 	var result Int32x4
-	for i := 0; i < 4; i++ {
-		result[i] = v[i] >> count
-	}
+	ShiftRightI32(v[:], count, result[:])
 	return result
 }
 
@@ -726,7 +716,16 @@ func BroadcastInt64x2(v int64) Int64x2 {
 
 // ShiftAllRight shifts all elements right by the given count.
 func (v Int64x2) ShiftAllRight(count int) Int64x2 {
-	return Int64x2{v[0] >> count, v[1] >> count}
+	var result Int64x2
+	ShiftRightI64(v[:], count, result[:])
+	return result
+}
+
+// ShiftAllLeft shifts all elements left by the given count.
+func (v Int64x2) ShiftAllLeft(count int) Int64x2 {
+	var result Int64x2
+	ShiftLeftI64(v[:], count, result[:])
+	return result
 }
 
 // StoreSlice stores the vector to a slice.
@@ -736,32 +735,43 @@ func (v Int64x2) StoreSlice(s []int64) {
 
 // Add performs element-wise addition.
 func (v Int64x2) Add(other Int64x2) Int64x2 {
-	return Int64x2{v[0] + other[0], v[1] + other[1]}
+	var result Int64x2
+	AddI64(v[:], other[:], result[:])
+	return result
 }
 
 // Sub performs element-wise subtraction.
 func (v Int64x2) Sub(other Int64x2) Int64x2 {
-	return Int64x2{v[0] - other[0], v[1] - other[1]}
+	var result Int64x2
+	SubI64(v[:], other[:], result[:])
+	return result
 }
 
 // Mul performs element-wise multiplication.
 func (v Int64x2) Mul(other Int64x2) Int64x2 {
+	// Note: NEON doesn't have native 64-bit integer multiply, so keep scalar
 	return Int64x2{v[0] * other[0], v[1] * other[1]}
 }
 
 // And performs element-wise bitwise AND.
 func (v Int64x2) And(other Int64x2) Int64x2 {
-	return Int64x2{v[0] & other[0], v[1] & other[1]}
+	var result Int64x2
+	AndI64(v[:], other[:], result[:])
+	return result
 }
 
 // Or performs element-wise bitwise OR.
 func (v Int64x2) Or(other Int64x2) Int64x2 {
-	return Int64x2{v[0] | other[0], v[1] | other[1]}
+	var result Int64x2
+	OrI64(v[:], other[:], result[:])
+	return result
 }
 
 // Xor performs element-wise bitwise XOR.
 func (v Int64x2) Xor(other Int64x2) Int64x2 {
-	return Int64x2{v[0] ^ other[0], v[1] ^ other[1]}
+	var result Int64x2
+	XorI64(v[:], other[:], result[:])
+	return result
 }
 
 // AsFloat64x2 reinterprets bits as float64.

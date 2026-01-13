@@ -3713,3 +3713,639 @@ void sigmoid_f32_neon(float *input, float *result, long *len) {
     }
 }
 
+// ============================================================================
+// Int32 Arithmetic Operations
+// ============================================================================
+
+// Vector addition int32: result[i] = a[i] + b[i]
+void add_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vaddq_s32(a0, b0));
+        vst1q_s32(result + i + 4, vaddq_s32(a1, b1));
+        vst1q_s32(result + i + 8, vaddq_s32(a2, b2));
+        vst1q_s32(result + i + 12, vaddq_s32(a3, b3));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vaddq_s32(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] + b[i];
+    }
+}
+
+// Vector subtraction int32: result[i] = a[i] - b[i]
+void sub_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vsubq_s32(a0, b0));
+        vst1q_s32(result + i + 4, vsubq_s32(a1, b1));
+        vst1q_s32(result + i + 8, vsubq_s32(a2, b2));
+        vst1q_s32(result + i + 12, vsubq_s32(a3, b3));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vsubq_s32(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] - b[i];
+    }
+}
+
+// Vector multiplication int32: result[i] = a[i] * b[i]
+void mul_i32_neon(int *a, int *b, int *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 ints at a time
+    for (; i + 15 < n; i += 16) {
+        int32x4_t a0 = vld1q_s32(a + i);
+        int32x4_t a1 = vld1q_s32(a + i + 4);
+        int32x4_t a2 = vld1q_s32(a + i + 8);
+        int32x4_t a3 = vld1q_s32(a + i + 12);
+
+        int32x4_t b0 = vld1q_s32(b + i);
+        int32x4_t b1 = vld1q_s32(b + i + 4);
+        int32x4_t b2 = vld1q_s32(b + i + 8);
+        int32x4_t b3 = vld1q_s32(b + i + 12);
+
+        vst1q_s32(result + i, vmulq_s32(a0, b0));
+        vst1q_s32(result + i + 4, vmulq_s32(a1, b1));
+        vst1q_s32(result + i + 8, vmulq_s32(a2, b2));
+        vst1q_s32(result + i + 12, vmulq_s32(a3, b3));
+    }
+
+    // Process 4 ints at a time
+    for (; i + 3 < n; i += 4) {
+        int32x4_t av = vld1q_s32(a + i);
+        int32x4_t bv = vld1q_s32(b + i);
+        vst1q_s32(result + i, vmulq_s32(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] * b[i];
+    }
+}
+
+// ============================================================================
+// Int64 Arithmetic Operations
+// ============================================================================
+
+// Vector addition int64: result[i] = a[i] + b[i]
+void add_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time (4 vectors)
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        vst1q_s64(result + i, vaddq_s64(a0, b0));
+        vst1q_s64(result + i + 2, vaddq_s64(a1, b1));
+        vst1q_s64(result + i + 4, vaddq_s64(a2, b2));
+        vst1q_s64(result + i + 6, vaddq_s64(a3, b3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        vst1q_s64(result + i, vaddq_s64(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] + b[i];
+    }
+}
+
+// Vector subtraction int64: result[i] = a[i] - b[i]
+void sub_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        vst1q_s64(result + i, vsubq_s64(a0, b0));
+        vst1q_s64(result + i + 2, vsubq_s64(a1, b1));
+        vst1q_s64(result + i + 4, vsubq_s64(a2, b2));
+        vst1q_s64(result + i + 6, vsubq_s64(a3, b3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        vst1q_s64(result + i, vsubq_s64(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] - b[i];
+    }
+}
+
+// ============================================================================
+// Int64 Bitwise Operations
+// ============================================================================
+
+// Bitwise AND int64: result[i] = a[i] & b[i]
+void and_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        vst1q_s64(result + i, vandq_s64(a0, b0));
+        vst1q_s64(result + i + 2, vandq_s64(a1, b1));
+        vst1q_s64(result + i + 4, vandq_s64(a2, b2));
+        vst1q_s64(result + i + 6, vandq_s64(a3, b3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        vst1q_s64(result + i, vandq_s64(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] & b[i];
+    }
+}
+
+// Bitwise OR int64: result[i] = a[i] | b[i]
+void or_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        vst1q_s64(result + i, vorrq_s64(a0, b0));
+        vst1q_s64(result + i + 2, vorrq_s64(a1, b1));
+        vst1q_s64(result + i + 4, vorrq_s64(a2, b2));
+        vst1q_s64(result + i + 6, vorrq_s64(a3, b3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        vst1q_s64(result + i, vorrq_s64(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] | b[i];
+    }
+}
+
+// Bitwise XOR int64: result[i] = a[i] ^ b[i]
+void xor_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        vst1q_s64(result + i, veorq_s64(a0, b0));
+        vst1q_s64(result + i + 2, veorq_s64(a1, b1));
+        vst1q_s64(result + i + 4, veorq_s64(a2, b2));
+        vst1q_s64(result + i + 6, veorq_s64(a3, b3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        vst1q_s64(result + i, veorq_s64(av, bv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] ^ b[i];
+    }
+}
+
+// ============================================================================
+// Int64 Shift Operations
+// ============================================================================
+
+// Left shift int64: result[i] = a[i] << shift
+void shl_i64_neon(long *a, long *result, long *shift, long *len) {
+    long n = *len;
+    long s = *shift;
+    long i = 0;
+
+    int64x2_t shift_vec = vdupq_n_s64(s);
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        vst1q_s64(result + i, vshlq_s64(a0, shift_vec));
+        vst1q_s64(result + i + 2, vshlq_s64(a1, shift_vec));
+        vst1q_s64(result + i + 4, vshlq_s64(a2, shift_vec));
+        vst1q_s64(result + i + 6, vshlq_s64(a3, shift_vec));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        vst1q_s64(result + i, vshlq_s64(av, shift_vec));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] << s;
+    }
+}
+
+// Arithmetic right shift int64: result[i] = a[i] >> shift
+void shr_i64_neon(long *a, long *result, long *shift, long *len) {
+    long n = *len;
+    long s = *shift;
+    long i = 0;
+
+    // For right shift, use negative shift value
+    int64x2_t shift_vec = vdupq_n_s64(-s);
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        vst1q_s64(result + i, vshlq_s64(a0, shift_vec));
+        vst1q_s64(result + i + 2, vshlq_s64(a1, shift_vec));
+        vst1q_s64(result + i + 4, vshlq_s64(a2, shift_vec));
+        vst1q_s64(result + i + 6, vshlq_s64(a3, shift_vec));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        vst1q_s64(result + i, vshlq_s64(av, shift_vec));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = a[i] >> s;
+    }
+}
+
+// ============================================================================
+// Int64 Comparison Operations
+// ============================================================================
+
+// Equal int64: result[i] = (a[i] == b[i]) ? -1 : 0
+void eq_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        uint64x2_t cmp0 = vceqq_s64(a0, b0);
+        uint64x2_t cmp1 = vceqq_s64(a1, b1);
+        uint64x2_t cmp2 = vceqq_s64(a2, b2);
+        uint64x2_t cmp3 = vceqq_s64(a3, b3);
+
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp0));
+        vst1q_s64(result + i + 2, vreinterpretq_s64_u64(cmp1));
+        vst1q_s64(result + i + 4, vreinterpretq_s64_u64(cmp2));
+        vst1q_s64(result + i + 6, vreinterpretq_s64_u64(cmp3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        uint64x2_t cmp = vceqq_s64(av, bv);
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] == b[i]) ? -1L : 0L;
+    }
+}
+
+// Greater than int64: result[i] = (a[i] > b[i]) ? -1 : 0
+void gt_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        uint64x2_t cmp0 = vcgtq_s64(a0, b0);
+        uint64x2_t cmp1 = vcgtq_s64(a1, b1);
+        uint64x2_t cmp2 = vcgtq_s64(a2, b2);
+        uint64x2_t cmp3 = vcgtq_s64(a3, b3);
+
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp0));
+        vst1q_s64(result + i + 2, vreinterpretq_s64_u64(cmp1));
+        vst1q_s64(result + i + 4, vreinterpretq_s64_u64(cmp2));
+        vst1q_s64(result + i + 6, vreinterpretq_s64_u64(cmp3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        uint64x2_t cmp = vcgtq_s64(av, bv);
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] > b[i]) ? -1L : 0L;
+    }
+}
+
+// Greater or equal int64: result[i] = (a[i] >= b[i]) ? -1 : 0
+void ge_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        uint64x2_t cmp0 = vcgeq_s64(a0, b0);
+        uint64x2_t cmp1 = vcgeq_s64(a1, b1);
+        uint64x2_t cmp2 = vcgeq_s64(a2, b2);
+        uint64x2_t cmp3 = vcgeq_s64(a3, b3);
+
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp0));
+        vst1q_s64(result + i + 2, vreinterpretq_s64_u64(cmp1));
+        vst1q_s64(result + i + 4, vreinterpretq_s64_u64(cmp2));
+        vst1q_s64(result + i + 6, vreinterpretq_s64_u64(cmp3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        uint64x2_t cmp = vcgeq_s64(av, bv);
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] >= b[i]) ? -1L : 0L;
+    }
+}
+
+// Less than int64: result[i] = (a[i] < b[i]) ? -1 : 0
+void lt_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        uint64x2_t cmp0 = vcltq_s64(a0, b0);
+        uint64x2_t cmp1 = vcltq_s64(a1, b1);
+        uint64x2_t cmp2 = vcltq_s64(a2, b2);
+        uint64x2_t cmp3 = vcltq_s64(a3, b3);
+
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp0));
+        vst1q_s64(result + i + 2, vreinterpretq_s64_u64(cmp1));
+        vst1q_s64(result + i + 4, vreinterpretq_s64_u64(cmp2));
+        vst1q_s64(result + i + 6, vreinterpretq_s64_u64(cmp3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        uint64x2_t cmp = vcltq_s64(av, bv);
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] < b[i]) ? -1L : 0L;
+    }
+}
+
+// Less or equal int64: result[i] = (a[i] <= b[i]) ? -1 : 0
+void le_i64_neon(long *a, long *b, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        int64x2_t a0 = vld1q_s64(a + i);
+        int64x2_t a1 = vld1q_s64(a + i + 2);
+        int64x2_t a2 = vld1q_s64(a + i + 4);
+        int64x2_t a3 = vld1q_s64(a + i + 6);
+
+        int64x2_t b0 = vld1q_s64(b + i);
+        int64x2_t b1 = vld1q_s64(b + i + 2);
+        int64x2_t b2 = vld1q_s64(b + i + 4);
+        int64x2_t b3 = vld1q_s64(b + i + 6);
+
+        uint64x2_t cmp0 = vcleq_s64(a0, b0);
+        uint64x2_t cmp1 = vcleq_s64(a1, b1);
+        uint64x2_t cmp2 = vcleq_s64(a2, b2);
+        uint64x2_t cmp3 = vcleq_s64(a3, b3);
+
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp0));
+        vst1q_s64(result + i + 2, vreinterpretq_s64_u64(cmp1));
+        vst1q_s64(result + i + 4, vreinterpretq_s64_u64(cmp2));
+        vst1q_s64(result + i + 6, vreinterpretq_s64_u64(cmp3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        int64x2_t av = vld1q_s64(a + i);
+        int64x2_t bv = vld1q_s64(b + i);
+        uint64x2_t cmp = vcleq_s64(av, bv);
+        vst1q_s64(result + i, vreinterpretq_s64_u64(cmp));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        result[i] = (a[i] <= b[i]) ? -1L : 0L;
+    }
+}
+
+// ============================================================================
+// Int64 If-Then-Else
+// ============================================================================
+
+// If-then-else int64: result[i] = mask[i] ? yes[i] : no[i]
+void ifthenelse_i64_neon(long *mask, long *yes, long *no, long *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 8 longs at a time
+    for (; i + 7 < n; i += 8) {
+        uint64x2_t m0 = vld1q_u64((uint64_t*)(mask + i));
+        uint64x2_t m1 = vld1q_u64((uint64_t*)(mask + i + 2));
+        uint64x2_t m2 = vld1q_u64((uint64_t*)(mask + i + 4));
+        uint64x2_t m3 = vld1q_u64((uint64_t*)(mask + i + 6));
+
+        int64x2_t y0 = vld1q_s64(yes + i);
+        int64x2_t y1 = vld1q_s64(yes + i + 2);
+        int64x2_t y2 = vld1q_s64(yes + i + 4);
+        int64x2_t y3 = vld1q_s64(yes + i + 6);
+
+        int64x2_t n0 = vld1q_s64(no + i);
+        int64x2_t n1 = vld1q_s64(no + i + 2);
+        int64x2_t n2 = vld1q_s64(no + i + 4);
+        int64x2_t n3 = vld1q_s64(no + i + 6);
+
+        vst1q_s64(result + i, vbslq_s64(m0, y0, n0));
+        vst1q_s64(result + i + 2, vbslq_s64(m1, y1, n1));
+        vst1q_s64(result + i + 4, vbslq_s64(m2, y2, n2));
+        vst1q_s64(result + i + 6, vbslq_s64(m3, y3, n3));
+    }
+
+    // Process 2 longs at a time
+    for (; i + 1 < n; i += 2) {
+        uint64x2_t mv = vld1q_u64((uint64_t*)(mask + i));
+        int64x2_t yv = vld1q_s64(yes + i);
+        int64x2_t nv = vld1q_s64(no + i);
+        vst1q_s64(result + i, vbslq_s64(mv, yv, nv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        if (mask[i]) {
+            result[i] = yes[i];
+        }
+        if (!mask[i]) {
+            result[i] = no[i];
+        }
+    }
+}
+
