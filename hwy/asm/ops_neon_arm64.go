@@ -352,3 +352,69 @@ func le_i64_neon(a, b, result, len unsafe.Pointer)
 
 //go:noescape
 func ifthenelse_i64_neon(mask, yes, no, result, len unsafe.Pointer)
+
+//go:noescape
+func find_first_true_i32x4_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func find_first_true_i64x2_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func count_true_i32x4_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func count_true_i64x2_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func eq_f32x4_neon(a, b, result unsafe.Pointer)
+
+//go:noescape
+func eq_i32x4_neon(a, b, result unsafe.Pointer)
+
+//go:noescape
+func eq_f64x2_neon(a, b, result unsafe.Pointer)
+
+//go:noescape
+func eq_i64x2_neon(a, b, result unsafe.Pointer)
+
+//go:noescape
+func all_true_i32x4_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func all_true_i64x2_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func all_false_i32x4_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func all_false_i64x2_neon(mask, result unsafe.Pointer)
+
+//go:noescape
+func firstn_i32x4_neon(count, result unsafe.Pointer)
+
+//go:noescape
+func firstn_i64x2_neon(count, result unsafe.Pointer)
+
+//go:noescape
+func find_equal_f32_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func find_equal_i32_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func count_equal_f32_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func count_equal_i32_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func find_equal_f64_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func find_equal_i64_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func count_equal_f64_neon(slice, len, target, result unsafe.Pointer)
+
+//go:noescape
+func count_equal_i64_neon(slice, len, target, result unsafe.Pointer)

@@ -367,7 +367,14 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 			for _, elemType := range concreteTypes {
 				dispatchName := buildDispatchFuncName(pf.Name, elemType)
-				implName := pf.Name + target.Suffix()
+				// Functions with interface type parameters only have fallback implementations
+				// so use fallback even for SIMD targets
+				var implName string
+				if hasInterfaceTypeParams(pf.TypeParams) {
+					implName = pf.Name + "_fallback"
+				} else {
+					implName = pf.Name + target.Suffix()
+				}
 				if elemType != "float32" {
 					implName = implName + "_" + strings.Title(elemType)
 				}
@@ -703,12 +710,22 @@ func injectHoistedConstInit(funcDecl *ast.FuncDecl) {
 //	    }
 //	}
 func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
-	genericName := buildGenericFuncName(pf.Name)
+	hasInterfaceParams := hasInterfaceTypeParams(pf.TypeParams)
+	genericName := buildGenericFuncName(pf.Name, hasInterfaceParams)
 	concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
 
-	// Function signature with type parameter
+	// Function signature with type parameters
 	fmt.Fprintf(buf, "// %s is the generic API that dispatches to the appropriate SIMD implementation.\n", genericName)
-	fmt.Fprintf(buf, "func %s[T %s](", genericName, pf.TypeParams[0].Constraint)
+	fmt.Fprintf(buf, "func %s[", genericName)
+
+	// Build type parameter list - include all type parameters
+	for i, tp := range pf.TypeParams {
+		if i > 0 {
+			fmt.Fprintf(buf, ", ")
+		}
+		fmt.Fprintf(buf, "%s %s", tp.Name, tp.Constraint)
+	}
+	fmt.Fprintf(buf, "](")
 
 	// Parameters
 	for i, param := range pf.Params {
@@ -786,6 +803,11 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 				fmt.Fprintf(buf, "any(%s).(%s)", param.Name, sliceType)
 			} else if param.Type == "T" {
 				fmt.Fprintf(buf, "any(%s).(%s)", param.Name, elemType)
+			} else if isInterfaceTypeParam(param.Type, pf.TypeParams) {
+				// Interface type parameter (e.g., P constrained by Predicate[T])
+				// Need to assert to concrete interface type (e.g., Predicate[float32])
+				concreteType := specializeType(getConstraintForParam(param.Type, pf.TypeParams), pf.TypeParams, elemType)
+				fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
 			} else {
 				fmt.Fprintf(buf, "%s", param.Name)
 			}
@@ -822,8 +844,13 @@ func buildDispatchFuncName(baseName, elemType string) string {
 
 // buildGenericFuncName creates the generic function name (without type suffix).
 // BaseSigmoid -> Sigmoid
-func buildGenericFuncName(baseName string) string {
-	return strings.TrimPrefix(baseName, "Base")
+// BaseAll -> AllP (functions with interface type params get P suffix)
+func buildGenericFuncName(baseName string, hasInterfaceParams bool) string {
+	name := strings.TrimPrefix(baseName, "Base")
+	if hasInterfaceParams {
+		name = name + "P"
+	}
+	return name
 }
 
 // buildFuncSignature builds a function signature string from ParsedFunc.
@@ -876,4 +903,32 @@ func getBaseFilename(path string) string {
 	base := filepath.Base(path)
 	ext := filepath.Ext(base)
 	return base[:len(base)-len(ext)]
+}
+
+// isInterfaceTypeParam checks if a parameter type is an interface type parameter
+// (e.g., "P" where P is constrained by Predicate[T]).
+func isInterfaceTypeParam(paramType string, typeParams []TypeParam) bool {
+	for _, tp := range typeParams {
+		if tp.Name == paramType {
+			// Check if this is NOT an element type constraint
+			if !strings.Contains(tp.Constraint, "Lanes") &&
+				!strings.Contains(tp.Constraint, "Floats") &&
+				!strings.Contains(tp.Constraint, "Integers") &&
+				!strings.Contains(tp.Constraint, "SignedInts") &&
+				!strings.Contains(tp.Constraint, "UnsignedInts") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// getConstraintForParam returns the constraint for a type parameter.
+func getConstraintForParam(paramType string, typeParams []TypeParam) string {
+	for _, tp := range typeParams {
+		if tp.Name == paramType {
+			return tp.Constraint
+		}
+	}
+	return paramType
 }

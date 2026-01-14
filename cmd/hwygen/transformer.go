@@ -73,6 +73,18 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		funcDecl.Type.Params.List = append(funcDecl.Type.Params.List, field)
 	}
 
+	// For fallback target with predicate functions, generate scalar loop body
+	// to avoid allocations from hwy.Load/pred.Apply
+	if target.Name == "Fallback" && hasPredicateParam(pf) {
+		if scalarBody := generateScalarPredicateBody(pf, elemType); scalarBody != nil {
+			funcDecl.Body = scalarBody
+			return &TransformResult{
+				FuncDecl:      funcDecl,
+				HoistedConsts: nil,
+			}
+		}
+	}
+
 	// Transform the function body
 	ctx := &transformContext{
 		target:             target,
@@ -88,6 +100,11 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		conditionalBlocks:  opts.ConditionalBlocks,
 		fset:               opts.FileSet,
 		imports:            opts.Imports,
+	}
+
+	// Add function parameters to localVars to prevent them from being hoisted
+	for _, param := range pf.Params {
+		ctx.localVars[param.Name] = true
 	}
 
 	// Collect all locally-defined variable names to avoid hoisting them as constants
@@ -328,8 +345,18 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		if strings.HasPrefix(ident.Name, "Base") {
 			// Transform BaseFoo to BaseFoo_avx2 (or BaseFoo_fallback, etc.)
 			suffix := ctx.target.Suffix()
-			if ctx.elemType == "float64" {
+			// Add type suffix for non-float32 types
+			switch ctx.elemType {
+			case "float64":
 				suffix = suffix + "_Float64"
+			case "int32":
+				suffix = suffix + "_Int32"
+			case "int64":
+				suffix = suffix + "_Int64"
+			case "uint32":
+				suffix = suffix + "_Uint32"
+			case "uint64":
+				suffix = suffix + "_Uint64"
 			}
 			ident.Name = ident.Name + suffix
 		}
@@ -365,8 +392,18 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		if ident, ok := indexExpr.X.(*ast.Ident); ok {
 			if strings.HasPrefix(ident.Name, "Base") {
 				suffix := ctx.target.Suffix()
-				if ctx.elemType == "float64" {
+				// Add type suffix for non-float32 types
+				switch ctx.elemType {
+				case "float64":
 					suffix = suffix + "_Float64"
+				case "int32":
+					suffix = suffix + "_Int32"
+				case "int64":
+					suffix = suffix + "_Int64"
+				case "uint32":
+					suffix = suffix + "_Uint32"
+				case "uint64":
+					suffix = suffix + "_Uint64"
 				}
 				// Strip the type param and add suffix
 				call.Fun = ast.NewIdent(ident.Name + suffix)
@@ -1224,6 +1261,36 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "MaskLoad":
 		fullName = fmt.Sprintf("MaskLoad%sSlice", vecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
+	case "CompressStore":
+		// CompressStore has type-specific versions: CompressStore (float32), CompressStoreFloat64, etc.
+		switch ctx.elemType {
+		case "float32":
+			fullName = "CompressStore"
+		case "float64":
+			fullName = "CompressStoreFloat64"
+		case "int32":
+			fullName = "CompressStoreInt32"
+		case "int64":
+			fullName = "CompressStoreInt64"
+		default:
+			fullName = "CompressStore"
+		}
+		selExpr.X = ast.NewIdent(pkgName)
+	case "FirstN":
+		// FirstN returns a mask type: Int32x4 for 4-lane, Int64x2 for 2-lane
+		switch ctx.elemType {
+		case "float32":
+			fullName = "FirstN"
+		case "float64":
+			fullName = "FirstNFloat64"
+		case "int32":
+			fullName = "FirstN" // Int32x4 mask for int32
+		case "int64":
+			fullName = "FirstNInt64"
+		default:
+			fullName = "FirstN"
+		}
+		selExpr.X = ast.NewIdent(pkgName)
 	default:
 		// For contrib functions, add target and type suffix (e.g., math.Exp_AVX2_F32x8)
 		if opInfo.SubPackage != "" {
@@ -1758,44 +1825,142 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 // specializeType replaces generic type parameters with concrete types.
 // For SIMD targets, also transforms hwy.Vec[T] to archsimd/asm vector types.
 func specializeType(typeStr string, typeParams []TypeParam, elemType string) string {
+	// First, identify which type parameters are element types vs interface types
+	elementTypeParams := make(map[string]bool)
+	interfaceTypeParams := make(map[string]string) // maps param name to constraint
+
 	for _, tp := range typeParams {
-		// Replace hwy.Vec[T] with concrete vector type placeholder
-		// This will be further processed by specializeVecType
-		typeStr = strings.ReplaceAll(typeStr, "hwy.Vec["+tp.Name+"]", "hwy.Vec["+elemType+"]")
-		// Replace []T with []float32, etc.
-		typeStr = strings.ReplaceAll(typeStr, "[]"+tp.Name, "[]"+elemType)
-		typeStr = strings.ReplaceAll(typeStr, tp.Name, elemType)
+		// Element type constraints
+		if strings.Contains(tp.Constraint, "Lanes") ||
+			strings.Contains(tp.Constraint, "Floats") ||
+			strings.Contains(tp.Constraint, "Integers") ||
+			strings.Contains(tp.Constraint, "SignedInts") ||
+			strings.Contains(tp.Constraint, "UnsignedInts") {
+			elementTypeParams[tp.Name] = true
+		} else {
+			// Interface constraint (like Predicate[T])
+			interfaceTypeParams[tp.Name] = tp.Constraint
+		}
 	}
+
+	// Replace element type parameters and hwy.Vec[T]/hwy.Mask[T]
+	for _, tp := range typeParams {
+		if elementTypeParams[tp.Name] {
+			// Replace hwy.Vec[T] with concrete vector type placeholder
+			typeStr = strings.ReplaceAll(typeStr, "hwy.Vec["+tp.Name+"]", "hwy.Vec["+elemType+"]")
+			// Replace hwy.Mask[T] with concrete mask type placeholder
+			typeStr = strings.ReplaceAll(typeStr, "hwy.Mask["+tp.Name+"]", "hwy.Mask["+elemType+"]")
+			// Replace []T with []float32, etc.
+			typeStr = strings.ReplaceAll(typeStr, "[]"+tp.Name, "[]"+elemType)
+			// Replace standalone T with concrete type
+			typeStr = replaceTypeParam(typeStr, tp.Name, elemType)
+		}
+	}
+
+	// For interface type parameters, specialize the generic type within the constraint
+	// e.g., Predicate[T] -> Predicate[float32]
+	for paramName, constraint := range interfaceTypeParams {
+		// Check if this parameter's type is exactly its constraint (e.g., "P" -> "Predicate[T]")
+		if typeStr == paramName {
+			// Specialize the constraint's type parameters
+			specializedConstraint := constraint
+			for _, tp := range typeParams {
+				if elementTypeParams[tp.Name] {
+					specializedConstraint = strings.ReplaceAll(specializedConstraint, "["+tp.Name+"]", "["+elemType+"]")
+				}
+			}
+			typeStr = specializedConstraint
+		}
+	}
+
 	return typeStr
 }
 
-// specializeVecType transforms hwy.Vec[elemType] to the concrete archsimd/asm type.
+// replaceTypeParam replaces a type parameter name with a concrete type,
+// being careful to only replace it when it appears as a standalone type
+// (not as part of another identifier).
+func replaceTypeParam(typeStr, paramName, elemType string) string {
+	// Simple approach: replace when the parameter appears alone or as a type argument
+	// This handles cases like "T", "[T]", "[]T", "func(T)"
+	result := typeStr
+
+	// Replace [T] with [elemType]
+	result = strings.ReplaceAll(result, "["+paramName+"]", "["+elemType+"]")
+
+	// Replace T when it's the whole string
+	if result == paramName {
+		return elemType
+	}
+
+	// Replace T in slice types []T
+	result = strings.ReplaceAll(result, "[]"+paramName, "[]"+elemType)
+
+	// Replace T in function types - look for patterns like "T)" or "T," or "(T"
+	// This is a simple heuristic that works for most cases
+	for _, suffix := range []string{")", ",", " ", ""} {
+		for _, prefix := range []string{"(", ",", " "} {
+			old := prefix + paramName + suffix
+			new := prefix + elemType + suffix
+			result = strings.ReplaceAll(result, old, new)
+		}
+	}
+
+	return result
+}
+
+// specializeVecType transforms hwy.Vec[elemType] and hwy.Mask[elemType] to concrete archsimd/asm types.
 // For example: hwy.Vec[float32] -> archsimd.Float32x8 (for AVX2)
+//              hwy.Mask[float32] -> archsimd.Int32x8 (for AVX2)
 func specializeVecType(typeStr string, elemType string, target Target) string {
-	vecPlaceholder := "hwy.Vec[" + elemType + "]"
-	if !strings.Contains(typeStr, vecPlaceholder) {
-		return typeStr
-	}
-
 	if target.Name == "Fallback" {
-		// For fallback, keep hwy.Vec[float32] etc.
+		// For fallback, keep hwy.Vec[float32], hwy.Mask[float32] etc.
 		return typeStr
 	}
 
-	// Get the concrete vector type from target's TypeMap
-	vecTypeName, ok := target.TypeMap[elemType]
-	if !ok {
-		return typeStr
-	}
-
-	// Build fully qualified type: archsimd.Float32x8 or asm.Float32x4
 	pkgName := target.VecPackage
 	if pkgName == "" {
 		pkgName = "archsimd" // default
 	}
-	concreteType := pkgName + "." + vecTypeName
 
-	return strings.ReplaceAll(typeStr, vecPlaceholder, concreteType)
+	// Transform hwy.Vec[elemType]
+	vecPlaceholder := "hwy.Vec[" + elemType + "]"
+	if strings.Contains(typeStr, vecPlaceholder) {
+		vecTypeName, ok := target.TypeMap[elemType]
+		if ok {
+			concreteType := pkgName + "." + vecTypeName
+			typeStr = strings.ReplaceAll(typeStr, vecPlaceholder, concreteType)
+		}
+	}
+
+	// Transform hwy.Mask[elemType] to integer vector type (masks are represented as integer vectors)
+	maskPlaceholder := "hwy.Mask[" + elemType + "]"
+	if strings.Contains(typeStr, maskPlaceholder) {
+		maskTypeName := getMaskTypeName(elemType, target)
+		if maskTypeName != "" {
+			concreteMaskType := pkgName + "." + maskTypeName
+			typeStr = strings.ReplaceAll(typeStr, maskPlaceholder, concreteMaskType)
+		}
+	}
+
+	return typeStr
+}
+
+// getMaskTypeName returns the mask type name for a given element type and target.
+// Masks are typically represented as integer vectors with matching lane count.
+func getMaskTypeName(elemType string, target Target) string {
+	lanes := target.LanesFor(elemType)
+	switch elemType {
+	case "float32":
+		return fmt.Sprintf("Int32x%d", lanes)
+	case "float64":
+		return fmt.Sprintf("Int64x%d", lanes)
+	case "int32":
+		return fmt.Sprintf("Int32x%d", lanes)
+	case "int64":
+		return fmt.Sprintf("Int64x%d", lanes)
+	default:
+		return ""
+	}
 }
 
 // getVectorTypeName returns the vector type name for archsimd functions.
@@ -2727,5 +2892,256 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 				}
 			}
 		}
+	}
+}
+
+// hasPredicateParam returns true if the function has a predicate-type parameter
+// (i.e., a type parameter with a non-Lanes constraint like Predicate[T]).
+func hasPredicateParam(pf *ParsedFunc) bool {
+	for _, tp := range pf.TypeParams {
+		// Skip element type constraints
+		if strings.Contains(tp.Constraint, "Lanes") ||
+			strings.Contains(tp.Constraint, "Floats") ||
+			strings.Contains(tp.Constraint, "Integers") ||
+			strings.Contains(tp.Constraint, "SignedInts") ||
+			strings.Contains(tp.Constraint, "UnsignedInts") {
+			continue
+		}
+		// This is likely a predicate or other interface type param
+		return true
+	}
+	return false
+}
+
+// generateScalarPredicateBody generates a scalar loop body for predicate functions
+// in fallback mode. Returns nil if this function doesn't need scalar generation.
+func generateScalarPredicateBody(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	// Map function names to their scalar implementations
+	switch pf.Name {
+	case "BaseAll":
+		return generateScalarAll(pf, elemType)
+	case "BaseAny":
+		return generateScalarAny(pf, elemType)
+	case "BaseNone":
+		return generateScalarNone(pf, elemType)
+	case "BaseFindIf":
+		return generateScalarFindIf(pf, elemType)
+	case "BaseCountIf":
+		return generateScalarCountIf(pf, elemType)
+	default:
+		return nil
+	}
+}
+
+// generateScalarAll generates: for _, v := range slice { if !pred.Test(v) { return false } } return true
+func generateScalarAll(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			// for _, v := range slice { if !pred.Test(v) { return false } }
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.UnaryExpr{
+								Op: token.NOT,
+								X: &ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent(predParam),
+										Sel: ast.NewIdent("Test"),
+									},
+									Args: []ast.Expr{ast.NewIdent("v")},
+								},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ReturnStmt{
+										Results: []ast.Expr{ast.NewIdent("false")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			// return true
+			&ast.ReturnStmt{
+				Results: []ast.Expr{ast.NewIdent("true")},
+			},
+		},
+	}
+}
+
+// generateScalarAny generates: for _, v := range slice { if pred.Test(v) { return true } } return false
+func generateScalarAny(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(predParam),
+									Sel: ast.NewIdent("Test"),
+								},
+								Args: []ast.Expr{ast.NewIdent("v")},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ReturnStmt{
+										Results: []ast.Expr{ast.NewIdent("true")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.ReturnStmt{
+				Results: []ast.Expr{ast.NewIdent("false")},
+			},
+		},
+	}
+}
+
+// generateScalarNone generates: return !BaseAny_fallback...(slice, pred)
+func generateScalarNone(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	// Build the function name: BaseAny_fallback or BaseAny_fallback_Float64, etc.
+	funcName := "BaseAny_fallback"
+	switch elemType {
+	case "float64":
+		funcName += "_Float64"
+	case "int32":
+		funcName += "_Int32"
+	case "int64":
+		funcName += "_Int64"
+	case "uint32":
+		funcName += "_Uint32"
+	case "uint64":
+		funcName += "_Uint64"
+	}
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.ReturnStmt{
+				Results: []ast.Expr{
+					&ast.UnaryExpr{
+						Op: token.NOT,
+						X: &ast.CallExpr{
+							Fun:  ast.NewIdent(funcName),
+							Args: []ast.Expr{ast.NewIdent(sliceParam), ast.NewIdent(predParam)},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// generateScalarFindIf generates: for i, v := range slice { if pred.Test(v) { return i } } return -1
+func generateScalarFindIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("i"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(predParam),
+									Sel: ast.NewIdent("Test"),
+								},
+								Args: []ast.Expr{ast.NewIdent("v")},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ReturnStmt{
+										Results: []ast.Expr{ast.NewIdent("i")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.ReturnStmt{
+				Results: []ast.Expr{
+					&ast.UnaryExpr{Op: token.SUB, X: &ast.BasicLit{Kind: token.INT, Value: "1"}},
+				},
+			},
+		},
+	}
+}
+
+// generateScalarCountIf generates: count := 0; for _, v := range slice { if pred.Test(v) { count++ } } return count
+func generateScalarCountIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			// count := 0
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{ast.NewIdent("count")},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+			},
+			// for _, v := range slice { if pred.Test(v) { count++ } }
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(predParam),
+									Sel: ast.NewIdent("Test"),
+								},
+								Args: []ast.Expr{ast.NewIdent("v")},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.IncDecStmt{
+										X:   ast.NewIdent("count"),
+										Tok: token.INC,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			// return count
+			&ast.ReturnStmt{
+				Results: []ast.Expr{ast.NewIdent("count")},
+			},
+		},
 	}
 }

@@ -543,7 +543,7 @@ func (v Int32x4) ShiftAllRight(count int) Int32x4 {
 func (v Int32x4) AsFloat32x4() Float32x4 {
 	var result Float32x4
 	for i := 0; i < 4; i++ {
-		result[i] = float32FromBits(uint32(v[i]))
+		result[i] = math.Float32frombits(uint32(v[i]))
 	}
 	return result
 }
@@ -585,19 +585,25 @@ func (v Int32x4) Xor(other Int32x4) Int32x4 {
 }
 
 // Equal performs element-wise equality comparison.
-func (v Int32x4) Equal(other Int32x4) BoolMask32x4 {
-	var result BoolMask32x4
+// Returns -1 (all bits set) for true, 0 for false - matches archsimd convention.
+func (v Int32x4) Equal(other Int32x4) Int32x4 {
+	var result Int32x4
 	for i := 0; i < 4; i++ {
-		result[i] = v[i] == other[i]
+		if v[i] == other[i] {
+			result[i] = -1 // all bits set
+		} else {
+			result[i] = 0
+		}
 	}
 	return result
 }
 
 // Merge selects elements: mask ? v : other
-func (v Int32x4) Merge(other Int32x4, mask BoolMask32x4) Int32x4 {
+// mask should have -1 (all bits set) for true, 0 for false.
+func (v Int32x4) Merge(other Int32x4, mask Int32x4) Int32x4 {
 	var result Int32x4
 	for i := 0; i < 4; i++ {
-		if mask[i] {
+		if mask[i] != 0 {
 			result[i] = v[i]
 		} else {
 			result[i] = other[i]
@@ -646,19 +652,25 @@ func (v Int32x2) Xor(other Int32x2) Int32x2 {
 }
 
 // Equal performs element-wise equality comparison.
-func (v Int32x2) Equal(other Int32x2) BoolMask32x2 {
-	var result BoolMask32x2
+// Returns -1 (all bits set) for true, 0 for false - matches archsimd convention.
+func (v Int32x2) Equal(other Int32x2) Int32x2 {
+	var result Int32x2
 	for i := 0; i < 2; i++ {
-		result[i] = v[i] == other[i]
+		if v[i] == other[i] {
+			result[i] = -1 // all bits set
+		} else {
+			result[i] = 0
+		}
 	}
 	return result
 }
 
 // Merge selects elements: mask ? v : other
-func (v Int32x2) Merge(other Int32x2, mask BoolMask32x2) Int32x2 {
+// mask should have -1 (all bits set) for true, 0 for false.
+func (v Int32x2) Merge(other Int32x2, mask Int32x2) Int32x2 {
 	var result Int32x2
 	for i := 0; i < 2; i++ {
-		if mask[i] {
+		if mask[i] != 0 {
 			result[i] = v[i]
 		} else {
 			result[i] = other[i]
@@ -774,6 +786,20 @@ func (v Int64x2) Xor(other Int64x2) Int64x2 {
 	return result
 }
 
+// Equal performs element-wise equality comparison.
+// Returns -1 (all bits set) for true, 0 for false - matches archsimd convention.
+func (v Int64x2) Equal(other Int64x2) Int64x2 {
+	var result Int64x2
+	for i := 0; i < 2; i++ {
+		if v[i] == other[i] {
+			result[i] = -1 // all bits set
+		} else {
+			result[i] = 0
+		}
+	}
+	return result
+}
+
 // AsFloat64x2 reinterprets bits as float64.
 func (v Int64x2) AsFloat64x2() Float64x2 {
 	var result Float64x2
@@ -792,8 +818,250 @@ func (v Int64x2) ConvertToFloat64() Float64x2 {
 	return result
 }
 
-// ===== Helper functions =====
+// ===== Int32x4 Load =====
 
-func float32FromBits(b uint32) float32 {
-	return math.Float32frombits(b)
+// LoadInt32x4 loads 4 int32 values from a slice.
+func LoadInt32x4(s []int32) Int32x4 {
+	var v Int32x4
+	copy(v[:], s[:4])
+	return v
+}
+
+// LoadInt32x4Slice is an alias for LoadInt32x4 (matches archsimd naming).
+func LoadInt32x4Slice(s []int32) Int32x4 {
+	return LoadInt32x4(s)
+}
+
+// ===== Int64x2 Load =====
+
+// LoadInt64x2 loads 2 int64 values from a slice.
+func LoadInt64x2(s []int64) Int64x2 {
+	var v Int64x2
+	copy(v[:], s[:2])
+	return v
+}
+
+// LoadInt64x2Slice is an alias for LoadInt64x2 (matches archsimd naming).
+func LoadInt64x2Slice(s []int64) Int64x2 {
+	return LoadInt64x2(s)
+}
+
+// ===== Mask operations =====
+
+// FindFirstTrue returns the index of the first true lane in the mask, or -1 if none.
+// For Int32x4 masks, a non-zero value (typically -1/0xFFFFFFFF) indicates true.
+// Note: Pure Go is faster than assembly for single-vector operations due to inlining.
+func FindFirstTrue[T Int32x4 | Int64x2](mask T) int {
+	switch m := any(mask).(type) {
+	case Int32x4:
+		for i := 0; i < 4; i++ {
+			if m[i] != 0 {
+				return i
+			}
+		}
+	case Int64x2:
+		for i := 0; i < 2; i++ {
+			if m[i] != 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// CountTrue returns the number of true lanes in the mask.
+// For integer masks, a non-zero value indicates true.
+// Note: Pure Go is faster than assembly for single-vector operations due to inlining.
+func CountTrue[T Int32x4 | Int64x2](mask T) int {
+	switch m := any(mask).(type) {
+	case Int32x4:
+		count := 0
+		for i := 0; i < 4; i++ {
+			if m[i] != 0 {
+				count++
+			}
+		}
+		return count
+	case Int64x2:
+		count := 0
+		for i := 0; i < 2; i++ {
+			if m[i] != 0 {
+				count++
+			}
+		}
+		return count
+	}
+	return 0
+}
+
+// ===== CompressStore functions =====
+// These compress elements where mask is true and store directly to a slice.
+
+// CompressStoreF32x4 compresses float32 elements and stores to dst.
+// Returns number of elements stored.
+func CompressStoreF32x4(v Float32x4, mask Int32x4, dst []float32) int {
+	count := 0
+	for i := 0; i < 4; i++ {
+		if mask[i] != 0 {
+			if count < len(dst) {
+				dst[count] = v[i]
+			}
+			count++
+		}
+	}
+	return count
+}
+
+// CompressStoreF64x2 compresses float64 elements and stores to dst.
+// Returns number of elements stored.
+func CompressStoreF64x2(v Float64x2, mask Int64x2, dst []float64) int {
+	count := 0
+	for i := 0; i < 2; i++ {
+		if mask[i] != 0 {
+			if count < len(dst) {
+				dst[count] = v[i]
+			}
+			count++
+		}
+	}
+	return count
+}
+
+// CompressStoreI32x4 compresses int32 elements and stores to dst.
+// Returns number of elements stored.
+func CompressStoreI32x4(v Int32x4, mask Int32x4, dst []int32) int {
+	count := 0
+	for i := 0; i < 4; i++ {
+		if mask[i] != 0 {
+			if count < len(dst) {
+				dst[count] = v[i]
+			}
+			count++
+		}
+	}
+	return count
+}
+
+// CompressStoreI64x2 compresses int64 elements and stores to dst.
+// Returns number of elements stored.
+func CompressStoreI64x2(v Int64x2, mask Int64x2, dst []int64) int {
+	count := 0
+	for i := 0; i < 2; i++ {
+		if mask[i] != 0 {
+			if count < len(dst) {
+				dst[count] = v[i]
+			}
+			count++
+		}
+	}
+	return count
+}
+
+// ===== FirstN functions =====
+// These create masks with the first n lanes set to true (-1).
+
+// FirstNI32x4 returns a mask with the first n lanes set to true.
+func FirstNI32x4(n int) Int32x4 {
+	var mask Int32x4
+	firstNI32x4Asm(n, (*[4]int32)(&mask))
+	return mask
+}
+
+// FirstNI64x2 returns a mask with the first n lanes set to true.
+func FirstNI64x2(n int) Int64x2 {
+	var mask Int64x2
+	firstNI64x2Asm(n, (*[2]int64)(&mask))
+	return mask
+}
+
+// ===== Generic wrapper functions for hwygen =====
+// These are used by generated code that calls asm.CompressStore, asm.FirstN, etc.
+
+// CompressStore compresses and stores float32 elements.
+func CompressStore(v Float32x4, mask Int32x4, dst []float32) int {
+	return CompressStoreF32x4(v, mask, dst)
+}
+
+// CompressStoreFloat64 compresses and stores float64 elements.
+func CompressStoreFloat64(v Float64x2, mask Int64x2, dst []float64) int {
+	return CompressStoreF64x2(v, mask, dst)
+}
+
+// CompressStoreInt32 compresses and stores int32 elements.
+func CompressStoreInt32(v Int32x4, mask Int32x4, dst []int32) int {
+	return CompressStoreI32x4(v, mask, dst)
+}
+
+// CompressStoreInt64 compresses and stores int64 elements.
+func CompressStoreInt64(v Int64x2, mask Int64x2, dst []int64) int {
+	return CompressStoreI64x2(v, mask, dst)
+}
+
+// FirstN returns a mask with the first n lanes set to true (for float32).
+func FirstN(n int) Int32x4 {
+	return FirstNI32x4(n)
+}
+
+// FirstNFloat64 returns a mask with the first n lanes set to true (for float64).
+func FirstNFloat64(n int) Int64x2 {
+	return FirstNI64x2(n)
+}
+
+// FirstNInt32 returns a mask with the first n lanes set to true (for int32).
+func FirstNInt32(n int) Int32x4 {
+	return FirstNI32x4(n)
+}
+
+// FirstNInt64 returns a mask with the first n lanes set to true (for int64).
+func FirstNInt64(n int) Int64x2 {
+	return FirstNI64x2(n)
+}
+
+// MaskAnd performs bitwise AND on two masks (for float32).
+func MaskAnd(a, b Int32x4) Int32x4 {
+	return a.And(b)
+}
+
+// MaskAndFloat64 performs bitwise AND on two masks (for float64).
+func MaskAndFloat64(a, b Int64x2) Int64x2 {
+	return a.And(b)
+}
+
+// MaskAndNot performs a AND (NOT b) on masks (for float32).
+func MaskAndNot(a, b Int32x4) Int32x4 {
+	var result Int32x4
+	for i := 0; i < 4; i++ {
+		result[i] = a[i] &^ b[i]
+	}
+	return result
+}
+
+// MaskAndNotFloat64 performs a AND (NOT b) on masks (for float64).
+func MaskAndNotFloat64(a, b Int64x2) Int64x2 {
+	var result Int64x2
+	for i := 0; i < 2; i++ {
+		result[i] = a[i] &^ b[i]
+	}
+	return result
+}
+
+// AllTrueVal returns true if all lanes in the mask are true (for float32).
+// Uses value receiver instead of slice.
+func AllTrueVal(mask Int32x4) bool {
+	return allTrueI32x4Asm((*[4]int32)(&mask))
+}
+
+// AllTrueValFloat64 returns true if all lanes in the mask are true (for float64).
+func AllTrueValFloat64(mask Int64x2) bool {
+	return allTrueI64x2Asm((*[2]int64)(&mask))
+}
+
+// AllFalseVal returns true if all lanes in the mask are false (for float32).
+func AllFalseVal(mask Int32x4) bool {
+	return allFalseI32x4Asm((*[4]int32)(&mask))
+}
+
+// AllFalseValFloat64 returns true if all lanes in the mask are false (for float64).
+func AllFalseValFloat64(mask Int64x2) bool {
+	return allFalseI64x2Asm((*[2]int64)(&mask))
 }

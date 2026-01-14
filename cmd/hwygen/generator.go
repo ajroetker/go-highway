@@ -61,6 +61,14 @@ func (g *Generator) Run() error {
 		hoistedMap := make(map[string]HoistedConst) // Dedupe by var name
 
 		for _, pf := range result.Funcs {
+			// Skip SIMD generation for functions with interface type parameters
+			// (like Predicate[T]). These functions can only use the fallback path
+			// because the interface signature uses hwy.Vec[T] which is incompatible
+			// with SIMD-specific vector types.
+			if hasInterfaceTypeParams(pf.TypeParams) && target.Name != "Fallback" {
+				continue
+			}
+
 			// Determine concrete types to generate
 			var concreteTypes []string
 			if len(pf.TypeParams) > 0 {
@@ -140,4 +148,22 @@ func (g *Generator) parseTargets() ([]Target, error) {
 	}
 
 	return targets, nil
+}
+
+// hasInterfaceTypeParams returns true if any type parameter has an interface constraint
+// (as opposed to an element type constraint like hwy.Lanes, hwy.Floats, etc.)
+func hasInterfaceTypeParams(typeParams []TypeParam) bool {
+	for _, tp := range typeParams {
+		// Element type constraints - these are NOT interface constraints
+		if strings.Contains(tp.Constraint, "Lanes") ||
+			strings.Contains(tp.Constraint, "Floats") ||
+			strings.Contains(tp.Constraint, "Integers") ||
+			strings.Contains(tp.Constraint, "SignedInts") ||
+			strings.Contains(tp.Constraint, "UnsignedInts") {
+			continue
+		}
+		// Any other constraint is considered an interface constraint
+		return true
+	}
+	return false
 }
