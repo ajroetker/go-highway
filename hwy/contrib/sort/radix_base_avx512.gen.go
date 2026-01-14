@@ -85,6 +85,112 @@ func BaseRadixPass_avx512_Int64(src []int64, dst []int64, shift int) {
 	}
 }
 
+func BaseRadixPass16_avx512_Int32(src []int32, dst []int32, shift int) {
+	n := len(src)
+	if n == 0 {
+		return
+	}
+	mask := int32(0xFFFF)
+	var count [65536]int
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		count[digit]++
+	}
+	offset := 0
+	for b := 0; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
+func BaseRadixPass16_avx512_Int64(src []int64, dst []int64, shift int) {
+	n := len(src)
+	if n == 0 {
+		return
+	}
+	mask := int64(0xFFFF)
+	var count [65536]int
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		count[digit]++
+	}
+	offset := 0
+	for b := 0; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
+func BaseRadixPass16Signed_avx512_Int32(src []int32, dst []int32, shift int) {
+	n := len(src)
+	if n == 0 {
+		return
+	}
+	mask := int32(0xFFFF)
+	var count [65536]int
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		count[digit]++
+	}
+	offset := 0
+	for b := 32768; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for b := 0; b < 32768; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
+func BaseRadixPass16Signed_avx512_Int64(src []int64, dst []int64, shift int) {
+	n := len(src)
+	if n == 0 {
+		return
+	}
+	mask := int64(0xFFFF)
+	var count [65536]int
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		count[digit]++
+	}
+	offset := 0
+	for b := 32768; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for b := 0; b < 32768; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
 func BaseRadixPassSigned_avx512_Int32(src []int32, dst []int32, shift int) {
 	n := len(src)
 	if n == 0 {

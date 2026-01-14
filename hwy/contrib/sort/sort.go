@@ -22,16 +22,17 @@ func Sort[T hwy.Lanes](data []T) {
 		return
 	}
 
-	// Dispatch to best algorithm based on type
+	// Dispatch to radix sort for all types (O(n) vs O(n log n))
 	var zero T
 	switch any(zero).(type) {
+	case float32:
+		RadixSortFloat32(any(data).([]float32))
+	case float64:
+		RadixSortFloat64(any(data).([]float64))
 	case int32:
 		RadixSort(any(data).([]int32))
 	case int64:
 		RadixSort(any(data).([]int64))
-	default:
-		// Floats use VQSort
-		VQSort(data)
 	}
 }
 
@@ -88,7 +89,7 @@ func sortImpl[T hwy.Lanes](data []T, depthLimit int) {
 	pivot := PivotSampled(data)
 
 	// Partition using vectorized 3-way partition
-	lt, gt := Partition3Way(data, pivot)
+	lt, gt := CompressPartition3Way(data, pivot)
 
 	// Recurse on partitions
 	if lt > 0 {
@@ -184,7 +185,7 @@ func nthElementImpl[T hwy.Lanes](data []T, k, depthLimit int) {
 	}
 
 	pivot := PivotSampled(data)
-	lt, gt := Partition3Way(data, pivot)
+	lt, gt := CompressPartition3Way(data, pivot)
 
 	if k < lt {
 		nthElementImpl(data[:lt], k, depthLimit-1)

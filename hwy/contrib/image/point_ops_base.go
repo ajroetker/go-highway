@@ -1,10 +1,6 @@
-//go:build ignore
-
 package image
 
 import (
-	"math"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 

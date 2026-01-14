@@ -1388,6 +1388,22 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			fullName = "AllFalseVal"
 		}
 		selExpr.X = ast.NewIdent(pkgName)
+	case "SignBit":
+		// SignBit has type-specific versions for NEON: SignBitFloat32x4, SignBitFloat64x2
+		// For AVX2/AVX512, archsimd.SignBit() is generic
+		if ctx.target.Name == "NEON" {
+			switch ctx.elemType {
+			case "float32":
+				fullName = "SignBitFloat32x4"
+			case "float64":
+				fullName = "SignBitFloat64x2"
+			default:
+				fullName = "SignBitFloat32x4"
+			}
+		} else {
+			fullName = "SignBit"
+		}
+		selExpr.X = ast.NewIdent(pkgName)
 	case "MaskNot":
 		// MaskNot(mask) -> mask.Xor(allTrue)
 		// where allTrue = one.Equal(one) (comparing 1.0 == 1.0 gives all-true mask)

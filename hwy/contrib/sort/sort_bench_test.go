@@ -428,6 +428,18 @@ func BenchmarkRadixSortInt64_10000(b *testing.B) {
 	benchmarkRadixSortInt64(b, 10000)
 }
 
+func BenchmarkRadixSortInt64_20000(b *testing.B) {
+	benchmarkRadixSortInt64(b, 20000)
+}
+
+func BenchmarkRadixSortInt64_30000(b *testing.B) {
+	benchmarkRadixSortInt64(b, 30000)
+}
+
+func BenchmarkRadixSortInt64_50000(b *testing.B) {
+	benchmarkRadixSortInt64(b, 50000)
+}
+
 func BenchmarkRadixSortInt64_100000(b *testing.B) {
 	benchmarkRadixSortInt64(b, 100000)
 }
@@ -445,6 +457,18 @@ func benchmarkRadixSortInt64(b *testing.B, n int) {
 
 func BenchmarkStdlibSortInt64_10000(b *testing.B) {
 	benchmarkStdlibSortInt64(b, 10000)
+}
+
+func BenchmarkStdlibSortInt64_20000(b *testing.B) {
+	benchmarkStdlibSortInt64(b, 20000)
+}
+
+func BenchmarkStdlibSortInt64_30000(b *testing.B) {
+	benchmarkStdlibSortInt64(b, 30000)
+}
+
+func BenchmarkStdlibSortInt64_50000(b *testing.B) {
+	benchmarkStdlibSortInt64(b, 50000)
 }
 
 func BenchmarkStdlibSortInt64_100000(b *testing.B) {

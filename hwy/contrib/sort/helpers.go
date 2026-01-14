@@ -2,6 +2,7 @@ package sort
 
 import (
 	"slices"
+	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
 )
@@ -221,11 +222,12 @@ func SortTwoVectors[T hwy.Lanes](data []T) {
 
 // radixSortThreshold is the minimum size where radix sort beats stdlib.
 // Below this, we use slices.Sort which has zero allocations.
-const radixSortThreshold = 10000
+// 16K chosen as crossover point for both int32 (8-bit radix) and int64 (16-bit radix).
+const radixSortThreshold = 16000
 
 // RadixSort sorts signed integer data using LSD radix sort.
 // This is an O(n) stable sort that's faster than comparison sorts for large arrays.
-// For arrays smaller than 10K elements, uses stdlib which is faster due to zero allocations.
+// For arrays smaller than 16K elements, uses stdlib which is faster due to zero allocations.
 func RadixSort[T hwy.SignedInts](data []T) {
 	n := len(data)
 	if n <= 1 {
@@ -251,14 +253,143 @@ func RadixSort[T hwy.SignedInts](data []T) {
 		RadixPass(data, temp, 16)
 		RadixPassSigned(temp, data, 24)
 	case int64:
-		// LSD radix sort: 8 passes of 8 bits each
-		RadixPass(data, temp, 0)
-		RadixPass(temp, data, 8)
-		RadixPass(data, temp, 16)
-		RadixPass(temp, data, 24)
-		RadixPass(data, temp, 32)
-		RadixPass(temp, data, 40)
-		RadixPass(data, temp, 48)
-		RadixPassSigned(temp, data, 56)
+		// LSD radix sort: 4 passes of 16 bits each (faster than 8 passes of 8 bits)
+		RadixPass16(data, temp, 0)
+		RadixPass16(temp, data, 16)
+		RadixPass16(data, temp, 32)
+		RadixPass16Signed(temp, data, 48)
+	}
+}
+
+// RadixSortFloat32 sorts float32 data using radix sort.
+// Floats are converted to sortable uint32, radix sorted, then converted back.
+func RadixSortFloat32(data []float32) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+
+	if n < radixSortThreshold {
+		slices.Sort(data)
+		return
+	}
+
+	// Reinterpret as uint32 for bit manipulation
+	udata := unsafe.Slice((*uint32)(unsafe.Pointer(&data[0])), n)
+
+	// Transform floats to sortable uint32
+	// Positive floats: flip sign bit (0x80000000)
+	// Negative floats: flip all bits (0xFFFFFFFF)
+	for i := 0; i < n; i++ {
+		if udata[i]&0x80000000 != 0 {
+			udata[i] ^= 0xFFFFFFFF // negative: flip all bits
+		} else {
+			udata[i] ^= 0x80000000 // positive: flip sign bit
+		}
+	}
+
+	// Radix sort (unsigned, so no signed handling in final pass)
+	temp := make([]uint32, n)
+	radixPassU32(udata, temp, 0)
+	radixPassU32(temp, udata, 8)
+	radixPassU32(udata, temp, 16)
+	radixPassU32(temp, udata, 24)
+
+	// Transform back to floats
+	for i := 0; i < n; i++ {
+		if udata[i]&0x80000000 != 0 {
+			udata[i] ^= 0x80000000 // was positive: flip sign bit back
+		} else {
+			udata[i] ^= 0xFFFFFFFF // was negative: flip all bits back
+		}
+	}
+}
+
+// RadixSortFloat64 sorts float64 data using radix sort.
+func RadixSortFloat64(data []float64) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+
+	if n < radixSortThreshold {
+		slices.Sort(data)
+		return
+	}
+
+	// Reinterpret as uint64 for bit manipulation
+	udata := unsafe.Slice((*uint64)(unsafe.Pointer(&data[0])), n)
+
+	// Transform floats to sortable uint64
+	for i := 0; i < n; i++ {
+		if udata[i]&0x8000000000000000 != 0 {
+			udata[i] ^= 0xFFFFFFFFFFFFFFFF // negative: flip all bits
+		} else {
+			udata[i] ^= 0x8000000000000000 // positive: flip sign bit
+		}
+	}
+
+	// Radix sort using 16-bit passes (4 passes for uint64)
+	temp := make([]uint64, n)
+	radixPass16U64(udata, temp, 0)
+	radixPass16U64(temp, udata, 16)
+	radixPass16U64(udata, temp, 32)
+	radixPass16U64(temp, udata, 48)
+
+	// Transform back to floats
+	for i := 0; i < n; i++ {
+		if udata[i]&0x8000000000000000 != 0 {
+			udata[i] ^= 0x8000000000000000 // was positive: flip sign bit back
+		} else {
+			udata[i] ^= 0xFFFFFFFFFFFFFFFF // was negative: flip all bits back
+		}
+	}
+}
+
+// radixPassU32 performs one pass of unsigned 8-bit radix sort for uint32.
+func radixPassU32(src, dst []uint32, shift int) {
+	n := len(src)
+	var count [256]int
+
+	for i := 0; i < n; i++ {
+		digit := (src[i] >> shift) & 0xFF
+		count[digit]++
+	}
+
+	offset := 0
+	for b := 0; b < 256; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+
+	for i := 0; i < n; i++ {
+		digit := (src[i] >> shift) & 0xFF
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
+// radixPass16U64 performs one pass of unsigned 16-bit radix sort for uint64.
+func radixPass16U64(src, dst []uint64, shift int) {
+	n := len(src)
+	var count [65536]int
+
+	for i := 0; i < n; i++ {
+		digit := (src[i] >> shift) & 0xFFFF
+		count[digit]++
+	}
+
+	offset := 0
+	for b := 0; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+
+	for i := 0; i < n; i++ {
+		digit := (src[i] >> shift) & 0xFFFF
+		dst[count[digit]] = src[i]
+		count[digit]++
 	}
 }

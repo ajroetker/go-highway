@@ -1,5 +1,3 @@
-//go:build ignore
-
 package sort
 
 import "github.com/ajroetker/go-highway/hwy"
@@ -16,7 +14,7 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 	}
 
 	lanes := hwy.MaxLanes[T]()
-	mask := T(0xFF)
+	mask := T(radixMask8_i32)
 	maskVec := hwy.Set(mask)
 
 	// Count histogram for each bucket (256 buckets for 8 bits)
@@ -26,14 +24,14 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 	i := 0
 	for i+lanes <= n {
 		v := hwy.Load(src[i:])
-		shifted := hwy.ShiftAllRight(v, shift)
+		shifted := hwy.ShiftRight(v, shift)
 		digits := hwy.And(shifted, maskVec)
 
 		// Extract digits and count
 		var buf [16]T // Max AVX-512 lanes
 		hwy.Store(digits, buf[:])
 		for j := 0; j < lanes; j++ {
-			digit := int(buf[j] & 0xFF)
+			digit := int(buf[j]) & 0xFF
 			count[digit]++
 		}
 		i += lanes
@@ -41,7 +39,7 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 
 	// Handle tail
 	for ; i < n; i++ {
-		digit := int((src[i] >> shift) & 0xFF)
+		digit := int(src[i]>>shift) & 0xFF
 		count[digit]++
 	}
 
@@ -55,7 +53,82 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 
 	// Scatter elements to destination
 	for i := 0; i < n; i++ {
-		digit := int((src[i] >> shift) & 0xFF)
+		digit := int(src[i]>>shift) & 0xFF
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
+// BaseRadixPass16 performs one pass of 16-bit radix sort.
+// shift specifies which 16-bit chunk to use (0, 16, 32, 48 for int64).
+// Uses 65536 buckets for faster sorting of int64 (4 passes vs 8 with 8-bit radix).
+func BaseRadixPass16[T hwy.SignedInts](src, dst []T, shift int) {
+	n := len(src)
+	if n == 0 {
+		return
+	}
+
+	mask := T(radixMask16_i64)
+
+	// Count histogram for each bucket (65536 buckets for 16 bits)
+	var count [65536]int
+
+	// Histogram counting
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		count[digit]++
+	}
+
+	// Compute prefix sum to get bucket offsets
+	offset := 0
+	for b := 0; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+
+	// Scatter elements to destination
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		dst[count[digit]] = src[i]
+		count[digit]++
+	}
+}
+
+// BaseRadixPass16Signed performs the final 16-bit pass for signed int64.
+// The MSB chunk contains the sign bit, so negative numbers (32768-65535) come before positive (0-32767).
+func BaseRadixPass16Signed[T hwy.SignedInts](src, dst []T, shift int) {
+	n := len(src)
+	if n == 0 {
+		return
+	}
+
+	mask := T(radixMask16_i64)
+
+	var count [65536]int
+
+	// Histogram counting
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
+		count[digit]++
+	}
+
+	// For signed MSB: buckets 32768-65535 (negative) come before 0-32767 (positive)
+	offset := 0
+	for b := 32768; b < 65536; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+	for b := 0; b < 32768; b++ {
+		c := count[b]
+		count[b] = offset
+		offset += c
+	}
+
+	// Scatter
+	for i := 0; i < n; i++ {
+		digit := int((src[i] >> shift) & mask)
 		dst[count[digit]] = src[i]
 		count[digit]++
 	}
@@ -70,7 +143,7 @@ func BaseRadixPassSigned[T hwy.SignedInts](src, dst []T, shift int) {
 	}
 
 	lanes := hwy.MaxLanes[T]()
-	mask := T(0xFF)
+	mask := T(radixMask8_i32)
 	maskVec := hwy.Set(mask)
 
 	var count [256]int
@@ -79,20 +152,20 @@ func BaseRadixPassSigned[T hwy.SignedInts](src, dst []T, shift int) {
 	i := 0
 	for i+lanes <= n {
 		v := hwy.Load(src[i:])
-		shifted := hwy.ShiftAllRight(v, shift)
+		shifted := hwy.ShiftRight(v, shift)
 		digits := hwy.And(shifted, maskVec)
 
 		var buf [16]T
 		hwy.Store(digits, buf[:])
 		for j := 0; j < lanes; j++ {
-			digit := int(buf[j] & 0xFF)
+			digit := int(buf[j]) & 0xFF
 			count[digit]++
 		}
 		i += lanes
 	}
 
 	for ; i < n; i++ {
-		digit := int((src[i] >> shift) & 0xFF)
+		digit := int(src[i]>>shift) & 0xFF
 		count[digit]++
 	}
 
@@ -111,7 +184,7 @@ func BaseRadixPassSigned[T hwy.SignedInts](src, dst []T, shift int) {
 
 	// Scatter
 	for i := 0; i < n; i++ {
-		digit := int((src[i] >> shift) & 0xFF)
+		digit := int(src[i]>>shift) & 0xFF
 		dst[count[digit]] = src[i]
 		count[digit]++
 	}

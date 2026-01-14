@@ -11,6 +11,10 @@ import (
 
 var RadixPassInt32 func(src []int32, dst []int32, shift int)
 var RadixPassInt64 func(src []int64, dst []int64, shift int)
+var RadixPass16Int32 func(src []int32, dst []int32, shift int)
+var RadixPass16Int64 func(src []int64, dst []int64, shift int)
+var RadixPass16SignedInt32 func(src []int32, dst []int32, shift int)
+var RadixPass16SignedInt64 func(src []int64, dst []int64, shift int)
 var RadixPassSignedInt32 func(src []int32, dst []int32, shift int)
 var RadixPassSignedInt64 func(src []int64, dst []int64, shift int)
 
@@ -21,6 +25,26 @@ func RadixPass[T hwy.SignedInts](src []T, dst []T, shift int) {
 		RadixPassInt32(any(src).([]int32), any(dst).([]int32), shift)
 	case []int64:
 		RadixPassInt64(any(src).([]int64), any(dst).([]int64), shift)
+	}
+}
+
+// RadixPass16 is the generic API that dispatches to the appropriate SIMD implementation.
+func RadixPass16[T hwy.SignedInts](src []T, dst []T, shift int) {
+	switch any(src).(type) {
+	case []int32:
+		RadixPass16Int32(any(src).([]int32), any(dst).([]int32), shift)
+	case []int64:
+		RadixPass16Int64(any(src).([]int64), any(dst).([]int64), shift)
+	}
+}
+
+// RadixPass16Signed is the generic API that dispatches to the appropriate SIMD implementation.
+func RadixPass16Signed[T hwy.SignedInts](src []T, dst []T, shift int) {
+	switch any(src).(type) {
+	case []int32:
+		RadixPass16SignedInt32(any(src).([]int32), any(dst).([]int32), shift)
+	case []int64:
+		RadixPass16SignedInt64(any(src).([]int64), any(dst).([]int64), shift)
 	}
 }
 
@@ -46,6 +70,10 @@ func init() {
 func initRadixNEON() {
 	RadixPassInt32 = BaseRadixPass_neon_Int32
 	RadixPassInt64 = BaseRadixPass_neon_Int64
+	RadixPass16Int32 = BaseRadixPass16_neon_Int32
+	RadixPass16Int64 = BaseRadixPass16_neon_Int64
+	RadixPass16SignedInt32 = BaseRadixPass16Signed_neon_Int32
+	RadixPass16SignedInt64 = BaseRadixPass16Signed_neon_Int64
 	RadixPassSignedInt32 = BaseRadixPassSigned_neon_Int32
 	RadixPassSignedInt64 = BaseRadixPassSigned_neon_Int64
 }
@@ -53,6 +81,10 @@ func initRadixNEON() {
 func initRadixFallback() {
 	RadixPassInt32 = BaseRadixPass_fallback_Int32
 	RadixPassInt64 = BaseRadixPass_fallback_Int64
+	RadixPass16Int32 = BaseRadixPass16_fallback_Int32
+	RadixPass16Int64 = BaseRadixPass16_fallback_Int64
+	RadixPass16SignedInt32 = BaseRadixPass16Signed_fallback_Int32
+	RadixPass16SignedInt64 = BaseRadixPass16Signed_fallback_Int64
 	RadixPassSignedInt32 = BaseRadixPassSigned_fallback_Int32
 	RadixPassSignedInt64 = BaseRadixPassSigned_fallback_Int64
 }

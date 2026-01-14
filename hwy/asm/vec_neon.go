@@ -54,6 +54,12 @@ func ZeroFloat32x4() Float32x4 {
 	return Float32x4{}
 }
 
+// SignBitFloat32x4 returns a vector with sign bit set in all lanes.
+func SignBitFloat32x4() Float32x4 {
+	signBit := math.Float32frombits(0x80000000)
+	return BroadcastFloat32x4(signBit)
+}
+
 // ===== Float32x4 accessors =====
 
 // asF32 returns the vector as a pointer to [4]float32 for element access.
@@ -292,6 +298,11 @@ func (v Float32x4) Xor(other Float32x4) Float32x4 {
 	return Float32x4(xor_f32x4([16]byte(v), [16]byte(other)))
 }
 
+// Not performs bitwise NOT (reuses Int32x4 assembly).
+func (v Float32x4) Not() Float32x4 {
+	return Float32x4(not_i32x4([16]byte(v)))
+}
+
 // Merge selects elements: mask ? v : other
 // Note: mask values should be all-ones (-1) for true, all-zeros (0) for false.
 func (v Float32x4) Merge(other Float32x4, mask Int32x4) Float32x4 {
@@ -383,6 +394,12 @@ func LoadFloat64x2Slice(s []float64) Float64x2 {
 // ZeroFloat64x2 returns a zero vector.
 func ZeroFloat64x2() Float64x2 {
 	return Float64x2{}
+}
+
+// SignBitFloat64x2 returns a vector with sign bit set in all lanes.
+func SignBitFloat64x2() Float64x2 {
+	signBit := math.Float64frombits(0x8000000000000000)
+	return BroadcastFloat64x2(signBit)
 }
 
 // ===== Float64x2 accessors =====
@@ -572,6 +589,42 @@ func (v Float64x2) Equal(other Float64x2) Int64x2 {
 		r[1] = -1
 	}
 	return *(*Int64x2)(unsafe.Pointer(&r))
+}
+
+// NotEqual returns a mask where v != other.
+func (v Float64x2) NotEqual(other Float64x2) Int64x2 {
+	f1 := (*[2]float64)(unsafe.Pointer(&v))
+	f2 := (*[2]float64)(unsafe.Pointer(&other))
+	var r [2]int64
+	if f1[0] != f2[0] {
+		r[0] = -1
+	}
+	if f1[1] != f2[1] {
+		r[1] = -1
+	}
+	return *(*Int64x2)(unsafe.Pointer(&r))
+}
+
+// And performs bitwise AND (reuses Int64x2 assembly).
+func (v Float64x2) And(other Float64x2) Float64x2 {
+	return Float64x2(and_i64x2([16]byte(v), [16]byte(other)))
+}
+
+// Or performs bitwise OR.
+func (v Float64x2) Or(other Float64x2) Float64x2 {
+	return Float64x2(or_i64x2([16]byte(v), [16]byte(other)))
+}
+
+// Xor performs bitwise XOR.
+func (v Float64x2) Xor(other Float64x2) Float64x2 {
+	return Float64x2(xor_i64x2([16]byte(v), [16]byte(other)))
+}
+
+// Not performs bitwise NOT (XOR with all ones).
+func (v Float64x2) Not() Float64x2 {
+	allOnes := [16]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	return Float64x2(xor_i64x2([16]byte(v), allOnes))
 }
 
 // Merge selects elements: mask ? v : other

@@ -255,6 +255,19 @@ func Equal[T Lanes](a, b Vec[T]) Mask[T] {
 	return Mask[T]{bits: bits}
 }
 
+// NotEqual performs element-wise inequality comparison.
+func NotEqual[T Lanes](a, b Vec[T]) Mask[T] {
+	n := len(a.data)
+	if len(b.data) < n {
+		n = len(b.data)
+	}
+	bits := make([]bool, n)
+	for i := 0; i < n; i++ {
+		bits[i] = a.data[i] != b.data[i]
+	}
+	return Mask[T]{bits: bits}
+}
+
 // LessThan performs element-wise less-than comparison.
 func LessThan[T Lanes](a, b Vec[T]) Mask[T] {
 	n := len(a.data)
@@ -303,19 +316,6 @@ func GreaterEqual[T Lanes](a, b Vec[T]) Mask[T] {
 	bits := make([]bool, n)
 	for i := 0; i < n; i++ {
 		bits[i] = a.data[i] >= b.data[i]
-	}
-	return Mask[T]{bits: bits}
-}
-
-// NotEqual performs element-wise not-equal comparison.
-func NotEqual[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
-	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
-		bits[i] = a.data[i] != b.data[i]
 	}
 	return Mask[T]{bits: bits}
 }

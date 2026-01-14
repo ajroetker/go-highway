@@ -1,5 +1,3 @@
-//go:build ignore
-
 package algo
 
 import "github.com/ajroetker/go-highway/hwy"

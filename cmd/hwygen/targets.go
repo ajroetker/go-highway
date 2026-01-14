@@ -57,6 +57,7 @@ func AVX2Target() Target {
 			"Or":     {Name: "Or", IsMethod: true},
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
+			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations (hardware instructions) =====
 			"Sqrt":   {Name: "Sqrt", IsMethod: true},   // VSQRTPS/VSQRTPD
@@ -94,10 +95,11 @@ func AVX2Target() Target {
 			"ReduceMax": {Name: "ReduceMax", IsMethod: true},
 
 			// ===== Comparisons =====
-			"Equal":       {Name: "Equal", IsMethod: true},
-			"LessThan":    {Name: "LessThan", IsMethod: true},
-			"GreaterThan": {Name: "GreaterThan", IsMethod: true},
-			"LessEqual":   {Name: "LessEqual", IsMethod: true},
+			"Equal":        {Name: "Equal", IsMethod: true},
+			"NotEqual":     {Name: "NotEqual", IsMethod: true},
+			"LessThan":     {Name: "LessThan", IsMethod: true},
+			"GreaterThan":  {Name: "GreaterThan", IsMethod: true},
+			"LessEqual":    {Name: "LessEqual", IsMethod: true},
 			"GreaterEqual": {Name: "GreaterEqual", IsMethod: true},
 
 			// ===== Conditional =====
@@ -222,6 +224,7 @@ func AVX512Target() Target {
 			"Or":     {Name: "Or", IsMethod: true},
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
+			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations =====
 			"Sqrt":   {Name: "Sqrt", IsMethod: true},
@@ -261,6 +264,7 @@ func AVX512Target() Target {
 
 			// ===== Comparisons =====
 			"Equal":        {Name: "Equal", IsMethod: true},
+			"NotEqual":     {Name: "NotEqual", IsMethod: true},
 			"LessThan":     {Name: "LessThan", IsMethod: true},
 			"GreaterThan":  {Name: "GreaterThan", IsMethod: true},
 			"LessEqual":    {Name: "LessEqual", IsMethod: true},
@@ -388,6 +392,7 @@ func FallbackTarget() Target {
 			"Or":     {Package: "hwy", Name: "Or", IsMethod: false},
 			"Xor":    {Package: "hwy", Name: "Xor", IsMethod: false},
 			"AndNot": {Package: "hwy", Name: "AndNot", IsMethod: false},
+			"Not":    {Package: "hwy", Name: "Not", IsMethod: false},
 
 			// ===== Core math operations =====
 			"Sqrt":   {Package: "hwy", Name: "Sqrt", IsMethod: false},
@@ -427,6 +432,7 @@ func FallbackTarget() Target {
 
 			// ===== Comparisons =====
 			"Equal":        {Package: "hwy", Name: "Equal", IsMethod: false},
+			"NotEqual":     {Package: "hwy", Name: "NotEqual", IsMethod: false},
 			"LessThan":     {Package: "hwy", Name: "LessThan", IsMethod: false},
 			"GreaterThan":  {Package: "hwy", Name: "GreaterThan", IsMethod: false},
 			"LessEqual":    {Package: "hwy", Name: "LessEqual", IsMethod: false},
@@ -556,6 +562,7 @@ func NEONTarget() Target {
 			"Or":     {Name: "Or", IsMethod: true},
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
+			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations =====
 			"Sqrt":   {Name: "Sqrt", IsMethod: true},
@@ -595,6 +602,7 @@ func NEONTarget() Target {
 
 			// ===== Comparisons =====
 			"Equal":        {Name: "Equal", IsMethod: true},
+			"NotEqual":     {Name: "NotEqual", IsMethod: true},
 			"LessThan":     {Name: "LessThan", IsMethod: true},
 			"GreaterThan":  {Name: "GreaterThan", IsMethod: true},
 			"LessEqual":    {Name: "LessEqual", IsMethod: true},
