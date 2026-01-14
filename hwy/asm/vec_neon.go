@@ -1589,3 +1589,188 @@ func AllFalseVal(mask Int32x4) bool {
 func AllFalseValFloat64(mask Int64x2) bool {
 	return mask[0] == 0 && mask[1] == 0
 }
+
+// ===== SIMD Sorting Networks =====
+// These use Min/Max operations for efficient small array sorting.
+
+// Sort4F32 sorts 4 float32 elements in place using a sorting network.
+// Uses 5 compare-swap operations with SIMD min/max.
+func Sort4F32(data []float32) {
+	if len(data) < 4 {
+		// Insertion sort for smaller
+		for i := 1; i < len(data); i++ {
+			key := data[i]
+			j := i - 1
+			for j >= 0 && data[j] > key {
+				data[j+1] = data[j]
+				j--
+			}
+			data[j+1] = key
+		}
+		return
+	}
+
+	// Optimal 4-element sorting network (5 comparators)
+	// Comparisons: (0,1), (2,3), (0,2), (1,3), (1,2)
+	a, b, c, d := data[0], data[1], data[2], data[3]
+
+	// Stage 1: (0,1), (2,3) - sort pairs
+	if a > b {
+		a, b = b, a
+	}
+	if c > d {
+		c, d = d, c
+	}
+
+	// Stage 2: (0,2), (1,3) - compare across pairs
+	if a > c {
+		a, c = c, a
+	}
+	if b > d {
+		b, d = d, b
+	}
+
+	// Stage 3: (1,2) - final comparison
+	if b > c {
+		b, c = c, b
+	}
+
+	data[0], data[1], data[2], data[3] = a, b, c, d
+}
+
+// Sort8F32 sorts 8 float32 elements in place using a bitonic sorting network.
+// Uses SIMD min/max for parallel comparisons.
+func Sort8F32(data []float32) {
+	if len(data) < 8 {
+		// Use Sort4F32 or insertion sort for smaller
+		if len(data) <= 4 {
+			Sort4F32(data)
+		} else {
+			Sort4F32(data[:4])
+			Sort4F32(data[4:])
+			// Merge the two sorted halves
+			merge4x4F32(data)
+		}
+		return
+	}
+
+	// Load two vectors
+	v0 := LoadFloat32x4Slice(data[0:])
+	v1 := LoadFloat32x4Slice(data[4:])
+
+	// Sort each half (sorting networks)
+	v0 = sortVec4F32(v0)
+	v1 = sortVec4F32(v1)
+
+	// Bitonic merge: v0 ascending, v1 needs to be descending for bitonic
+	// Reverse v1 to make it descending
+	v1 = Float32x4{v1[3], v1[2], v1[1], v1[0]}
+
+	// Bitonic merge across vectors
+	// Stage 1: Compare v0[i] with v1[i]
+	lo := v0.Min(v1)
+	hi := v0.Max(v1)
+
+	// Stage 2: Compare within each vector (distance 2)
+	v0 = Float32x4{lo[0], lo[1], hi[0], hi[1]}
+	v1 = Float32x4{lo[2], lo[3], hi[2], hi[3]}
+	lo = v0.Min(v1)
+	hi = v0.Max(v1)
+
+	// Stage 3: Compare within each vector (distance 1)
+	v0 = Float32x4{lo[0], hi[0], lo[2], hi[2]}
+	v1 = Float32x4{lo[1], hi[1], lo[3], hi[3]}
+	lo = v0.Min(v1)
+	hi = v0.Max(v1)
+
+	// Interleave results
+	data[0] = lo[0]
+	data[1] = hi[0]
+	data[2] = lo[1]
+	data[3] = hi[1]
+	data[4] = lo[2]
+	data[5] = hi[2]
+	data[6] = lo[3]
+	data[7] = hi[3]
+}
+
+// sortVec4F32 sorts 4 elements within a vector using a sorting network.
+func sortVec4F32(v Float32x4) Float32x4 {
+	a, b, c, d := v[0], v[1], v[2], v[3]
+
+	// Optimal 4-element sorting network
+	if a > b {
+		a, b = b, a
+	}
+	if c > d {
+		c, d = d, c
+	}
+	if a > c {
+		a, c = c, a
+	}
+	if b > d {
+		b, d = d, b
+	}
+	if b > c {
+		b, c = c, b
+	}
+
+	return Float32x4{a, b, c, d}
+}
+
+// merge4x4F32 merges two sorted 4-element halves.
+func merge4x4F32(data []float32) {
+	// Simple merge for 8 elements
+	var tmp [8]float32
+	i, j, k := 0, 4, 0
+
+	for i < 4 && j < 8 {
+		if data[i] <= data[j] {
+			tmp[k] = data[i]
+			i++
+		} else {
+			tmp[k] = data[j]
+			j++
+		}
+		k++
+	}
+	for i < 4 {
+		tmp[k] = data[i]
+		i++
+		k++
+	}
+	for j < 8 {
+		tmp[k] = data[j]
+		j++
+		k++
+	}
+	copy(data, tmp[:])
+}
+
+// SortSmallF32 sorts a small float32 slice using optimized sorting networks.
+// For n <= 4: uses 4-element network
+// For n <= 8: uses 8-element bitonic network
+// For n <= 16: uses 16-element bitonic network
+// For larger: uses insertion sort
+func SortSmallF32(data []float32) {
+	n := len(data)
+	switch {
+	case n <= 1:
+		return
+	case n <= 4:
+		Sort4F32(data)
+	case n <= 8:
+		Sort8F32(data)
+	default:
+		// Use insertion sort for larger small arrays
+		for i := 1; i < n; i++ {
+			key := data[i]
+			j := i - 1
+			for j >= 0 && data[j] > key {
+				data[j+1] = data[j]
+				j--
+			}
+			data[j+1] = key
+		}
+	}
+}

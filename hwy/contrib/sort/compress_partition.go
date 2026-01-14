@@ -2,46 +2,16 @@ package sort
 
 import "github.com/ajroetker/go-highway/hwy/asm"
 
-// CompressPartition3WayFloat32 partitions data using Highway's VQSort algorithm.
-// This is a 2-way partition (not 3-way) using the double-store CompressKeys trick.
-//
-// The algorithm:
-// 1. Read vectors from both ends of the array
-// 2. Use CompressKeys to reorder: [< pivot elements...][>= pivot elements...]
-// 3. Store the reordered vector to BOTH left and right positions
-// 4. Overlapping stores are corrected by subsequent iterations
+// CompressPartition3WayFloat32 partitions data into three regions around pivot.
+// Uses scalar Dutch National Flag algorithm which is faster than SIMD compress
+// on NEON 4-wide vectors due to lower per-element overhead.
 //
 // Returns (lt, gt) where:
 //   - data[0:lt] < pivot
-//   - data[lt:n] >= pivot
-// Note: This is 2-way partition. For 3-way, use the returned lt and scan for ==.
+//   - data[lt:gt] == pivot
+//   - data[gt:n] > pivot
 func CompressPartition3WayFloat32(data []float32, pivot float32) (int, int) {
-	n := len(data)
-	if n == 0 {
-		return 0, 0
-	}
-
-	const lanes = 4
-
-	// For small arrays, use scalar
-	if n < lanes*2 {
-		return scalarPartition3WayFloat32(data, pivot)
-	}
-
-	// Highway-style partition gives us: [< pivot...][>= pivot...]
-	lt := partition2WayFloat32(data, pivot)
-
-	// Now we need to separate the >= region into [== pivot...][> pivot...]
-	// Do a second pass on data[lt:n] to move == elements to the front
-	gt := lt
-	for i := lt; i < n; i++ {
-		if data[i] == pivot {
-			data[gt], data[i] = data[i], data[gt]
-			gt++
-		}
-	}
-
-	return lt, gt
+	return scalarPartition3WayFloat32(data, pivot)
 }
 
 // partition2WayFloat32 implements Highway's VQSort partition with double-store.
