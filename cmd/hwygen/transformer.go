@@ -1326,17 +1326,20 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	if ctx.target.Name == "Fallback" {
 		// For fallback, use the appropriate package
 		if opInfo.SubPackage != "" {
-			// Contrib functions stay in their subpackage (e.g., math.Exp stays math.Exp)
+			// Contrib functions use their subpackage with target suffix
+			// e.g., contrib.Sigmoid -> math.BaseSigmoidVec_fallback
 			selExpr.X = ast.NewIdent(opInfo.SubPackage)
+			fullName := fmt.Sprintf("%s_%s%s", opInfo.Name, strings.ToLower(ctx.target.Name), getHwygenTypeSuffix(ctx.elemType))
+			selExpr.Sel.Name = fullName
 		} else {
 			// Core ops use hwy package
 			selExpr.X = ast.NewIdent("hwy")
-		}
-		// Use opInfo.Name if it differs from the source funcName (e.g., ShiftAllRight -> ShiftRight)
-		if opInfo.Name != "" {
-			selExpr.Sel.Name = opInfo.Name
-		} else {
-			selExpr.Sel.Name = funcName
+			// Use opInfo.Name if it differs from the source funcName (e.g., ShiftAllRight -> ShiftRight)
+			if opInfo.Name != "" {
+				selExpr.Sel.Name = opInfo.Name
+			} else {
+				selExpr.Sel.Name = funcName
+			}
 		}
 		return
 	}
