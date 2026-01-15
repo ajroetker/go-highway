@@ -7,28 +7,59 @@ import (
 )
 
 // This file provides AVX2 SIMD implementations of compress and expand operations.
-// These work directly with archsimd vector types.
+// These work directly with archsimd vector and mask types.
 // Since archsimd doesn't have vcompressps, we use store/scalar/load pattern.
 //
-// Note: archsimd doesn't have explicit mask types. Masks are represented as
-// integer vectors (Int32x8, Int64x4) where each lane is all-1s (true) or
-// all-0s (false). Comparison operations like Equal() return these masks.
+// Note: archsimd Mask32x8.ToBits() requires AVX-512 (KMOV instructions).
+// For AVX2-only machines, we use helper functions that extract mask bits
+// by converting to Int32x8 and checking sign bits.
+// mask32x8ToBits converts a Mask32x8 to a bitmask without using AVX-512.
+// This works on AVX2-only machines by converting to Int32x8 (all-ones for true,
+// all-zeros for false) and extracting the sign bits.
+func mask32x8ToBits(mask archsimd.Mask32x8) uint8 {
+	// Convert mask to int32x8 (true lanes = -1 = 0xFFFFFFFF, false = 0)
+	v := mask.ToInt32x8()
+	var data [8]int32
+	v.StoreSlice(data[:])
 
-// Compress_AVX2_F32x8 compresses elements where mask lane is non-zero to the front.
-// The mask should be the result of a comparison operation (e.g., Equal, Less).
+	var bits uint8
+	for i := 0; i < 8; i++ {
+		if data[i] < 0 { // Sign bit set means all-ones (true)
+			bits |= 1 << i
+		}
+	}
+	return bits
+}
+
+// mask64x4ToBits converts a Mask64x4 to a bitmask without using AVX-512.
+func mask64x4ToBits(mask archsimd.Mask64x4) uint8 {
+	v := mask.ToInt64x4()
+	var data [4]int64
+	v.StoreSlice(data[:])
+
+	var bits uint8
+	for i := 0; i < 4; i++ {
+		if data[i] < 0 {
+			bits |= 1 << i
+		}
+	}
+	return bits
+}
+
+
+// Compress_AVX2_F32x8 compresses elements where mask is true to the front.
+// The mask should be the result of a comparison operation (e.g., Less, Equal).
 // Returns compressed vector and count of valid elements.
-func Compress_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Int32x8) (archsimd.Float32x8, int) {
+func Compress_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8) (archsimd.Float32x8, int) {
 	var data [8]float32
 	v.StoreSlice(data[:])
 
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
+	bits := mask32x8ToBits(mask)
 	var result [8]float32
 	count := 0
 
 	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			result[count] = data[i]
 			count++
 		}
@@ -37,20 +68,18 @@ func Compress_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Int32x8) (archsimd.
 	return archsimd.LoadFloat32x8Slice(result[:]), count
 }
 
-// Compress_AVX2_F64x4 compresses elements where mask lane is non-zero to the front.
+// Compress_AVX2_F64x4 compresses elements where mask is true to the front.
 // Returns compressed vector and count of valid elements.
-func Compress_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Int64x4) (archsimd.Float64x4, int) {
+func Compress_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4) (archsimd.Float64x4, int) {
 	var data [4]float64
 	v.StoreSlice(data[:])
 
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
+	bits := mask64x4ToBits(mask)
 	var result [4]float64
 	count := 0
 
 	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			result[count] = data[i]
 			count++
 		}
@@ -59,41 +88,36 @@ func Compress_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Int64x4) (archsimd.
 	return archsimd.LoadFloat64x4Slice(result[:]), count
 }
 
-// Expand_AVX2_F32x8 expands elements into positions where mask lane is non-zero.
-func Expand_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Int32x8) archsimd.Float32x8 {
+// Expand_AVX2_F32x8 expands elements into positions where mask is true.
+func Expand_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8) archsimd.Float32x8 {
 	var data [8]float32
 	v.StoreSlice(data[:])
 
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
+	bits := mask32x8ToBits(mask)
 	var result [8]float32
 	srcIdx := 0
 
 	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			result[i] = data[srcIdx]
 			srcIdx++
 		}
-		// else: leave as zero
 	}
 
 	return archsimd.LoadFloat32x8Slice(result[:])
 }
 
-// Expand_AVX2_F64x4 expands elements into positions where mask lane is non-zero.
-func Expand_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Int64x4) archsimd.Float64x4 {
+// Expand_AVX2_F64x4 expands elements into positions where mask is true.
+func Expand_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4) archsimd.Float64x4 {
 	var data [4]float64
 	v.StoreSlice(data[:])
 
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
+	bits := mask64x4ToBits(mask)
 	var result [4]float64
 	srcIdx := 0
 
 	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			result[i] = data[srcIdx]
 			srcIdx++
 		}
@@ -104,16 +128,14 @@ func Expand_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Int64x4) archsimd.Flo
 
 // CompressStore_AVX2_F32x8 compresses and stores directly to slice.
 // Returns number of elements stored.
-func CompressStore_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Int32x8, dst []float32) int {
+func CompressStore_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8, dst []float32) int {
 	var data [8]float32
 	v.StoreSlice(data[:])
 
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
+	bits := mask32x8ToBits(mask)
 	count := 0
 	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			if count < len(dst) {
 				dst[count] = data[i]
 			}
@@ -125,16 +147,14 @@ func CompressStore_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Int32x8, dst [
 
 // CompressStore_AVX2_F64x4 compresses and stores directly to slice.
 // Returns number of elements stored.
-func CompressStore_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Int64x4, dst []float64) int {
+func CompressStore_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4, dst []float64) int {
 	var data [4]float64
 	v.StoreSlice(data[:])
 
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
+	bits := mask64x4ToBits(mask)
 	count := 0
 	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			if count < len(dst) {
 				dst[count] = data[i]
 			}
@@ -144,132 +164,88 @@ func CompressStore_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Int64x4, dst [
 	return count
 }
 
-// CountTrue_AVX2_F32x8 counts true (non-zero) lanes in mask.
-func CountTrue_AVX2_F32x8(mask archsimd.Int32x8) int {
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
+// CountTrue_AVX2_F32x8 counts true lanes in mask.
+func CountTrue_AVX2_F32x8(mask archsimd.Mask32x8) int {
+	bits := mask32x8ToBits(mask)
 	count := 0
 	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			count++
 		}
 	}
 	return count
 }
 
-// CountTrue_AVX2_F64x4 counts true (non-zero) lanes in mask.
-func CountTrue_AVX2_F64x4(mask archsimd.Int64x4) int {
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
+// CountTrue_AVX2_F64x4 counts true lanes in mask.
+func CountTrue_AVX2_F64x4(mask archsimd.Mask64x4) int {
+	bits := mask64x4ToBits(mask)
 	count := 0
 	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			count++
 		}
 	}
 	return count
 }
 
-// AllTrue_AVX2_F32x8 returns true if all lanes are true (non-zero).
-func AllTrue_AVX2_F32x8(mask archsimd.Int32x8) bool {
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
+// AllTrue_AVX2_F32x8 returns true if all lanes are true.
+func AllTrue_AVX2_F32x8(mask archsimd.Mask32x8) bool {
+	return mask32x8ToBits(mask) == 0xFF
+}
 
+// AllTrue_AVX2_F64x4 returns true if all lanes are true.
+func AllTrue_AVX2_F64x4(mask archsimd.Mask64x4) bool {
+	return mask64x4ToBits(mask) == 0xF
+}
+
+// AllFalse_AVX2_F32x8 returns true if all lanes are false.
+func AllFalse_AVX2_F32x8(mask archsimd.Mask32x8) bool {
+	return mask32x8ToBits(mask) == 0
+}
+
+// AllFalse_AVX2_F64x4 returns true if all lanes are false.
+func AllFalse_AVX2_F64x4(mask archsimd.Mask64x4) bool {
+	return mask64x4ToBits(mask) == 0
+}
+
+// FindFirstTrue_AVX2_F32x8 returns index of first true lane, or -1 if none.
+func FindFirstTrue_AVX2_F32x8(mask archsimd.Mask32x8) int {
+	bits := mask32x8ToBits(mask)
 	for i := 0; i < 8; i++ {
-		if maskData[i] == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// AllTrue_AVX2_F64x4 returns true if all lanes are true (non-zero).
-func AllTrue_AVX2_F64x4(mask archsimd.Int64x4) bool {
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
-	for i := 0; i < 4; i++ {
-		if maskData[i] == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// AllFalse_AVX2_F32x8 returns true if all lanes are false (zero).
-func AllFalse_AVX2_F32x8(mask archsimd.Int32x8) bool {
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
-	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// AllFalse_AVX2_F64x4 returns true if all lanes are false (zero).
-func AllFalse_AVX2_F64x4(mask archsimd.Int64x4) bool {
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
-	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// FindFirstTrue_AVX2_F32x8 returns index of first true (non-zero) lane, or -1 if none.
-func FindFirstTrue_AVX2_F32x8(mask archsimd.Int32x8) int {
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
-	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			return i
 		}
 	}
 	return -1
 }
 
-// FindFirstTrue_AVX2_F64x4 returns index of first true (non-zero) lane, or -1 if none.
-func FindFirstTrue_AVX2_F64x4(mask archsimd.Int64x4) int {
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
+// FindFirstTrue_AVX2_F64x4 returns index of first true lane, or -1 if none.
+func FindFirstTrue_AVX2_F64x4(mask archsimd.Mask64x4) int {
+	bits := mask64x4ToBits(mask)
 	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			return i
 		}
 	}
 	return -1
 }
 
-// FindLastTrue_AVX2_F32x8 returns index of last true (non-zero) lane, or -1 if none.
-func FindLastTrue_AVX2_F32x8(mask archsimd.Int32x8) int {
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
+// FindLastTrue_AVX2_F32x8 returns index of last true lane, or -1 if none.
+func FindLastTrue_AVX2_F32x8(mask archsimd.Mask32x8) int {
+	bits := mask32x8ToBits(mask)
 	for i := 7; i >= 0; i-- {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			return i
 		}
 	}
 	return -1
 }
 
-// FindLastTrue_AVX2_F64x4 returns index of last true (non-zero) lane, or -1 if none.
-func FindLastTrue_AVX2_F64x4(mask archsimd.Int64x4) int {
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
-
+// FindLastTrue_AVX2_F64x4 returns index of last true lane, or -1 if none.
+func FindLastTrue_AVX2_F64x4(mask archsimd.Mask64x4) int {
+	bits := mask64x4ToBits(mask)
 	for i := 3; i >= 0; i-- {
-		if maskData[i] != 0 {
+		if (bits & (1 << i)) != 0 {
 			return i
 		}
 	}
@@ -277,95 +253,412 @@ func FindLastTrue_AVX2_F64x4(mask archsimd.Int64x4) int {
 }
 
 // FirstN_AVX2_F32x8 creates a mask with the first n lanes set to true.
-func FirstN_AVX2_F32x8(n int) archsimd.Int32x8 {
-	var vals [8]int32
-	for i := 0; i < 8 && i < n; i++ {
-		vals[i] = -1 // All 1s for true
-	}
-	return archsimd.LoadInt32x8Slice(vals[:])
+func FirstN_AVX2_F32x8(n int) archsimd.Mask32x8 {
+	indices := archsimd.LoadInt32x8Slice([]int32{0, 1, 2, 3, 4, 5, 6, 7})
+	threshold := archsimd.BroadcastInt32x8(int32(n))
+	return indices.Less(threshold)
 }
 
 // FirstN_AVX2_F64x4 creates a mask with the first n lanes set to true.
-func FirstN_AVX2_F64x4(n int) archsimd.Int64x4 {
-	var vals [4]int64
-	for i := 0; i < 4 && i < n; i++ {
-		vals[i] = -1 // All 1s for true
-	}
-	return archsimd.LoadInt64x4Slice(vals[:])
+func FirstN_AVX2_F64x4(n int) archsimd.Mask64x4 {
+	indices := archsimd.LoadInt64x4Slice([]int64{0, 1, 2, 3})
+	threshold := archsimd.BroadcastInt64x4(int64(n))
+	return indices.Less(threshold)
 }
 
 // LastN_AVX2_F32x8 creates a mask with the last n lanes set to true.
-func LastN_AVX2_F32x8(n int) archsimd.Int32x8 {
-	var vals [8]int32
-	start := 8 - n
-	if start < 0 {
-		start = 0
+// For n lanes set, we compute: bits = ((1 << n) - 1) << (8 - n)
+// e.g., LastN(3) = 0b11100000 = 0xE0
+func LastN_AVX2_F32x8(n int) archsimd.Mask32x8 {
+	if n <= 0 {
+		return archsimd.Mask32x8FromBits(0)
 	}
-	for i := start; i < 8; i++ {
-		vals[i] = -1 // All 1s for true
+	if n >= 8 {
+		return archsimd.Mask32x8FromBits(0xFF)
 	}
-	return archsimd.LoadInt32x8Slice(vals[:])
+	bits := uint8(((1 << n) - 1) << (8 - n))
+	return archsimd.Mask32x8FromBits(bits)
 }
 
 // LastN_AVX2_F64x4 creates a mask with the last n lanes set to true.
-func LastN_AVX2_F64x4(n int) archsimd.Int64x4 {
-	var vals [4]int64
-	start := 4 - n
-	if start < 0 {
-		start = 0
+func LastN_AVX2_F64x4(n int) archsimd.Mask64x4 {
+	if n <= 0 {
+		return archsimd.Mask64x4FromBits(0)
 	}
-	for i := start; i < 4; i++ {
-		vals[i] = -1 // All 1s for true
+	if n >= 4 {
+		return archsimd.Mask64x4FromBits(0xF)
 	}
-	return archsimd.LoadInt64x4Slice(vals[:])
+	bits := uint8(((1 << n) - 1) << (4 - n))
+	return archsimd.Mask64x4FromBits(bits)
 }
 
 // MaskFromBits_AVX2_F32x8 creates a mask from a bitmask integer.
-func MaskFromBits_AVX2_F32x8(bits uint64) archsimd.Int32x8 {
+func MaskFromBits_AVX2_F32x8(bits uint64) archsimd.Mask32x8 {
 	var vals [8]int32
 	for i := 0; i < 8; i++ {
 		if (bits & (1 << i)) != 0 {
-			vals[i] = -1 // All 1s for true
+			vals[i] = 1
 		}
 	}
-	return archsimd.LoadInt32x8Slice(vals[:])
+	vec := archsimd.LoadInt32x8Slice(vals[:])
+	zero := archsimd.BroadcastInt32x8(0)
+	return vec.Greater(zero)
 }
 
 // MaskFromBits_AVX2_F64x4 creates a mask from a bitmask integer.
-func MaskFromBits_AVX2_F64x4(bits uint64) archsimd.Int64x4 {
+func MaskFromBits_AVX2_F64x4(bits uint64) archsimd.Mask64x4 {
 	var vals [4]int64
 	for i := 0; i < 4; i++ {
 		if (bits & (1 << i)) != 0 {
-			vals[i] = -1 // All 1s for true
+			vals[i] = 1
 		}
 	}
-	return archsimd.LoadInt64x4Slice(vals[:])
+	vec := archsimd.LoadInt64x4Slice(vals[:])
+	zero := archsimd.BroadcastInt64x4(0)
+	return vec.Greater(zero)
 }
 
 // BitsFromMask_AVX2_F32x8 converts mask to bitmask integer.
-func BitsFromMask_AVX2_F32x8(mask archsimd.Int32x8) uint64 {
-	var maskData [8]int32
-	mask.StoreSlice(maskData[:])
-
-	var result uint64
-	for i := 0; i < 8; i++ {
-		if maskData[i] != 0 {
-			result |= 1 << i
-		}
-	}
-	return result
+func BitsFromMask_AVX2_F32x8(mask archsimd.Mask32x8) uint64 {
+	return uint64(mask32x8ToBits(mask))
 }
 
 // BitsFromMask_AVX2_F64x4 converts mask to bitmask integer.
-func BitsFromMask_AVX2_F64x4(mask archsimd.Int64x4) uint64 {
-	var maskData [4]int64
-	mask.StoreSlice(maskData[:])
+func BitsFromMask_AVX2_F64x4(mask archsimd.Mask64x4) uint64 {
+	return uint64(mask64x4ToBits(mask))
+}
 
-	var result uint64
-	for i := 0; i < 4; i++ {
-		if maskData[i] != 0 {
-			result |= 1 << i
+// ============================================================================
+// Integer type variants (I32x8, I64x4)
+// ============================================================================
+
+// Compress_AVX2_I32x8 compresses elements where mask is true to the front.
+func Compress_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8) (archsimd.Int32x8, int) {
+	var data [8]int32
+	v.StoreSlice(data[:])
+
+	bits := mask32x8ToBits(mask)
+	var result [8]int32
+	count := 0
+
+	for i := 0; i < 8; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[count] = data[i]
+			count++
 		}
 	}
-	return result
+
+	return archsimd.LoadInt32x8Slice(result[:]), count
+}
+
+// Compress_AVX2_I64x4 compresses elements where mask is true to the front.
+func Compress_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4) (archsimd.Int64x4, int) {
+	var data [4]int64
+	v.StoreSlice(data[:])
+
+	bits := mask64x4ToBits(mask)
+	var result [4]int64
+	count := 0
+
+	for i := 0; i < 4; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[count] = data[i]
+			count++
+		}
+	}
+
+	return archsimd.LoadInt64x4Slice(result[:]), count
+}
+
+// Expand_AVX2_I32x8 expands elements into positions where mask is true.
+func Expand_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8) archsimd.Int32x8 {
+	var data [8]int32
+	v.StoreSlice(data[:])
+
+	bits := mask32x8ToBits(mask)
+	var result [8]int32
+	srcIdx := 0
+
+	for i := 0; i < 8; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[i] = data[srcIdx]
+			srcIdx++
+		}
+	}
+
+	return archsimd.LoadInt32x8Slice(result[:])
+}
+
+// Expand_AVX2_I64x4 expands elements into positions where mask is true.
+func Expand_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4) archsimd.Int64x4 {
+	var data [4]int64
+	v.StoreSlice(data[:])
+
+	bits := mask64x4ToBits(mask)
+	var result [4]int64
+	srcIdx := 0
+
+	for i := 0; i < 4; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[i] = data[srcIdx]
+			srcIdx++
+		}
+	}
+
+	return archsimd.LoadInt64x4Slice(result[:])
+}
+
+// CompressStore_AVX2_I32x8 compresses and stores directly to slice.
+func CompressStore_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8, dst []int32) int {
+	var data [8]int32
+	v.StoreSlice(data[:])
+
+	bits := mask32x8ToBits(mask)
+	count := 0
+	for i := 0; i < 8; i++ {
+		if (bits & (1 << i)) != 0 {
+			if count < len(dst) {
+				dst[count] = data[i]
+			}
+			count++
+		}
+	}
+	return count
+}
+
+// CompressStore_AVX2_I64x4 compresses and stores directly to slice.
+func CompressStore_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4, dst []int64) int {
+	var data [4]int64
+	v.StoreSlice(data[:])
+
+	bits := mask64x4ToBits(mask)
+	count := 0
+	for i := 0; i < 4; i++ {
+		if (bits & (1 << i)) != 0 {
+			if count < len(dst) {
+				dst[count] = data[i]
+			}
+			count++
+		}
+	}
+	return count
+}
+
+// CountTrue_AVX2_I32x8 counts true lanes in mask.
+func CountTrue_AVX2_I32x8(mask archsimd.Mask32x8) int {
+	return CountTrue_AVX2_F32x8(mask)
+}
+
+// CountTrue_AVX2_I64x4 counts true lanes in mask.
+func CountTrue_AVX2_I64x4(mask archsimd.Mask64x4) int {
+	return CountTrue_AVX2_F64x4(mask)
+}
+
+// FirstN_AVX2_I32x8 creates a mask with the first n lanes set to true.
+func FirstN_AVX2_I32x8(n int) archsimd.Mask32x8 {
+	return FirstN_AVX2_F32x8(n)
+}
+
+// FirstN_AVX2_I64x4 creates a mask with the first n lanes set to true.
+func FirstN_AVX2_I64x4(n int) archsimd.Mask64x4 {
+	return FirstN_AVX2_F64x4(n)
+}
+
+// LastN_AVX2_I32x8 creates a mask with the last n lanes set to true.
+func LastN_AVX2_I32x8(n int) archsimd.Mask32x8 {
+	return LastN_AVX2_F32x8(n)
+}
+
+// LastN_AVX2_I64x4 creates a mask with the last n lanes set to true.
+func LastN_AVX2_I64x4(n int) archsimd.Mask64x4 {
+	return LastN_AVX2_F64x4(n)
+}
+
+// AllTrue_AVX2_I32x8 returns true if all lanes are true.
+func AllTrue_AVX2_I32x8(mask archsimd.Mask32x8) bool {
+	return AllTrue_AVX2_F32x8(mask)
+}
+
+// AllTrue_AVX2_I64x4 returns true if all lanes are true.
+func AllTrue_AVX2_I64x4(mask archsimd.Mask64x4) bool {
+	return AllTrue_AVX2_F64x4(mask)
+}
+
+// AllFalse_AVX2_I32x8 returns true if all lanes are false.
+func AllFalse_AVX2_I32x8(mask archsimd.Mask32x8) bool {
+	return AllFalse_AVX2_F32x8(mask)
+}
+
+// AllFalse_AVX2_I64x4 returns true if all lanes are false.
+func AllFalse_AVX2_I64x4(mask archsimd.Mask64x4) bool {
+	return AllFalse_AVX2_F64x4(mask)
+}
+
+// FindFirstTrue_AVX2_I32x8 returns index of first true lane, or -1 if none.
+func FindFirstTrue_AVX2_I32x8(mask archsimd.Mask32x8) int {
+	return FindFirstTrue_AVX2_F32x8(mask)
+}
+
+// FindFirstTrue_AVX2_I64x4 returns index of first true lane, or -1 if none.
+func FindFirstTrue_AVX2_I64x4(mask archsimd.Mask64x4) int {
+	return FindFirstTrue_AVX2_F64x4(mask)
+}
+
+// FindLastTrue_AVX2_I32x8 returns index of last true lane, or -1 if none.
+func FindLastTrue_AVX2_I32x8(mask archsimd.Mask32x8) int {
+	return FindLastTrue_AVX2_F32x8(mask)
+}
+
+// FindLastTrue_AVX2_I64x4 returns index of last true lane, or -1 if none.
+func FindLastTrue_AVX2_I64x4(mask archsimd.Mask64x4) int {
+	return FindLastTrue_AVX2_F64x4(mask)
+}
+
+// ============================================================================
+// IfThenElse wrappers
+// ============================================================================
+
+// IfThenElse_AVX2_F32x8 selects elements from a where mask is true, else from b.
+func IfThenElse_AVX2_F32x8(mask archsimd.Mask32x8, a, b archsimd.Float32x8) archsimd.Float32x8 {
+	var aBuf, bBuf [8]float32
+	a.StoreSlice(aBuf[:])
+	b.StoreSlice(bBuf[:])
+
+	bits := mask32x8ToBits(mask)
+	var result [8]float32
+	for i := 0; i < 8; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[i] = aBuf[i]
+		} else {
+			result[i] = bBuf[i]
+		}
+	}
+	return archsimd.LoadFloat32x8Slice(result[:])
+}
+
+// IfThenElse_AVX2_F64x4 selects elements from a where mask is true, else from b.
+func IfThenElse_AVX2_F64x4(mask archsimd.Mask64x4, a, b archsimd.Float64x4) archsimd.Float64x4 {
+	var aBuf, bBuf [4]float64
+	a.StoreSlice(aBuf[:])
+	b.StoreSlice(bBuf[:])
+
+	bits := mask64x4ToBits(mask)
+	var result [4]float64
+	for i := 0; i < 4; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[i] = aBuf[i]
+		} else {
+			result[i] = bBuf[i]
+		}
+	}
+	return archsimd.LoadFloat64x4Slice(result[:])
+}
+
+// IfThenElse_AVX2_I32x8 selects elements from a where mask is true, else from b.
+func IfThenElse_AVX2_I32x8(mask archsimd.Mask32x8, a, b archsimd.Int32x8) archsimd.Int32x8 {
+	var aBuf, bBuf [8]int32
+	a.StoreSlice(aBuf[:])
+	b.StoreSlice(bBuf[:])
+
+	bits := mask32x8ToBits(mask)
+	var result [8]int32
+	for i := 0; i < 8; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[i] = aBuf[i]
+		} else {
+			result[i] = bBuf[i]
+		}
+	}
+	return archsimd.LoadInt32x8Slice(result[:])
+}
+
+// IfThenElse_AVX2_I64x4 selects elements from a where mask is true, else from b.
+func IfThenElse_AVX2_I64x4(mask archsimd.Mask64x4, a, b archsimd.Int64x4) archsimd.Int64x4 {
+	var aBuf, bBuf [4]int64
+	a.StoreSlice(aBuf[:])
+	b.StoreSlice(bBuf[:])
+
+	bits := mask64x4ToBits(mask)
+	var result [4]int64
+	for i := 0; i < 4; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[i] = aBuf[i]
+		} else {
+			result[i] = bBuf[i]
+		}
+	}
+	return archsimd.LoadInt64x4Slice(result[:])
+}
+
+// MaskAnd_AVX2_F32x8 combines two masks with AND operation.
+func MaskAnd_AVX2_F32x8(a, b archsimd.Mask32x8) archsimd.Mask32x8 {
+	return a.And(b)
+}
+
+// MaskAnd_AVX2_F64x4 combines two masks with AND operation.
+func MaskAnd_AVX2_F64x4(a, b archsimd.Mask64x4) archsimd.Mask64x4 {
+	return a.And(b)
+}
+
+// MaskOr_AVX2_F32x8 combines two masks with OR operation.
+func MaskOr_AVX2_F32x8(a, b archsimd.Mask32x8) archsimd.Mask32x8 {
+	return a.Or(b)
+}
+
+// MaskOr_AVX2_F64x4 combines two masks with OR operation.
+func MaskOr_AVX2_F64x4(a, b archsimd.Mask64x4) archsimd.Mask64x4 {
+	return a.Or(b)
+}
+
+// ============================================================================
+// Bitwise operations for float types
+// archsimd doesn't have Xor/Not on float types, so we cast to int and back
+// ============================================================================
+
+// SignBit_AVX2_F32x8 returns a vector with the sign bit set in all lanes.
+func SignBit_AVX2_F32x8() archsimd.Float32x8 {
+	// 0x80000000 is the sign bit for float32
+	signBit := archsimd.BroadcastInt32x8(int32(-0x80000000))
+	return signBit.AsFloat32x8()
+}
+
+// SignBit_AVX2_F64x4 returns a vector with the sign bit set in all lanes.
+func SignBit_AVX2_F64x4() archsimd.Float64x4 {
+	// 0x8000000000000000 is the sign bit for float64
+	signBit := archsimd.BroadcastInt64x4(int64(-0x8000000000000000))
+	return signBit.AsFloat64x4()
+}
+
+// Not_AVX2_F32x8 returns bitwise NOT of the vector.
+func Not_AVX2_F32x8(v archsimd.Float32x8) archsimd.Float32x8 {
+	// XOR with all 1s
+	allOnes := archsimd.BroadcastInt32x8(-1)
+	return v.AsInt32x8().Xor(allOnes).AsFloat32x8()
+}
+
+// Not_AVX2_F64x4 returns bitwise NOT of the vector.
+func Not_AVX2_F64x4(v archsimd.Float64x4) archsimd.Float64x4 {
+	// XOR with all 1s
+	allOnes := archsimd.BroadcastInt64x4(-1)
+	return v.AsInt64x4().Xor(allOnes).AsFloat64x4()
+}
+
+// Xor_AVX2_F32x8 returns bitwise XOR of two vectors.
+func Xor_AVX2_F32x8(a, b archsimd.Float32x8) archsimd.Float32x8 {
+	return a.AsInt32x8().Xor(b.AsInt32x8()).AsFloat32x8()
+}
+
+// Xor_AVX2_F64x4 returns bitwise XOR of two vectors.
+func Xor_AVX2_F64x4(a, b archsimd.Float64x4) archsimd.Float64x4 {
+	return a.AsInt64x4().Xor(b.AsInt64x4()).AsFloat64x4()
+}
+
+// And_AVX2_F32x8 returns bitwise AND of two vectors.
+func And_AVX2_F32x8(a, b archsimd.Float32x8) archsimd.Float32x8 {
+	return a.AsInt32x8().And(b.AsInt32x8()).AsFloat32x8()
+}
+
+// And_AVX2_F64x4 returns bitwise AND of two vectors.
+func And_AVX2_F64x4(a, b archsimd.Float64x4) archsimd.Float64x4 {
+	return a.AsInt64x4().And(b.AsInt64x4()).AsFloat64x4()
 }

@@ -2,7 +2,7 @@
 
 package matmul
 
-//go:generate hwygen -input block_kernel.go -dispatch blockkernel -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input block_kernel.go -dispatch blockkernel -output . -targets avx2,avx512,neon,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 

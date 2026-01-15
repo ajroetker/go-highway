@@ -26,6 +26,17 @@ type TypeParam struct {
 	Constraint string // hwy.Floats
 }
 
+// hasHwyLanesConstraint checks if any type parameter has an hwy.Lanes-related constraint.
+func hasHwyLanesConstraint(typeParams []TypeParam) bool {
+	for _, tp := range typeParams {
+		// Check for hwy.Lanes, hwy.Floats, hwy.Ints, hwy.SignedInts, hwy.UnsignedInts
+		if strings.Contains(tp.Constraint, "hwy.") {
+			return true
+		}
+	}
+	return false
+}
+
 // Param represents a function parameter or return value.
 type Param struct {
 	Name string // parameter name (may be empty for returns)
@@ -214,8 +225,10 @@ func Parse(filename string) (*ParseResult, error) {
 		// Detect main vectorized loop
 		pf.LoopInfo = detectLoop(funcDecl.Body)
 
-		// Only include functions that use hwy operations
-		if len(pf.HwyCalls) > 0 {
+		// Include functions that use hwy operations OR have hwy.Lanes type parameters
+		// (generic functions with hwy.Lanes need type specialization even without hwy ops)
+		hasHwyLanesTypeParam := hasHwyLanesConstraint(pf.TypeParams)
+		if len(pf.HwyCalls) > 0 || hasHwyLanesTypeParam {
 			result.Funcs = append(result.Funcs, pf)
 		}
 	}

@@ -33,10 +33,10 @@ hwygen -input sigmoid.go -output . -targets avx2,fallback
 
 ### go:generate Integration
 
-Add to your source file:
+Add to your source file (using local source):
 
 ```go
-//go:generate hwygen -input $GOFILE -output . -targets avx2,fallback
+//go:generate go run ../../../cmd/hwygen -input $GOFILE -output . -targets avx2,fallback
 
 package mypackage
 

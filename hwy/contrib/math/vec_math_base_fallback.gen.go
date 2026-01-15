@@ -639,3 +639,37 @@ func BaseAtanhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	result = hwy.Merge(zero, result, zeroMask)
 	return result
 }
+
+func BasePowVec_fallback(base hwy.Vec[float32], exp hwy.Vec[float32]) hwy.Vec[float32] {
+	one := hwy.Set[float32](float32(1.0))
+	zero := hwy.Set[float32](float32(0.0))
+	logBase := BaseLogVec_fallback(base)
+	expTimesLog := hwy.Mul(exp, logBase)
+	result := BaseExpVec_fallback(expTimesLog)
+	expZeroMask := hwy.Equal(exp, zero)
+	result = hwy.Merge(one, result, expZeroMask)
+	baseOneMask := hwy.Equal(base, one)
+	result = hwy.Merge(one, result, baseOneMask)
+	baseZeroMask := hwy.Equal(base, zero)
+	expPosMask := hwy.GreaterThan(exp, zero)
+	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
+	result = hwy.Merge(zero, result, baseZeroExpPosMask)
+	return result
+}
+
+func BasePowVec_fallback_Float64(base hwy.Vec[float64], exp hwy.Vec[float64]) hwy.Vec[float64] {
+	one := hwy.Set[float64](float64(1.0))
+	zero := hwy.Set[float64](float64(0.0))
+	logBase := BaseLogVec_fallback_Float64(base)
+	expTimesLog := hwy.Mul(exp, logBase)
+	result := BaseExpVec_fallback_Float64(expTimesLog)
+	expZeroMask := hwy.Equal(exp, zero)
+	result = hwy.Merge(one, result, expZeroMask)
+	baseOneMask := hwy.Equal(base, one)
+	result = hwy.Merge(one, result, baseOneMask)
+	baseZeroMask := hwy.Equal(base, zero)
+	expPosMask := hwy.GreaterThan(exp, zero)
+	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
+	result = hwy.Merge(zero, result, baseZeroExpPosMask)
+	return result
+}

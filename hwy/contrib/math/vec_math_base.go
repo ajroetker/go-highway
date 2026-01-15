@@ -1,4 +1,4 @@
-//go:generate hwygen -input vec_math_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input vec_math_base.go -output . -targets avx2,avx512,neon,fallback
 
 package math
 
@@ -476,6 +476,36 @@ func BaseAtanhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	// Handle x = 0
 	zeroMask := hwy.Equal(x, zero)
 	result = hwy.Merge(zero, result, zeroMask)
+
+	return result
+}
+
+// BasePowVec computes base^exp for vectors element-wise.
+// Uses the identity: base^exp = exp(exp * log(base))
+// Note: Only valid for base > 0. Negative bases will produce NaN.
+func BasePowVec[T hwy.Floats](base, exp hwy.Vec[T]) hwy.Vec[T] {
+	one := hwy.Set[T](T(1.0))
+	zero := hwy.Set[T](T(0.0))
+
+	// base^exp = exp(exp * log(base))
+	logBase := BaseLogVec[T](base)
+	expTimesLog := hwy.Mul(exp, logBase)
+	result := BaseExpVec[T](expTimesLog)
+
+	// Handle special cases:
+	// exp = 0 -> result = 1
+	expZeroMask := hwy.Equal(exp, zero)
+	result = hwy.Merge(one, result, expZeroMask)
+
+	// base = 1 -> result = 1
+	baseOneMask := hwy.Equal(base, one)
+	result = hwy.Merge(one, result, baseOneMask)
+
+	// base = 0, exp > 0 -> result = 0
+	baseZeroMask := hwy.Equal(base, zero)
+	expPosMask := hwy.GreaterThan(exp, zero)
+	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
+	result = hwy.Merge(zero, result, baseZeroExpPosMask)
 
 	return result
 }

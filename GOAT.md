@@ -36,6 +36,16 @@ func Add(a, b, c []float32) {
 - `uint64_t` from the header <stdint.h> is not supported
 - C source file names should not begin with `_`.
 - **`else` clauses in conditionals are not supported** - The parser fails with "expected `}`" errors when encountering `else`. Rewrite code to avoid `else` by using multiple `if` statements or initializing values before conditionally updating them.
+- **Single-line `if` statements with braces are not supported** - `if (x) { y; }` on one line causes parser errors. Use multi-line format instead:
+  ```c
+  // BAD: causes "expected }" error
+  if (lane0) { *result = 0; }
+
+  // GOOD: works correctly
+  if (lane0) {
+      *result = 0;
+  }
+  ```
 - **No `__builtin_*` functions** - Calls to `__builtin_expf`, `__builtin_sqrtf`, etc. generate `bl` (branch-link) instructions to C library functions (`expf`, `sqrtf`, etc.) which don't exist in Go assembly context. Use polynomial approximations or other manual implementations instead.
 - **No `static inline` helper functions** - The parser fails on `static inline` function definitions. Inline all helper code directly where needed.
 - **No `union` type punning** - Union types for float/int bit reinterpretation cause parsing errors. Use alternative approaches like loop-based 2^k computation.

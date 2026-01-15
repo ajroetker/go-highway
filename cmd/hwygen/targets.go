@@ -53,18 +53,26 @@ func AVX2Target() Target {
 			"Max": {Name: "Max", IsMethod: true},
 
 			// ===== Logical operations =====
+			// Note: archsimd float types don't have And/Xor/Not methods directly.
+			// The transformer handles float types specially using hwy wrappers.
 			"And":    {Name: "And", IsMethod: true},
 			"Or":     {Name: "Or", IsMethod: true},
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
+			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations (hardware instructions) =====
 			"Sqrt":   {Name: "Sqrt", IsMethod: true},   // VSQRTPS/VSQRTPD
-			"FMA":    {Name: "FMA", IsMethod: true},    // VFMADD*
+			"FMA":    {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
 			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Name: "RoundToEven", IsMethod: true}, // Banker's rounding
+
+			// ===== Float decomposition (inline implementations) =====
+			// These are handled by special case code in transformer.go
+			"GetExponent": {Package: "special", Name: "GetExponent", IsMethod: true},
+			"GetMantissa": {Package: "special", Name: "GetMantissa", IsMethod: true},
 
 			// ===== Type reinterpretation (bit cast, no conversion) =====
 			"AsInt32":   {Name: "AsInt32x8", IsMethod: true},   // Float32x8 -> Int32x8
@@ -77,8 +85,10 @@ func AVX2Target() Target {
 			"Less":    {Name: "Less", IsMethod: true},    // a < b, returns mask
 
 			// ===== Mask operations =====
-			"MaskAnd": {Name: "And", IsMethod: true}, // MaskAnd(a, b) -> a.And(b)
-			"MaskOr":  {Name: "Or", IsMethod: true},  // MaskOr(a, b) -> a.Or(b)
+			"MaskAnd":    {Name: "And", IsMethod: true},                          // MaskAnd(a, b) -> a.And(b)
+			"MaskOr":     {Name: "Or", IsMethod: true},                           // MaskOr(a, b) -> a.Or(b)
+			"MaskNot":    {Package: "special", Name: "MaskNot", IsMethod: false}, // MaskNot(a) -> a.Xor(allTrue)
+			"MaskAndNot": {Package: "hwy", Name: "MaskAndNot", IsMethod: false},  // hwy.MaskAndNot wrapper
 
 			// ===== Conditional/Blend operations =====
 			"Merge": {Name: "Merge", IsMethod: true}, // a.Merge(b, mask): a where mask true, b otherwise
@@ -86,6 +96,8 @@ func AVX2Target() Target {
 			// ===== Integer shift operations =====
 			"ShiftAllLeft":  {Name: "ShiftAllLeft", IsMethod: true},  // Left shift by constant
 			"ShiftAllRight": {Name: "ShiftAllRight", IsMethod: true}, // Right shift by constant
+			"ShiftLeft":     {Name: "ShiftAllLeft", IsMethod: true},  // Alias for ShiftAllLeft
+			"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true}, // Alias for ShiftAllRight
 
 			// ===== Reductions =====
 			"ReduceSum": {Name: "ReduceSum", IsMethod: true},
@@ -93,18 +105,23 @@ func AVX2Target() Target {
 			"ReduceMax": {Name: "ReduceMax", IsMethod: true},
 
 			// ===== Comparisons =====
-			"Equal":       {Name: "Equal", IsMethod: true},
-			"LessThan":    {Name: "LessThan", IsMethod: true},
-			"GreaterThan": {Name: "GreaterThan", IsMethod: true},
-			"LessEqual":   {Name: "LessEqual", IsMethod: true},
+			// Note: archsimd uses Less/Greater, not LessThan/GreaterThan
+			"Equal":        {Name: "Equal", IsMethod: true},
+			"NotEqual":     {Name: "NotEqual", IsMethod: true},
+			"LessThan":     {Name: "Less", IsMethod: true},
+			"GreaterThan":  {Name: "Greater", IsMethod: true},
+			"LessEqual":    {Name: "LessEqual", IsMethod: true},
 			"GreaterEqual": {Name: "GreaterEqual", IsMethod: true},
 
-			// ===== Conditional =====
-			"IfThenElse": {Name: "IfThenElse", IsMethod: false},
-
 			// ===== Initialization =====
-			"Iota":    {Name: "Iota", IsMethod: false},
-			"SignBit": {Name: "SignBit", IsMethod: false},
+			"Iota":     {Name: "Iota", IsMethod: false},
+			"SignBit":  {Package: "hwy", Name: "SignBit", IsMethod: false},
+			"MaxLanes": {Package: "special", Name: "MaxLanes", IsMethod: false}, // Transformed to constant
+			"Lanes":    {Package: "special", Name: "Lanes", IsMethod: false},    // Transformed to constant
+
+			// ===== Type references (not functions, but parser captures them) =====
+			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
+			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -134,41 +151,46 @@ func AVX2Target() Target {
 			"Floor":            {Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
 
-			// ===== IEEE 754 Exponent/Mantissa operations =====
-			"GetExponent": {Name: "GetExponent", IsMethod: true},
-			"GetMantissa": {Name: "GetMantissa", IsMethod: true},
-
 			// ===== Compress/Expand =====
-			"Compress":      {Name: "Compress", IsMethod: false},
-			"Expand":        {Name: "Expand", IsMethod: false},
-			"CompressStore": {Name: "CompressStore", IsMethod: false},
-			"CountTrue":     {Name: "CountTrue", IsMethod: false},
-			"AllTrue":       {Name: "AllTrue", IsMethod: false},
-			"AllFalse":      {Name: "AllFalse", IsMethod: false},
-			"FindFirstTrue": {Name: "FindFirstTrue", IsMethod: false},
-			"FindLastTrue":  {Name: "FindLastTrue", IsMethod: false},
-			"FirstN":        {Name: "FirstN", IsMethod: false},
-			"LastN":         {Name: "LastN", IsMethod: false},
+			// archsimd doesn't have these operations. Using hwy wrappers that work with
+			// archsimd.Mask32x8/Mask64x4 types. Transformer adds target and type suffix.
+			"Compress":      {Package: "hwy", Name: "Compress", IsMethod: false},
+			"CompressStore": {Package: "hwy", Name: "CompressStore", IsMethod: false},
+			"CountTrue":     {Package: "hwy", Name: "CountTrue", IsMethod: false},
+			"FirstN":        {Package: "hwy", Name: "FirstN", IsMethod: false},
+
+			// ===== Conditional =====
+			// archsimd doesn't have IfThenElse. Using hwy wrapper.
+			"IfThenElse": {Package: "hwy", Name: "IfThenElse", IsMethod: false},
+
+			// ===== Mask operations =====
+			// archsimd Mask types don't have these methods. Using hwy wrappers.
+			"AllTrue":       {Package: "hwy", Name: "AllTrue", IsMethod: false},
+			"AllFalse":      {Package: "hwy", Name: "AllFalse", IsMethod: false},
+			"FindFirstTrue": {Package: "hwy", Name: "FindFirstTrue", IsMethod: false},
+			"FindLastTrue":  {Package: "hwy", Name: "FindLastTrue", IsMethod: false},
+			"LastN":         {Package: "hwy", Name: "LastN", IsMethod: false},
+			"Expand":        {Package: "hwy", Name: "Expand", IsMethod: false},
 
 			// ===== contrib/math: Transcendental functions =====
-			// The transformer adds target and type suffix (e.g., Exp -> Exp_AVX2_F32x8)
-			"Exp":     {Package: "math", SubPackage: "math", Name: "Exp", IsMethod: false},
-			"Exp2":    {Package: "math", SubPackage: "math", Name: "Exp2", IsMethod: false},
-			"Exp10":   {Package: "math", SubPackage: "math", Name: "Exp10", IsMethod: false},
-			"Log":     {Package: "math", SubPackage: "math", Name: "Log", IsMethod: false},
-			"Log2":    {Package: "math", SubPackage: "math", Name: "Log2", IsMethod: false},
-			"Log10":   {Package: "math", SubPackage: "math", Name: "Log10", IsMethod: false},
-			"Sin":     {Package: "math", SubPackage: "math", Name: "Sin", IsMethod: false},
-			"Cos":     {Package: "math", SubPackage: "math", Name: "Cos", IsMethod: false},
-			"SinCos":  {Package: "math", SubPackage: "math", Name: "SinCos", IsMethod: false},
-			"Tanh":    {Package: "math", SubPackage: "math", Name: "Tanh", IsMethod: false},
-			"Sinh":    {Package: "math", SubPackage: "math", Name: "Sinh", IsMethod: false},
-			"Cosh":    {Package: "math", SubPackage: "math", Name: "Cosh", IsMethod: false},
-			"Asinh":   {Package: "math", SubPackage: "math", Name: "Asinh", IsMethod: false},
-			"Acosh":   {Package: "math", SubPackage: "math", Name: "Acosh", IsMethod: false},
-			"Atanh":   {Package: "math", SubPackage: "math", Name: "Atanh", IsMethod: false},
-			"Sigmoid": {Package: "math", SubPackage: "math", Name: "Sigmoid", IsMethod: false},
-			"Erf":     {Package: "math", SubPackage: "math", Name: "Erf", IsMethod: false},
+			// The transformer adds target and type suffix (e.g., Exp -> BaseExpVec_avx2)
+			"Exp":     {Package: "math", SubPackage: "math", Name: "BaseExpVec", IsMethod: false},
+			"Exp2":    {Package: "math", SubPackage: "math", Name: "BaseExp2Vec", IsMethod: false},
+			"Exp10":   {Package: "math", SubPackage: "math", Name: "BaseExp10Vec", IsMethod: false},
+			"Log":     {Package: "math", SubPackage: "math", Name: "BaseLogVec", IsMethod: false},
+			"Log2":    {Package: "math", SubPackage: "math", Name: "BaseLog2Vec", IsMethod: false},
+			"Log10":   {Package: "math", SubPackage: "math", Name: "BaseLog10Vec", IsMethod: false},
+			"Sin":     {Package: "math", SubPackage: "math", Name: "BaseSinVec", IsMethod: false},
+			"Cos":     {Package: "math", SubPackage: "math", Name: "BaseCosVec", IsMethod: false},
+			"SinCos":  {Package: "math", SubPackage: "math", Name: "BaseSinCosVec", IsMethod: false},
+			"Tanh":    {Package: "math", SubPackage: "math", Name: "BaseTanhVec", IsMethod: false},
+			"Sinh":    {Package: "math", SubPackage: "math", Name: "BaseSinhVec", IsMethod: false},
+			"Cosh":    {Package: "math", SubPackage: "math", Name: "BaseCoshVec", IsMethod: false},
+			"Asinh":   {Package: "math", SubPackage: "math", Name: "BaseAsinhVec", IsMethod: false},
+			"Acosh":   {Package: "math", SubPackage: "math", Name: "BaseAcoshVec", IsMethod: false},
+			"Atanh":   {Package: "math", SubPackage: "math", Name: "BaseAtanhVec", IsMethod: false},
+			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
+			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
 			// ===== contrib/dot: Dot product operations =====
 			"Dot": {Package: "dot", SubPackage: "dot", Name: "Dot", IsMethod: false},
@@ -176,6 +198,7 @@ func AVX2Target() Target {
 			// ===== IEEE 754 Operations =====
 			// Pow2 computes 2^k via bit manipulation. Transformer adds target and type suffix.
 			"Pow2": {Package: "hwy", Name: "Pow2", IsMethod: false},
+			"Pow":  {Package: "math", SubPackage: "math", Name: "BasePowVec", IsMethod: false},
 
 			// ===== Special float checks =====
 			"IsInf": {Package: "special", Name: "IsInf", IsMethod: true}, // Implemented inline
@@ -217,19 +240,27 @@ func AVX512Target() Target {
 			"Max": {Name: "Max", IsMethod: true},
 
 			// ===== Logical operations =====
+			// Note: archsimd float types don't have And/Xor/Not methods directly.
+			// The transformer handles float types specially using hwy wrappers.
 			"And":    {Name: "And", IsMethod: true},
 			"Or":     {Name: "Or", IsMethod: true},
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
+			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations =====
 			"Sqrt":   {Name: "Sqrt", IsMethod: true},
-			"FMA":    {Name: "FMA", IsMethod: true},
+			"FMA":    {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
 			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
 
 			// ===== Rounding operations =====
 			// AVX512 archsimd doesn't have plain RoundToEven, use hwy package function
 			"RoundToEven": {Package: "hwy", Name: "RoundToEven", IsMethod: false},
+
+			// ===== Float decomposition (inline implementations) =====
+			// These are handled by special case code in transformer.go
+			"GetExponent": {Package: "special", Name: "GetExponent", IsMethod: true},
+			"GetMantissa": {Package: "special", Name: "GetMantissa", IsMethod: true},
 
 			// ===== Type reinterpretation (bit cast, no conversion) =====
 			"AsInt32":   {Name: "AsInt32x16", IsMethod: true},   // Float32x16 -> Int32x16
@@ -242,8 +273,10 @@ func AVX512Target() Target {
 			"Less":    {Name: "Less", IsMethod: true},    // a < b, returns mask
 
 			// ===== Mask operations =====
-			"MaskAnd": {Name: "And", IsMethod: true}, // MaskAnd(a, b) -> a.And(b)
-			"MaskOr":  {Name: "Or", IsMethod: true},  // MaskOr(a, b) -> a.Or(b)
+			"MaskAnd":    {Name: "And", IsMethod: true},                          // MaskAnd(a, b) -> a.And(b)
+			"MaskOr":     {Name: "Or", IsMethod: true},                           // MaskOr(a, b) -> a.Or(b)
+			"MaskNot":    {Package: "special", Name: "MaskNot", IsMethod: false}, // MaskNot(a) -> a.Xor(allTrue)
+			"MaskAndNot": {Package: "hwy", Name: "MaskAndNot", IsMethod: false},  // hwy.MaskAndNot wrapper
 
 			// ===== Conditional/Blend operations =====
 			"Merge": {Name: "Merge", IsMethod: true}, // a.Merge(b, mask): a where mask true, b otherwise
@@ -251,6 +284,8 @@ func AVX512Target() Target {
 			// ===== Integer shift operations =====
 			"ShiftAllLeft":  {Name: "ShiftAllLeft", IsMethod: true},  // Left shift by constant
 			"ShiftAllRight": {Name: "ShiftAllRight", IsMethod: true}, // Right shift by constant
+			"ShiftLeft":     {Name: "ShiftAllLeft", IsMethod: true},  // Alias for ShiftAllLeft
+			"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true}, // Alias for ShiftAllRight
 
 			// ===== Reductions =====
 			"ReduceSum": {Name: "ReduceSum", IsMethod: true},
@@ -258,18 +293,23 @@ func AVX512Target() Target {
 			"ReduceMax": {Name: "ReduceMax", IsMethod: true},
 
 			// ===== Comparisons =====
+			// Note: archsimd uses Less/Greater, not LessThan/GreaterThan
 			"Equal":        {Name: "Equal", IsMethod: true},
-			"LessThan":     {Name: "LessThan", IsMethod: true},
-			"GreaterThan":  {Name: "GreaterThan", IsMethod: true},
+			"NotEqual":     {Name: "NotEqual", IsMethod: true},
+			"LessThan":     {Name: "Less", IsMethod: true},
+			"GreaterThan":  {Name: "Greater", IsMethod: true},
 			"LessEqual":    {Name: "LessEqual", IsMethod: true},
 			"GreaterEqual": {Name: "GreaterEqual", IsMethod: true},
 
-			// ===== Conditional =====
-			"IfThenElse": {Name: "IfThenElse", IsMethod: false},
-
 			// ===== Initialization =====
-			"Iota":    {Name: "Iota", IsMethod: false},
-			"SignBit": {Name: "SignBit", IsMethod: false},
+			"Iota":     {Name: "Iota", IsMethod: false},
+			"SignBit":  {Package: "hwy", Name: "SignBit", IsMethod: false},
+			"MaxLanes": {Package: "special", Name: "MaxLanes", IsMethod: false}, // Transformed to constant
+			"Lanes":    {Package: "special", Name: "Lanes", IsMethod: false},    // Transformed to constant
+
+			// ===== Type references (not functions, but parser captures them) =====
+			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
+			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -301,46 +341,53 @@ func AVX512Target() Target {
 			"Floor":            {Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
 
-			// ===== IEEE 754 Exponent/Mantissa operations =====
-			"GetExponent": {Name: "GetExponent", IsMethod: true},
-			"GetMantissa": {Name: "GetMantissa", IsMethod: true},
-
 			// ===== Compress/Expand =====
-			"Compress":      {Name: "Compress", IsMethod: false},
-			"Expand":        {Name: "Expand", IsMethod: false},
-			"CompressStore": {Name: "CompressStore", IsMethod: false},
-			"CountTrue":     {Name: "CountTrue", IsMethod: false},
-			"AllTrue":       {Name: "AllTrue", IsMethod: false},
-			"AllFalse":      {Name: "AllFalse", IsMethod: false},
-			"FindFirstTrue": {Name: "FindFirstTrue", IsMethod: false},
-			"FindLastTrue":  {Name: "FindLastTrue", IsMethod: false},
-			"FirstN":        {Name: "FirstN", IsMethod: false},
-			"LastN":         {Name: "LastN", IsMethod: false},
+			// archsimd doesn't have these operations. Using hwy wrappers that work with
+			// archsimd.Mask32x16/Mask64x8 types. Transformer adds target and type suffix.
+			"Compress":      {Package: "hwy", Name: "Compress", IsMethod: false},
+			"CompressStore": {Package: "hwy", Name: "CompressStore", IsMethod: false},
+			"CountTrue":     {Package: "hwy", Name: "CountTrue", IsMethod: false},
+			"FirstN":        {Package: "hwy", Name: "FirstN", IsMethod: false},
+
+			// ===== Conditional =====
+			// archsimd doesn't have IfThenElse. Using hwy wrapper.
+			"IfThenElse": {Package: "hwy", Name: "IfThenElse", IsMethod: false},
+
+			// ===== Mask operations =====
+			// archsimd Mask types don't have these methods. Using hwy wrappers.
+			"AllTrue":       {Package: "hwy", Name: "AllTrue", IsMethod: false},
+			"AllFalse":      {Package: "hwy", Name: "AllFalse", IsMethod: false},
+			"FindFirstTrue": {Package: "hwy", Name: "FindFirstTrue", IsMethod: false},
+			"FindLastTrue":  {Package: "hwy", Name: "FindLastTrue", IsMethod: false},
+			"LastN":         {Package: "hwy", Name: "LastN", IsMethod: false},
+			"Expand":        {Package: "hwy", Name: "Expand", IsMethod: false},
 
 			// ===== contrib/math: Transcendental functions =====
-			"Exp":     {Package: "math", SubPackage: "math", Name: "Exp", IsMethod: false},
-			"Exp2":    {Package: "math", SubPackage: "math", Name: "Exp2", IsMethod: false},
-			"Exp10":   {Package: "math", SubPackage: "math", Name: "Exp10", IsMethod: false},
-			"Log":     {Package: "math", SubPackage: "math", Name: "Log", IsMethod: false},
-			"Log2":    {Package: "math", SubPackage: "math", Name: "Log2", IsMethod: false},
-			"Log10":   {Package: "math", SubPackage: "math", Name: "Log10", IsMethod: false},
-			"Sin":     {Package: "math", SubPackage: "math", Name: "Sin", IsMethod: false},
-			"Cos":     {Package: "math", SubPackage: "math", Name: "Cos", IsMethod: false},
-			"SinCos":  {Package: "math", SubPackage: "math", Name: "SinCos", IsMethod: false},
-			"Tanh":    {Package: "math", SubPackage: "math", Name: "Tanh", IsMethod: false},
-			"Sinh":    {Package: "math", SubPackage: "math", Name: "Sinh", IsMethod: false},
-			"Cosh":    {Package: "math", SubPackage: "math", Name: "Cosh", IsMethod: false},
-			"Asinh":   {Package: "math", SubPackage: "math", Name: "Asinh", IsMethod: false},
-			"Acosh":   {Package: "math", SubPackage: "math", Name: "Acosh", IsMethod: false},
-			"Atanh":   {Package: "math", SubPackage: "math", Name: "Atanh", IsMethod: false},
-			"Sigmoid": {Package: "math", SubPackage: "math", Name: "Sigmoid", IsMethod: false},
-			"Erf":     {Package: "math", SubPackage: "math", Name: "Erf", IsMethod: false},
+			// The transformer adds target and type suffix (e.g., Exp -> BaseExpVec_avx512)
+			"Exp":     {Package: "math", SubPackage: "math", Name: "BaseExpVec", IsMethod: false},
+			"Exp2":    {Package: "math", SubPackage: "math", Name: "BaseExp2Vec", IsMethod: false},
+			"Exp10":   {Package: "math", SubPackage: "math", Name: "BaseExp10Vec", IsMethod: false},
+			"Log":     {Package: "math", SubPackage: "math", Name: "BaseLogVec", IsMethod: false},
+			"Log2":    {Package: "math", SubPackage: "math", Name: "BaseLog2Vec", IsMethod: false},
+			"Log10":   {Package: "math", SubPackage: "math", Name: "BaseLog10Vec", IsMethod: false},
+			"Sin":     {Package: "math", SubPackage: "math", Name: "BaseSinVec", IsMethod: false},
+			"Cos":     {Package: "math", SubPackage: "math", Name: "BaseCosVec", IsMethod: false},
+			"SinCos":  {Package: "math", SubPackage: "math", Name: "BaseSinCosVec", IsMethod: false},
+			"Tanh":    {Package: "math", SubPackage: "math", Name: "BaseTanhVec", IsMethod: false},
+			"Sinh":    {Package: "math", SubPackage: "math", Name: "BaseSinhVec", IsMethod: false},
+			"Cosh":    {Package: "math", SubPackage: "math", Name: "BaseCoshVec", IsMethod: false},
+			"Asinh":   {Package: "math", SubPackage: "math", Name: "BaseAsinhVec", IsMethod: false},
+			"Acosh":   {Package: "math", SubPackage: "math", Name: "BaseAcoshVec", IsMethod: false},
+			"Atanh":   {Package: "math", SubPackage: "math", Name: "BaseAtanhVec", IsMethod: false},
+			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
+			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
 			// ===== contrib/dot: Dot product operations =====
 			"Dot": {Package: "dot", SubPackage: "dot", Name: "Dot", IsMethod: false},
 
 			// ===== IEEE 754 Operations =====
 			"Pow2": {Package: "hwy", Name: "Pow2", IsMethod: false},
+			"Pow":  {Package: "math", SubPackage: "math", Name: "BasePowVec", IsMethod: false},
 
 			// ===== Special float checks =====
 			"IsInf": {Package: "special", Name: "IsInf", IsMethod: true}, // Implemented inline
@@ -386,11 +433,13 @@ func FallbackTarget() Target {
 			"Or":     {Package: "hwy", Name: "Or", IsMethod: false},
 			"Xor":    {Package: "hwy", Name: "Xor", IsMethod: false},
 			"AndNot": {Package: "hwy", Name: "AndNot", IsMethod: false},
+			"Not":    {Package: "hwy", Name: "Not", IsMethod: false},
 
 			// ===== Core math operations =====
 			"Sqrt":   {Package: "hwy", Name: "Sqrt", IsMethod: false},
 			"FMA":    {Package: "hwy", Name: "FMA", IsMethod: false},
 			"MulAdd": {Package: "hwy", Name: "MulAdd", IsMethod: false}, // hwy.MulAdd(a, b, c)
+			"Pow":    {Package: "hwy", Name: "Pow", IsMethod: false},    // hwy.Pow(base, exp)
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Package: "hwy", Name: "RoundToEven", IsMethod: false},
@@ -406,15 +455,20 @@ func FallbackTarget() Target {
 			"Less":    {Package: "hwy", Name: "Less", IsMethod: false},
 
 			// ===== Mask operations =====
-			"MaskAnd": {Package: "hwy", Name: "MaskAnd", IsMethod: false},
-			"MaskOr":  {Package: "hwy", Name: "MaskOr", IsMethod: false},
+			"MaskAnd":    {Package: "hwy", Name: "MaskAnd", IsMethod: false},
+			"MaskOr":     {Package: "hwy", Name: "MaskOr", IsMethod: false},
+			"MaskNot":    {Package: "hwy", Name: "MaskNot", IsMethod: false},
+			"MaskAndNot": {Package: "hwy", Name: "MaskAndNot", IsMethod: false},
 
 			// ===== Conditional/Blend operations =====
 			"Merge": {Package: "hwy", Name: "Merge", IsMethod: false},
 
 			// ===== Integer shift operations =====
-			"ShiftAllLeft":  {Package: "hwy", Name: "ShiftLeft", IsMethod: false},
-			"ShiftAllRight": {Package: "hwy", Name: "ShiftRight", IsMethod: false},
+			// asm types have ShiftAllLeft/ShiftAllRight methods
+			"ShiftAllLeft":  {Name: "ShiftAllLeft", IsMethod: true},
+			"ShiftAllRight": {Name: "ShiftAllRight", IsMethod: true},
+			"ShiftLeft":     {Name: "ShiftAllLeft", IsMethod: true},
+			"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true},
 
 			// ===== Reductions =====
 			"ReduceSum": {Package: "hwy", Name: "ReduceSum", IsMethod: false},
@@ -423,6 +477,7 @@ func FallbackTarget() Target {
 
 			// ===== Comparisons =====
 			"Equal":        {Package: "hwy", Name: "Equal", IsMethod: false},
+			"NotEqual":     {Package: "hwy", Name: "NotEqual", IsMethod: false},
 			"LessThan":     {Package: "hwy", Name: "LessThan", IsMethod: false},
 			"GreaterThan":  {Package: "hwy", Name: "GreaterThan", IsMethod: false},
 			"LessEqual":    {Package: "hwy", Name: "LessEqual", IsMethod: false},
@@ -432,8 +487,14 @@ func FallbackTarget() Target {
 			"IfThenElse": {Package: "hwy", Name: "IfThenElse", IsMethod: false},
 
 			// ===== Initialization =====
-			"Iota":    {Package: "hwy", Name: "Iota", IsMethod: false},
-			"SignBit": {Package: "hwy", Name: "SignBit", IsMethod: false},
+			"Iota":     {Package: "hwy", Name: "Iota", IsMethod: false},
+			"SignBit":  {Package: "hwy", Name: "SignBit", IsMethod: false},
+			"MaxLanes": {Package: "special", Name: "MaxLanes", IsMethod: false}, // Transformed to constant
+			"Lanes":    {Package: "special", Name: "Lanes", IsMethod: false},    // Transformed to constant
+
+			// ===== Type references (not functions, but parser captures them) =====
+			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
+			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Package: "hwy", Name: "Reverse", IsMethod: false},
@@ -481,25 +542,25 @@ func FallbackTarget() Target {
 			"FirstN":        {Package: "hwy", Name: "FirstN", IsMethod: false},
 			"LastN":         {Package: "hwy", Name: "LastN", IsMethod: false},
 
-			// ===== contrib/math: Use scalar math package for fallback =====
-			// For fallback, these use the standard library math functions
-			"Exp":     {Package: "hwy", SubPackage: "math", Name: "Exp", IsMethod: false},
-			"Exp2":    {Package: "hwy", SubPackage: "math", Name: "Exp2", IsMethod: false},
-			"Exp10":   {Package: "hwy", SubPackage: "math", Name: "Exp10", IsMethod: false},
-			"Log":     {Package: "hwy", SubPackage: "math", Name: "Log", IsMethod: false},
-			"Log2":    {Package: "hwy", SubPackage: "math", Name: "Log2", IsMethod: false},
-			"Log10":   {Package: "hwy", SubPackage: "math", Name: "Log10", IsMethod: false},
-			"Sin":     {Package: "hwy", SubPackage: "math", Name: "Sin", IsMethod: false},
-			"Cos":     {Package: "hwy", SubPackage: "math", Name: "Cos", IsMethod: false},
-			"SinCos":  {Package: "hwy", SubPackage: "math", Name: "SinCos", IsMethod: false},
-			"Tanh":    {Package: "hwy", SubPackage: "math", Name: "Tanh", IsMethod: false},
-			"Sinh":    {Package: "hwy", SubPackage: "math", Name: "Sinh", IsMethod: false},
-			"Cosh":    {Package: "hwy", SubPackage: "math", Name: "Cosh", IsMethod: false},
-			"Asinh":   {Package: "hwy", SubPackage: "math", Name: "Asinh", IsMethod: false},
-			"Acosh":   {Package: "hwy", SubPackage: "math", Name: "Acosh", IsMethod: false},
-			"Atanh":   {Package: "hwy", SubPackage: "math", Name: "Atanh", IsMethod: false},
-			"Sigmoid": {Package: "hwy", SubPackage: "math", Name: "Sigmoid", IsMethod: false},
-			"Erf":     {Package: "hwy", SubPackage: "math", Name: "Erf", IsMethod: false},
+			// ===== contrib/math: Transcendental functions =====
+			// The transformer adds target and type suffix (e.g., Exp -> BaseExpVec_fallback)
+			"Exp":     {Package: "math", SubPackage: "math", Name: "BaseExpVec", IsMethod: false},
+			"Exp2":    {Package: "math", SubPackage: "math", Name: "BaseExp2Vec", IsMethod: false},
+			"Exp10":   {Package: "math", SubPackage: "math", Name: "BaseExp10Vec", IsMethod: false},
+			"Log":     {Package: "math", SubPackage: "math", Name: "BaseLogVec", IsMethod: false},
+			"Log2":    {Package: "math", SubPackage: "math", Name: "BaseLog2Vec", IsMethod: false},
+			"Log10":   {Package: "math", SubPackage: "math", Name: "BaseLog10Vec", IsMethod: false},
+			"Sin":     {Package: "math", SubPackage: "math", Name: "BaseSinVec", IsMethod: false},
+			"Cos":     {Package: "math", SubPackage: "math", Name: "BaseCosVec", IsMethod: false},
+			"SinCos":  {Package: "math", SubPackage: "math", Name: "BaseSinCosVec", IsMethod: false},
+			"Tanh":    {Package: "math", SubPackage: "math", Name: "BaseTanhVec", IsMethod: false},
+			"Sinh":    {Package: "math", SubPackage: "math", Name: "BaseSinhVec", IsMethod: false},
+			"Cosh":    {Package: "math", SubPackage: "math", Name: "BaseCoshVec", IsMethod: false},
+			"Asinh":   {Package: "math", SubPackage: "math", Name: "BaseAsinhVec", IsMethod: false},
+			"Acosh":   {Package: "math", SubPackage: "math", Name: "BaseAcoshVec", IsMethod: false},
+			"Atanh":   {Package: "math", SubPackage: "math", Name: "BaseAtanhVec", IsMethod: false},
+			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
+			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
 			// ===== contrib/dot: Dot product =====
 			"Dot": {Package: "hwy", SubPackage: "dot", Name: "Dot", IsMethod: false},
@@ -552,11 +613,13 @@ func NEONTarget() Target {
 			"Or":     {Name: "Or", IsMethod: true},
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
+			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations =====
 			"Sqrt":   {Name: "Sqrt", IsMethod: true},
-			"FMA":    {Name: "FMA", IsMethod: true},
+			"FMA":    {Name: "MulAdd", IsMethod: true}, // FMA maps to MulAdd in NEON asm
 			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
+			"Pow":    {Name: "Pow", IsMethod: true},    // v.Pow(exp) = v^exp element-wise
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Name: "RoundToEven", IsMethod: true}, // Banker's rounding
@@ -572,8 +635,10 @@ func NEONTarget() Target {
 			"Less":    {Name: "Less", IsMethod: true},    // a < b, returns mask
 
 			// ===== Mask operations =====
-			"MaskAnd": {Name: "And", IsMethod: true}, // MaskAnd(a, b) -> a.And(b)
-			"MaskOr":  {Name: "Or", IsMethod: true},  // MaskOr(a, b) -> a.Or(b)
+			"MaskAnd":    {Name: "And", IsMethod: true},                          // MaskAnd(a, b) -> a.And(b)
+			"MaskOr":     {Name: "Or", IsMethod: true},                           // MaskOr(a, b) -> a.Or(b)
+			"MaskNot":    {Package: "special", Name: "MaskNot", IsMethod: false}, // MaskNot(a) -> a.Xor(allTrue)
+			"MaskAndNot": {Name: "MaskAndNot", IsMethod: false},                  // asm.MaskAndNot(a, b)
 
 			// ===== Conditional/Blend operations =====
 			"Merge": {Name: "Merge", IsMethod: true}, // a.Merge(b, mask): a where mask true, b otherwise
@@ -581,6 +646,8 @@ func NEONTarget() Target {
 			// ===== Integer shift operations =====
 			"ShiftAllLeft":  {Name: "ShiftAllLeft", IsMethod: true},  // Left shift by constant
 			"ShiftAllRight": {Name: "ShiftAllRight", IsMethod: true}, // Right shift by constant
+			"ShiftLeft":     {Name: "ShiftAllLeft", IsMethod: true},  // Alias for ShiftAllLeft
+			"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true}, // Alias for ShiftAllRight
 
 			// ===== Reductions =====
 			"ReduceSum": {Name: "ReduceSum", IsMethod: true},
@@ -589,6 +656,7 @@ func NEONTarget() Target {
 
 			// ===== Comparisons =====
 			"Equal":        {Name: "Equal", IsMethod: true},
+			"NotEqual":     {Name: "NotEqual", IsMethod: true},
 			"LessThan":     {Name: "LessThan", IsMethod: true},
 			"GreaterThan":  {Name: "GreaterThan", IsMethod: true},
 			"LessEqual":    {Name: "LessEqual", IsMethod: true},
@@ -598,8 +666,14 @@ func NEONTarget() Target {
 			"IfThenElse": {Name: "IfThenElse", IsMethod: false},
 
 			// ===== Initialization =====
-			"Iota":    {Name: "Iota", IsMethod: false},
-			"SignBit": {Name: "SignBit", IsMethod: false},
+			"Iota":     {Name: "Iota", IsMethod: false},
+			"SignBit":  {Name: "SignBit", IsMethod: false},
+			"MaxLanes": {Package: "special", Name: "MaxLanes", IsMethod: false}, // Transformed to constant
+			"Lanes":    {Package: "special", Name: "Lanes", IsMethod: false},    // Transformed to constant
+
+			// ===== Type references (not functions, but parser captures them) =====
+			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
+			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -645,24 +719,24 @@ func NEONTarget() Target {
 			"GetMantissa": {Name: "GetMantissa", IsMethod: true},
 
 			// ===== contrib/math: Transcendental functions =====
-			// NEON-specific implementations matching AVX2/AVX512 pattern
-			"Exp":     {Package: "math", SubPackage: "math", Name: "Exp", IsMethod: false},
-			"Exp2":    {Package: "math", SubPackage: "math", Name: "Exp2", IsMethod: false},
-			"Exp10":   {Package: "math", SubPackage: "math", Name: "Exp10", IsMethod: false},
-			"Log":     {Package: "math", SubPackage: "math", Name: "Log", IsMethod: false},
-			"Log2":    {Package: "math", SubPackage: "math", Name: "Log2", IsMethod: false},
-			"Log10":   {Package: "math", SubPackage: "math", Name: "Log10", IsMethod: false},
-			"Sin":     {Package: "math", SubPackage: "math", Name: "Sin", IsMethod: false},
-			"Cos":     {Package: "math", SubPackage: "math", Name: "Cos", IsMethod: false},
-			"SinCos":  {Package: "math", SubPackage: "math", Name: "SinCos", IsMethod: false},
-			"Tanh":    {Package: "math", SubPackage: "math", Name: "Tanh", IsMethod: false},
-			"Sinh":    {Package: "math", SubPackage: "math", Name: "Sinh", IsMethod: false},
-			"Cosh":    {Package: "math", SubPackage: "math", Name: "Cosh", IsMethod: false},
-			"Asinh":   {Package: "math", SubPackage: "math", Name: "Asinh", IsMethod: false},
-			"Acosh":   {Package: "math", SubPackage: "math", Name: "Acosh", IsMethod: false},
-			"Atanh":   {Package: "math", SubPackage: "math", Name: "Atanh", IsMethod: false},
-			"Sigmoid": {Package: "math", SubPackage: "math", Name: "Sigmoid", IsMethod: false},
-			"Erf":     {Package: "math", SubPackage: "math", Name: "Erf", IsMethod: false},
+			// The transformer adds target and type suffix (e.g., Exp -> BaseExpVec_neon)
+			"Exp":     {Package: "math", SubPackage: "math", Name: "BaseExpVec", IsMethod: false},
+			"Exp2":    {Package: "math", SubPackage: "math", Name: "BaseExp2Vec", IsMethod: false},
+			"Exp10":   {Package: "math", SubPackage: "math", Name: "BaseExp10Vec", IsMethod: false},
+			"Log":     {Package: "math", SubPackage: "math", Name: "BaseLogVec", IsMethod: false},
+			"Log2":    {Package: "math", SubPackage: "math", Name: "BaseLog2Vec", IsMethod: false},
+			"Log10":   {Package: "math", SubPackage: "math", Name: "BaseLog10Vec", IsMethod: false},
+			"Sin":     {Package: "math", SubPackage: "math", Name: "BaseSinVec", IsMethod: false},
+			"Cos":     {Package: "math", SubPackage: "math", Name: "BaseCosVec", IsMethod: false},
+			"SinCos":  {Package: "math", SubPackage: "math", Name: "BaseSinCosVec", IsMethod: false},
+			"Tanh":    {Package: "math", SubPackage: "math", Name: "BaseTanhVec", IsMethod: false},
+			"Sinh":    {Package: "math", SubPackage: "math", Name: "BaseSinhVec", IsMethod: false},
+			"Cosh":    {Package: "math", SubPackage: "math", Name: "BaseCoshVec", IsMethod: false},
+			"Asinh":   {Package: "math", SubPackage: "math", Name: "BaseAsinhVec", IsMethod: false},
+			"Acosh":   {Package: "math", SubPackage: "math", Name: "BaseAcoshVec", IsMethod: false},
+			"Atanh":   {Package: "math", SubPackage: "math", Name: "BaseAtanhVec", IsMethod: false},
+			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
+			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
 			// ===== contrib/dot: Dot product operations =====
 			"Dot": {Package: "dot", SubPackage: "dot", Name: "Dot", IsMethod: false},

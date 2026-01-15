@@ -1,6 +1,6 @@
 package dot
 
-//go:generate hwygen -input dot_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input dot_base.go -output . -targets avx2,avx512,neon,fallback -dispatch dot
 
 import "github.com/ajroetker/go-highway/hwy"
 

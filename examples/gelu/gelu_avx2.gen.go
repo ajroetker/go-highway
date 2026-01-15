@@ -11,14 +11,14 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(float32(1.702))
 	BaseGELUApprox_AVX2_vCoeff_f64 = archsimd.BroadcastFloat64x4(float64(1.702))
 	BaseGELU_AVX2_vInvSqrt2_f32    = archsimd.BroadcastFloat32x8(float32(0.7071067811865476))
 	BaseGELU_AVX2_vHalf_f32        = archsimd.BroadcastFloat32x8(float32(0.5))
 	BaseGELU_AVX2_vOne_f32         = archsimd.BroadcastFloat32x8(float32(1.0))
+	BaseGELU_AVX2_vHalf_f64        = archsimd.BroadcastFloat64x4(float64(0.5))
 	BaseGELU_AVX2_vOne_f64         = archsimd.BroadcastFloat64x4(float64(1.0))
 	BaseGELU_AVX2_vInvSqrt2_f64    = archsimd.BroadcastFloat64x4(float64(0.7071067811865476))
-	BaseGELU_AVX2_vHalf_f64        = archsimd.BroadcastFloat64x4(float64(0.5))
+	BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(float32(1.702))
 )
 
 func BaseGELU_avx2(input []float32, output []float32) {

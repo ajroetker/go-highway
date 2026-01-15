@@ -131,9 +131,27 @@ func ShiftLeftI64(a []int64, shift int, result []int64) { panic("NEON not availa
 func ShiftRightI64(a []int64, shift int, result []int64) {
 	panic("NEON not available")
 }
-func EqI64(a, b, result []int64)                   { panic("NEON not available") }
-func GtI64(a, b, result []int64)                   { panic("NEON not available") }
-func GeI64(a, b, result []int64)                   { panic("NEON not available") }
-func LtI64(a, b, result []int64)                   { panic("NEON not available") }
-func LeI64(a, b, result []int64)                   { panic("NEON not available") }
-func IfThenElseI64(mask, yes, no, result []int64)  { panic("NEON not available") }
+func EqI64(a, b, result []int64)                  { panic("NEON not available") }
+func GtI64(a, b, result []int64)                  { panic("NEON not available") }
+func GeI64(a, b, result []int64)                  { panic("NEON not available") }
+func LtI64(a, b, result []int64)                  { panic("NEON not available") }
+func LeI64(a, b, result []int64)                  { panic("NEON not available") }
+func IfThenElseI64(mask, yes, no, result []int64) { panic("NEON not available") }
+
+// Single-vector operations (exported)
+func FindFirstTrueI32x4(mask *[4]int32) int      { panic("NEON not available") }
+func FindFirstTrueI64x2(mask *[2]int64) int      { panic("NEON not available") }
+func CountTrueI32x4(mask *[4]int32) int          { panic("NEON not available") }
+func CountTrueI64x2(mask *[2]int64) int          { panic("NEON not available") }
+func EqF32x4(a, b, result *[4]float32)           { panic("NEON not available") }
+func EqI32x4(a, b, result *[4]int32)             { panic("NEON not available") }
+func EqF64x2(a, b *[2]float64, result *[2]int64) { panic("NEON not available") }
+func EqI64x2(a, b, result *[2]int64)             { panic("NEON not available") }
+
+// Internal asm functions (called by vec_neon.go on arm64)
+func allTrueI32x4Asm(mask *[4]int32) bool        { return false }
+func allTrueI64x2Asm(mask *[2]int64) bool        { return false }
+func allFalseI32x4Asm(mask *[4]int32) bool       { return true }
+func allFalseI64x2Asm(mask *[2]int64) bool       { return true }
+func firstNI32x4Asm(count int, result *[4]int32) {}
+func firstNI64x2Asm(count int, result *[2]int64) {}

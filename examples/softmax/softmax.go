@@ -9,7 +9,7 @@
 //	GOEXPERIMENT=simd go build
 package softmax
 
-//go:generate hwygen -input softmax.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../cmd/hwygen -input softmax.go -output . -targets avx2,avx512,neon,fallback
 
 import (
 	stdmath "math"

@@ -357,9 +357,9 @@ func BaseSigmoid[T hwy.Floats](input, output []T) {
 		t.Error("AVX2 output missing contrib/math import")
 	}
 
-	// Should use math.Sigmoid_AVX2_F32x8 style function calls
-	if !strings.Contains(avx2Str, "math.Sigmoid_AVX2_") {
-		t.Error("AVX2 output missing math.Sigmoid_AVX2_ function call")
+	// Should use math.BaseSigmoidVec_avx2 style function calls
+	if !strings.Contains(avx2Str, "math.BaseSigmoidVec_avx2") {
+		t.Error("AVX2 output missing math.BaseSigmoidVec_avx2 function call")
 	}
 
 	// Check fallback output uses hwy package
@@ -376,9 +376,9 @@ func BaseSigmoid[T hwy.Floats](input, output []T) {
 		t.Error("Fallback output missing hwy import")
 	}
 
-	// Fallback should use math.Sigmoid for contrib functions (not hwy.Sigmoid)
-	if !strings.Contains(fallbackStr, "math.Sigmoid") {
-		t.Error("Fallback output missing math.Sigmoid function call")
+	// Fallback should use math.BaseSigmoidVec for contrib functions (not hwy.Sigmoid)
+	if !strings.Contains(fallbackStr, "math.BaseSigmoidVec_fallback") {
+		t.Error("Fallback output missing math.BaseSigmoidVec_fallback function call")
 	}
 }
 

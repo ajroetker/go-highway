@@ -12,27 +12,27 @@ import (
 
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
+	BaseGELUApprox_AVX512_vCoeff_f64 archsimd.Float64x8
+	BaseGELU_AVX512_vInvSqrt2_f32    archsimd.Float32x16
 	BaseGELU_AVX512_vHalf_f32        archsimd.Float32x16
 	BaseGELU_AVX512_vOne_f32         archsimd.Float32x16
-	BaseGELU_AVX512_vInvSqrt2_f32    archsimd.Float32x16
 	BaseGELU_AVX512_vHalf_f64        archsimd.Float64x8
 	BaseGELU_AVX512_vOne_f64         archsimd.Float64x8
 	BaseGELU_AVX512_vInvSqrt2_f64    archsimd.Float64x8
 	BaseGELUApprox_AVX512_vCoeff_f32 archsimd.Float32x16
-	BaseGELUApprox_AVX512_vCoeff_f64 archsimd.Float64x8
 	_hoistOnce                       sync.Once
 )
 
 func _initHoistedConstants() {
 	_hoistOnce.Do(func() {
+		BaseGELUApprox_AVX512_vCoeff_f64 = archsimd.BroadcastFloat64x8(float64(1.702))
+		BaseGELU_AVX512_vInvSqrt2_f32 = archsimd.BroadcastFloat32x16(float32(0.7071067811865476))
 		BaseGELU_AVX512_vHalf_f32 = archsimd.BroadcastFloat32x16(float32(0.5))
 		BaseGELU_AVX512_vOne_f32 = archsimd.BroadcastFloat32x16(float32(1.0))
-		BaseGELU_AVX512_vInvSqrt2_f32 = archsimd.BroadcastFloat32x16(float32(0.7071067811865476))
 		BaseGELU_AVX512_vHalf_f64 = archsimd.BroadcastFloat64x8(float64(0.5))
 		BaseGELU_AVX512_vOne_f64 = archsimd.BroadcastFloat64x8(float64(1.0))
 		BaseGELU_AVX512_vInvSqrt2_f64 = archsimd.BroadcastFloat64x8(float64(0.7071067811865476))
 		BaseGELUApprox_AVX512_vCoeff_f32 = archsimd.BroadcastFloat32x16(float32(1.702))
-		BaseGELUApprox_AVX512_vCoeff_f64 = archsimd.BroadcastFloat64x8(float64(1.702))
 	})
 }
 

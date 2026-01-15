@@ -6,6 +6,9 @@ package asm
 // which don't exist in Go assembly context and cause runtime failures.
 //go:generate go tool goat ../c/ops_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
 
+// Per-vector operations with typed wrappers (Float32x4, Int32x4, etc.)
+//go:generate go tool goat ../c/vec_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp"
+
 import "unsafe"
 
 // Float32 operations - exported wrappers
@@ -1127,5 +1130,198 @@ func IfThenElseI64(mask, yes, no, result []int64) {
 	}
 	n := int64(len(mask))
 	ifthenelse_i64_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&yes[0]), unsafe.Pointer(&no[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+}
+
+// ============================================================================
+// Single-Vector Operations (for hwygen-generated code)
+// ============================================================================
+
+// FindFirstTrueI32x4 finds the first non-zero lane in a 4-element int32 mask.
+// Returns index 0-3 of first true lane, or -1 if all zero.
+func FindFirstTrueI32x4(mask *[4]int32) int {
+	var result int64
+	find_first_true_i32x4_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// FindFirstTrueI64x2 finds the first non-zero lane in a 2-element int64 mask.
+// Returns index 0-1 of first true lane, or -1 if all zero.
+func FindFirstTrueI64x2(mask *[2]int64) int {
+	var result int64
+	find_first_true_i64x2_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// CountTrueI32x4 counts non-zero lanes in a 4-element int32 mask.
+func CountTrueI32x4(mask *[4]int32) int {
+	var result int64
+	count_true_i32x4_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// CountTrueI64x2 counts non-zero lanes in a 2-element int64 mask.
+func CountTrueI64x2(mask *[2]int64) int {
+	var result int64
+	count_true_i64x2_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// EqF32x4 compares 4 float32s for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqF32x4(a, b, result *[4]float32) {
+	eq_f32x4_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]))
+}
+
+// EqI32x4 compares 4 int32s for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqI32x4(a, b, result *[4]int32) {
+	eq_i32x4_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]))
+}
+
+// EqF64x2 compares 2 float64s for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqF64x2(a, b *[2]float64, result *[2]int64) {
+	eq_f64x2_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]))
+}
+
+// EqI64x2 compares 2 int64s for equality: result[i] = (a[i] == b[i]) ? -1 : 0
+func EqI64x2(a, b, result *[2]int64) {
+	eq_i64x2_neon(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result[0]))
+}
+
+// allTrueI32x4Asm returns true if all 4 int32 lanes are non-zero.
+// Internal function called by vec_neon.go on arm64.
+func allTrueI32x4Asm(mask *[4]int32) bool {
+	var result int64
+	all_true_i32x4_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return result != 0
+}
+
+// allTrueI64x2Asm returns true if all 2 int64 lanes are non-zero.
+func allTrueI64x2Asm(mask *[2]int64) bool {
+	var result int64
+	all_true_i64x2_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return result != 0
+}
+
+// allFalseI32x4Asm returns true if all 4 int32 lanes are zero.
+func allFalseI32x4Asm(mask *[4]int32) bool {
+	var result int64
+	all_false_i32x4_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return result != 0
+}
+
+// allFalseI64x2Asm returns true if all 2 int64 lanes are zero.
+func allFalseI64x2Asm(mask *[2]int64) bool {
+	var result int64
+	all_false_i64x2_neon(unsafe.Pointer(&mask[0]), unsafe.Pointer(&result))
+	return result != 0
+}
+
+// firstNI32x4Asm creates a 4-element int32 mask with the first n lanes set to -1.
+func firstNI32x4Asm(count int, result *[4]int32) {
+	c := int64(count)
+	firstn_i32x4_neon(unsafe.Pointer(&c), unsafe.Pointer(&result[0]))
+}
+
+// firstNI64x2Asm creates a 2-element int64 mask with the first n lanes set to -1.
+func firstNI64x2Asm(count int, result *[2]int64) {
+	c := int64(count)
+	firstn_i64x2_neon(unsafe.Pointer(&c), unsafe.Pointer(&result[0]))
+}
+
+// ============================================================================
+// Fused Find/Count Operations - process entire slices in one call
+// ============================================================================
+
+// FindEqualF32 finds the first element equal to target in a float32 slice.
+// Returns the index of the first match, or -1 if not found.
+// This is a fused SIMD operation that processes the entire slice in one call,
+// avoiding per-iteration function call overhead.
+func FindEqualF32(slice []float32, target float32) int {
+	if len(slice) == 0 {
+		return -1
+	}
+	n := int64(len(slice))
+	var result int64
+	find_equal_f32_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// FindEqualI32 finds the first element equal to target in an int32 slice.
+// Returns the index of the first match, or -1 if not found.
+func FindEqualI32(slice []int32, target int32) int {
+	if len(slice) == 0 {
+		return -1
+	}
+	n := int64(len(slice))
+	var result int64
+	find_equal_i32_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// CountEqualF32 counts elements equal to target in a float32 slice.
+func CountEqualF32(slice []float32, target float32) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	n := int64(len(slice))
+	var result int64
+	count_equal_f32_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// CountEqualI32 counts elements equal to target in an int32 slice.
+func CountEqualI32(slice []int32, target int32) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	n := int64(len(slice))
+	var result int64
+	count_equal_i32_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// FindEqualF64 finds the first element equal to target in a float64 slice.
+// Returns the index of the first match, or -1 if not found.
+func FindEqualF64(slice []float64, target float64) int {
+	if len(slice) == 0 {
+		return -1
+	}
+	n := int64(len(slice))
+	var result int64
+	find_equal_f64_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// FindEqualI64 finds the first element equal to target in an int64 slice.
+// Returns the index of the first match, or -1 if not found.
+func FindEqualI64(slice []int64, target int64) int {
+	if len(slice) == 0 {
+		return -1
+	}
+	n := int64(len(slice))
+	var result int64
+	find_equal_i64_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// CountEqualF64 counts elements equal to target in a float64 slice.
+func CountEqualF64(slice []float64, target float64) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	n := int64(len(slice))
+	var result int64
+	count_equal_f64_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
+}
+
+// CountEqualI64 counts elements equal to target in an int64 slice.
+func CountEqualI64(slice []int64, target int64) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	n := int64(len(slice))
+	var result int64
+	count_equal_i64_neon(unsafe.Pointer(&slice[0]), unsafe.Pointer(&n), unsafe.Pointer(&target), unsafe.Pointer(&result))
+	return int(result)
 }
 

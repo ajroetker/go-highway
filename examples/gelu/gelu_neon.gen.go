@@ -11,7 +11,6 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseGELUApprox_NEON_vCoeff_f32 = asm.BroadcastFloat32x4(float32(1.702))
 	BaseGELUApprox_NEON_vCoeff_f64 = asm.BroadcastFloat64x2(float64(1.702))
 	BaseGELU_NEON_vHalf_f32        = asm.BroadcastFloat32x4(float32(0.5))
 	BaseGELU_NEON_vOne_f32         = asm.BroadcastFloat32x4(float32(1.0))
@@ -19,6 +18,7 @@ var (
 	BaseGELU_NEON_vHalf_f64        = asm.BroadcastFloat64x2(float64(0.5))
 	BaseGELU_NEON_vOne_f64         = asm.BroadcastFloat64x2(float64(1.0))
 	BaseGELU_NEON_vInvSqrt2_f64    = asm.BroadcastFloat64x2(float64(0.7071067811865476))
+	BaseGELUApprox_NEON_vCoeff_f32 = asm.BroadcastFloat32x4(float32(1.702))
 )
 
 func BaseGELU_neon(input []float32, output []float32) {

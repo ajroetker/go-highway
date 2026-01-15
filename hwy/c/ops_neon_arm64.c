@@ -4349,3 +4349,535 @@ void ifthenelse_i64_neon(long *mask, long *yes, long *no, long *result, long *le
     }
 }
 
+// ============================================================================
+// Single-Vector Operations (for hwygen-generated code)
+// ============================================================================
+
+// Find first true in Int32x4 mask (single 128-bit vector)
+// Returns index 0-3 of first non-zero lane, or -1 if all zero
+void find_first_true_i32x4_neon(int *mask, long *result) {
+    int32x4_t m = vld1q_s32(mask);
+    uint32x4_t nonzero = vmvnq_u32(vceqq_s32(m, vdupq_n_s32(0)));
+
+    int lane0 = vgetq_lane_s32(vreinterpretq_s32_u32(nonzero), 0);
+    int lane1 = vgetq_lane_s32(vreinterpretq_s32_u32(nonzero), 1);
+    int lane2 = vgetq_lane_s32(vreinterpretq_s32_u32(nonzero), 2);
+    int lane3 = vgetq_lane_s32(vreinterpretq_s32_u32(nonzero), 3);
+
+    *result = -1;
+    if (lane3) {
+        *result = 3;
+    }
+    if (lane2) {
+        *result = 2;
+    }
+    if (lane1) {
+        *result = 1;
+    }
+    if (lane0) {
+        *result = 0;
+    }
+}
+
+// Find first true in Int64x2 mask (single 128-bit vector)
+void find_first_true_i64x2_neon(long *mask, long *result) {
+    int64x2_t m = vld1q_s64(mask);
+    uint64x2_t zero = vceqq_s64(m, vdupq_n_s64(0));
+    int64x2_t nonzero = vreinterpretq_s64_u64(vmvnq_u8(vreinterpretq_u8_u64(zero)));
+
+    long lane0 = vgetq_lane_s64(nonzero, 0);
+    long lane1 = vgetq_lane_s64(nonzero, 1);
+
+    *result = -1;
+    if (lane1) {
+        *result = 1;
+    }
+    if (lane0) {
+        *result = 0;
+    }
+}
+
+// Count true in Int32x4 mask (single 128-bit vector)
+void count_true_i32x4_neon(int *mask, long *result) {
+    int32x4_t m = vld1q_s32(mask);
+    uint32x4_t nonzero = vmvnq_u32(vceqq_s32(m, vdupq_n_s32(0)));
+    uint32x4_t ones = vshrq_n_u32(nonzero, 31);
+    *result = vaddvq_u32(ones);
+}
+
+// Count true in Int64x2 mask (single 128-bit vector)
+void count_true_i64x2_neon(long *mask, long *result) {
+    int64x2_t m = vld1q_s64(mask);
+    uint64x2_t zero = vceqq_s64(m, vdupq_n_s64(0));
+    uint64x2_t nonzero = vmvnq_u8(vreinterpretq_u8_u64(zero));
+    uint64x2_t ones = vshrq_n_u64(vreinterpretq_u64_u8(nonzero), 63);
+    *result = vaddvq_u64(ones);
+}
+
+// Single-vector equality: compare 4 float32s
+void eq_f32x4_neon(float *a, float *b, int *result) {
+    float32x4_t va = vld1q_f32(a);
+    float32x4_t vb = vld1q_f32(b);
+    uint32x4_t cmp = vceqq_f32(va, vb);
+    vst1q_s32(result, vreinterpretq_s32_u32(cmp));
+}
+
+// Single-vector equality: compare 4 int32s
+void eq_i32x4_neon(int *a, int *b, int *result) {
+    int32x4_t va = vld1q_s32(a);
+    int32x4_t vb = vld1q_s32(b);
+    uint32x4_t cmp = vceqq_s32(va, vb);
+    vst1q_s32(result, vreinterpretq_s32_u32(cmp));
+}
+
+// Single-vector equality: compare 2 float64s
+void eq_f64x2_neon(double *a, double *b, long *result) {
+    float64x2_t va = vld1q_f64(a);
+    float64x2_t vb = vld1q_f64(b);
+    uint64x2_t cmp = vceqq_f64(va, vb);
+    vst1q_s64(result, vreinterpretq_s64_u64(cmp));
+}
+
+// Single-vector equality: compare 2 int64s
+void eq_i64x2_neon(long *a, long *b, long *result) {
+    int64x2_t va = vld1q_s64(a);
+    int64x2_t vb = vld1q_s64(b);
+    uint64x2_t cmp = vceqq_s64(va, vb);
+    vst1q_s64(result, vreinterpretq_s64_u64(cmp));
+}
+
+// ============================================================================
+// Single-Vector Mask Utility Operations
+// ============================================================================
+
+// AllTrue for Int32x4: returns 1 if all lanes are non-zero, 0 otherwise
+void all_true_i32x4_neon(int *mask, long *result) {
+    int32x4_t m = vld1q_s32(mask);
+    // Compare with zero: gives 0xFFFFFFFF where mask==0, 0x0 where mask!=0
+    uint32x4_t is_zero = vceqq_s32(m, vdupq_n_s32(0));
+    // If any lane was zero, vmaxvq will return 0xFFFFFFFF
+    // AllTrue = no lane is zero = max of is_zero is 0
+    *result = 0;
+    if (vmaxvq_u32(is_zero) == 0) {
+        *result = 1;
+    }
+}
+
+// AllTrue for Int64x2: returns 1 if all lanes are non-zero, 0 otherwise
+void all_true_i64x2_neon(long *mask, long *result) {
+    int64x2_t m = vld1q_s64(mask);
+    uint64x2_t is_zero = vceqq_s64(m, vdupq_n_s64(0));
+    // Check both lanes - need to OR them together
+    uint64x2_t combined = vorrq_u64(is_zero, vextq_u64(is_zero, is_zero, 1));
+    long any_zero = vgetq_lane_u64(combined, 0);
+    // AllTrue = no lane was zero
+    *result = 0;
+    if (any_zero == 0) {
+        *result = 1;
+    }
+}
+
+// AllFalse for Int32x4: returns 1 if all lanes are zero, 0 otherwise
+void all_false_i32x4_neon(int *mask, long *result) {
+    int32x4_t m = vld1q_s32(mask);
+    // vmaxvq on unsigned interpretation: if max is 0, all are zero
+    uint32x4_t um = vreinterpretq_u32_s32(m);
+    *result = 0;
+    if (vmaxvq_u32(um) == 0) {
+        *result = 1;
+    }
+}
+
+// AllFalse for Int64x2: returns 1 if all lanes are zero, 0 otherwise
+void all_false_i64x2_neon(long *mask, long *result) {
+    int64x2_t m = vld1q_s64(mask);
+    // OR both lanes - if result is 0, all were zero
+    int64x2_t combined = vorrq_s64(m, vextq_s64(m, m, 1));
+    long any_set = vgetq_lane_s64(combined, 0);
+    *result = 0;
+    if (any_set == 0) {
+        *result = 1;
+    }
+}
+
+// FirstN for Int32x4: creates mask with first n lanes set to -1, rest 0
+void firstn_i32x4_neon(long *count, int *result) {
+    long n = *count;
+    int32x4_t neg_one = vdupq_n_s32(-1);
+    int32x4_t zero = vdupq_n_s32(0);
+
+    // Write based on count using conditional lane stores
+    // Default all to 0
+    vst1q_s32(result, zero);
+
+    // Set lanes based on count (no else - GOAT limitation)
+    if (n >= 1) {
+        vst1q_lane_s32(result + 0, neg_one, 0);
+    }
+    if (n >= 2) {
+        vst1q_lane_s32(result + 1, neg_one, 0);
+    }
+    if (n >= 3) {
+        vst1q_lane_s32(result + 2, neg_one, 0);
+    }
+    if (n >= 4) {
+        vst1q_lane_s32(result + 3, neg_one, 0);
+    }
+}
+
+// FirstN for Int64x2: creates mask with first n lanes set to -1, rest 0
+void firstn_i64x2_neon(long *count, long *result) {
+    long n = *count;
+    int64x2_t neg_one = vdupq_n_s64(-1);
+    int64x2_t zero = vdupq_n_s64(0);
+
+    // Default all to 0
+    vst1q_s64(result, zero);
+
+    // Set lanes based on count
+    if (n >= 1) {
+        vst1q_lane_s64(result + 0, neg_one, 0);
+    }
+    if (n >= 2) {
+        vst1q_lane_s64(result + 1, neg_one, 0);
+    }
+}
+
+// ============================================================================
+// Fused Find/Count Operations - entire slice in one call, no intermediate copies
+// ============================================================================
+
+// Find first element equal to target in float32 slice
+// Returns index of first match, or -1 if not found
+void find_equal_f32_neon(float *slice, long *len, float *target, long *result) {
+    long n = *len;
+    float tgt = *target;
+    long i = 0;
+
+    // Broadcast target to all lanes
+    float32x4_t target_vec = vdupq_n_f32(tgt);
+
+    // Process 4 floats at a time
+    for (; i + 3 < n; i += 4) {
+        float32x4_t v = vld1q_f32(slice + i);
+        uint32x4_t cmp = vceqq_f32(v, target_vec);
+
+        // Check if any lane matches (horizontal max of comparison result)
+        uint32_t any_match = vmaxvq_u32(cmp);
+        if (any_match) {
+            // Find which lane matched (check from lane 0 to 3)
+            uint32_t lane0 = vgetq_lane_u32(cmp, 0);
+            uint32_t lane1 = vgetq_lane_u32(cmp, 1);
+            uint32_t lane2 = vgetq_lane_u32(cmp, 2);
+            if (lane0) {
+                *result = i;
+                return;
+            }
+            if (lane1) {
+                *result = i + 1;
+                return;
+            }
+            if (lane2) {
+                *result = i + 2;
+                return;
+            }
+            // Must be lane 3
+            *result = i + 3;
+            return;
+        }
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            *result = i;
+            return;
+        }
+    }
+
+    *result = -1;
+}
+
+// Find first element equal to target in int32 slice
+void find_equal_i32_neon(int *slice, long *len, int *target, long *result) {
+    long n = *len;
+    int tgt = *target;
+    long i = 0;
+
+    int32x4_t target_vec = vdupq_n_s32(tgt);
+
+    for (; i + 3 < n; i += 4) {
+        int32x4_t v = vld1q_s32(slice + i);
+        uint32x4_t cmp = vceqq_s32(v, target_vec);
+
+        uint32_t any_match = vmaxvq_u32(cmp);
+        if (any_match) {
+            uint32_t lane0 = vgetq_lane_u32(cmp, 0);
+            uint32_t lane1 = vgetq_lane_u32(cmp, 1);
+            uint32_t lane2 = vgetq_lane_u32(cmp, 2);
+            if (lane0) {
+                *result = i;
+                return;
+            }
+            if (lane1) {
+                *result = i + 1;
+                return;
+            }
+            if (lane2) {
+                *result = i + 2;
+                return;
+            }
+            *result = i + 3;
+            return;
+        }
+    }
+
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            *result = i;
+            return;
+        }
+    }
+
+    *result = -1;
+}
+
+// Count elements equal to target in float32 slice
+void count_equal_f32_neon(float *slice, long *len, float *target, long *result) {
+    long n = *len;
+    float tgt = *target;
+    long i = 0;
+    long count = 0;
+
+    float32x4_t target_vec = vdupq_n_f32(tgt);
+    uint32x4_t count_vec = vdupq_n_u32(0);
+
+    // Process 4 floats at a time, accumulate counts
+    for (; i + 3 < n; i += 4) {
+        float32x4_t v = vld1q_f32(slice + i);
+        uint32x4_t cmp = vceqq_f32(v, target_vec);
+        // cmp has 0xFFFFFFFF for match, 0 for no match
+        // Shift right by 31 to get 1 or 0
+        uint32x4_t ones = vshrq_n_u32(cmp, 31);
+        count_vec = vaddq_u32(count_vec, ones);
+    }
+
+    // Sum the count vector
+    count = vaddvq_u32(count_vec);
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            count++;
+        }
+    }
+
+    *result = count;
+}
+
+// Count elements equal to target in int32 slice
+void count_equal_i32_neon(int *slice, long *len, int *target, long *result) {
+    long n = *len;
+    int tgt = *target;
+    long i = 0;
+    long count = 0;
+
+    int32x4_t target_vec = vdupq_n_s32(tgt);
+    uint32x4_t count_vec = vdupq_n_u32(0);
+
+    for (; i + 3 < n; i += 4) {
+        int32x4_t v = vld1q_s32(slice + i);
+        uint32x4_t cmp = vceqq_s32(v, target_vec);
+        uint32x4_t ones = vshrq_n_u32(cmp, 31);
+        count_vec = vaddq_u32(count_vec, ones);
+    }
+
+    count = vaddvq_u32(count_vec);
+
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            count++;
+        }
+    }
+
+    *result = count;
+}
+
+// Find first element equal to target in float64 slice
+void find_equal_f64_neon(double *slice, long *len, double *target, long *result) {
+    long n = *len;
+    double tgt = *target;
+    long i = 0;
+
+    float64x2_t target_vec = vdupq_n_f64(tgt);
+
+    // Process 2 doubles at a time
+    for (; i + 1 < n; i += 2) {
+        float64x2_t v = vld1q_f64(slice + i);
+        uint64x2_t cmp = vceqq_f64(v, target_vec);
+
+        // Check if any lane matches
+        uint64_t lane0 = vgetq_lane_u64(cmp, 0);
+        uint64_t lane1 = vgetq_lane_u64(cmp, 1);
+        if (lane0) {
+            *result = i;
+            return;
+        }
+        if (lane1) {
+            *result = i + 1;
+            return;
+        }
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            *result = i;
+            return;
+        }
+    }
+
+    *result = -1;
+}
+
+// Find first element equal to target in int64 slice
+void find_equal_i64_neon(long *slice, long *len, long *target, long *result) {
+    long n = *len;
+    long tgt = *target;
+    long i = 0;
+
+    int64x2_t target_vec = vdupq_n_s64(tgt);
+
+    for (; i + 1 < n; i += 2) {
+        int64x2_t v = vld1q_s64(slice + i);
+        uint64x2_t cmp = vceqq_s64(v, target_vec);
+
+        uint64_t lane0 = vgetq_lane_u64(cmp, 0);
+        uint64_t lane1 = vgetq_lane_u64(cmp, 1);
+        if (lane0) {
+            *result = i;
+            return;
+        }
+        if (lane1) {
+            *result = i + 1;
+            return;
+        }
+    }
+
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            *result = i;
+            return;
+        }
+    }
+
+    *result = -1;
+}
+
+// Count elements equal to target in float64 slice
+void count_equal_f64_neon(double *slice, long *len, double *target, long *result) {
+    long n = *len;
+    double tgt = *target;
+    long i = 0;
+    long count = 0;
+
+    float64x2_t target_vec = vdupq_n_f64(tgt);
+    uint64x2_t count_vec = vdupq_n_u64(0);
+
+    // Process 2 doubles at a time
+    for (; i + 1 < n; i += 2) {
+        float64x2_t v = vld1q_f64(slice + i);
+        uint64x2_t cmp = vceqq_f64(v, target_vec);
+        // cmp has 0xFFFFFFFFFFFFFFFF for match, 0 for no match
+        // Shift right by 63 to get 1 or 0
+        uint64x2_t ones = vshrq_n_u64(cmp, 63);
+        count_vec = vaddq_u64(count_vec, ones);
+    }
+
+    // Sum the count vector
+    count = vgetq_lane_u64(count_vec, 0) + vgetq_lane_u64(count_vec, 1);
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            count++;
+        }
+    }
+
+    *result = count;
+}
+
+// Count elements equal to target in int64 slice
+void count_equal_i64_neon(long *slice, long *len, long *target, long *result) {
+    long n = *len;
+    long tgt = *target;
+    long i = 0;
+    long count = 0;
+
+    int64x2_t target_vec = vdupq_n_s64(tgt);
+    uint64x2_t count_vec = vdupq_n_u64(0);
+
+    for (; i + 1 < n; i += 2) {
+        int64x2_t v = vld1q_s64(slice + i);
+        uint64x2_t cmp = vceqq_s64(v, target_vec);
+        uint64x2_t ones = vshrq_n_u64(cmp, 63);
+        count_vec = vaddq_u64(count_vec, ones);
+    }
+
+    count = vgetq_lane_u64(count_vec, 0) + vgetq_lane_u64(count_vec, 1);
+
+    for (; i < n; i++) {
+        if (slice[i] == tgt) {
+            count++;
+        }
+    }
+
+    *result = count;
+}
+
+// CompressKeys for Float32x4 using NEON TBL instruction.
+// Takes input float32x4, a 16-byte permutation table entry, and stores result.
+// The permutation table maps each 4-bit mask to byte shuffle indices for
+// partition-style reordering (true elements first, false elements after).
+// This is the key primitive for Highway's VQSort double-store partition trick.
+void compress_keys_f32x4_neon(float *input, unsigned char *perm_entry, float *output) {
+    // Load input vector as bytes (16 bytes = 4 floats)
+    uint8x16_t input_bytes = vld1q_u8((unsigned char*)input);
+
+    // Load the 16-byte permutation indices
+    uint8x16_t perm = vld1q_u8(perm_entry);
+
+    // Use TBL to permute bytes - single instruction!
+    uint8x16_t result_bytes = vqtbl1q_u8(input_bytes, perm);
+
+    // Store result
+    vst1q_u8((unsigned char*)output, result_bytes);
+}
+
+// CompressKeys for Int32x4 using NEON TBL instruction.
+// Same as float32x4 - both are 16 bytes with 4 lanes.
+void compress_keys_i32x4_neon(long *input, unsigned char *perm_entry, long *output) {
+    uint8x16_t input_bytes = vld1q_u8((unsigned char*)input);
+    uint8x16_t perm = vld1q_u8(perm_entry);
+    uint8x16_t result_bytes = vqtbl1q_u8(input_bytes, perm);
+    vst1q_u8((unsigned char*)output, result_bytes);
+}
+
+// CompressKeys for Float64x2 using NEON TBL instruction.
+// 2 lanes of 8 bytes each = 16 bytes total.
+void compress_keys_f64x2_neon(double *input, unsigned char *perm_entry, double *output) {
+    uint8x16_t input_bytes = vld1q_u8((unsigned char*)input);
+    uint8x16_t perm = vld1q_u8(perm_entry);
+    uint8x16_t result_bytes = vqtbl1q_u8(input_bytes, perm);
+    vst1q_u8((unsigned char*)output, result_bytes);
+}
+
+// CompressKeys for Int64x2 using NEON TBL instruction.
+// Same as float64x2 - both are 16 bytes with 2 lanes.
+void compress_keys_i64x2_neon(long *input, unsigned char *perm_entry, long *output) {
+    uint8x16_t input_bytes = vld1q_u8((unsigned char*)input);
+    uint8x16_t perm = vld1q_u8(perm_entry);
+    uint8x16_t result_bytes = vqtbl1q_u8(input_bytes, perm);
+    vst1q_u8((unsigned char*)output, result_bytes);
+}
+

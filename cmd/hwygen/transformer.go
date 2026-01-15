@@ -73,6 +73,18 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		funcDecl.Type.Params.List = append(funcDecl.Type.Params.List, field)
 	}
 
+	// For fallback target with predicate functions, generate scalar loop body
+	// to avoid allocations from hwy.Load/pred.Apply
+	if target.Name == "Fallback" && hasPredicateParam(pf) {
+		if scalarBody := generateScalarPredicateBody(pf, elemType); scalarBody != nil {
+			funcDecl.Body = scalarBody
+			return &TransformResult{
+				FuncDecl:      funcDecl,
+				HoistedConsts: nil,
+			}
+		}
+	}
+
 	// Transform the function body
 	ctx := &transformContext{
 		target:             target,
@@ -88,6 +100,11 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		conditionalBlocks:  opts.ConditionalBlocks,
 		fset:               opts.FileSet,
 		imports:            opts.Imports,
+	}
+
+	// Add function parameters to localVars to prevent them from being hoisted
+	for _, param := range pf.Params {
+		ctx.localVars[param.Name] = true
 	}
 
 	// Collect all locally-defined variable names to avoid hoisting them as constants
@@ -328,8 +345,18 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		if strings.HasPrefix(ident.Name, "Base") {
 			// Transform BaseFoo to BaseFoo_avx2 (or BaseFoo_fallback, etc.)
 			suffix := ctx.target.Suffix()
-			if ctx.elemType == "float64" {
+			// Add type suffix for non-float32 types
+			switch ctx.elemType {
+			case "float64":
 				suffix = suffix + "_Float64"
+			case "int32":
+				suffix = suffix + "_Int32"
+			case "int64":
+				suffix = suffix + "_Int64"
+			case "uint32":
+				suffix = suffix + "_Uint32"
+			case "uint64":
+				suffix = suffix + "_Uint64"
 			}
 			ident.Name = ident.Name + suffix
 		}
@@ -365,8 +392,18 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		if ident, ok := indexExpr.X.(*ast.Ident); ok {
 			if strings.HasPrefix(ident.Name, "Base") {
 				suffix := ctx.target.Suffix()
-				if ctx.elemType == "float64" {
+				// Add type suffix for non-float32 types
+				switch ctx.elemType {
+				case "float64":
 					suffix = suffix + "_Float64"
+				case "int32":
+					suffix = suffix + "_Int32"
+				case "int64":
+					suffix = suffix + "_Int64"
+				case "uint32":
+					suffix = suffix + "_Uint32"
+				case "uint64":
+					suffix = suffix + "_Uint64"
 				}
 				// Strip the type param and add suffix
 				call.Fun = ast.NewIdent(ident.Name + suffix)
@@ -1033,6 +1070,44 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			call.Args = []ast.Expr{allTrue}
 		}
 
+	case "MaskNot":
+		// hwy.MaskNot(mask) -> mask.Xor(allTrue)
+		// where allTrue = one.Equal(one) (comparing 1.0 == 1.0 gives all-true mask)
+		if opInfo.Package == "special" && len(call.Args) >= 1 {
+			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+			pkgName := getVecPackageName(ctx.target)
+			mask := call.Args[0]
+
+			// Create pkg.Broadcast*(1.0) for float types or 1 for int types
+			var oneLit ast.Expr
+			if ctx.elemType == "float32" || ctx.elemType == "float64" {
+				oneLit = &ast.BasicLit{Kind: token.FLOAT, Value: "1.0"}
+			} else {
+				oneLit = &ast.BasicLit{Kind: token.INT, Value: "1"}
+			}
+			oneCall := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + vecTypeName),
+				},
+				Args: []ast.Expr{oneLit},
+			}
+			// Create one.Equal(one) to get all-true mask
+			allTrue := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   oneCall,
+					Sel: ast.NewIdent("Equal"),
+				},
+				Args: []ast.Expr{cloneExpr(oneCall)},
+			}
+			// Create mask.Xor(allTrue) to invert
+			call.Fun = &ast.SelectorExpr{
+				X:   mask,
+				Sel: ast.NewIdent("Xor"),
+			}
+			call.Args = []ast.Expr{allTrue}
+		}
+
 	case "IsInf":
 		// hwy.IsInf(x, sign) -> compare with +Inf and/or -Inf
 		// sign=0: either +Inf or -Inf, sign=1: +Inf only, sign=-1: -Inf only
@@ -1152,6 +1227,69 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			}
 		}
 
+	case "ShiftRight", "ShiftLeft", "ShiftAllRight", "ShiftAllLeft":
+		// hwy.ShiftRight(v, shift) -> v.ShiftAllRight(uint64(shift))
+		// archsimd's ShiftAllRight/ShiftAllLeft expect uint64, but hwy uses int
+		if len(call.Args) >= 2 {
+			call.Fun = &ast.SelectorExpr{
+				X:   call.Args[0],
+				Sel: ast.NewIdent(opInfo.Name),
+			}
+			shiftArg := call.Args[1]
+			// Wrap shift in uint64() cast for archsimd targets
+			if ctx.target.VecPackage == "archsimd" {
+				shiftArg = &ast.CallExpr{
+					Fun:  ast.NewIdent("uint64"),
+					Args: []ast.Expr{shiftArg},
+				}
+			}
+			call.Args = []ast.Expr{shiftArg}
+		}
+
+	case "And", "Xor":
+		// archsimd float types don't have And/Xor methods, only int types do.
+		// For float types on archsimd, use hwy wrappers.
+		if ctx.target.VecPackage == "archsimd" && (ctx.elemType == "float32" || ctx.elemType == "float64") {
+			// hwy.And(a, b) -> hwy.And_AVX2_F32x8(a, b)
+			fullName := fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(fullName),
+			}
+			// Keep args as [a, b]
+		} else {
+			// Integer types or non-archsimd: use method call a.And(b)
+			if len(call.Args) >= 2 {
+				call.Fun = &ast.SelectorExpr{
+					X:   call.Args[0],
+					Sel: ast.NewIdent(opInfo.Name),
+				}
+				call.Args = call.Args[1:]
+			}
+		}
+
+	case "Not":
+		// archsimd float types don't have Not method, only int types do.
+		// For float types on archsimd, use hwy wrappers.
+		if ctx.target.VecPackage == "archsimd" && (ctx.elemType == "float32" || ctx.elemType == "float64") {
+			// hwy.Not(a) -> hwy.Not_AVX2_F32x8(a)
+			fullName := fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(fullName),
+			}
+			// Keep args as [a]
+		} else {
+			// Integer types or non-archsimd: use method call a.Not()
+			if len(call.Args) >= 1 {
+				call.Fun = &ast.SelectorExpr{
+					X:   call.Args[0],
+					Sel: ast.NewIdent(opInfo.Name),
+				}
+				call.Args = nil
+			}
+		}
+
 	default:
 		// Binary operations: hwy.Add(a, b) -> a.Add(b)
 		if len(call.Args) >= 2 {
@@ -1188,13 +1326,21 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	if ctx.target.Name == "Fallback" {
 		// For fallback, use the appropriate package
 		if opInfo.SubPackage != "" {
-			// Contrib functions stay in their subpackage (e.g., math.Exp stays math.Exp)
+			// Contrib functions use their subpackage with target suffix
+			// e.g., contrib.Sigmoid -> math.BaseSigmoidVec_fallback
 			selExpr.X = ast.NewIdent(opInfo.SubPackage)
+			fullName := fmt.Sprintf("%s_%s%s", opInfo.Name, strings.ToLower(ctx.target.Name), getHwygenTypeSuffix(ctx.elemType))
+			selExpr.Sel.Name = fullName
 		} else {
 			// Core ops use hwy package
 			selExpr.X = ast.NewIdent("hwy")
+			// Use opInfo.Name if it differs from the source funcName (e.g., ShiftAllRight -> ShiftRight)
+			if opInfo.Name != "" {
+				selExpr.Sel.Name = opInfo.Name
+			} else {
+				selExpr.Sel.Name = funcName
+			}
 		}
-		selExpr.Sel.Name = funcName
 		return
 	}
 
@@ -1202,6 +1348,15 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	var fullName string
 	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
 	pkgName := getVecPackageName(ctx.target)
+
+	// Check if this op should be redirected to hwy wrappers (archsimd doesn't have it)
+	if opInfo.Package == "hwy" && opInfo.SubPackage == "" {
+		// Use hwy wrapper instead of archsimd
+		fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+		selExpr.X = ast.NewIdent("hwy")
+		selExpr.Sel.Name = fullName
+		return
+	}
 
 	switch funcName {
 	case "Load":
@@ -1224,10 +1379,186 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "MaskLoad":
 		fullName = fmt.Sprintf("MaskLoad%sSlice", vecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
-	default:
-		// For contrib functions, add target and type suffix (e.g., math.Exp_AVX2_F32x8)
-		if opInfo.SubPackage != "" {
+	case "Compress":
+		// Use hwy wrapper if configured
+		if opInfo.Package == "hwy" {
 			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			selExpr.X = ast.NewIdent("hwy")
+		} else {
+			// Compress returns (Vec, int). Maps to CompressKeysF32x4, etc.
+			switch ctx.elemType {
+			case "float32":
+				fullName = "CompressKeysF32x4"
+			case "float64":
+				fullName = "CompressKeysF64x2"
+			case "int32":
+				fullName = "CompressKeysI32x4"
+			case "int64":
+				fullName = "CompressKeysI64x2"
+			default:
+				fullName = "CompressKeysF32x4"
+			}
+			selExpr.X = ast.NewIdent(pkgName)
+		}
+	case "CompressStore":
+		// Use hwy wrapper if configured
+		if opInfo.Package == "hwy" {
+			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			selExpr.X = ast.NewIdent("hwy")
+		} else {
+			// CompressStore has type-specific versions: CompressStore (float32), CompressStoreFloat64, etc.
+			switch ctx.elemType {
+			case "float32":
+				fullName = "CompressStore"
+			case "float64":
+				fullName = "CompressStoreFloat64"
+			case "int32":
+				fullName = "CompressStoreInt32"
+			case "int64":
+				fullName = "CompressStoreInt64"
+			default:
+				fullName = "CompressStore"
+			}
+			selExpr.X = ast.NewIdent(pkgName)
+		}
+	case "FirstN":
+		// Use hwy wrapper if configured
+		if opInfo.Package == "hwy" {
+			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			selExpr.X = ast.NewIdent("hwy")
+		} else {
+			// FirstN returns a mask type: Int32x4 for 4-lane, Int64x2 for 2-lane
+			switch ctx.elemType {
+			case "float32":
+				fullName = "FirstN"
+			case "float64":
+				fullName = "FirstNFloat64"
+			case "int32":
+				fullName = "FirstN" // Int32x4 mask for int32
+			case "int64":
+				fullName = "FirstNInt64"
+			default:
+				fullName = "FirstN"
+			}
+			selExpr.X = ast.NewIdent(pkgName)
+		}
+	case "IfThenElse":
+		// Use hwy wrapper if configured
+		if opInfo.Package == "hwy" {
+			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			selExpr.X = ast.NewIdent("hwy")
+		} else {
+			// IfThenElse has type-specific versions for NEON
+			switch ctx.elemType {
+			case "float32":
+				fullName = "IfThenElse"
+			case "float64":
+				fullName = "IfThenElseFloat64"
+			case "int32":
+				fullName = "IfThenElseInt32"
+			case "int64":
+				fullName = "IfThenElseInt64"
+			default:
+				fullName = "IfThenElse"
+			}
+			selExpr.X = ast.NewIdent(pkgName)
+		}
+	case "AllTrue":
+		// AllTrue has type-specific versions for inlining:
+		// AllTrueVal for Int32x4 masks, AllTrueValFloat64 for Int64x2 masks
+		switch ctx.elemType {
+		case "float32", "int32":
+			fullName = "AllTrueVal"
+		case "float64", "int64":
+			fullName = "AllTrueValFloat64"
+		default:
+			fullName = "AllTrueVal"
+		}
+		selExpr.X = ast.NewIdent(pkgName)
+	case "AllFalse":
+		// AllFalse has type-specific versions for inlining:
+		// AllFalseVal for Int32x4 masks, AllFalseValFloat64 for Int64x2 masks
+		switch ctx.elemType {
+		case "float32", "int32":
+			fullName = "AllFalseVal"
+		case "float64", "int64":
+			fullName = "AllFalseValFloat64"
+		default:
+			fullName = "AllFalseVal"
+		}
+		selExpr.X = ast.NewIdent(pkgName)
+	case "SignBit":
+		// SignBit has type-specific versions for NEON: SignBitFloat32x4, SignBitFloat64x2
+		// For AVX2/AVX512, archsimd.SignBit() is generic
+		if ctx.target.Name == "NEON" {
+			switch ctx.elemType {
+			case "float32":
+				fullName = "SignBitFloat32x4"
+			case "float64":
+				fullName = "SignBitFloat64x2"
+			default:
+				fullName = "SignBitFloat32x4"
+			}
+		} else {
+			fullName = "SignBit"
+		}
+		selExpr.X = ast.NewIdent(pkgName)
+	case "MaskNot":
+		// MaskNot(mask) -> mask.Xor(allTrue)
+		// where allTrue = one.Equal(one) (comparing 1.0 == 1.0 gives all-true mask)
+		if opInfo.Package == "special" && len(call.Args) >= 1 {
+			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+			mask := call.Args[0]
+
+			// Create pkg.Broadcast*(1.0) for float types or 1 for int types
+			var oneLit ast.Expr
+			if ctx.elemType == "float32" || ctx.elemType == "float64" {
+				oneLit = &ast.BasicLit{Kind: token.FLOAT, Value: "1.0"}
+			} else {
+				oneLit = &ast.BasicLit{Kind: token.INT, Value: "1"}
+			}
+			oneCall := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent(pkgName),
+					Sel: ast.NewIdent("Broadcast" + vecTypeName),
+				},
+				Args: []ast.Expr{oneLit},
+			}
+			// Create one.Equal(one) to get all-true mask
+			allTrue := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   oneCall,
+					Sel: ast.NewIdent("Equal"),
+				},
+				Args: []ast.Expr{cloneExpr(oneCall)},
+			}
+			// Create mask.Xor(allTrue) to invert
+			call.Fun = &ast.SelectorExpr{
+				X:   mask,
+				Sel: ast.NewIdent("Xor"),
+			}
+			call.Args = []ast.Expr{allTrue}
+		}
+		return // Don't set fullName, we've already transformed the call
+	case "ShiftRight", "ShiftLeft", "ShiftAllRight", "ShiftAllLeft":
+		// archsimd's ShiftAllRight/ShiftAllLeft expect uint64, but hwy uses int.
+		// After function-to-method transformation, the shift is the last arg.
+		// Wrap it in a uint64() cast for archsimd targets.
+		if ctx.target.VecPackage == "archsimd" && len(call.Args) >= 1 {
+			lastIdx := len(call.Args) - 1
+			call.Args[lastIdx] = &ast.CallExpr{
+				Fun:  ast.NewIdent("uint64"),
+				Args: []ast.Expr{call.Args[lastIdx]},
+			}
+		}
+		fullName = opInfo.Name
+		selExpr.X = ast.NewIdent(pkgName)
+	default:
+		// For contrib functions (SubPackage), use hwygen's naming convention:
+		// lowercase target, type suffix only for non-default types
+		// e.g., math.BaseExpVec_avx2, math.BaseExpVec_avx2_Float64
+		if opInfo.SubPackage != "" {
+			fullName = fmt.Sprintf("%s_%s%s", opInfo.Name, strings.ToLower(ctx.target.Name), getHwygenTypeSuffix(ctx.elemType))
 			selExpr.X = ast.NewIdent(opInfo.SubPackage) // math, dot, matvec, algo
 		} else if opInfo.Package == "hwy" {
 			// Core ops from hwy package (e.g., hwy.Sqrt_AVX2_F32x8)
@@ -1272,6 +1603,23 @@ func getShortTypeName(elemType string, target Target) string {
 	}
 }
 
+// getHwygenTypeSuffix returns the type suffix used by hwygen for generated functions.
+// float32 is the default (no suffix), other types get _Float64, _Int32, _Int64.
+func getHwygenTypeSuffix(elemType string) string {
+	switch elemType {
+	case "float32":
+		return "" // default type, no suffix
+	case "float64":
+		return "_Float64"
+	case "int32":
+		return "_Int32"
+	case "int64":
+		return "_Int64"
+	default:
+		return ""
+	}
+}
+
 // transformGenDecl transforms variable declarations with generic types.
 func transformGenDecl(decl *ast.GenDecl, ctx *transformContext) {
 	if decl.Tok != token.VAR && decl.Tok != token.CONST {
@@ -1287,7 +1635,10 @@ func transformGenDecl(decl *ast.GenDecl, ctx *transformContext) {
 		// Transform type if present
 		if valueSpec.Type != nil {
 			typeStr := exprToString(valueSpec.Type)
+			// First specialize generic type parameters (T -> float32)
 			specialized := specializeType(typeStr, ctx.typeParams, ctx.elemType)
+			// Then transform hwy.Vec[float32] -> asm.Float32x4 for SIMD targets
+			specialized = specializeVecType(specialized, ctx.elemType, ctx.target)
 			if specialized != typeStr {
 				valueSpec.Type = parseTypeExpr(specialized)
 			}
@@ -1758,44 +2109,155 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 // specializeType replaces generic type parameters with concrete types.
 // For SIMD targets, also transforms hwy.Vec[T] to archsimd/asm vector types.
 func specializeType(typeStr string, typeParams []TypeParam, elemType string) string {
+	// First, identify which type parameters are element types vs interface types
+	elementTypeParams := make(map[string]bool)
+	interfaceTypeParams := make(map[string]string) // maps param name to constraint
+
 	for _, tp := range typeParams {
-		// Replace hwy.Vec[T] with concrete vector type placeholder
-		// This will be further processed by specializeVecType
-		typeStr = strings.ReplaceAll(typeStr, "hwy.Vec["+tp.Name+"]", "hwy.Vec["+elemType+"]")
-		// Replace []T with []float32, etc.
-		typeStr = strings.ReplaceAll(typeStr, "[]"+tp.Name, "[]"+elemType)
-		typeStr = strings.ReplaceAll(typeStr, tp.Name, elemType)
+		// Element type constraints
+		if strings.Contains(tp.Constraint, "Lanes") ||
+			strings.Contains(tp.Constraint, "Floats") ||
+			strings.Contains(tp.Constraint, "Integers") ||
+			strings.Contains(tp.Constraint, "SignedInts") ||
+			strings.Contains(tp.Constraint, "UnsignedInts") {
+			elementTypeParams[tp.Name] = true
+		} else {
+			// Interface constraint (like Predicate[T])
+			interfaceTypeParams[tp.Name] = tp.Constraint
+		}
 	}
+
+	// Replace element type parameters and hwy.Vec[T]/hwy.Mask[T]
+	for _, tp := range typeParams {
+		if elementTypeParams[tp.Name] {
+			// Replace hwy.Vec[T] with concrete vector type placeholder
+			typeStr = strings.ReplaceAll(typeStr, "hwy.Vec["+tp.Name+"]", "hwy.Vec["+elemType+"]")
+			// Replace hwy.Mask[T] with concrete mask type placeholder
+			typeStr = strings.ReplaceAll(typeStr, "hwy.Mask["+tp.Name+"]", "hwy.Mask["+elemType+"]")
+			// Replace []T with []float32, etc.
+			typeStr = strings.ReplaceAll(typeStr, "[]"+tp.Name, "[]"+elemType)
+			// Replace standalone T with concrete type
+			typeStr = replaceTypeParam(typeStr, tp.Name, elemType)
+		}
+	}
+
+	// For interface type parameters, specialize the generic type within the constraint
+	// e.g., Predicate[T] -> Predicate[float32]
+	for paramName, constraint := range interfaceTypeParams {
+		// Check if this parameter's type is exactly its constraint (e.g., "P" -> "Predicate[T]")
+		if typeStr == paramName {
+			// Specialize the constraint's type parameters
+			specializedConstraint := constraint
+			for _, tp := range typeParams {
+				if elementTypeParams[tp.Name] {
+					specializedConstraint = strings.ReplaceAll(specializedConstraint, "["+tp.Name+"]", "["+elemType+"]")
+				}
+			}
+			typeStr = specializedConstraint
+		}
+	}
+
 	return typeStr
 }
 
-// specializeVecType transforms hwy.Vec[elemType] to the concrete archsimd/asm type.
+// replaceTypeParam replaces a type parameter name with a concrete type,
+// being careful to only replace it when it appears as a standalone type
+// (not as part of another identifier).
+func replaceTypeParam(typeStr, paramName, elemType string) string {
+	// Simple approach: replace when the parameter appears alone or as a type argument
+	// This handles cases like "T", "[T]", "[]T", "func(T)"
+	result := typeStr
+
+	// Replace [T] with [elemType]
+	result = strings.ReplaceAll(result, "["+paramName+"]", "["+elemType+"]")
+
+	// Replace T when it's the whole string
+	if result == paramName {
+		return elemType
+	}
+
+	// Replace T in slice types []T
+	result = strings.ReplaceAll(result, "[]"+paramName, "[]"+elemType)
+
+	// Replace T in function types and map value types - look for patterns like "T)" or "T," or "(T" or "]T"
+	// This is a simple heuristic that works for most cases
+	for _, suffix := range []string{")", ",", " ", ""} {
+		for _, prefix := range []string{"(", ",", " ", "]"} {
+			old := prefix + paramName + suffix
+			new := prefix + elemType + suffix
+			result = strings.ReplaceAll(result, old, new)
+		}
+	}
+
+	return result
+}
+
+// specializeVecType transforms hwy.Vec[elemType] and hwy.Mask[elemType] to concrete archsimd/asm types.
 // For example: hwy.Vec[float32] -> archsimd.Float32x8 (for AVX2)
+//              hwy.Mask[float32] -> archsimd.Int32x8 (for AVX2)
 func specializeVecType(typeStr string, elemType string, target Target) string {
-	vecPlaceholder := "hwy.Vec[" + elemType + "]"
-	if !strings.Contains(typeStr, vecPlaceholder) {
-		return typeStr
-	}
-
 	if target.Name == "Fallback" {
-		// For fallback, keep hwy.Vec[float32] etc.
+		// For fallback, keep hwy.Vec[float32], hwy.Mask[float32] etc.
 		return typeStr
 	}
 
-	// Get the concrete vector type from target's TypeMap
-	vecTypeName, ok := target.TypeMap[elemType]
-	if !ok {
-		return typeStr
-	}
-
-	// Build fully qualified type: archsimd.Float32x8 or asm.Float32x4
 	pkgName := target.VecPackage
 	if pkgName == "" {
 		pkgName = "archsimd" // default
 	}
-	concreteType := pkgName + "." + vecTypeName
 
-	return strings.ReplaceAll(typeStr, vecPlaceholder, concreteType)
+	// Transform hwy.Vec[elemType]
+	vecPlaceholder := "hwy.Vec[" + elemType + "]"
+	if strings.Contains(typeStr, vecPlaceholder) {
+		vecTypeName, ok := target.TypeMap[elemType]
+		if ok {
+			concreteType := pkgName + "." + vecTypeName
+			typeStr = strings.ReplaceAll(typeStr, vecPlaceholder, concreteType)
+		}
+	}
+
+	// Transform hwy.Mask[elemType] to integer vector type (masks are represented as integer vectors)
+	maskPlaceholder := "hwy.Mask[" + elemType + "]"
+	if strings.Contains(typeStr, maskPlaceholder) {
+		maskTypeName := getMaskTypeName(elemType, target)
+		if maskTypeName != "" {
+			concreteMaskType := pkgName + "." + maskTypeName
+			typeStr = strings.ReplaceAll(typeStr, maskPlaceholder, concreteMaskType)
+		}
+	}
+
+	return typeStr
+}
+
+// getMaskTypeName returns the mask type name for a given element type and target.
+// For archsimd (AVX2/AVX512), masks are dedicated Mask32xN or Mask64xN types.
+// For NEON and fallback, masks may use integer vector types.
+func getMaskTypeName(elemType string, target Target) string {
+	lanes := target.LanesFor(elemType)
+	// For archsimd targets, use proper Mask types
+	if target.VecPackage == "archsimd" {
+		switch elemType {
+		case "float32", "int32":
+			return fmt.Sprintf("Mask32x%d", lanes)
+		case "float64", "int64":
+			return fmt.Sprintf("Mask64x%d", lanes)
+		default:
+			return ""
+		}
+	}
+	// For other targets (NEON, fallback), use integer vector types
+	switch elemType {
+	case "float32":
+		return fmt.Sprintf("Int32x%d", lanes)
+	case "float64":
+		return fmt.Sprintf("Int64x%d", lanes)
+	case "int32":
+		return fmt.Sprintf("Int32x%d", lanes)
+	case "int64":
+		return fmt.Sprintf("Int64x%d", lanes)
+	default:
+		return ""
+	}
 }
 
 // getVectorTypeName returns the vector type name for archsimd functions.
@@ -2059,8 +2521,9 @@ func cloneExpr(expr ast.Expr) ast.Expr {
 			args[i] = cloneExpr(arg)
 		}
 		return &ast.CallExpr{
-			Fun:  cloneExpr(e.Fun),
-			Args: args,
+			Fun:      cloneExpr(e.Fun),
+			Args:     args,
+			Ellipsis: e.Ellipsis,
 		}
 	case *ast.BinaryExpr:
 		return &ast.BinaryExpr{
@@ -2727,5 +3190,256 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 				}
 			}
 		}
+	}
+}
+
+// hasPredicateParam returns true if the function has a predicate-type parameter
+// (i.e., a type parameter with a non-Lanes constraint like Predicate[T]).
+func hasPredicateParam(pf *ParsedFunc) bool {
+	for _, tp := range pf.TypeParams {
+		// Skip element type constraints
+		if strings.Contains(tp.Constraint, "Lanes") ||
+			strings.Contains(tp.Constraint, "Floats") ||
+			strings.Contains(tp.Constraint, "Integers") ||
+			strings.Contains(tp.Constraint, "SignedInts") ||
+			strings.Contains(tp.Constraint, "UnsignedInts") {
+			continue
+		}
+		// This is likely a predicate or other interface type param
+		return true
+	}
+	return false
+}
+
+// generateScalarPredicateBody generates a scalar loop body for predicate functions
+// in fallback mode. Returns nil if this function doesn't need scalar generation.
+func generateScalarPredicateBody(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	// Map function names to their scalar implementations
+	switch pf.Name {
+	case "BaseAll":
+		return generateScalarAll(pf, elemType)
+	case "BaseAny":
+		return generateScalarAny(pf, elemType)
+	case "BaseNone":
+		return generateScalarNone(pf, elemType)
+	case "BaseFindIf":
+		return generateScalarFindIf(pf, elemType)
+	case "BaseCountIf":
+		return generateScalarCountIf(pf, elemType)
+	default:
+		return nil
+	}
+}
+
+// generateScalarAll generates: for _, v := range slice { if !pred.Test(v) { return false } } return true
+func generateScalarAll(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			// for _, v := range slice { if !pred.Test(v) { return false } }
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.UnaryExpr{
+								Op: token.NOT,
+								X: &ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X:   ast.NewIdent(predParam),
+										Sel: ast.NewIdent("Test"),
+									},
+									Args: []ast.Expr{ast.NewIdent("v")},
+								},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ReturnStmt{
+										Results: []ast.Expr{ast.NewIdent("false")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			// return true
+			&ast.ReturnStmt{
+				Results: []ast.Expr{ast.NewIdent("true")},
+			},
+		},
+	}
+}
+
+// generateScalarAny generates: for _, v := range slice { if pred.Test(v) { return true } } return false
+func generateScalarAny(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(predParam),
+									Sel: ast.NewIdent("Test"),
+								},
+								Args: []ast.Expr{ast.NewIdent("v")},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ReturnStmt{
+										Results: []ast.Expr{ast.NewIdent("true")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.ReturnStmt{
+				Results: []ast.Expr{ast.NewIdent("false")},
+			},
+		},
+	}
+}
+
+// generateScalarNone generates: return !BaseAny_fallback...(slice, pred)
+func generateScalarNone(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	// Build the function name: BaseAny_fallback or BaseAny_fallback_Float64, etc.
+	funcName := "BaseAny_fallback"
+	switch elemType {
+	case "float64":
+		funcName += "_Float64"
+	case "int32":
+		funcName += "_Int32"
+	case "int64":
+		funcName += "_Int64"
+	case "uint32":
+		funcName += "_Uint32"
+	case "uint64":
+		funcName += "_Uint64"
+	}
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.ReturnStmt{
+				Results: []ast.Expr{
+					&ast.UnaryExpr{
+						Op: token.NOT,
+						X: &ast.CallExpr{
+							Fun:  ast.NewIdent(funcName),
+							Args: []ast.Expr{ast.NewIdent(sliceParam), ast.NewIdent(predParam)},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// generateScalarFindIf generates: for i, v := range slice { if pred.Test(v) { return i } } return -1
+func generateScalarFindIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("i"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(predParam),
+									Sel: ast.NewIdent("Test"),
+								},
+								Args: []ast.Expr{ast.NewIdent("v")},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ReturnStmt{
+										Results: []ast.Expr{ast.NewIdent("i")},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.ReturnStmt{
+				Results: []ast.Expr{
+					&ast.UnaryExpr{Op: token.SUB, X: &ast.BasicLit{Kind: token.INT, Value: "1"}},
+				},
+			},
+		},
+	}
+}
+
+// generateScalarCountIf generates: count := 0; for _, v := range slice { if pred.Test(v) { count++ } } return count
+func generateScalarCountIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+	sliceParam := pf.Params[0].Name
+	predParam := pf.Params[1].Name
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			// count := 0
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{ast.NewIdent("count")},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+			},
+			// for _, v := range slice { if pred.Test(v) { count++ } }
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("v"),
+				Tok:   token.DEFINE,
+				X:     ast.NewIdent(sliceParam),
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(predParam),
+									Sel: ast.NewIdent("Test"),
+								},
+								Args: []ast.Expr{ast.NewIdent("v")},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.IncDecStmt{
+										X:   ast.NewIdent("count"),
+										Tok: token.INC,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			// return count
+			&ast.ReturnStmt{
+				Results: []ast.Expr{ast.NewIdent("count")},
+			},
+		},
 	}
 }
