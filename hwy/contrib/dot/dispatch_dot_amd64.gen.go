@@ -10,12 +10,18 @@ import (
 	"simd/archsimd"
 )
 
+var DotFloat16 func(a []hwy.Float16, b []hwy.Float16) hwy.Float16
+var DotBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16
 var DotFloat32 func(a []float32, b []float32) float32
 var DotFloat64 func(a []float64, b []float64) float64
 
 // Dot is the generic API that dispatches to the appropriate SIMD implementation.
 func Dot[T hwy.Floats](a []T, b []T) T {
 	switch any(a).(type) {
+	case []hwy.Float16:
+		return any(DotFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16))).(T)
+	case []hwy.BFloat16:
+		return any(DotBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))).(T)
 	case []float32:
 		return any(DotFloat32(any(a).([]float32), any(b).([]float32))).(T)
 	case []float64:
@@ -41,16 +47,22 @@ func init() {
 }
 
 func initDotAVX2() {
+	DotFloat16 = BaseDot_avx2_Float16
+	DotBFloat16 = BaseDot_avx2_BFloat16
 	DotFloat32 = BaseDot_avx2
 	DotFloat64 = BaseDot_avx2_Float64
 }
 
 func initDotAVX512() {
+	DotFloat16 = BaseDot_avx512_Float16
+	DotBFloat16 = BaseDot_avx512_BFloat16
 	DotFloat32 = BaseDot_avx512
 	DotFloat64 = BaseDot_avx512_Float64
 }
 
 func initDotFallback() {
+	DotFloat16 = BaseDot_fallback_Float16
+	DotBFloat16 = BaseDot_fallback_BFloat16
 	DotFloat32 = BaseDot_fallback
 	DotFloat64 = BaseDot_fallback_Float64
 }

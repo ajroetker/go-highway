@@ -119,13 +119,19 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 			}
 		}
 
-		// For SIMD targets, check if this function will generate Float16/BFloat16 specializations.
-		// These keep using hwy.Vec[hwy.Float16] etc. since archsimd doesn't have native half-precision support.
-		if target.Name != "Fallback" && len(pf.TypeParams) > 0 {
+		// Check if this function will generate Float16/BFloat16 specializations.
+		// For SIMD targets: need hwy package for hwy.Vec[hwy.Float16] since archsimd doesn't have native half-precision support.
+		// For Fallback targets: need hwy package for the hwy.Float16/hwy.BFloat16 types themselves.
+		if len(pf.TypeParams) > 0 {
 			concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
 			for _, ct := range concreteTypes {
 				if ct == "hwy.Float16" || ct == "hwy.BFloat16" {
-					pkgs.HwyPkg = true
+					if target.Name != "Fallback" {
+						pkgs.HwyPkg = true
+					} else {
+						// Fallback needs hwy import for Float16/BFloat16 types
+						pkgs.HwyCore = true
+					}
 					break
 				}
 			}

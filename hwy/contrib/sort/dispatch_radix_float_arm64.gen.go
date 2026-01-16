@@ -9,14 +9,22 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var FloatToSortableFloat16 func(data []hwy.Float16)
+var FloatToSortableBFloat16 func(data []hwy.BFloat16)
 var FloatToSortableFloat32 func(data []float32)
 var FloatToSortableFloat64 func(data []float64)
+var SortableToFloatFloat16 func(data []hwy.Float16)
+var SortableToFloatBFloat16 func(data []hwy.BFloat16)
 var SortableToFloatFloat32 func(data []float32)
 var SortableToFloatFloat64 func(data []float64)
 
 // FloatToSortable is the generic API that dispatches to the appropriate SIMD implementation.
 func FloatToSortable[T hwy.Floats](data []T) {
 	switch any(data).(type) {
+	case []hwy.Float16:
+		FloatToSortableFloat16(any(data).([]hwy.Float16))
+	case []hwy.BFloat16:
+		FloatToSortableBFloat16(any(data).([]hwy.BFloat16))
 	case []float32:
 		FloatToSortableFloat32(any(data).([]float32))
 	case []float64:
@@ -27,6 +35,10 @@ func FloatToSortable[T hwy.Floats](data []T) {
 // SortableToFloat is the generic API that dispatches to the appropriate SIMD implementation.
 func SortableToFloat[T hwy.Floats](data []T) {
 	switch any(data).(type) {
+	case []hwy.Float16:
+		SortableToFloatFloat16(any(data).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SortableToFloatBFloat16(any(data).([]hwy.BFloat16))
 	case []float32:
 		SortableToFloatFloat32(any(data).([]float32))
 	case []float64:
@@ -44,15 +56,23 @@ func init() {
 }
 
 func initRadix_floatNEON() {
+	FloatToSortableFloat16 = BaseFloatToSortable_neon_Float16
+	FloatToSortableBFloat16 = BaseFloatToSortable_neon_BFloat16
 	FloatToSortableFloat32 = BaseFloatToSortable_neon
 	FloatToSortableFloat64 = BaseFloatToSortable_neon_Float64
+	SortableToFloatFloat16 = BaseSortableToFloat_neon_Float16
+	SortableToFloatBFloat16 = BaseSortableToFloat_neon_BFloat16
 	SortableToFloatFloat32 = BaseSortableToFloat_neon
 	SortableToFloatFloat64 = BaseSortableToFloat_neon_Float64
 }
 
 func initRadix_floatFallback() {
+	FloatToSortableFloat16 = BaseFloatToSortable_fallback_Float16
+	FloatToSortableBFloat16 = BaseFloatToSortable_fallback_BFloat16
 	FloatToSortableFloat32 = BaseFloatToSortable_fallback
 	FloatToSortableFloat64 = BaseFloatToSortable_fallback_Float64
+	SortableToFloatFloat16 = BaseSortableToFloat_fallback_Float16
+	SortableToFloatBFloat16 = BaseSortableToFloat_fallback_BFloat16
 	SortableToFloatFloat32 = BaseSortableToFloat_fallback
 	SortableToFloatFloat64 = BaseSortableToFloat_fallback_Float64
 }

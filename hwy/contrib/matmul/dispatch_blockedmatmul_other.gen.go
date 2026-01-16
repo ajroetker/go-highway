@@ -9,12 +9,18 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var BlockedMatMulFloat16 func(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int)
+var BlockedMatMulBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int)
 var BlockedMatMulFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int)
 var BlockedMatMulFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int)
 
 // BlockedMatMul is the generic API that dispatches to the appropriate SIMD implementation.
 func BlockedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	switch any(a).(type) {
+	case []hwy.Float16:
+		BlockedMatMulFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), m, n, k)
+	case []hwy.BFloat16:
+		BlockedMatMulBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), m, n, k)
 	case []float32:
 		BlockedMatMulFloat32(any(a).([]float32), any(b).([]float32), any(c).([]float32), m, n, k)
 	case []float64:
@@ -28,6 +34,8 @@ func init() {
 }
 
 func initBlockedmatmulFallback() {
+	BlockedMatMulFloat16 = BaseBlockedMatMul_fallback_Float16
+	BlockedMatMulBFloat16 = BaseBlockedMatMul_fallback_BFloat16
 	BlockedMatMulFloat32 = BaseBlockedMatMul_fallback
 	BlockedMatMulFloat64 = BaseBlockedMatMul_fallback_Float64
 }

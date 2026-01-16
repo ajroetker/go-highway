@@ -9,14 +9,22 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var GELUFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var GELUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var GELUFloat32 func(input []float32, output []float32)
 var GELUFloat64 func(input []float64, output []float64)
+var GELUApproxFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var GELUApproxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var GELUApproxFloat32 func(input []float32, output []float32)
 var GELUApproxFloat64 func(input []float64, output []float64)
 
 // GELU is the generic API that dispatches to the appropriate SIMD implementation.
 func GELU[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
+	case []hwy.Float16:
+		GELUFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		GELUBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
 	case []float32:
 		GELUFloat32(any(input).([]float32), any(output).([]float32))
 	case []float64:
@@ -27,6 +35,10 @@ func GELU[T hwy.Floats](input []T, output []T) {
 // GELUApprox is the generic API that dispatches to the appropriate SIMD implementation.
 func GELUApprox[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
+	case []hwy.Float16:
+		GELUApproxFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		GELUApproxBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
 	case []float32:
 		GELUApproxFloat32(any(input).([]float32), any(output).([]float32))
 	case []float64:
@@ -40,8 +52,12 @@ func init() {
 }
 
 func initGeluFallback() {
+	GELUFloat16 = BaseGELU_fallback_Float16
+	GELUBFloat16 = BaseGELU_fallback_BFloat16
 	GELUFloat32 = BaseGELU_fallback
 	GELUFloat64 = BaseGELU_fallback_Float64
+	GELUApproxFloat16 = BaseGELUApprox_fallback_Float16
+	GELUApproxBFloat16 = BaseGELUApprox_fallback_BFloat16
 	GELUApproxFloat32 = BaseGELUApprox_fallback
 	GELUApproxFloat64 = BaseGELUApprox_fallback_Float64
 }

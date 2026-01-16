@@ -10,12 +10,18 @@ import (
 	"simd/archsimd"
 )
 
+var MatMulFloat16 func(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int)
+var MatMulBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int)
 var MatMulFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int)
 var MatMulFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int)
 
 // MatMul is the generic API that dispatches to the appropriate SIMD implementation.
 func MatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	switch any(a).(type) {
+	case []hwy.Float16:
+		MatMulFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), m, n, k)
+	case []hwy.BFloat16:
+		MatMulBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), m, n, k)
 	case []float32:
 		MatMulFloat32(any(a).([]float32), any(b).([]float32), any(c).([]float32), m, n, k)
 	case []float64:
@@ -40,16 +46,22 @@ func init() {
 }
 
 func initMatmulAVX2() {
+	MatMulFloat16 = BaseMatMul_avx2_Float16
+	MatMulBFloat16 = BaseMatMul_avx2_BFloat16
 	MatMulFloat32 = BaseMatMul_avx2
 	MatMulFloat64 = BaseMatMul_avx2_Float64
 }
 
 func initMatmulAVX512() {
+	MatMulFloat16 = BaseMatMul_avx512_Float16
+	MatMulBFloat16 = BaseMatMul_avx512_BFloat16
 	MatMulFloat32 = BaseMatMul_avx512
 	MatMulFloat64 = BaseMatMul_avx512_Float64
 }
 
 func initMatmulFallback() {
+	MatMulFloat16 = BaseMatMul_fallback_Float16
+	MatMulBFloat16 = BaseMatMul_fallback_BFloat16
 	MatMulFloat32 = BaseMatMul_fallback
 	MatMulFloat64 = BaseMatMul_fallback_Float64
 }

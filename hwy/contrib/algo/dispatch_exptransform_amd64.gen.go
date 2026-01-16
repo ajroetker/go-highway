@@ -10,24 +10,42 @@ import (
 	"simd/archsimd"
 )
 
+var ExpTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var ExpTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var ExpTransformFloat32 func(in []float32, out []float32)
 var ExpTransformFloat64 func(in []float64, out []float64)
+var LogTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var LogTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var LogTransformFloat32 func(in []float32, out []float32)
 var LogTransformFloat64 func(in []float64, out []float64)
+var SinTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var SinTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var SinTransformFloat32 func(in []float32, out []float32)
 var SinTransformFloat64 func(in []float64, out []float64)
+var CosTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var CosTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var CosTransformFloat32 func(in []float32, out []float32)
 var CosTransformFloat64 func(in []float64, out []float64)
+var TanhTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var TanhTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var TanhTransformFloat32 func(in []float32, out []float32)
 var TanhTransformFloat64 func(in []float64, out []float64)
+var SigmoidTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var SigmoidTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var SigmoidTransformFloat32 func(in []float32, out []float32)
 var SigmoidTransformFloat64 func(in []float64, out []float64)
+var ErfTransformFloat16 func(in []hwy.Float16, out []hwy.Float16)
+var ErfTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var ErfTransformFloat32 func(in []float32, out []float32)
 var ErfTransformFloat64 func(in []float64, out []float64)
 
 // ExpTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func ExpTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		ExpTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		ExpTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		ExpTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -38,6 +56,10 @@ func ExpTransform[T hwy.Floats](in []T, out []T) {
 // LogTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func LogTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		LogTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		LogTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		LogTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -48,6 +70,10 @@ func LogTransform[T hwy.Floats](in []T, out []T) {
 // SinTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func SinTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		SinTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SinTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		SinTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -58,6 +84,10 @@ func SinTransform[T hwy.Floats](in []T, out []T) {
 // CosTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func CosTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		CosTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		CosTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		CosTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -68,6 +98,10 @@ func CosTransform[T hwy.Floats](in []T, out []T) {
 // TanhTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func TanhTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		TanhTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		TanhTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		TanhTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -78,6 +112,10 @@ func TanhTransform[T hwy.Floats](in []T, out []T) {
 // SigmoidTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func SigmoidTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		SigmoidTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SigmoidTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		SigmoidTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -88,6 +126,10 @@ func SigmoidTransform[T hwy.Floats](in []T, out []T) {
 // ErfTransform is the generic API that dispatches to the appropriate SIMD implementation.
 func ErfTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
+	case []hwy.Float16:
+		ErfTransformFloat16(any(in).([]hwy.Float16), any(out).([]hwy.Float16))
+	case []hwy.BFloat16:
+		ErfTransformBFloat16(any(in).([]hwy.BFloat16), any(out).([]hwy.BFloat16))
 	case []float32:
 		ErfTransformFloat32(any(in).([]float32), any(out).([]float32))
 	case []float64:
@@ -112,52 +154,94 @@ func init() {
 }
 
 func initExptransformAVX2() {
+	ExpTransformFloat16 = BaseExpTransform_avx2_Float16
+	ExpTransformBFloat16 = BaseExpTransform_avx2_BFloat16
 	ExpTransformFloat32 = BaseExpTransform_avx2
 	ExpTransformFloat64 = BaseExpTransform_avx2_Float64
+	LogTransformFloat16 = BaseLogTransform_avx2_Float16
+	LogTransformBFloat16 = BaseLogTransform_avx2_BFloat16
 	LogTransformFloat32 = BaseLogTransform_avx2
 	LogTransformFloat64 = BaseLogTransform_avx2_Float64
+	SinTransformFloat16 = BaseSinTransform_avx2_Float16
+	SinTransformBFloat16 = BaseSinTransform_avx2_BFloat16
 	SinTransformFloat32 = BaseSinTransform_avx2
 	SinTransformFloat64 = BaseSinTransform_avx2_Float64
+	CosTransformFloat16 = BaseCosTransform_avx2_Float16
+	CosTransformBFloat16 = BaseCosTransform_avx2_BFloat16
 	CosTransformFloat32 = BaseCosTransform_avx2
 	CosTransformFloat64 = BaseCosTransform_avx2_Float64
+	TanhTransformFloat16 = BaseTanhTransform_avx2_Float16
+	TanhTransformBFloat16 = BaseTanhTransform_avx2_BFloat16
 	TanhTransformFloat32 = BaseTanhTransform_avx2
 	TanhTransformFloat64 = BaseTanhTransform_avx2_Float64
+	SigmoidTransformFloat16 = BaseSigmoidTransform_avx2_Float16
+	SigmoidTransformBFloat16 = BaseSigmoidTransform_avx2_BFloat16
 	SigmoidTransformFloat32 = BaseSigmoidTransform_avx2
 	SigmoidTransformFloat64 = BaseSigmoidTransform_avx2_Float64
+	ErfTransformFloat16 = BaseErfTransform_avx2_Float16
+	ErfTransformBFloat16 = BaseErfTransform_avx2_BFloat16
 	ErfTransformFloat32 = BaseErfTransform_avx2
 	ErfTransformFloat64 = BaseErfTransform_avx2_Float64
 }
 
 func initExptransformAVX512() {
+	ExpTransformFloat16 = BaseExpTransform_avx512_Float16
+	ExpTransformBFloat16 = BaseExpTransform_avx512_BFloat16
 	ExpTransformFloat32 = BaseExpTransform_avx512
 	ExpTransformFloat64 = BaseExpTransform_avx512_Float64
+	LogTransformFloat16 = BaseLogTransform_avx512_Float16
+	LogTransformBFloat16 = BaseLogTransform_avx512_BFloat16
 	LogTransformFloat32 = BaseLogTransform_avx512
 	LogTransformFloat64 = BaseLogTransform_avx512_Float64
+	SinTransformFloat16 = BaseSinTransform_avx512_Float16
+	SinTransformBFloat16 = BaseSinTransform_avx512_BFloat16
 	SinTransformFloat32 = BaseSinTransform_avx512
 	SinTransformFloat64 = BaseSinTransform_avx512_Float64
+	CosTransformFloat16 = BaseCosTransform_avx512_Float16
+	CosTransformBFloat16 = BaseCosTransform_avx512_BFloat16
 	CosTransformFloat32 = BaseCosTransform_avx512
 	CosTransformFloat64 = BaseCosTransform_avx512_Float64
+	TanhTransformFloat16 = BaseTanhTransform_avx512_Float16
+	TanhTransformBFloat16 = BaseTanhTransform_avx512_BFloat16
 	TanhTransformFloat32 = BaseTanhTransform_avx512
 	TanhTransformFloat64 = BaseTanhTransform_avx512_Float64
+	SigmoidTransformFloat16 = BaseSigmoidTransform_avx512_Float16
+	SigmoidTransformBFloat16 = BaseSigmoidTransform_avx512_BFloat16
 	SigmoidTransformFloat32 = BaseSigmoidTransform_avx512
 	SigmoidTransformFloat64 = BaseSigmoidTransform_avx512_Float64
+	ErfTransformFloat16 = BaseErfTransform_avx512_Float16
+	ErfTransformBFloat16 = BaseErfTransform_avx512_BFloat16
 	ErfTransformFloat32 = BaseErfTransform_avx512
 	ErfTransformFloat64 = BaseErfTransform_avx512_Float64
 }
 
 func initExptransformFallback() {
+	ExpTransformFloat16 = BaseExpTransform_fallback_Float16
+	ExpTransformBFloat16 = BaseExpTransform_fallback_BFloat16
 	ExpTransformFloat32 = BaseExpTransform_fallback
 	ExpTransformFloat64 = BaseExpTransform_fallback_Float64
+	LogTransformFloat16 = BaseLogTransform_fallback_Float16
+	LogTransformBFloat16 = BaseLogTransform_fallback_BFloat16
 	LogTransformFloat32 = BaseLogTransform_fallback
 	LogTransformFloat64 = BaseLogTransform_fallback_Float64
+	SinTransformFloat16 = BaseSinTransform_fallback_Float16
+	SinTransformBFloat16 = BaseSinTransform_fallback_BFloat16
 	SinTransformFloat32 = BaseSinTransform_fallback
 	SinTransformFloat64 = BaseSinTransform_fallback_Float64
+	CosTransformFloat16 = BaseCosTransform_fallback_Float16
+	CosTransformBFloat16 = BaseCosTransform_fallback_BFloat16
 	CosTransformFloat32 = BaseCosTransform_fallback
 	CosTransformFloat64 = BaseCosTransform_fallback_Float64
+	TanhTransformFloat16 = BaseTanhTransform_fallback_Float16
+	TanhTransformBFloat16 = BaseTanhTransform_fallback_BFloat16
 	TanhTransformFloat32 = BaseTanhTransform_fallback
 	TanhTransformFloat64 = BaseTanhTransform_fallback_Float64
+	SigmoidTransformFloat16 = BaseSigmoidTransform_fallback_Float16
+	SigmoidTransformBFloat16 = BaseSigmoidTransform_fallback_BFloat16
 	SigmoidTransformFloat32 = BaseSigmoidTransform_fallback
 	SigmoidTransformFloat64 = BaseSigmoidTransform_fallback_Float64
+	ErfTransformFloat16 = BaseErfTransform_fallback_Float16
+	ErfTransformBFloat16 = BaseErfTransform_fallback_BFloat16
 	ErfTransformFloat32 = BaseErfTransform_fallback
 	ErfTransformFloat64 = BaseErfTransform_fallback_Float64
 }

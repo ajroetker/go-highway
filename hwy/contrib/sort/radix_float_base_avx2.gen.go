@@ -8,6 +8,42 @@ import (
 	"simd/archsimd"
 )
 
+func BaseFloatToSortable_avx2_Float16(data []hwy.Float16) {
+	n := len(data)
+	lanes := 16
+	signBitVec := hwy.SignBit[hwy.Float16]()
+	zeroVec := hwy.Zero[hwy.Float16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		isNeg := hwy.LessThanF16(v, zeroVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		posResult := hwy.Xor(v, signBitVec)
+		result := hwy.IfThenElseF16(isNeg, negResult, posResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
+func BaseFloatToSortable_avx2_BFloat16(data []hwy.BFloat16) {
+	n := len(data)
+	lanes := 16
+	signBitVec := hwy.SignBit[hwy.BFloat16]()
+	zeroVec := hwy.Zero[hwy.BFloat16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		isNeg := hwy.LessThanBF16(v, zeroVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		posResult := hwy.Xor(v, signBitVec)
+		result := hwy.IfThenElseBF16(isNeg, negResult, posResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
 func BaseFloatToSortable_avx2(data []float32) {
 	n := len(data)
 	lanes := 8
@@ -40,6 +76,44 @@ func BaseFloatToSortable_avx2_Float64(data []float64) {
 		posResult := hwy.Xor_AVX2_F64x4(v, signBitVec)
 		result := hwy.IfThenElse_AVX2_F64x4(isNeg, negResult, posResult)
 		result.StoreSlice(data[i:])
+		i += lanes
+	}
+}
+
+func BaseSortableToFloat_avx2_Float16(data []hwy.Float16) {
+	n := len(data)
+	lanes := 16
+	signBitVec := hwy.SignBit[hwy.Float16]()
+	zeroVec := hwy.Zero[hwy.Float16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		masked := hwy.And(v, signBitVec)
+		wasPositive := hwy.NotEqual(masked, zeroVec)
+		posResult := hwy.Xor(v, signBitVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		result := hwy.IfThenElseF16(wasPositive, posResult, negResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
+func BaseSortableToFloat_avx2_BFloat16(data []hwy.BFloat16) {
+	n := len(data)
+	lanes := 16
+	signBitVec := hwy.SignBit[hwy.BFloat16]()
+	zeroVec := hwy.Zero[hwy.BFloat16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		masked := hwy.And(v, signBitVec)
+		wasPositive := hwy.NotEqual(masked, zeroVec)
+		posResult := hwy.Xor(v, signBitVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		result := hwy.IfThenElseBF16(wasPositive, posResult, negResult)
+		hwy.Store(result, data[i:])
 		i += lanes
 	}
 }

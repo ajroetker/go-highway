@@ -23,6 +23,39 @@ func isHalfPrecisionType(elemType string) bool {
 	return isFloat16Type(elemType) || isBFloat16Type(elemType)
 }
 
+// isHalfPrecisionSliceType checks if a parameter type is a slice of half-precision elements.
+// It handles both concrete types like "[]hwy.Float16" and generic types like "[]T" when
+// elemType is a half-precision type.
+func isHalfPrecisionSliceType(paramType, elemType string) bool {
+	// Check for concrete half-precision slice types
+	if paramType == "[]hwy.Float16" || paramType == "[]hwy.BFloat16" ||
+		paramType == "[]Float16" || paramType == "[]BFloat16" {
+		return true
+	}
+	// Check for generic slice type when elem type is half-precision
+	// e.g., "[]T" with elemType="hwy.Float16"
+	if strings.HasPrefix(paramType, "[]") && isHalfPrecisionType(elemType) {
+		// The slice element type should match the function's element type
+		sliceElem := strings.TrimPrefix(paramType, "[]")
+		// It's a generic type param like "T" or it matches the concrete type
+		if len(sliceElem) == 1 || sliceElem == elemType {
+			return true
+		}
+	}
+	return false
+}
+
+// returnsVecType checks if any return type contains "Vec" or "Mask".
+// Vec-returning functions use hwy.Vec operations which already work for Float16/BFloat16.
+func returnsVecType(returns []Param) bool {
+	for _, ret := range returns {
+		if strings.Contains(ret.Type, "Vec") || strings.Contains(ret.Type, "Mask") {
+			return true
+		}
+	}
+	return false
+}
+
 // getHalfPrecisionFuncName returns the hwy function name for Float16/BFloat16 operations.
 // For example, "Add" with Float16 returns "AddF16", "Add" with BFloat16 returns "AddBF16".
 // Returns empty string for operations that don't have F16/BF16 specific versions.
@@ -165,25 +198,31 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 
 	// Transform the function body
 	ctx := &transformContext{
-		target:             target,
-		elemType:           elemType,
-		typeParams:         pf.TypeParams,
-		loopInfo:           pf.LoopInfo,
-		lanesVars:          make(map[string]bool),
-		localVars:          make(map[string]bool),
-		stackArrayVars:     make(map[string]bool),
-		hoistedConsts:      make(map[string]HoistedConst),
-		funcName:           pf.Name,
-		typeSpecificConsts: opts.TypeSpecificConsts,
-		conditionalBlocks:  opts.ConditionalBlocks,
-		fset:               opts.FileSet,
-		imports:            opts.Imports,
-		varTypes:           make(map[string]string),
+		target:              target,
+		elemType:            elemType,
+		typeParams:          pf.TypeParams,
+		loopInfo:            pf.LoopInfo,
+		lanesVars:           make(map[string]bool),
+		localVars:           make(map[string]bool),
+		stackArrayVars:      make(map[string]bool),
+		hoistedConsts:       make(map[string]HoistedConst),
+		funcName:            pf.Name,
+		typeSpecificConsts:  opts.TypeSpecificConsts,
+		conditionalBlocks:   opts.ConditionalBlocks,
+		fset:                opts.FileSet,
+		imports:             opts.Imports,
+		varTypes:            make(map[string]string),
+		halfPrecisionSlices: make(map[string]bool),
 	}
 
 	// Add function parameters to localVars to prevent them from being hoisted
+	// Also track half-precision slice parameters
 	for _, param := range pf.Params {
 		ctx.localVars[param.Name] = true
+		// Check if parameter is a slice of half-precision type
+		if isHalfPrecisionSliceType(param.Type, elemType) {
+			ctx.halfPrecisionSlices[param.Name] = true
+		}
 	}
 
 	// Collect all locally-defined variable names to avoid hoisting them as constants
@@ -206,6 +245,16 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		convertStackArrayUsages(funcDecl.Body, ctx)
 	}
 
+	// Post-process to transform scalar operations for Float16/BFloat16.
+	// Scalar Go operations (+, -, *, /, >, <, etc.) don't work on Float16/BFloat16
+	// (they're uint16 under the hood), so we convert to float32 for computation.
+	// This applies to all targets (Fallback, NEON, AVX2, AVX512) since scalar tail
+	// loops exist in all targets.
+	// Skip Vec-returning functions - they use hwy.Vec operations which already work.
+	if isHalfPrecisionType(elemType) && !returnsVecType(pf.Returns) {
+		transformHalfPrecisionFallback(funcDecl.Body, ctx)
+	}
+
 	// Insert tail handling if there's a loop and function doesn't return a value
 	// (functions that return values have their own tail handling in the template)
 	if pf.LoopInfo != nil && len(pf.Returns) == 0 {
@@ -225,20 +274,22 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 }
 
 type transformContext struct {
-	target             Target
-	elemType           string
-	typeParams         []TypeParam
-	lanesVars          map[string]bool                   // Variables assigned from NumLanes()
-	localVars          map[string]bool                   // Variables defined locally in the function
-	stackArrayVars     map[string]bool                   // Variables that are stack arrays (need [:] when used as slice)
-	loopInfo           *LoopInfo
-	hoistedConsts      map[string]HoistedConst           // Hoisted constants (key is local var name)
-	funcName           string                            // Current function name for generating unique hoisted names
-	typeSpecificConsts map[string]*TypeSpecificConst     // Type-specific constant registry
-	conditionalBlocks  []ConditionalBlock                // Conditional blocks to process
-	fset               *token.FileSet                    // For resolving line numbers
-	imports            map[string]string                 // map[local_name]import_path for resolving package references
-	varTypes           map[string]string                 // map[var_name]type for type inference (e.g., "int32", "hwy.Float16")
+	target                   Target
+	elemType                 string
+	typeParams               []TypeParam
+	lanesVars                map[string]bool               // Variables assigned from NumLanes()
+	localVars                map[string]bool               // Variables defined locally in the function
+	stackArrayVars           map[string]bool               // Variables that are stack arrays (need [:] when used as slice)
+	loopInfo                 *LoopInfo
+	hoistedConsts            map[string]HoistedConst       // Hoisted constants (key is local var name)
+	funcName                 string                        // Current function name for generating unique hoisted names
+	typeSpecificConsts       map[string]*TypeSpecificConst // Type-specific constant registry
+	conditionalBlocks        []ConditionalBlock            // Conditional blocks to process
+	fset                     *token.FileSet                // For resolving line numbers
+	imports                  map[string]string             // map[local_name]import_path for resolving package references
+	varTypes                 map[string]string             // map[var_name]type for type inference (e.g., "int32", "hwy.Float16")
+	halfPrecisionScalarVars  map[string]bool               // Variables assigned from half-precision slice reads
+	halfPrecisionSlices      map[string]bool               // Slice variables that hold half-precision elements
 }
 
 // inferTypeFromExpr analyzes an expression and returns its inferred type.
@@ -727,6 +778,10 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		suffix := ctx.target.Suffix()
 		if ctx.elemType == "float64" {
 			suffix = suffix + "_Float64"
+		} else if isFloat16Type(ctx.elemType) {
+			suffix = suffix + "_Float16"
+		} else if isBFloat16Type(ctx.elemType) {
+			suffix = suffix + "_BFloat16"
 		}
 		selExpr.Sel.Name = funcName + suffix
 		return
@@ -1028,7 +1083,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 	if isHalfPrecisionType(ctx.elemType) {
 		// Handle Merge specially - needs argument reordering
 		// hwy.Merge(yes, no, mask) -> hwy.IfThenElseF16(mask, yes, no)
-		if isHalfPrecisionMergeOp(funcName) && len(call.Args) >= 3 {
+		if funcName == "Merge" && len(call.Args) >= 3 {
 			suffix := "F16"
 			if isBFloat16Type(ctx.elemType) {
 				suffix = "BF16"
@@ -1039,6 +1094,20 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			}
 			// Reorder: (yes, no, mask) -> (mask, yes, no)
 			call.Args = []ast.Expr{call.Args[2], call.Args[0], call.Args[1]}
+			return
+		}
+		// Handle IfThenElse - same signature as IfThenElseF16, no reordering needed
+		// hwy.IfThenElse(mask, yes, no) -> hwy.IfThenElseF16(mask, yes, no)
+		if funcName == "IfThenElse" && len(call.Args) >= 3 {
+			suffix := "F16"
+			if isBFloat16Type(ctx.elemType) {
+				suffix = "BF16"
+			}
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("IfThenElse" + suffix),
+			}
+			// Args stay in same order
 			return
 		}
 
@@ -1075,6 +1144,30 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				Sel: ast.NewIdent(funcName),
 			}
 			return
+		case "And", "Or", "Xor", "Not", "AndNot":
+			// Bitwise operations on hwy.Vec[Float16/BFloat16] don't have method forms,
+			// so keep them as hwy.And, hwy.Or, hwy.Xor, hwy.Not, hwy.AndNot
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(funcName),
+			}
+			return
+		case "NotEqual":
+			// hwy.NotEqual on hwy.Vec[Float16/BFloat16] doesn't have a method form,
+			// keep as hwy.NotEqual(a, b)
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("NotEqual"),
+			}
+			return
+		case "Pow":
+			// hwy.Pow on hwy.Vec[Float16/BFloat16] doesn't have a method form,
+			// keep as hwy.Pow(base, exp)
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("Pow"),
+			}
+			return
 		case "MaskAnd", "MaskOr", "MaskXor", "MaskAndNot":
 			// Mask operations on hwy.Mask[Float16/BFloat16] don't have method forms,
 			// so keep them as hwy.MaskAnd, hwy.MaskOr, etc.
@@ -1093,6 +1186,16 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				X: &ast.SelectorExpr{
 					X:   ast.NewIdent("hwy"),
 					Sel: ast.NewIdent("Pow2"),
+				},
+				Index: ast.NewIdent(ctx.elemType),
+			}
+			return
+		case "SignBit":
+			// SignBit needs a type parameter: hwy.SignBit[hwy.Float16]()
+			call.Fun = &ast.IndexExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent("SignBit"),
 				},
 				Index: ast.NewIdent(ctx.elemType),
 			}
@@ -1741,7 +1844,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	if isHalfPrecisionType(ctx.elemType) {
 		// Handle Merge specially - needs argument reordering
 		// hwy.Merge(yes, no, mask) -> hwy.IfThenElseF16(mask, yes, no)
-		if isHalfPrecisionMergeOp(funcName) && len(call.Args) >= 3 {
+		if funcName == "Merge" && len(call.Args) >= 3 {
 			suffix := "F16"
 			if isBFloat16Type(ctx.elemType) {
 				suffix = "BF16"
@@ -1750,6 +1853,18 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			selExpr.Sel.Name = "IfThenElse" + suffix
 			// Reorder: (yes, no, mask) -> (mask, yes, no)
 			call.Args = []ast.Expr{call.Args[2], call.Args[0], call.Args[1]}
+			return
+		}
+		// Handle IfThenElse - same signature as IfThenElseF16, no reordering needed
+		// hwy.IfThenElse(mask, yes, no) -> hwy.IfThenElseF16(mask, yes, no)
+		if funcName == "IfThenElse" && len(call.Args) >= 3 {
+			suffix := "F16"
+			if isBFloat16Type(ctx.elemType) {
+				suffix = "BF16"
+			}
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "IfThenElse" + suffix
+			// Args stay in same order
 			return
 		}
 
@@ -1828,6 +1943,35 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			// Keep hwy.Const[T] with type parameter for half-precision types
 			// hwy.Const handles float64-to-T conversion, while hwy.Set expects T
 			// This is handled earlier in the IndexExpr case - just return here
+			return
+		case "And", "Or", "Xor", "Not", "AndNot":
+			// Bitwise operations on hwy.Vec[Float16/BFloat16] don't have method forms,
+			// so keep them as hwy.And, hwy.Or, hwy.Xor, hwy.Not, hwy.AndNot
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = funcName
+			return
+		case "NotEqual":
+			// hwy.NotEqual on hwy.Vec[Float16/BFloat16] doesn't have a method form,
+			// keep as hwy.NotEqual(a, b)
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "NotEqual"
+			return
+		case "Pow":
+			// hwy.Pow on hwy.Vec[Float16/BFloat16] doesn't have a method form,
+			// keep as hwy.Pow(base, exp)
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Pow"
+			return
+		case "SignBit":
+			// For half-precision types, use hwy.SignBit[T]() which returns hwy.Vec[T]
+			// The generic function handles the sign bit correctly for Float16/BFloat16
+			call.Fun = &ast.IndexExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent("SignBit"),
+				},
+				Index: ast.NewIdent(ctx.elemType),
+			}
 			return
 		}
 		// For other operations without F16/BF16 variants, fall through
@@ -3265,11 +3409,15 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 			}
 		case *ast.AssignStmt:
 			// Replace: sum += v.ReduceSum() or sum += hwy.ReduceSum(v)
-			for i, rhs := range stmt.Rhs {
-				if call, ok := rhs.(*ast.CallExpr); ok {
-					if isReduceSumCall(call) {
-						// Transform to store + sum pattern
-						stmt.Rhs[i] = createReduceSumExpr(call, lanes, vecTypeName, ctx.elemType)
+			// Skip for Float16/BFloat16 - hwy.Vec doesn't have StoreSlice(),
+			// and hwy.ReduceSumF16/BF16 work directly.
+			if !isHalfPrecisionType(ctx.elemType) {
+				for i, rhs := range stmt.Rhs {
+					if call, ok := rhs.(*ast.CallExpr); ok {
+						if isReduceSumCall(call) {
+							// Transform to store + sum pattern
+							stmt.Rhs[i] = createReduceSumExpr(call, lanes, vecTypeName, ctx.elemType)
+						}
 					}
 				}
 			}
@@ -3311,16 +3459,15 @@ func isNumLanesCall(call *ast.CallExpr) bool {
 	return sel.Sel.Name == "NumLanes" || sel.Sel.Name == "NumElements"
 }
 
-// isReduceSumCall checks if a call expression is v.ReduceSum() or hwy.ReduceSum(v).
+// isReduceSumCall checks if a call expression is v.ReduceSum(), hwy.ReduceSum(v),
+// or the F16/BF16 variants (ReduceSumF16, ReduceSumBF16).
 func isReduceSumCall(call *ast.CallExpr) bool {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
-	if sel.Sel.Name == "ReduceSum" {
-		return true
-	}
-	return false
+	name := sel.Sel.Name
+	return name == "ReduceSum" || name == "ReduceSumF16" || name == "ReduceSumBF16"
 }
 
 // createReduceSumExpr creates an expression that stores the vector and sums elements.
@@ -3332,13 +3479,17 @@ func createReduceSumExpr(call *ast.CallExpr, lanes int, vecTypeName, elemType st
 	// Get the vector argument
 	var vecExpr ast.Expr
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
-		if _, ok := sel.X.(*ast.Ident); ok {
-			// It's v.ReduceSum() - the receiver is the vector
-			vecExpr = sel.X
+		if ident, ok := sel.X.(*ast.Ident); ok {
+			// Check if it's a package name (hwy, asm) or a vector variable
+			// Package names are lowercase and known; vectors are variables
+			if ident.Name != "hwy" && ident.Name != "asm" && ident.Name != "archsimd" {
+				// It's v.ReduceSum() - the receiver is the vector
+				vecExpr = sel.X
+			}
 		}
 	}
 	if vecExpr == nil && len(call.Args) > 0 {
-		// It's hwy.ReduceSum(v) - first arg is the vector
+		// It's hwy.ReduceSum(v) or hwy.ReduceSumF16(v) - first arg is the vector
 		vecExpr = call.Args[0]
 	}
 	if vecExpr == nil {
@@ -3673,6 +3824,10 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 						suffix := ctx.target.Suffix()
 						if ctx.elemType == "float64" {
 							suffix = suffix + "_Float64"
+						} else if isFloat16Type(ctx.elemType) {
+							suffix = suffix + "_Float16"
+						} else if isBFloat16Type(ctx.elemType) {
+							suffix = suffix + "_BFloat16"
 						}
 						sel.Sel.Name = sel.Sel.Name + suffix
 					}
@@ -3691,6 +3846,10 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 							suffix := ctx.target.Suffix()
 							if ctx.elemType == "float64" {
 								suffix = suffix + "_Float64"
+							} else if isFloat16Type(ctx.elemType) {
+								suffix = suffix + "_Float16"
+							} else if isBFloat16Type(ctx.elemType) {
+								suffix = suffix + "_BFloat16"
 							}
 							// Replace the IndexExpr with just the SelectorExpr (strip type param)
 							sel.Sel.Name = sel.Sel.Name + suffix
@@ -3709,6 +3868,10 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 					suffix := ctx.target.Suffix()
 					if ctx.elemType == "float64" {
 						suffix = suffix + "_Float64"
+					} else if isFloat16Type(ctx.elemType) {
+						suffix = suffix + "_Float16"
+					} else if isBFloat16Type(ctx.elemType) {
+						suffix = suffix + "_BFloat16"
 					}
 					// Replace the IndexExpr with just the Ident
 					call.Args[i] = ast.NewIdent(ident.Name + suffix)
@@ -3967,4 +4130,354 @@ func generateScalarCountIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
 			},
 		},
 	}
+}
+
+// transformHalfPrecisionFallback transforms scalar operations on Float16/BFloat16
+// to use float32 conversions. This is necessary because Float16/BFloat16 are uint16
+// under the hood and don't have arithmetic operators defined.
+//
+// Transformations:
+// - Scalar variable declarations: var x hwy.Float16 → var x float32
+// - Slice reads in expressions: input[i] → input[i].Float32()
+// - Slice assignments: shifted[i] = expr → shifted[i] = hwy.Float32ToFloat16(expr)
+// - Type conversions: hwy.Float16(1.0) → float32(1.0)
+// - hwy.ReduceSum calls: x := hwy.ReduceSum(v) → x := hwy.ReduceSum(v).Float32()
+// - Return statements: return x → return hwy.Float32ToFloat16(x)
+func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) {
+	// Get the conversion function name
+	var toFloat32Method string = "Float32"
+	var fromFloat32Func string
+	if isFloat16Type(ctx.elemType) {
+		fromFloat32Func = "hwy.Float32ToFloat16"
+	} else {
+		fromFloat32Func = "hwy.Float32ToBFloat16"
+	}
+
+	// Track variables assigned from ReduceSum so we know they're float32
+	reduceSumVars := make(map[string]bool)
+
+	// First pass: collect variables assigned from half-precision slice reads
+	// and track local slice variables of half-precision type
+	halfPrecisionScalarVars := make(map[string]bool)
+	ast.Inspect(body, func(n ast.Node) bool {
+		if assign, ok := n.(*ast.AssignStmt); ok {
+			for i, rhs := range assign.Rhs {
+				// Track the variable name
+				var varName string
+				if i < len(assign.Lhs) {
+					if ident, ok := assign.Lhs[i].(*ast.Ident); ok {
+						varName = ident.Name
+					}
+				}
+
+				// Check if RHS is a slice index expression on a half-precision slice
+				// Only track for := definitions, not compound assignments (+=, etc.)
+				// Compound assignments like `expSum += output[i]` should have output[i] wrapped
+				if indexExpr, ok := rhs.(*ast.IndexExpr); ok {
+					if assign.Tok == token.DEFINE && isHalfPrecisionSliceExpr(indexExpr, ctx) {
+						if varName != "" {
+							halfPrecisionScalarVars[varName] = true
+						}
+					}
+				}
+
+				// Check if RHS is a slice expression on a half-precision slice
+				// e.g., row := m[i*cols : (i+1)*cols]
+				if sliceExpr, ok := rhs.(*ast.SliceExpr); ok {
+					if ident, ok := sliceExpr.X.(*ast.Ident); ok {
+						if ctx.halfPrecisionSlices[ident.Name] && varName != "" {
+							// This is a sub-slice of a half-precision slice
+							ctx.halfPrecisionSlices[varName] = true
+						}
+					}
+				}
+
+				// Check if RHS is make([]T, ...) where T is half-precision
+				if callExpr, ok := rhs.(*ast.CallExpr); ok {
+					if ident, ok := callExpr.Fun.(*ast.Ident); ok {
+						if ident.Name == "make" && len(callExpr.Args) > 0 {
+							// Check if it's making a half-precision slice
+							if arrayType, ok := callExpr.Args[0].(*ast.ArrayType); ok {
+								if arrayType.Len == nil { // slice, not array
+									elemTypeStr := exprToString(arrayType.Elt)
+									if elemTypeStr == ctx.elemType || elemTypeStr == "hwy.Float16" || elemTypeStr == "hwy.BFloat16" {
+										if varName != "" {
+											ctx.halfPrecisionSlices[varName] = true
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	// Store in context for use in wrapHalfPrecisionExpr
+	ctx.halfPrecisionScalarVars = halfPrecisionScalarVars
+
+	// Transform the AST
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.DeclStmt:
+			// Transform: var expSum hwy.Float16 → var expSum float32
+			if genDecl, ok := node.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
+				for _, spec := range genDecl.Specs {
+					if valueSpec, ok := spec.(*ast.ValueSpec); ok {
+						typeStr := exprToString(valueSpec.Type)
+						if typeStr == ctx.elemType || typeStr == "hwy.Float16" || typeStr == "hwy.BFloat16" {
+							valueSpec.Type = ast.NewIdent("float32")
+						}
+					}
+				}
+			}
+
+		case *ast.AssignStmt:
+			// Check for hwy.ReduceSum assignment and wrap with .Float32()
+			// result := hwy.ReduceSum(sum) → result := hwy.ReduceSum(sum).Float32()
+			// But ReduceSumF16/ReduceSumBF16 already return float32, so don't wrap those.
+			for i, rhs := range node.Rhs {
+				if callExpr, ok := rhs.(*ast.CallExpr); ok {
+					if isReduceSumCall(callExpr) {
+						// Check if it's ReduceSumF16/BF16 which already returns float32
+						alreadyFloat32 := false
+						if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+							name := sel.Sel.Name
+							alreadyFloat32 = name == "ReduceSumF16" || name == "ReduceSumBF16"
+						}
+
+						if !alreadyFloat32 {
+							// Wrap with .Float32()
+							node.Rhs[i] = &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   cloneExpr(callExpr),
+									Sel: ast.NewIdent("Float32"),
+								},
+							}
+						}
+						// Track the variable name if it's a simple identifier
+						if len(node.Lhs) > i {
+							if ident, ok := node.Lhs[i].(*ast.Ident); ok {
+								reduceSumVars[ident.Name] = true
+							}
+						}
+						continue
+					}
+				}
+			}
+			// Handle other assignments
+			transformHalfPrecisionAssignment(node, ctx, toFloat32Method, fromFloat32Func)
+
+		case *ast.IfStmt:
+			// Transform if conditions that involve half-precision comparisons
+			if binExpr, ok := node.Cond.(*ast.BinaryExpr); ok {
+				binExpr.X = wrapHalfPrecisionExpr(binExpr.X, ctx, toFloat32Method)
+				binExpr.Y = wrapHalfPrecisionExpr(binExpr.Y, ctx, toFloat32Method)
+			}
+
+		case *ast.ReturnStmt:
+			// Transform return statements: return x → return hwy.Float32ToFloat16(x)
+			for i, result := range node.Results {
+				// Only wrap simple identifiers that might be float32 scalars
+				if ident, ok := result.(*ast.Ident); ok {
+					// Check if it's a variable we know is float32 (from ReduceSum)
+					// or if it looks like an accumulator variable
+					if reduceSumVars[ident.Name] || ident.Name == "result" || ident.Name == "acc" || ident.Name == "sum" {
+						node.Results[i] = &ast.CallExpr{
+							Fun:  parseTypeExpr(fromFloat32Func),
+							Args: []ast.Expr{ident},
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+// transformHalfPrecisionAssignment transforms assignments involving half-precision types.
+func transformHalfPrecisionAssignment(stmt *ast.AssignStmt, ctx *transformContext, toFloat32Method, fromFloat32Func string) {
+	// Transform RHS expressions to add .Float32() for slice index reads
+	// But skip if LHS is a simple identifier being tracked as half-precision scalar
+	// (we want to keep those as Float16 and only convert them in scalar arithmetic)
+	for i, rhs := range stmt.Rhs {
+		// Check if LHS is a tracked half-precision scalar variable
+		skipConversion := false
+		if i < len(stmt.Lhs) {
+			if ident, ok := stmt.Lhs[i].(*ast.Ident); ok {
+				if ctx.halfPrecisionScalarVars != nil && ctx.halfPrecisionScalarVars[ident.Name] {
+					// Don't convert the slice read - keep the variable as Float16
+					// It will be converted later when used in scalar arithmetic
+					skipConversion = true
+				}
+			}
+		}
+		if !skipConversion {
+			stmt.Rhs[i] = wrapHalfPrecisionExpr(rhs, ctx, toFloat32Method)
+		}
+	}
+
+	// Transform LHS slice assignments to wrap RHS with fromFloat32Func
+	for i, lhs := range stmt.Lhs {
+		if indexExpr, ok := lhs.(*ast.IndexExpr); ok {
+			// This is a slice assignment like shifted[i] = ...
+			// We need to wrap the RHS with Float32ToFloat16/Float32ToBFloat16
+			// But only if the slice is of half-precision type
+			if isHalfPrecisionSliceExpr(indexExpr, ctx) {
+				// Wrap RHS: expr → hwy.Float32ToFloat16(expr)
+				if i < len(stmt.Rhs) {
+					stmt.Rhs[i] = &ast.CallExpr{
+						Fun:  parseTypeExpr(fromFloat32Func),
+						Args: []ast.Expr{stmt.Rhs[i]},
+					}
+				}
+			}
+		}
+	}
+
+	// Handle compound assignments like expSum += output[i]
+	if stmt.Tok == token.ADD_ASSIGN || stmt.Tok == token.SUB_ASSIGN ||
+		stmt.Tok == token.MUL_ASSIGN || stmt.Tok == token.QUO_ASSIGN {
+		// Already handled by wrapHalfPrecisionExpr on RHS
+	}
+}
+
+// wrapHalfPrecisionExpr wraps index expressions on half-precision slices with .Float32()
+func wrapHalfPrecisionExpr(expr ast.Expr, ctx *transformContext, toFloat32Method string) ast.Expr {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *ast.IndexExpr:
+		// Check if this is reading from a half-precision slice
+		if isHalfPrecisionSliceExpr(e, ctx) {
+			// Wrap with .Float32(): input[i] → input[i].Float32()
+			return &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   cloneExpr(e),
+					Sel: ast.NewIdent(toFloat32Method),
+				},
+			}
+		}
+		return e
+
+	case *ast.BinaryExpr:
+		// Recursively wrap operands
+		return &ast.BinaryExpr{
+			X:  wrapHalfPrecisionExpr(e.X, ctx, toFloat32Method),
+			Op: e.Op,
+			Y:  wrapHalfPrecisionExpr(e.Y, ctx, toFloat32Method),
+		}
+
+	case *ast.CallExpr:
+		// Check for type conversions like hwy.Float16(1.0)
+		if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
+			if pkgIdent, ok := sel.X.(*ast.Ident); ok {
+				if pkgIdent.Name == "hwy" {
+					funcName := sel.Sel.Name
+					// Check for type conversion
+					if funcName == "Float16" || funcName == "BFloat16" {
+						// Transform: hwy.Float16(1.0) → float32(1.0)
+						e.Fun = ast.NewIdent("float32")
+						return e
+					}
+					// Skip wrapping arguments for vector operations
+					// These need half-precision arguments to produce half-precision vectors
+					if isVectorOperation(funcName) {
+						return e
+					}
+				}
+			}
+		}
+		// Also check for simple type conversions like hwy.Float16(x)
+		if ident, ok := e.Fun.(*ast.Ident); ok {
+			if ident.Name == ctx.elemType || ident.Name == "hwy.Float16" || ident.Name == "hwy.BFloat16" {
+				e.Fun = ast.NewIdent("float32")
+				return e
+			}
+		}
+		// Recurse into call arguments for type conversions like float64(input[i] - maxVal)
+		for i, arg := range e.Args {
+			e.Args[i] = wrapHalfPrecisionExpr(arg, ctx, toFloat32Method)
+		}
+		return e
+
+	case *ast.ParenExpr:
+		return &ast.ParenExpr{X: wrapHalfPrecisionExpr(e.X, ctx, toFloat32Method)}
+
+	case *ast.UnaryExpr:
+		return &ast.UnaryExpr{
+			Op: e.Op,
+			X:  wrapHalfPrecisionExpr(e.X, ctx, toFloat32Method),
+		}
+
+	case *ast.Ident:
+		// Check if this is a half-precision scalar variable
+		if ctx.halfPrecisionScalarVars != nil && ctx.halfPrecisionScalarVars[e.Name] {
+			// Wrap with .Float32(): aik → aik.Float32()
+			return &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   cloneExpr(e),
+					Sel: ast.NewIdent(toFloat32Method),
+				},
+			}
+		}
+		return e
+
+	default:
+		return expr
+	}
+}
+
+// vectorOperations is a set of hwy function names that operate on vectors.
+// Arguments to these functions should NOT be wrapped with .Float32() because
+// they need half-precision arguments to produce half-precision vectors.
+var vectorOperations = map[string]bool{
+	// Vector creation and manipulation
+	"Set": true, "Load": true, "Store": true, "Zero": true, "Broadcast": true,
+	// Vector arithmetic
+	"Add": true, "Sub": true, "Mul": true, "Div": true, "MulAdd": true, "MulSub": true,
+	"Neg": true, "Abs": true, "Min": true, "Max": true, "Clamp": true,
+	// F16/BF16 specific arithmetic
+	"AddF16": true, "SubF16": true, "MulF16": true, "DivF16": true, "MulAddF16": true,
+	"AddBF16": true, "SubBF16": true, "MulBF16": true, "DivBF16": true, "MulAddBF16": true,
+	// Comparisons
+	"Eq": true, "Ne": true, "Lt": true, "Le": true, "Gt": true, "Ge": true,
+	"LessThan": true, "LessThanOrEqual": true, "GreaterThan": true, "GreaterThanOrEqual": true,
+	"LessThanF16": true, "LessThanOrEqualF16": true, "GreaterThanF16": true, "GreaterThanOrEqualF16": true,
+	"LessThanBF16": true, "LessThanOrEqualBF16": true, "GreaterThanBF16": true, "GreaterThanOrEqualBF16": true,
+	// Reductions
+	"ReduceSum": true, "ReduceMin": true, "ReduceMax": true,
+	"ReduceSumF16": true, "ReduceSumBF16": true,
+	// Merge/Select
+	"Merge": true, "IfThenElse": true, "IfThenElseF16": true, "IfThenElseBF16": true,
+	// Bitwise
+	"And": true, "Or": true, "Xor": true, "Not": true, "AndNot": true,
+	// Shuffle/Permute
+	"Shuffle": true, "Reverse": true, "RotateLeft": true, "RotateRight": true,
+	// Convert (these produce vectors of the target type)
+	"ConvertTo": true, "PromoteTo": true, "DemoteTo": true,
+}
+
+// isVectorOperation returns true if the function name is a hwy vector operation
+// that needs half-precision arguments to produce half-precision vectors.
+func isVectorOperation(funcName string) bool {
+	return vectorOperations[funcName]
+}
+
+// isHalfPrecisionSliceExpr checks if an index expression is accessing a half-precision slice.
+// It uses the tracked halfPrecisionSlices set which is populated from function parameters
+// and local variable types.
+func isHalfPrecisionSliceExpr(indexExpr *ast.IndexExpr, ctx *transformContext) bool {
+	if ctx.halfPrecisionSlices == nil {
+		return false
+	}
+	// Get the slice variable name
+	if ident, ok := indexExpr.X.(*ast.Ident); ok {
+		return ctx.halfPrecisionSlices[ident.Name]
+	}
+	return false
 }

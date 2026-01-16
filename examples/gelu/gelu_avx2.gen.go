@@ -4,31 +4,82 @@
 package gelu
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 	stdmath "math"
 	"simd/archsimd"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
-var (
-	BaseGELUApprox_AVX2_vCoeff_f64 = archsimd.BroadcastFloat64x4(float64(1.702))
-	BaseGELU_AVX2_vInvSqrt2_f32    = archsimd.BroadcastFloat32x8(float32(0.7071067811865476))
-	BaseGELU_AVX2_vHalf_f32        = archsimd.BroadcastFloat32x8(float32(0.5))
-	BaseGELU_AVX2_vOne_f32         = archsimd.BroadcastFloat32x8(float32(1.0))
-	BaseGELU_AVX2_vHalf_f64        = archsimd.BroadcastFloat64x4(float64(0.5))
-	BaseGELU_AVX2_vOne_f64         = archsimd.BroadcastFloat64x4(float64(1.0))
-	BaseGELU_AVX2_vInvSqrt2_f64    = archsimd.BroadcastFloat64x4(float64(0.7071067811865476))
-	BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(float32(1.702))
-)
+func BaseGELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vHalf := hwy.Const[hwy.Float16](0.5)
+	vOne := hwy.Const[hwy.Float16](1.0)
+	vInvSqrt2 := hwy.Const[hwy.Float16](0.7071067811865476)
+	ii := 0
+	for ; ii+16 <= size; ii += 16 {
+		remaining := size - ii
+		if remaining >= 16 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulF16(x, vInvSqrt2)
+			erfX := math.BaseErfVec_avx2_Float16(xScaled)
+			onePlusErf := hwy.AddF16(vOne, erfX)
+			halfOnePlusErf := hwy.MulF16(vHalf, onePlusErf)
+			result := hwy.MulF16(x, halfOnePlusErf)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				output[i] = hwy.Float32ToFloat16(float32(x * 0.5 * (1.0 + stdmath.Erf(x*0.7071067811865476))))
+			}
+		}
+	}
+	if ii < size {
+		BaseGELU_fallback_Float16(input[ii:size], output[ii:size])
+	}
+}
+
+func BaseGELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vHalf := hwy.Const[hwy.BFloat16](0.5)
+	vOne := hwy.Const[hwy.BFloat16](1.0)
+	vInvSqrt2 := hwy.Const[hwy.BFloat16](0.7071067811865476)
+	ii := 0
+	for ; ii+16 <= size; ii += 16 {
+		remaining := size - ii
+		if remaining >= 16 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulBF16(x, vInvSqrt2)
+			erfX := math.BaseErfVec_avx2_BFloat16(xScaled)
+			onePlusErf := hwy.AddBF16(vOne, erfX)
+			halfOnePlusErf := hwy.MulBF16(vHalf, onePlusErf)
+			result := hwy.MulBF16(x, halfOnePlusErf)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				output[i] = hwy.Float32ToBFloat16(float32(x * 0.5 * (1.0 + stdmath.Erf(x*0.7071067811865476))))
+			}
+		}
+	}
+	if ii < size {
+		BaseGELU_fallback_BFloat16(input[ii:size], output[ii:size])
+	}
+}
 
 func BaseGELU_avx2(input []float32, output []float32) {
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vHalf := BaseGELU_AVX2_vHalf_f32
-	vOne := BaseGELU_AVX2_vOne_f32
-	vInvSqrt2 := BaseGELU_AVX2_vInvSqrt2_f32
+	vHalf := archsimd.BroadcastFloat32x8(0.5)
+	vOne := archsimd.BroadcastFloat32x8(1.0)
+	vInvSqrt2 := archsimd.BroadcastFloat32x8(0.7071067811865476)
 	ii := 0
 	for ; ii+8 <= size; ii += 8 {
 		remaining := size - ii
@@ -57,9 +108,9 @@ func BaseGELU_avx2_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vHalf := BaseGELU_AVX2_vHalf_f64
-	vOne := BaseGELU_AVX2_vOne_f64
-	vInvSqrt2 := BaseGELU_AVX2_vInvSqrt2_f64
+	vHalf := archsimd.BroadcastFloat64x4(0.5)
+	vOne := archsimd.BroadcastFloat64x4(1.0)
+	vInvSqrt2 := archsimd.BroadcastFloat64x4(0.7071067811865476)
 	ii := 0
 	for ; ii+4 <= size; ii += 4 {
 		remaining := size - ii
@@ -83,12 +134,68 @@ func BaseGELU_avx2_Float64(input []float64, output []float64) {
 	}
 }
 
+func BaseGELUApprox_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vCoeff := hwy.Const[hwy.Float16](1.702)
+	ii := 0
+	for ; ii+16 <= size; ii += 16 {
+		remaining := size - ii
+		if remaining >= 16 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulF16(x, vCoeff)
+			sigmoidX := math.BaseSigmoidVec_avx2_Float16(xScaled)
+			result := hwy.MulF16(x, sigmoidX)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				sigmoid := 1.0 / (1.0 + stdmath.Exp(-1.702*x))
+				output[i] = hwy.Float32ToFloat16(float32(x * sigmoid))
+			}
+		}
+	}
+	if ii < size {
+		BaseGELUApprox_fallback_Float16(input[ii:size], output[ii:size])
+	}
+}
+
+func BaseGELUApprox_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vCoeff := hwy.Const[hwy.BFloat16](1.702)
+	ii := 0
+	for ; ii+16 <= size; ii += 16 {
+		remaining := size - ii
+		if remaining >= 16 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulBF16(x, vCoeff)
+			sigmoidX := math.BaseSigmoidVec_avx2_BFloat16(xScaled)
+			result := hwy.MulBF16(x, sigmoidX)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				sigmoid := 1.0 / (1.0 + stdmath.Exp(-1.702*x))
+				output[i] = hwy.Float32ToBFloat16(float32(x * sigmoid))
+			}
+		}
+	}
+	if ii < size {
+		BaseGELUApprox_fallback_BFloat16(input[ii:size], output[ii:size])
+	}
+}
+
 func BaseGELUApprox_avx2(input []float32, output []float32) {
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vCoeff := BaseGELUApprox_AVX2_vCoeff_f32
+	vCoeff := archsimd.BroadcastFloat32x8(1.702)
 	ii := 0
 	for ; ii+8 <= size; ii += 8 {
 		remaining := size - ii
@@ -116,7 +223,7 @@ func BaseGELUApprox_avx2_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vCoeff := BaseGELUApprox_AVX2_vCoeff_f64
+	vCoeff := archsimd.BroadcastFloat64x4(1.702)
 	ii := 0
 	for ; ii+4 <= size; ii += 4 {
 		remaining := size - ii

@@ -23,6 +23,6 @@ require (
 
 // Use goat fork with cross-compilation support
 // (github.com/ajroetker/goat branch feature/cross-compilation)
-replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-cross-compile-004
+replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-cross-compile-005
 
 tool github.com/gorse-io/goat

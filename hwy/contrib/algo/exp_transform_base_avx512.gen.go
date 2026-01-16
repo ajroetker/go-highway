@@ -4,8 +4,17 @@
 package algo
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
+
+func BaseExpTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseExpVec_avx512_Float16)
+}
+
+func BaseExpTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseExpVec_avx512_BFloat16)
+}
 
 func BaseExpTransform_avx512(in []float32, out []float32) {
 	BaseApply_avx512(in, out, math.BaseExpVec_avx512)
@@ -13,6 +22,14 @@ func BaseExpTransform_avx512(in []float32, out []float32) {
 
 func BaseExpTransform_avx512_Float64(in []float64, out []float64) {
 	BaseApply_avx512_Float64(in, out, math.BaseExpVec_avx512_Float64)
+}
+
+func BaseLogTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseLogVec_avx512_Float16)
+}
+
+func BaseLogTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseLogVec_avx512_BFloat16)
 }
 
 func BaseLogTransform_avx512(in []float32, out []float32) {
@@ -23,12 +40,28 @@ func BaseLogTransform_avx512_Float64(in []float64, out []float64) {
 	BaseApply_avx512_Float64(in, out, math.BaseLogVec_avx512_Float64)
 }
 
+func BaseSinTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseSinVec_avx512_Float16)
+}
+
+func BaseSinTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseSinVec_avx512_BFloat16)
+}
+
 func BaseSinTransform_avx512(in []float32, out []float32) {
 	BaseApply_avx512(in, out, math.BaseSinVec_avx512)
 }
 
 func BaseSinTransform_avx512_Float64(in []float64, out []float64) {
 	BaseApply_avx512_Float64(in, out, math.BaseSinVec_avx512_Float64)
+}
+
+func BaseCosTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseCosVec_avx512_Float16)
+}
+
+func BaseCosTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseCosVec_avx512_BFloat16)
 }
 
 func BaseCosTransform_avx512(in []float32, out []float32) {
@@ -39,6 +72,14 @@ func BaseCosTransform_avx512_Float64(in []float64, out []float64) {
 	BaseApply_avx512_Float64(in, out, math.BaseCosVec_avx512_Float64)
 }
 
+func BaseTanhTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseTanhVec_avx512_Float16)
+}
+
+func BaseTanhTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseTanhVec_avx512_BFloat16)
+}
+
 func BaseTanhTransform_avx512(in []float32, out []float32) {
 	BaseApply_avx512(in, out, math.BaseTanhVec_avx512)
 }
@@ -47,12 +88,28 @@ func BaseTanhTransform_avx512_Float64(in []float64, out []float64) {
 	BaseApply_avx512_Float64(in, out, math.BaseTanhVec_avx512_Float64)
 }
 
+func BaseSigmoidTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseSigmoidVec_avx512_Float16)
+}
+
+func BaseSigmoidTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseSigmoidVec_avx512_BFloat16)
+}
+
 func BaseSigmoidTransform_avx512(in []float32, out []float32) {
 	BaseApply_avx512(in, out, math.BaseSigmoidVec_avx512)
 }
 
 func BaseSigmoidTransform_avx512_Float64(in []float64, out []float64) {
 	BaseApply_avx512_Float64(in, out, math.BaseSigmoidVec_avx512_Float64)
+}
+
+func BaseErfTransform_avx512_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx512_Float16(in, out, math.BaseErfVec_avx512_Float16)
+}
+
+func BaseErfTransform_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx512_BFloat16(in, out, math.BaseErfVec_avx512_BFloat16)
 }
 
 func BaseErfTransform_avx512(in []float32, out []float32) {

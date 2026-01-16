@@ -4,8 +4,71 @@
 package matmul
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
+
+func BaseBlockMulAdd_neon_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd: C slice too short")
+	}
+	lanes := 8
+	for i := 0; i < blockDim; i++ {
+		cRowStart := i * blockDim
+		for k := 0; k < blockDim; k++ {
+			aik := aT[k*blockDim+i]
+			vA := hwy.Set(aik)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC := hwy.Load(c[cRowStart+j:])
+				vC = hwy.FMAF16(vA, vB, vC)
+				hwy.Store(vC, c[cRowStart+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRowStart+j] += hwy.Float32ToFloat16(aik.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+}
+
+func BaseBlockMulAdd_neon_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd: C slice too short")
+	}
+	lanes := 8
+	for i := 0; i < blockDim; i++ {
+		cRowStart := i * blockDim
+		for k := 0; k < blockDim; k++ {
+			aik := aT[k*blockDim+i]
+			vA := hwy.Set(aik)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC := hwy.Load(c[cRowStart+j:])
+				vC = hwy.FMABF16(vA, vB, vC)
+				hwy.Store(vC, c[cRowStart+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRowStart+j] += hwy.Float32ToBFloat16(aik.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+}
 
 func BaseBlockMulAdd_neon(aT []float32, b []float32, c []float32, blockDim int) {
 	if len(aT) < blockDim*blockDim {
@@ -64,6 +127,120 @@ func BaseBlockMulAdd_neon_Float64(aT []float64, b []float64, c []float64, blockD
 			}
 			for ; j < blockDim; j++ {
 				c[cRowStart+j] += aik * b[bRowStart+j]
+			}
+		}
+	}
+}
+
+func BaseBlockMulAdd2_neon_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd2: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd2: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd2: C slice too short")
+	}
+	lanes := 8
+	var i int
+	for i = 0; i+1 < blockDim; i += 2 {
+		cRow0Start := i * blockDim
+		cRow1Start := (i + 1) * blockDim
+		for k := 0; k < blockDim; k++ {
+			a0k := aT[k*blockDim+i]
+			a1k := aT[k*blockDim+i+1]
+			vA0 := hwy.Set(a0k)
+			vA1 := hwy.Set(a1k)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC0 := hwy.Load(c[cRow0Start+j:])
+				vC0 = hwy.FMAF16(vA0, vB, vC0)
+				hwy.Store(vC0, c[cRow0Start+j:])
+				vC1 := hwy.Load(c[cRow1Start+j:])
+				vC1 = hwy.FMAF16(vA1, vB, vC1)
+				hwy.Store(vC1, c[cRow1Start+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRow0Start+j] += hwy.Float32ToFloat16(a0k.Float32() * b[bRowStart+j].Float32())
+				c[cRow1Start+j] += hwy.Float32ToFloat16(a1k.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+	if i < blockDim {
+		cRowStart := i * blockDim
+		for k := 0; k < blockDim; k++ {
+			aik := aT[k*blockDim+i]
+			vA := hwy.Set(aik)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC := hwy.Load(c[cRowStart+j:])
+				vC = hwy.FMAF16(vA, vB, vC)
+				hwy.Store(vC, c[cRowStart+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRowStart+j] += hwy.Float32ToFloat16(aik.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+}
+
+func BaseBlockMulAdd2_neon_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd2: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd2: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd2: C slice too short")
+	}
+	lanes := 8
+	var i int
+	for i = 0; i+1 < blockDim; i += 2 {
+		cRow0Start := i * blockDim
+		cRow1Start := (i + 1) * blockDim
+		for k := 0; k < blockDim; k++ {
+			a0k := aT[k*blockDim+i]
+			a1k := aT[k*blockDim+i+1]
+			vA0 := hwy.Set(a0k)
+			vA1 := hwy.Set(a1k)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC0 := hwy.Load(c[cRow0Start+j:])
+				vC0 = hwy.FMABF16(vA0, vB, vC0)
+				hwy.Store(vC0, c[cRow0Start+j:])
+				vC1 := hwy.Load(c[cRow1Start+j:])
+				vC1 = hwy.FMABF16(vA1, vB, vC1)
+				hwy.Store(vC1, c[cRow1Start+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRow0Start+j] += hwy.Float32ToBFloat16(a0k.Float32() * b[bRowStart+j].Float32())
+				c[cRow1Start+j] += hwy.Float32ToBFloat16(a1k.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+	if i < blockDim {
+		cRowStart := i * blockDim
+		for k := 0; k < blockDim; k++ {
+			aik := aT[k*blockDim+i]
+			vA := hwy.Set(aik)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC := hwy.Load(c[cRowStart+j:])
+				vC = hwy.FMABF16(vA, vB, vC)
+				hwy.Store(vC, c[cRowStart+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRowStart+j] += hwy.Float32ToBFloat16(aik.Float32() * b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -178,6 +355,150 @@ func BaseBlockMulAdd2_neon_Float64(aT []float64, b []float64, c []float64, block
 			}
 			for ; j < blockDim; j++ {
 				c[cRowStart+j] += aik * b[bRowStart+j]
+			}
+		}
+	}
+}
+
+func BaseBlockMulAdd4_neon_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd4: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd4: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd4: C slice too short")
+	}
+	lanes := 8
+	var i int
+	for i = 0; i+3 < blockDim; i += 4 {
+		cRow0 := i * blockDim
+		cRow1 := (i + 1) * blockDim
+		cRow2 := (i + 2) * blockDim
+		cRow3 := (i + 3) * blockDim
+		for k := 0; k < blockDim; k++ {
+			aTRowK := k * blockDim
+			a0k := aT[aTRowK+i]
+			a1k := aT[aTRowK+i+1]
+			a2k := aT[aTRowK+i+2]
+			a3k := aT[aTRowK+i+3]
+			vA0 := hwy.Set(a0k)
+			vA1 := hwy.Set(a1k)
+			vA2 := hwy.Set(a2k)
+			vA3 := hwy.Set(a3k)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC0 := hwy.Load(c[cRow0+j:])
+				vC0 = hwy.FMAF16(vA0, vB, vC0)
+				hwy.Store(vC0, c[cRow0+j:])
+				vC1 := hwy.Load(c[cRow1+j:])
+				vC1 = hwy.FMAF16(vA1, vB, vC1)
+				hwy.Store(vC1, c[cRow1+j:])
+				vC2 := hwy.Load(c[cRow2+j:])
+				vC2 = hwy.FMAF16(vA2, vB, vC2)
+				hwy.Store(vC2, c[cRow2+j:])
+				vC3 := hwy.Load(c[cRow3+j:])
+				vC3 = hwy.FMAF16(vA3, vB, vC3)
+				hwy.Store(vC3, c[cRow3+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRow0+j] += hwy.Float32ToFloat16(a0k.Float32() * b[bRowStart+j].Float32())
+				c[cRow1+j] += hwy.Float32ToFloat16(a1k.Float32() * b[bRowStart+j].Float32())
+				c[cRow2+j] += hwy.Float32ToFloat16(a2k.Float32() * b[bRowStart+j].Float32())
+				c[cRow3+j] += hwy.Float32ToFloat16(a3k.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+	for ; i < blockDim; i++ {
+		cRowStart := i * blockDim
+		for k := 0; k < blockDim; k++ {
+			aik := aT[k*blockDim+i]
+			vA := hwy.Set(aik)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC := hwy.Load(c[cRowStart+j:])
+				vC = hwy.FMAF16(vA, vB, vC)
+				hwy.Store(vC, c[cRowStart+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRowStart+j] += hwy.Float32ToFloat16(aik.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+}
+
+func BaseBlockMulAdd4_neon_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd4: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd4: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd4: C slice too short")
+	}
+	lanes := 8
+	var i int
+	for i = 0; i+3 < blockDim; i += 4 {
+		cRow0 := i * blockDim
+		cRow1 := (i + 1) * blockDim
+		cRow2 := (i + 2) * blockDim
+		cRow3 := (i + 3) * blockDim
+		for k := 0; k < blockDim; k++ {
+			aTRowK := k * blockDim
+			a0k := aT[aTRowK+i]
+			a1k := aT[aTRowK+i+1]
+			a2k := aT[aTRowK+i+2]
+			a3k := aT[aTRowK+i+3]
+			vA0 := hwy.Set(a0k)
+			vA1 := hwy.Set(a1k)
+			vA2 := hwy.Set(a2k)
+			vA3 := hwy.Set(a3k)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC0 := hwy.Load(c[cRow0+j:])
+				vC0 = hwy.FMABF16(vA0, vB, vC0)
+				hwy.Store(vC0, c[cRow0+j:])
+				vC1 := hwy.Load(c[cRow1+j:])
+				vC1 = hwy.FMABF16(vA1, vB, vC1)
+				hwy.Store(vC1, c[cRow1+j:])
+				vC2 := hwy.Load(c[cRow2+j:])
+				vC2 = hwy.FMABF16(vA2, vB, vC2)
+				hwy.Store(vC2, c[cRow2+j:])
+				vC3 := hwy.Load(c[cRow3+j:])
+				vC3 = hwy.FMABF16(vA3, vB, vC3)
+				hwy.Store(vC3, c[cRow3+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRow0+j] += hwy.Float32ToBFloat16(a0k.Float32() * b[bRowStart+j].Float32())
+				c[cRow1+j] += hwy.Float32ToBFloat16(a1k.Float32() * b[bRowStart+j].Float32())
+				c[cRow2+j] += hwy.Float32ToBFloat16(a2k.Float32() * b[bRowStart+j].Float32())
+				c[cRow3+j] += hwy.Float32ToBFloat16(a3k.Float32() * b[bRowStart+j].Float32())
+			}
+		}
+	}
+	for ; i < blockDim; i++ {
+		cRowStart := i * blockDim
+		for k := 0; k < blockDim; k++ {
+			aik := aT[k*blockDim+i]
+			vA := hwy.Set(aik)
+			bRowStart := k * blockDim
+			var j int
+			for j = 0; j+lanes <= blockDim; j += lanes {
+				vB := hwy.Load(b[bRowStart+j:])
+				vC := hwy.Load(c[cRowStart+j:])
+				vC = hwy.FMABF16(vA, vB, vC)
+				hwy.Store(vC, c[cRowStart+j:])
+			}
+			for ; j < blockDim; j++ {
+				c[cRowStart+j] += hwy.Float32ToBFloat16(aik.Float32() * b[bRowStart+j].Float32())
 			}
 		}
 	}

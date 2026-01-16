@@ -6,6 +6,40 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseApply_fallback_Float16(in []hwy.Float16, out []hwy.Float16, fn func(hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16]) {
+	n := min(len(in), len(out))
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
+	}
+	if remaining := n - i; remaining > 0 {
+		buf := make([]hwy.Float16, lanes)
+		copy(buf, in[i:i+remaining])
+		x := hwy.Load(buf)
+		hwy.Store(fn(x), buf)
+		copy(out[i:i+remaining], buf[:remaining])
+	}
+}
+
+func BaseApply_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]) {
+	n := min(len(in), len(out))
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
+	}
+	if remaining := n - i; remaining > 0 {
+		buf := make([]hwy.BFloat16, lanes)
+		copy(buf, in[i:i+remaining])
+		x := hwy.Load(buf)
+		hwy.Store(fn(x), buf)
+		copy(out[i:i+remaining], buf[:remaining])
+	}
+}
+
 func BaseApply_fallback(in []float32, out []float32, fn func(hwy.Vec[float32]) hwy.Vec[float32]) {
 	n := min(len(in), len(out))
 	lanes := hwy.MaxLanes[float32]()

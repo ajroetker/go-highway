@@ -4,10 +4,63 @@
 package softmax
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/algo"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 	stdmath "math"
 )
+
+func BaseSoftmax_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for i := 1; i < size; i++ {
+		if input[i].Float32() > maxVal.Float32() {
+			maxVal = input[i]
+		}
+	}
+	shifted := make([]hwy.Float16, size)
+	for i := 0; i < size; i++ {
+		shifted[i] = hwy.Float32ToFloat16(input[i].Float32() - maxVal.Float32())
+	}
+	algo.BaseApply_avx512_Float16(shifted, output, math.BaseExpVec_avx512_Float16)
+	var expSum float32
+	for i := 0; i < size; i++ {
+		expSum += output[i].Float32()
+	}
+	invSum := float32(1.0) / expSum
+	for i := 0; i < size; i++ {
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+	}
+}
+
+func BaseSoftmax_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for i := 1; i < size; i++ {
+		if input[i].Float32() > maxVal.Float32() {
+			maxVal = input[i]
+		}
+	}
+	shifted := make([]hwy.BFloat16, size)
+	for i := 0; i < size; i++ {
+		shifted[i] = hwy.Float32ToBFloat16(input[i].Float32() - maxVal.Float32())
+	}
+	algo.BaseApply_avx512_BFloat16(shifted, output, math.BaseExpVec_avx512_BFloat16)
+	var expSum float32
+	for i := 0; i < size; i++ {
+		expSum += output[i].Float32()
+	}
+	invSum := float32(1.0) / expSum
+	for i := 0; i < size; i++ {
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
+	}
+}
 
 func BaseSoftmax_avx512(input []float32, output []float32) {
 	size := min(len(input), len(output))
@@ -58,6 +111,50 @@ func BaseSoftmax_avx512_Float64(input []float64, output []float64) {
 	invSum := float64(1.0) / expSum
 	for i := 0; i < size; i++ {
 		output[i] = output[i] * invSum
+	}
+}
+
+func BaseSoftmaxScalar_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for i := 1; i < size; i++ {
+		if input[i].Float32() > maxVal.Float32() {
+			maxVal = input[i]
+		}
+	}
+	var expSum float32
+	for i := 0; i < size; i++ {
+		output[i] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[i] - maxVal))))
+		expSum += output[i].Float32()
+	}
+	invSum := float32(1.0) / expSum
+	for i := 0; i < size; i++ {
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+	}
+}
+
+func BaseSoftmaxScalar_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for i := 1; i < size; i++ {
+		if input[i].Float32() > maxVal.Float32() {
+			maxVal = input[i]
+		}
+	}
+	var expSum float32
+	for i := 0; i < size; i++ {
+		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[i] - maxVal))))
+		expSum += output[i].Float32()
+	}
+	invSum := float32(1.0) / expSum
+	for i := 0; i < size; i++ {
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
 	}
 }
 

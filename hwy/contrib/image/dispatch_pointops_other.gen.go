@@ -9,30 +9,54 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var BrightnessContrastFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16, offset hwy.Float16)
+var BrightnessContrastBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16, offset hwy.BFloat16)
 var BrightnessContrastFloat32 func(img *Image[float32], out *Image[float32], scale float32, offset float32)
 var BrightnessContrastFloat64 func(img *Image[float64], out *Image[float64], scale float64, offset float64)
+var ClampImageFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], minVal hwy.Float16, maxVal hwy.Float16)
+var ClampImageBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], minVal hwy.BFloat16, maxVal hwy.BFloat16)
 var ClampImageFloat32 func(img *Image[float32], out *Image[float32], minVal float32, maxVal float32)
 var ClampImageFloat64 func(img *Image[float64], out *Image[float64], minVal float64, maxVal float64)
+var ThresholdFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16)
+var ThresholdBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16)
 var ThresholdFloat32 func(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32)
 var ThresholdFloat64 func(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64)
+var InvertFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], maxVal hwy.Float16)
+var InvertBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], maxVal hwy.BFloat16)
 var InvertFloat32 func(img *Image[float32], out *Image[float32], maxVal float32)
 var InvertFloat64 func(img *Image[float64], out *Image[float64], maxVal float64)
+var AbsFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16])
+var AbsBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
 var AbsFloat32 func(img *Image[float32], out *Image[float32])
 var AbsFloat64 func(img *Image[float64], out *Image[float64])
+var ScaleFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16)
+var ScaleBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16)
 var ScaleFloat32 func(img *Image[float32], out *Image[float32], scale float32)
 var ScaleFloat64 func(img *Image[float64], out *Image[float64], scale float64)
+var OffsetFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16)
+var OffsetBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16)
 var OffsetFloat32 func(img *Image[float32], out *Image[float32], offset float32)
 var OffsetFloat64 func(img *Image[float64], out *Image[float64], offset float64)
+var GammaFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], gamma hwy.Float16)
+var GammaBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], gamma hwy.BFloat16)
 var GammaFloat32 func(img *Image[float32], out *Image[float32], gamma float32)
 var GammaFloat64 func(img *Image[float64], out *Image[float64], gamma float64)
+var MinImageFloat16 func(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16])
+var MinImageBFloat16 func(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
 var MinImageFloat32 func(a *Image[float32], b *Image[float32], out *Image[float32])
 var MinImageFloat64 func(a *Image[float64], b *Image[float64], out *Image[float64])
+var MaxImageFloat16 func(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16])
+var MaxImageBFloat16 func(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
 var MaxImageFloat32 func(a *Image[float32], b *Image[float32], out *Image[float32])
 var MaxImageFloat64 func(a *Image[float64], b *Image[float64], out *Image[float64])
 
 // BrightnessContrast is the generic API that dispatches to the appropriate SIMD implementation.
 func BrightnessContrast[T hwy.Floats](img *Image[T], out *Image[T], scale T, offset T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		BrightnessContrastFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(scale).(hwy.Float16), any(offset).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		BrightnessContrastBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(scale).(hwy.BFloat16), any(offset).(hwy.BFloat16))
 	case *Image[float32]:
 		BrightnessContrastFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(scale).(float32), any(offset).(float32))
 	case *Image[float64]:
@@ -43,6 +67,10 @@ func BrightnessContrast[T hwy.Floats](img *Image[T], out *Image[T], scale T, off
 // ClampImage is the generic API that dispatches to the appropriate SIMD implementation.
 func ClampImage[T hwy.Floats](img *Image[T], out *Image[T], minVal T, maxVal T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		ClampImageFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(minVal).(hwy.Float16), any(maxVal).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		ClampImageBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(minVal).(hwy.BFloat16), any(maxVal).(hwy.BFloat16))
 	case *Image[float32]:
 		ClampImageFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(minVal).(float32), any(maxVal).(float32))
 	case *Image[float64]:
@@ -53,6 +81,10 @@ func ClampImage[T hwy.Floats](img *Image[T], out *Image[T], minVal T, maxVal T) 
 // Threshold is the generic API that dispatches to the appropriate SIMD implementation.
 func Threshold[T hwy.Floats](img *Image[T], out *Image[T], threshold T, below T, above T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		ThresholdFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(threshold).(hwy.Float16), any(below).(hwy.Float16), any(above).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		ThresholdBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(threshold).(hwy.BFloat16), any(below).(hwy.BFloat16), any(above).(hwy.BFloat16))
 	case *Image[float32]:
 		ThresholdFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(threshold).(float32), any(below).(float32), any(above).(float32))
 	case *Image[float64]:
@@ -63,6 +95,10 @@ func Threshold[T hwy.Floats](img *Image[T], out *Image[T], threshold T, below T,
 // Invert is the generic API that dispatches to the appropriate SIMD implementation.
 func Invert[T hwy.Floats](img *Image[T], out *Image[T], maxVal T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		InvertFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(maxVal).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		InvertBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(maxVal).(hwy.BFloat16))
 	case *Image[float32]:
 		InvertFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(maxVal).(float32))
 	case *Image[float64]:
@@ -73,6 +109,10 @@ func Invert[T hwy.Floats](img *Image[T], out *Image[T], maxVal T) {
 // Abs is the generic API that dispatches to the appropriate SIMD implementation.
 func Abs[T hwy.Floats](img *Image[T], out *Image[T]) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		AbsFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
+	case *Image[hwy.BFloat16]:
+		AbsBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
 	case *Image[float32]:
 		AbsFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]))
 	case *Image[float64]:
@@ -83,6 +123,10 @@ func Abs[T hwy.Floats](img *Image[T], out *Image[T]) {
 // Scale is the generic API that dispatches to the appropriate SIMD implementation.
 func Scale[T hwy.Floats](img *Image[T], out *Image[T], scale T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		ScaleFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(scale).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		ScaleBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(scale).(hwy.BFloat16))
 	case *Image[float32]:
 		ScaleFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(scale).(float32))
 	case *Image[float64]:
@@ -93,6 +137,10 @@ func Scale[T hwy.Floats](img *Image[T], out *Image[T], scale T) {
 // Offset is the generic API that dispatches to the appropriate SIMD implementation.
 func Offset[T hwy.Floats](img *Image[T], out *Image[T], offset T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		OffsetFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(offset).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		OffsetBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(offset).(hwy.BFloat16))
 	case *Image[float32]:
 		OffsetFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(offset).(float32))
 	case *Image[float64]:
@@ -103,6 +151,10 @@ func Offset[T hwy.Floats](img *Image[T], out *Image[T], offset T) {
 // Gamma is the generic API that dispatches to the appropriate SIMD implementation.
 func Gamma[T hwy.Floats](img *Image[T], out *Image[T], gamma T) {
 	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		GammaFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(gamma).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		GammaBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(gamma).(hwy.BFloat16))
 	case *Image[float32]:
 		GammaFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(gamma).(float32))
 	case *Image[float64]:
@@ -113,6 +165,10 @@ func Gamma[T hwy.Floats](img *Image[T], out *Image[T], gamma T) {
 // MinImage is the generic API that dispatches to the appropriate SIMD implementation.
 func MinImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 	switch any(a).(type) {
+	case *Image[hwy.Float16]:
+		MinImageFloat16(any(a).(*Image[hwy.Float16]), any(b).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
+	case *Image[hwy.BFloat16]:
+		MinImageBFloat16(any(a).(*Image[hwy.BFloat16]), any(b).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
 	case *Image[float32]:
 		MinImageFloat32(any(a).(*Image[float32]), any(b).(*Image[float32]), any(out).(*Image[float32]))
 	case *Image[float64]:
@@ -123,6 +179,10 @@ func MinImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 // MaxImage is the generic API that dispatches to the appropriate SIMD implementation.
 func MaxImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 	switch any(a).(type) {
+	case *Image[hwy.Float16]:
+		MaxImageFloat16(any(a).(*Image[hwy.Float16]), any(b).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
+	case *Image[hwy.BFloat16]:
+		MaxImageBFloat16(any(a).(*Image[hwy.BFloat16]), any(b).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
 	case *Image[float32]:
 		MaxImageFloat32(any(a).(*Image[float32]), any(b).(*Image[float32]), any(out).(*Image[float32]))
 	case *Image[float64]:
@@ -136,24 +196,44 @@ func init() {
 }
 
 func initPointopsFallback() {
+	BrightnessContrastFloat16 = BaseBrightnessContrast_fallback_Float16
+	BrightnessContrastBFloat16 = BaseBrightnessContrast_fallback_BFloat16
 	BrightnessContrastFloat32 = BaseBrightnessContrast_fallback
 	BrightnessContrastFloat64 = BaseBrightnessContrast_fallback_Float64
+	ClampImageFloat16 = BaseClampImage_fallback_Float16
+	ClampImageBFloat16 = BaseClampImage_fallback_BFloat16
 	ClampImageFloat32 = BaseClampImage_fallback
 	ClampImageFloat64 = BaseClampImage_fallback_Float64
+	ThresholdFloat16 = BaseThreshold_fallback_Float16
+	ThresholdBFloat16 = BaseThreshold_fallback_BFloat16
 	ThresholdFloat32 = BaseThreshold_fallback
 	ThresholdFloat64 = BaseThreshold_fallback_Float64
+	InvertFloat16 = BaseInvert_fallback_Float16
+	InvertBFloat16 = BaseInvert_fallback_BFloat16
 	InvertFloat32 = BaseInvert_fallback
 	InvertFloat64 = BaseInvert_fallback_Float64
+	AbsFloat16 = BaseAbs_fallback_Float16
+	AbsBFloat16 = BaseAbs_fallback_BFloat16
 	AbsFloat32 = BaseAbs_fallback
 	AbsFloat64 = BaseAbs_fallback_Float64
+	ScaleFloat16 = BaseScale_fallback_Float16
+	ScaleBFloat16 = BaseScale_fallback_BFloat16
 	ScaleFloat32 = BaseScale_fallback
 	ScaleFloat64 = BaseScale_fallback_Float64
+	OffsetFloat16 = BaseOffset_fallback_Float16
+	OffsetBFloat16 = BaseOffset_fallback_BFloat16
 	OffsetFloat32 = BaseOffset_fallback
 	OffsetFloat64 = BaseOffset_fallback_Float64
+	GammaFloat16 = BaseGamma_fallback_Float16
+	GammaBFloat16 = BaseGamma_fallback_BFloat16
 	GammaFloat32 = BaseGamma_fallback
 	GammaFloat64 = BaseGamma_fallback_Float64
+	MinImageFloat16 = BaseMinImage_fallback_Float16
+	MinImageBFloat16 = BaseMinImage_fallback_BFloat16
 	MinImageFloat32 = BaseMinImage_fallback
 	MinImageFloat64 = BaseMinImage_fallback_Float64
+	MaxImageFloat16 = BaseMaxImage_fallback_Float16
+	MaxImageBFloat16 = BaseMaxImage_fallback_BFloat16
 	MaxImageFloat32 = BaseMaxImage_fallback
 	MaxImageFloat64 = BaseMaxImage_fallback_Float64
 }

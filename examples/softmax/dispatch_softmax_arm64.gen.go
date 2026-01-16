@@ -9,14 +9,22 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var SoftmaxFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var SoftmaxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var SoftmaxFloat32 func(input []float32, output []float32)
 var SoftmaxFloat64 func(input []float64, output []float64)
+var SoftmaxScalarFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var SoftmaxScalarBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var SoftmaxScalarFloat32 func(input []float32, output []float32)
 var SoftmaxScalarFloat64 func(input []float64, output []float64)
 
 // Softmax is the generic API that dispatches to the appropriate SIMD implementation.
 func Softmax[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
+	case []hwy.Float16:
+		SoftmaxFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SoftmaxBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
 	case []float32:
 		SoftmaxFloat32(any(input).([]float32), any(output).([]float32))
 	case []float64:
@@ -27,6 +35,10 @@ func Softmax[T hwy.Floats](input []T, output []T) {
 // SoftmaxScalar is the generic API that dispatches to the appropriate SIMD implementation.
 func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
+	case []hwy.Float16:
+		SoftmaxScalarFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SoftmaxScalarBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
 	case []float32:
 		SoftmaxScalarFloat32(any(input).([]float32), any(output).([]float32))
 	case []float64:
@@ -44,15 +56,23 @@ func init() {
 }
 
 func initSoftmaxNEON() {
+	SoftmaxFloat16 = BaseSoftmax_neon_Float16
+	SoftmaxBFloat16 = BaseSoftmax_neon_BFloat16
 	SoftmaxFloat32 = BaseSoftmax_neon
 	SoftmaxFloat64 = BaseSoftmax_neon_Float64
+	SoftmaxScalarFloat16 = BaseSoftmaxScalar_neon_Float16
+	SoftmaxScalarBFloat16 = BaseSoftmaxScalar_neon_BFloat16
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_neon
 	SoftmaxScalarFloat64 = BaseSoftmaxScalar_neon_Float64
 }
 
 func initSoftmaxFallback() {
+	SoftmaxFloat16 = BaseSoftmax_fallback_Float16
+	SoftmaxBFloat16 = BaseSoftmax_fallback_BFloat16
 	SoftmaxFloat32 = BaseSoftmax_fallback
 	SoftmaxFloat64 = BaseSoftmax_fallback_Float64
+	SoftmaxScalarFloat16 = BaseSoftmaxScalar_fallback_Float16
+	SoftmaxScalarBFloat16 = BaseSoftmaxScalar_fallback_BFloat16
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_fallback
 	SoftmaxScalarFloat64 = BaseSoftmaxScalar_fallback_Float64
 }
