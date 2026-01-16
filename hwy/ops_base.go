@@ -37,6 +37,26 @@ func Set[T Lanes](value T) Vec[T] {
 	return Vec[T]{data: data}
 }
 
+// Const creates a vector with all lanes set to the given float32 constant.
+// This allows writing generic code without T(constant) conversions.
+// Usage: hwy.Const[T](1.0) creates a Vec[T] with all lanes set to 1.0
+func Const[T Lanes](val float32) Vec[T] {
+	return Set(ConstValue[T](val))
+}
+
+// ConstValue converts a float32 constant to type T.
+func ConstValue[T Lanes](val float32) T {
+	var zero T
+	switch any(zero).(type) {
+	case Float16:
+		return any(Float32ToFloat16(val)).(T)
+	case BFloat16:
+		return any(Float32ToBFloat16(val)).(T)
+	}
+	// Native types support direct conversion from float32
+	return T(val)
+}
+
 // Zero creates a vector with all lanes set to zero.
 func Zero[T Lanes]() Vec[T] {
 	n := MaxLanes[T]()
@@ -52,9 +72,47 @@ func Add[T Lanes](a, b Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		result[i] = a.data[i] + b.data[i]
+		result[i] = addHelper(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
+}
+
+func addHelper[T Lanes](a, b T) T {
+	// Fast path: check for Float16/BFloat16 which need special handling
+	if av, ok := any(a).(Float16); ok {
+		bv := any(b).(Float16)
+		return any(Float32ToFloat16(av.Float32() + bv.Float32())).(T)
+	}
+	if av, ok := any(a).(BFloat16); ok {
+		bv := any(b).(BFloat16)
+		return any(Float32ToBFloat16(av.Float32() + bv.Float32())).(T)
+	}
+	// For all other numeric types, use interface conversion which the compiler
+	// can optimize better than boxing in most cases
+	switch av := any(a).(type) {
+	case float32:
+		return any(av + any(b).(float32)).(T)
+	case float64:
+		return any(av + any(b).(float64)).(T)
+	case int8:
+		return any(av + any(b).(int8)).(T)
+	case int16:
+		return any(av + any(b).(int16)).(T)
+	case int32:
+		return any(av + any(b).(int32)).(T)
+	case int64:
+		return any(av + any(b).(int64)).(T)
+	case uint8:
+		return any(av + any(b).(uint8)).(T)
+	case uint16:
+		return any(av + any(b).(uint16)).(T)
+	case uint32:
+		return any(av + any(b).(uint32)).(T)
+	case uint64:
+		return any(av + any(b).(uint64)).(T)
+	default:
+		return a
+	}
 }
 
 // Sub performs element-wise subtraction.
@@ -65,9 +123,42 @@ func Sub[T Lanes](a, b Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		result[i] = a.data[i] - b.data[i]
+		result[i] = subHelper(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
+}
+
+func subHelper[T Lanes](a, b T) T {
+	switch av := any(a).(type) {
+	case Float16:
+		bv := any(b).(Float16)
+		return any(Float32ToFloat16(av.Float32() - bv.Float32())).(T)
+	case BFloat16:
+		bv := any(b).(BFloat16)
+		return any(Float32ToBFloat16(av.Float32() - bv.Float32())).(T)
+	case float32:
+		return any(av - any(b).(float32)).(T)
+	case float64:
+		return any(av - any(b).(float64)).(T)
+	case int8:
+		return any(av - any(b).(int8)).(T)
+	case int16:
+		return any(av - any(b).(int16)).(T)
+	case int32:
+		return any(av - any(b).(int32)).(T)
+	case int64:
+		return any(av - any(b).(int64)).(T)
+	case uint8:
+		return any(av - any(b).(uint8)).(T)
+	case uint16:
+		return any(av - any(b).(uint16)).(T)
+	case uint32:
+		return any(av - any(b).(uint32)).(T)
+	case uint64:
+		return any(av - any(b).(uint64)).(T)
+	default:
+		return a
+	}
 }
 
 // Mul performs element-wise multiplication.
@@ -78,9 +169,42 @@ func Mul[T Lanes](a, b Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		result[i] = a.data[i] * b.data[i]
+		result[i] = mulHelper(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
+}
+
+func mulHelper[T Lanes](a, b T) T {
+	switch av := any(a).(type) {
+	case Float16:
+		bv := any(b).(Float16)
+		return any(Float32ToFloat16(av.Float32() * bv.Float32())).(T)
+	case BFloat16:
+		bv := any(b).(BFloat16)
+		return any(Float32ToBFloat16(av.Float32() * bv.Float32())).(T)
+	case float32:
+		return any(av * any(b).(float32)).(T)
+	case float64:
+		return any(av * any(b).(float64)).(T)
+	case int8:
+		return any(av * any(b).(int8)).(T)
+	case int16:
+		return any(av * any(b).(int16)).(T)
+	case int32:
+		return any(av * any(b).(int32)).(T)
+	case int64:
+		return any(av * any(b).(int64)).(T)
+	case uint8:
+		return any(av * any(b).(uint8)).(T)
+	case uint16:
+		return any(av * any(b).(uint16)).(T)
+	case uint32:
+		return any(av * any(b).(uint32)).(T)
+	case uint64:
+		return any(av * any(b).(uint64)).(T)
+	default:
+		return a
+	}
 }
 
 // Div performs element-wise division.
@@ -90,8 +214,37 @@ func Div[T Floats](a, b Vec[T]) Vec[T] {
 		n = len(b.data)
 	}
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
-		result[i] = a.data[i] / b.data[i]
+
+	// Check type once, then use optimized loop
+	var zero T
+	switch any(zero).(type) {
+	case Float16:
+		for i := 0; i < n; i++ {
+			av := any(a.data[i]).(Float16)
+			bv := any(b.data[i]).(Float16)
+			result[i] = any(Float32ToFloat16(av.Float32() / bv.Float32())).(T)
+		}
+	case BFloat16:
+		for i := 0; i < n; i++ {
+			av := any(a.data[i]).(BFloat16)
+			bv := any(b.data[i]).(BFloat16)
+			result[i] = any(Float32ToBFloat16(av.Float32() / bv.Float32())).(T)
+		}
+	case float32:
+		// Direct slice access for native floats - no boxing per element
+		aData := any(a.data).([]float32)
+		bData := any(b.data).([]float32)
+		rData := any(result).([]float32)
+		for i := 0; i < n; i++ {
+			rData[i] = aData[i] / bData[i]
+		}
+	case float64:
+		aData := any(a.data).([]float64)
+		bData := any(b.data).([]float64)
+		rData := any(result).([]float64)
+		for i := 0; i < n; i++ {
+			rData[i] = aData[i] / bData[i]
+		}
 	}
 	return Vec[T]{data: result}
 }
@@ -100,23 +253,106 @@ func Div[T Floats](a, b Vec[T]) Vec[T] {
 func Neg[T Lanes](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		result[i] = -v.data[i]
+		result[i] = negHelper(v.data[i])
 	}
 	return Vec[T]{data: result}
+}
+
+func negHelper[T Lanes](a T) T {
+	switch av := any(a).(type) {
+	case Float16:
+		return any(Float32ToFloat16(-av.Float32())).(T)
+	case BFloat16:
+		return any(Float32ToBFloat16(-av.Float32())).(T)
+	case float32:
+		return any(-av).(T)
+	case float64:
+		return any(-av).(T)
+	case int8:
+		return any(-av).(T)
+	case int16:
+		return any(-av).(T)
+	case int32:
+		return any(-av).(T)
+	case int64:
+		return any(-av).(T)
+	case uint8:
+		return any(-av).(T)
+	case uint16:
+		return any(-av).(T)
+	case uint32:
+		return any(-av).(T)
+	case uint64:
+		return any(-av).(T)
+	default:
+		return a
+	}
 }
 
 // Abs computes absolute value.
 func Abs[T Lanes](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		val := v.data[i]
-		if val < 0 {
-			result[i] = -val
-		} else {
-			result[i] = val
-		}
+		result[i] = absHelper(v.data[i])
 	}
 	return Vec[T]{data: result}
+}
+
+func absHelper[T Lanes](a T) T {
+	switch av := any(a).(type) {
+	case Float16:
+		f := av.Float32()
+		if f < 0 {
+			f = -f
+		}
+		return any(Float32ToFloat16(f)).(T)
+	case BFloat16:
+		f := av.Float32()
+		if f < 0 {
+			f = -f
+		}
+		return any(Float32ToBFloat16(f)).(T)
+	case float32:
+		if av < 0 {
+			return any(-av).(T)
+		}
+		return any(av).(T)
+	case float64:
+		if av < 0 {
+			return any(-av).(T)
+		}
+		return any(av).(T)
+	case int8:
+		if av < 0 {
+			return any(-av).(T)
+		}
+		return any(av).(T)
+	case int16:
+		if av < 0 {
+			return any(-av).(T)
+		}
+		return any(av).(T)
+	case int32:
+		if av < 0 {
+			return any(-av).(T)
+		}
+		return any(av).(T)
+	case int64:
+		if av < 0 {
+			return any(-av).(T)
+		}
+		return any(av).(T)
+	case uint8:
+		return any(av).(T) // unsigned always positive
+	case uint16:
+		return any(av).(T)
+	case uint32:
+		return any(av).(T)
+	case uint64:
+		return any(av).(T)
+	default:
+		return a
+	}
 }
 
 // Min returns element-wise minimum.
@@ -127,13 +363,44 @@ func Min[T Lanes](a, b Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		if a.data[i] < b.data[i] {
+		if lessHelper(a.data[i], b.data[i]) {
 			result[i] = a.data[i]
 		} else {
 			result[i] = b.data[i]
 		}
 	}
 	return Vec[T]{data: result}
+}
+
+func lessHelper[T Lanes](a, b T) bool {
+	switch av := any(a).(type) {
+	case Float16:
+		return av.Float32() < any(b).(Float16).Float32()
+	case BFloat16:
+		return av.Float32() < any(b).(BFloat16).Float32()
+	case float32:
+		return av < any(b).(float32)
+	case float64:
+		return av < any(b).(float64)
+	case int8:
+		return av < any(b).(int8)
+	case int16:
+		return av < any(b).(int16)
+	case int32:
+		return av < any(b).(int32)
+	case int64:
+		return av < any(b).(int64)
+	case uint8:
+		return av < any(b).(uint8)
+	case uint16:
+		return av < any(b).(uint16)
+	case uint32:
+		return av < any(b).(uint32)
+	case uint64:
+		return av < any(b).(uint64)
+	default:
+		return false
+	}
 }
 
 // Max returns element-wise maximum.
@@ -144,7 +411,7 @@ func Max[T Lanes](a, b Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		if a.data[i] > b.data[i] {
+		if greaterHelper(a.data[i], b.data[i]) {
 			result[i] = a.data[i]
 		} else {
 			result[i] = b.data[i]
@@ -153,16 +420,50 @@ func Max[T Lanes](a, b Vec[T]) Vec[T] {
 	return Vec[T]{data: result}
 }
 
+func greaterHelper[T Lanes](a, b T) bool {
+	switch av := any(a).(type) {
+	case Float16:
+		return av.Float32() > any(b).(Float16).Float32()
+	case BFloat16:
+		return av.Float32() > any(b).(BFloat16).Float32()
+	case float32:
+		return av > any(b).(float32)
+	case float64:
+		return av > any(b).(float64)
+	case int8:
+		return av > any(b).(int8)
+	case int16:
+		return av > any(b).(int16)
+	case int32:
+		return av > any(b).(int32)
+	case int64:
+		return av > any(b).(int64)
+	case uint8:
+		return av > any(b).(uint8)
+	case uint16:
+		return av > any(b).(uint16)
+	case uint32:
+		return av > any(b).(uint32)
+	case uint64:
+		return av > any(b).(uint64)
+	default:
+		return false
+	}
+}
+
 // Sqrt computes square root.
 func Sqrt[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		// Use type assertion to handle float32 vs float64
-		switch any(v.data[i]).(type) {
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			result[i] = any(Float32ToFloat16(float32(math.Sqrt(float64(x.Float32()))))).(T)
+		case BFloat16:
+			result[i] = any(Float32ToBFloat16(float32(math.Sqrt(float64(x.Float32()))))).(T)
 		case float32:
-			result[i] = T(math.Sqrt(float64(v.data[i])))
+			result[i] = any(float32(math.Sqrt(float64(x)))).(T)
 		case float64:
-			result[i] = T(math.Sqrt(float64(v.data[i])))
+			result[i] = any(math.Sqrt(x)).(T)
 		}
 	}
 	return Vec[T]{data: result}
@@ -176,7 +477,20 @@ func Pow[T Floats](base, exp Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		result[i] = T(math.Pow(float64(base.data[i]), float64(exp.data[i])))
+		switch b := any(base.data[i]).(type) {
+		case Float16:
+			e := any(exp.data[i]).(Float16)
+			result[i] = any(Float32ToFloat16(float32(math.Pow(float64(b.Float32()), float64(e.Float32()))))).(T)
+		case BFloat16:
+			e := any(exp.data[i]).(BFloat16)
+			result[i] = any(Float32ToBFloat16(float32(math.Pow(float64(b.Float32()), float64(e.Float32()))))).(T)
+		case float32:
+			e := any(exp.data[i]).(float32)
+			result[i] = any(float32(math.Pow(float64(b), float64(e)))).(T)
+		case float64:
+			e := any(exp.data[i]).(float64)
+			result[i] = any(math.Pow(b, e)).(T)
+		}
 	}
 	return Vec[T]{data: result}
 }
@@ -192,12 +506,23 @@ func FMA[T Floats](a, b, c Vec[T]) Vec[T] {
 	}
 	result := make([]T, n)
 	for i := 0; i < n; i++ {
-		// Use type assertion to handle float32 vs float64
-		switch any(a.data[i]).(type) {
+		switch av := any(a.data[i]).(type) {
+		case Float16:
+			bv := any(b.data[i]).(Float16)
+			cv := any(c.data[i]).(Float16)
+			result[i] = any(Float32ToFloat16(float32(math.FMA(float64(av.Float32()), float64(bv.Float32()), float64(cv.Float32()))))).(T)
+		case BFloat16:
+			bv := any(b.data[i]).(BFloat16)
+			cv := any(c.data[i]).(BFloat16)
+			result[i] = any(Float32ToBFloat16(float32(math.FMA(float64(av.Float32()), float64(bv.Float32()), float64(cv.Float32()))))).(T)
 		case float32:
-			result[i] = T(math.FMA(float64(a.data[i]), float64(b.data[i]), float64(c.data[i])))
+			bv := any(b.data[i]).(float32)
+			cv := any(c.data[i]).(float32)
+			result[i] = any(float32(math.FMA(float64(av), float64(bv), float64(cv)))).(T)
 		case float64:
-			result[i] = T(math.FMA(float64(a.data[i]), float64(b.data[i]), float64(c.data[i])))
+			bv := any(b.data[i]).(float64)
+			cv := any(c.data[i]).(float64)
+			result[i] = any(math.FMA(av, bv, cv)).(T)
 		}
 	}
 	return Vec[T]{data: result}
@@ -325,7 +650,16 @@ func GreaterEqual[T Lanes](a, b Vec[T]) Mask[T] {
 func IsNaN[T Floats](v Vec[T]) Mask[T] {
 	bits := make([]bool, len(v.data))
 	for i, val := range v.data {
-		bits[i] = math.IsNaN(float64(val))
+		switch x := any(val).(type) {
+		case Float16:
+			bits[i] = math.IsNaN(float64(x.Float32()))
+		case BFloat16:
+			bits[i] = math.IsNaN(float64(x.Float32()))
+		case float32:
+			bits[i] = math.IsNaN(float64(x))
+		case float64:
+			bits[i] = math.IsNaN(x)
+		}
 	}
 	return Mask[T]{bits: bits}
 }
@@ -335,7 +669,16 @@ func IsNaN[T Floats](v Vec[T]) Mask[T] {
 func IsInf[T Floats](v Vec[T], sign int) Mask[T] {
 	bits := make([]bool, len(v.data))
 	for i, val := range v.data {
-		bits[i] = math.IsInf(float64(val), sign)
+		switch x := any(val).(type) {
+		case Float16:
+			bits[i] = math.IsInf(float64(x.Float32()), sign)
+		case BFloat16:
+			bits[i] = math.IsInf(float64(x.Float32()), sign)
+		case float32:
+			bits[i] = math.IsInf(float64(x), sign)
+		case float64:
+			bits[i] = math.IsInf(x, sign)
+		}
 	}
 	return Mask[T]{bits: bits}
 }
@@ -345,7 +688,17 @@ func IsInf[T Floats](v Vec[T], sign int) Mask[T] {
 func IsFinite[T Floats](v Vec[T]) Mask[T] {
 	bits := make([]bool, len(v.data))
 	for i, val := range v.data {
-		f := float64(val)
+		var f float64
+		switch x := any(val).(type) {
+		case Float16:
+			f = float64(x.Float32())
+		case BFloat16:
+			f = float64(x.Float32())
+		case float32:
+			f = float64(x)
+		case float64:
+			f = x
+		}
 		bits[i] = !math.IsNaN(f) && !math.IsInf(f, 0)
 	}
 	return Mask[T]{bits: bits}
@@ -836,9 +1189,36 @@ func MulAdd[T Floats](a, b, c Vec[T]) Vec[T] {
 // RoundToEven rounds to the nearest even integer (banker's rounding).
 // This is the default IEEE 754 rounding mode.
 func RoundToEven[T Floats](v Vec[T]) Vec[T] {
-	result := make([]T, len(v.data))
-	for i, x := range v.data {
-		result[i] = T(math.RoundToEven(float64(x)))
+	n := len(v.data)
+	result := make([]T, n)
+
+	// Check type once, then use optimized loop
+	var zero T
+	switch any(zero).(type) {
+	case Float16:
+		vData := any(v.data).([]Float16)
+		rData := any(result).([]Float16)
+		for i := 0; i < n; i++ {
+			rData[i] = Float32ToFloat16(float32(math.RoundToEven(float64(vData[i].Float32()))))
+		}
+	case BFloat16:
+		vData := any(v.data).([]BFloat16)
+		rData := any(result).([]BFloat16)
+		for i := 0; i < n; i++ {
+			rData[i] = Float32ToBFloat16(float32(math.RoundToEven(float64(vData[i].Float32()))))
+		}
+	case float32:
+		vData := any(v.data).([]float32)
+		rData := any(result).([]float32)
+		for i := 0; i < n; i++ {
+			rData[i] = float32(math.RoundToEven(float64(vData[i])))
+		}
+	case float64:
+		vData := any(v.data).([]float64)
+		rData := any(result).([]float64)
+		for i := 0; i < n; i++ {
+			rData[i] = math.RoundToEven(vData[i])
+		}
 	}
 	return Vec[T]{data: result}
 }

@@ -712,77 +712,196 @@ func add_f16_neon(a, b, result, len unsafe.Pointer)
 func fma_f16_neon(a, b, c, result, len unsafe.Pointer)
 ```
 
-### AVX2 + F16C via archsimd (Alternative)
+### GoAT x86 F16C Conversions
 
-### AVX-512 FP16 (Native Arithmetic)
+x86 F16C provides conversion-only instructions (no native F16 arithmetic). Arithmetic uses promote→compute→demote.
 
-```go
-// hwy/ops_f16_avx512.go
-//go:build amd64 && goexperiment.simd
+```c
+// hwy/c/ops_f16_x86.c
+// Compile with: -mf16c -mavx2
 
-package hwy
+#include <immintrin.h>
 
-import "simd/archsimd"
+// Promote float16 to float32 using F16C (VCVTPH2PS)
+void promote_f16_to_f32_f16c(unsigned short *a, float *result, long *len) {
+    long n = *len;
+    long i = 0;
 
-// Assuming archsimd adds Float16x32 type for AVX-512 FP16
+    // Process 8 float16 -> 8 float32 at a time (AVX2)
+    for (; i + 7 < n; i += 8) {
+        __m128i h = _mm_loadu_si128((__m128i*)(a + i));
+        __m256 f = _mm256_cvtph_ps(h);  // VCVTPH2PS ymm, xmm
+        _mm256_storeu_ps(result + i, f);
+    }
 
-// AddF16_AVX512 adds two Float16x32 vectors natively.
-func AddF16_AVX512(a, b archsimd.Float16x32) archsimd.Float16x32 {
-    // VADDPH zmm, zmm, zmm
-    return a.Add(b)
+    // Process 4 at a time (SSE)
+    for (; i + 3 < n; i += 4) {
+        __m128i h = _mm_loadl_epi64((__m128i*)(a + i));
+        __m128 f = _mm_cvtph_ps(h);
+        _mm_storeu_ps(result + i, f);
+    }
+
+    // Scalar remainder (inline bit conversion)
+    for (; i < n; i++) {
+        unsigned int bits = a[i];
+        unsigned int sign = (bits >> 15) & 1;
+        unsigned int exp = (bits >> 10) & 0x1F;
+        unsigned int mant = bits & 0x3FF;
+
+        unsigned int f32_bits = 0;
+        if (exp == 0 && mant == 0) { f32_bits = sign << 31; }
+        if (exp == 31) { f32_bits = (sign << 31) | 0x7F800000 | (mant << 13); }
+        if (exp > 0 && exp < 31) { f32_bits = (sign << 31) | ((exp + 112) << 23) | (mant << 13); }
+        *(unsigned int*)(result + i) = f32_bits;
+    }
 }
 
-// MulF16_AVX512 multiplies two Float16x32 vectors natively.
-func MulF16_AVX512(a, b archsimd.Float16x32) archsimd.Float16x32 {
-    // VMULPH zmm, zmm, zmm
-    return a.Mul(b)
-}
+// Demote float32 to float16 using F16C (VCVTPS2PH)
+void demote_f32_to_f16_f16c(float *a, unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
 
-// FMAF16_AVX512 performs fused multiply-add natively.
-func FMAF16_AVX512(a, b, c archsimd.Float16x32) archsimd.Float16x32 {
-    // VFMADD132PH zmm, zmm, zmm
-    return a.FMA(b, c)
-}
+    // Process 8 float32 -> 8 float16 at a time (AVX2)
+    // imm8 = 0 for round-to-nearest-even
+    for (; i + 7 < n; i += 8) {
+        __m256 f = _mm256_loadu_ps(a + i);
+        __m128i h = _mm256_cvtps_ph(f, 0);  // VCVTPS2PH xmm, ymm, imm8
+        _mm_storeu_si128((__m128i*)(result + i), h);
+    }
 
-// Promote/Demote with AVX-512 FP16
-func PromoteF16ToF32_AVX512(v archsimd.Float16x16) archsimd.Float32x16 {
-    // VCVTPH2PS zmm, ymm
-    return v.ConvertToFloat32()
-}
+    // Process 4 at a time (SSE)
+    for (; i + 3 < n; i += 4) {
+        __m128 f = _mm_loadu_ps(a + i);
+        __m128i h = _mm_cvtps_ph(f, 0);
+        _mm_storel_epi64((__m128i*)(result + i), h);
+    }
 
-func DemoteF32ToF16_AVX512(v archsimd.Float32x16) archsimd.Float16x16 {
-    // VCVTPS2PH ymm, zmm, imm8
-    return v.ConvertToFloat16()
+    // Scalar remainder
+    for (; i < n; i++) {
+        // ... bit manipulation for F32→F16
+    }
 }
 ```
 
-### AVX-512 BF16 (Conversions + Dot Product)
+### GoAT AVX-512 FP16 (Native Arithmetic)
 
-```go
-// hwy/ops_bf16_avx512.go
-//go:build amd64 && goexperiment.simd
+AVX-512 FP16 (Sapphire Rapids+) provides native float16 arithmetic with 32 lanes per vector.
 
-package hwy
+```c
+// hwy/c/ops_f16_avx512.c
+// Compile with: -mavx512fp16
 
-import "simd/archsimd"
+#include <immintrin.h>
 
-// DemoteF32ToBF16_AVX512 converts 16 float32 to 16 bfloat16.
-// Uses VCVTNEPS2BF16 instruction.
-func DemoteF32ToBF16_AVX512(v archsimd.Float32x16) [16]uint16 {
-    // VCVTNEPS2BF16 ymm, zmm
+// Native Float16 addition: result[i] = a[i] + b[i]
+void add_f16_avx512(unsigned short *a, unsigned short *b, unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 128 float16 at a time (4 vectors of 32 lanes)
+    for (; i + 127 < n; i += 128) {
+        __m512h a0 = _mm512_loadu_ph(a + i);
+        __m512h a1 = _mm512_loadu_ph(a + i + 32);
+        __m512h a2 = _mm512_loadu_ph(a + i + 64);
+        __m512h a3 = _mm512_loadu_ph(a + i + 96);
+
+        __m512h b0 = _mm512_loadu_ph(b + i);
+        __m512h b1 = _mm512_loadu_ph(b + i + 32);
+        __m512h b2 = _mm512_loadu_ph(b + i + 64);
+        __m512h b3 = _mm512_loadu_ph(b + i + 96);
+
+        _mm512_storeu_ph(result + i, _mm512_add_ph(a0, b0));        // VADDPH
+        _mm512_storeu_ph(result + i + 32, _mm512_add_ph(a1, b1));
+        _mm512_storeu_ph(result + i + 64, _mm512_add_ph(a2, b2));
+        _mm512_storeu_ph(result + i + 96, _mm512_add_ph(a3, b3));
+    }
+
+    // Process 32 at a time
+    for (; i + 31 < n; i += 32) {
+        __m512h av = _mm512_loadu_ph(a + i);
+        __m512h bv = _mm512_loadu_ph(b + i);
+        _mm512_storeu_ph(result + i, _mm512_add_ph(av, bv));
+    }
+
+    // Scalar remainder via promote-compute-demote
+    for (; i < n; i++) {
+        // Convert F16→F32, add, convert F32→F16
+    }
 }
 
-// DemoteTwoF32ToBF16_AVX512 converts 2x16 float32 to 32 bfloat16.
-// Uses VCVTNE2PS2BF16 instruction.
-func DemoteTwoF32ToBF16_AVX512(lo, hi archsimd.Float32x16) [32]uint16 {
-    // VCVTNE2PS2BF16 zmm, zmm, zmm
+// Native Float16 FMA: result[i] = a[i] * b[i] + c[i]
+void fma_f16_avx512(unsigned short *a, unsigned short *b, unsigned short *c,
+                    unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 31 < n; i += 32) {
+        __m512h av = _mm512_loadu_ph(a + i);
+        __m512h bv = _mm512_loadu_ph(b + i);
+        __m512h cv = _mm512_loadu_ph(c + i);
+        // VFMADD132PH: result = a * b + c
+        _mm512_storeu_ph(result + i, _mm512_fmadd_ph(av, bv, cv));
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) { /* ... */ }
+}
+```
+
+### GoAT AVX-512 BF16 (Conversions + Dot Product)
+
+AVX-512 BF16 (Cooper Lake+) provides BF16 conversions and dot product with F32 accumulator.
+
+```c
+// hwy/c/ops_bf16_avx512.c
+// Compile with: -mavx512bf16
+
+#include <immintrin.h>
+
+// Demote float32 to bfloat16: VCVTNEPS2BF16
+void demote_f32_to_bf16_avx512(float *a, unsigned short *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    // Process 16 float32 -> 16 bfloat16 at a time
+    for (; i + 15 < n; i += 16) {
+        __m512 f = _mm512_loadu_ps(a + i);
+        __m256bh h = _mm512_cvtneps_pbh(f);  // VCVTNEPS2BF16 ymm, zmm
+        _mm256_storeu_si256((__m256i*)(result + i), (__m256i)h);
+    }
+
+    // Scalar remainder
+    for (; i < n; i++) {
+        unsigned int bits = *(unsigned int*)(a + i);
+        // Round to nearest even and truncate
+        unsigned int rounding = 0x7FFF + ((bits >> 16) & 1);
+        bits += rounding;
+        result[i] = (unsigned short)(bits >> 16);
+    }
 }
 
-// DotBF16_AVX512 computes dot product with bfloat16 inputs, float32 accumulator.
-// Uses VDPBF16PS instruction for maximum throughput.
-func DotBF16_AVX512(a, b [32]uint16, acc archsimd.Float32x16) archsimd.Float32x16 {
-    // VDPBF16PS zmm, zmm, zmm
-    // Computes sum of pairwise bf16*bf16 products added to float32 accumulator
+// BF16 dot product with F32 accumulator: VDPBF16PS
+// acc = acc + sum(a[i] * b[i]) for i in [0, 31]
+void dot_bf16_avx512(unsigned short *a, unsigned short *b, float *acc, long *len) {
+    long n = *len;
+    long i = 0;
+
+    __m512 sum = _mm512_setzero_ps();
+
+    // Process 32 bf16 pairs at a time (16 F32 accumulator lanes)
+    for (; i + 31 < n; i += 32) {
+        __m512bh av = (__m512bh)_mm512_loadu_si512(a + i);
+        __m512bh bv = (__m512bh)_mm512_loadu_si512(b + i);
+        sum = _mm512_dpbf16_ps(sum, av, bv);  // VDPBF16PS
+    }
+
+    // Reduce and store
+    *acc += _mm512_reduce_add_ps(sum);
+
+    // Scalar remainder (promote to F32, multiply, accumulate)
+    for (; i < n; i++) {
+        // ...
+    }
 }
 ```
 
@@ -912,45 +1031,99 @@ func TestFloat16ToFloat32(t *testing.T) {
 
 **Note:** Scalar fallback uses promote-to-float32 -> compute -> demote pattern.
 
-### Phase 4: AVX2 + F16C Conversions
+### Phase 4: GoAT NEON Float16 (ARM64)
 
 **Files to create:**
-- `hwy/promote_f16_avx2.go` - F16C-accelerated conversions
+- `hwy/c/ops_f16_neon_arm64.c` - NEON FP16 operations
+- `hwy/asm/f16_neon_wrappers.go` - Go wrappers
 
-**Prerequisites:**
-- Verify `simd/archsimd` supports F16C intrinsics
-- If not, may need assembly wrappers
+**Generated assembly:**
+- `hwy/asm/ops_f16_neon_arm64.s` - Generated by GoAT
+
+**Compile flags:** `-march=armv8.2-a+fp16`
 
 **Deliverables:**
-- `PromoteF16ToF32_AVX2` using VCVTPH2PS
-- `DemoteF32ToF16_AVX2` using VCVTPS2PH
+- `promote_f16_to_f32_neon` - F16→F32 conversion using `vcvt_f32_f16`
+- `demote_f32_to_f16_neon` - F32→F16 conversion using `vcvt_f16_f32`
+- `add_f16_neon`, `mul_f16_neon`, `fma_f16_neon` - Native FP16 arithmetic
+
+**Loop structure (matching existing patterns):**
+```c
+// Process 32 float16 at a time (4 vectors of 8 lanes)
+for (; i + 31 < n; i += 32) { ... }
+// Process 8 float16 at a time (1 vector)
+for (; i + 7 < n; i += 8) { ... }
+// Scalar remainder (promote-compute-demote)
+for (; i < n; i++) { ... }
+```
+
+### Phase 5: GoAT x86 F16C Conversions
+
+**Files to create:**
+- `hwy/c/ops_f16_x86.c` - x86 F16C conversion operations
+- `hwy/asm/f16_x86_wrappers.go` - Go wrappers
+
+**Generated assembly:**
+- `hwy/asm/ops_f16_x86.s` - Generated by GoAT
+
+**Compile flags:** `-mf16c -mavx2`
+
+**Deliverables:**
+- `promote_f16_to_f32_f16c` using `_mm256_cvtph_ps` (VCVTPH2PS)
+- `demote_f32_to_f16_f16c` using `_mm256_cvtps_ph` (VCVTPS2PH)
 - 8-16x speedup over scalar for conversions
 
-### Phase 5: AVX-512 FP16 Native Arithmetic
+**Note:** x86 F16C only provides conversions. Arithmetic uses promote→float32 compute→demote pattern.
+
+### Phase 6: GoAT AVX-512 FP16 Native Arithmetic
 
 **Files to create:**
-- `hwy/ops_f16_avx512.go` - Native FP16 operations
+- `hwy/c/ops_f16_avx512.c` - AVX-512 FP16 native operations
+- `hwy/asm/f16_avx512_wrappers.go` - Go wrappers
 
-**Prerequisites:**
-- Verify `simd/archsimd` supports AVX-512 FP16 types/intrinsics
-- May require Go 1.27+ or custom assembly
+**Generated assembly:**
+- `hwy/asm/ops_f16_avx512.s` - Generated by GoAT
+
+**Compile flags:** `-mavx512fp16`
 
 **Deliverables:**
-- Native Add, Sub, Mul, Div, FMA for Float16x32
-- Native conversions with AVX-512 widths
-- Eliminate promote-compute-demote overhead
+- `add_f16_avx512`, `mul_f16_avx512`, `div_f16_avx512` using VADDPH, VMULPH, VDIVPH
+- `fma_f16_avx512` using VFMADD132PH
+- Native conversions with AVX-512 widths (32 lanes)
+- Eliminate promote-compute-demote overhead on Sapphire Rapids+
 
-### Phase 6: AVX-512 BF16 Support
+### Phase 7: GoAT AVX-512 BF16 Support
 
 **Files to create:**
-- `hwy/promote_bf16_avx512.go` - BF16 conversions
-- `hwy/ops_bf16_avx512.go` - BF16 dot product
+- `hwy/c/ops_bf16_avx512.c` - AVX-512 BF16 operations
+- `hwy/asm/bf16_avx512_wrappers.go` - Go wrappers
+
+**Generated assembly:**
+- `hwy/asm/ops_bf16_avx512.s` - Generated by GoAT
+
+**Compile flags:** `-mavx512bf16`
 
 **Deliverables:**
-- `DemoteF32ToBF16_AVX512` using VCVTNEPS2BF16
-- `DotBF16_AVX512` using VDPBF16PS for ML workloads
+- `demote_f32_to_bf16_avx512` using VCVTNEPS2BF16
+- `demote_two_f32_to_bf16_avx512` using VCVTNE2PS2BF16
+- `dot_bf16_avx512` using VDPBF16PS for ML dot product accumulation
 
-### Phase 7: hwygen Integration
+### Phase 8: GoAT NEON BFloat16 (ARM64)
+
+**Files to create:**
+- `hwy/c/ops_bf16_neon_arm64.c` - NEON BF16 operations
+- `hwy/asm/bf16_neon_wrappers.go` - Go wrappers
+
+**Generated assembly:**
+- `hwy/asm/ops_bf16_neon_arm64.s` - Generated by GoAT
+
+**Compile flags:** `-march=armv8.6-a+bf16`
+
+**Deliverables:**
+- BF16↔F32 conversions using `vcvt_bf16_f32`, `vcvt_f32_bf16`
+- `vbfdot` for BF16 dot product (Apple M2+, Cortex-A710+)
+
+### Phase 9: hwygen Integration
 
 **Files to modify:**
 - `cmd/hwygen/targets.go` - Add Float16/BFloat16 to code generator
@@ -958,78 +1131,100 @@ func TestFloat16ToFloat32(t *testing.T) {
 **Deliverables:**
 - Support for `hwy.Float16` and `hwy.BFloat16` in generated code
 - Automatic dispatch selection based on CPU features
+- Proper lane count handling (F16 has 2x lanes vs F32)
 
-### Phase 8: Math Functions (contrib)
+### Phase 10: Math Functions (contrib)
 
 **Files to create:**
-- `hwy/contrib/exp_f16.go` - Exp/Log for Float16
-- `hwy/contrib/trig_f16.go` - Sin/Cos/Tan for Float16
-- `hwy/contrib/special_f16.go` - Tanh/Sigmoid for Float16 (ML critical)
+- `hwy/c/math_f16_neon_arm64.c` - F16 math via GoAT
+- `hwy/contrib/math/exp_f16.go` - Exp/Log for Float16
+- `hwy/contrib/math/trig_f16.go` - Sin/Cos/Tan for Float16
+- `hwy/contrib/math/special_f16.go` - Tanh/Sigmoid for Float16 (ML critical)
+
+**GoAT Constraint:** No `__builtin_expf`, `__builtin_sqrtf`, etc.
 
 **Approach:**
-- For scalar/AVX2: Promote to float32, use existing math, demote
-- For AVX-512 FP16: Native implementations with float16 polynomial coefficients
+- Use polynomial approximations (Chebyshev, minimax, or Remez)
+- For scalar/AVX2: Promote to float32, use existing contrib math, demote
+- For native F16: Implement reduced-precision polynomial coefficients
+
+**Example (Exp approximation for F16):**
+```c
+// Uses float32 compute with F16 I/O
+void exp_f16_neon(unsigned short *a, unsigned short *result, long *len) {
+    // Promote to F32, apply polynomial exp, demote to F16
+    // Polynomial coefficients are constants (no __builtin_expf)
+}
+```
 
 ---
 
 ## File Summary
 
-### New Files - Go
+### New Files - Pure Go (Scalar Fallback)
 
-| File | Contents |
-|------|----------|
-| `hwy/float16.go` | Float16 type, constants, scalar conversions |
-| `hwy/bfloat16.go` | BFloat16 type, constants, scalar conversions |
-| `hwy/promote_f16.go` | Scalar Float16 vector promotions/demotions |
-| `hwy/promote_bf16.go` | Scalar BFloat16 vector promotions/demotions |
-| `hwy/ops_f16.go` | Float16 arithmetic (promote-compute-demote) |
-| `hwy/ops_bf16.go` | BFloat16 arithmetic (promote-compute-demote) |
-| `hwy/float16_test.go` | Comprehensive tests |
-| `hwy/bfloat16_test.go` | Comprehensive tests |
-| `hwy/contrib/exp_f16.go` | Math: Exp/Log for Float16 |
-| `hwy/contrib/trig_f16.go` | Math: Sin/Cos/Tan for Float16 |
-| `hwy/contrib/special_f16.go` | Math: Tanh/Sigmoid for Float16 |
+| File | Contents | Build Tags |
+|------|----------|------------|
+| `hwy/float16.go` | Float16 type, constants, scalar F16↔F32 conversions | none |
+| `hwy/bfloat16.go` | BFloat16 type, constants, scalar BF16↔F32 conversions | none |
+| `hwy/promote_f16.go` | Scalar Float16 vector promotions/demotions | none |
+| `hwy/promote_bf16.go` | Scalar BFloat16 vector promotions/demotions | none |
+| `hwy/ops_f16.go` | Float16 arithmetic (promote-compute-demote) | none |
+| `hwy/ops_bf16.go` | BFloat16 arithmetic (promote-compute-demote) | none |
+| `hwy/float16_test.go` | Comprehensive F16 tests | none |
+| `hwy/bfloat16_test.go` | Comprehensive BF16 tests | none |
 
 ### New Files - GoAT C Sources
 
 | File | Contents | Compile Flags |
 |------|----------|---------------|
-| `hwy/c/ops_f16_neon_arm64.c` | NEON FP16 conversions + arithmetic | `-march=armv8.2-a+fp16` |
-| `hwy/c/ops_bf16_neon_arm64.c` | NEON BF16 conversions | `-march=armv8.2-a+bf16` |
-| `hwy/c/ops_f16_x86.c` | x86 F16C conversions | `-mf16c -mavx2` |
-| `hwy/c/ops_f16_avx512.c` | AVX-512 FP16 native ops | `-mavx512fp16` |
-| `hwy/c/ops_bf16_avx512.c` | AVX-512 BF16 dot products | `-mavx512bf16` |
+| `hwy/c/ops_f16_neon_arm64.c` | NEON FP16 conversions + native arithmetic | `-march=armv8.2-a+fp16` |
+| `hwy/c/ops_bf16_neon_arm64.c` | NEON BF16 conversions + dot product | `-march=armv8.6-a+bf16` |
+| `hwy/c/ops_f16_x86.c` | x86 F16C conversions (AVX2) | `-mf16c -mavx2` |
+| `hwy/c/ops_f16_avx512.c` | AVX-512 FP16 native arithmetic | `-mavx512fp16` |
+| `hwy/c/ops_bf16_avx512.c` | AVX-512 BF16 conversions + dot product | `-mavx512bf16` |
+| `hwy/c/math_f16_neon_arm64.c` | F16 math functions (polynomial approx) | `-march=armv8.2-a+fp16` |
 
 ### New Files - GoAT Generated Assembly
 
-| File | Generated From |
-|------|----------------|
-| `hwy/asm/ops_f16_neon_arm64.s` | `ops_f16_neon_arm64.c` |
-| `hwy/asm/ops_bf16_neon_arm64.s` | `ops_bf16_neon_arm64.c` |
-| `hwy/asm/ops_f16_x86.s` | `ops_f16_x86.c` |
-| `hwy/asm/ops_f16_avx512.s` | `ops_f16_avx512.c` |
-| `hwy/asm/ops_bf16_avx512.s` | `ops_bf16_avx512.c` |
+Generated via: `go tool goat hwy/c/<source>.c -O3 -e="<compile_flags>"`
 
-### New Files - Go Wrappers
+| File | Generated From | Target |
+|------|----------------|--------|
+| `hwy/asm/ops_f16_neon_arm64.s` | `ops_f16_neon_arm64.c` | ARM64 |
+| `hwy/asm/ops_bf16_neon_arm64.s` | `ops_bf16_neon_arm64.c` | ARM64 |
+| `hwy/asm/ops_f16_x86.s` | `ops_f16_x86.c` | AMD64 |
+| `hwy/asm/ops_f16_avx512.s` | `ops_f16_avx512.c` | AMD64 |
+| `hwy/asm/ops_bf16_avx512.s` | `ops_bf16_avx512.c` | AMD64 |
+
+### New Files - Go Wrappers for Assembly
+
+| File | Contents | Build Tags |
+|------|----------|------------|
+| `hwy/asm/f16_neon_wrappers.go` | Go wrappers for NEON FP16 assembly | `arm64` |
+| `hwy/asm/bf16_neon_wrappers.go` | Go wrappers for NEON BF16 assembly | `arm64` |
+| `hwy/asm/f16_x86_wrappers.go` | Go wrappers for x86 F16C assembly | `amd64` |
+| `hwy/asm/f16_avx512_wrappers.go` | Go wrappers for AVX-512 FP16 assembly | `amd64` |
+| `hwy/asm/bf16_avx512_wrappers.go` | Go wrappers for AVX-512 BF16 assembly | `amd64` |
+
+### New Files - Contrib Math (F16)
 
 | File | Contents |
 |------|----------|
-| `hwy/asm/f16_neon_wrappers.go` | Go wrappers for NEON FP16 assembly |
-| `hwy/asm/bf16_neon_wrappers.go` | Go wrappers for NEON BF16 assembly |
-| `hwy/asm/f16_x86_wrappers.go` | Go wrappers for x86 F16C assembly |
-| `hwy/asm/f16_avx512_wrappers.go` | Go wrappers for AVX-512 FP16 assembly |
-| `hwy/asm/bf16_avx512_wrappers.go` | Go wrappers for AVX-512 BF16 assembly |
+| `hwy/contrib/math/exp_f16.go` | Exp/Log for Float16 (promote-compute-demote) |
+| `hwy/contrib/math/trig_f16.go` | Sin/Cos/Tan for Float16 |
+| `hwy/contrib/math/special_f16.go` | Tanh/Sigmoid for Float16 (ML critical) |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `hwy/types.go` | Add Float16Types constraint, update Floats |
-| `hwy/dispatch.go` | Add DispatchLevel comments for FP16 |
-| `hwy/dispatch_amd64_simd.go` | Add F16C, AVX512_FP16, AVX512_BF16 detection |
+| `hwy/types.go` | Add Float16Types constraint, update Floats, update Lanes |
+| `hwy/dispatch.go` | Add DispatchLevel comments for FP16/BF16 features |
+| `hwy/dispatch_amd64_simd.go` | Add F16C, AVX512_FP16, AVX512_BF16 detection via archsimd |
 | `hwy/dispatch_arm64.go` | Add FP16, BF16 extension detection |
-| `cmd/hwygen/targets.go` | Add Float16/BFloat16 support |
-| `specs/feature-gaps.md` | Update float16/bfloat16 status |
+| `cmd/hwygen/targets.go` | Add Float16/BFloat16 support, lane count handling |
+| `specs/feature-gaps.md` | Update float16/bfloat16 status to in-progress/done |
 
 ---
 
@@ -1103,34 +1298,47 @@ func BenchmarkFloat16VsFloat32(b *testing.B) {
 ### Go Version
 
 - Go 1.22+: Generics support
-- Go 1.26+ (goexperiment.simd): Required for archsimd package (x86 path)
+- Go 1.26+ (goexperiment.simd): Required for archsimd CPU feature detection
 
 ### GoAT (Go Assembly Transpiler)
 
-For SIMD implementations, we use **GoAT** to transpile C code with intrinsics to Go assembly. This is the established pattern in go-highway (see `hwy/c/ops_neon_arm64.c`).
+**GoAT is the primary mechanism for Float16/BFloat16 SIMD support.** Go 1.26's `simd/archsimd` package does not include Float16, BFloat16, or unsigned integer vector types. We use GoAT to fill this gap by transpiling C code with intrinsics to Go assembly.
+
+This is the established pattern in go-highway (see `hwy/c/ops_neon_arm64.c` → `hwy/asm/ops_neon_arm64.s`).
 
 **Advantages:**
-- Leverage compiler optimizations and auto-vectorization
-- Use native intrinsics (`arm_neon.h`, `immintrin.h`)
-- Maintainable C source, generated assembly
+- Leverage clang optimizations and auto-vectorization
+- Use native intrinsics (`arm_neon.h`, `immintrin.h`) for F16/BF16 support
+- Maintainable C source with generated assembly
 - No CGO runtime overhead
+- Consistent with existing go-highway patterns
 
-**Limitations (from GOAT.md):**
-- No `else` clauses - use multiple `if` statements
-- No `__builtin_*` functions - use polynomial approximations
-- No `static inline` helpers - inline all code
-- C functions must return `void`
+**GoAT Constraints for Float16/BFloat16:**
 
-### archsimd Package (x86 fallback)
+| Constraint | Impact | Workaround |
+|------------|--------|------------|
+| No `else` clauses | Low | Use multiple `if` statements |
+| No `__builtin_*` functions | High for math | Use polynomial approximations for exp/log/sin/cos |
+| No `static inline` helpers | Low | Inline all code directly |
+| C functions must return `void` | Low | Pass results via pointer parameters |
+| Scalar remainder may become `memset` | Medium | Use SIMD store for scalar loop or add complexity |
+| Double constants cause rodata panic | Low (F16 uses F32) | Use `volatile` + hex bit patterns for F64 |
 
-For x86, we can also use `simd/archsimd` if it supports the required types:
+**Float16/BFloat16 operations are straightforward with GoAT** - conversions and arithmetic don't require any forbidden constructs. Only math functions (exp, log, trigonometry) need polynomial implementations.
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| F16C detection | Need to verify | `archsimd.X86.F16C()` |
-| AVX-512 FP16 detection | Need to verify | `archsimd.X86.AVX512FP16()` |
-| AVX-512 BF16 detection | Need to verify | `archsimd.X86.AVX512BF16()` |
-| Float16x* types | Likely missing | Use GoAT instead |
+### archsimd Package (Feature Detection Only)
+
+Go 1.26's `simd/archsimd` provides CPU feature detection but **NOT** Float16/BFloat16 vector types:
+
+| Feature | Available | Notes |
+|---------|-----------|-------|
+| `archsimd.X86.F16C()` | Yes | Detect F16C conversion support |
+| `archsimd.X86.AVX512FP16()` | Yes | Detect native FP16 arithmetic |
+| `archsimd.X86.AVX512BF16()` | Yes | Detect BF16 dot product support |
+| `archsimd.Float16x*` types | **No** | Use GoAT-generated assembly instead |
+| `archsimd.BFloat16x*` types | **No** | Use GoAT-generated assembly instead |
+
+For Float16/BFloat16 vector operations, GoAT-generated assembly is required. We use archsimd only for runtime CPU feature detection to select appropriate implementations.
 
 ---
 
@@ -1164,15 +1372,40 @@ This is often the dominant benefit for memory-bound ML workloads.
 
 ## Open Questions
 
-1. **archsimd support**: What's the current state of F16C/AVX-512 FP16 support in the simd/archsimd package?
+### Resolved
 
-2. **Go assembly**: If archsimd lacks support, should we write Go assembly or use CGO?
+1. ~~**archsimd support**: What's the current state of F16C/AVX-512 FP16 support in the simd/archsimd package?~~
+
+   **Answer:** Go 1.26's archsimd provides CPU feature detection (`X86.F16C()`, `X86.AVX512FP16()`, etc.) but does NOT include Float16/BFloat16 vector types. **Use GoAT** to generate SIMD assembly from C intrinsics.
+
+2. ~~**Go assembly vs CGO**: If archsimd lacks support, should we write Go assembly or use CGO?~~
+
+   **Answer:** Use **GoAT** (C-to-Go assembly transpiler). This is the established pattern in go-highway and provides:
+   - Zero CGO overhead
+   - Consistent with existing `hwy/c/*.c` → `hwy/asm/*.s` workflow
+   - Leverages clang optimizations
+
+### Still Open
 
 3. **Rounding modes**: Should we expose rounding mode control for conversions, or always use round-to-nearest-even?
 
+   *Recommendation:* Start with round-to-nearest-even only (IEEE 754 default). Add rounding mode parameter later if needed for ML training workloads.
+
 4. **NaN propagation**: What's the correct behavior for NaN in arithmetic operations?
 
+   *Recommendation:* Follow IEEE 754 semantics - NaN propagates through operations. Use quiet NaN (0x7E00 for F16) as the canonical NaN value.
+
 5. **Mixed precision API**: Should operations like `MulF16F32(Vec[Float16], Vec[float32])` be supported?
+
+   *Recommendation:* Defer to Phase 2. Initially require explicit promotion: `Mul(PromoteF16ToF32(a), b)`. Consider mixed-precision API later if use cases emerge.
+
+6. **ARM64 FP16 detection**: Does `golang.org/x/sys/cpu` expose ARM FP16 capability flags?
+
+   *Note:* Need to verify `cpu.ARM64.HasFP16` or equivalent. If not available, may need runtime probe via NEON instruction test.
+
+7. **macOS NEON FP16 compatibility**: Do Apple M1+ processors support NEON FP16 (ARMv8.2-A+fp16)?
+
+   *Note:* Apple A11+ and M1+ support FP16. Verify GoAT-generated code works on macOS (no SME streaming mode issues since FP16 uses regular NEON).
 
 ---
 

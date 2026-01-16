@@ -34,21 +34,21 @@ import (
 // 2. Polynomial approximation: e^r ≈ 1 + r + r²/2! + r³/3! + ...
 // 3. Reconstruction: e^x = 2^k * e^r using IEEE 754 bit manipulation
 func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	overflow := hwy.Set[T](T(expOverflow_f32))
-	underflow := hwy.Set[T](T(expUnderflow_f32))
-	one := hwy.Set[T](T(expOne_f32))
-	zero := hwy.Set[T](T(expZero_f32))
-	inf := hwy.Set[T](T(expOverflow_f32 * 2))
-	invLn2 := hwy.Set[T](T(expInvLn2_f32))
-	ln2Hi := hwy.Set[T](T(expLn2Hi_f32))
-	ln2Lo := hwy.Set[T](T(expLn2Lo_f32))
+	overflow := hwy.Const[T](expOverflow_f32)
+	underflow := hwy.Const[T](expUnderflow_f32)
+	one := hwy.Const[T](expOne_f32)
+	zero := hwy.Const[T](expZero_f32)
+	inf := hwy.Const[T](expOverflow_f32 * 2)
+	invLn2 := hwy.Const[T](expInvLn2_f32)
+	ln2Hi := hwy.Const[T](expLn2Hi_f32)
+	ln2Lo := hwy.Const[T](expLn2Lo_f32)
 
-	c1 := hwy.Set[T](T(expC1_f32))
-	c2 := hwy.Set[T](T(expC2_f32))
-	c3 := hwy.Set[T](T(expC3_f32))
-	c4 := hwy.Set[T](T(expC4_f32))
-	c5 := hwy.Set[T](T(expC5_f32))
-	c6 := hwy.Set[T](T(expC6_f32))
+	c1 := hwy.Const[T](expC1_f32)
+	c2 := hwy.Const[T](expC2_f32)
+	c3 := hwy.Const[T](expC3_f32)
+	c4 := hwy.Const[T](expC4_f32)
+	c5 := hwy.Const[T](expC5_f32)
+	c6 := hwy.Const[T](expC6_f32)
 
 	// Check overflow/underflow
 	overflowMask := hwy.Greater(x, overflow)
@@ -84,10 +84,10 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseSigmoidVec computes sigmoid(x) = 1 / (1 + e^(-x)) using BaseExpVec.
 // Zero allocation - composes at register level.
 func BaseSigmoidVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(sigmoidOne_f32))
-	zero := hwy.Set[T](T(0.0))
-	satHi := hwy.Set[T](T(20.0))
-	satLo := hwy.Set[T](T(-20.0))
+	one := hwy.Const[T](sigmoidOne_f32)
+	zero := hwy.Const[T](sigmoidZero_f32)
+	satHi := hwy.Const[T](sigmoidSatHi_f32)
+	satLo := hwy.Const[T](sigmoidSatLo_f32)
 
 	// Clamp to avoid exp overflow
 	clampedX := hwy.Max(hwy.Min(x, satHi), satLo)
@@ -109,10 +109,10 @@ func BaseSigmoidVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseTanhVec computes tanh(x) = 2*sigmoid(2x) - 1 using BaseSigmoidVec.
 // Zero allocation - composes at register level.
 func BaseTanhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	two := hwy.Set[T](T(2.0))
-	one := hwy.Set[T](T(tanhOne_f32))
-	negOne := hwy.Set[T](T(tanhNegOne_f32))
-	threshold := hwy.Set[T](T(tanhClamp_f32))
+	two := hwy.Const[T](2.0)
+	one := hwy.Const[T](tanhOne_f32)
+	negOne := hwy.Const[T](tanhNegOne_f32)
+	threshold := hwy.Const[T](tanhClamp_f32)
 	negThreshold := hwy.Neg(threshold)
 
 	// tanh(x) = 2*sigmoid(2x) - 1 using BaseSigmoidVec - register-to-register
@@ -130,19 +130,19 @@ func BaseTanhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseLogVec computes ln(x) for a single vector.
 // Zero allocation - register-level operation.
 func BaseLogVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(logOne_f32))
-	two := hwy.Set[T](T(logTwo_f32))
-	zero := hwy.Set[T](T(0.0))
-	ln2Hi := hwy.Set[T](T(logLn2Hi_f32))
-	ln2Lo := hwy.Set[T](T(logLn2Lo_f32))
-	negInf := hwy.Set[T](T(-1e38)) // Approximate -Inf
-	nan := hwy.Set[T](T(0.0))      // Will be replaced with NaN mask
+	one := hwy.Const[T](logOne_f32)
+	two := hwy.Const[T](logTwo_f32)
+	zero := hwy.Const[T](0.0)
+	ln2Hi := hwy.Const[T](logLn2Hi_f32)
+	ln2Lo := hwy.Const[T](logLn2Lo_f32)
+	negInf := hwy.Const[T](logNegInf_f32) // Approximate -Inf
+	nan := hwy.Const[T](0.0)              // Will be replaced with NaN mask
 
-	c1 := hwy.Set[T](T(logC1_f32))
-	c2 := hwy.Set[T](T(logC2_f32))
-	c3 := hwy.Set[T](T(logC3_f32))
-	c4 := hwy.Set[T](T(logC4_f32))
-	c5 := hwy.Set[T](T(logC5_f32))
+	c1 := hwy.Const[T](logC1_f32)
+	c2 := hwy.Const[T](logC2_f32)
+	c3 := hwy.Const[T](logC3_f32)
+	c4 := hwy.Const[T](logC4_f32)
+	c5 := hwy.Const[T](logC5_f32)
 
 	// Handle special cases
 	zeroMask := hwy.Equal(x, zero)
@@ -154,16 +154,11 @@ func BaseLogVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	m := hwy.GetMantissa(x)
 
 	// Adjust for m > sqrt(2)
-	mLarge := hwy.Greater(m, hwy.Set[T](T(1.414)))
-	mAdjusted := hwy.Merge(hwy.Mul(m, hwy.Set[T](T(0.5))), m, mLarge)
+	mLarge := hwy.Greater(m, hwy.Const[T](logSqrt2_f32))
+	mAdjusted := hwy.Merge(hwy.Mul(m, hwy.Const[T](logHalf_f32)), m, mLarge)
 
 	// Convert exponent to float
-	eData := e.Data()
-	eFloatData := make([]T, len(eData))
-	for i, v := range eData {
-		eFloatData[i] = T(v)
-	}
-	eFloat := hwy.Load(eFloatData)
+	eFloat := hwy.ConvertExponentToFloat[T](e)
 	eAdjusted := hwy.Merge(hwy.Add(eFloat, one), eFloat, mLarge)
 
 	// Compute log(m) using y = (m-1)/(m+1)
@@ -193,18 +188,18 @@ func BaseLogVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseSinVec computes sin(x) for a single vector.
 // Zero allocation - register-level operation.
 func BaseSinVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	twoOverPi := hwy.Set[T](T(trig2OverPi_f32))
-	piOver2Hi := hwy.Set[T](T(trigPiOver2Hi_f32))
-	piOver2Lo := hwy.Set[T](T(trigPiOver2Lo_f32))
-	one := hwy.Set[T](T(trigOne_f32))
-	s1 := hwy.Set[T](T(trigS1_f32))
-	s2 := hwy.Set[T](T(trigS2_f32))
-	s3 := hwy.Set[T](T(trigS3_f32))
-	s4 := hwy.Set[T](T(trigS4_f32))
-	c1 := hwy.Set[T](T(trigC1_f32))
-	c2 := hwy.Set[T](T(trigC2_f32))
-	c3 := hwy.Set[T](T(trigC3_f32))
-	c4 := hwy.Set[T](T(trigC4_f32))
+	twoOverPi := hwy.Const[T](trig2OverPi_f32)
+	piOver2Hi := hwy.Const[T](trigPiOver2Hi_f32)
+	piOver2Lo := hwy.Const[T](trigPiOver2Lo_f32)
+	one := hwy.Const[T](trigOne_f32)
+	s1 := hwy.Const[T](trigS1_f32)
+	s2 := hwy.Const[T](trigS2_f32)
+	s3 := hwy.Const[T](trigS3_f32)
+	s4 := hwy.Const[T](trigS4_f32)
+	c1 := hwy.Const[T](trigC1_f32)
+	c2 := hwy.Const[T](trigC2_f32)
+	c3 := hwy.Const[T](trigC3_f32)
+	c4 := hwy.Const[T](trigC4_f32)
 
 	intOne := hwy.Set[int32](1)
 	intTwo := hwy.Set[int32](2)
@@ -262,18 +257,18 @@ func BaseSinVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseCosVec computes cos(x) for a single vector.
 // Zero allocation - register-level operation.
 func BaseCosVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	twoOverPi := hwy.Set[T](T(trig2OverPi_f32))
-	piOver2Hi := hwy.Set[T](T(trigPiOver2Hi_f32))
-	piOver2Lo := hwy.Set[T](T(trigPiOver2Lo_f32))
-	one := hwy.Set[T](T(trigOne_f32))
-	s1 := hwy.Set[T](T(trigS1_f32))
-	s2 := hwy.Set[T](T(trigS2_f32))
-	s3 := hwy.Set[T](T(trigS3_f32))
-	s4 := hwy.Set[T](T(trigS4_f32))
-	c1 := hwy.Set[T](T(trigC1_f32))
-	c2 := hwy.Set[T](T(trigC2_f32))
-	c3 := hwy.Set[T](T(trigC3_f32))
-	c4 := hwy.Set[T](T(trigC4_f32))
+	twoOverPi := hwy.Const[T](trig2OverPi_f32)
+	piOver2Hi := hwy.Const[T](trigPiOver2Hi_f32)
+	piOver2Lo := hwy.Const[T](trigPiOver2Lo_f32)
+	one := hwy.Const[T](trigOne_f32)
+	s1 := hwy.Const[T](trigS1_f32)
+	s2 := hwy.Const[T](trigS2_f32)
+	s3 := hwy.Const[T](trigS3_f32)
+	s4 := hwy.Const[T](trigS4_f32)
+	c1 := hwy.Const[T](trigC1_f32)
+	c2 := hwy.Const[T](trigC2_f32)
+	c3 := hwy.Const[T](trigC3_f32)
+	c4 := hwy.Const[T](trigC4_f32)
 
 	intOne := hwy.Set[int32](1)
 	intTwo := hwy.Set[int32](2)
@@ -331,14 +326,14 @@ func BaseCosVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseErfVec computes erf(x) for a single vector.
 // Zero allocation - register-level operation (except for internal exp call).
 func BaseErfVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	a1 := hwy.Set[T](T(erfA1_f32))
-	a2 := hwy.Set[T](T(erfA2_f32))
-	a3 := hwy.Set[T](T(erfA3_f32))
-	a4 := hwy.Set[T](T(erfA4_f32))
-	a5 := hwy.Set[T](T(erfA5_f32))
-	p := hwy.Set[T](T(erfP_f32))
-	one := hwy.Set[T](T(erfOne_f32))
-	zero := hwy.Set[T](T(erfZero_f32))
+	a1 := hwy.Const[T](erfA1_f32)
+	a2 := hwy.Const[T](erfA2_f32)
+	a3 := hwy.Const[T](erfA3_f32)
+	a4 := hwy.Const[T](erfA4_f32)
+	a5 := hwy.Const[T](erfA5_f32)
+	p := hwy.Const[T](erfP_f32)
+	one := hwy.Const[T](erfOne_f32)
+	zero := hwy.Const[T](erfZero_f32)
 
 	// erf(-x) = -erf(x)
 	absX := hwy.Abs(x)
@@ -375,7 +370,7 @@ func BaseErfVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseLog2Vec computes log₂(x) for a single vector.
 // Zero allocation - composes with BaseLogVec.
 func BaseLog2Vec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	log2E := hwy.Set[T](T(log2E_f32))
+	log2E := hwy.Const[T](log2E_f32)
 	lnX := BaseLogVec[T](x)
 	return hwy.Mul(lnX, log2E)
 }
@@ -383,7 +378,7 @@ func BaseLog2Vec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseLog10Vec computes log₁₀(x) for a single vector.
 // Zero allocation - composes with BaseLogVec.
 func BaseLog10Vec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	log10E := hwy.Set[T](T(log10E_f32))
+	log10E := hwy.Const[T](log10E_f32)
 	lnX := BaseLogVec[T](x)
 	return hwy.Mul(lnX, log10E)
 }
@@ -391,7 +386,7 @@ func BaseLog10Vec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseExp2Vec computes 2^x for a single vector.
 // Zero allocation - composes with BaseExpVec.
 func BaseExp2Vec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	ln2 := hwy.Set[T](T(ln2_f32))
+	ln2 := hwy.Const[T](ln2_f32)
 	xLn2 := hwy.Mul(x, ln2)
 	return BaseExpVec[T](xLn2)
 }
@@ -399,10 +394,10 @@ func BaseExp2Vec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseSinhVec computes sinh(x) for a single vector.
 // Zero allocation - register-level operation.
 func BaseSinhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(sinhOne_f32))
-	c3 := hwy.Set[T](T(sinhC3_f32))
-	c5 := hwy.Set[T](T(sinhC5_f32))
-	c7 := hwy.Set[T](T(sinhC7_f32))
+	one := hwy.Const[T](sinhOne_f32)
+	c3 := hwy.Const[T](sinhC3_f32)
+	c5 := hwy.Const[T](sinhC5_f32)
+	c7 := hwy.Const[T](sinhC7_f32)
 
 	// Polynomial: sinh(x) ≈ x * (1 + x²/6 + x⁴/120 + x⁶/5040)
 	x2 := hwy.Mul(x, x)
@@ -415,10 +410,10 @@ func BaseSinhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseCoshVec computes cosh(x) for a single vector.
 // Zero allocation - register-level operation.
 func BaseCoshVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(1.0))
-	c2 := hwy.Set[T](T(0.5))
-	c4 := hwy.Set[T](T(0.041666666666666664))
-	c6 := hwy.Set[T](T(0.001388888888888889))
+	one := hwy.Const[T](1.0)
+	c2 := hwy.Const[T](0.5)
+	c4 := hwy.Const[T](0.041666666666666664)
+	c6 := hwy.Const[T](0.001388888888888889)
 
 	// cosh is even: cosh(-x) = cosh(x)
 	x2 := hwy.Mul(x, x)
@@ -432,7 +427,7 @@ func BaseCoshVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseAsinhVec computes asinh(x) for a single vector.
 // asinh(x) = ln(x + sqrt(x² + 1))
 func BaseAsinhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(1.0))
+	one := hwy.Const[T](1.0)
 
 	x2 := hwy.Mul(x, x)
 	x2Plus1 := hwy.Add(x2, one)
@@ -444,8 +439,8 @@ func BaseAsinhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseAcoshVec computes acosh(x) for a single vector (x >= 1).
 // acosh(x) = ln(x + sqrt(x² - 1))
 func BaseAcoshVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(1.0))
-	zero := hwy.Set[T](T(0.0))
+	one := hwy.Const[T](1.0)
+	zero := hwy.Const[T](0.0)
 
 	x2 := hwy.Mul(x, x)
 	x2Minus1 := hwy.Sub(x2, one)
@@ -463,9 +458,9 @@ func BaseAcoshVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // BaseAtanhVec computes atanh(x) for a single vector (|x| < 1).
 // atanh(x) = 0.5 * ln((1+x)/(1-x))
 func BaseAtanhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(1.0))
-	half := hwy.Set[T](T(0.5))
-	zero := hwy.Set[T](T(0.0))
+	one := hwy.Const[T](1.0)
+	half := hwy.Const[T](0.5)
+	zero := hwy.Const[T](0.0)
 
 	onePlusX := hwy.Add(one, x)
 	oneMinusX := hwy.Sub(one, x)
@@ -484,8 +479,8 @@ func BaseAtanhVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 // Uses the identity: base^exp = exp(exp * log(base))
 // Note: Only valid for base > 0. Negative bases will produce NaN.
 func BasePowVec[T hwy.Floats](base, exp hwy.Vec[T]) hwy.Vec[T] {
-	one := hwy.Set[T](T(1.0))
-	zero := hwy.Set[T](T(0.0))
+	one := hwy.Const[T](1.0)
+	zero := hwy.Const[T](0.0)
 
 	// base^exp = exp(exp * log(base))
 	logBase := BaseLogVec[T](base)

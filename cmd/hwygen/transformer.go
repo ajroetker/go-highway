@@ -8,6 +8,84 @@ import (
 	"strings"
 )
 
+// isFloat16Type returns true if the element type is Float16.
+func isFloat16Type(elemType string) bool {
+	return elemType == "hwy.Float16" || elemType == "Float16"
+}
+
+// isBFloat16Type returns true if the element type is BFloat16.
+func isBFloat16Type(elemType string) bool {
+	return elemType == "hwy.BFloat16" || elemType == "BFloat16"
+}
+
+// isHalfPrecisionType returns true if the element type is Float16 or BFloat16.
+func isHalfPrecisionType(elemType string) bool {
+	return isFloat16Type(elemType) || isBFloat16Type(elemType)
+}
+
+// getHalfPrecisionFuncName returns the hwy function name for Float16/BFloat16 operations.
+// For example, "Add" with Float16 returns "AddF16", "Add" with BFloat16 returns "AddBF16".
+// Returns empty string for operations that don't have F16/BF16 specific versions.
+func getHalfPrecisionFuncName(opName string, elemType string) string {
+	suffix := "F16"
+	if isBFloat16Type(elemType) {
+		suffix = "BF16"
+	}
+
+	// Map operation names to their F16/BF16 counterparts
+	switch opName {
+	case "Add":
+		return "Add" + suffix
+	case "Sub":
+		return "Sub" + suffix
+	case "Mul":
+		return "Mul" + suffix
+	case "Div":
+		return "Div" + suffix
+	case "FMA", "MulAdd":
+		return "FMA" + suffix
+	case "Neg":
+		return "Neg" + suffix
+	case "Abs":
+		return "Abs" + suffix
+	case "Min":
+		return "Min" + suffix
+	case "Max":
+		return "Max" + suffix
+	case "Sqrt":
+		return "Sqrt" + suffix
+	case "Greater", "GreaterThan":
+		return "GreaterThan" + suffix
+	case "Less", "LessThan":
+		return "LessThan" + suffix
+	case "GreaterEqual", "GreaterThanOrEqual":
+		return "GreaterThanOrEqual" + suffix
+	case "LessEqual", "LessThanOrEqual":
+		return "LessThanOrEqual" + suffix
+	case "Equal":
+		return "Equal" + suffix
+	case "ReduceSum":
+		return "ReduceSum" + suffix
+	case "ReduceMin":
+		return "ReduceMin" + suffix
+	case "ReduceMax":
+		return "ReduceMax" + suffix
+	case "IsNaN":
+		return "IsNaN" + suffix
+	case "IsInf":
+		return "IsInf" + suffix
+	default:
+		// For operations without specific F16/BF16 variants, return empty
+		return ""
+	}
+}
+
+// isHalfPrecisionMergeOp returns true if the operation is Merge/IfThenElse for F16/BF16.
+// These need special handling because argument order differs between hwy.Merge and IfThenElseF16.
+func isHalfPrecisionMergeOp(opName string) bool {
+	return opName == "Merge" || opName == "IfThenElse"
+}
+
 // TransformResult contains the transformed function and any hoisted constants.
 type TransformResult struct {
 	FuncDecl      *ast.FuncDecl
@@ -100,6 +178,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		conditionalBlocks:  opts.ConditionalBlocks,
 		fset:               opts.FileSet,
 		imports:            opts.Imports,
+		varTypes:           make(map[string]string),
 	}
 
 	// Add function parameters to localVars to prevent them from being hoisted
@@ -159,6 +238,86 @@ type transformContext struct {
 	conditionalBlocks  []ConditionalBlock                // Conditional blocks to process
 	fset               *token.FileSet                    // For resolving line numbers
 	imports            map[string]string                 // map[local_name]import_path for resolving package references
+	varTypes           map[string]string                 // map[var_name]type for type inference (e.g., "int32", "hwy.Float16")
+}
+
+// inferTypeFromExpr analyzes an expression and returns its inferred type.
+// Returns "int32" for expressions like hwy.ConvertToInt32(...), hwy.Set[int32](...), etc.
+// Returns empty string if type cannot be inferred.
+func inferTypeFromExpr(expr ast.Expr, ctx *transformContext) string {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return ""
+	}
+
+	// Check for hwy.Set[int32](...) or similar indexed expressions
+	if indexExpr, ok := call.Fun.(*ast.IndexExpr); ok {
+		if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
+			if pkgIdent, ok := sel.X.(*ast.Ident); ok && pkgIdent.Name == "hwy" {
+				// Check the type parameter
+				if ident, ok := indexExpr.Index.(*ast.Ident); ok {
+					if ident.Name == "int32" {
+						return "int32"
+					}
+				}
+			}
+		}
+	}
+
+	// Check for hwy.ConvertToInt32(...) or method call .ConvertToInt32()
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		funcName := sel.Sel.Name
+		switch funcName {
+		case "ConvertToInt32":
+			return "int32"
+		case "And", "Or", "Xor", "AndNot", "ShiftLeft", "ShiftRight", "Add", "Sub", "Mul":
+			// For bitwise and arithmetic operations, check if BOTH arguments are int32
+			// This handles expressions like hwy.And(hwy.Add(kInt, intOne), intThree)
+			if len(call.Args) >= 2 {
+				arg0IsInt32 := isInt32ExprHelper(call.Args[0], ctx)
+				arg1IsInt32 := isInt32ExprHelper(call.Args[1], ctx)
+				if arg0IsInt32 && arg1IsInt32 {
+					return "int32"
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// isInt32ExprHelper is a helper that checks if an expression is int32 without causing recursion.
+func isInt32ExprHelper(expr ast.Expr, ctx *transformContext) bool {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return ctx.varTypes[e.Name] == "int32"
+	case *ast.CallExpr:
+		// Recursively check for int32-returning calls
+		return inferTypeFromExpr(e, ctx) == "int32"
+	}
+	return false
+}
+
+// isInt32Expr checks if an expression is of int32 type based on tracked variable types.
+func isInt32Expr(expr ast.Expr, ctx *transformContext) bool {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return ctx.varTypes[e.Name] == "int32"
+	case *ast.CallExpr:
+		// Check if this is a function call that returns int32
+		return inferTypeFromExpr(e, ctx) == "int32"
+	}
+	return false
+}
+
+// isComparisonOp returns true if the operation is a comparison operation.
+func isComparisonOp(opName string) bool {
+	switch opName {
+	case "Equal", "Greater", "GreaterThan", "Less", "LessThan",
+		"GreaterEqual", "GreaterThanOrEqual", "LessEqual", "LessThanOrEqual":
+		return true
+	}
+	return false
 }
 
 // collectLocalVariables walks the AST and collects all locally-defined variable names.
@@ -174,9 +333,15 @@ func collectLocalVariables(node ast.Node, ctx *transformContext) {
 			// Collect all LHS identifiers from := and = assignments
 			// Only := definitely defines new variables, but we track both to be safe
 			if stmt.Tok == token.DEFINE {
-				for _, lhs := range stmt.Lhs {
+				for i, lhs := range stmt.Lhs {
 					if ident, ok := lhs.(*ast.Ident); ok {
 						ctx.localVars[ident.Name] = true
+						// Track variable types for type inference
+						if i < len(stmt.Rhs) {
+							if inferredType := inferTypeFromExpr(stmt.Rhs[i], ctx); inferredType != "" {
+								ctx.varTypes[ident.Name] = inferredType
+							}
+						}
 					}
 				}
 			}
@@ -349,6 +514,10 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 			switch ctx.elemType {
 			case "float64":
 				suffix = suffix + "_Float64"
+			case "hwy.Float16":
+				suffix = suffix + "_Float16"
+			case "hwy.BFloat16":
+				suffix = suffix + "_BFloat16"
 			case "int32":
 				suffix = suffix + "_Int32"
 			case "int64":
@@ -396,6 +565,10 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 				switch ctx.elemType {
 				case "float64":
 					suffix = suffix + "_Float64"
+				case "hwy.Float16":
+					suffix = suffix + "_Float16"
+				case "hwy.BFloat16":
+					suffix = suffix + "_BFloat16"
 				case "int32":
 					suffix = suffix + "_Int32"
 				case "int64":
@@ -425,6 +598,25 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		if !ok {
 			return
 		}
+		// Transform hwy.Const[T](val) to hwy.Set(val) for non-float32 types
+		// ONLY when val is a named constant (identifier), not a literal.
+		// Named constants have been suffix-transformed to the correct type.
+		// Literals should stay with Const which handles the conversion.
+		// Note: We don't return here - let the transformation continue so Set gets
+		// transformed to asm.Broadcast* for SIMD targets.
+		if selExpr.Sel.Name == "Const" {
+			if ident, ok := selExpr.X.(*ast.Ident); ok && ident.Name == "hwy" {
+				if ctx.elemType != "float32" && len(call.Args) > 0 {
+					// Only transform if the argument is an identifier (named constant)
+					// or binary expression like `constant * 2`
+					if _, isIdent := call.Args[0].(*ast.Ident); isIdent {
+						selExpr.Sel.Name = "Set"
+					} else if _, isBinary := call.Args[0].(*ast.BinaryExpr); isBinary {
+						selExpr.Sel.Name = "Set"
+					}
+				}
+			}
+		}
 		if ctx.target.Name == "Fallback" {
 			// For fallback, replace type param with concrete type
 			// hwy.Zero[T]() -> hwy.Zero[float32]()
@@ -434,9 +626,61 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 				}
 			}
 			// Keep the IndexExpr (with type param), just update the type
+		} else if isHalfPrecisionType(ctx.elemType) {
+			// For Float16/BFloat16 on SIMD targets, keep the type param for functions
+			// like Const, Set, Zero that need it for type inference
+			funcName := selExpr.Sel.Name
+			switch funcName {
+			case "Const", "Set", "Zero":
+				// Replace type param with concrete type (e.g., hwy.Const[T] -> hwy.Const[hwy.Float16])
+				for _, tp := range ctx.typeParams {
+					if ident, ok := fun.Index.(*ast.Ident); ok && ident.Name == tp.Name {
+						ident.Name = ctx.elemType
+					}
+				}
+				// Keep the IndexExpr with the concrete type
+			case "ConvertExponentToFloat":
+				// Transform to non-generic ConvertToF16/ConvertToBF16
+				if ctx.elemType == "hwy.Float16" {
+					call.Fun = &ast.SelectorExpr{
+						X:   ast.NewIdent("hwy"),
+						Sel: ast.NewIdent("ConvertToF16"),
+					}
+				} else {
+					call.Fun = &ast.SelectorExpr{
+						X:   ast.NewIdent("hwy"),
+						Sel: ast.NewIdent("ConvertToBF16"),
+					}
+				}
+				return // Already handled, don't continue transformation
+			default:
+				// For other functions, strip the type param (will be transformed later)
+				call.Fun = selExpr
+			}
 		} else {
-			// For SIMD targets, strip the type param (will be transformed later)
-			call.Fun = selExpr
+			// For SIMD targets with native types, handle special cases first
+			funcName := selExpr.Sel.Name
+			switch funcName {
+			case "ConvertExponentToFloat":
+				// Transform to method call: e.ConvertToFloat32() or e.ConvertToFloat64()
+				if len(call.Args) >= 1 {
+					var methodName string
+					if ctx.elemType == "float64" {
+						methodName = "ConvertToFloat64"
+					} else {
+						methodName = "ConvertToFloat32"
+					}
+					call.Fun = &ast.SelectorExpr{
+						X:   call.Args[0],
+						Sel: ast.NewIdent(methodName),
+					}
+					call.Args = nil
+				}
+				return
+			default:
+				// Strip the type param (will be transformed later)
+				call.Fun = selExpr
+			}
 		}
 	case *ast.IndexListExpr:
 		// Generic function call with multiple type params like hwy.Func[T, U]()
@@ -529,17 +773,36 @@ func transformDataMethod(call *ast.CallExpr, ctx *transformContext) {
 		},
 	}
 
-	// v.StoreSlice(tmp[:])
-	storeCall := &ast.CallExpr{
-		Fun: &ast.SelectorExpr{
-			X:   cloneExpr(vecExpr),
-			Sel: ast.NewIdent("StoreSlice"),
-		},
-		Args: []ast.Expr{
-			&ast.SliceExpr{
-				X: ast.NewIdent("_simd_tmp"),
+	// v.StoreSlice(tmp[:]) or hwy.Store(v, tmp[:]) for half-precision
+	var storeCall *ast.CallExpr
+	if isHalfPrecisionType(ctx.elemType) {
+		// hwy.Store(v, tmp[:]) for half-precision types
+		storeFun := &ast.SelectorExpr{
+			X:   ast.NewIdent("hwy"),
+			Sel: ast.NewIdent("Store"),
+		}
+		storeCall = &ast.CallExpr{
+			Fun: storeFun,
+			Args: []ast.Expr{
+				cloneExpr(vecExpr),
+				&ast.SliceExpr{
+					X: ast.NewIdent("_simd_tmp"),
+				},
 			},
-		},
+		}
+	} else {
+		// v.StoreSlice(tmp[:]) for native SIMD types
+		storeCall = &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   cloneExpr(vecExpr),
+				Sel: ast.NewIdent("StoreSlice"),
+			},
+			Args: []ast.Expr{
+				&ast.SliceExpr{
+					X: ast.NewIdent("_simd_tmp"),
+				},
+			},
+		}
 	}
 
 	// return tmp[:]
@@ -569,10 +832,10 @@ func transformDataMethod(call *ast.CallExpr, ctx *transformContext) {
 		},
 	}
 
-	// Replace call with invocation
-	*call = ast.CallExpr{
-		Fun: funcLit,
-	}
+	// Replace call with invocation - modify fields directly instead of replacing entire struct
+	call.Fun = funcLit
+	call.Args = nil
+	call.Ellipsis = 0
 }
 
 // transformGetBitMethod transforms mask.GetBit(i) to check the i-th element.
@@ -587,6 +850,12 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 	}
 	maskExpr := sel.X
 	lanes := ctx.target.LanesFor(ctx.elemType)
+
+	// For half-precision types, use hwy package functions instead of native SIMD
+	if isHalfPrecisionType(ctx.elemType) {
+		transformGetBitMethodHalfPrecision(call, maskExpr, indexExpr, lanes, ctx)
+		return
+	}
 
 	// Use Int32 vector for extraction to match most masks used with GetBit
 	intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
@@ -717,6 +986,22 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 	}
 }
 
+// transformGetBitMethodHalfPrecision handles mask.GetBit(i) for half-precision types.
+// Uses hwy package functions instead of native SIMD types.
+func transformGetBitMethodHalfPrecision(call *ast.CallExpr, maskExpr, indexExpr ast.Expr, lanes int, ctx *transformContext) {
+	// For half-precision, use a simpler scalar extraction approach
+	// func() bool {
+	//   return mask.GetBit(i)  // Keep as-is for hwy.Mask[Float16]
+	// }()
+	//
+	// Actually, hwy.Mask already has GetBit, so we can keep the call as-is
+	// but we need to ensure the mask is properly typed.
+
+	// The mask.GetBit(i) call should work directly for hwy.Mask types
+	// No transformation needed for half-precision - keep the original call
+	return
+}
+
 // transformToMethod converts hwy.Add(a, b) to a.Add(b) for SIMD targets.
 // For Fallback, keeps hwy.Add(a, b) as-is.
 func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *transformContext) {
@@ -736,6 +1021,86 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			}
 		}
 		return
+	}
+
+	// For Float16/BFloat16 on SIMD targets, use hwy package functions instead of methods.
+	// archsimd doesn't have native support for half-precision types.
+	if isHalfPrecisionType(ctx.elemType) {
+		// Handle Merge specially - needs argument reordering
+		// hwy.Merge(yes, no, mask) -> hwy.IfThenElseF16(mask, yes, no)
+		if isHalfPrecisionMergeOp(funcName) && len(call.Args) >= 3 {
+			suffix := "F16"
+			if isBFloat16Type(ctx.elemType) {
+				suffix = "BF16"
+			}
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("IfThenElse" + suffix),
+			}
+			// Reorder: (yes, no, mask) -> (mask, yes, no)
+			call.Args = []ast.Expr{call.Args[2], call.Args[0], call.Args[1]}
+			return
+		}
+
+		if f16FuncName := getHalfPrecisionFuncName(funcName, ctx.elemType); f16FuncName != "" {
+			// For operations with 2 operands, check if both are int32 - if so, keep generic hwy function
+			// This handles comparisons (Equal, Greater), arithmetic (Add, Sub, Mul), and bitwise (And, Or)
+			// operations that may operate on int32 intermediate values (like octant calculations in trig functions)
+			if len(call.Args) >= 2 {
+				if isInt32Expr(call.Args[0], ctx) && isInt32Expr(call.Args[1], ctx) {
+					// Keep as generic hwy.Add, hwy.Equal, hwy.And, etc. for int32 operands
+					call.Fun = &ast.SelectorExpr{
+						X:   ast.NewIdent("hwy"),
+						Sel: ast.NewIdent(funcName),
+					}
+					return
+				}
+			}
+			// Transform to hwy.AddF16(a, b), hwy.MulF16(a, b), etc.
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(f16FuncName),
+			}
+			// Args stay as-is (already in the correct order for function calls)
+			return
+		}
+
+		// For operations that don't have F16/BF16 variants, keep as hwy function calls
+		// instead of converting to method calls (which don't exist on hwy.Vec[Float16])
+		switch funcName {
+		case "RoundToEven", "ConvertToInt32", "ConvertToFloat32":
+			// Keep as hwy function call - do NOT convert to method
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(funcName),
+			}
+			return
+		case "MaskAnd", "MaskOr", "MaskXor", "MaskAndNot":
+			// Mask operations on hwy.Mask[Float16/BFloat16] don't have method forms,
+			// so keep them as hwy.MaskAnd, hwy.MaskOr, etc.
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(funcName),
+			}
+			return
+		case "Store":
+			// Keep hwy.Store(v, dst) as-is for half-precision types
+			// (hwy.Vec[Float16] has a Store method that handles the conversion)
+			return
+		case "Pow2":
+			// Pow2 needs a type parameter: hwy.Pow2[hwy.Float16](kInt)
+			call.Fun = &ast.IndexExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent("Pow2"),
+				},
+				Index: ast.NewIdent(ctx.elemType),
+			}
+			return
+		}
+
+		// For operations without F16/BF16 variants, fall through to regular handling
+		// but this may cause issues if they try to use method calls
 	}
 
 	// For SIMD targets, convert to method calls on archsimd types
@@ -803,6 +1168,14 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		}
 
 	case "GetExponent":
+		// For Float16/BFloat16, use hwy.GetExponent which has proper handling
+		if isHalfPrecisionType(ctx.elemType) {
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("GetExponent"),
+			}
+			return
+		}
 		if len(call.Args) >= 1 {
 			x := call.Args[0]
 			intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
@@ -816,7 +1189,6 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			var shift int
 			var mask string
 			var bias string
-			var convertToFloatMethod string
 
 			if ctx.elemType == "float32" {
 				asIntMethod = "AsInt32x8"
@@ -827,7 +1199,6 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				shift = 23
 				mask = "255" // 0xFF
 				bias = "127"
-				convertToFloatMethod = "ConvertToFloat32"
 			} else {
 				asIntMethod = "AsInt64x4"
 				if op, ok := ctx.target.OpMap["AsInt64"]; ok {
@@ -836,7 +1207,6 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				shift = 52
 				mask = "2047" // 0x7FF
 				bias = "1023"
-				convertToFloatMethod = "ConvertToFloat64"
 			}
 
 			// x.AsInt32()
@@ -888,18 +1258,21 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				Args: []ast.Expr{broadcastBias},
 			}
 
-			// .ConvertToFloat()
-			expr = &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   expr,
-					Sel: ast.NewIdent(convertToFloatMethod),
-				},
-			}
+			// NOTE: Don't add .ConvertToFloat() here - let ConvertExponentToFloat handle the
+			// int-to-float conversion. This keeps GetExponent returning integers as expected.
 
 			*call = *expr
 		}
 
 	case "GetMantissa":
+		// For Float16/BFloat16, use hwy.GetMantissa which has proper handling
+		if isHalfPrecisionType(ctx.elemType) {
+			call.Fun = &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("GetMantissa"),
+			}
+			return
+		}
 		if len(call.Args) >= 1 {
 			x := call.Args[0]
 			intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
@@ -1249,12 +1622,31 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 	case "And", "Xor":
 		// archsimd float types don't have And/Xor methods, only int types do.
 		// For float types on archsimd, use hwy wrappers.
+		// BUT: if both operands are int32 vectors, use method call since Int32x8 has And/Xor.
 		if ctx.target.VecPackage == "archsimd" && (ctx.elemType == "float32" || ctx.elemType == "float64") {
-			// hwy.And(a, b) -> hwy.And_AVX2_F32x8(a, b)
-			fullName := fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			// Check if both operands are int32 - if so, use method call
+			if len(call.Args) >= 2 && isInt32Expr(call.Args[0], ctx) && isInt32Expr(call.Args[1], ctx) {
+				// Int32x8 has .And() method - use method call a.And(b)
+				call.Fun = &ast.SelectorExpr{
+					X:   call.Args[0],
+					Sel: ast.NewIdent(opInfo.Name),
+				}
+				call.Args = call.Args[1:]
+			} else {
+				// hwy.And(a, b) -> hwy.And_AVX2_F32x8(a, b)
+				fullName := fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(fullName),
+				}
+				// Keep args as [a, b]
+			}
+		} else if isHalfPrecisionType(ctx.elemType) {
+			// For half-precision contexts, integer operations (like octant masking in sin/cos)
+			// use hwy.Vec[int32] which doesn't have And method. Keep as generic hwy function.
 			call.Fun = &ast.SelectorExpr{
 				X:   ast.NewIdent("hwy"),
-				Sel: ast.NewIdent(fullName),
+				Sel: ast.NewIdent(opInfo.Name),
 			}
 			// Keep args as [a, b]
 		} else {
@@ -1344,6 +1736,103 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		return
 	}
 
+	// For Float16/BFloat16 on SIMD targets, use hwy package functions instead of archsimd calls.
+	// archsimd doesn't have native support for half-precision types.
+	if isHalfPrecisionType(ctx.elemType) {
+		// Handle Merge specially - needs argument reordering
+		// hwy.Merge(yes, no, mask) -> hwy.IfThenElseF16(mask, yes, no)
+		if isHalfPrecisionMergeOp(funcName) && len(call.Args) >= 3 {
+			suffix := "F16"
+			if isBFloat16Type(ctx.elemType) {
+				suffix = "BF16"
+			}
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "IfThenElse" + suffix
+			// Reorder: (yes, no, mask) -> (mask, yes, no)
+			call.Args = []ast.Expr{call.Args[2], call.Args[0], call.Args[1]}
+			return
+		}
+
+		if f16FuncName := getHalfPrecisionFuncName(funcName, ctx.elemType); f16FuncName != "" {
+			// For comparison operations, check if operands are int32 - if so, keep generic hwy function
+			if isComparisonOp(funcName) && len(call.Args) >= 2 {
+				if isInt32Expr(call.Args[0], ctx) && isInt32Expr(call.Args[1], ctx) {
+					// Keep as generic hwy.Equal, hwy.Greater, etc. for int32 operands
+					selExpr.X = ast.NewIdent("hwy")
+					selExpr.Sel.Name = funcName
+					return
+				}
+			}
+			// Transform to hwy.AddF16(a, b), hwy.MulF16(a, b), etc.
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = f16FuncName
+			return
+		}
+		// For Load/Store/Set/Zero on F16/BF16, use generic hwy functions
+		switch funcName {
+		case "Load":
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Load"
+			return
+		case "Store":
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Store"
+			return
+		case "Set":
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Set"
+			return
+		case "Zero":
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Zero"
+			return
+		case "RoundToEven":
+			// hwy.RoundToEven doesn't have an F16/BF16 variant, use generic
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "RoundToEven"
+			return
+		case "ConvertToInt32":
+			// hwy.ConvertToInt32 doesn't have an F16/BF16 variant, use generic
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "ConvertToInt32"
+			return
+		case "ConvertExponentToFloat":
+			// For Float16/BFloat16, use dedicated conversion functions
+			if ctx.elemType == "hwy.Float16" {
+				selExpr.X = ast.NewIdent("hwy")
+				selExpr.Sel.Name = "ConvertToF16"
+			} else {
+				selExpr.X = ast.NewIdent("hwy")
+				selExpr.Sel.Name = "ConvertToBF16"
+			}
+			// Strip the type parameter if present
+			if indexExpr, ok := call.Fun.(*ast.IndexExpr); ok {
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(selExpr.Sel.Name),
+				}
+				_ = indexExpr // used to strip type param
+			}
+			return
+		case "Pow2":
+			// Pow2 needs a type parameter: hwy.Pow2[hwy.Float16](kInt)
+			call.Fun = &ast.IndexExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent("Pow2"),
+				},
+				Index: ast.NewIdent(ctx.elemType),
+			}
+			return
+		case "Const":
+			// Keep hwy.Const[T] with type parameter for half-precision types
+			// hwy.Const handles float64-to-T conversion, while hwy.Set expects T
+			// This is handled earlier in the IndexExpr case - just return here
+			return
+		}
+		// For other operations without F16/BF16 variants, fall through
+	}
+
 	// For SIMD targets, transform to package calls (archsimd for AVX, asm for NEON)
 	var fullName string
 	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
@@ -1362,7 +1851,8 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "Load":
 		fullName = fmt.Sprintf("Load%sSlice", vecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
-	case "Set":
+	case "Set", "Const":
+		// Both Set and Const broadcast a scalar value to all lanes
 		fullName = fmt.Sprintf("Broadcast%s", vecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
 	case "Zero":
@@ -1553,6 +2043,28 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		}
 		fullName = opInfo.Name
 		selExpr.X = ast.NewIdent(pkgName)
+	case "ConvertExponentToFloat":
+		// Convert Vec[int32] to Vec[T] for the target float type
+		// For native float types, transform to e.ConvertToFloat32() method call
+		if len(call.Args) >= 1 {
+			var methodName string
+			switch ctx.elemType {
+			case "float32":
+				methodName = "ConvertToFloat32"
+			case "float64":
+				methodName = "ConvertToFloat64"
+			default:
+				// Half-precision handled earlier in the isHalfPrecisionType block
+				methodName = "ConvertToFloat32"
+			}
+			// Transform hwy.ConvertExponentToFloat[T](e) to e.ConvertToFloat32()
+			call.Fun = &ast.SelectorExpr{
+				X:   call.Args[0],
+				Sel: ast.NewIdent(methodName),
+			}
+			call.Args = nil
+		}
+		return
 	default:
 		// For contrib functions (SubPackage), use hwygen's naming convention:
 		// lowercase target, type suffix only for non-default types
@@ -1800,6 +2312,12 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 	actualElemType := ctx.elemType
 	if typeParam == "int32" {
 		actualElemType = "int32"
+		// For half-precision types, don't hoist int32 constants to native SIMD types
+		// because hwy.ConvertToInt32 returns hwy.Vec[int32], not native SIMD types.
+		// Keeping them as hwy.Set[int32] ensures type compatibility.
+		if isHalfPrecisionType(ctx.elemType) {
+			return ""
+		}
 	}
 
 	// Check if the argument is a constant (literal or type conversion of constant)
@@ -2051,7 +2569,7 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	fallbackFuncName := funcName + "_fallback"
 	// Add type suffix for non-float32 types (matches how generator.go names functions)
 	if elemType != "float32" {
-		fallbackFuncName = fallbackFuncName + "_" + strings.Title(elemType)
+		fallbackFuncName = fallbackFuncName + "_" + typeNameToSuffix(elemType)
 	}
 
 	// Build arguments for the fallback call
@@ -2198,6 +2716,13 @@ func replaceTypeParam(typeStr, paramName, elemType string) string {
 func specializeVecType(typeStr string, elemType string, target Target) string {
 	if target.Name == "Fallback" {
 		// For fallback, keep hwy.Vec[float32], hwy.Mask[float32] etc.
+		return typeStr
+	}
+
+	// For Float16/BFloat16 on SIMD targets, keep hwy.Vec[hwy.Float16] etc.
+	// since archsimd doesn't have native support for half-precision types.
+	if isHalfPrecisionType(elemType) {
+		// Keep the hwy generic Vec/Mask types as-is
 		return typeStr
 	}
 
@@ -3028,8 +3553,8 @@ func resolveTypeSpecificConst(name string, ctx *transformContext) string {
 			if resolved, exists := tsc.Variants[targetSuffix]; exists {
 				return resolved
 			}
-			// Fallback: if no exact match, try f32 for Float16 (compute type)
-			if targetSuffix == "f16" {
+			// Fallback: if no exact match, try f32 for Float16/BFloat16 (compute type)
+			if targetSuffix == "f16" || targetSuffix == "bf16" {
 				if resolved, exists := tsc.Variants["f32"]; exists {
 					return resolved
 				}

@@ -33,9 +33,10 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 	}
 
 	// Constants: 0.5 and 1/sqrt(2) ≈ 0.7071067811865476
-	vHalf := hwy.Set(T(0.5))
-	vOne := hwy.Set(T(1.0))
-	vInvSqrt2 := hwy.Set(T(0.7071067811865476))
+	// Use hwy.Const to handle float64-to-T conversion for all float types including Float16/BFloat16
+	vHalf := hwy.Const[T](0.5)
+	vOne := hwy.Const[T](1.0)
+	vInvSqrt2 := hwy.Const[T](0.7071067811865476)
 
 	for ii := 0; ii < size; ii += vOne.NumLanes() {
 		remaining := size - ii
@@ -76,7 +77,8 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 	}
 
 	// Constant: 1.702 (the approximation coefficient)
-	vCoeff := hwy.Set(T(1.702))
+	// Use hwy.Const to handle float64-to-T conversion for all float types including Float16/BFloat16
+	vCoeff := hwy.Const[T](1.702)
 
 	for ii := 0; ii < size; ii += vCoeff.NumLanes() {
 		remaining := size - ii

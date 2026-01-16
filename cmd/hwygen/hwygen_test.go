@@ -58,7 +58,8 @@ func TestGetConcreteTypes(t *testing.T) {
 		wantLen    int
 		wantFirst  string
 	}{
-		{"hwy.Floats", 2, "float32"},
+		{"hwy.Floats", 4, "hwy.Float16"},    // Float16, BFloat16, float32, float64
+		{"hwy.FloatsNative", 2, "float32"},  // float32, float64 only (no half-precision)
 		{"hwy.SignedInts", 2, "int32"},
 		{"hwy.Integers", 4, "int32"},
 		{"unknown", 2, "float32"}, // Default
