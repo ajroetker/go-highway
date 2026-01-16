@@ -6,6 +6,82 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
+	for i := 0; i < m; i++ {
+		cRow := c[i*n : (i+1)*n]
+		vZero := hwy.Zero[hwy.Float16]()
+		lanes := vZero.NumLanes()
+		var j int
+		for j = 0; j+lanes <= n; j += lanes {
+			hwy.Store(vZero, cRow[j:])
+		}
+		for ; j < n; j++ {
+			cRow[j] = hwy.Float32ToFloat16(0)
+		}
+		for p := 0; p < k; p++ {
+			aip := a[i*k+p]
+			vA := hwy.Set(aip)
+			bRow := b[p*n : (p+1)*n]
+			for j = 0; j+lanes <= n; j += lanes {
+				vB := hwy.Load(bRow[j:])
+				vC := hwy.Load(cRow[j:])
+				vC = hwy.MulAdd(vA, vB, vC)
+				hwy.Store(vC, cRow[j:])
+			}
+			for ; j < n; j++ {
+				cRow[j] += hwy.Float32ToFloat16(aip.Float32() * bRow[j].Float32())
+			}
+		}
+	}
+}
+
+func BaseMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
+	for i := 0; i < m; i++ {
+		cRow := c[i*n : (i+1)*n]
+		vZero := hwy.Zero[hwy.BFloat16]()
+		lanes := vZero.NumLanes()
+		var j int
+		for j = 0; j+lanes <= n; j += lanes {
+			hwy.Store(vZero, cRow[j:])
+		}
+		for ; j < n; j++ {
+			cRow[j] = hwy.Float32ToBFloat16(0)
+		}
+		for p := 0; p < k; p++ {
+			aip := a[i*k+p]
+			vA := hwy.Set(aip)
+			bRow := b[p*n : (p+1)*n]
+			for j = 0; j+lanes <= n; j += lanes {
+				vB := hwy.Load(bRow[j:])
+				vC := hwy.Load(cRow[j:])
+				vC = hwy.MulAdd(vA, vB, vC)
+				hwy.Store(vC, cRow[j:])
+			}
+			for ; j < n; j++ {
+				cRow[j] += hwy.Float32ToBFloat16(aip.Float32() * bRow[j].Float32())
+			}
+		}
+	}
+}
+
 func BaseMatMul_fallback(a []float32, b []float32, c []float32, m int, n int, k int) {
 	if len(a) < m*k {
 		panic("matmul: A slice too short")

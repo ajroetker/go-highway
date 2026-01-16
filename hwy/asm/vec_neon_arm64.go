@@ -3,7 +3,7 @@
 // versions:
 // 	clang   21.1.8
 // 	objdump 2.45.1
-// flags: --target=arm64 -march=armv8-a+simd+fp -O3
+// flags: -march=armv8-a+simd+fp -O3
 // source: ../c/vec_neon_arm64.c
 
 package asm

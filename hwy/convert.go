@@ -6,12 +6,30 @@ import "math"
 // When SIMD implementations are available (convert_avx2.go, convert_avx512.go),
 // they can be used for higher performance on supported hardware.
 
-// ConvertToInt32 converts float32 or float64 to int32 (truncate toward zero).
+// ConvertToInt32 converts float types to int32 (truncate toward zero).
 // For values outside the int32 range, the result is undefined.
-func ConvertToInt32[T ~float32 | ~float64](v Vec[T]) Vec[int32] {
+func ConvertToInt32[T Floats](v Vec[T]) Vec[int32] {
 	result := make([]int32, len(v.data))
-	for i := 0; i < len(v.data); i++ {
-		result[i] = int32(v.data[i])
+	var zero T
+	switch any(zero).(type) {
+	case Float16:
+		for i := 0; i < len(v.data); i++ {
+			result[i] = int32(any(v.data[i]).(Float16).Float32())
+		}
+	case BFloat16:
+		for i := 0; i < len(v.data); i++ {
+			result[i] = int32(any(v.data[i]).(BFloat16).Float32())
+		}
+	case float32:
+		data := any(v.data).([]float32)
+		for i := 0; i < len(data); i++ {
+			result[i] = int32(data[i])
+		}
+	case float64:
+		data := any(v.data).([]float64)
+		for i := 0; i < len(data); i++ {
+			result[i] = int32(data[i])
+		}
 	}
 	return Vec[int32]{data: result}
 }
@@ -24,6 +42,51 @@ func ConvertToFloat32[T ~int32 | ~int64](v Vec[T]) Vec[float32] {
 		result[i] = float32(v.data[i])
 	}
 	return Vec[float32]{data: result}
+}
+
+// ConvertToF16 converts int32 to Float16.
+// Values are converted through float32 first.
+func ConvertToF16(v Vec[int32]) Vec[Float16] {
+	result := make([]Float16, len(v.data))
+	for i := 0; i < len(v.data); i++ {
+		result[i] = Float32ToFloat16(float32(v.data[i]))
+	}
+	return Vec[Float16]{data: result}
+}
+
+// ConvertToBF16 converts int32 to BFloat16.
+// Values are converted through float32 first.
+func ConvertToBF16(v Vec[int32]) Vec[BFloat16] {
+	result := make([]BFloat16, len(v.data))
+	for i := 0; i < len(v.data); i++ {
+		result[i] = Float32ToBFloat16(float32(v.data[i]))
+	}
+	return Vec[BFloat16]{data: result}
+}
+
+// ConvertExponentToFloat converts integer exponents to the target float type.
+// This is a generic function that gets specialized by hwygen for each float type.
+// For Float16/BFloat16, values go through float32 conversion.
+// For float32/float64, direct conversion is used.
+func ConvertExponentToFloat[T Floats](e Vec[int32]) Vec[T] {
+	// This is the fallback/scalar implementation.
+	// hwygen will specialize this for each target type.
+	result := make([]T, len(e.data))
+	for i := 0; i < len(e.data); i++ {
+		// Use float64 as intermediate to avoid type assertion issues
+		f := float64(e.data[i])
+		switch r := (interface{})(result).(type) {
+		case []Float16:
+			r[i] = Float32ToFloat16(float32(f))
+		case []BFloat16:
+			r[i] = Float32ToBFloat16(float32(f))
+		case []float32:
+			r[i] = float32(f)
+		case []float64:
+			r[i] = f
+		}
+	}
+	return Vec[T]{data: result}
 }
 
 // ConvertToInt64 converts float64 to int64 (truncate toward zero).
@@ -50,7 +113,18 @@ func ConvertToFloat64[T ~int32 | ~int64](v Vec[T]) Vec[float64] {
 func Round[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		result[i] = T(math.Round(float64(v.data[i])))
+		var val T
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			val = any(Float32ToFloat16(float32(math.Round(float64(x.Float32()))))).(T)
+		case BFloat16:
+			val = any(Float32ToBFloat16(float32(math.Round(float64(x.Float32()))))).(T)
+		case float32:
+			val = any(float32(math.Round(float64(x)))).(T)
+		case float64:
+			val = any(math.Round(x)).(T)
+		}
+		result[i] = val
 	}
 	return Vec[T]{data: result}
 }
@@ -59,7 +133,18 @@ func Round[T Floats](v Vec[T]) Vec[T] {
 func Trunc[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		result[i] = T(math.Trunc(float64(v.data[i])))
+		var val T
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			val = any(Float32ToFloat16(float32(math.Trunc(float64(x.Float32()))))).(T)
+		case BFloat16:
+			val = any(Float32ToBFloat16(float32(math.Trunc(float64(x.Float32()))))).(T)
+		case float32:
+			val = any(float32(math.Trunc(float64(x)))).(T)
+		case float64:
+			val = any(math.Trunc(x)).(T)
+		}
+		result[i] = val
 	}
 	return Vec[T]{data: result}
 }
@@ -68,7 +153,18 @@ func Trunc[T Floats](v Vec[T]) Vec[T] {
 func Ceil[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		result[i] = T(math.Ceil(float64(v.data[i])))
+		var val T
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			val = any(Float32ToFloat16(float32(math.Ceil(float64(x.Float32()))))).(T)
+		case BFloat16:
+			val = any(Float32ToBFloat16(float32(math.Ceil(float64(x.Float32()))))).(T)
+		case float32:
+			val = any(float32(math.Ceil(float64(x)))).(T)
+		case float64:
+			val = any(math.Ceil(x)).(T)
+		}
+		result[i] = val
 	}
 	return Vec[T]{data: result}
 }
@@ -77,7 +173,18 @@ func Ceil[T Floats](v Vec[T]) Vec[T] {
 func Floor[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		result[i] = T(math.Floor(float64(v.data[i])))
+		var val T
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			val = any(Float32ToFloat16(float32(math.Floor(float64(x.Float32()))))).(T)
+		case BFloat16:
+			val = any(Float32ToBFloat16(float32(math.Floor(float64(x.Float32()))))).(T)
+		case float32:
+			val = any(float32(math.Floor(float64(x)))).(T)
+		case float64:
+			val = any(math.Floor(x)).(T)
+		}
+		result[i] = val
 	}
 	return Vec[T]{data: result}
 }
@@ -88,7 +195,18 @@ func Floor[T Floats](v Vec[T]) Vec[T] {
 func NearestInt[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	for i := 0; i < len(v.data); i++ {
-		result[i] = T(math.RoundToEven(float64(v.data[i])))
+		var val T
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			val = any(Float32ToFloat16(float32(math.RoundToEven(float64(x.Float32()))))).(T)
+		case BFloat16:
+			val = any(Float32ToBFloat16(float32(math.RoundToEven(float64(x.Float32()))))).(T)
+		case float32:
+			val = any(float32(math.RoundToEven(float64(x)))).(T)
+		case float64:
+			val = any(math.RoundToEven(x)).(T)
+		}
+		result[i] = val
 	}
 	return Vec[T]{data: result}
 }
@@ -176,11 +294,41 @@ func BitCastF64ToU64(v Vec[float64]) Vec[uint64] {
 // Pow2[T Floats](k) computes 2^k for integer k values via IEEE 754 bit manipulation.
 // This is essential for reconstructing exp(x) = 2^k * exp(r) after range reduction.
 // k should be in the valid exponent range: [-126, 127] for float32, [-1022, 1023] for float64.
+// For Float16/BFloat16, the computation is done in float32 and converted back.
 func Pow2[T Floats](k Vec[int32]) Vec[T] {
 	result := make([]T, len(k.data))
 	// Determine type at runtime
 	var zero T
 	switch any(zero).(type) {
+	case Float16:
+		// Float16: compute in float32, convert back
+		// Float16 exponent range is [-14, 15] but we compute via float32
+		for i, ki := range k.data {
+			var f float32
+			if ki < -126 {
+				f = 0 // underflow
+			} else if ki > 127 {
+				f = float32(math.Inf(1)) // overflow
+			} else {
+				bits := uint32(ki+127) << 23
+				f = math.Float32frombits(bits)
+			}
+			result[i] = any(Float32ToFloat16(f)).(T)
+		}
+	case BFloat16:
+		// BFloat16: compute in float32, convert back
+		for i, ki := range k.data {
+			var f float32
+			if ki < -126 {
+				f = 0 // underflow
+			} else if ki > 127 {
+				f = float32(math.Inf(1)) // overflow
+			} else {
+				bits := uint32(ki+127) << 23
+				f = math.Float32frombits(bits)
+			}
+			result[i] = any(Float32ToBFloat16(f)).(T)
+		}
 	case float32:
 		// float32: exponent in bits [23:30], bias = 127
 		// 2^k = bits (k+127) << 23 interpreted as float32
@@ -218,10 +366,33 @@ func Pow2[T Floats](k Vec[int32]) Vec[T] {
 // GetExponent[T Floats](v) extracts the unbiased exponent from IEEE 754 floats.
 // Returns the integer exponent such that v ≈ 2^exp * mantissa, where 1 <= mantissa < 2.
 // For denormals and special values, behavior is implementation-defined.
+// For Float16/BFloat16, the value is converted to float32 first.
 func GetExponent[T Floats](v Vec[T]) Vec[int32] {
 	result := make([]int32, len(v.data))
 	var zero T
 	switch any(zero).(type) {
+	case Float16:
+		// Float16: exponent in bits [10:14], bias = 15
+		for i, x := range v.data {
+			bits := uint16(any(x).(Float16))
+			exp := int32((bits >> 10) & 0x1F)
+			if exp == 0 || exp == 31 {
+				result[i] = 0 // denormal or special
+			} else {
+				result[i] = exp - 15
+			}
+		}
+	case BFloat16:
+		// BFloat16: same exponent format as float32 (8 bits), bias = 127
+		for i, x := range v.data {
+			bits := uint16(any(x).(BFloat16))
+			exp := int32((bits >> 7) & 0xFF)
+			if exp == 0 || exp == 255 {
+				result[i] = 0 // denormal or special
+			} else {
+				result[i] = exp - 127
+			}
+		}
 	case float32:
 		for i, x := range v.data {
 			bits := math.Float32bits(any(x).(float32))
@@ -253,6 +424,24 @@ func GetMantissa[T Floats](v Vec[T]) Vec[T] {
 	result := make([]T, len(v.data))
 	var zero T
 	switch any(zero).(type) {
+	case Float16:
+		// Float16: sign(1) | exp(5) | mantissa(10)
+		// Clear exponent, set to 15 (2^0 = 1)
+		for i, x := range v.data {
+			bits := uint16(any(x).(Float16))
+			// Mask: keep sign (bit 15) and mantissa (bits 0-9), set exponent to 15
+			mantissa := (bits & 0x83FF) | 0x3C00 // 0x3C00 = exponent 15 << 10
+			result[i] = any(Float16(mantissa)).(T)
+		}
+	case BFloat16:
+		// BFloat16: sign(1) | exp(8) | mantissa(7)
+		// Clear exponent, set to 127 (2^0 = 1)
+		for i, x := range v.data {
+			bits := uint16(any(x).(BFloat16))
+			// Mask: keep sign (bit 15) and mantissa (bits 0-6), set exponent to 127
+			mantissa := (bits & 0x807F) | 0x3F80 // 0x3F80 = exponent 127 << 7
+			result[i] = any(BFloat16(mantissa)).(T)
+		}
 	case float32:
 		for i, x := range v.data {
 			bits := math.Float32bits(any(x).(float32))

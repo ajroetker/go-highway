@@ -8,6 +8,20 @@ import (
 	"golang.org/x/sys/cpu"
 )
 
+// CPU feature flags for ARM float16/bfloat16 support
+var (
+	// hasARMFP16 indicates ARMv8.2-A FP16 extension support
+	// Provides native float16 arithmetic in NEON/ASIMD
+	// Detected via cpu.ARM64.HasFPHP (scalar) and cpu.ARM64.HasASIMDHP (vector)
+	hasARMFP16 bool
+
+	// hasARMBF16 indicates ARMv8.6-A BF16 extension support
+	// Provides bfloat16 dot product operations
+	// Note: golang.org/x/sys/cpu doesn't have BF16 detection yet
+	// BF16 is available on Apple M2+ and recent ARM Cortex CPUs
+	hasARMBF16 bool
+)
+
 func init() {
 	// Check for HWY_NO_SIMD environment variable first
 	if NoSimdEnv() {
@@ -48,4 +62,54 @@ func init() {
 	//     currentWidth = ... // SVE width is variable
 	//     currentName = "sve"
 	// }
+
+	// Detect FP16/BF16 features
+	detectARMFP16BF16Features()
+}
+
+func detectARMFP16BF16Features() {
+	// ARM FP16 detection via x/sys/cpu
+	// HasFPHP: scalar FP16 support (ARMv8.2-A FEAT_FP16)
+	// HasASIMDHP: NEON FP16 support (ARMv8.2-A FEAT_FP16)
+	// HasASIMDFHM: FP16 to FP32 fused multiply-add (ARMv8.4-A FEAT_FHM)
+	hasARMFP16 = cpu.ARM64.HasFPHP && cpu.ARM64.HasASIMDHP
+
+	// ARM BF16 detection
+	// golang.org/x/sys/cpu doesn't have explicit BF16 detection yet
+	// BF16 (FEAT_BF16) was introduced in ARMv8.6-A
+	// For now, we leave this as false until x/sys/cpu adds support
+	// Note: On macOS/Apple Silicon, we could use sysctl for detection
+	hasARMBF16 = false
+}
+
+// HasARMFP16 returns true if the CPU supports ARM FP16 extension.
+// ARM FP16 provides native float16 arithmetic in NEON/ASIMD.
+// Present on ARMv8.2-A and later CPUs (Apple A11+, Cortex-A75+).
+func HasARMFP16() bool {
+	return hasARMFP16
+}
+
+// HasARMBF16 returns true if the CPU supports ARM BF16 extension.
+// ARM BF16 provides bfloat16 dot product operations.
+// Present on ARMv8.6-A and later CPUs (Apple M2+, Cortex-X2+).
+func HasARMBF16() bool {
+	return hasARMBF16
+}
+
+// HasF16C returns false on ARM64 (F16C is an x86-specific feature).
+// Use HasARMFP16() for ARM float16 support.
+func HasF16C() bool {
+	return false
+}
+
+// HasAVX512FP16 returns false on ARM64 (AVX-512 is x86-specific).
+// Use HasARMFP16() for ARM float16 support.
+func HasAVX512FP16() bool {
+	return false
+}
+
+// HasAVX512BF16 returns false on ARM64 (AVX-512 is x86-specific).
+// Use HasARMBF16() for ARM bfloat16 support.
+func HasAVX512BF16() bool {
+	return false
 }

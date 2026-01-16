@@ -74,7 +74,7 @@ func main() {
 | `Add[T](a, b Vec[T]) Vec[T]` | Element-wise addition |
 | `Sub[T](a, b Vec[T]) Vec[T]` | Element-wise subtraction |
 | `Mul[T](a, b Vec[T]) Vec[T]` | Element-wise multiplication |
-| `Div[T Floats](a, b Vec[T]) Vec[T]` | Element-wise division (floats) |
+| `Div[T FloatsNative](a, b Vec[T]) Vec[T]` | Element-wise division (floats) |
 | `Neg[T](v Vec[T]) Vec[T]` | Negate all lanes |
 | `Abs[T](v Vec[T]) Vec[T]` | Absolute value |
 | `Min[T](a, b Vec[T]) Vec[T]` | Element-wise minimum |
@@ -84,8 +84,8 @@ func main() {
 
 | Function | Description |
 |----------|-------------|
-| `Sqrt[T Floats](v Vec[T]) Vec[T]` | Square root |
-| `FMA[T Floats](a, b, c Vec[T]) Vec[T]` | Fused multiply-add: a*b + c |
+| `Sqrt[T FloatsNative](v Vec[T]) Vec[T]` | Square root |
+| `FMA[T FloatsNative](a, b, c Vec[T]) Vec[T]` | Fused multiply-add: a*b + c |
 
 ### Reduction
 

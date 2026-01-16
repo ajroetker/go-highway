@@ -4,8 +4,51 @@
 package dot
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
+
+func BaseDot_neon_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	n := min(len(a), len(b))
+	sum := hwy.Zero[hwy.Float16]()
+	lanes := 8
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		prod := hwy.MulF16(va, vb)
+		sum = hwy.AddF16(sum, prod)
+	}
+	result := hwy.ReduceSumF16(sum)
+	for ; i < n; i++ {
+		result += a[i].Float32() * b[i].Float32()
+	}
+	return hwy.Float32ToFloat16(result)
+}
+
+func BaseDot_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	n := min(len(a), len(b))
+	sum := hwy.Zero[hwy.BFloat16]()
+	lanes := 8
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		prod := hwy.MulBF16(va, vb)
+		sum = hwy.AddBF16(sum, prod)
+	}
+	result := hwy.ReduceSumBF16(sum)
+	for ; i < n; i++ {
+		result += a[i].Float32() * b[i].Float32()
+	}
+	return hwy.Float32ToBFloat16(result)
+}
 
 func BaseDot_neon(a []float32, b []float32) float32 {
 	if len(a) == 0 || len(b) == 0 {

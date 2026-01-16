@@ -6,6 +6,20 @@ import (
 	"strings"
 )
 
+// typeNameToSuffix converts an element type name to a valid function suffix.
+// E.g., "float64" -> "Float64", "hwy.Float16" -> "Float16"
+func typeNameToSuffix(elemType string) string {
+	// Handle qualified names like hwy.Float16
+	if idx := strings.LastIndex(elemType, "."); idx >= 0 {
+		elemType = elemType[idx+1:]
+	}
+	// Capitalize first letter
+	if len(elemType) > 0 {
+		return strings.ToUpper(elemType[:1]) + elemType[1:]
+	}
+	return elemType
+}
+
 // Generator orchestrates the code generation process.
 type Generator struct {
 	InputFile    string   // Input Go source file
@@ -84,7 +98,7 @@ func (g *Generator) Run() error {
 
 				// Add type suffix to function name if not float32
 				if elemType != "float32" && len(pf.TypeParams) > 0 {
-					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + strings.Title(elemType)
+					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + typeNameToSuffix(elemType)
 				}
 
 				transformed = append(transformed, transformResult.FuncDecl)

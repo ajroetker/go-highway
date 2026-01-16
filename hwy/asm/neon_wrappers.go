@@ -4,10 +4,10 @@ package asm
 
 // -fno-builtin-memset prevents clang from optimizing NEON store loops into memset calls,
 // which don't exist in Go assembly context and cause runtime failures.
-//go:generate go tool goat ../c/ops_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
+//go:generate go tool goat ../c/ops_neon_arm64.c -O3 --target arm64 -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
 
 // Per-vector operations with typed wrappers (Float32x4, Int32x4, etc.)
-//go:generate go tool goat ../c/vec_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp"
+//go:generate go tool goat ../c/vec_neon_arm64.c -O3 --target arm64 -e="-march=armv8-a+simd+fp"
 
 import "unsafe"
 

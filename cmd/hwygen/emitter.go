@@ -118,6 +118,24 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				}
 			}
 		}
+
+		// Check if this function will generate Float16/BFloat16 specializations.
+		// For SIMD targets: need hwy package for hwy.Vec[hwy.Float16] since archsimd doesn't have native half-precision support.
+		// For Fallback targets: need hwy package for the hwy.Float16/hwy.BFloat16 types themselves.
+		if len(pf.TypeParams) > 0 {
+			concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
+			for _, ct := range concreteTypes {
+				if ct == "hwy.Float16" || ct == "hwy.BFloat16" {
+					if target.Name != "Fallback" {
+						pkgs.HwyPkg = true
+					} else {
+						// Fallback needs hwy import for Float16/BFloat16 types
+						pkgs.HwyCore = true
+					}
+					break
+				}
+			}
+		}
 	}
 
 	return pkgs
@@ -380,7 +398,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 					implName = pf.Name + target.Suffix()
 				}
 				if elemType != "float32" {
-					implName = implName + "_" + strings.Title(elemType)
+					implName = implName + "_" + typeNameToSuffix(elemType)
 				}
 				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
 			}
@@ -404,7 +422,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 				dispatchName := buildDispatchFuncName(pf.Name, elemType)
 				implName := pf.Name + "_fallback"
 				if elemType != "float32" {
-					implName = implName + "_" + strings.Title(elemType)
+					implName = implName + "_" + typeNameToSuffix(elemType)
 				}
 				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
 			}
@@ -507,7 +525,7 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 			dispatchName := buildDispatchFuncName(pf.Name, elemType)
 			implName := pf.Name + "_fallback"
 			if elemType != "float32" {
-				implName = implName + "_" + strings.Title(elemType)
+				implName = implName + "_" + typeNameToSuffix(elemType)
 			}
 			fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
 		}
@@ -848,7 +866,7 @@ func buildDispatchFuncName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
 
 	// Always add type suffix for explicit dispatch functions
-	name = name + strings.Title(elemType)
+	name = name + typeNameToSuffix(elemType)
 
 	return name
 }

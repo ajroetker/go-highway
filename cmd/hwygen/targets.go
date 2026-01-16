@@ -28,16 +28,19 @@ func AVX2Target() Target {
 		VecWidth:   32,
 		VecPackage: "archsimd",
 		TypeMap: map[string]string{
-			"float32": "Float32x8",
-			"float64": "Float64x4",
-			"int32":   "Int32x8",
-			"int64":   "Int64x4",
+			"float32":      "Float32x8",
+			"float64":      "Float64x4",
+			"int32":        "Int32x8",
+			"int64":        "Int64x4",
+			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
+			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
 			"Load":      {Name: "Load", IsMethod: false},      // archsimd.LoadFloat32x8Slice
 			"Store":     {Name: "Store", IsMethod: true},      // v.StoreSlice
 			"Set":       {Name: "Broadcast", IsMethod: false}, // archsimd.BroadcastFloat32x8
+			"Const":     {Name: "Broadcast", IsMethod: false}, // archsimd.BroadcastFloat32x8 (same as Set)
 			"Zero":      {Package: "special", Name: "Zero", IsMethod: false}, // Use Broadcast(0)
 			"MaskLoad":  {Name: "MaskLoad", IsMethod: false},
 			"MaskStore": {Name: "MaskStore", IsMethod: true},
@@ -215,16 +218,19 @@ func AVX512Target() Target {
 		VecWidth:   64,
 		VecPackage: "archsimd",
 		TypeMap: map[string]string{
-			"float32": "Float32x16",
-			"float64": "Float64x8",
-			"int32":   "Int32x16",
-			"int64":   "Int64x8",
+			"float32":      "Float32x16",
+			"float64":      "Float64x8",
+			"int32":        "Int32x16",
+			"int64":        "Int64x8",
+			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
+			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
 			"Load":      {Name: "Load", IsMethod: false},
 			"Store":     {Name: "Store", IsMethod: true},
 			"Set":       {Name: "Broadcast", IsMethod: false},
+			"Const":     {Name: "Broadcast", IsMethod: false}, // Same as Set
 			"Zero":      {Package: "special", Name: "Zero", IsMethod: false}, // Use Broadcast(0)
 			"MaskLoad":  {Name: "MaskLoad", IsMethod: false},
 			"MaskStore": {Name: "MaskStore", IsMethod: true},
@@ -404,10 +410,12 @@ func FallbackTarget() Target {
 		VecWidth:   16, // Minimal width for fallback
 		VecPackage: "", // Uses hwy package directly
 		TypeMap: map[string]string{
-			"float32": "hwy.Vec[float32]",
-			"float64": "hwy.Vec[float64]",
-			"int32":   "hwy.Vec[int32]",
-			"int64":   "hwy.Vec[int64]",
+			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
+			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
+			"float32":      "hwy.Vec[float32]",
+			"float64":      "hwy.Vec[float64]",
+			"int32":        "hwy.Vec[int32]",
+			"int64":        "hwy.Vec[int64]",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations - use hwy package =====
@@ -584,16 +592,19 @@ func NEONTarget() Target {
 		VecWidth:   16,
 		VecPackage: "asm",
 		TypeMap: map[string]string{
-			"float32": "Float32x4",
-			"float64": "Float64x2",
-			"int32":   "Int32x4",
-			"int64":   "Int64x2",
+			"float32":      "Float32x4",
+			"float64":      "Float64x2",
+			"int32":        "Int32x4",
+			"int64":        "Int64x2",
+			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
+			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
 			"Load":      {Name: "Load", IsMethod: false},
 			"Store":     {Name: "Store", IsMethod: true},
 			"Set":       {Name: "Broadcast", IsMethod: false},
+			"Const":     {Name: "Broadcast", IsMethod: false}, // Same as Set
 			"Zero":      {Name: "Zero", IsMethod: false},
 			"MaskLoad":  {Name: "MaskLoad", IsMethod: false},
 			"MaskStore": {Name: "MaskStore", IsMethod: true},
@@ -803,7 +814,7 @@ func (t Target) LanesFor(elemType string) int {
 		elemSize = 4
 	case "float64", "int64", "uint64":
 		elemSize = 8
-	case "int16", "uint16":
+	case "int16", "uint16", "hwy.Float16", "hwy.BFloat16", "Float16", "BFloat16":
 		elemSize = 2
 	case "int8", "uint8":
 		elemSize = 1

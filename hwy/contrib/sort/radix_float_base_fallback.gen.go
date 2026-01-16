@@ -6,6 +6,42 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseFloatToSortable_fallback_Float16(data []hwy.Float16) {
+	n := len(data)
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	signBitVec := hwy.SignBit[hwy.Float16]()
+	zeroVec := hwy.Zero[hwy.Float16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		isNeg := hwy.LessThan(v, zeroVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		posResult := hwy.Xor(v, signBitVec)
+		result := hwy.IfThenElse(isNeg, negResult, posResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
+func BaseFloatToSortable_fallback_BFloat16(data []hwy.BFloat16) {
+	n := len(data)
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	signBitVec := hwy.SignBit[hwy.BFloat16]()
+	zeroVec := hwy.Zero[hwy.BFloat16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		isNeg := hwy.LessThan(v, zeroVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		posResult := hwy.Xor(v, signBitVec)
+		result := hwy.IfThenElse(isNeg, negResult, posResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
 func BaseFloatToSortable_fallback(data []float32) {
 	n := len(data)
 	lanes := hwy.MaxLanes[float32]()
@@ -37,6 +73,44 @@ func BaseFloatToSortable_fallback_Float64(data []float64) {
 		negResult := hwy.Xor(v, allOnesVec)
 		posResult := hwy.Xor(v, signBitVec)
 		result := hwy.IfThenElse(isNeg, negResult, posResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
+func BaseSortableToFloat_fallback_Float16(data []hwy.Float16) {
+	n := len(data)
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	signBitVec := hwy.SignBit[hwy.Float16]()
+	zeroVec := hwy.Zero[hwy.Float16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		masked := hwy.And(v, signBitVec)
+		wasPositive := hwy.NotEqual(masked, zeroVec)
+		posResult := hwy.Xor(v, signBitVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		result := hwy.IfThenElse(wasPositive, posResult, negResult)
+		hwy.Store(result, data[i:])
+		i += lanes
+	}
+}
+
+func BaseSortableToFloat_fallback_BFloat16(data []hwy.BFloat16) {
+	n := len(data)
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	signBitVec := hwy.SignBit[hwy.BFloat16]()
+	zeroVec := hwy.Zero[hwy.BFloat16]()
+	allOnesVec := hwy.Not(zeroVec)
+	i := 0
+	for i+lanes <= n {
+		v := hwy.Load(data[i:])
+		masked := hwy.And(v, signBitVec)
+		wasPositive := hwy.NotEqual(masked, zeroVec)
+		posResult := hwy.Xor(v, signBitVec)
+		negResult := hwy.Xor(v, allOnesVec)
+		result := hwy.IfThenElse(wasPositive, posResult, negResult)
 		hwy.Store(result, data[i:])
 		i += lanes
 	}

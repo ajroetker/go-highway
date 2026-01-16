@@ -4,8 +4,8 @@ package asm
 
 // Additional transcendental math operations for ARM64 NEON
 // Split into separate files to avoid GOAT parsing limits and GOAT bugs with double constants
-//go:generate go tool goat ../c/math_f32_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
-//go:generate go tool goat ../c/math_f64_neon_arm64.c -O3 -e="--target=arm64" -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
+//go:generate go tool goat ../c/math_f32_neon_arm64.c -O3 --target arm64 -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
+//go:generate go tool goat ../c/math_f64_neon_arm64.c -O3 --target arm64 -e="-march=armv8-a+simd+fp" -e="-fno-builtin-memset"
 
 import "unsafe"
 

@@ -4,8 +4,17 @@
 package algo
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
+
+func BaseExpTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseExpVec_neon_Float16)
+}
+
+func BaseExpTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseExpVec_neon_BFloat16)
+}
 
 func BaseExpTransform_neon(in []float32, out []float32) {
 	BaseApply_neon(in, out, math.BaseExpVec_neon)
@@ -13,6 +22,14 @@ func BaseExpTransform_neon(in []float32, out []float32) {
 
 func BaseExpTransform_neon_Float64(in []float64, out []float64) {
 	BaseApply_neon_Float64(in, out, math.BaseExpVec_neon_Float64)
+}
+
+func BaseLogTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseLogVec_neon_Float16)
+}
+
+func BaseLogTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseLogVec_neon_BFloat16)
 }
 
 func BaseLogTransform_neon(in []float32, out []float32) {
@@ -23,12 +40,28 @@ func BaseLogTransform_neon_Float64(in []float64, out []float64) {
 	BaseApply_neon_Float64(in, out, math.BaseLogVec_neon_Float64)
 }
 
+func BaseSinTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseSinVec_neon_Float16)
+}
+
+func BaseSinTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseSinVec_neon_BFloat16)
+}
+
 func BaseSinTransform_neon(in []float32, out []float32) {
 	BaseApply_neon(in, out, math.BaseSinVec_neon)
 }
 
 func BaseSinTransform_neon_Float64(in []float64, out []float64) {
 	BaseApply_neon_Float64(in, out, math.BaseSinVec_neon_Float64)
+}
+
+func BaseCosTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseCosVec_neon_Float16)
+}
+
+func BaseCosTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseCosVec_neon_BFloat16)
 }
 
 func BaseCosTransform_neon(in []float32, out []float32) {
@@ -39,6 +72,14 @@ func BaseCosTransform_neon_Float64(in []float64, out []float64) {
 	BaseApply_neon_Float64(in, out, math.BaseCosVec_neon_Float64)
 }
 
+func BaseTanhTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseTanhVec_neon_Float16)
+}
+
+func BaseTanhTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseTanhVec_neon_BFloat16)
+}
+
 func BaseTanhTransform_neon(in []float32, out []float32) {
 	BaseApply_neon(in, out, math.BaseTanhVec_neon)
 }
@@ -47,12 +88,28 @@ func BaseTanhTransform_neon_Float64(in []float64, out []float64) {
 	BaseApply_neon_Float64(in, out, math.BaseTanhVec_neon_Float64)
 }
 
+func BaseSigmoidTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseSigmoidVec_neon_Float16)
+}
+
+func BaseSigmoidTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseSigmoidVec_neon_BFloat16)
+}
+
 func BaseSigmoidTransform_neon(in []float32, out []float32) {
 	BaseApply_neon(in, out, math.BaseSigmoidVec_neon)
 }
 
 func BaseSigmoidTransform_neon_Float64(in []float64, out []float64) {
 	BaseApply_neon_Float64(in, out, math.BaseSigmoidVec_neon_Float64)
+}
+
+func BaseErfTransform_neon_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_neon_Float16(in, out, math.BaseErfVec_neon_Float16)
+}
+
+func BaseErfTransform_neon_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_neon_BFloat16(in, out, math.BaseErfVec_neon_BFloat16)
 }
 
 func BaseErfTransform_neon(in []float32, out []float32) {

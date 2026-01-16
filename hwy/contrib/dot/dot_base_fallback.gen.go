@@ -6,6 +6,48 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseDot_fallback_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	n := min(len(a), len(b))
+	sum := hwy.Zero[hwy.Float16]()
+	lanes := sum.NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		prod := hwy.Mul(va, vb)
+		sum = hwy.Add(sum, prod)
+	}
+	result := hwy.ReduceSum(sum).Float32()
+	for ; i < n; i++ {
+		result += a[i].Float32() * b[i].Float32()
+	}
+	return hwy.Float32ToFloat16(result)
+}
+
+func BaseDot_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	n := min(len(a), len(b))
+	sum := hwy.Zero[hwy.BFloat16]()
+	lanes := sum.NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		prod := hwy.Mul(va, vb)
+		sum = hwy.Add(sum, prod)
+	}
+	result := hwy.ReduceSum(sum).Float32()
+	for ; i < n; i++ {
+		result += a[i].Float32() * b[i].Float32()
+	}
+	return hwy.Float32ToBFloat16(result)
+}
+
 func BaseDot_fallback(a []float32, b []float32) float32 {
 	if len(a) == 0 || len(b) == 0 {
 		return 0

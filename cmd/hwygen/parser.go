@@ -555,8 +555,12 @@ func exprToString(expr ast.Expr) string {
 func GetConcreteTypes(constraint string) []string {
 	// Map constraint names to concrete types
 	switch {
-	case strings.Contains(constraint, "Floats"):
+	case strings.Contains(constraint, "FloatsNative"):
+		// FloatsNative is float32/float64 only (no Float16/BFloat16)
 		return []string{"float32", "float64"}
+	case strings.Contains(constraint, "Floats"):
+		// Full Floats constraint includes Float16/BFloat16
+		return []string{"hwy.Float16", "hwy.BFloat16", "float32", "float64"}
 	case strings.Contains(constraint, "SignedInts"):
 		return []string{"int32", "int64"}
 	case strings.Contains(constraint, "UnsignedInts"):
@@ -572,7 +576,7 @@ func GetConcreteTypes(constraint string) []string {
 }
 
 // typeSuffixes are recognized type suffixes for type-specific constants.
-var typeSuffixes = []string{"_f16", "_f32", "_f64", "_i32", "_i64", "_u32", "_u64"}
+var typeSuffixes = []string{"_f16", "_bf16", "_f32", "_f64", "_i32", "_i64", "_u32", "_u64"}
 
 // parseTypeSpecificConst checks if a variable name has a type suffix and registers it.
 // E.g., "expLn2Hi_f32" -> base name "expLn2Hi", suffix "f32"
@@ -777,8 +781,10 @@ func (pc *ParsedCondition) Evaluate(targetName, elemType string) bool {
 // E.g., "float32" -> "f32", "float64" -> "f64"
 func GetTypeSuffix(elemType string) string {
 	switch elemType {
-	case "float16":
+	case "float16", "hwy.Float16", "Float16":
 		return "f16"
+	case "bfloat16", "hwy.BFloat16", "BFloat16":
+		return "bf16"
 	case "float32":
 		return "f32"
 	case "float64":

@@ -19,9 +19,23 @@
 //	hwy.Store(result, output)
 package hwy
 
-// Floats is a constraint for floating-point types.
-type Floats interface {
+// Float16Types is a constraint for half-precision float types.
+// These types use uint16 storage but represent floating-point values.
+type Float16Types interface {
+	Float16 | BFloat16
+}
+
+// FloatsNative is a constraint for Go-native floating-point types.
+// Use this for operations that require direct arithmetic support.
+type FloatsNative interface {
 	~float32 | ~float64
+}
+
+// Floats is a constraint for all floating-point types including half-precision.
+// Note: Float16 and BFloat16 do not support direct arithmetic (+, -, *, /);
+// use the dedicated F16/BF16 functions or promote to float32 first.
+type Floats interface {
+	Float16 | BFloat16 | ~float32 | ~float64
 }
 
 // SignedInts is a constraint for signed integer types.

@@ -6,6 +6,106 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
+	vZero := hwy.Zero[hwy.Float16]()
+	lanes := vZero.NumLanes()
+	total := m * n
+	var idx int
+	for idx = 0; idx+lanes <= total; idx += lanes {
+		hwy.Store(vZero, c[idx:])
+	}
+	for ; idx < total; idx++ {
+		c[idx] = hwy.Float32ToFloat16(0)
+	}
+	for i0 := 0; i0 < m; i0 += BlockSize {
+		iEnd := min(i0+BlockSize, m)
+		for j0 := 0; j0 < n; j0 += BlockSize {
+			jEnd := min(j0+BlockSize, n)
+			blockN := jEnd - j0
+			for p0 := 0; p0 < k; p0 += BlockSize {
+				pEnd := min(p0+BlockSize, k)
+				for i := i0; i < iEnd; i++ {
+					cRowStart := i*n + j0
+					for p := p0; p < pEnd; p++ {
+						aip := a[i*k+p]
+						vA := hwy.Set(aip)
+						bRowStart := p*n + j0
+						var j int
+						for j = 0; j+lanes <= blockN; j += lanes {
+							vB := hwy.Load(b[bRowStart+j:])
+							vC := hwy.Load(c[cRowStart+j:])
+							vC = hwy.MulAdd(vA, vB, vC)
+							hwy.Store(vC, c[cRowStart+j:])
+						}
+						for ; j < blockN; j++ {
+							c[cRowStart+j] += hwy.Float32ToFloat16(aip.Float32() * b[bRowStart+j].Float32())
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
+	vZero := hwy.Zero[hwy.BFloat16]()
+	lanes := vZero.NumLanes()
+	total := m * n
+	var idx int
+	for idx = 0; idx+lanes <= total; idx += lanes {
+		hwy.Store(vZero, c[idx:])
+	}
+	for ; idx < total; idx++ {
+		c[idx] = hwy.Float32ToBFloat16(0)
+	}
+	for i0 := 0; i0 < m; i0 += BlockSize {
+		iEnd := min(i0+BlockSize, m)
+		for j0 := 0; j0 < n; j0 += BlockSize {
+			jEnd := min(j0+BlockSize, n)
+			blockN := jEnd - j0
+			for p0 := 0; p0 < k; p0 += BlockSize {
+				pEnd := min(p0+BlockSize, k)
+				for i := i0; i < iEnd; i++ {
+					cRowStart := i*n + j0
+					for p := p0; p < pEnd; p++ {
+						aip := a[i*k+p]
+						vA := hwy.Set(aip)
+						bRowStart := p*n + j0
+						var j int
+						for j = 0; j+lanes <= blockN; j += lanes {
+							vB := hwy.Load(b[bRowStart+j:])
+							vC := hwy.Load(c[cRowStart+j:])
+							vC = hwy.MulAdd(vA, vB, vC)
+							hwy.Store(vC, c[cRowStart+j:])
+						}
+						for ; j < blockN; j++ {
+							c[cRowStart+j] += hwy.Float32ToBFloat16(aip.Float32() * b[bRowStart+j].Float32())
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n int, k int) {
 	if len(a) < m*k {
 		panic("matmul: A slice too short")

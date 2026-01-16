@@ -3,7 +3,7 @@
 // versions:
 // 	clang   21.1.8
 // 	objdump 2.45.1
-// flags: --target=arm64 -march=armv8-a+simd+fp -O3
+// flags: -march=armv8-a+simd+fp -O3
 // source: ../c/vec_neon_arm64.c
 
 TEXT ·add_f32x4(SB), $0-48
@@ -15,7 +15,7 @@ TEXT ·add_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e21d400          // fadd	v0.4s, v0.4s, v1.4s
+	WORD $0x4e21d400          // fadd.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -31,7 +31,7 @@ TEXT ·sub_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea1d400          // fsub	v0.4s, v0.4s, v1.4s
+	WORD $0x4ea1d400          // fsub.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -47,7 +47,7 @@ TEXT ·mul_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e21dc00          // fmul	v0.4s, v0.4s, v1.4s
+	WORD $0x6e21dc00          // fmul.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -63,7 +63,7 @@ TEXT ·div_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e21fc00          // fdiv	v0.4s, v0.4s, v1.4s
+	WORD $0x6e21fc00          // fdiv.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -83,8 +83,8 @@ TEXT ·fma_f32x4(SB), $0-64
 	MOVD c_8+40(FP), R10
 	VMOV R9, V2.D[0]
 	VMOV R10, V2.D[1]
-	WORD $0x4e20cc22          // fmla	v2.4s, v1.4s, v0.4s
-	WORD $0x4ea21c40          // mov	v0.16b, v2.16b
+	WORD $0x4e20cc22          // fmla.4s	v2, v1, v0
+	WORD $0x4ea21c40          // mov.16b	v0, v2
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+48(FP)
@@ -104,8 +104,8 @@ TEXT ·fms_f32x4(SB), $0-64
 	MOVD c_8+40(FP), R10
 	VMOV R9, V2.D[0]
 	VMOV R10, V2.D[1]
-	WORD $0x4ea0cc22          // fmls	v2.4s, v1.4s, v0.4s
-	WORD $0x4ea21c40          // mov	v0.16b, v2.16b
+	WORD $0x4ea0cc22          // fmls.4s	v2, v1, v0
+	WORD $0x4ea21c40          // mov.16b	v0, v2
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+48(FP)
@@ -121,7 +121,7 @@ TEXT ·min_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea1f400          // fmin	v0.4s, v0.4s, v1.4s
+	WORD $0x4ea1f400          // fmin.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -137,7 +137,7 @@ TEXT ·max_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e21f400          // fmax	v0.4s, v0.4s, v1.4s
+	WORD $0x4e21f400          // fmax.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -149,7 +149,7 @@ TEXT ·abs_f32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ea0f800          // fabs	v0.4s, v0.4s
+	WORD $0x4ea0f800          // fabs.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -161,7 +161,7 @@ TEXT ·neg_f32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6ea0f800          // fneg	v0.4s, v0.4s
+	WORD $0x6ea0f800          // fneg.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -173,7 +173,7 @@ TEXT ·sqrt_f32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6ea1f800          // fsqrt	v0.4s, v0.4s
+	WORD $0x6ea1f800          // fsqrt.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -185,7 +185,7 @@ TEXT ·recip_f32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ea1d800          // frecpe	v0.4s, v0.4s
+	WORD $0x4ea1d800          // frecpe.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -197,7 +197,7 @@ TEXT ·rsqrt_f32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6ea1d800          // frsqrte	v0.4s, v0.4s
+	WORD $0x6ea1d800          // frsqrte.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -209,8 +209,8 @@ TEXT ·hsum_f32x4(SB), $0-20
 	MOVD  v_8+8(FP), R10
 	VMOV  R9, V0.D[0]
 	VMOV  R10, V0.D[1]
-	WORD  $0x6e20d400       // faddp	v0.4s, v0.4s, v0.4s
-	WORD  $0x7e30d800       // faddp	s0, v0.2s
+	WORD  $0x6e20d400       // faddp.4s	v0, v0, v0
+	WORD  $0x7e30d800       // faddp.2s	s0, v0
 	FMOVS F0, result+16(FP)
 	RET
 
@@ -219,7 +219,7 @@ TEXT ·hmin_f32x4(SB), $0-20
 	MOVD  v_8+8(FP), R10
 	VMOV  R9, V0.D[0]
 	VMOV  R10, V0.D[1]
-	WORD  $0x6eb0f800       // fminv	s0, v0.4s
+	WORD  $0x6eb0f800       // fminv.4s	s0, v0
 	FMOVS F0, result+16(FP)
 	RET
 
@@ -228,7 +228,7 @@ TEXT ·hmax_f32x4(SB), $0-20
 	MOVD  v_8+8(FP), R10
 	VMOV  R9, V0.D[0]
 	VMOV  R10, V0.D[1]
-	WORD  $0x6e30f800       // fmaxv	s0, v0.4s
+	WORD  $0x6e30f800       // fmaxv.4s	s0, v0
 	FMOVS F0, result+16(FP)
 	RET
 
@@ -241,9 +241,9 @@ TEXT ·dot_f32x4(SB), $0-36
 	MOVD  b_8+24(FP), R10
 	VMOV  R9, V1.D[0]
 	VMOV  R10, V1.D[1]
-	WORD  $0x6e21dc00       // fmul	v0.4s, v0.4s, v1.4s
-	WORD  $0x6e20d400       // faddp	v0.4s, v0.4s, v0.4s
-	WORD  $0x7e30d800       // faddp	s0, v0.2s
+	WORD  $0x6e21dc00       // fmul.4s	v0, v0, v1
+	WORD  $0x6e20d400       // faddp.4s	v0, v0, v0
+	WORD  $0x7e30d800       // faddp.2s	s0, v0
 	FMOVS F0, result+32(FP)
 	RET
 
@@ -256,7 +256,7 @@ TEXT ·eq_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e21e400          // fcmeq	v0.4s, v0.4s, v1.4s
+	WORD $0x4e21e400          // fcmeq.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -272,8 +272,8 @@ TEXT ·ne_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e21e400          // fcmeq	v0.4s, v0.4s, v1.4s
-	WORD $0x6e205800          // mvn	v0.16b, v0.16b
+	WORD $0x4e21e400          // fcmeq.4s	v0, v0, v1
+	WORD $0x6e205800          // mvn.16b	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -289,7 +289,7 @@ TEXT ·lt_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6ea0e420          // fcmgt	v0.4s, v1.4s, v0.4s
+	WORD $0x6ea0e420          // fcmgt.4s	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -305,7 +305,7 @@ TEXT ·le_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e20e420          // fcmge	v0.4s, v1.4s, v0.4s
+	WORD $0x6e20e420          // fcmge.4s	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -321,7 +321,7 @@ TEXT ·gt_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6ea1e400          // fcmgt	v0.4s, v0.4s, v1.4s
+	WORD $0x6ea1e400          // fcmgt.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -337,7 +337,7 @@ TEXT ·ge_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e21e400          // fcmge	v0.4s, v0.4s, v1.4s
+	WORD $0x6e21e400          // fcmge.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -353,7 +353,7 @@ TEXT ·and_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e201c20          // and	v0.16b, v1.16b, v0.16b
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -369,7 +369,7 @@ TEXT ·or_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea01c20          // orr	v0.16b, v1.16b, v0.16b
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -385,7 +385,7 @@ TEXT ·xor_f32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e201c20          // eor	v0.16b, v1.16b, v0.16b
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -405,7 +405,7 @@ TEXT ·sel_f32x4(SB), $0-64
 	MOVD no_8+40(FP), R10
 	VMOV R9, V2.D[0]
 	VMOV R10, V2.D[1]
-	WORD $0x6e621c20          // bsl	v0.16b, v1.16b, v2.16b
+	WORD $0x6e621c20          // bsl.16b	v0, v1, v2
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+48(FP)
@@ -421,7 +421,7 @@ TEXT ·add_f64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e61d400          // fadd	v0.2d, v0.2d, v1.2d
+	WORD $0x4e61d400          // fadd.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -437,7 +437,7 @@ TEXT ·sub_f64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ee1d400          // fsub	v0.2d, v0.2d, v1.2d
+	WORD $0x4ee1d400          // fsub.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -453,7 +453,7 @@ TEXT ·mul_f64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e61dc00          // fmul	v0.2d, v0.2d, v1.2d
+	WORD $0x6e61dc00          // fmul.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -469,7 +469,7 @@ TEXT ·div_f64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e61fc00          // fdiv	v0.2d, v0.2d, v1.2d
+	WORD $0x6e61fc00          // fdiv.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -489,8 +489,8 @@ TEXT ·fma_f64x2(SB), $0-64
 	MOVD c_8+40(FP), R10
 	VMOV R9, V2.D[0]
 	VMOV R10, V2.D[1]
-	WORD $0x4e60cc22          // fmla	v2.2d, v1.2d, v0.2d
-	WORD $0x4ea21c40          // mov	v0.16b, v2.16b
+	WORD $0x4e60cc22          // fmla.2d	v2, v1, v0
+	WORD $0x4ea21c40          // mov.16b	v0, v2
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+48(FP)
@@ -506,7 +506,7 @@ TEXT ·min_f64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ee1f400          // fmin	v0.2d, v0.2d, v1.2d
+	WORD $0x4ee1f400          // fmin.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -522,7 +522,7 @@ TEXT ·max_f64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e61f400          // fmax	v0.2d, v0.2d, v1.2d
+	WORD $0x4e61f400          // fmax.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -534,7 +534,7 @@ TEXT ·abs_f64x2(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ee0f800          // fabs	v0.2d, v0.2d
+	WORD $0x4ee0f800          // fabs.2d	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -546,7 +546,7 @@ TEXT ·neg_f64x2(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6ee0f800          // fneg	v0.2d, v0.2d
+	WORD $0x6ee0f800          // fneg.2d	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -558,7 +558,7 @@ TEXT ·sqrt_f64x2(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6ee1f800          // fsqrt	v0.2d, v0.2d
+	WORD $0x6ee1f800          // fsqrt.2d	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -570,7 +570,7 @@ TEXT ·hsum_f64x2(SB), $0-24
 	MOVD  v_8+8(FP), R10
 	VMOV  R9, V0.D[0]
 	VMOV  R10, V0.D[1]
-	WORD  $0x7e70d800       // faddp	d0, v0.2d
+	WORD  $0x7e70d800       // faddp.2d	d0, v0
 	FMOVD F0, result+16(FP)
 	RET
 
@@ -583,8 +583,8 @@ TEXT ·dot_f64x2(SB), $0-40
 	MOVD  b_8+24(FP), R10
 	VMOV  R9, V1.D[0]
 	VMOV  R10, V1.D[1]
-	WORD  $0x6e61dc00       // fmul	v0.2d, v0.2d, v1.2d
-	WORD  $0x7e70d800       // faddp	d0, v0.2d
+	WORD  $0x6e61dc00       // fmul.2d	v0, v0, v1
+	WORD  $0x7e70d800       // faddp.2d	d0, v0
 	FMOVD F0, result+32(FP)
 	RET
 
@@ -597,7 +597,7 @@ TEXT ·add_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea08420          // add	v0.4s, v1.4s, v0.4s
+	WORD $0x4ea08420          // add.4s	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -613,7 +613,7 @@ TEXT ·sub_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6ea18400          // sub	v0.4s, v0.4s, v1.4s
+	WORD $0x6ea18400          // sub.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -629,7 +629,7 @@ TEXT ·mul_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea09c20          // mul	v0.4s, v1.4s, v0.4s
+	WORD $0x4ea09c20          // mul.4s	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -645,7 +645,7 @@ TEXT ·min_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea16c00          // smin	v0.4s, v0.4s, v1.4s
+	WORD $0x4ea16c00          // smin.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -661,7 +661,7 @@ TEXT ·max_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea16400          // smax	v0.4s, v0.4s, v1.4s
+	WORD $0x4ea16400          // smax.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -673,7 +673,7 @@ TEXT ·abs_i32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ea0b800          // abs	v0.4s, v0.4s
+	WORD $0x4ea0b800          // abs.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -685,7 +685,7 @@ TEXT ·neg_i32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6ea0b800          // neg	v0.4s, v0.4s
+	WORD $0x6ea0b800          // neg.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -701,7 +701,7 @@ TEXT ·and_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e201c20          // and	v0.16b, v1.16b, v0.16b
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -717,7 +717,7 @@ TEXT ·or_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea01c20          // orr	v0.16b, v1.16b, v0.16b
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -733,7 +733,7 @@ TEXT ·xor_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e201c20          // eor	v0.16b, v1.16b, v0.16b
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -745,7 +745,7 @@ TEXT ·not_i32x4(SB), $0-32
 	MOVD a_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6e205800          // mvn	v0.16b, v0.16b
+	WORD $0x6e205800          // mvn.16b	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -761,7 +761,7 @@ TEXT ·andnot_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e611c00          // bic	v0.16b, v0.16b, v1.16b
+	WORD $0x4e611c00          // bic.16b	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -777,7 +777,7 @@ TEXT ·eq_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6ea18c00          // cmeq	v0.4s, v0.4s, v1.4s
+	WORD $0x6ea18c00          // cmeq.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -793,7 +793,7 @@ TEXT ·lt_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea03420          // cmgt	v0.4s, v1.4s, v0.4s
+	WORD $0x4ea03420          // cmgt.4s	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -809,7 +809,7 @@ TEXT ·gt_i32x4(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea13400          // cmgt	v0.4s, v0.4s, v1.4s
+	WORD $0x4ea13400          // cmgt.4s	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -829,7 +829,7 @@ TEXT ·sel_i32x4(SB), $0-64
 	MOVD no_8+40(FP), R10
 	VMOV R9, V2.D[0]
 	VMOV R10, V2.D[1]
-	WORD $0x6e621c20          // bsl	v0.16b, v1.16b, v2.16b
+	WORD $0x6e621c20          // bsl.16b	v0, v1, v2
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+48(FP)
@@ -841,8 +841,8 @@ TEXT ·hsum_i32x4(SB), $0-24
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4eb1b800       // addv	s0, v0.4s
-	WORD $0x4e042c00       // smov	x0, v0.s[0]
+	WORD $0x4eb1b800       // addv.4s	s0, v0
+	WORD $0x4e042c00       // smov.s	x0, v0[0]
 	MOVD R0, result+16(FP)
 	RET
 
@@ -855,7 +855,7 @@ TEXT ·add_i64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ee08420          // add	v0.2d, v1.2d, v0.2d
+	WORD $0x4ee08420          // add.2d	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -871,7 +871,7 @@ TEXT ·sub_i64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6ee18400          // sub	v0.2d, v0.2d, v1.2d
+	WORD $0x6ee18400          // sub.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -887,7 +887,7 @@ TEXT ·and_i64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4e201c20          // and	v0.16b, v1.16b, v0.16b
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -903,7 +903,7 @@ TEXT ·or_i64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x4ea01c20          // orr	v0.16b, v1.16b, v0.16b
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -919,7 +919,7 @@ TEXT ·xor_i64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6e201c20          // eor	v0.16b, v1.16b, v0.16b
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -935,7 +935,7 @@ TEXT ·eq_i64x2(SB), $0-48
 	MOVD b_8+24(FP), R10
 	VMOV R9, V1.D[0]
 	VMOV R10, V1.D[1]
-	WORD $0x6ee18c00          // cmeq	v0.2d, v0.2d, v1.2d
+	WORD $0x6ee18c00          // cmeq.2d	v0, v0, v1
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+32(FP)
@@ -947,7 +947,7 @@ TEXT ·add_f32x2(SB), $0-24
 	VMOV R9, V0.D[0]
 	MOVD b+8(FP), R9
 	VMOV R9, V1.D[0]
-	WORD $0x0e21d400       // fadd	v0.2s, v0.2s, v1.2s
+	WORD $0x0e21d400       // fadd.2s	v0, v0, v1
 	VMOV V0.D[0], R9
 	MOVD R9, result+16(FP)
 	RET
@@ -957,7 +957,7 @@ TEXT ·sub_f32x2(SB), $0-24
 	VMOV R9, V0.D[0]
 	MOVD b+8(FP), R9
 	VMOV R9, V1.D[0]
-	WORD $0x0ea1d400       // fsub	v0.2s, v0.2s, v1.2s
+	WORD $0x0ea1d400       // fsub.2s	v0, v0, v1
 	VMOV V0.D[0], R9
 	MOVD R9, result+16(FP)
 	RET
@@ -967,7 +967,7 @@ TEXT ·mul_f32x2(SB), $0-24
 	VMOV R9, V0.D[0]
 	MOVD b+8(FP), R9
 	VMOV R9, V1.D[0]
-	WORD $0x2e21dc00       // fmul	v0.2s, v0.2s, v1.2s
+	WORD $0x2e21dc00       // fmul.2s	v0, v0, v1
 	VMOV V0.D[0], R9
 	MOVD R9, result+16(FP)
 	RET
@@ -977,7 +977,7 @@ TEXT ·div_f32x2(SB), $0-24
 	VMOV R9, V0.D[0]
 	MOVD b+8(FP), R9
 	VMOV R9, V1.D[0]
-	WORD $0x2e21fc00       // fdiv	v0.2s, v0.2s, v1.2s
+	WORD $0x2e21fc00       // fdiv.2s	v0, v0, v1
 	VMOV V0.D[0], R9
 	MOVD R9, result+16(FP)
 	RET
@@ -987,7 +987,7 @@ TEXT ·min_f32x2(SB), $0-24
 	VMOV R9, V0.D[0]
 	MOVD b+8(FP), R9
 	VMOV R9, V1.D[0]
-	WORD $0x0ea1f400       // fmin	v0.2s, v0.2s, v1.2s
+	WORD $0x0ea1f400       // fmin.2s	v0, v0, v1
 	VMOV V0.D[0], R9
 	MOVD R9, result+16(FP)
 	RET
@@ -997,7 +997,7 @@ TEXT ·max_f32x2(SB), $0-24
 	VMOV R9, V0.D[0]
 	MOVD b+8(FP), R9
 	VMOV R9, V1.D[0]
-	WORD $0x0e21f400       // fmax	v0.2s, v0.2s, v1.2s
+	WORD $0x0e21f400       // fmax.2s	v0, v0, v1
 	VMOV V0.D[0], R9
 	MOVD R9, result+16(FP)
 	RET
@@ -1005,7 +1005,7 @@ TEXT ·max_f32x2(SB), $0-24
 TEXT ·hsum_f32x2(SB), $0-12
 	MOVD  v+0(FP), R9
 	VMOV  R9, V0.D[0]
-	WORD  $0x7e30d800      // faddp	s0, v0.2s
+	WORD  $0x7e30d800      // faddp.2s	s0, v0
 	FMOVS F0, result+8(FP)
 	RET
 
@@ -1014,8 +1014,8 @@ TEXT ·dot_f32x2(SB), $0-20
 	VMOV  R9, V0.D[0]
 	MOVD  b+8(FP), R9
 	VMOV  R9, V1.D[0]
-	WORD  $0x2e21dc00       // fmul	v0.2s, v0.2s, v1.2s
-	WORD  $0x7e30d800       // faddp	s0, v0.2s
+	WORD  $0x2e21dc00       // fmul.2s	v0, v0, v1
+	WORD  $0x7e30d800       // faddp.2s	s0, v0
 	FMOVS F0, result+16(FP)
 	RET
 
@@ -1024,8 +1024,8 @@ TEXT ·counttrue_i32x4(SB), $0-24
 	MOVD mask_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6f210400       // ushr	v0.4s, v0.4s, #31
-	WORD $0x4eb1b800       // addv	s0, v0.4s
+	WORD $0x6f210400       // ushr.4s	v0, v0, #31
+	WORD $0x4eb1b800       // addv.4s	s0, v0
 	WORD $0x1e260000       // fmov	w0, s0
 	MOVD R0, result+16(FP)
 	RET
@@ -1035,7 +1035,7 @@ TEXT ·alltrue_i32x4(SB), $0-24
 	MOVD mask_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6eb1a800       // uminv	s0, v0.4s
+	WORD $0x6eb1a800       // uminv.4s	s0, v0
 	WORD $0x1e260008       // fmov	w8, s0
 	WORD $0x7100011f       // cmp	w8, #0
 	WORD $0x1a9f07e0       // cset	w0, ne
@@ -1047,7 +1047,7 @@ TEXT ·anytrue_i32x4(SB), $0-24
 	MOVD mask_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x6eb0a800       // umaxv	s0, v0.4s
+	WORD $0x6eb0a800       // umaxv.4s	s0, v0
 	WORD $0x1e260008       // fmov	w8, s0
 	WORD $0x7100011f       // cmp	w8, #0
 	WORD $0x1a9f07e0       // cset	w0, ne
@@ -1059,7 +1059,7 @@ TEXT ·cvt_f32x4_i32x4(SB), $0-32
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ea1b800          // fcvtzs	v0.4s, v0.4s
+	WORD $0x4ea1b800          // fcvtzs.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -1071,7 +1071,7 @@ TEXT ·cvt_i32x4_f32x4(SB), $0-32
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4e21d800          // scvtf	v0.4s, v0.4s
+	WORD $0x4e21d800          // scvtf.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -1103,7 +1103,7 @@ TEXT ·round_f32x4(SB), $0-32
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4e218800          // frintn	v0.4s, v0.4s
+	WORD $0x4e218800          // frintn.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -1115,7 +1115,7 @@ TEXT ·floor_f32x4(SB), $0-32
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4e219800          // frintm	v0.4s, v0.4s
+	WORD $0x4e219800          // frintm.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -1127,7 +1127,7 @@ TEXT ·ceil_f32x4(SB), $0-32
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ea18800          // frintp	v0.4s, v0.4s
+	WORD $0x4ea18800          // frintp.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)
@@ -1139,7 +1139,7 @@ TEXT ·trunc_f32x4(SB), $0-32
 	MOVD v_8+8(FP), R10
 	VMOV R9, V0.D[0]
 	VMOV R10, V0.D[1]
-	WORD $0x4ea19800          // frintz	v0.4s, v0.4s
+	WORD $0x4ea19800          // frintz.4s	v0, v0
 	VMOV V0.D[0], R9
 	VMOV V0.D[1], R10
 	MOVD R9, result_0+16(FP)

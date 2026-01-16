@@ -4,8 +4,67 @@
 package matvec
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
 )
+
+func BaseMatVec_avx512_Float16(m []hwy.Float16, rows int, cols int, v []hwy.Float16, result []hwy.Float16) {
+	if len(m) < rows*cols {
+		panic("matrix slice too small")
+	}
+	if len(v) < cols {
+		panic("vector slice too small")
+	}
+	if len(result) < rows {
+		panic("result slice too small")
+	}
+	for i := 0; i < rows; i++ {
+		row := m[i*cols : (i+1)*cols]
+		sum := hwy.Zero[hwy.Float16]()
+		lanes := 32
+		var j int
+		for j = 0; j+lanes <= cols; j += lanes {
+			va := hwy.Load(row[j:])
+			vb := hwy.Load(v[j:])
+			prod := hwy.MulF16(va, vb)
+			sum = hwy.AddF16(sum, prod)
+		}
+		acc := hwy.ReduceSumF16(sum)
+		for ; j < cols; j++ {
+			acc += row[j].Float32() * v[j].Float32()
+		}
+		result[i] = hwy.Float32ToFloat16(acc)
+	}
+}
+
+func BaseMatVec_avx512_BFloat16(m []hwy.BFloat16, rows int, cols int, v []hwy.BFloat16, result []hwy.BFloat16) {
+	if len(m) < rows*cols {
+		panic("matrix slice too small")
+	}
+	if len(v) < cols {
+		panic("vector slice too small")
+	}
+	if len(result) < rows {
+		panic("result slice too small")
+	}
+	for i := 0; i < rows; i++ {
+		row := m[i*cols : (i+1)*cols]
+		sum := hwy.Zero[hwy.BFloat16]()
+		lanes := 32
+		var j int
+		for j = 0; j+lanes <= cols; j += lanes {
+			va := hwy.Load(row[j:])
+			vb := hwy.Load(v[j:])
+			prod := hwy.MulBF16(va, vb)
+			sum = hwy.AddBF16(sum, prod)
+		}
+		acc := hwy.ReduceSumBF16(sum)
+		for ; j < cols; j++ {
+			acc += row[j].Float32() * v[j].Float32()
+		}
+		result[i] = hwy.Float32ToBFloat16(acc)
+	}
+}
 
 func BaseMatVec_avx512(m []float32, rows int, cols int, v []float32, result []float32) {
 	if len(m) < rows*cols {

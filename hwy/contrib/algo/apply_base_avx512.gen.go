@@ -4,8 +4,43 @@
 package algo
 
 import (
+	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
 )
+
+func BaseApply_avx512_Float16(in []hwy.Float16, out []hwy.Float16, fn func(hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16]) {
+	n := min(len(in), len(out))
+	lanes := 32
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
+	}
+	if remaining := n - i; remaining > 0 {
+		buf := [32]hwy.Float16{}
+		copy(buf[:], in[i:i+remaining])
+		x := hwy.Load(buf[:])
+		hwy.Store(fn(x), buf[:])
+		copy(out[i:i+remaining], buf[:remaining])
+	}
+}
+
+func BaseApply_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]) {
+	n := min(len(in), len(out))
+	lanes := 32
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
+	}
+	if remaining := n - i; remaining > 0 {
+		buf := [32]hwy.BFloat16{}
+		copy(buf[:], in[i:i+remaining])
+		x := hwy.Load(buf[:])
+		hwy.Store(fn(x), buf[:])
+		copy(out[i:i+remaining], buf[:remaining])
+	}
+}
 
 func BaseApply_avx512(in []float32, out []float32, fn func(archsimd.Float32x16) archsimd.Float32x16) {
 	n := min(len(in), len(out))

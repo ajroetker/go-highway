@@ -9,12 +9,18 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var MatVecFloat16 func(m []hwy.Float16, rows int, cols int, v []hwy.Float16, result []hwy.Float16)
+var MatVecBFloat16 func(m []hwy.BFloat16, rows int, cols int, v []hwy.BFloat16, result []hwy.BFloat16)
 var MatVecFloat32 func(m []float32, rows int, cols int, v []float32, result []float32)
 var MatVecFloat64 func(m []float64, rows int, cols int, v []float64, result []float64)
 
 // MatVec is the generic API that dispatches to the appropriate SIMD implementation.
 func MatVec[T hwy.Floats](m []T, rows int, cols int, v []T, result []T) {
 	switch any(m).(type) {
+	case []hwy.Float16:
+		MatVecFloat16(any(m).([]hwy.Float16), rows, cols, any(v).([]hwy.Float16), any(result).([]hwy.Float16))
+	case []hwy.BFloat16:
+		MatVecBFloat16(any(m).([]hwy.BFloat16), rows, cols, any(v).([]hwy.BFloat16), any(result).([]hwy.BFloat16))
 	case []float32:
 		MatVecFloat32(any(m).([]float32), rows, cols, any(v).([]float32), any(result).([]float32))
 	case []float64:
@@ -32,11 +38,15 @@ func init() {
 }
 
 func initMatvecNEON() {
+	MatVecFloat16 = BaseMatVec_neon_Float16
+	MatVecBFloat16 = BaseMatVec_neon_BFloat16
 	MatVecFloat32 = BaseMatVec_neon
 	MatVecFloat64 = BaseMatVec_neon_Float64
 }
 
 func initMatvecFallback() {
+	MatVecFloat16 = BaseMatVec_fallback_Float16
+	MatVecBFloat16 = BaseMatVec_fallback_BFloat16
 	MatVecFloat32 = BaseMatVec_fallback
 	MatVecFloat64 = BaseMatVec_fallback_Float64
 }
