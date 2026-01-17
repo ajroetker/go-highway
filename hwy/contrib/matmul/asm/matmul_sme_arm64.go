@@ -3,7 +3,7 @@
 // versions:
 // 	clang   21.1.8
 // 	objdump 2.45.1
-// flags: -march=armv9-a+sme+sme-f64f64 -O3
+// flags: -march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16 -O3
 // source: ../c/matmul_sme_arm64.c
 
 package asm
@@ -15,3 +15,9 @@ func matmul_fmopa_at_f32(at, b, c, pm, pn, pk unsafe.Pointer)
 
 //go:noescape
 func matmul_fmopa_at_f64(at, b, c, pm, pn, pk unsafe.Pointer)
+
+//go:noescape
+func matmul_fmopa_at_f16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)
+
+//go:noescape
+func matmul_bfmopa_at_bf16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)

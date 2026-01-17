@@ -449,7 +449,7 @@ BB2_11:
 	WORD $0xbd000040 // str	s0, [x2]
 	RET
 
-TEXT ·matmul_bf16_neon(SB), $8-72
+TEXT ·matmul_bf16_neon(SB), $144-72
 	MOVD a+0(FP), R0
 	MOVD b+8(FP), R1
 	MOVD c+16(FP), R2

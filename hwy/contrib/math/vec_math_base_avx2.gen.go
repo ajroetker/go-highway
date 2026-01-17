@@ -11,17 +11,17 @@ import (
 // Hoisted constants - pre-broadcasted at package init time
 var (
 	BaseSinVec_AVX2_intTwo_i32_f32   = archsimd.BroadcastInt32x8(2)
-	BaseSinVec_AVX2_intThree_i32_f32 = archsimd.BroadcastInt32x8(3)
-	BaseCosVec_AVX2_intTwo_i32_f32   = archsimd.BroadcastInt32x8(2)
-	BaseCosVec_AVX2_intThree_i32_f64 = archsimd.BroadcastInt32x4(3)
-	BaseSinVec_AVX2_intOne_i32_f32   = archsimd.BroadcastInt32x8(1)
 	BaseSinVec_AVX2_intOne_i32_f64   = archsimd.BroadcastInt32x4(1)
+	BaseCosVec_AVX2_intOne_i32_f32   = archsimd.BroadcastInt32x8(1)
+	BaseCosVec_AVX2_intTwo_i32_f32   = archsimd.BroadcastInt32x8(2)
+	BaseCosVec_AVX2_intOne_i32_f64   = archsimd.BroadcastInt32x4(1)
+	BaseSinVec_AVX2_intThree_i32_f32 = archsimd.BroadcastInt32x8(3)
 	BaseSinVec_AVX2_intTwo_i32_f64   = archsimd.BroadcastInt32x4(2)
 	BaseSinVec_AVX2_intThree_i32_f64 = archsimd.BroadcastInt32x4(3)
 	BaseCosVec_AVX2_intThree_i32_f32 = archsimd.BroadcastInt32x8(3)
-	BaseCosVec_AVX2_intOne_i32_f32   = archsimd.BroadcastInt32x8(1)
-	BaseCosVec_AVX2_intOne_i32_f64   = archsimd.BroadcastInt32x4(1)
 	BaseCosVec_AVX2_intTwo_i32_f64   = archsimd.BroadcastInt32x4(2)
+	BaseCosVec_AVX2_intThree_i32_f64 = archsimd.BroadcastInt32x4(3)
+	BaseSinVec_AVX2_intOne_i32_f32   = archsimd.BroadcastInt32x8(1)
 )
 
 func BaseExpVec_avx2_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {

@@ -995,7 +995,7 @@ BB10_2:
 BB10_3:
 	RET
 
-TEXT ·pow_f64_neon(SB), $0-32
+TEXT ·pow_f64_neon(SB), $80-32
 	MOVD base+0(FP), R0
 	MOVD exp_arr+8(FP), R1
 	MOVD result+16(FP), R2

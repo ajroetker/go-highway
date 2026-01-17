@@ -21,7 +21,7 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-// Use ajroetker/goat fork with SME frame size and smstop fixes
-replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-sve-sme-support-003
+// Use ajroetker/goat fork with SVE/SME streaming mode fixes
+replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-sve-sme-support-004
 
 tool github.com/gorse-io/goat

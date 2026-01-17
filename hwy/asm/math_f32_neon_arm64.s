@@ -163,7 +163,7 @@ BB1_2:
 BB1_3:
 	RET
 
-TEXT ·atan2_f32_neon(SB), $0-32
+TEXT ·atan2_f32_neon(SB), $16-32
 	MOVD y+0(FP), R0
 	MOVD x+8(FP), R1
 	MOVD result+16(FP), R2
@@ -269,7 +269,7 @@ BB2_2:
 BB2_4:
 	RET
 
-TEXT ·pow_f32_neon(SB), $0-32
+TEXT ·pow_f32_neon(SB), $16-32
 	MOVD base+0(FP), R0
 	MOVD exponent+8(FP), R1
 	MOVD result+16(FP), R2
@@ -801,7 +801,7 @@ BB9_2:
 BB9_3:
 	RET
 
-TEXT ·exp_bulk_f32_neon(SB), $0-24
+TEXT ·exp_bulk_f32_neon(SB), $64-24
 	MOVD input+0(FP), R0
 	MOVD result+8(FP), R1
 	MOVD len+16(FP), R2

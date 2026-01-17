@@ -3,8 +3,8 @@
 // versions:
 // 	clang   21.1.8
 // 	objdump 2.45.1
-// flags: -march=armv9-a+sme+sme-f64f64 -O3
-// source: hwy/contrib/matvec/c/matvec_sme_arm64.c
+// flags: -march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16 -O3
+// source: ../c/matvec_sme_arm64.c
 
 package asm
 
@@ -15,3 +15,9 @@ func matvec_sme_f32(mt, v, result, prows, pcols unsafe.Pointer)
 
 //go:noescape
 func matvec_sme_f64(mt, v, result, prows, pcols unsafe.Pointer)
+
+//go:noescape
+func matvec_sme_f16(mt, v, result, prows, pcols, scratch unsafe.Pointer)
+
+//go:noescape
+func matvec_sme_bf16(mt, v, result, prows, pcols, scratch unsafe.Pointer)
