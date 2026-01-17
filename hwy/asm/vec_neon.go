@@ -1763,6 +1763,585 @@ func AllFalseValFloat64(mask Int64x2) bool {
 	return m[0] == 0 && m[1] == 0
 }
 
+// ============================================================================
+// Uint8x16 - 128-bit vector of 16 uint8 values
+// ============================================================================
+
+// Uint8x16 represents a 128-bit NEON vector of 16 uint8 values.
+type Uint8x16 [16]byte
+
+// BroadcastUint8x16 creates a vector with all lanes set to the given value.
+func BroadcastUint8x16(v uint8) Uint8x16 {
+	var arr [16]uint8
+	for i := range arr {
+		arr[i] = v
+	}
+	return *(*Uint8x16)(unsafe.Pointer(&arr))
+}
+
+// LoadUint8x16 loads 16 uint8 values from a slice.
+func LoadUint8x16(s []uint8) Uint8x16 {
+	return *(*Uint8x16)(unsafe.Pointer(&s[0]))
+}
+
+// ZeroUint8x16 returns a zero vector.
+func ZeroUint8x16() Uint8x16 {
+	return Uint8x16{}
+}
+
+// Get returns the element at the given index.
+func (v Uint8x16) Get(i int) uint8 {
+	return v[i]
+}
+
+// Set sets the element at the given index.
+func (v *Uint8x16) Set(i int, val uint8) {
+	v[i] = val
+}
+
+// StoreSlice stores the vector to a slice.
+func (v Uint8x16) StoreSlice(s []uint8) {
+	*(*Uint8x16)(unsafe.Pointer(&s[0])) = v
+}
+
+// Data returns the underlying data as a slice.
+func (v Uint8x16) Data() []uint8 {
+	return v[:]
+}
+
+// Add performs element-wise addition (wrapping).
+func (v Uint8x16) Add(other Uint8x16) Uint8x16 {
+	// Reuse signed int8 add - bitwise identical
+	result := add_i32x4([16]byte(v), [16]byte(other))
+	return Uint8x16(result)
+}
+
+// Sub performs element-wise subtraction (wrapping).
+func (v Uint8x16) Sub(other Uint8x16) Uint8x16 {
+	result := sub_i32x4([16]byte(v), [16]byte(other))
+	return Uint8x16(result)
+}
+
+// AddSaturated performs element-wise saturating addition.
+func (v Uint8x16) AddSaturated(other Uint8x16) Uint8x16 {
+	return Uint8x16(adds_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// SubSaturated performs element-wise saturating subtraction.
+func (v Uint8x16) SubSaturated(other Uint8x16) Uint8x16 {
+	return Uint8x16(subs_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// Min performs element-wise unsigned minimum.
+func (v Uint8x16) Min(other Uint8x16) Uint8x16 {
+	return Uint8x16(min_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// Max performs element-wise unsigned maximum.
+func (v Uint8x16) Max(other Uint8x16) Uint8x16 {
+	return Uint8x16(max_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// LessThan returns a mask where v < other (unsigned comparison).
+func (v Uint8x16) LessThan(other Uint8x16) Uint8x16 {
+	return Uint8x16(lt_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// GreaterThan returns a mask where v > other (unsigned comparison).
+func (v Uint8x16) GreaterThan(other Uint8x16) Uint8x16 {
+	return Uint8x16(gt_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// LessEqual returns a mask where v <= other (unsigned comparison).
+func (v Uint8x16) LessEqual(other Uint8x16) Uint8x16 {
+	return Uint8x16(le_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// GreaterEqual returns a mask where v >= other (unsigned comparison).
+func (v Uint8x16) GreaterEqual(other Uint8x16) Uint8x16 {
+	return Uint8x16(ge_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// Equal returns a mask where v == other.
+func (v Uint8x16) Equal(other Uint8x16) Uint8x16 {
+	return Uint8x16(eq_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// And performs bitwise AND.
+func (v Uint8x16) And(other Uint8x16) Uint8x16 {
+	return Uint8x16(and_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// Or performs bitwise OR.
+func (v Uint8x16) Or(other Uint8x16) Uint8x16 {
+	return Uint8x16(or_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// Xor performs bitwise XOR.
+func (v Uint8x16) Xor(other Uint8x16) Uint8x16 {
+	return Uint8x16(xor_u8x16([16]byte(v), [16]byte(other)))
+}
+
+// Not performs bitwise NOT.
+func (v Uint8x16) Not() Uint8x16 {
+	return Uint8x16(not_u8x16([16]byte(v)))
+}
+
+// GetBit returns true if the element at index i is non-zero.
+func (v Uint8x16) GetBit(i int) bool {
+	return v[i] != 0
+}
+
+// ============================================================================
+// Uint16x8 - 128-bit vector of 8 uint16 values
+// ============================================================================
+
+// Uint16x8 represents a 128-bit NEON vector of 8 uint16 values.
+type Uint16x8 [16]byte
+
+// BroadcastUint16x8 creates a vector with all lanes set to the given value.
+func BroadcastUint16x8(v uint16) Uint16x8 {
+	arr := [8]uint16{v, v, v, v, v, v, v, v}
+	return *(*Uint16x8)(unsafe.Pointer(&arr))
+}
+
+// LoadUint16x8 loads 8 uint16 values from a slice.
+func LoadUint16x8(s []uint16) Uint16x8 {
+	return *(*Uint16x8)(unsafe.Pointer(&s[0]))
+}
+
+// ZeroUint16x8 returns a zero vector.
+func ZeroUint16x8() Uint16x8 {
+	return Uint16x8{}
+}
+
+// Get returns the element at the given index.
+func (v Uint16x8) Get(i int) uint16 {
+	return (*[8]uint16)(unsafe.Pointer(&v))[i]
+}
+
+// Set sets the element at the given index.
+func (v *Uint16x8) Set(i int, val uint16) {
+	(*[8]uint16)(unsafe.Pointer(v))[i] = val
+}
+
+// StoreSlice stores the vector to a slice.
+func (v Uint16x8) StoreSlice(s []uint16) {
+	*(*Uint16x8)(unsafe.Pointer(&s[0])) = v
+}
+
+// Data returns the underlying data as a slice.
+func (v Uint16x8) Data() []uint16 {
+	return (*[8]uint16)(unsafe.Pointer(&v))[:]
+}
+
+// Add performs element-wise addition (wrapping).
+func (v Uint16x8) Add(other Uint16x8) Uint16x8 {
+	result := add_i32x4([16]byte(v), [16]byte(other))
+	return Uint16x8(result)
+}
+
+// Sub performs element-wise subtraction (wrapping).
+func (v Uint16x8) Sub(other Uint16x8) Uint16x8 {
+	result := sub_i32x4([16]byte(v), [16]byte(other))
+	return Uint16x8(result)
+}
+
+// AddSaturated performs element-wise saturating addition.
+func (v Uint16x8) AddSaturated(other Uint16x8) Uint16x8 {
+	return Uint16x8(adds_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// SubSaturated performs element-wise saturating subtraction.
+func (v Uint16x8) SubSaturated(other Uint16x8) Uint16x8 {
+	return Uint16x8(subs_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// Min performs element-wise unsigned minimum.
+func (v Uint16x8) Min(other Uint16x8) Uint16x8 {
+	return Uint16x8(min_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// Max performs element-wise unsigned maximum.
+func (v Uint16x8) Max(other Uint16x8) Uint16x8 {
+	return Uint16x8(max_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// LessThan returns a mask where v < other (unsigned comparison).
+func (v Uint16x8) LessThan(other Uint16x8) Uint16x8 {
+	return Uint16x8(lt_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// GreaterThan returns a mask where v > other (unsigned comparison).
+func (v Uint16x8) GreaterThan(other Uint16x8) Uint16x8 {
+	return Uint16x8(gt_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// LessEqual returns a mask where v <= other (unsigned comparison).
+func (v Uint16x8) LessEqual(other Uint16x8) Uint16x8 {
+	return Uint16x8(le_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// GreaterEqual returns a mask where v >= other (unsigned comparison).
+func (v Uint16x8) GreaterEqual(other Uint16x8) Uint16x8 {
+	return Uint16x8(ge_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// Equal returns a mask where v == other.
+func (v Uint16x8) Equal(other Uint16x8) Uint16x8 {
+	return Uint16x8(eq_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// And performs bitwise AND.
+func (v Uint16x8) And(other Uint16x8) Uint16x8 {
+	return Uint16x8(and_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// Or performs bitwise OR.
+func (v Uint16x8) Or(other Uint16x8) Uint16x8 {
+	return Uint16x8(or_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// Xor performs bitwise XOR.
+func (v Uint16x8) Xor(other Uint16x8) Uint16x8 {
+	return Uint16x8(xor_u16x8([16]byte(v), [16]byte(other)))
+}
+
+// Not performs bitwise NOT.
+func (v Uint16x8) Not() Uint16x8 {
+	return Uint16x8(not_u16x8([16]byte(v)))
+}
+
+// GetBit returns true if the element at index i is non-zero.
+func (v Uint16x8) GetBit(i int) bool {
+	return (*[8]uint16)(unsafe.Pointer(&v))[i] != 0
+}
+
+// ============================================================================
+// Uint32x4 - 128-bit vector of 4 uint32 values
+// ============================================================================
+
+// Uint32x4 represents a 128-bit NEON vector of 4 uint32 values.
+type Uint32x4 [16]byte
+
+// BroadcastUint32x4 creates a vector with all lanes set to the given value.
+func BroadcastUint32x4(v uint32) Uint32x4 {
+	arr := [4]uint32{v, v, v, v}
+	return *(*Uint32x4)(unsafe.Pointer(&arr))
+}
+
+// LoadUint32x4 loads 4 uint32 values from a slice.
+func LoadUint32x4(s []uint32) Uint32x4 {
+	return *(*Uint32x4)(unsafe.Pointer(&s[0]))
+}
+
+// LoadUint32x4Slice is an alias for LoadUint32x4 (matches archsimd naming).
+func LoadUint32x4Slice(s []uint32) Uint32x4 {
+	return LoadUint32x4(s)
+}
+
+// ZeroUint32x4 returns a zero vector.
+func ZeroUint32x4() Uint32x4 {
+	return Uint32x4{}
+}
+
+// Get returns the element at the given index.
+func (v Uint32x4) Get(i int) uint32 {
+	return (*[4]uint32)(unsafe.Pointer(&v))[i]
+}
+
+// Set sets the element at the given index.
+func (v *Uint32x4) Set(i int, val uint32) {
+	(*[4]uint32)(unsafe.Pointer(v))[i] = val
+}
+
+// StoreSlice stores the vector to a slice.
+func (v Uint32x4) StoreSlice(s []uint32) {
+	*(*Uint32x4)(unsafe.Pointer(&s[0])) = v
+}
+
+// Data returns the underlying data as a slice.
+func (v Uint32x4) Data() []uint32 {
+	return (*[4]uint32)(unsafe.Pointer(&v))[:]
+}
+
+// Add performs element-wise addition (wrapping).
+func (v Uint32x4) Add(other Uint32x4) Uint32x4 {
+	return Uint32x4(add_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Sub performs element-wise subtraction (wrapping).
+func (v Uint32x4) Sub(other Uint32x4) Uint32x4 {
+	return Uint32x4(sub_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Mul performs element-wise multiplication (low 32 bits).
+func (v Uint32x4) Mul(other Uint32x4) Uint32x4 {
+	return Uint32x4(mul_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// AddSaturated performs element-wise saturating addition.
+func (v Uint32x4) AddSaturated(other Uint32x4) Uint32x4 {
+	return Uint32x4(adds_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// SubSaturated performs element-wise saturating subtraction.
+func (v Uint32x4) SubSaturated(other Uint32x4) Uint32x4 {
+	return Uint32x4(subs_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Min performs element-wise unsigned minimum.
+func (v Uint32x4) Min(other Uint32x4) Uint32x4 {
+	return Uint32x4(min_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Max performs element-wise unsigned maximum.
+func (v Uint32x4) Max(other Uint32x4) Uint32x4 {
+	return Uint32x4(max_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// LessThan returns a mask where v < other (unsigned comparison).
+func (v Uint32x4) LessThan(other Uint32x4) Uint32x4 {
+	return Uint32x4(lt_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// GreaterThan returns a mask where v > other (unsigned comparison).
+func (v Uint32x4) GreaterThan(other Uint32x4) Uint32x4 {
+	return Uint32x4(gt_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// LessEqual returns a mask where v <= other (unsigned comparison).
+func (v Uint32x4) LessEqual(other Uint32x4) Uint32x4 {
+	return Uint32x4(le_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// GreaterEqual returns a mask where v >= other (unsigned comparison).
+func (v Uint32x4) GreaterEqual(other Uint32x4) Uint32x4 {
+	return Uint32x4(ge_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Equal returns a mask where v == other.
+func (v Uint32x4) Equal(other Uint32x4) Uint32x4 {
+	return Uint32x4(eq_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// And performs bitwise AND.
+func (v Uint32x4) And(other Uint32x4) Uint32x4 {
+	return Uint32x4(and_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Or performs bitwise OR.
+func (v Uint32x4) Or(other Uint32x4) Uint32x4 {
+	return Uint32x4(or_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Xor performs bitwise XOR.
+func (v Uint32x4) Xor(other Uint32x4) Uint32x4 {
+	return Uint32x4(xor_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// Not performs bitwise NOT.
+func (v Uint32x4) Not() Uint32x4 {
+	return Uint32x4(not_u32x4([16]byte(v)))
+}
+
+// AndNot performs a AND (NOT b).
+func (v Uint32x4) AndNot(other Uint32x4) Uint32x4 {
+	return Uint32x4(andnot_u32x4([16]byte(v), [16]byte(other)))
+}
+
+// ShiftAllLeft shifts all elements left by the given count.
+func (v Uint32x4) ShiftAllLeft(count int) Uint32x4 {
+	a := (*[4]uint32)(unsafe.Pointer(&v))
+	result := [4]uint32{a[0] << count, a[1] << count, a[2] << count, a[3] << count}
+	return *(*Uint32x4)(unsafe.Pointer(&result))
+}
+
+// ShiftAllRight shifts all elements right by the given count (logical shift).
+func (v Uint32x4) ShiftAllRight(count int) Uint32x4 {
+	a := (*[4]uint32)(unsafe.Pointer(&v))
+	result := [4]uint32{a[0] >> count, a[1] >> count, a[2] >> count, a[3] >> count}
+	return *(*Uint32x4)(unsafe.Pointer(&result))
+}
+
+// ReduceSum returns the sum of all elements.
+func (v Uint32x4) ReduceSum() uint64 {
+	return uint64(hsum_u32x4([16]byte(v)))
+}
+
+// GetBit returns true if the element at index i is non-zero.
+func (v Uint32x4) GetBit(i int) bool {
+	return (*[4]uint32)(unsafe.Pointer(&v))[i] != 0
+}
+
+// AsInt32x4 reinterprets bits as Int32x4.
+func (v Uint32x4) AsInt32x4() Int32x4 {
+	return Int32x4(v)
+}
+
+// ============================================================================
+// Uint64x2 - 128-bit vector of 2 uint64 values
+// ============================================================================
+
+// Uint64x2 represents a 128-bit NEON vector of 2 uint64 values.
+type Uint64x2 [16]byte
+
+// BroadcastUint64x2 creates a vector with all lanes set to the given value.
+func BroadcastUint64x2(v uint64) Uint64x2 {
+	arr := [2]uint64{v, v}
+	return *(*Uint64x2)(unsafe.Pointer(&arr))
+}
+
+// LoadUint64x2 loads 2 uint64 values from a slice.
+func LoadUint64x2(s []uint64) Uint64x2 {
+	return *(*Uint64x2)(unsafe.Pointer(&s[0]))
+}
+
+// LoadUint64x2Slice is an alias for LoadUint64x2 (matches archsimd naming).
+func LoadUint64x2Slice(s []uint64) Uint64x2 {
+	return LoadUint64x2(s)
+}
+
+// ZeroUint64x2 returns a zero vector.
+func ZeroUint64x2() Uint64x2 {
+	return Uint64x2{}
+}
+
+// Get returns the element at the given index.
+func (v Uint64x2) Get(i int) uint64 {
+	return (*[2]uint64)(unsafe.Pointer(&v))[i]
+}
+
+// Set sets the element at the given index.
+func (v *Uint64x2) Set(i int, val uint64) {
+	(*[2]uint64)(unsafe.Pointer(v))[i] = val
+}
+
+// StoreSlice stores the vector to a slice.
+func (v Uint64x2) StoreSlice(s []uint64) {
+	*(*Uint64x2)(unsafe.Pointer(&s[0])) = v
+}
+
+// Data returns the underlying data as a slice.
+func (v Uint64x2) Data() []uint64 {
+	return (*[2]uint64)(unsafe.Pointer(&v))[:]
+}
+
+// Add performs element-wise addition (wrapping).
+func (v Uint64x2) Add(other Uint64x2) Uint64x2 {
+	return Uint64x2(add_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Sub performs element-wise subtraction (wrapping).
+func (v Uint64x2) Sub(other Uint64x2) Uint64x2 {
+	return Uint64x2(sub_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Mul performs element-wise multiplication.
+// Note: NEON doesn't have native 64-bit multiply, uses scalar fallback.
+func (v Uint64x2) Mul(other Uint64x2) Uint64x2 {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	b := (*[2]uint64)(unsafe.Pointer(&other))
+	result := [2]uint64{a[0] * b[0], a[1] * b[1]}
+	return *(*Uint64x2)(unsafe.Pointer(&result))
+}
+
+// AddSaturated performs element-wise saturating addition.
+func (v Uint64x2) AddSaturated(other Uint64x2) Uint64x2 {
+	return Uint64x2(adds_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// SubSaturated performs element-wise saturating subtraction.
+func (v Uint64x2) SubSaturated(other Uint64x2) Uint64x2 {
+	return Uint64x2(subs_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Min performs element-wise unsigned minimum.
+func (v Uint64x2) Min(other Uint64x2) Uint64x2 {
+	return Uint64x2(min_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Max performs element-wise unsigned maximum.
+func (v Uint64x2) Max(other Uint64x2) Uint64x2 {
+	return Uint64x2(max_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// LessThan returns a mask where v < other (unsigned comparison).
+func (v Uint64x2) LessThan(other Uint64x2) Uint64x2 {
+	return Uint64x2(lt_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// GreaterThan returns a mask where v > other (unsigned comparison).
+func (v Uint64x2) GreaterThan(other Uint64x2) Uint64x2 {
+	return Uint64x2(gt_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// LessEqual returns a mask where v <= other (unsigned comparison).
+func (v Uint64x2) LessEqual(other Uint64x2) Uint64x2 {
+	return Uint64x2(le_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// GreaterEqual returns a mask where v >= other (unsigned comparison).
+func (v Uint64x2) GreaterEqual(other Uint64x2) Uint64x2 {
+	return Uint64x2(ge_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Equal returns a mask where v == other.
+func (v Uint64x2) Equal(other Uint64x2) Uint64x2 {
+	return Uint64x2(eq_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// And performs bitwise AND.
+func (v Uint64x2) And(other Uint64x2) Uint64x2 {
+	return Uint64x2(and_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Or performs bitwise OR.
+func (v Uint64x2) Or(other Uint64x2) Uint64x2 {
+	return Uint64x2(or_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Xor performs bitwise XOR.
+func (v Uint64x2) Xor(other Uint64x2) Uint64x2 {
+	return Uint64x2(xor_u64x2([16]byte(v), [16]byte(other)))
+}
+
+// Not performs bitwise NOT.
+func (v Uint64x2) Not() Uint64x2 {
+	allOnes := [16]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	return Uint64x2(xor_u64x2([16]byte(v), allOnes))
+}
+
+// ShiftAllLeft shifts all elements left by the given count.
+func (v Uint64x2) ShiftAllLeft(count int) Uint64x2 {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	result := [2]uint64{a[0] << count, a[1] << count}
+	return *(*Uint64x2)(unsafe.Pointer(&result))
+}
+
+// ShiftAllRight shifts all elements right by the given count (logical shift).
+func (v Uint64x2) ShiftAllRight(count int) Uint64x2 {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	result := [2]uint64{a[0] >> count, a[1] >> count}
+	return *(*Uint64x2)(unsafe.Pointer(&result))
+}
+
+// Merge selects elements: mask ? v : other
+func (v Uint64x2) Merge(other Uint64x2, mask Uint64x2) Uint64x2 {
+	return Uint64x2(sel_u64x2([16]byte(mask), [16]byte(v), [16]byte(other)))
+}
+
+// GetBit returns true if the element at index i is non-zero.
+func (v Uint64x2) GetBit(i int) bool {
+	return (*[2]uint64)(unsafe.Pointer(&v))[i] != 0
+}
+
+// AsInt64x2 reinterprets bits as Int64x2.
+func (v Uint64x2) AsInt64x2() Int64x2 {
+	return Int64x2(v)
+}
+
 // ===== SIMD Sorting Networks =====
 // These use Min/Max operations for efficient small array sorting.
 

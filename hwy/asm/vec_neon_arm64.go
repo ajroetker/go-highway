@@ -250,3 +250,180 @@ func ceil_f32x4(v [16]byte) (result [16]byte)
 
 //go:noescape
 func trunc_f32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func lt_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func gt_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func le_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func ge_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func eq_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func min_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func max_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func adds_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func subs_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func and_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func or_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func xor_u8x16(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func not_u8x16(a [16]byte) (result [16]byte)
+
+//go:noescape
+func lt_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func gt_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func le_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func ge_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func eq_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func min_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func max_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func adds_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func subs_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func and_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func or_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func xor_u16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func not_u16x8(a [16]byte) (result [16]byte)
+
+//go:noescape
+func add_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func sub_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func mul_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func lt_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func gt_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func le_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func ge_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func eq_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func min_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func max_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func adds_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func subs_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func and_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func or_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func xor_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func not_u32x4(a [16]byte) (result [16]byte)
+
+//go:noescape
+func andnot_u32x4(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func hsum_u32x4(v [16]byte) (result int64)
+
+//go:noescape
+func add_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func sub_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func lt_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func gt_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func le_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func ge_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func eq_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func min_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func max_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func adds_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func subs_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func and_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func or_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func xor_u64x2(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func sel_u64x2(mask, yes, no [16]byte) (result [16]byte)

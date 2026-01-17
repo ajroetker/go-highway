@@ -2,8 +2,188 @@
 
 package asm
 
+import "unsafe"
+
 // Stub implementations for non-ARM64 or noasm builds.
 // These should never be called - the hwy package will use scalar fallbacks.
+
+// Float32x4 represents a 128-bit NEON vector of 4 float32 values.
+type Float32x4 [16]byte
+
+// Float64x2 represents a 128-bit NEON vector of 2 float64 values.
+type Float64x2 [16]byte
+
+// Int32x4 represents a 128-bit NEON vector of 4 int32 values.
+type Int32x4 [16]byte
+
+// Int64x2 represents a 128-bit NEON vector of 2 int64 values.
+type Int64x2 [16]byte
+
+// Float32x2 represents a 64-bit NEON vector of 2 float32 values.
+type Float32x2 [8]byte
+
+// Int32x2 represents a 64-bit vector of 2 int32 values.
+type Int32x2 [8]byte
+
+// Uint8x16 represents a 128-bit NEON vector of 16 uint8 values.
+type Uint8x16 [16]byte
+
+// Uint16x8 represents a 128-bit NEON vector of 8 uint16 values.
+type Uint16x8 [16]byte
+
+// Uint32x4 represents a 128-bit NEON vector of 4 uint32 values.
+type Uint32x4 [16]byte
+
+// Uint64x2 represents a 128-bit NEON vector of 2 uint64 values.
+type Uint64x2 [16]byte
+
+// BoolMask32x4 represents a 4-element boolean mask.
+type BoolMask32x4 [4]bool
+
+// GetBit returns the boolean value at the given index.
+func (m BoolMask32x4) GetBit(i int) bool { return m[i] }
+
+// BoolMask32x2 represents a 2-element boolean mask.
+type BoolMask32x2 [2]bool
+
+// GetBit returns the boolean value at the given index.
+func (m BoolMask32x2) GetBit(i int) bool { return m[i] }
+
+// ===== Uint8x16 stub methods =====
+
+func BroadcastUint8x16(v uint8) Uint8x16 {
+	var arr [16]uint8
+	for i := range arr {
+		arr[i] = v
+	}
+	return *(*Uint8x16)(unsafe.Pointer(&arr))
+}
+
+func LoadUint8x16(s []uint8) Uint8x16       { return *(*Uint8x16)(unsafe.Pointer(&s[0])) }
+func ZeroUint8x16() Uint8x16                { return Uint8x16{} }
+func (v Uint8x16) Get(i int) uint8          { return v[i] }
+func (v *Uint8x16) Set(i int, val uint8)    { v[i] = val }
+func (v Uint8x16) Data() []uint8            { return v[:] }
+func (v Uint8x16) StoreSlice(s []uint8)     { *(*Uint8x16)(unsafe.Pointer(&s[0])) = v }
+func (v Uint8x16) GetBit(i int) bool        { return v[i] != 0 }
+func (v Uint8x16) Add(other Uint8x16) Uint8x16         { panic("NEON not available") }
+func (v Uint8x16) Sub(other Uint8x16) Uint8x16         { panic("NEON not available") }
+func (v Uint8x16) AddSaturated(other Uint8x16) Uint8x16 { panic("NEON not available") }
+func (v Uint8x16) SubSaturated(other Uint8x16) Uint8x16 { panic("NEON not available") }
+func (v Uint8x16) Min(other Uint8x16) Uint8x16         { panic("NEON not available") }
+func (v Uint8x16) Max(other Uint8x16) Uint8x16         { panic("NEON not available") }
+func (v Uint8x16) LessThan(other Uint8x16) Uint8x16    { panic("NEON not available") }
+func (v Uint8x16) GreaterThan(other Uint8x16) Uint8x16 { panic("NEON not available") }
+func (v Uint8x16) LessEqual(other Uint8x16) Uint8x16   { panic("NEON not available") }
+func (v Uint8x16) GreaterEqual(other Uint8x16) Uint8x16 { panic("NEON not available") }
+func (v Uint8x16) Equal(other Uint8x16) Uint8x16       { panic("NEON not available") }
+func (v Uint8x16) And(other Uint8x16) Uint8x16         { panic("NEON not available") }
+func (v Uint8x16) Or(other Uint8x16) Uint8x16          { panic("NEON not available") }
+func (v Uint8x16) Xor(other Uint8x16) Uint8x16         { panic("NEON not available") }
+func (v Uint8x16) Not() Uint8x16                       { panic("NEON not available") }
+
+// ===== Uint16x8 stub methods =====
+
+func BroadcastUint16x8(v uint16) Uint16x8 {
+	arr := [8]uint16{v, v, v, v, v, v, v, v}
+	return *(*Uint16x8)(unsafe.Pointer(&arr))
+}
+
+func LoadUint16x8(s []uint16) Uint16x8      { return *(*Uint16x8)(unsafe.Pointer(&s[0])) }
+func ZeroUint16x8() Uint16x8                { return Uint16x8{} }
+func (v Uint16x8) Get(i int) uint16         { return (*[8]uint16)(unsafe.Pointer(&v))[i] }
+func (v *Uint16x8) Set(i int, val uint16)   { (*[8]uint16)(unsafe.Pointer(v))[i] = val }
+func (v Uint16x8) Data() []uint16           { return (*[8]uint16)(unsafe.Pointer(&v))[:] }
+func (v Uint16x8) StoreSlice(s []uint16)    { *(*Uint16x8)(unsafe.Pointer(&s[0])) = v }
+func (v Uint16x8) GetBit(i int) bool        { return (*[8]uint16)(unsafe.Pointer(&v))[i] != 0 }
+func (v Uint16x8) Add(other Uint16x8) Uint16x8         { panic("NEON not available") }
+func (v Uint16x8) Sub(other Uint16x8) Uint16x8         { panic("NEON not available") }
+func (v Uint16x8) AddSaturated(other Uint16x8) Uint16x8 { panic("NEON not available") }
+func (v Uint16x8) SubSaturated(other Uint16x8) Uint16x8 { panic("NEON not available") }
+func (v Uint16x8) Min(other Uint16x8) Uint16x8         { panic("NEON not available") }
+func (v Uint16x8) Max(other Uint16x8) Uint16x8         { panic("NEON not available") }
+func (v Uint16x8) LessThan(other Uint16x8) Uint16x8    { panic("NEON not available") }
+func (v Uint16x8) GreaterThan(other Uint16x8) Uint16x8 { panic("NEON not available") }
+func (v Uint16x8) LessEqual(other Uint16x8) Uint16x8   { panic("NEON not available") }
+func (v Uint16x8) GreaterEqual(other Uint16x8) Uint16x8 { panic("NEON not available") }
+func (v Uint16x8) Equal(other Uint16x8) Uint16x8       { panic("NEON not available") }
+func (v Uint16x8) And(other Uint16x8) Uint16x8         { panic("NEON not available") }
+func (v Uint16x8) Or(other Uint16x8) Uint16x8          { panic("NEON not available") }
+func (v Uint16x8) Xor(other Uint16x8) Uint16x8         { panic("NEON not available") }
+func (v Uint16x8) Not() Uint16x8                       { panic("NEON not available") }
+
+// ===== Uint32x4 stub methods =====
+
+func BroadcastUint32x4(v uint32) Uint32x4 {
+	arr := [4]uint32{v, v, v, v}
+	return *(*Uint32x4)(unsafe.Pointer(&arr))
+}
+
+func LoadUint32x4(s []uint32) Uint32x4      { return *(*Uint32x4)(unsafe.Pointer(&s[0])) }
+func LoadUint32x4Slice(s []uint32) Uint32x4 { return LoadUint32x4(s) }
+func ZeroUint32x4() Uint32x4                { return Uint32x4{} }
+func (v Uint32x4) Get(i int) uint32         { return (*[4]uint32)(unsafe.Pointer(&v))[i] }
+func (v *Uint32x4) Set(i int, val uint32)   { (*[4]uint32)(unsafe.Pointer(v))[i] = val }
+func (v Uint32x4) Data() []uint32           { return (*[4]uint32)(unsafe.Pointer(&v))[:] }
+func (v Uint32x4) StoreSlice(s []uint32)    { *(*Uint32x4)(unsafe.Pointer(&s[0])) = v }
+func (v Uint32x4) GetBit(i int) bool        { return (*[4]uint32)(unsafe.Pointer(&v))[i] != 0 }
+func (v Uint32x4) AsInt32x4() Int32x4       { return Int32x4(v) }
+func (v Uint32x4) Add(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) Sub(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) Mul(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) AddSaturated(other Uint32x4) Uint32x4 { panic("NEON not available") }
+func (v Uint32x4) SubSaturated(other Uint32x4) Uint32x4 { panic("NEON not available") }
+func (v Uint32x4) Min(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) Max(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) LessThan(other Uint32x4) Uint32x4    { panic("NEON not available") }
+func (v Uint32x4) GreaterThan(other Uint32x4) Uint32x4 { panic("NEON not available") }
+func (v Uint32x4) LessEqual(other Uint32x4) Uint32x4   { panic("NEON not available") }
+func (v Uint32x4) GreaterEqual(other Uint32x4) Uint32x4 { panic("NEON not available") }
+func (v Uint32x4) Equal(other Uint32x4) Uint32x4       { panic("NEON not available") }
+func (v Uint32x4) And(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) Or(other Uint32x4) Uint32x4          { panic("NEON not available") }
+func (v Uint32x4) Xor(other Uint32x4) Uint32x4         { panic("NEON not available") }
+func (v Uint32x4) Not() Uint32x4                       { panic("NEON not available") }
+func (v Uint32x4) AndNot(other Uint32x4) Uint32x4      { panic("NEON not available") }
+func (v Uint32x4) ShiftAllLeft(count int) Uint32x4     { panic("NEON not available") }
+func (v Uint32x4) ShiftAllRight(count int) Uint32x4    { panic("NEON not available") }
+func (v Uint32x4) ReduceSum() uint64                   { panic("NEON not available") }
+
+// ===== Uint64x2 stub methods =====
+
+func BroadcastUint64x2(v uint64) Uint64x2 {
+	arr := [2]uint64{v, v}
+	return *(*Uint64x2)(unsafe.Pointer(&arr))
+}
+
+func LoadUint64x2(s []uint64) Uint64x2      { return *(*Uint64x2)(unsafe.Pointer(&s[0])) }
+func LoadUint64x2Slice(s []uint64) Uint64x2 { return LoadUint64x2(s) }
+func ZeroUint64x2() Uint64x2                { return Uint64x2{} }
+func (v Uint64x2) Get(i int) uint64         { return (*[2]uint64)(unsafe.Pointer(&v))[i] }
+func (v *Uint64x2) Set(i int, val uint64)   { (*[2]uint64)(unsafe.Pointer(v))[i] = val }
+func (v Uint64x2) Data() []uint64           { return (*[2]uint64)(unsafe.Pointer(&v))[:] }
+func (v Uint64x2) StoreSlice(s []uint64)    { *(*Uint64x2)(unsafe.Pointer(&s[0])) = v }
+func (v Uint64x2) GetBit(i int) bool        { return (*[2]uint64)(unsafe.Pointer(&v))[i] != 0 }
+func (v Uint64x2) AsInt64x2() Int64x2       { return Int64x2(v) }
+func (v Uint64x2) Add(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) Sub(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) Mul(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) AddSaturated(other Uint64x2) Uint64x2 { panic("NEON not available") }
+func (v Uint64x2) SubSaturated(other Uint64x2) Uint64x2 { panic("NEON not available") }
+func (v Uint64x2) Min(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) Max(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) LessThan(other Uint64x2) Uint64x2    { panic("NEON not available") }
+func (v Uint64x2) GreaterThan(other Uint64x2) Uint64x2 { panic("NEON not available") }
+func (v Uint64x2) LessEqual(other Uint64x2) Uint64x2   { panic("NEON not available") }
+func (v Uint64x2) GreaterEqual(other Uint64x2) Uint64x2 { panic("NEON not available") }
+func (v Uint64x2) Equal(other Uint64x2) Uint64x2       { panic("NEON not available") }
+func (v Uint64x2) And(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) Or(other Uint64x2) Uint64x2          { panic("NEON not available") }
+func (v Uint64x2) Xor(other Uint64x2) Uint64x2         { panic("NEON not available") }
+func (v Uint64x2) Not() Uint64x2                       { panic("NEON not available") }
+func (v Uint64x2) ShiftAllLeft(count int) Uint64x2     { panic("NEON not available") }
+func (v Uint64x2) ShiftAllRight(count int) Uint64x2    { panic("NEON not available") }
+func (v Uint64x2) Merge(other Uint64x2, mask Uint64x2) Uint64x2 { panic("NEON not available") }
 
 func AddF32(a, b, result []float32)        { panic("NEON not available") }
 func SubF32(a, b, result []float32)        { panic("NEON not available") }
@@ -155,3 +335,74 @@ func allFalseI32x4Asm(mask *[4]int32) bool       { return true }
 func allFalseI64x2Asm(mask *[2]int64) bool       { return true }
 func firstNI32x4Asm(count int, result *[4]int32) {}
 func firstNI64x2Asm(count int, result *[2]int64) {}
+
+// ============================================================================
+// Unsigned integer vector stubs
+// ============================================================================
+
+// Uint8x16 stubs
+func lt_u8x16(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func gt_u8x16(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func le_u8x16(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func ge_u8x16(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func eq_u8x16(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func min_u8x16(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func max_u8x16(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func adds_u8x16(a, b [16]byte) [16]byte { panic("NEON not available") }
+func subs_u8x16(a, b [16]byte) [16]byte { panic("NEON not available") }
+func and_u8x16(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func or_u8x16(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func xor_u8x16(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func not_u8x16(a [16]byte) [16]byte     { panic("NEON not available") }
+
+// Uint16x8 stubs
+func lt_u16x8(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func gt_u16x8(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func le_u16x8(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func ge_u16x8(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func eq_u16x8(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func min_u16x8(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func max_u16x8(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func adds_u16x8(a, b [16]byte) [16]byte { panic("NEON not available") }
+func subs_u16x8(a, b [16]byte) [16]byte { panic("NEON not available") }
+func and_u16x8(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func or_u16x8(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func xor_u16x8(a, b [16]byte) [16]byte  { panic("NEON not available") }
+func not_u16x8(a [16]byte) [16]byte     { panic("NEON not available") }
+
+// Uint32x4 stubs
+func add_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func sub_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func mul_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func lt_u32x4(a, b [16]byte) [16]byte     { panic("NEON not available") }
+func gt_u32x4(a, b [16]byte) [16]byte     { panic("NEON not available") }
+func le_u32x4(a, b [16]byte) [16]byte     { panic("NEON not available") }
+func ge_u32x4(a, b [16]byte) [16]byte     { panic("NEON not available") }
+func eq_u32x4(a, b [16]byte) [16]byte     { panic("NEON not available") }
+func min_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func max_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func adds_u32x4(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func subs_u32x4(a, b [16]byte) [16]byte   { panic("NEON not available") }
+func and_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func or_u32x4(a, b [16]byte) [16]byte     { panic("NEON not available") }
+func xor_u32x4(a, b [16]byte) [16]byte    { panic("NEON not available") }
+func not_u32x4(a [16]byte) [16]byte       { panic("NEON not available") }
+func andnot_u32x4(a, b [16]byte) [16]byte { panic("NEON not available") }
+func hsum_u32x4(v [16]byte) int64         { panic("NEON not available") }
+
+// Uint64x2 stubs
+func add_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
+func sub_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
+func lt_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
+func gt_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
+func le_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
+func ge_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
+func eq_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
+func min_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
+func max_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
+func adds_u64x2(a, b [16]byte) [16]byte         { panic("NEON not available") }
+func subs_u64x2(a, b [16]byte) [16]byte         { panic("NEON not available") }
+func and_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
+func or_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
+func xor_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
+func sel_u64x2(mask, yes, no [16]byte) [16]byte { panic("NEON not available") }

@@ -3022,3 +3022,312 @@ func BenchmarkReduceMaxF64_NEON(b *testing.B) {
 		ReduceMaxF64(input)
 	}
 }
+
+// ============================================================================
+// Unsigned Integer Vector Tests
+// ============================================================================
+
+func TestUint8x16_Saturating(t *testing.T) {
+	// Test saturating add at boundary
+	a := BroadcastUint8x16(250)
+	b := BroadcastUint8x16(10)
+
+	// Saturating add should clamp at 255
+	sat := a.AddSaturated(b)
+	for i := 0; i < 16; i++ {
+		if sat.Get(i) != 255 {
+			t.Errorf("AddSaturated[%d]: got %d, want 255", i, sat.Get(i))
+		}
+	}
+
+	// Saturating sub should clamp at 0
+	c := BroadcastUint8x16(5)
+	d := BroadcastUint8x16(10)
+	satSub := c.SubSaturated(d)
+	for i := 0; i < 16; i++ {
+		if satSub.Get(i) != 0 {
+			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
+		}
+	}
+}
+
+func TestUint8x16_MinMax(t *testing.T) {
+	a := LoadUint8x16([]uint8{1, 100, 200, 50, 10, 255, 0, 128, 1, 100, 200, 50, 10, 255, 0, 128})
+	b := LoadUint8x16([]uint8{2, 50, 100, 100, 20, 100, 1, 64, 2, 50, 100, 100, 20, 100, 1, 64})
+
+	minResult := a.Min(b)
+	maxResult := a.Max(b)
+
+	expectedMin := []uint8{1, 50, 100, 50, 10, 100, 0, 64, 1, 50, 100, 50, 10, 100, 0, 64}
+	expectedMax := []uint8{2, 100, 200, 100, 20, 255, 1, 128, 2, 100, 200, 100, 20, 255, 1, 128}
+
+	for i := 0; i < 16; i++ {
+		if minResult.Get(i) != expectedMin[i] {
+			t.Errorf("Min[%d]: got %d, want %d", i, minResult.Get(i), expectedMin[i])
+		}
+		if maxResult.Get(i) != expectedMax[i] {
+			t.Errorf("Max[%d]: got %d, want %d", i, maxResult.Get(i), expectedMax[i])
+		}
+	}
+}
+
+func TestUint8x16_Comparisons(t *testing.T) {
+	a := LoadUint8x16([]uint8{10, 200, 100, 0, 10, 200, 100, 0, 10, 200, 100, 0, 10, 200, 100, 0})
+	b := LoadUint8x16([]uint8{20, 100, 100, 1, 20, 100, 100, 1, 20, 100, 100, 1, 20, 100, 100, 1})
+
+	lt := a.LessThan(b)
+	gt := a.GreaterThan(b)
+	eq := a.Equal(b)
+
+	// LessThan: 10<20=true, 200<100=false, 100<100=false, 0<1=true
+	if lt.Get(0) != 0xFF || lt.Get(1) != 0 || lt.Get(2) != 0 || lt.Get(3) != 0xFF {
+		t.Errorf("LessThan: unexpected results at first 4 lanes")
+	}
+
+	// GreaterThan: 10>20=false, 200>100=true, 100>100=false, 0>1=false
+	if gt.Get(0) != 0 || gt.Get(1) != 0xFF || gt.Get(2) != 0 || gt.Get(3) != 0 {
+		t.Errorf("GreaterThan: unexpected results at first 4 lanes")
+	}
+
+	// Equal: 10==20=false, 200==100=false, 100==100=true, 0==1=false
+	if eq.Get(0) != 0 || eq.Get(1) != 0 || eq.Get(2) != 0xFF || eq.Get(3) != 0 {
+		t.Errorf("Equal: unexpected results at first 4 lanes")
+	}
+}
+
+func TestUint32x4_Saturating(t *testing.T) {
+	// Test saturating add at boundary
+	a := BroadcastUint32x4(0xFFFFFFFF - 5)
+	b := BroadcastUint32x4(10)
+
+	sat := a.AddSaturated(b)
+	for i := 0; i < 4; i++ {
+		if sat.Get(i) != 0xFFFFFFFF {
+			t.Errorf("AddSaturated[%d]: got %d, want %d", i, sat.Get(i), uint32(0xFFFFFFFF))
+		}
+	}
+
+	// Saturating sub should clamp at 0
+	c := BroadcastUint32x4(5)
+	d := BroadcastUint32x4(10)
+	satSub := c.SubSaturated(d)
+	for i := 0; i < 4; i++ {
+		if satSub.Get(i) != 0 {
+			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
+		}
+	}
+}
+
+func TestUint32x4_MinMax(t *testing.T) {
+	// Test with values that differ in signed vs unsigned interpretation
+	// 0x80000000 is MAX_INT32+1 in unsigned, but MIN_INT32 in signed
+	a := LoadUint32x4([]uint32{100, 0x80000000, 0xFFFFFFFF, 0})
+	b := LoadUint32x4([]uint32{200, 0x7FFFFFFF, 0xFFFFFFFE, 1})
+
+	minResult := a.Min(b)
+	maxResult := a.Max(b)
+
+	// Unsigned min: 100, 0x7FFFFFFF, 0xFFFFFFFE, 0
+	expectedMin := []uint32{100, 0x7FFFFFFF, 0xFFFFFFFE, 0}
+	// Unsigned max: 200, 0x80000000, 0xFFFFFFFF, 1
+	expectedMax := []uint32{200, 0x80000000, 0xFFFFFFFF, 1}
+
+	for i := 0; i < 4; i++ {
+		if minResult.Get(i) != expectedMin[i] {
+			t.Errorf("Min[%d]: got %d, want %d", i, minResult.Get(i), expectedMin[i])
+		}
+		if maxResult.Get(i) != expectedMax[i] {
+			t.Errorf("Max[%d]: got %d, want %d", i, maxResult.Get(i), expectedMax[i])
+		}
+	}
+}
+
+func TestUint32x4_Comparisons(t *testing.T) {
+	// Test unsigned comparisons with values that differ in signed vs unsigned
+	a := LoadUint32x4([]uint32{10, 0x80000000, 100, 0})
+	b := LoadUint32x4([]uint32{20, 0x7FFFFFFF, 100, 1})
+
+	lt := a.LessThan(b)
+	gt := a.GreaterThan(b)
+	eq := a.Equal(b)
+
+	// Unsigned LessThan: 10<20=true, 0x80000000<0x7FFFFFFF=false (unsigned!), 100<100=false, 0<1=true
+	if !lt.GetBit(0) || lt.GetBit(1) || lt.GetBit(2) || !lt.GetBit(3) {
+		t.Errorf("LessThan: unexpected results: [%v, %v, %v, %v]",
+			lt.GetBit(0), lt.GetBit(1), lt.GetBit(2), lt.GetBit(3))
+	}
+
+	// Unsigned GreaterThan: 10>20=false, 0x80000000>0x7FFFFFFF=true (unsigned!), 100>100=false, 0>1=false
+	if gt.GetBit(0) || !gt.GetBit(1) || gt.GetBit(2) || gt.GetBit(3) {
+		t.Errorf("GreaterThan: unexpected results: [%v, %v, %v, %v]",
+			gt.GetBit(0), gt.GetBit(1), gt.GetBit(2), gt.GetBit(3))
+	}
+
+	// Equal: 10==20=false, 0x80000000==0x7FFFFFFF=false, 100==100=true, 0==1=false
+	if eq.GetBit(0) || eq.GetBit(1) || !eq.GetBit(2) || eq.GetBit(3) {
+		t.Errorf("Equal: unexpected results: [%v, %v, %v, %v]",
+			eq.GetBit(0), eq.GetBit(1), eq.GetBit(2), eq.GetBit(3))
+	}
+}
+
+func TestUint64x2_Saturating(t *testing.T) {
+	// Test saturating add at boundary
+	a := BroadcastUint64x2(0xFFFFFFFFFFFFFFFF - 5)
+	b := BroadcastUint64x2(10)
+
+	sat := a.AddSaturated(b)
+	for i := 0; i < 2; i++ {
+		if sat.Get(i) != 0xFFFFFFFFFFFFFFFF {
+			t.Errorf("AddSaturated[%d]: got %d, want max uint64", i, sat.Get(i))
+		}
+	}
+
+	// Saturating sub should clamp at 0
+	c := BroadcastUint64x2(5)
+	d := BroadcastUint64x2(10)
+	satSub := c.SubSaturated(d)
+	for i := 0; i < 2; i++ {
+		if satSub.Get(i) != 0 {
+			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
+		}
+	}
+}
+
+func TestUint64x2_MinMax(t *testing.T) {
+	// Test with values that differ in signed vs unsigned interpretation
+	a := LoadUint64x2([]uint64{0x8000000000000000, 100})
+	b := LoadUint64x2([]uint64{0x7FFFFFFFFFFFFFFF, 200})
+
+	minResult := a.Min(b)
+	maxResult := a.Max(b)
+
+	// Unsigned min: 0x7FFFFFFFFFFFFFFF, 100
+	if minResult.Get(0) != 0x7FFFFFFFFFFFFFFF {
+		t.Errorf("Min[0]: got %x, want %x", minResult.Get(0), uint64(0x7FFFFFFFFFFFFFFF))
+	}
+	if minResult.Get(1) != 100 {
+		t.Errorf("Min[1]: got %d, want 100", minResult.Get(1))
+	}
+
+	// Unsigned max: 0x8000000000000000, 200
+	if maxResult.Get(0) != 0x8000000000000000 {
+		t.Errorf("Max[0]: got %x, want %x", maxResult.Get(0), uint64(0x8000000000000000))
+	}
+	if maxResult.Get(1) != 200 {
+		t.Errorf("Max[1]: got %d, want 200", maxResult.Get(1))
+	}
+}
+
+func TestUint64x2_Comparisons(t *testing.T) {
+	// Test unsigned comparisons
+	a := LoadUint64x2([]uint64{0x8000000000000000, 100})
+	b := LoadUint64x2([]uint64{0x7FFFFFFFFFFFFFFF, 100})
+
+	lt := a.LessThan(b)
+	gt := a.GreaterThan(b)
+	eq := a.Equal(b)
+
+	// Unsigned: 0x8000000000000000 > 0x7FFFFFFFFFFFFFFF
+	if lt.GetBit(0) {
+		t.Error("LessThan[0]: expected false (0x8000... > 0x7FFF... in unsigned)")
+	}
+	if !gt.GetBit(0) {
+		t.Error("GreaterThan[0]: expected true (0x8000... > 0x7FFF... in unsigned)")
+	}
+	if eq.GetBit(0) {
+		t.Error("Equal[0]: expected false")
+	}
+
+	// 100 == 100
+	if lt.GetBit(1) {
+		t.Error("LessThan[1]: expected false (100 == 100)")
+	}
+	if gt.GetBit(1) {
+		t.Error("GreaterThan[1]: expected false (100 == 100)")
+	}
+	if !eq.GetBit(1) {
+		t.Error("Equal[1]: expected true (100 == 100)")
+	}
+}
+
+func TestUint16x8_Saturating(t *testing.T) {
+	// Test saturating add at boundary
+	a := BroadcastUint16x8(65530)
+	b := BroadcastUint16x8(10)
+
+	sat := a.AddSaturated(b)
+	for i := 0; i < 8; i++ {
+		if sat.Get(i) != 65535 {
+			t.Errorf("AddSaturated[%d]: got %d, want 65535", i, sat.Get(i))
+		}
+	}
+
+	// Saturating sub should clamp at 0
+	c := BroadcastUint16x8(5)
+	d := BroadcastUint16x8(10)
+	satSub := c.SubSaturated(d)
+	for i := 0; i < 8; i++ {
+		if satSub.Get(i) != 0 {
+			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
+		}
+	}
+}
+
+func TestUint32x4_Arithmetic(t *testing.T) {
+	a := LoadUint32x4([]uint32{10, 20, 30, 40})
+	b := LoadUint32x4([]uint32{5, 10, 15, 20})
+
+	// Add
+	add := a.Add(b)
+	for i, expected := range []uint32{15, 30, 45, 60} {
+		if add.Get(i) != expected {
+			t.Errorf("Add[%d]: got %d, want %d", i, add.Get(i), expected)
+		}
+	}
+
+	// Sub
+	sub := a.Sub(b)
+	for i, expected := range []uint32{5, 10, 15, 20} {
+		if sub.Get(i) != expected {
+			t.Errorf("Sub[%d]: got %d, want %d", i, sub.Get(i), expected)
+		}
+	}
+
+	// Mul
+	mul := a.Mul(b)
+	for i, expected := range []uint32{50, 200, 450, 800} {
+		if mul.Get(i) != expected {
+			t.Errorf("Mul[%d]: got %d, want %d", i, mul.Get(i), expected)
+		}
+	}
+}
+
+func TestUint32x4_ReduceSum(t *testing.T) {
+	a := LoadUint32x4([]uint32{100, 200, 300, 400})
+	sum := a.ReduceSum()
+	if sum != 1000 {
+		t.Errorf("ReduceSum: got %d, want 1000", sum)
+	}
+}
+
+func TestUint32x4_Shifts(t *testing.T) {
+	a := LoadUint32x4([]uint32{0x80000000, 0xFF, 0x12345678, 1})
+
+	// Shift left by 1
+	left := a.ShiftAllLeft(1)
+	expectedLeft := []uint32{0, 0x1FE, 0x2468ACF0, 2}
+	for i, expected := range expectedLeft {
+		if left.Get(i) != expected {
+			t.Errorf("ShiftAllLeft[%d]: got %x, want %x", i, left.Get(i), expected)
+		}
+	}
+
+	// Shift right by 4 (logical for unsigned)
+	right := a.ShiftAllRight(4)
+	expectedRight := []uint32{0x08000000, 0x0F, 0x01234567, 0}
+	for i, expected := range expectedRight {
+		if right.Get(i) != expected {
+			t.Errorf("ShiftAllRight[%d]: got %x, want %x", i, right.Get(i), expected)
+		}
+	}
+}

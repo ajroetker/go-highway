@@ -1145,3 +1145,935 @@ TEXT ·trunc_f32x4(SB), $0-32
 	MOVD R9, result_0+16(FP)
 	MOVD R10, result_8+24(FP)
 	RET
+
+TEXT ·lt_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e203420          // cmhi.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·gt_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e213400          // cmhi.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·le_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e203c20          // cmhs.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·ge_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e213c00          // cmhs.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·eq_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e218c00          // cmeq.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·min_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e216c00          // umin.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·max_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e216400          // umax.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·adds_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e210c00          // uqadd.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·subs_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e212c00          // uqsub.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·and_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·or_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·xor_u8x16(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·not_u8x16(SB), $0-32
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6e205800          // mvn.16b	v0, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·lt_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e603420          // cmhi.8h	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·gt_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e613400          // cmhi.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·le_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e603c20          // cmhs.8h	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·ge_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e613c00          // cmhs.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·eq_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e618c00          // cmeq.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·min_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e616c00          // umin.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·max_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e616400          // umax.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·adds_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e610c00          // uqadd.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·subs_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e612c00          // uqsub.8h	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·and_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·or_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·xor_u16x8(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·not_u16x8(SB), $0-32
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6e205800          // mvn.16b	v0, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·add_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ea08420          // add.4s	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·sub_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea18400          // sub.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·mul_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ea09c20          // mul.4s	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·lt_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea03420          // cmhi.4s	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·gt_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea13400          // cmhi.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·le_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea03c20          // cmhs.4s	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·ge_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea13c00          // cmhs.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·eq_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea18c00          // cmeq.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·min_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea16c00          // umin.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·max_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea16400          // umax.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·adds_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea10c00          // uqadd.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·subs_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ea12c00          // uqsub.4s	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·and_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·or_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·xor_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·not_u32x4(SB), $0-32
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6e205800          // mvn.16b	v0, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·andnot_u32x4(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4e611c00          // bic.16b	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·hsum_u32x4(SB), $0-24
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x4eb1b800       // addv.4s	s0, v0
+	WORD $0x1e260000       // fmov	w0, s0
+	MOVD R0, result+16(FP)
+	RET
+
+TEXT ·add_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ee08420          // add.2d	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·sub_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee18400          // sub.2d	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·lt_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee03420          // cmhi.2d	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·gt_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee13400          // cmhi.2d	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·le_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee03c20          // cmhs.2d	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·ge_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee13c00          // cmhs.2d	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·eq_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee18c00          // cmeq.2d	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·min_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee03422          // cmhi.2d	v2, v1, v0
+	WORD $0x6ee21c20          // bif.16b	v0, v1, v2
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·max_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee13402          // cmhi.2d	v2, v0, v1
+	WORD $0x6ee21c20          // bif.16b	v0, v1, v2
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·adds_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee10c00          // uqadd.2d	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·subs_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6ee12c00          // uqsub.2d	v0, v0, v1
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·and_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4e201c20          // and.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·or_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x4ea01c20          // orr.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·xor_u64x2(SB), $0-48
+	MOVD a_0+0(FP), R9
+	MOVD a_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD b_0+16(FP), R9
+	MOVD b_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	WORD $0x6e201c20          // eor.16b	v0, v1, v0
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+32(FP)
+	MOVD R10, result_8+40(FP)
+	RET
+
+TEXT ·sel_u64x2(SB), $0-64
+	MOVD mask_0+0(FP), R9
+	MOVD mask_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	MOVD yes_0+16(FP), R9
+	MOVD yes_8+24(FP), R10
+	VMOV R9, V1.D[0]
+	VMOV R10, V1.D[1]
+	MOVD no_0+32(FP), R9
+	MOVD no_8+40(FP), R10
+	VMOV R9, V2.D[0]
+	VMOV R10, V2.D[1]
+	WORD $0x6e621c20          // bsl.16b	v0, v1, v2
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+48(FP)
+	MOVD R10, result_8+56(FP)
+	RET

@@ -394,3 +394,277 @@ float32x4_t ceil_f32x4(float32x4_t v) {
 float32x4_t trunc_f32x4(float32x4_t v) {
     return vrndq_f32(v);   // Round toward zero
 }
+
+// ============================================================================
+// Uint8x16 Operations (128-bit, 16 lanes)
+// ============================================================================
+
+// Comparisons (return uint8x16_t mask)
+uint8x16_t lt_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vcltq_u8(a, b);
+}
+
+uint8x16_t gt_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vcgtq_u8(a, b);
+}
+
+uint8x16_t le_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vcleq_u8(a, b);
+}
+
+uint8x16_t ge_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vcgeq_u8(a, b);
+}
+
+uint8x16_t eq_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vceqq_u8(a, b);
+}
+
+// Min/Max
+uint8x16_t min_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vminq_u8(a, b);
+}
+
+uint8x16_t max_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vmaxq_u8(a, b);
+}
+
+// Saturating arithmetic
+uint8x16_t adds_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vqaddq_u8(a, b);
+}
+
+uint8x16_t subs_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vqsubq_u8(a, b);
+}
+
+// Bitwise (same instructions as signed, but type-correct declarations)
+uint8x16_t and_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vandq_u8(a, b);
+}
+
+uint8x16_t or_u8x16(uint8x16_t a, uint8x16_t b) {
+    return vorrq_u8(a, b);
+}
+
+uint8x16_t xor_u8x16(uint8x16_t a, uint8x16_t b) {
+    return veorq_u8(a, b);
+}
+
+uint8x16_t not_u8x16(uint8x16_t a) {
+    return vmvnq_u8(a);
+}
+
+// ============================================================================
+// Uint16x8 Operations (128-bit, 8 lanes)
+// ============================================================================
+
+// Comparisons
+uint16x8_t lt_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vcltq_u16(a, b);
+}
+
+uint16x8_t gt_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vcgtq_u16(a, b);
+}
+
+uint16x8_t le_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vcleq_u16(a, b);
+}
+
+uint16x8_t ge_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vcgeq_u16(a, b);
+}
+
+uint16x8_t eq_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vceqq_u16(a, b);
+}
+
+// Min/Max
+uint16x8_t min_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vminq_u16(a, b);
+}
+
+uint16x8_t max_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vmaxq_u16(a, b);
+}
+
+// Saturating arithmetic
+uint16x8_t adds_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vqaddq_u16(a, b);
+}
+
+uint16x8_t subs_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vqsubq_u16(a, b);
+}
+
+// Bitwise
+uint16x8_t and_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vandq_u16(a, b);
+}
+
+uint16x8_t or_u16x8(uint16x8_t a, uint16x8_t b) {
+    return vorrq_u16(a, b);
+}
+
+uint16x8_t xor_u16x8(uint16x8_t a, uint16x8_t b) {
+    return veorq_u16(a, b);
+}
+
+uint16x8_t not_u16x8(uint16x8_t a) {
+    return vmvnq_u16(a);
+}
+
+// ============================================================================
+// Uint32x4 Operations (128-bit, 4 lanes)
+// ============================================================================
+
+// Arithmetic
+uint32x4_t add_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vaddq_u32(a, b);
+}
+
+uint32x4_t sub_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vsubq_u32(a, b);
+}
+
+uint32x4_t mul_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vmulq_u32(a, b);
+}
+
+// Comparisons
+uint32x4_t lt_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vcltq_u32(a, b);
+}
+
+uint32x4_t gt_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vcgtq_u32(a, b);
+}
+
+uint32x4_t le_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vcleq_u32(a, b);
+}
+
+uint32x4_t ge_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vcgeq_u32(a, b);
+}
+
+uint32x4_t eq_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vceqq_u32(a, b);
+}
+
+// Min/Max
+uint32x4_t min_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vminq_u32(a, b);
+}
+
+uint32x4_t max_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vmaxq_u32(a, b);
+}
+
+// Saturating arithmetic
+uint32x4_t adds_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vqaddq_u32(a, b);
+}
+
+uint32x4_t subs_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vqsubq_u32(a, b);
+}
+
+// Bitwise
+uint32x4_t and_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vandq_u32(a, b);
+}
+
+uint32x4_t or_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vorrq_u32(a, b);
+}
+
+uint32x4_t xor_u32x4(uint32x4_t a, uint32x4_t b) {
+    return veorq_u32(a, b);
+}
+
+uint32x4_t not_u32x4(uint32x4_t a) {
+    return vmvnq_u32(a);
+}
+
+uint32x4_t andnot_u32x4(uint32x4_t a, uint32x4_t b) {
+    return vbicq_u32(a, b);  // a & ~b
+}
+
+// Horizontal operations
+long hsum_u32x4(uint32x4_t v) {
+    return vaddvq_u32(v);
+}
+
+// ============================================================================
+// Uint64x2 Operations (128-bit, 2 lanes)
+// ============================================================================
+
+// Arithmetic
+uint64x2_t add_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vaddq_u64(a, b);
+}
+
+uint64x2_t sub_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vsubq_u64(a, b);
+}
+
+// Comparisons
+uint64x2_t lt_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vcltq_u64(a, b);
+}
+
+uint64x2_t gt_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vcgtq_u64(a, b);
+}
+
+uint64x2_t le_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vcleq_u64(a, b);
+}
+
+uint64x2_t ge_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vcgeq_u64(a, b);
+}
+
+uint64x2_t eq_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vceqq_u64(a, b);
+}
+
+// Min/Max using comparison + select (no native vminq_u64/vmaxq_u64)
+uint64x2_t min_u64x2(uint64x2_t a, uint64x2_t b) {
+    uint64x2_t mask = vcltq_u64(a, b);
+    return vbslq_u64(mask, a, b);
+}
+
+uint64x2_t max_u64x2(uint64x2_t a, uint64x2_t b) {
+    uint64x2_t mask = vcgtq_u64(a, b);
+    return vbslq_u64(mask, a, b);
+}
+
+// Saturating arithmetic
+uint64x2_t adds_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vqaddq_u64(a, b);
+}
+
+uint64x2_t subs_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vqsubq_u64(a, b);
+}
+
+// Bitwise
+uint64x2_t and_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vandq_u64(a, b);
+}
+
+uint64x2_t or_u64x2(uint64x2_t a, uint64x2_t b) {
+    return vorrq_u64(a, b);
+}
+
+uint64x2_t xor_u64x2(uint64x2_t a, uint64x2_t b) {
+    return veorq_u64(a, b);
+}
+
+// Select
+uint64x2_t sel_u64x2(uint64x2_t mask, uint64x2_t yes, uint64x2_t no) {
+    return vbslq_u64(mask, yes, no);
+}
