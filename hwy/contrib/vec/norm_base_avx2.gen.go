@@ -62,7 +62,7 @@ func BaseSquaredNorm_avx2(v []float32) float32 {
 		prod := vec.Mul(vec)
 		sum = sum.Add(prod)
 	}
-	result := sum.ReduceSum()
+	result := hwy.ReduceSum_AVX2_F32x8(sum)
 	for ; i < n; i++ {
 		result += v[i] * v[i]
 	}
@@ -82,7 +82,7 @@ func BaseSquaredNorm_avx2_Float64(v []float64) float64 {
 		prod := vec.Mul(vec)
 		sum = sum.Add(prod)
 	}
-	result := sum.ReduceSum()
+	result := hwy.ReduceSum_AVX2_F64x4(sum)
 	for ; i < n; i++ {
 		result += v[i] * v[i]
 	}

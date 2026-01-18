@@ -87,7 +87,7 @@ func BaseMatVec_avx512(m []float32, rows int, cols int, v []float32, result []fl
 			prod := va.Mul(vb)
 			sum = sum.Add(prod)
 		}
-		acc := sum.ReduceSum()
+		acc := hwy.ReduceSum_AVX512_F32x16(sum)
 		for ; j < cols; j++ {
 			acc += row[j] * v[j]
 		}
@@ -116,7 +116,7 @@ func BaseMatVec_avx512_Float64(m []float64, rows int, cols int, v []float64, res
 			prod := va.Mul(vb)
 			sum = sum.Add(prod)
 		}
-		acc := sum.ReduceSum()
+		acc := hwy.ReduceSum_AVX512_F64x8(sum)
 		for ; j < cols; j++ {
 			acc += row[j] * v[j]
 		}

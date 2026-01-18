@@ -55,7 +55,7 @@ func BaseSum_avx512(v []float32) float32 {
 		va := archsimd.LoadFloat32x16Slice(v[i:])
 		sum = sum.Add(va)
 	}
-	result := sum.ReduceSum()
+	result := hwy.ReduceSum_AVX512_F32x16(sum)
 	for ; i < len(v); i++ {
 		result += v[i]
 	}
@@ -73,7 +73,7 @@ func BaseSum_avx512_Float64(v []float64) float64 {
 		va := archsimd.LoadFloat64x8Slice(v[i:])
 		sum = sum.Add(va)
 	}
-	result := sum.ReduceSum()
+	result := hwy.ReduceSum_AVX512_F64x8(sum)
 	for ; i < len(v); i++ {
 		result += v[i]
 	}

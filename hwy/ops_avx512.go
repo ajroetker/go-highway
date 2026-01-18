@@ -10,6 +10,23 @@ import (
 // archsimd vector types. These are core ops (direct hardware instructions),
 // not transcendental functions which belong in contrib/math.
 
+// ReduceSum_AVX512_F32x16 returns the sum of all 16 float32 elements.
+func ReduceSum_AVX512_F32x16(v archsimd.Float32x16) float32 {
+	// Reduce 16 -> 8 using AVX2 function
+	lo := v.GetLo() // Float32x8
+	hi := v.GetHi() // Float32x8
+	sum8 := lo.Add(hi)
+	return ReduceSum_AVX2_F32x8(sum8)
+}
+
+// ReduceSum_AVX512_F64x8 returns the sum of all 8 float64 elements.
+func ReduceSum_AVX512_F64x8(v archsimd.Float64x8) float64 {
+	lo := v.GetLo() // Float64x4
+	hi := v.GetHi() // Float64x4
+	sum4 := lo.Add(hi)
+	return ReduceSum_AVX2_F64x4(sum4)
+}
+
 // Sqrt_AVX512_F32x16 computes sqrt(x) for a single Float32x16 vector.
 // Uses the hardware VSQRTPS instruction which provides correctly rounded results.
 func Sqrt_AVX512_F32x16(x archsimd.Float32x16) archsimd.Float32x16 {

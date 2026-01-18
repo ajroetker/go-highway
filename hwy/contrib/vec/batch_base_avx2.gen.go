@@ -107,7 +107,7 @@ func BaseBatchL2SquaredDistance_avx2(query []float32, data []float32, distances 
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)
 		}
-		result := sum.ReduceSum()
+		result := hwy.ReduceSum_AVX2_F32x8(sum)
 		for ; j < dims; j++ {
 			diff := query[j] - dataVec[j]
 			result += diff * diff
@@ -143,7 +143,7 @@ func BaseBatchL2SquaredDistance_avx2_Float64(query []float64, data []float64, di
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)
 		}
-		result := sum.ReduceSum()
+		result := hwy.ReduceSum_AVX2_F64x4(sum)
 		for ; j < dims; j++ {
 			diff := query[j] - dataVec[j]
 			result += diff * diff
@@ -246,7 +246,7 @@ func BaseBatchDot_avx2(query []float32, data []float32, dots []float32, count in
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
-		result := sum.ReduceSum()
+		result := hwy.ReduceSum_AVX2_F32x8(sum)
 		for ; j < dims; j++ {
 			result += query[j] * dataVec[j]
 		}
@@ -280,7 +280,7 @@ func BaseBatchDot_avx2_Float64(query []float64, data []float64, dots []float64, 
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
-		result := sum.ReduceSum()
+		result := hwy.ReduceSum_AVX2_F64x4(sum)
 		for ; j < dims; j++ {
 			result += query[j] * dataVec[j]
 		}

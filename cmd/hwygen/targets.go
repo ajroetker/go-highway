@@ -106,8 +106,8 @@ func AVX2Target() Target {
 			"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true}, // Alias for ShiftAllRight
 
 			// ===== Reductions =====
-			// archsimd doesn't have ReduceMin/ReduceMax methods. Using hwy wrappers.
-			"ReduceSum": {Name: "ReduceSum", IsMethod: true},
+			// archsimd doesn't have ReduceSum/ReduceMin/ReduceMax methods. Using hwy wrappers.
+			"ReduceSum": {Package: "hwy", Name: "ReduceSum", IsMethod: false},
 			"ReduceMin": {Package: "hwy", Name: "ReduceMin", IsMethod: false},
 			"ReduceMax": {Package: "hwy", Name: "ReduceMax", IsMethod: false},
 
@@ -301,8 +301,8 @@ func AVX512Target() Target {
 			"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true}, // Alias for ShiftAllRight
 
 			// ===== Reductions =====
-			// archsimd doesn't have ReduceMin/ReduceMax methods. Using hwy wrappers.
-			"ReduceSum": {Name: "ReduceSum", IsMethod: true},
+			// archsimd doesn't have ReduceSum/ReduceMin/ReduceMax methods. Using hwy wrappers.
+			"ReduceSum": {Package: "hwy", Name: "ReduceSum", IsMethod: false},
 			"ReduceMin": {Package: "hwy", Name: "ReduceMin", IsMethod: false},
 			"ReduceMax": {Package: "hwy", Name: "ReduceMax", IsMethod: false},
 

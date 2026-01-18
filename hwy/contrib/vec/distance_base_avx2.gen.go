@@ -127,7 +127,7 @@ func BaseL2SquaredDistance_avx2(a []float32, b []float32) float32 {
 	sum0 = sum0.Add(sum1)
 	sum2 = sum2.Add(sum3)
 	sum0 = sum0.Add(sum2)
-	result := sum0.ReduceSum()
+	result := hwy.ReduceSum_AVX2_F32x8(sum0)
 	for ; i < n; i++ {
 		d := a[i] - b[i]
 		result += d * d
@@ -169,7 +169,7 @@ func BaseL2SquaredDistance_avx2_Float64(a []float64, b []float64) float64 {
 	sum0 = sum0.Add(sum1)
 	sum2 = sum2.Add(sum3)
 	sum0 = sum0.Add(sum2)
-	result := sum0.ReduceSum()
+	result := hwy.ReduceSum_AVX2_F64x4(sum0)
 	for ; i < n; i++ {
 		d := a[i] - b[i]
 		result += d * d

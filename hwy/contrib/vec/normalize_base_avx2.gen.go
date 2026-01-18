@@ -97,7 +97,7 @@ func BaseNormalize_avx2(dst []float32) {
 	if i < len(dst) {
 		BaseNormalize_fallback(dst[i:len(dst)])
 	}
-	squaredNorm := sum.ReduceSum()
+	squaredNorm := hwy.ReduceSum_AVX2_F32x8(sum)
 	for ; i < len(dst); i++ {
 		squaredNorm += dst[i] * dst[i]
 	}
@@ -133,7 +133,7 @@ func BaseNormalize_avx2_Float64(dst []float64) {
 	if i < len(dst) {
 		BaseNormalize_fallback_Float64(dst[i:len(dst)])
 	}
-	squaredNorm := sum.ReduceSum()
+	squaredNorm := hwy.ReduceSum_AVX2_F64x4(sum)
 	for ; i < len(dst); i++ {
 		squaredNorm += dst[i] * dst[i]
 	}
@@ -246,7 +246,7 @@ func BaseNormalizeTo_avx2(dst []float32, src []float32) {
 	if i < n {
 		BaseNormalizeTo_fallback(dst[i:n], src[i:n])
 	}
-	squaredNorm := sum.ReduceSum()
+	squaredNorm := hwy.ReduceSum_AVX2_F32x8(sum)
 	for ; i < n; i++ {
 		squaredNorm += src[i] * src[i]
 	}
@@ -284,7 +284,7 @@ func BaseNormalizeTo_avx2_Float64(dst []float64, src []float64) {
 	if i < n {
 		BaseNormalizeTo_fallback_Float64(dst[i:n], src[i:n])
 	}
-	squaredNorm := sum.ReduceSum()
+	squaredNorm := hwy.ReduceSum_AVX2_F64x4(sum)
 	for ; i < n; i++ {
 		squaredNorm += src[i] * src[i]
 	}
