@@ -28,6 +28,11 @@ func isUnsignedIntType(elemType string) bool {
 	return elemType == "uint8" || elemType == "uint16" || elemType == "uint32" || elemType == "uint64"
 }
 
+// is64BitIntType returns true if the element type is a 64-bit integer (signed or unsigned).
+func is64BitIntType(elemType string) bool {
+	return elemType == "int64" || elemType == "uint64"
+}
+
 // isHalfPrecisionSliceType checks if a parameter type is a slice of half-precision elements.
 // It handles both concrete types like "[]hwy.Float16" and generic types like "[]T" when
 // elemType is a half-precision type.
@@ -1266,6 +1271,37 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			if len(call.Args) >= 2 {
 				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
 				wrapperName := fmt.Sprintf("GetLane_%s_%s", ctx.target.Name, vecTypeName)
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(wrapperName),
+				}
+				// Args stay as-is
+				return
+			}
+		}
+	}
+
+	// For 64-bit integer types on AVX2, use wrapper functions for Max and Min.
+	// AVX2 doesn't have VPMAXSQ/VPMINUQ/VPMAXUQ/VPMINSQ instructions (only AVX-512 has them).
+	if is64BitIntType(ctx.elemType) && ctx.target.Name == "AVX2" {
+		switch funcName {
+		case "Max":
+			// hwy.Max(a, b) -> hwy.Max_AVX2_Uint64x4(a, b) or hwy.Max_AVX2_Int64x4(a, b)
+			if len(call.Args) >= 2 {
+				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+				wrapperName := fmt.Sprintf("Max_%s_%s", ctx.target.Name, vecTypeName)
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(wrapperName),
+				}
+				// Args stay as-is
+				return
+			}
+		case "Min":
+			// hwy.Min(a, b) -> hwy.Min_AVX2_Uint64x4(a, b) or hwy.Min_AVX2_Int64x4(a, b)
+			if len(call.Args) >= 2 {
+				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+				wrapperName := fmt.Sprintf("Min_%s_%s", ctx.target.Name, vecTypeName)
 				call.Fun = &ast.SelectorExpr{
 					X:   ast.NewIdent("hwy"),
 					Sel: ast.NewIdent(wrapperName),

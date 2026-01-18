@@ -309,7 +309,7 @@ func BaseMax_avx2_Int64(v []int64) int64 {
 	var i int
 	for i = lanes; i+lanes <= len(v); i += lanes {
 		va := archsimd.LoadInt64x4Slice(v[i:])
-		maxVec = maxVec.Max(va)
+		maxVec = hwy.Max_AVX2_Int64x4(maxVec, va)
 	}
 	result := hwy.ReduceMax_AVX2_I64x4(maxVec)
 	for ; i < len(v); i++ {
@@ -367,7 +367,7 @@ func BaseMax_avx2_Uint64(v []uint64) uint64 {
 	var i int
 	for i = lanes; i+lanes <= len(v); i += lanes {
 		va := archsimd.LoadUint64x4Slice(v[i:])
-		maxVec = maxVec.Max(va)
+		maxVec = hwy.Max_AVX2_Uint64x4(maxVec, va)
 	}
 	result := hwy.ReduceMax_AVX2_Uint64x4(maxVec)
 	for ; i < len(v); i++ {
