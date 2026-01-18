@@ -70,7 +70,7 @@ func TestGatherIndexInt64(t *testing.T) {
 	result := GatherIndex(src, indices)
 
 	want := []float64{1.1, 3.3, 5.5, 7.7}
-	for i := 0; i < len(want); i++ {
+	for i := range want {
 		if result.data[i] != want[i] {
 			t.Errorf("GatherIndex lane %d: got %v, want %v", i, result.data[i], want[i])
 		}
@@ -249,7 +249,7 @@ func TestGatherScatterRoundTrip(t *testing.T) {
 
 	// Check that scattered values match original at indexed positions
 	want := []float32{10, 0, 30, 0, 50, 0, 70, 0}
-	for i := 0; i < len(want); i++ {
+	for i := range want {
 		if dst[i] != want[i] {
 			t.Errorf("GatherScatter round trip dst[%d]: got %v, want %v", i, dst[i], want[i])
 		}
@@ -306,7 +306,7 @@ func TestGatherIndexOffset(t *testing.T) {
 func TestIndicesIota(t *testing.T) {
 	result := IndicesIota[int32](8)
 
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if result.data[i] != int32(i) {
 			t.Errorf("IndicesIota lane %d: got %v, want %v", i, result.data[i], int32(i))
 		}
@@ -346,7 +346,7 @@ func TestGatherWithDifferentTypes(t *testing.T) {
 		result := GatherIndex(src, indices)
 
 		want := []int32{500, 300, 100}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if result.data[i] != want[i] {
 				t.Errorf("GatherIndex int32 lane %d: got %v, want %v", i, result.data[i], want[i])
 			}
@@ -360,7 +360,7 @@ func TestGatherWithDifferentTypes(t *testing.T) {
 		result := GatherIndex(src, indices)
 
 		want := []float64{1.5, 3.5, 5.5}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if result.data[i] != want[i] {
 				t.Errorf("GatherIndex float64 lane %d: got %v, want %v", i, result.data[i], want[i])
 			}
@@ -376,8 +376,7 @@ func BenchmarkGatherIndex(b *testing.B) {
 	}
 	indices := Vec[int32]{data: []int32{0, 64, 128, 192, 256, 320, 384, 448}}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = GatherIndex(src, indices)
 	}
 }
@@ -388,8 +387,7 @@ func BenchmarkScatterIndex(b *testing.B) {
 	indices := Vec[int32]{data: []int32{0, 64, 128, 192, 256, 320, 384, 448}}
 	dst := make([]float32, 512)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ScatterIndex(v, dst, indices)
 	}
 }

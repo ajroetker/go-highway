@@ -899,7 +899,7 @@ func BaseMinImage_avx512_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], o
 	}
 	lanes := 32
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -932,7 +932,7 @@ func BaseMinImage_avx512_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16]
 	}
 	lanes := 32
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -965,7 +965,7 @@ func BaseMinImage_avx512(a *Image[float32], b *Image[float32], out *Image[float3
 	}
 	lanes := 16
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -998,7 +998,7 @@ func BaseMinImage_avx512_Float64(a *Image[float64], b *Image[float64], out *Imag
 	}
 	lanes := 8
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1031,7 +1031,7 @@ func BaseMaxImage_avx512_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], o
 	}
 	lanes := 32
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1064,7 +1064,7 @@ func BaseMaxImage_avx512_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16]
 	}
 	lanes := 32
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1097,7 +1097,7 @@ func BaseMaxImage_avx512(a *Image[float32], b *Image[float32], out *Image[float3
 	}
 	lanes := 16
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1130,7 +1130,7 @@ func BaseMaxImage_avx512_Float64(a *Image[float64], b *Image[float64], out *Imag
 	}
 	lanes := 8
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)

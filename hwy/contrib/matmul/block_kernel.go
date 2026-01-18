@@ -14,15 +14,16 @@ import "github.com/ajroetker/go-highway/hwy"
 //   - c is blockDim × blockDim (row-major, accumulated into)
 //
 // The caller passes A^T (transposed A) and B (normal), and the function computes:
-//   C += (A^T)^T * B = A * B
+//
+//	C += (A^T)^T * B = A * B
 //
 // This layout is optimal for SIMD:
 //   - A^T[k, i:i+lanes] gives us A[i:i+lanes, k] (contiguous in A^T)
 //   - B[k, j:j+lanes] gives us B[k, j:j+lanes] (contiguous in B)
 //
 // For standard matmul C = A * B where you have A and B:
-//   1. Transpose A to get A^T
-//   2. Call BaseBlockMulAdd(A^T, B, C, blockDim)
+//  1. Transpose A to get A^T
+//  2. Call BaseBlockMulAdd(A^T, B, C, blockDim)
 func BaseBlockMulAdd[T hwy.Floats](aT, b, c []T, blockDim int) {
 	if len(aT) < blockDim*blockDim {
 		panic("BlockMulAdd: aT slice too short")
@@ -38,11 +39,11 @@ func BaseBlockMulAdd[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 	// Process one row of C at a time
 	// C[i, j] = sum_k A[i,k] * B[k,j] = sum_k aT[k,i] * B[k,j]
-	for i := 0; i < blockDim; i++ {
+	for i := range blockDim {
 		cRowStart := i * blockDim
 
 		// Accumulate contributions from all k values
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			// A[i,k] = aT[k,i] (transposed access)
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik) // Broadcast A[i,k]
@@ -90,7 +91,7 @@ func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
 
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			// A[i,k] = aT[k,i], A[i+1,k] = aT[k,i+1]
 			// These are consecutive in aT (same row k, columns i and i+1)
 			a0k := aT[k*blockDim+i]
@@ -123,7 +124,7 @@ func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 	// Handle odd row if blockDim is odd
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -171,7 +172,7 @@ func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
 
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			// A[i+r, k] = aT[k, i+r] - consecutive in memory!
 			aTRowK := k * blockDim
 			a0k := aT[aTRowK+i]
@@ -219,7 +220,7 @@ func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 	// Handle remaining rows (0-3 rows)
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim

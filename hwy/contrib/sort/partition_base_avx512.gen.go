@@ -55,10 +55,7 @@ func BasePartition3Way_avx512(data []float32, pivot float32) (int, int) {
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -137,10 +134,7 @@ func BasePartition3Way_avx512_Float64(data []float64, pivot float64) (int, int) 
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -219,10 +213,7 @@ func BasePartition3Way_avx512_Int32(data []int32, pivot int32) (int, int) {
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -301,10 +292,7 @@ func BasePartition3Way_avx512_Int64(data []int64, pivot int64) (int, int) {
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -365,10 +353,7 @@ func BasePartition_avx512(data []float32, pivot float32) int {
 			vRight.StoreSlice(data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++
@@ -421,10 +406,7 @@ func BasePartition_avx512_Float64(data []float64, pivot float64) int {
 			vRight.StoreSlice(data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++
@@ -477,10 +459,7 @@ func BasePartition_avx512_Int32(data []int32, pivot int32) int {
 			vRight.StoreSlice(data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++
@@ -533,10 +512,7 @@ func BasePartition_avx512_Int64(data []int64, pivot int64) int {
 			vRight.StoreSlice(data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++

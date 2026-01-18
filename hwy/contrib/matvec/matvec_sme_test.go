@@ -11,9 +11,9 @@ import (
 
 // scalarMatVec computes matrix-vector product using scalar operations for reference.
 func scalarMatVec(m []float32, rows, cols int, v, result []float32) {
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		var sum float32
-		for j := 0; j < cols; j++ {
+		for j := range cols {
 			sum += m[i*cols+j] * v[j]
 		}
 		result[i] = sum
@@ -21,9 +21,9 @@ func scalarMatVec(m []float32, rows, cols int, v, result []float32) {
 }
 
 func scalarMatVec64(m []float64, rows, cols int, v, result []float64) {
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		var sum float64
-		for j := 0; j < cols; j++ {
+		for j := range cols {
 			sum += m[i*cols+j] * v[j]
 		}
 		result[i] = sum
@@ -95,7 +95,7 @@ func TestMatVecSME64(t *testing.T) {
 		rows int
 		cols int
 	}{
-		{64, 64},   // Minimum SME threshold (8-aligned for float64)
+		{64, 64}, // Minimum SME threshold (8-aligned for float64)
 		{128, 128},
 		{256, 256},
 		{64, 128},
@@ -192,7 +192,7 @@ func TestMatVecSMEIdentity(t *testing.T) {
 	// 64x64 identity matrix
 	rows, cols := 64, 64
 	m := make([]float32, rows*cols)
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		m[i*cols+i] = 1.0
 	}
 

@@ -479,6 +479,33 @@ func TestParseCondition(t *testing.T) {
 		{"(f64 && avx2) matches", "f64 && avx2", "AVX2", "float64", true},
 		{"f64 && !avx512 matches avx2", "f64 && !avx512", "AVX2", "float64", true},
 		{"f64 && !avx512 doesn't match avx512", "f64 && !avx512", "AVX512", "float64", false},
+
+		// Category conditions
+		{"float matches float32", "float", "AVX2", "float32", true},
+		{"float matches float64", "float", "AVX2", "float64", true},
+		{"float matches Float16", "float", "NEON", "hwy.Float16", true},
+		{"float matches BFloat16", "float", "NEON", "hwy.BFloat16", true},
+		{"float doesn't match int32", "float", "AVX2", "int32", false},
+		{"float doesn't match uint64", "float", "AVX2", "uint64", false},
+		{"int matches int32", "int", "AVX2", "int32", true},
+		{"int matches int64", "int", "AVX2", "int64", true},
+		{"int doesn't match uint32", "int", "AVX2", "uint32", false},
+		{"int doesn't match float32", "int", "AVX2", "float32", false},
+		{"uint matches uint32", "uint", "AVX2", "uint32", true},
+		{"uint matches uint64", "uint", "AVX2", "uint64", true},
+		{"uint doesn't match int32", "uint", "AVX2", "int32", false},
+		{"uint doesn't match float64", "uint", "AVX2", "float64", false},
+
+		// Category with negation
+		{"!float matches int32", "!float", "AVX2", "int32", true},
+		{"!float doesn't match float32", "!float", "AVX2", "float32", false},
+
+		// Category compound conditions
+		{"float && avx2 matches", "float && avx2", "AVX2", "float32", true},
+		{"float && avx2 doesn't match int32", "float && avx2", "AVX2", "int32", false},
+		{"int || uint matches int32", "int || uint", "AVX2", "int32", true},
+		{"int || uint matches uint64", "int || uint", "AVX2", "uint64", true},
+		{"int || uint doesn't match float32", "int || uint", "AVX2", "float32", false},
 	}
 
 	for _, tt := range tests {

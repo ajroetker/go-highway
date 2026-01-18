@@ -26,10 +26,7 @@ func BaseCopyIf[T hwy.Lanes](src, dst []T, pred func(hwy.Vec[T]) hwy.Mask[T]) in
 
 		// Limit how many we can store
 		remaining := dstLen - dstIdx
-		count := hwy.CompressStore(v, mask, dst[dstIdx:])
-		if count > remaining {
-			count = remaining
-		}
+		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)
 		dstIdx += count
 
 		if dstIdx >= dstLen {
@@ -49,10 +46,7 @@ func BaseCopyIf[T hwy.Lanes](src, dst []T, pred func(hwy.Vec[T]) hwy.Mask[T]) in
 		mask = hwy.MaskAnd(mask, tailMask)
 
 		dstRemaining := dstLen - dstIdx
-		count := hwy.CompressStore(v, mask, dst[dstIdx:])
-		if count > dstRemaining {
-			count = dstRemaining
-		}
+		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), dstRemaining)
 		dstIdx += count
 	}
 

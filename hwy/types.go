@@ -84,10 +84,7 @@ func (v Vec[T]) Data() []T {
 // Store writes the vector's data to a slice.
 // This is the method form of the hwy.Store function.
 func (v Vec[T]) Store(dst []T) {
-	n := len(v.data)
-	if len(dst) < n {
-		n = len(dst)
-	}
+	n := min(len(dst), len(v.data))
 	copy(dst[:n], v.data[:n])
 }
 

@@ -65,19 +65,19 @@ func TestBrightnessContrastFloat64(t *testing.T) {
 	out := NewImage[float64](32, 8)
 
 	scale, offset := 2.0, 0.25
-	for y := 0; y < 8; y++ {
+	for y := range 8 {
 		row := img.Row(y)
-		for x := 0; x < 32; x++ {
+		for x := range 32 {
 			row[x] = float64(x) / 32.0
 		}
 	}
 
 	BrightnessContrast(img, out, scale, offset)
 
-	for y := 0; y < 8; y++ {
+	for y := range 8 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 32; x++ {
+		for x := range 32 {
 			expected := inRow[x]*scale + offset
 			if !almostEqualF64(outRow[x], expected, 1e-10) {
 				t.Errorf("at (%d,%d): got %v, want %v", x, y, outRow[x], expected)
@@ -91,19 +91,19 @@ func TestClampImage(t *testing.T) {
 	out := NewImage[float32](20, 5)
 
 	// Fill with values outside [0, 1]
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		row := img.Row(y)
-		for x := 0; x < 20; x++ {
+		for x := range 20 {
 			row[x] = float32(x-10) / 5.0 // Range: -2 to +1.8
 		}
 	}
 
 	ClampImage(img, out, 0.0, 1.0)
 
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 20; x++ {
+		for x := range 20 {
 			expected := inRow[x]
 			if expected < 0 {
 				expected = 0
@@ -123,19 +123,19 @@ func TestThreshold(t *testing.T) {
 
 	thresh, below, above := float32(0.5), float32(0.0), float32(1.0)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		row := img.Row(y)
-		for x := 0; x < 16; x++ {
+		for x := range 16 {
 			row[x] = float32(x) / 15.0
 		}
 	}
 
 	Threshold(img, out, thresh, below, above)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 16; x++ {
+		for x := range 16 {
 			var expected float32
 			if inRow[x] >= thresh {
 				expected = above
@@ -155,19 +155,19 @@ func TestInvert(t *testing.T) {
 
 	maxVal := float32(1.0)
 
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		row := img.Row(y)
-		for x := 0; x < 24; x++ {
+		for x := range 24 {
 			row[x] = float32(x) / 24.0
 		}
 	}
 
 	Invert(img, out, maxVal)
 
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 24; x++ {
+		for x := range 24 {
 			expected := maxVal - inRow[x]
 			if !almostEqual(outRow[x], expected, tolerance) {
 				t.Errorf("at (%d,%d): got %v, want %v", x, y, outRow[x], expected)
@@ -180,19 +180,19 @@ func TestAbs(t *testing.T) {
 	img := NewImage[float32](32, 2)
 	out := NewImage[float32](32, 2)
 
-	for y := 0; y < 2; y++ {
+	for y := range 2 {
 		row := img.Row(y)
-		for x := 0; x < 32; x++ {
+		for x := range 32 {
 			row[x] = float32(x-16) / 8.0 // Range: -2 to +1.875
 		}
 	}
 
 	Abs(img, out)
 
-	for y := 0; y < 2; y++ {
+	for y := range 2 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 32; x++ {
+		for x := range 32 {
 			expected := inRow[x]
 			if expected < 0 {
 				expected = -expected
@@ -210,19 +210,19 @@ func TestScale(t *testing.T) {
 
 	scale := float32(2.5)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		row := img.Row(y)
-		for x := 0; x < 20; x++ {
+		for x := range 20 {
 			row[x] = float32(x) / 20.0
 		}
 	}
 
 	Scale(img, out, scale)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 20; x++ {
+		for x := range 20 {
 			expected := inRow[x] * scale
 			if !almostEqual(outRow[x], expected, tolerance) {
 				t.Errorf("at (%d,%d): got %v, want %v", x, y, outRow[x], expected)
@@ -237,19 +237,19 @@ func TestOffset(t *testing.T) {
 
 	offset := float32(0.25)
 
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		row := img.Row(y)
-		for x := 0; x < 24; x++ {
+		for x := range 24 {
 			row[x] = float32(x) / 24.0
 		}
 	}
 
 	Offset(img, out, offset)
 
-	for y := 0; y < 3; y++ {
+	for y := range 3 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 24; x++ {
+		for x := range 24 {
 			expected := inRow[x] + offset
 			if !almostEqual(outRow[x], expected, tolerance) {
 				t.Errorf("at (%d,%d): got %v, want %v", x, y, outRow[x], expected)
@@ -264,19 +264,19 @@ func TestGamma(t *testing.T) {
 
 	gamma := float32(2.2)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		row := img.Row(y)
-		for x := 0; x < 16; x++ {
+		for x := range 16 {
 			row[x] = float32(x+1) / 17.0 // Avoid 0 for pow
 		}
 	}
 
 	Gamma(img, out, gamma)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		inRow := img.Row(y)
 		outRow := out.Row(y)
-		for x := 0; x < 16; x++ {
+		for x := range 16 {
 			expected := float32(math.Pow(float64(inRow[x]), float64(gamma)))
 			if !almostEqual(outRow[x], expected, tolerance) {
 				t.Errorf("at (%d,%d): got %v, want %v", x, y, outRow[x], expected)
@@ -290,10 +290,10 @@ func TestMinImage(t *testing.T) {
 	b := NewImage[float32](20, 5)
 	out := NewImage[float32](20, 5)
 
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		rowA := a.Row(y)
 		rowB := b.Row(y)
-		for x := 0; x < 20; x++ {
+		for x := range 20 {
 			rowA[x] = float32(x) / 20.0
 			rowB[x] = float32(19-x) / 20.0
 		}
@@ -301,11 +301,11 @@ func TestMinImage(t *testing.T) {
 
 	MinImage(a, b, out)
 
-	for y := 0; y < 5; y++ {
+	for y := range 5 {
 		rowA := a.Row(y)
 		rowB := b.Row(y)
 		rowOut := out.Row(y)
-		for x := 0; x < 20; x++ {
+		for x := range 20 {
 			expected := rowA[x]
 			if rowB[x] < expected {
 				expected = rowB[x]
@@ -322,10 +322,10 @@ func TestMaxImage(t *testing.T) {
 	b := NewImage[float32](24, 4)
 	out := NewImage[float32](24, 4)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		rowA := a.Row(y)
 		rowB := b.Row(y)
-		for x := 0; x < 24; x++ {
+		for x := range 24 {
 			rowA[x] = float32(x) / 24.0
 			rowB[x] = float32(23-x) / 24.0
 		}
@@ -333,11 +333,11 @@ func TestMaxImage(t *testing.T) {
 
 	MaxImage(a, b, out)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		rowA := a.Row(y)
 		rowB := b.Row(y)
 		rowOut := out.Row(y)
-		for x := 0; x < 24; x++ {
+		for x := range 24 {
 			expected := rowA[x]
 			if rowB[x] > expected {
 				expected = rowB[x]
@@ -371,9 +371,9 @@ func TestInPlace(t *testing.T) {
 	// Test that operations work in-place (same input and output)
 	img := NewImage[float32](16, 4)
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		row := img.Row(y)
-		for x := 0; x < 16; x++ {
+		for x := range 16 {
 			row[x] = float32(x) / 16.0
 		}
 	}
@@ -387,7 +387,7 @@ func TestInPlace(t *testing.T) {
 
 	// Verify
 	row := img.Row(0)
-	for x := 0; x < 16; x++ {
+	for x := range 16 {
 		expected := original[x] * 2.0
 		if !almostEqual(row[x], expected, tolerance) {
 			t.Errorf("at x=%d: got %v, want %v", x, row[x], expected)

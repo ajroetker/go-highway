@@ -11,10 +11,10 @@ import (
 // matmulReference computes C = A * B using naive triple loop.
 // Used as reference for correctness testing.
 func matmulReference(a, b, c []float32, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p] * b[p*n+j]
 			}
 			c[i*n+j] = sum
@@ -52,7 +52,7 @@ func TestMatMulIdentity(t *testing.T) {
 	}
 
 	// Create identity matrix
-	for i := 0; i < n; i++ {
+	for i := range n {
 		identity[i*n+i] = 1
 	}
 
@@ -89,7 +89,7 @@ func TestMatMul256(t *testing.T) {
 	MatMul(a, b, c, m, n, k)
 
 	// Check first few elements
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		t.Logf("c[%d] = %f, expected = %f", i, c[i], expected[i])
 	}
 
@@ -209,18 +209,17 @@ func BenchmarkMatMulScalar(b *testing.B) {
 		bMat[i] = rand.Float32()
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		matmulScalar(a, bMat, c, m, n, k)
 	}
 }
 
 // matmulReference64 computes C = A * B for float64
 func matmulReference64(a, b, c []float64, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float64
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p] * b[p*n+j]
 			}
 			c[i*n+j] = sum

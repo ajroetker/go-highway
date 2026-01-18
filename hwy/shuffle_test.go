@@ -264,16 +264,16 @@ func TestTableLookupBytes(t *testing.T) {
 // Benchmark tests
 func BenchmarkReverse2_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{0, 1, 2, 3, 4, 5, 6, 7}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Reverse2(v)
 	}
 }
 
 func BenchmarkReverse4_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{0, 1, 2, 3, 4, 5, 6, 7}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Reverse4(v)
 	}
 }
@@ -281,8 +281,8 @@ func BenchmarkReverse4_F32(b *testing.B) {
 func BenchmarkInterleaveLower_F32(b *testing.B) {
 	a := Vec[float32]{data: []float32{0, 1, 2, 3, 4, 5, 6, 7}}
 	bVec := Vec[float32]{data: []float32{10, 11, 12, 13, 14, 15, 16, 17}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = InterleaveLower(a, bVec)
 	}
 }
@@ -290,8 +290,8 @@ func BenchmarkInterleaveLower_F32(b *testing.B) {
 func BenchmarkOddEven_F32(b *testing.B) {
 	a := Vec[float32]{data: []float32{0, 1, 2, 3, 4, 5, 6, 7}}
 	bVec := Vec[float32]{data: []float32{10, 11, 12, 13, 14, 15, 16, 17}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = OddEven(a, bVec)
 	}
 }
@@ -536,32 +536,32 @@ func TestSlide1Down(t *testing.T) {
 
 func BenchmarkSlideUpLanes_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = SlideUpLanes(v, 3)
 	}
 }
 
 func BenchmarkSlideDownLanes_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = SlideDownLanes(v, 3)
 	}
 }
 
 func BenchmarkSlide1Up_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Slide1Up(v)
 	}
 }
 
 func BenchmarkSlide1Down_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{1, 2, 3, 4, 5, 6, 7, 8}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Slide1Down(v)
 	}
 }
@@ -679,16 +679,16 @@ func TestPer4LaneBlockShuffle(t *testing.T) {
 func BenchmarkTableLookupLanes_F32(b *testing.B) {
 	tbl := Vec[float32]{data: []float32{10, 20, 30, 40, 50, 60, 70, 80}}
 	idx := Vec[int32]{data: []int32{7, 5, 3, 1, 6, 4, 2, 0}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = TableLookupLanes(tbl, idx)
 	}
 }
 
 func BenchmarkShuffle0123_F32(b *testing.B) {
 	v := Vec[float32]{data: []float32{0, 1, 2, 3, 4, 5, 6, 7}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Shuffle0123(v, 3, 2, 1, 0)
 	}
 }

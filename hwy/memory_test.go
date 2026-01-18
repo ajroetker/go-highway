@@ -242,14 +242,14 @@ func TestLoadInterleaved2(t *testing.T) {
 		// Interleaved pairs: [x0, y0, x1, y1, x2, y2, x3, y3, ...]
 		n := MaxLanes[float32]()
 		src := make([]float32, n*2)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			src[i*2] = float32(i)        // x values: 0, 1, 2, 3, ...
 			src[i*2+1] = float32(i + 10) // y values: 10, 11, 12, 13, ...
 		}
 
 		x, y := LoadInterleaved2(src)
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			wantX := float32(i)
 			wantY := float32(i + 10)
 			if x.data[i] != wantX {
@@ -265,10 +265,6 @@ func TestLoadInterleaved2(t *testing.T) {
 		src := []int32{1, 100, 2, 200, 3, 300, 4, 400}
 		x, y := LoadInterleaved2(src)
 
-		n := len(x.data)
-		if n < 4 {
-			n = 4
-		}
 		wantX := []int32{1, 2, 3, 4}
 		wantY := []int32{100, 200, 300, 400}
 
@@ -288,7 +284,7 @@ func TestLoadInterleaved3(t *testing.T) {
 		// Simulate RGB data: [r0, g0, b0, r1, g1, b1, ...]
 		n := MaxLanes[float32]()
 		src := make([]float32, n*3)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			src[i*3] = float32(i)         // R: 0, 1, 2, ...
 			src[i*3+1] = float32(i + 100) // G: 100, 101, ...
 			src[i*3+2] = float32(i + 200) // B: 200, 201, ...
@@ -296,7 +292,7 @@ func TestLoadInterleaved3(t *testing.T) {
 
 		r, g, b := LoadInterleaved3(src)
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			wantR := float32(i)
 			wantG := float32(i + 100)
 			wantB := float32(i + 200)
@@ -318,7 +314,7 @@ func TestLoadInterleaved4(t *testing.T) {
 		// Simulate RGBA data: [r0, g0, b0, a0, r1, g1, b1, a1, ...]
 		n := MaxLanes[float32]()
 		src := make([]float32, n*4)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			src[i*4] = float32(i)         // R
 			src[i*4+1] = float32(i + 100) // G
 			src[i*4+2] = float32(i + 200) // B
@@ -327,7 +323,7 @@ func TestLoadInterleaved4(t *testing.T) {
 
 		r, g, b, a := LoadInterleaved4(src)
 
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if r.data[i] != float32(i) {
 				t.Errorf("R lane %d: got %v, want %v", i, r.data[i], float32(i))
 			}
@@ -488,8 +484,7 @@ func BenchmarkBlendedStore(b *testing.B) {
 		v.data[i] = float32(i)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		BlendedStore(v, mask, dst)
 	}
 }
@@ -501,8 +496,7 @@ func BenchmarkLoadInterleaved2(b *testing.B) {
 		src[i] = float32(i)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = LoadInterleaved2(src)
 	}
 }
@@ -513,13 +507,12 @@ func BenchmarkStoreInterleaved2(b *testing.B) {
 	y := Vec[float32]{data: make([]float32, n)}
 	dst := make([]float32, n*2)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		x.data[i] = float32(i)
 		y.data[i] = float32(i + 10)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		StoreInterleaved2(x, y, dst)
 	}
 }
@@ -527,8 +520,7 @@ func BenchmarkStoreInterleaved2(b *testing.B) {
 func BenchmarkLoadDup128(b *testing.B) {
 	src := []float32{1, 2, 3, 4}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = LoadDup128(src)
 	}
 }

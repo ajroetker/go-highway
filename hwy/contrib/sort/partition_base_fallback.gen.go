@@ -53,10 +53,7 @@ func BasePartition3Way_fallback(data []float32, pivot float32) (int, int) {
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -135,10 +132,7 @@ func BasePartition3Way_fallback_Float64(data []float64, pivot float64) (int, int
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -217,10 +211,7 @@ func BasePartition3Way_fallback_Int32(data []int32, pivot int32) (int, int) {
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -299,10 +290,7 @@ func BasePartition3Way_fallback_Int64(data []int64, pivot int64) (int, int) {
 			i += lanes
 			continue
 		}
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -363,10 +351,7 @@ func BasePartition_fallback(data []float32, pivot float32) int {
 			hwy.Store(vRight, data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++
@@ -419,10 +404,7 @@ func BasePartition_fallback_Float64(data []float64, pivot float64) int {
 			hwy.Store(vRight, data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++
@@ -475,10 +457,7 @@ func BasePartition_fallback_Int32(data []int32, pivot int32) int {
 			hwy.Store(vRight, data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++
@@ -531,10 +510,7 @@ func BasePartition_fallback_Int64(data []int64, pivot int64) int {
 			hwy.Store(vRight, data[left:])
 			continue
 		}
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++

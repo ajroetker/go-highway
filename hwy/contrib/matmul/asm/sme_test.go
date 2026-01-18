@@ -11,8 +11,8 @@ import (
 
 // transposeMatrix transposes M×K matrix A into K×M matrix AT
 func transposeMatrix(a []float32, m, k int, at []float32) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			at[j*m+i] = a[i*k+j]
 		}
 	}
@@ -20,8 +20,8 @@ func transposeMatrix(a []float32, m, k int, at []float32) {
 
 // transposeMatrix64 transposes M×K matrix A into K×M matrix AT for float64
 func transposeMatrix64(a []float64, m, k int, at []float64) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			at[j*m+i] = a[i*k+j]
 		}
 	}
@@ -29,10 +29,10 @@ func transposeMatrix64(a []float64, m, k int, at []float64) {
 
 // matmulReference computes C = A * B using naive triple loop
 func matmulReference(a, b, c []float32, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p] * b[p*n+j]
 			}
 			c[i*n+j] = sum
@@ -42,10 +42,10 @@ func matmulReference(a, b, c []float32, m, n, k int) {
 
 // matmulReference64 computes C = A * B for float64
 func matmulReference64(a, b, c []float64, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float64
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p] * b[p*n+j]
 			}
 			c[i*n+j] = sum
@@ -160,8 +160,8 @@ func sizeStr(n int) string {
 
 // transposeMatrixF16 transposes M×K matrix A into K×M matrix AT for Float16
 func transposeMatrixF16(a []hwy.Float16, m, k int, at []hwy.Float16) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			at[j*m+i] = a[i*k+j]
 		}
 	}
@@ -169,8 +169,8 @@ func transposeMatrixF16(a []hwy.Float16, m, k int, at []hwy.Float16) {
 
 // transposeMatrixBF16 transposes M×K matrix A into K×M matrix AT for BFloat16
 func transposeMatrixBF16(a []hwy.BFloat16, m, k int, at []hwy.BFloat16) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			at[j*m+i] = a[i*k+j]
 		}
 	}
@@ -178,10 +178,10 @@ func transposeMatrixBF16(a []hwy.BFloat16, m, k int, at []hwy.BFloat16) {
 
 // matmulReferenceF16 computes C = A * B using naive triple loop for Float16
 func matmulReferenceF16(a, b, c []hwy.Float16, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 			}
 			c[i*n+j] = hwy.NewFloat16(sum)
@@ -191,10 +191,10 @@ func matmulReferenceF16(a, b, c []hwy.Float16, m, n, k int) {
 
 // matmulReferenceBF16 computes C = A * B using naive triple loop for BFloat16
 func matmulReferenceBF16(a, b, c []hwy.BFloat16, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 			}
 			c[i*n+j] = hwy.NewBFloat16(sum)

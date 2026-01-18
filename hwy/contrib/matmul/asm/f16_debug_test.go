@@ -37,14 +37,14 @@ func TestF16Debug(t *testing.T) {
 
 	// Print first few elements
 	fmt.Println("First 16 elements of C (row 0):")
-	for j := 0; j < 16; j++ {
+	for j := range 16 {
 		fmt.Printf("  [0,%d] expected=%.4f actual=%.4f diff=%.4f\n",
 			j, expected[j].Float32(), c[j].Float32(),
 			c[j].Float32()-expected[j].Float32())
 	}
 
 	fmt.Println("\nFirst column of C:")
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		fmt.Printf("  [%d,0] expected=%.4f actual=%.4f diff=%.4f\n",
 			i, expected[i*n].Float32(), c[i*n].Float32(),
 			c[i*n].Float32()-expected[i*n].Float32())

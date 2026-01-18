@@ -751,64 +751,64 @@ func TestConvertLargeValues(t *testing.T) {
 
 func BenchmarkConvertToInt32_F32(b *testing.B) {
 	v := Set[float32](3.14159)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = ConvertToInt32(v)
 	}
 }
 
 func BenchmarkConvertToFloat32_I32(b *testing.B) {
 	v := Set[int32](42)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = ConvertToFloat32(v)
 	}
 }
 
 func BenchmarkRound_F32(b *testing.B) {
 	v := Set[float32](3.14159)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Round(v)
 	}
 }
 
 func BenchmarkTrunc_F32(b *testing.B) {
 	v := Set[float32](3.14159)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Trunc(v)
 	}
 }
 
 func BenchmarkCeil_F32(b *testing.B) {
 	v := Set[float32](3.14159)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Ceil(v)
 	}
 }
 
 func BenchmarkFloor_F32(b *testing.B) {
 	v := Set[float32](3.14159)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = Floor(v)
 	}
 }
 
 func BenchmarkBitCastF32ToI32(b *testing.B) {
 	v := Set[float32](3.14159)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = BitCastF32ToI32(v)
 	}
 }
 
 func BenchmarkBitCastI32ToF32(b *testing.B) {
 	v := Set[int32](0x40490fdb) // pi bits
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = BitCastI32ToF32(v)
 	}
 }

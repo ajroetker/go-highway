@@ -13,10 +13,10 @@ import (
 // b is normal B (rows are B rows).
 // This computes C += (aT)^T * b = A * B
 func referenceBlockMulAdd(aT, b, c []float32, blockDim int) {
-	for i := 0; i < blockDim; i++ {
-		for j := 0; j < blockDim; j++ {
+	for i := range blockDim {
+		for j := range blockDim {
 			var sum float32
-			for k := 0; k < blockDim; k++ {
+			for k := range blockDim {
 				// A[i,k] = aT[k,i]
 				// B[k,j] = b[k*blockDim+j]
 				aik := aT[k*blockDim+i]
@@ -32,8 +32,8 @@ func referenceBlockMulAdd(aT, b, c []float32, blockDim int) {
 // result[j*blockDim+i] = m[i*blockDim+j]
 func transposeBlock(m []float32, blockDim int) []float32 {
 	result := make([]float32, blockDim*blockDim)
-	for i := 0; i < blockDim; i++ {
-		for j := 0; j < blockDim; j++ {
+	for i := range blockDim {
+		for j := range blockDim {
 			result[j*blockDim+i] = m[i*blockDim+j]
 		}
 	}
@@ -50,8 +50,8 @@ func TestBlockMulAdd(t *testing.T) {
 			size := blockDim * blockDim
 
 			// Create test matrices
-			a := make([]float32, size)     // Original A
-			b := make([]float32, size)     // Original B (NOT transposed)
+			a := make([]float32, size) // Original A
+			b := make([]float32, size) // Original B (NOT transposed)
 			c := make([]float32, size)
 			expected := make([]float32, size)
 
@@ -260,7 +260,7 @@ func TestParallelBlockMulAdd(t *testing.T) {
 	cs := make([][]float32, numBlocks)
 	expected := make([][]float32, numBlocks)
 
-	for blk := 0; blk < numBlocks; blk++ {
+	for blk := range numBlocks {
 		aTs[blk] = make([]float32, size)
 		bs[blk] = make([]float32, size)
 		cs[blk] = make([]float32, size)
@@ -286,7 +286,7 @@ func TestParallelBlockMulAdd(t *testing.T) {
 	ParallelBlockMulAdd(aTs, bs, cs, blockDim)
 
 	// Verify all blocks
-	for blk := 0; blk < numBlocks; blk++ {
+	for blk := range numBlocks {
 		var maxErr float32
 		for i := range cs[blk] {
 			err := float32(math.Abs(float64(cs[blk][i] - expected[blk][i])))
@@ -314,7 +314,7 @@ func BenchmarkParallelBlockMulAdd(b *testing.B) {
 		bs := make([][]float32, numBlocks)
 		cs := make([][]float32, numBlocks)
 
-		for blk := 0; blk < numBlocks; blk++ {
+		for blk := range numBlocks {
 			aTs[blk] = make([]float32, size)
 			bs[blk] = make([]float32, size)
 			cs[blk] = make([]float32, size)
@@ -332,7 +332,7 @@ func BenchmarkParallelBlockMulAdd(b *testing.B) {
 		b.Run(sizeStr(numBlocks)+"blocks/Sequential", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				for blk := 0; blk < numBlocks; blk++ {
+				for blk := range numBlocks {
 					BlockMulAdd(aTs[blk], bs[blk], cs[blk], blockDim)
 				}
 			}

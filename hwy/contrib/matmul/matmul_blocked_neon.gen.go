@@ -49,7 +49,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 							hwy.Store(vC, c[cRowStart+j:])
 						}
 						for ; j < blockN; j++ {
-							c[cRowStart+j] += hwy.Float32ToFloat16(aip.Float32() * b[bRowStart+j].Float32())
+							c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aip.Float32()*b[bRowStart+j].Float32())
 						}
 					}
 				}
@@ -99,7 +99,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 							hwy.Store(vC, c[cRowStart+j:])
 						}
 						for ; j < blockN; j++ {
-							c[cRowStart+j] += hwy.Float32ToBFloat16(aip.Float32() * b[bRowStart+j].Float32())
+							c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aip.Float32()*b[bRowStart+j].Float32())
 						}
 					}
 				}

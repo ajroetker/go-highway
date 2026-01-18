@@ -896,7 +896,7 @@ func BaseMinImage_fallback_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16],
 	}
 	lanes := hwy.MaxLanes[hwy.Float16]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -929,7 +929,7 @@ func BaseMinImage_fallback_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat1
 	}
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -962,7 +962,7 @@ func BaseMinImage_fallback(a *Image[float32], b *Image[float32], out *Image[floa
 	}
 	lanes := hwy.MaxLanes[float32]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -995,7 +995,7 @@ func BaseMinImage_fallback_Float64(a *Image[float64], b *Image[float64], out *Im
 	}
 	lanes := hwy.MaxLanes[float64]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1028,7 +1028,7 @@ func BaseMaxImage_fallback_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16],
 	}
 	lanes := hwy.MaxLanes[hwy.Float16]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1061,7 +1061,7 @@ func BaseMaxImage_fallback_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat1
 	}
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1094,7 +1094,7 @@ func BaseMaxImage_fallback(a *Image[float32], b *Image[float32], out *Image[floa
 	}
 	lanes := hwy.MaxLanes[float32]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1127,7 +1127,7 @@ func BaseMaxImage_fallback_Float64(a *Image[float64], b *Image[float64], out *Im
 	}
 	lanes := hwy.MaxLanes[float64]()
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)

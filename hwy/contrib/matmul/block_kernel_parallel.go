@@ -37,34 +37,29 @@ func ParallelBlockMulAdd[T hwy.Floats](aTs, bs, cs [][]T, blockDim int) {
 
 	// For small number of blocks, process sequentially
 	if numBlocks < MinBlocksForParallel {
-		for i := 0; i < numBlocks; i++ {
+		for i := range numBlocks {
 			BlockMulAdd(aTs[i], bs[i], cs[i], blockDim)
 		}
 		return
 	}
 
-	numWorkers := runtime.GOMAXPROCS(0)
-	if numWorkers > numBlocks {
-		numWorkers = numBlocks
-	}
+	numWorkers := min(runtime.GOMAXPROCS(0), numBlocks)
 
 	// Work queue of block indices
 	work := make(chan int, numBlocks)
-	for i := 0; i < numBlocks; i++ {
+	for i := range numBlocks {
 		work <- i
 	}
 	close(work)
 
 	// Workers process blocks in parallel
 	var wg sync.WaitGroup
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numWorkers {
+		wg.Go(func() {
 			for idx := range work {
 				BlockMulAdd(aTs[idx], bs[idx], cs[idx], blockDim)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

@@ -25,7 +25,7 @@ func PromoteF32ToF64(v Vec[float32]) Vec[float64] {
 func PromoteLowerF32ToF64(v Vec[float32]) Vec[float64] {
 	n := len(v.data) / 2
 	result := make([]float64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = float64(v.data[i])
 	}
 	return Vec[float64]{data: result}
@@ -37,7 +37,7 @@ func PromoteUpperF32ToF64(v Vec[float32]) Vec[float64] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]float64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = float64(v.data[half+i])
 	}
 	return Vec[float64]{data: result}
@@ -80,7 +80,7 @@ func PromoteI8ToI16(v Vec[int8]) Vec[int16] {
 func PromoteLowerI8ToI16(v Vec[int8]) Vec[int16] {
 	n := len(v.data) / 2
 	result := make([]int16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = int16(v.data[i])
 	}
 	return Vec[int16]{data: result}
@@ -91,7 +91,7 @@ func PromoteUpperI8ToI16(v Vec[int8]) Vec[int16] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]int16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = int16(v.data[half+i])
 	}
 	return Vec[int16]{data: result}
@@ -110,7 +110,7 @@ func PromoteI16ToI32(v Vec[int16]) Vec[int32] {
 func PromoteLowerI16ToI32(v Vec[int16]) Vec[int32] {
 	n := len(v.data) / 2
 	result := make([]int32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = int32(v.data[i])
 	}
 	return Vec[int32]{data: result}
@@ -121,7 +121,7 @@ func PromoteUpperI16ToI32(v Vec[int16]) Vec[int32] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]int32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = int32(v.data[half+i])
 	}
 	return Vec[int32]{data: result}
@@ -140,7 +140,7 @@ func PromoteI32ToI64(v Vec[int32]) Vec[int64] {
 func PromoteLowerI32ToI64(v Vec[int32]) Vec[int64] {
 	n := len(v.data) / 2
 	result := make([]int64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = int64(v.data[i])
 	}
 	return Vec[int64]{data: result}
@@ -151,7 +151,7 @@ func PromoteUpperI32ToI64(v Vec[int32]) Vec[int64] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]int64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = int64(v.data[half+i])
 	}
 	return Vec[int64]{data: result}
@@ -170,7 +170,7 @@ func PromoteU8ToU16(v Vec[uint8]) Vec[uint16] {
 func PromoteLowerU8ToU16(v Vec[uint8]) Vec[uint16] {
 	n := len(v.data) / 2
 	result := make([]uint16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = uint16(v.data[i])
 	}
 	return Vec[uint16]{data: result}
@@ -181,7 +181,7 @@ func PromoteUpperU8ToU16(v Vec[uint8]) Vec[uint16] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]uint16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = uint16(v.data[half+i])
 	}
 	return Vec[uint16]{data: result}
@@ -200,7 +200,7 @@ func PromoteU16ToU32(v Vec[uint16]) Vec[uint32] {
 func PromoteLowerU16ToU32(v Vec[uint16]) Vec[uint32] {
 	n := len(v.data) / 2
 	result := make([]uint32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = uint32(v.data[i])
 	}
 	return Vec[uint32]{data: result}
@@ -211,7 +211,7 @@ func PromoteUpperU16ToU32(v Vec[uint16]) Vec[uint32] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]uint32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = uint32(v.data[half+i])
 	}
 	return Vec[uint32]{data: result}
@@ -230,7 +230,7 @@ func PromoteU32ToU64(v Vec[uint32]) Vec[uint64] {
 func PromoteLowerU32ToU64(v Vec[uint32]) Vec[uint64] {
 	n := len(v.data) / 2
 	result := make([]uint64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = uint64(v.data[i])
 	}
 	return Vec[uint64]{data: result}
@@ -241,7 +241,7 @@ func PromoteUpperU32ToU64(v Vec[uint32]) Vec[uint64] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]uint64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = uint64(v.data[half+i])
 	}
 	return Vec[uint64]{data: result}

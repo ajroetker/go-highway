@@ -9,12 +9,9 @@ import "math"
 // Results are clamped to the type's valid range instead of wrapping.
 // For example, uint8: 250 + 10 = 255 (not 4)
 func SaturatedAdd[T Integers](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = saturatedAdd(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -24,12 +21,9 @@ func SaturatedAdd[T Integers](a, b Vec[T]) Vec[T] {
 // Results are clamped to the type's valid range instead of wrapping.
 // For example, uint8: 10 - 20 = 0 (not 246)
 func SaturatedSub[T Integers](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = saturatedSub(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -38,15 +32,9 @@ func SaturatedSub[T Integers](a, b Vec[T]) Vec[T] {
 // Clamp clamps each element to the range [lo, hi].
 // Elements less than lo become lo, elements greater than hi become hi.
 func Clamp[T Lanes](v, lo, hi Vec[T]) Vec[T] {
-	n := len(v.data)
-	if len(lo.data) < n {
-		n = len(lo.data)
-	}
-	if len(hi.data) < n {
-		n = len(hi.data)
-	}
+	n := min(len(hi.data), min(len(lo.data), len(v.data)))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		val := v.data[i]
 		if val < lo.data[i] {
 			val = lo.data[i]
@@ -63,12 +51,9 @@ func Clamp[T Lanes](v, lo, hi Vec[T]) Vec[T] {
 // For unsigned types, this is max(a,b) - min(a,b).
 // For signed types, this is |a - b|.
 func AbsDiff[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = absDiff(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -77,12 +62,9 @@ func AbsDiff[T Lanes](a, b Vec[T]) Vec[T] {
 // Avg computes the rounded average (a + b + 1) / 2 for each element.
 // This is useful for image processing and avoids overflow.
 func Avg[T Integers](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = roundedAvg(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -91,12 +73,9 @@ func Avg[T Integers](a, b Vec[T]) Vec[T] {
 // MulHigh returns the high bits of the widening multiplication a * b.
 // For n-bit integers, multiplying produces 2n bits; this returns the upper n bits.
 func MulHigh[T Integers](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = mulHigh(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}

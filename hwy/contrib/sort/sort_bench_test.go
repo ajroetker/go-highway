@@ -295,8 +295,7 @@ func BenchmarkPartition3Way_Float32_10000(b *testing.B) {
 	data := make([]float32, len(ref))
 	pivot := PivotSampled(ref)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(data, ref)
 		Partition3Way(data, pivot)
 	}
@@ -307,8 +306,7 @@ func BenchmarkPartition_Float32_10000(b *testing.B) {
 	data := make([]float32, len(ref))
 	pivot := PivotSampled(ref)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(data, ref)
 		Partition(data, pivot)
 	}
@@ -320,8 +318,7 @@ func BenchmarkCompressPartition3Way_Float32_10000(b *testing.B) {
 	data := make([]float32, len(ref))
 	pivot := PivotSampled(ref)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(data, ref)
 		CompressPartition3WayFloat32(data, pivot)
 	}
@@ -352,8 +349,7 @@ func BenchmarkScalarPartition3Way_Float32_10000(b *testing.B) {
 	data := make([]float32, len(ref))
 	pivot := PivotSampled(ref)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(data, ref)
 		scalarPartition3WayBench(data, pivot)
 	}

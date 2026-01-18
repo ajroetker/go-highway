@@ -103,8 +103,8 @@ func TestBlockMulAddNEONFloat64(t *testing.T) {
 // transposeBlockFloat64 transposes a blockDim x blockDim matrix.
 func transposeBlockFloat64(m []float64, blockDim int) []float64 {
 	result := make([]float64, blockDim*blockDim)
-	for i := 0; i < blockDim; i++ {
-		for j := 0; j < blockDim; j++ {
+	for i := range blockDim {
+		for j := range blockDim {
 			result[j*blockDim+i] = m[i*blockDim+j]
 		}
 	}
@@ -114,10 +114,10 @@ func transposeBlockFloat64(m []float64, blockDim int) []float64 {
 // referenceBlockMulAddFloat64 computes C += A * B using naive triple loop for float64.
 // aT is the transposed A, b is normal B.
 func referenceBlockMulAddFloat64(aT, b, c []float64, blockDim int) {
-	for i := 0; i < blockDim; i++ {
-		for j := 0; j < blockDim; j++ {
+	for i := range blockDim {
+		for j := range blockDim {
 			var sum float64
-			for k := 0; k < blockDim; k++ {
+			for k := range blockDim {
 				// A[i,k] = aT[k,i]
 				aik := aT[k*blockDim+i]
 				bkj := b[k*blockDim+j]

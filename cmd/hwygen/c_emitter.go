@@ -76,19 +76,19 @@ func (e *CEmitter) emitBulkFunction(buf *bytes.Buffer, pf *ParsedFunc) error {
 	fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes*4-1, lanes*4)
 
 	// Load 4 vectors
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		fmt.Fprintf(buf, "        %s x%d = %s(input + i + %d);\n", vecType, j, e.loadIntrinsic(), j*lanes)
 	}
 	fmt.Fprintf(buf, "\n")
 
 	// Emit the computation for each vector
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		e.emitVecComputation(buf, pf, j, "        ")
 	}
 
 	// Store results
 	fmt.Fprintf(buf, "\n")
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		fmt.Fprintf(buf, "        %s(result + i + %d, res%d);\n", e.storeIntrinsic(), j*lanes, j)
 	}
 	fmt.Fprintf(buf, "    }\n\n")
@@ -590,19 +590,19 @@ func (e *CEmitter) emitCompositeFunction(buf *bytes.Buffer, pf *ParsedFunc) erro
 	fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes*4-1, lanes*4)
 
 	// Load 4 vectors
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		fmt.Fprintf(buf, "        %s x%d = %s(input + i + %d);\n", vecType, j, e.loadIntrinsic(), j*lanes)
 	}
 	fmt.Fprintf(buf, "\n")
 
 	// Emit the composite computation for each vector
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		e.emitCompositeComputation(buf, pf, j, "        ")
 	}
 
 	// Store results
 	fmt.Fprintf(buf, "\n")
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		fmt.Fprintf(buf, "        %s(output + i + %d, res%d);\n", e.storeIntrinsic(), j*lanes, j)
 	}
 	fmt.Fprintf(buf, "    }\n\n")

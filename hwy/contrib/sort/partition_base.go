@@ -73,10 +73,7 @@ func BasePartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 		}
 
 		// Mixed vector: process this vector's elements via scalar, then continue SIMD
-		end := i + lanes
-		if end > gt {
-			end = gt
-		}
+		end := min(i+lanes, gt)
 		for i < end {
 			if data[i] < pivot {
 				data[lt], data[i] = data[i], data[lt]
@@ -155,10 +152,7 @@ func BasePartition[T hwy.Lanes](data []T, pivot T) int {
 		}
 
 		// Mixed: process this vector via scalar
-		end := left + lanes
-		if end > right {
-			end = right
-		}
+		end := min(left+lanes, right)
 		for left < end {
 			if data[left] <= pivot {
 				left++

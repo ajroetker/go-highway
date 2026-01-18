@@ -23,6 +23,11 @@ func isHalfPrecisionType(elemType string) bool {
 	return isFloat16Type(elemType) || isBFloat16Type(elemType)
 }
 
+// isUnsignedIntType returns true if the element type is an unsigned integer type.
+func isUnsignedIntType(elemType string) bool {
+	return elemType == "uint8" || elemType == "uint16" || elemType == "uint32" || elemType == "uint64"
+}
+
 // isHalfPrecisionSliceType checks if a parameter type is a slice of half-precision elements.
 // It handles both concrete types like "[]hwy.Float16" and generic types like "[]T" when
 // elemType is a half-precision type.
@@ -41,6 +46,26 @@ func isHalfPrecisionSliceType(paramType, elemType string) bool {
 		if len(sliceElem) == 1 || sliceElem == elemType {
 			return true
 		}
+	}
+	return false
+}
+
+// isHalfPrecisionScalarType checks if a parameter type is a scalar (non-slice) half-precision type.
+// It handles both concrete types like "hwy.Float16" and generic types like "T" when
+// elemType is a half-precision type.
+func isHalfPrecisionScalarType(paramType, elemType string) bool {
+	// Don't match slices or arrays
+	if strings.HasPrefix(paramType, "[]") || strings.HasPrefix(paramType, "[") {
+		return false
+	}
+	// Check for concrete half-precision types
+	if paramType == "hwy.Float16" || paramType == "hwy.BFloat16" ||
+		paramType == "Float16" || paramType == "BFloat16" {
+		return true
+	}
+	// Check for generic type param (single letter like "T") when elem type is half-precision
+	if len(paramType) == 1 && isHalfPrecisionType(elemType) {
+		return true
 	}
 	return false
 }
@@ -198,30 +223,44 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 
 	// Transform the function body
 	ctx := &transformContext{
-		target:              target,
-		elemType:            elemType,
-		typeParams:          pf.TypeParams,
-		loopInfo:            pf.LoopInfo,
-		lanesVars:           make(map[string]bool),
-		localVars:           make(map[string]bool),
-		stackArrayVars:      make(map[string]bool),
-		hoistedConsts:       make(map[string]HoistedConst),
-		funcName:            pf.Name,
-		typeSpecificConsts:  opts.TypeSpecificConsts,
-		conditionalBlocks:   opts.ConditionalBlocks,
-		fset:                opts.FileSet,
-		imports:             opts.Imports,
-		varTypes:            make(map[string]string),
-		halfPrecisionSlices: make(map[string]bool),
+		target:                  target,
+		elemType:                elemType,
+		typeParams:              pf.TypeParams,
+		loopInfo:                pf.LoopInfo,
+		lanesVars:               make(map[string]bool),
+		localVars:               make(map[string]bool),
+		stackArrayVars:          make(map[string]bool),
+		hoistedConsts:           make(map[string]HoistedConst),
+		funcName:                pf.Name,
+		typeSpecificConsts:      opts.TypeSpecificConsts,
+		conditionalBlocks:       opts.ConditionalBlocks,
+		fset:                    opts.FileSet,
+		imports:                 opts.Imports,
+		varTypes:                make(map[string]string),
+		halfPrecisionSlices:     make(map[string]bool),
+		halfPrecisionScalarVars: make(map[string]bool),
 	}
 
 	// Add function parameters to localVars to prevent them from being hoisted
-	// Also track half-precision slice parameters
+	// Also track half-precision slice and scalar parameters
 	for _, param := range pf.Params {
 		ctx.localVars[param.Name] = true
 		// Check if parameter is a slice of half-precision type
 		if isHalfPrecisionSliceType(param.Type, elemType) {
 			ctx.halfPrecisionSlices[param.Name] = true
+		}
+		// Check if parameter is a scalar half-precision type
+		if isHalfPrecisionScalarType(param.Type, elemType) {
+			ctx.halfPrecisionScalarVars[param.Name] = true
+		}
+	}
+
+	// Also track named return values as half-precision scalars
+	// For functions like BaseMinMax[T hwy.Floats](v []T) (min, max T),
+	// the named return values min and max should be tracked as half-precision scalars
+	for _, ret := range pf.Returns {
+		if ret.Name != "" && isHalfPrecisionScalarType(ret.Type, elemType) {
+			ctx.halfPrecisionScalarVars[ret.Name] = true
 		}
 	}
 
@@ -258,7 +297,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	// Insert tail handling if there's a loop and function doesn't return a value
 	// (functions that return values have their own tail handling in the template)
 	if pf.LoopInfo != nil && len(pf.Returns) == 0 {
-		insertTailHandling(funcDecl.Body, pf.LoopInfo, elemType, target, pf.Name, pf.Params)
+		insertTailHandling(funcDecl.Body, pf.LoopInfo, elemType, target, pf.Name, pf.Params, pf.TypeParams)
 	}
 
 	// Collect hoisted constants
@@ -274,22 +313,22 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 }
 
 type transformContext struct {
-	target                   Target
-	elemType                 string
-	typeParams               []TypeParam
-	lanesVars                map[string]bool               // Variables assigned from NumLanes()
-	localVars                map[string]bool               // Variables defined locally in the function
-	stackArrayVars           map[string]bool               // Variables that are stack arrays (need [:] when used as slice)
-	loopInfo                 *LoopInfo
-	hoistedConsts            map[string]HoistedConst       // Hoisted constants (key is local var name)
-	funcName                 string                        // Current function name for generating unique hoisted names
-	typeSpecificConsts       map[string]*TypeSpecificConst // Type-specific constant registry
-	conditionalBlocks        []ConditionalBlock            // Conditional blocks to process
-	fset                     *token.FileSet                // For resolving line numbers
-	imports                  map[string]string             // map[local_name]import_path for resolving package references
-	varTypes                 map[string]string             // map[var_name]type for type inference (e.g., "int32", "hwy.Float16")
-	halfPrecisionScalarVars  map[string]bool               // Variables assigned from half-precision slice reads
-	halfPrecisionSlices      map[string]bool               // Slice variables that hold half-precision elements
+	target                  Target
+	elemType                string
+	typeParams              []TypeParam
+	lanesVars               map[string]bool // Variables assigned from NumLanes()
+	localVars               map[string]bool // Variables defined locally in the function
+	stackArrayVars          map[string]bool // Variables that are stack arrays (need [:] when used as slice)
+	loopInfo                *LoopInfo
+	hoistedConsts           map[string]HoistedConst       // Hoisted constants (key is local var name)
+	funcName                string                        // Current function name for generating unique hoisted names
+	typeSpecificConsts      map[string]*TypeSpecificConst // Type-specific constant registry
+	conditionalBlocks       []ConditionalBlock            // Conditional blocks to process
+	fset                    *token.FileSet                // For resolving line numbers
+	imports                 map[string]string             // map[local_name]import_path for resolving package references
+	varTypes                map[string]string             // map[var_name]type for type inference (e.g., "int32", "hwy.Float16")
+	halfPrecisionScalarVars map[string]bool               // Variables assigned from half-precision slice reads
+	halfPrecisionSlices     map[string]bool               // Slice variables that hold half-precision elements
 }
 
 // inferTypeFromExpr analyzes an expression and returns its inferred type.
@@ -1206,6 +1245,37 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// but this may cause issues if they try to use method calls
 	}
 
+	// For unsigned integer types on AVX2/AVX512, use wrapper functions for ReduceMax and GetLane.
+	// archsimd doesn't have ReduceMax or GetLane methods for unsigned types.
+	if isUnsignedIntType(ctx.elemType) && (ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512") {
+		switch funcName {
+		case "ReduceMax":
+			// hwy.ReduceMax(v) -> hwy.ReduceMax_AVX2_Uint32x8(v)
+			if len(call.Args) >= 1 {
+				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+				wrapperName := fmt.Sprintf("ReduceMax_%s_%s", ctx.target.Name, vecTypeName)
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(wrapperName),
+				}
+				// Args stay as-is
+				return
+			}
+		case "GetLane":
+			// hwy.GetLane(v, i) -> hwy.GetLane_AVX2_Uint32x8(v, i)
+			if len(call.Args) >= 2 {
+				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+				wrapperName := fmt.Sprintf("GetLane_%s_%s", ctx.target.Name, vecTypeName)
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(wrapperName),
+				}
+				// Args stay as-is
+				return
+			}
+		}
+	}
+
 	// For SIMD targets, convert to method calls on archsimd types
 	switch funcName {
 	case "Store":
@@ -1394,7 +1464,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				if op, ok := ctx.target.OpMap["AsInt32"]; ok {
 					asIntMethod = op.Name
 				}
-				mask = "8388607" // 0x7FFFFF
+				mask = "8388607"   // 0x7FFFFF
 				one = "1065353216" // 0x3F800000
 				asFloatMethod = "AsFloat32x8"
 				if op, ok := ctx.target.OpMap["AsFloat32"]; ok {
@@ -1405,7 +1475,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				if op, ok := ctx.target.OpMap["AsInt64"]; ok {
 					asIntMethod = op.Name
 				}
-				mask = "4503599627370495" // 0x000FFFFFFFFFFFFF
+				mask = "4503599627370495"   // 0x000FFFFFFFFFFFFF
 				one = "4607182418800017408" // 0x3FF0000000000000
 				asFloatMethod = "AsFloat64x4"
 				if op, ok := ctx.target.OpMap["AsFloat64"]; ok {
@@ -1896,6 +1966,8 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		case "Set":
 			selExpr.X = ast.NewIdent("hwy")
 			selExpr.Sel.Name = "Set"
+			// Note: For half-precision, argument wrapping is handled in
+			// transformHalfPrecisionFallback after scalar variables are tracked.
 			return
 		case "Zero":
 			selExpr.X = ast.NewIdent("hwy")
@@ -2254,6 +2326,10 @@ func getShortTypeName(elemType string, target Target) string {
 		return fmt.Sprintf("I32x%d", lanes)
 	case "int64":
 		return fmt.Sprintf("I64x%d", lanes)
+	case "uint32":
+		return fmt.Sprintf("Uint32x%d", lanes)
+	case "uint64":
+		return fmt.Sprintf("Uint64x%d", lanes)
 	default:
 		return "Vec"
 	}
@@ -2669,7 +2745,7 @@ func matchesLoopIterator(forStmt *ast.ForStmt, iteratorName string) bool {
 }
 
 // insertTailHandling adds scalar tail handling after the vectorized loop.
-func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string, target Target, funcName string, params []Param) {
+func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string, target Target, funcName string, params []Param, typeParams []TypeParam) {
 	if body == nil || loopInfo == nil {
 		return
 	}
@@ -2711,8 +2787,9 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	//     BaseSigmoid_fallback(in[ii:size], out[ii:size])
 	// }
 	fallbackFuncName := funcName + "_fallback"
-	// Add type suffix for non-float32 types (matches how generator.go names functions)
-	if elemType != "float32" {
+	// Add type suffix for non-float32 types only for generic functions
+	// (matches how generator.go names functions in generator.go:100-102)
+	if elemType != "float32" && len(typeParams) > 0 {
 		fallbackFuncName = fallbackFuncName + "_" + typeNameToSuffix(elemType)
 	}
 
@@ -2766,7 +2843,6 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	newStmts = append(newStmts, body.List[loopIdx+1:]...)
 	body.List = newStmts
 }
-
 
 // specializeType replaces generic type parameters with concrete types.
 // For SIMD targets, also transforms hwy.Vec[T] to archsimd/asm vector types.
@@ -2856,7 +2932,8 @@ func replaceTypeParam(typeStr, paramName, elemType string) string {
 
 // specializeVecType transforms hwy.Vec[elemType] and hwy.Mask[elemType] to concrete archsimd/asm types.
 // For example: hwy.Vec[float32] -> archsimd.Float32x8 (for AVX2)
-//              hwy.Mask[float32] -> archsimd.Int32x8 (for AVX2)
+//
+//	hwy.Mask[float32] -> archsimd.Int32x8 (for AVX2)
 func specializeVecType(typeStr string, elemType string, target Target) string {
 	if target.Name == "Fallback" {
 		// For fallback, keep hwy.Vec[float32], hwy.Mask[float32] etc.
@@ -2906,9 +2983,9 @@ func getMaskTypeName(elemType string, target Target) string {
 	// For archsimd targets, use proper Mask types
 	if target.VecPackage == "archsimd" {
 		switch elemType {
-		case "float32", "int32":
+		case "float32", "int32", "uint32":
 			return fmt.Sprintf("Mask32x%d", lanes)
-		case "float64", "int64":
+		case "float64", "int64", "uint64":
 			return fmt.Sprintf("Mask64x%d", lanes)
 		default:
 			return ""
@@ -2920,9 +2997,9 @@ func getMaskTypeName(elemType string, target Target) string {
 		return fmt.Sprintf("Int32x%d", lanes)
 	case "float64":
 		return fmt.Sprintf("Int64x%d", lanes)
-	case "int32":
+	case "int32", "uint32":
 		return fmt.Sprintf("Int32x%d", lanes)
-	case "int64":
+	case "int64", "uint64":
 		return fmt.Sprintf("Int64x%d", lanes)
 	default:
 		return ""
@@ -2941,6 +3018,10 @@ func getVectorTypeName(elemType string, target Target) string {
 		return fmt.Sprintf("Int32x%d", lanes)
 	case "int64":
 		return fmt.Sprintf("Int64x%d", lanes)
+	case "uint32":
+		return fmt.Sprintf("Uint32x%d", lanes)
+	case "uint64":
+		return fmt.Sprintf("Uint64x%d", lanes)
 	default:
 		return "Vec"
 	}
@@ -3007,10 +3088,10 @@ func parseTypeExpr(typeStr string) ast.Expr {
 	}
 
 	// Handle qualified names (pkg.Type)
-	if idx := strings.Index(typeStr, "."); idx >= 0 {
+	if before, after, ok := strings.Cut(typeStr, "."); ok {
 		return &ast.SelectorExpr{
-			X:   ast.NewIdent(typeStr[:idx]),
-			Sel: ast.NewIdent(typeStr[idx+1:]),
+			X:   ast.NewIdent(before),
+			Sel: ast.NewIdent(after),
 		}
 	}
 
@@ -3162,6 +3243,35 @@ func cloneStmt(stmt ast.Stmt) ast.Stmt {
 			X:     cloneExpr(s.X),
 			Body:  cloneBlockStmt(s.Body),
 		}
+	case *ast.SwitchStmt:
+		return &ast.SwitchStmt{
+			Init: cloneStmt(s.Init),
+			Tag:  cloneExpr(s.Tag),
+			Body: cloneBlockStmt(s.Body),
+		}
+	case *ast.TypeSwitchStmt:
+		return &ast.TypeSwitchStmt{
+			Init:   cloneStmt(s.Init),
+			Assign: cloneStmt(s.Assign),
+			Body:   cloneBlockStmt(s.Body),
+		}
+	case *ast.CaseClause:
+		// For default clause, List is nil; preserve that
+		var exprs []ast.Expr
+		if len(s.List) > 0 {
+			exprs = make([]ast.Expr, len(s.List))
+			for i, e := range s.List {
+				exprs[i] = cloneExpr(e)
+			}
+		}
+		stmts := make([]ast.Stmt, len(s.Body))
+		for i, st := range s.Body {
+			stmts[i] = cloneStmt(st)
+		}
+		return &ast.CaseClause{
+			List: exprs,
+			Body: stmts,
+		}
 	default:
 		// For other statement types, return as-is
 		return stmt
@@ -3222,6 +3332,11 @@ func cloneExpr(expr ast.Expr) ast.Expr {
 		}
 	case *ast.StarExpr:
 		return &ast.StarExpr{X: cloneExpr(e.X)}
+	case *ast.TypeAssertExpr:
+		return &ast.TypeAssertExpr{
+			X:    cloneExpr(e.X),
+			Type: cloneExpr(e.Type),
+		}
 	case *ast.ArrayType:
 		return &ast.ArrayType{
 			Len: cloneExpr(e.Len),
@@ -3502,7 +3617,7 @@ func createReduceSumExpr(call *ast.CallExpr, lanes int, vecTypeName, elemType st
 
 	// Build: t[0] + t[1] + ... + t[lanes-1]
 	var sumExpr ast.Expr
-	for i := 0; i < lanes; i++ {
+	for i := range lanes {
 		indexExpr := &ast.IndexExpr{
 			X: ast.NewIdent("_simd_temp"),
 			Index: &ast.BasicLit{
@@ -3715,9 +3830,9 @@ func resolveTypeSpecificConst(name string, ctx *transformContext) string {
 
 	// Pattern 2: Check if name already has a type suffix that needs swapping
 	for _, suffix := range typeSuffixes {
-		if strings.HasSuffix(name, suffix) {
+		if before, ok := strings.CutSuffix(name, suffix); ok {
 			// Extract base name and swap suffix
-			baseName := strings.TrimSuffix(name, suffix)
+			baseName := before
 			newSuffix := "_" + targetSuffix
 
 			// Only swap if target suffix is different
@@ -4156,9 +4271,19 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 	// Track variables assigned from ReduceSum so we know they're float32
 	reduceSumVars := make(map[string]bool)
 
+	// Track variables computed as float32 that need conversion back to Float16/BFloat16
+	// when passed to hwy.Set. This is separate from halfPrecisionScalarVars which
+	// tracks original Float16/BFloat16 values (from slice reads or parameters).
+	float32ComputedVars := make(map[string]bool)
+
 	// First pass: collect variables assigned from half-precision slice reads
-	// and track local slice variables of half-precision type
-	halfPrecisionScalarVars := make(map[string]bool)
+	// and track local slice variables of half-precision type.
+	// Note: ctx.halfPrecisionScalarVars is already initialized with scalar function
+	// parameters; this pass adds local variables assigned from slice reads.
+	halfPrecisionScalarVars := ctx.halfPrecisionScalarVars
+	if halfPrecisionScalarVars == nil {
+		halfPrecisionScalarVars = make(map[string]bool)
+	}
 	ast.Inspect(body, func(n ast.Node) bool {
 		if assign, ok := n.(*ast.AssignStmt); ok {
 			for i, rhs := range assign.Rhs {
@@ -4177,6 +4302,65 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 					if assign.Tok == token.DEFINE && isHalfPrecisionSliceExpr(indexExpr, ctx) {
 						if varName != "" {
 							halfPrecisionScalarVars[varName] = true
+						}
+					}
+				}
+
+				// Check if RHS is a type conversion T(x) where T is the half-precision type.
+				// After transformNode runs, T(1) becomes hwy.Float16(1) or hwy.BFloat16(1).
+				// These need to be converted to/from float32 for scalar operations.
+				if call, ok := rhs.(*ast.CallExpr); ok {
+					if ident, ok := call.Fun.(*ast.Ident); ok {
+						// Check for half-precision type conversions (after transformation)
+						// or single-letter type params (before transformation)
+						isHalfPrecisionConv := ident.Name == ctx.elemType ||
+							ident.Name == "hwy.Float16" || ident.Name == "hwy.BFloat16" ||
+							len(ident.Name) == 1
+						if isHalfPrecisionConv {
+							if varName != "" && assign.Tok == token.DEFINE {
+								float32ComputedVars[varName] = true
+							}
+						}
+					}
+				}
+
+				// Check if RHS is a binary operation involving type conversions or
+				// half-precision scalars, e.g., scale := T(1) / norm
+				if binExpr, ok := rhs.(*ast.BinaryExpr); ok {
+					if assign.Tok == token.DEFINE && varName != "" {
+						// Check if either operand is a type conversion
+						hasTypeConv := false
+						if call, ok := binExpr.X.(*ast.CallExpr); ok {
+							if ident, ok := call.Fun.(*ast.Ident); ok {
+								if ident.Name == ctx.elemType ||
+									ident.Name == "hwy.Float16" || ident.Name == "hwy.BFloat16" ||
+									len(ident.Name) == 1 {
+									hasTypeConv = true
+								}
+							}
+						}
+						if call, ok := binExpr.Y.(*ast.CallExpr); ok {
+							if ident, ok := call.Fun.(*ast.Ident); ok {
+								if ident.Name == ctx.elemType ||
+									ident.Name == "hwy.Float16" || ident.Name == "hwy.BFloat16" ||
+									len(ident.Name) == 1 {
+									hasTypeConv = true
+								}
+							}
+						}
+						// Check if either operand is a tracked variable
+						if ident, ok := binExpr.X.(*ast.Ident); ok {
+							if float32ComputedVars[ident.Name] {
+								hasTypeConv = true
+							}
+						}
+						if ident, ok := binExpr.Y.(*ast.Ident); ok {
+							if float32ComputedVars[ident.Name] {
+								hasTypeConv = true
+							}
+						}
+						if hasTypeConv {
+							float32ComputedVars[varName] = true
 						}
 					}
 				}
@@ -4279,15 +4463,44 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 
 		case *ast.ReturnStmt:
 			// Transform return statements: return x → return hwy.Float32ToFloat16(x)
+			// Only wrap values that we know are float32 (from ReduceSum or float32 computations)
 			for i, result := range node.Results {
-				// Only wrap simple identifiers that might be float32 scalars
 				if ident, ok := result.(*ast.Ident); ok {
-					// Check if it's a variable we know is float32 (from ReduceSum)
-					// or if it looks like an accumulator variable
-					if reduceSumVars[ident.Name] || ident.Name == "result" || ident.Name == "acc" || ident.Name == "sum" {
+					// Only wrap if we tracked this variable as being float32
+					if reduceSumVars[ident.Name] || float32ComputedVars[ident.Name] {
 						node.Results[i] = &ast.CallExpr{
 							Fun:  parseTypeExpr(fromFloat32Func),
 							Args: []ast.Expr{ident},
+						}
+					}
+				}
+			}
+
+		case *ast.CallExpr:
+			// Transform hwy.Set(scale) where scale is a float32-computed scalar
+			// hwy.Set(scale) → hwy.Set(hwy.Float32ToFloat16(scale))
+			var sel *ast.SelectorExpr
+			var ok bool
+			switch fun := node.Fun.(type) {
+			case *ast.SelectorExpr:
+				sel = fun
+				ok = true
+			case *ast.IndexExpr:
+				// hwy.Set[T](arg) - indexed call
+				sel, ok = fun.X.(*ast.SelectorExpr)
+			}
+			if ok && sel != nil {
+				if ident, identOk := sel.X.(*ast.Ident); identOk && ident.Name == "hwy" && sel.Sel.Name == "Set" {
+					if len(node.Args) == 1 {
+						// Only wrap identifiers that were computed from half-precision type conversions
+						if argIdent, argOk := node.Args[0].(*ast.Ident); argOk {
+							if float32ComputedVars[argIdent.Name] {
+								// Wrap: hwy.Set(x) → hwy.Set(hwy.Float32ToFloat16(x))
+								node.Args[0] = &ast.CallExpr{
+									Fun:  parseTypeExpr(fromFloat32Func),
+									Args: []ast.Expr{argIdent},
+								}
+							}
 						}
 					}
 				}
@@ -4299,6 +4512,62 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 
 // transformHalfPrecisionAssignment transforms assignments involving half-precision types.
 func transformHalfPrecisionAssignment(stmt *ast.AssignStmt, ctx *transformContext, toFloat32Method, fromFloat32Func string) {
+	// Check for compound assignments (+=, -=, *=, /=) on half-precision slices
+	// These need special handling: dst[i] += x becomes dst[i] = Float32ToFloat16(dst[i].Float32() + x.Float32())
+	isCompoundAssign := stmt.Tok == token.ADD_ASSIGN || stmt.Tok == token.SUB_ASSIGN ||
+		stmt.Tok == token.MUL_ASSIGN || stmt.Tok == token.QUO_ASSIGN
+
+	if isCompoundAssign && len(stmt.Lhs) == 1 && len(stmt.Rhs) == 1 {
+		if indexExpr, ok := stmt.Lhs[0].(*ast.IndexExpr); ok {
+			if isHalfPrecisionSliceExpr(indexExpr, ctx) {
+				// Transform compound assignment on half-precision slice
+				// dst[i] op= x → dst[i] = Float32ToFloat16(dst[i].Float32() op x.Float32())
+
+				// Get the binary operator from the compound token
+				var binOp token.Token
+				switch stmt.Tok {
+				case token.ADD_ASSIGN:
+					binOp = token.ADD
+				case token.SUB_ASSIGN:
+					binOp = token.SUB
+				case token.MUL_ASSIGN:
+					binOp = token.MUL
+				case token.QUO_ASSIGN:
+					binOp = token.QUO
+				}
+
+				// Create: dst[i].Float32()
+				lhsFloat32 := &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   cloneExpr(indexExpr),
+						Sel: ast.NewIdent(toFloat32Method),
+					},
+				}
+
+				// Create: x.Float32() (wrap RHS)
+				rhsFloat32 := wrapHalfPrecisionExpr(stmt.Rhs[0], ctx, toFloat32Method)
+
+				// Create: dst[i].Float32() op x.Float32()
+				binExpr := &ast.BinaryExpr{
+					X:  lhsFloat32,
+					Op: binOp,
+					Y:  rhsFloat32,
+				}
+
+				// Create: Float32ToFloat16(...)
+				newRhs := &ast.CallExpr{
+					Fun:  parseTypeExpr(fromFloat32Func),
+					Args: []ast.Expr{binExpr},
+				}
+
+				// Transform to regular assignment
+				stmt.Tok = token.ASSIGN
+				stmt.Rhs[0] = newRhs
+				return
+			}
+		}
+	}
+
 	// Transform RHS expressions to add .Float32() for slice index reads
 	// But skip if LHS is a simple identifier being tracked as half-precision scalar
 	// (we want to keep those as Float16 and only convert them in scalar arithmetic)
@@ -4335,12 +4604,6 @@ func transformHalfPrecisionAssignment(stmt *ast.AssignStmt, ctx *transformContex
 				}
 			}
 		}
-	}
-
-	// Handle compound assignments like expSum += output[i]
-	if stmt.Tok == token.ADD_ASSIGN || stmt.Tok == token.SUB_ASSIGN ||
-		stmt.Tok == token.MUL_ASSIGN || stmt.Tok == token.QUO_ASSIGN {
-		// Already handled by wrapHalfPrecisionExpr on RHS
 	}
 }
 

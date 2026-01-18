@@ -26,7 +26,7 @@ func PromoteF16ToF32(v Vec[Float16]) Vec[float32] {
 func PromoteLowerF16ToF32(v Vec[Float16]) Vec[float32] {
 	n := len(v.data) / 2
 	result := make([]float32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = Float16ToFloat32(v.data[i])
 	}
 	return Vec[float32]{data: result}
@@ -38,7 +38,7 @@ func PromoteUpperF16ToF32(v Vec[Float16]) Vec[float32] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]float32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = Float16ToFloat32(v.data[half+i])
 	}
 	return Vec[float32]{data: result}
@@ -94,12 +94,9 @@ func DemoteF64ToF16(v Vec[float64]) Vec[Float16] {
 // LoadF16 creates a Float16 vector by loading uint16 bits from a slice
 // and interpreting them as Float16 values.
 func LoadF16(src []uint16) Vec[Float16] {
-	n := MaxLanes[Float16]()
-	if len(src) < n {
-		n = len(src)
-	}
+	n := min(len(src), MaxLanes[Float16]())
 	data := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		data[i] = Float16(src[i])
 	}
 	return Vec[Float16]{data: data}
@@ -107,11 +104,8 @@ func LoadF16(src []uint16) Vec[Float16] {
 
 // StoreF16 writes Float16 vector data to a uint16 slice.
 func StoreF16(v Vec[Float16], dst []uint16) {
-	n := len(v.data)
-	if len(dst) < n {
-		n = len(dst)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(dst), len(v.data))
+	for i := range n {
 		dst[i] = uint16(v.data[i])
 	}
 }
@@ -119,12 +113,9 @@ func StoreF16(v Vec[Float16], dst []uint16) {
 // LoadF16FromF32 loads float32 values and converts them to Float16.
 // This is equivalent to Load followed by Demote, but more efficient.
 func LoadF16FromF32(src []float32) Vec[Float16] {
-	n := MaxLanes[Float16]()
-	if len(src) < n {
-		n = len(src)
-	}
+	n := min(len(src), MaxLanes[Float16]())
 	data := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		data[i] = Float32ToFloat16(src[i])
 	}
 	return Vec[Float16]{data: data}
@@ -133,11 +124,8 @@ func LoadF16FromF32(src []float32) Vec[Float16] {
 // StoreF16ToF32 converts Float16 vector to float32 and stores.
 // This is equivalent to Promote followed by Store, but more efficient.
 func StoreF16ToF32(v Vec[Float16], dst []float32) {
-	n := len(v.data)
-	if len(dst) < n {
-		n = len(dst)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(dst), len(v.data))
+	for i := range n {
 		dst[i] = Float16ToFloat32(v.data[i])
 	}
 }

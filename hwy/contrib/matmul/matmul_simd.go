@@ -27,7 +27,7 @@ func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 	}
 
 	// For each row i of C
-	for i := 0; i < m; i++ {
+	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 
 		// Zero the C row using SIMD
@@ -44,7 +44,7 @@ func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 		// Accumulate A[i,:] * B into C[i,:]
 		// For each column p of A (= row p of B)
-		for p := 0; p < k; p++ {
+		for p := range k {
 			aip := a[i*k+p]
 			vA := hwy.Set(aip) // Broadcast A[i,p]
 			bRow := b[p*n : (p+1)*n]

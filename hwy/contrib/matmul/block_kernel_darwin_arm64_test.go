@@ -166,7 +166,7 @@ func TestBlockMulAddFMOPADebugIdentity(t *testing.T) {
 	expected := make([]float32, size)
 
 	// A = identity
-	for i := 0; i < blockDim; i++ {
+	for i := range blockDim {
 		a[i*blockDim+i] = 1.0
 	}
 	// B = increasing values

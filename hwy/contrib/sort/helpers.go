@@ -48,7 +48,7 @@ func BitonicMerge[T hwy.Lanes](data []T) {
 
 	// Bitonic merge network
 	for k := n / 2; k > 0; k /= 2 {
-		for i := 0; i < n; i++ {
+		for i := range n {
 			j := i ^ k
 			if j > i && data[i] > data[j] {
 				data[i], data[j] = data[j], data[i]
@@ -194,10 +194,7 @@ func SortTwoVectors[T hwy.Lanes](data []T) {
 	}
 
 	// Pad buf2
-	remaining := n - lanes
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := max(n-lanes, 0)
 	for i := remaining; i < lanes; i++ {
 		buf2[i] = maxVal
 	}
@@ -211,7 +208,7 @@ func SortTwoVectors[T hwy.Lanes](data []T) {
 	merged := make([]T, lanes*2)
 	copy(merged[:lanes], buf1)
 	// Reverse buf2 into the second half to create bitonic sequence
-	for i := 0; i < lanes; i++ {
+	for i := range lanes {
 		merged[lanes+i] = buf2[lanes-1-i]
 	}
 	BitonicMerge(merged)
@@ -280,7 +277,7 @@ func RadixSortFloat32(data []float32) {
 	// Transform floats to sortable uint32
 	// Positive floats: flip sign bit (0x80000000)
 	// Negative floats: flip all bits (0xFFFFFFFF)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if udata[i]&0x80000000 != 0 {
 			udata[i] ^= 0xFFFFFFFF // negative: flip all bits
 		} else {
@@ -296,7 +293,7 @@ func RadixSortFloat32(data []float32) {
 	radixPassU32(temp, udata, 24)
 
 	// Transform back to floats
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if udata[i]&0x80000000 != 0 {
 			udata[i] ^= 0x80000000 // was positive: flip sign bit back
 		} else {
@@ -321,7 +318,7 @@ func RadixSortFloat64(data []float64) {
 	udata := unsafe.Slice((*uint64)(unsafe.Pointer(&data[0])), n)
 
 	// Transform floats to sortable uint64
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if udata[i]&0x8000000000000000 != 0 {
 			udata[i] ^= 0xFFFFFFFFFFFFFFFF // negative: flip all bits
 		} else {
@@ -337,7 +334,7 @@ func RadixSortFloat64(data []float64) {
 	radixPass16U64(temp, udata, 48)
 
 	// Transform back to floats
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if udata[i]&0x8000000000000000 != 0 {
 			udata[i] ^= 0x8000000000000000 // was positive: flip sign bit back
 		} else {
@@ -351,19 +348,19 @@ func radixPassU32(src, dst []uint32, shift int) {
 	n := len(src)
 	var count [256]int
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := (src[i] >> shift) & 0xFF
 		count[digit]++
 	}
 
 	offset := 0
-	for b := 0; b < 256; b++ {
+	for b := range 256 {
 		c := count[b]
 		count[b] = offset
 		offset += c
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := (src[i] >> shift) & 0xFF
 		dst[count[digit]] = src[i]
 		count[digit]++
@@ -375,19 +372,19 @@ func radixPass16U64(src, dst []uint64, shift int) {
 	n := len(src)
 	var count [65536]int
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := (src[i] >> shift) & 0xFFFF
 		count[digit]++
 	}
 
 	offset := 0
-	for b := 0; b < 65536; b++ {
+	for b := range 65536 {
 		c := count[b]
 		count[b] = offset
 		offset += c
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := (src[i] >> shift) & 0xFFFF
 		dst[count[digit]] = src[i]
 		count[digit]++

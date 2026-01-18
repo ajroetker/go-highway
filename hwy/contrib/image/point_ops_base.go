@@ -300,7 +300,7 @@ func BaseMinImage[T hwy.Floats](a, b, out *Image[T]) {
 	lanes := hwy.MaxLanes[T]()
 	height := min(a.height, b.height)
 
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -340,7 +340,7 @@ func BaseMaxImage[T hwy.Floats](a, b, out *Image[T]) {
 	lanes := hwy.MaxLanes[T]()
 	height := min(a.height, b.height)
 
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)

@@ -343,7 +343,7 @@ func (v Float32x4) AsInt32x4() Int32x4 {
 func (v Float32x4) GetExponent() Int32x4 {
 	f := (*[4]float32)(unsafe.Pointer(&v))
 	var result [4]int32
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		bits := math.Float32bits(f[i])
 		exp := int32((bits >> 23) & 0xFF)
 		if exp == 0 || exp == 255 {
@@ -359,7 +359,7 @@ func (v Float32x4) GetExponent() Int32x4 {
 func (v Float32x4) GetMantissa() Float32x4 {
 	f := (*[4]float32)(unsafe.Pointer(&v))
 	var result [4]float32
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		bits := math.Float32bits(f[i])
 		// Clear exponent, set to 127 (2^0 = 1)
 		mantissa := (bits & 0x807FFFFF) | 0x3F800000
@@ -633,7 +633,7 @@ func (v Float64x2) Merge(other Float64x2, mask Int64x2) Float64x2 {
 	f2 := (*[2]float64)(unsafe.Pointer(&other))
 	m := (*[2]int64)(unsafe.Pointer(&mask))
 	var result [2]float64
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if m[i] != 0 {
 			result[i] = f1[i]
 		} else {
@@ -647,7 +647,7 @@ func (v Float64x2) Merge(other Float64x2, mask Int64x2) Float64x2 {
 func (v Float64x2) RoundToEven() Float64x2 {
 	f := (*[2]float64)(unsafe.Pointer(&v))
 	var result [2]float64
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		result[i] = math.RoundToEven(f[i])
 	}
 	return *(*Float64x2)(unsafe.Pointer(&result))
@@ -676,7 +676,7 @@ func (v Float64x2) AsInt64x2() Int64x2 {
 func (v Float64x2) GetExponent() Int32x2 {
 	f := (*[2]float64)(unsafe.Pointer(&v))
 	var result [2]int32
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		bits := math.Float64bits(f[i])
 		exp := int32((bits >> 52) & 0x7FF)
 		if exp == 0 || exp == 2047 {
@@ -692,7 +692,7 @@ func (v Float64x2) GetExponent() Int32x2 {
 func (v Float64x2) GetMantissa() Float64x2 {
 	f := (*[2]float64)(unsafe.Pointer(&v))
 	var result [2]float64
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		bits := math.Float64bits(f[i])
 		// Clear exponent, set to 1023 (2^0 = 1)
 		mantissa := (bits & 0x800FFFFFFFFFFFFF) | 0x3FF0000000000000
@@ -867,7 +867,7 @@ func (v Int32x2) Equal(other Int32x2) Int32x2 {
 	a := (*[2]int32)(unsafe.Pointer(&v))
 	b := (*[2]int32)(unsafe.Pointer(&other))
 	var result [2]int32
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if a[i] == b[i] {
 			result[i] = -1 // all bits set
 		} else {
@@ -884,7 +884,7 @@ func (v Int32x2) Merge(other Int32x2, mask Int32x2) Int32x2 {
 	b := (*[2]int32)(unsafe.Pointer(&other))
 	m := (*[2]int32)(unsafe.Pointer(&mask))
 	var result [2]int32
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if m[i] != 0 {
 			result[i] = a[i]
 		} else {
@@ -1096,6 +1096,30 @@ func (v Int32x4) ReduceSum() int64 {
 	return hsum_i32x4([16]byte(v))
 }
 
+// ReduceMax returns the maximum of all elements.
+func (v Int32x4) ReduceMax() int32 {
+	a := (*[4]int32)(unsafe.Pointer(&v))
+	maxVal := a[0]
+	for i := 1; i < 4; i++ {
+		if a[i] > maxVal {
+			maxVal = a[i]
+		}
+	}
+	return maxVal
+}
+
+// ReduceMin returns the minimum of all elements.
+func (v Int32x4) ReduceMin() int32 {
+	a := (*[4]int32)(unsafe.Pointer(&v))
+	minVal := a[0]
+	for i := 1; i < 4; i++ {
+		if a[i] < minVal {
+			minVal = a[i]
+		}
+	}
+	return minVal
+}
+
 // ===== Int64x2 constructors and methods =====
 
 // BroadcastInt64x2 creates a vector with all lanes set to the given value.
@@ -1271,6 +1295,52 @@ func (v Int64x2) GetBit(i int) bool {
 	return (*[2]int64)(unsafe.Pointer(&v))[i] != 0
 }
 
+// Max performs element-wise maximum.
+func (v Int64x2) Max(other Int64x2) Int64x2 {
+	a := (*[2]int64)(unsafe.Pointer(&v))
+	b := (*[2]int64)(unsafe.Pointer(&other))
+	result := [2]int64{a[0], a[1]}
+	if b[0] > result[0] {
+		result[0] = b[0]
+	}
+	if b[1] > result[1] {
+		result[1] = b[1]
+	}
+	return *(*Int64x2)(unsafe.Pointer(&result))
+}
+
+// Min performs element-wise minimum.
+func (v Int64x2) Min(other Int64x2) Int64x2 {
+	a := (*[2]int64)(unsafe.Pointer(&v))
+	b := (*[2]int64)(unsafe.Pointer(&other))
+	result := [2]int64{a[0], a[1]}
+	if b[0] < result[0] {
+		result[0] = b[0]
+	}
+	if b[1] < result[1] {
+		result[1] = b[1]
+	}
+	return *(*Int64x2)(unsafe.Pointer(&result))
+}
+
+// ReduceMax returns the maximum of all elements.
+func (v Int64x2) ReduceMax() int64 {
+	a := (*[2]int64)(unsafe.Pointer(&v))
+	if a[0] > a[1] {
+		return a[0]
+	}
+	return a[1]
+}
+
+// ReduceMin returns the minimum of all elements.
+func (v Int64x2) ReduceMin() int64 {
+	a := (*[2]int64)(unsafe.Pointer(&v))
+	if a[0] < a[1] {
+		return a[0]
+	}
+	return a[1]
+}
+
 // ===== Bool mask types for conditional operations =====
 
 // BoolMask32x4 represents a 4-element boolean mask.
@@ -1297,14 +1367,14 @@ func FindFirstTrue[T Int32x4 | Int64x2](mask T) int {
 	switch m := any(mask).(type) {
 	case Int32x4:
 		a := (*[4]int32)(unsafe.Pointer(&m))
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if a[i] != 0 {
 				return i
 			}
 		}
 	case Int64x2:
 		a := (*[2]int64)(unsafe.Pointer(&m))
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			if a[i] != 0 {
 				return i
 			}
@@ -1322,7 +1392,7 @@ func CountTrue[T Int32x4 | Int64x2](mask T) int {
 	case Int64x2:
 		a := (*[2]int64)(unsafe.Pointer(&m))
 		count := 0
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			if a[i] != 0 {
 				count++
 			}
@@ -1569,7 +1639,7 @@ func CompressStoreF32x4(v Float32x4, mask Int32x4, dst []float32) int {
 	f := (*[4]float32)(unsafe.Pointer(&v))
 	// Gather elements using byte offsets
 	// Each byte offset / 4 gives the lane index
-	for i := 0; i < count; i++ {
+	for i := range count {
 		dst[i] = f[perm[i]>>2]
 	}
 
@@ -1582,7 +1652,7 @@ func CompressStoreF64x2(v Float64x2, mask Int64x2, dst []float64) int {
 	f := (*[2]float64)(unsafe.Pointer(&v))
 	m := (*[2]int64)(unsafe.Pointer(&mask))
 	count := 0
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if m[i] != 0 {
 			if count < len(dst) {
 				dst[count] = f[i]
@@ -1599,7 +1669,7 @@ func CompressStoreI32x4(v Int32x4, mask Int32x4, dst []int32) int {
 	a := (*[4]int32)(unsafe.Pointer(&v))
 	m := (*[4]int32)(unsafe.Pointer(&mask))
 	count := 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if m[i] != 0 {
 			if count < len(dst) {
 				dst[count] = a[i]
@@ -1616,7 +1686,7 @@ func CompressStoreI64x2(v Int64x2, mask Int64x2, dst []int64) int {
 	a := (*[2]int64)(unsafe.Pointer(&v))
 	m := (*[2]int64)(unsafe.Pointer(&mask))
 	count := 0
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if m[i] != 0 {
 			if count < len(dst) {
 				dst[count] = a[i]
@@ -1708,7 +1778,7 @@ func IfThenElseInt64(mask Int64x2, yes, no Int64x2) Int64x2 {
 	f2 := (*[2]int64)(unsafe.Pointer(&no))
 	m := (*[2]int64)(unsafe.Pointer(&mask))
 	var result [2]int64
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if m[i] != 0 {
 			result[i] = f1[i]
 		} else {
@@ -2169,6 +2239,18 @@ func (v Uint32x4) ReduceSum() uint64 {
 	return uint64(hsum_u32x4([16]byte(v)))
 }
 
+// ReduceMax returns the maximum element.
+func (v Uint32x4) ReduceMax() uint32 {
+	a := (*[4]uint32)(unsafe.Pointer(&v))
+	maxVal := a[0]
+	for i := 1; i < 4; i++ {
+		if a[i] > maxVal {
+			maxVal = a[i]
+		}
+	}
+	return maxVal
+}
+
 // GetBit returns true if the element at index i is non-zero.
 func (v Uint32x4) GetBit(i int) bool {
 	return (*[4]uint32)(unsafe.Pointer(&v))[i] != 0
@@ -2330,6 +2412,15 @@ func (v Uint64x2) ShiftAllRight(count int) Uint64x2 {
 // Merge selects elements: mask ? v : other
 func (v Uint64x2) Merge(other Uint64x2, mask Uint64x2) Uint64x2 {
 	return Uint64x2(sel_u64x2([16]byte(mask), [16]byte(v), [16]byte(other)))
+}
+
+// ReduceMax returns the maximum element.
+func (v Uint64x2) ReduceMax() uint64 {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	if a[0] > a[1] {
+		return a[0]
+	}
+	return a[1]
 }
 
 // GetBit returns true if the element at index i is non-zero.

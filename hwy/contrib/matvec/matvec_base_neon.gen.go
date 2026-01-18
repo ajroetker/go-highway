@@ -18,7 +18,7 @@ func BaseMatVec_neon_Float16(m []hwy.Float16, rows int, cols int, v []hwy.Float1
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[hwy.Float16]()
 		lanes := 8
@@ -47,7 +47,7 @@ func BaseMatVec_neon_BFloat16(m []hwy.BFloat16, rows int, cols int, v []hwy.BFlo
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[hwy.BFloat16]()
 		lanes := 8
@@ -76,7 +76,7 @@ func BaseMatVec_neon(m []float32, rows int, cols int, v []float32, result []floa
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := asm.ZeroFloat32x4()
 		lanes := 4
@@ -109,7 +109,7 @@ func BaseMatVec_neon_Float64(m []float64, rows int, cols int, v []float64, resul
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := asm.ZeroFloat64x2()
 		lanes := 2

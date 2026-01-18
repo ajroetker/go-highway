@@ -10,13 +10,13 @@ import (
 
 // ParsedFunc represents a function that has been parsed from the input file.
 type ParsedFunc struct {
-	Name       string          // Function name
-	TypeParams []TypeParam     // Generic type parameters
-	Params     []Param         // Function parameters
-	Returns    []Param         // Return values
-	Body       *ast.BlockStmt  // Function body
-	HwyCalls   []HwyCall       // Detected hwy.* and contrib.* calls
-	LoopInfo   *LoopInfo       // Main processing loop info
+	Name       string            // Function name
+	TypeParams []TypeParam       // Generic type parameters
+	Params     []Param           // Function parameters
+	Returns    []Param           // Return values
+	Body       *ast.BlockStmt    // Function body
+	HwyCalls   []HwyCall         // Detected hwy.* and contrib.* calls
+	LoopInfo   *LoopInfo         // Main processing loop info
 	Doc        *ast.CommentGroup // Function documentation
 }
 
@@ -70,10 +70,11 @@ type TypeSpecificConst struct {
 // and compound conditions with && (AND) and || (OR).
 type ParsedCondition struct {
 	// For simple conditions (leaf nodes)
-	IsType   bool   // true if this is a type condition (f32, f64)
-	IsTarget bool   // true if this is a target condition (avx2, avx512, neon, fallback)
-	Value    string // the condition value (e.g., "f64", "avx2")
-	Negated  bool   // true if condition is negated (e.g., "!avx2")
+	IsType     bool   // true if this is a type condition (f32, f64)
+	IsTarget   bool   // true if this is a target condition (avx2, avx512, neon, fallback)
+	IsCategory bool   // true if this is a category condition (float, int, uint)
+	Value      string // the condition value (e.g., "f64", "avx2", "float")
+	Negated    bool   // true if condition is negated (e.g., "!avx2")
 
 	// For compound conditions (internal nodes)
 	Op    string           // "" for leaf, "&&" for AND, "||" for OR
@@ -495,7 +496,11 @@ func exprToString(expr ast.Expr) string {
 		}
 		return exprToString(e.X) + "[" + strings.Join(args, ", ") + "]"
 	case *ast.CallExpr:
-		return exprToString(e.Fun) + "(...)"
+		args := make([]string, len(e.Args))
+		for i, arg := range e.Args {
+			args[i] = exprToString(arg)
+		}
+		return exprToString(e.Fun) + "(" + strings.Join(args, ", ") + ")"
 	case *ast.BasicLit:
 		return e.Value
 	case *ast.BinaryExpr:
@@ -568,7 +573,7 @@ func GetConcreteTypes(constraint string) []string {
 	case strings.Contains(constraint, "Integers"):
 		return []string{"int32", "int64", "uint32", "uint64"}
 	case strings.Contains(constraint, "Lanes"):
-		return []string{"float32", "float64", "int32", "int64"}
+		return []string{"float32", "float64", "int32", "int64", "uint32", "uint64"}
 	default:
 		// Unknown constraint, default to common types
 		return []string{"float32", "float64"}
@@ -582,8 +587,8 @@ var typeSuffixes = []string{"_f16", "_bf16", "_f32", "_f64", "_i32", "_i64", "_u
 // E.g., "expLn2Hi_f32" -> base name "expLn2Hi", suffix "f32"
 func parseTypeSpecificConst(name string, consts map[string]*TypeSpecificConst) {
 	for _, suffix := range typeSuffixes {
-		if strings.HasSuffix(name, suffix) {
-			baseName := strings.TrimSuffix(name, suffix)
+		if before, ok := strings.CutSuffix(name, suffix); ok {
+			baseName := before
 			typeSuffix := suffix[1:] // Remove leading underscore
 
 			if consts[baseName] == nil {
@@ -608,8 +613,8 @@ func parseConditionalDirectives(file *ast.File, fset *token.FileSet) []Condition
 			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
 			line := fset.Position(c.Pos()).Line
 
-			if strings.HasPrefix(text, "hwy:if ") {
-				condition := strings.TrimSpace(strings.TrimPrefix(text, "hwy:if "))
+			if after, ok := strings.CutPrefix(text, "hwy:if "); ok {
+				condition := strings.TrimSpace(after)
 				block := &ConditionalBlock{
 					Condition:       condition,
 					ParsedCondition: parseCondition(condition),
@@ -636,14 +641,28 @@ func parseConditionalDirectives(file *ast.File, fset *token.FileSet) []Condition
 
 // typeConditions are valid type condition values
 var typeConditions = map[string]bool{
-	"f16": true, "f32": true, "f64": true,
-	"i32": true, "i64": true,
-	"u32": true, "u64": true,
+	"f16": true, "bf16": true, "f32": true, "f64": true,
+	"i8": true, "i16": true, "i32": true, "i64": true,
+	"u8": true, "u16": true, "u32": true, "u64": true,
 }
 
 // targetConditions are valid target condition values
 var targetConditions = map[string]bool{
 	"avx2": true, "avx512": true, "neon": true, "fallback": true,
+}
+
+// categoryConditions are type category predicates
+var categoryConditions = map[string]bool{
+	"float": true, // matches f16, bf16, f32, f64
+	"int":   true, // matches i8, i16, i32, i64
+	"uint":  true, // matches u8, u16, u32, u64
+}
+
+// categoryTypes maps category names to their member type suffixes
+var categoryTypes = map[string][]string{
+	"float": {"f16", "bf16", "f32", "f64"},
+	"int":   {"i8", "i16", "i32", "i64"},
+	"uint":  {"u8", "u16", "u32", "u64"},
 }
 
 // parseCondition parses a condition string into a ParsedCondition tree.
@@ -704,6 +723,8 @@ func parseCondition(cond string) *ParsedCondition {
 		pc.IsType = true
 	} else if targetConditions[cond] {
 		pc.IsTarget = true
+	} else if categoryConditions[cond] {
+		pc.IsCategory = true
 	}
 
 	return pc
@@ -763,6 +784,17 @@ func (pc *ParsedCondition) Evaluate(targetName, elemType string) bool {
 		normalizedTarget := strings.ToLower(targetName)
 		normalizedValue := strings.ToLower(pc.Value)
 		result = (normalizedTarget == normalizedValue)
+	} else if pc.IsCategory {
+		// Check if the element type belongs to this category
+		typeSuffix := GetTypeSuffix(elemType)
+		if types, ok := categoryTypes[pc.Value]; ok {
+			for _, t := range types {
+				if t == typeSuffix {
+					result = true
+					break
+				}
+			}
+		}
 	} else {
 		// Unknown condition type - try both
 		typeSuffix := GetTypeSuffix(elemType)
@@ -789,10 +821,18 @@ func GetTypeSuffix(elemType string) string {
 		return "f32"
 	case "float64":
 		return "f64"
+	case "int8":
+		return "i8"
+	case "int16":
+		return "i16"
 	case "int32":
 		return "i32"
 	case "int64":
 		return "i64"
+	case "uint8":
+		return "u8"
+	case "uint16":
+		return "u16"
 	case "uint32":
 		return "u32"
 	case "uint64":

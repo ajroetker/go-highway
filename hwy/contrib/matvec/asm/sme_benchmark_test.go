@@ -13,8 +13,8 @@ import (
 
 // transposeForMatVec transposes rows×cols matrix M into cols×rows matrix MT
 func transposeForMatVec(m []float32, rows, cols int, mt []float32) {
-	for i := 0; i < rows; i++ {
-		for k := 0; k < cols; k++ {
+	for i := range rows {
+		for k := range cols {
 			mt[k*rows+i] = m[i*cols+k]
 		}
 	}
@@ -22,8 +22,8 @@ func transposeForMatVec(m []float32, rows, cols int, mt []float32) {
 
 // transposeForMatVec64 transposes rows×cols matrix M into cols×rows matrix MT for float64
 func transposeForMatVec64(m []float64, rows, cols int, mt []float64) {
-	for i := 0; i < rows; i++ {
-		for k := 0; k < cols; k++ {
+	for i := range rows {
+		for k := range cols {
 			mt[k*rows+i] = m[i*cols+k]
 		}
 	}
@@ -31,9 +31,9 @@ func transposeForMatVec64(m []float64, rows, cols int, mt []float64) {
 
 // matvecReference computes result = M * v using naive loop
 func matvecReference(m []float32, rows, cols int, v, result []float32) {
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		var sum float32
-		for j := 0; j < cols; j++ {
+		for j := range cols {
 			sum += m[i*cols+j] * v[j]
 		}
 		result[i] = sum
@@ -42,9 +42,9 @@ func matvecReference(m []float32, rows, cols int, v, result []float32) {
 
 // matvecReference64 computes result = M * v for float64
 func matvecReference64(m []float64, rows, cols int, v, result []float64) {
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		var sum float64
-		for j := 0; j < cols; j++ {
+		for j := range cols {
 			sum += m[i*cols+j] * v[j]
 		}
 		result[i] = sum

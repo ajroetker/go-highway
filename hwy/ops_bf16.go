@@ -13,12 +13,9 @@ import "math"
 
 // AddBF16 performs element-wise addition of two BFloat16 vectors.
 func AddBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		result[i] = Float32ToBFloat16(af + bf)
@@ -28,12 +25,9 @@ func AddBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
 
 // SubBF16 performs element-wise subtraction of two BFloat16 vectors.
 func SubBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		result[i] = Float32ToBFloat16(af - bf)
@@ -43,12 +37,9 @@ func SubBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
 
 // MulBF16 performs element-wise multiplication of two BFloat16 vectors.
 func MulBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		result[i] = Float32ToBFloat16(af * bf)
@@ -58,12 +49,9 @@ func MulBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
 
 // DivBF16 performs element-wise division of two BFloat16 vectors.
 func DivBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		result[i] = Float32ToBFloat16(af / bf)
@@ -73,15 +61,9 @@ func DivBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
 
 // FMABF16 performs fused multiply-add: a * b + c.
 func FMABF16(a, b, c Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
-	if len(c.data) < n {
-		n = len(c.data)
-	}
+	n := min(len(c.data), min(len(b.data), len(a.data)))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := float64(BFloat16ToFloat32(a.data[i]))
 		bf := float64(BFloat16ToFloat32(b.data[i]))
 		cf := float64(BFloat16ToFloat32(c.data[i]))
@@ -112,12 +94,9 @@ func AbsBF16(v Vec[BFloat16]) Vec[BFloat16] {
 
 // MinBF16 returns element-wise minimum.
 func MinBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		if af < bf {
@@ -131,12 +110,9 @@ func MinBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
 
 // MaxBF16 returns element-wise maximum.
 func MaxBF16(a, b Vec[BFloat16]) Vec[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		if af > bf {
@@ -226,12 +202,9 @@ func ReduceMaxBF16(v Vec[BFloat16]) BFloat16 {
 // This is the common ML pattern: accumulate in higher precision.
 // On hardware with VDPBF16PS (AVX-512 BF16), this uses dedicated instruction.
 func DotBF16(a, b Vec[BFloat16]) float32 {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	var sum float32
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		sum += af * bf
@@ -241,12 +214,9 @@ func DotBF16(a, b Vec[BFloat16]) float32 {
 
 // EqualBF16 compares two BFloat16 vectors for equality.
 func EqualBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		bits[i] = af == bf
@@ -256,12 +226,9 @@ func EqualBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
 
 // LessThanBF16 compares a < b element-wise.
 func LessThanBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		bits[i] = af < bf
@@ -271,12 +238,9 @@ func LessThanBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
 
 // LessThanOrEqualBF16 compares a <= b element-wise.
 func LessThanOrEqualBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		bits[i] = af <= bf
@@ -286,12 +250,9 @@ func LessThanOrEqualBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
 
 // GreaterThanBF16 compares a > b element-wise.
 func GreaterThanBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		bits[i] = af > bf
@@ -301,12 +262,9 @@ func GreaterThanBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
 
 // GreaterThanOrEqualBF16 compares a >= b element-wise.
 func GreaterThanOrEqualBF16(a, b Vec[BFloat16]) Mask[BFloat16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := BFloat16ToFloat32(a.data[i])
 		bf := BFloat16ToFloat32(b.data[i])
 		bits[i] = af >= bf
@@ -356,15 +314,9 @@ func IsFiniteBF16(v Vec[BFloat16]) Mask[BFloat16] {
 
 // IfThenElseBF16 selects elements based on mask: mask ? yes : no.
 func IfThenElseBF16(mask Mask[BFloat16], yes, no Vec[BFloat16]) Vec[BFloat16] {
-	n := len(mask.bits)
-	if len(yes.data) < n {
-		n = len(yes.data)
-	}
-	if len(no.data) < n {
-		n = len(no.data)
-	}
+	n := min(len(no.data), min(len(yes.data), len(mask.bits)))
 	result := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			result[i] = yes.data[i]
 		} else {

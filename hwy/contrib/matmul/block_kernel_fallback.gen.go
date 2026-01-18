@@ -17,9 +17,9 @@ func BaseBlockMulAdd_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	for i := 0; i < blockDim; i++ {
+	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -31,7 +31,7 @@ func BaseBlockMulAdd_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy
 				hwy.Store(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRowStart+j] += hwy.Float32ToFloat16(aik.Float32() * b[bRowStart+j].Float32())
+				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -48,9 +48,9 @@ func BaseBlockMulAdd_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	for i := 0; i < blockDim; i++ {
+	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -62,7 +62,7 @@ func BaseBlockMulAdd_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []
 				hwy.Store(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRowStart+j] += hwy.Float32ToBFloat16(aik.Float32() * b[bRowStart+j].Float32())
+				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -79,9 +79,9 @@ func BaseBlockMulAdd_fallback(aT []float32, b []float32, c []float32, blockDim i
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := hwy.Zero[float32]().NumLanes()
-	for i := 0; i < blockDim; i++ {
+	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -110,9 +110,9 @@ func BaseBlockMulAdd_fallback_Float64(aT []float64, b []float64, c []float64, bl
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := hwy.Zero[float64]().NumLanes()
-	for i := 0; i < blockDim; i++ {
+	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -145,7 +145,7 @@ func BaseBlockMulAdd2_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			a0k := aT[k*blockDim+i]
 			a1k := aT[k*blockDim+i+1]
 			vA0 := hwy.Set(a0k)
@@ -162,14 +162,14 @@ func BaseBlockMulAdd2_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 				hwy.Store(vC1, c[cRow1Start+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += hwy.Float32ToFloat16(a0k.Float32() * b[bRowStart+j].Float32())
-				c[cRow1Start+j] += hwy.Float32ToFloat16(a1k.Float32() * b[bRowStart+j].Float32())
+				c[cRow0Start+j] = hwy.Float32ToFloat16(c[cRow0Start+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
+				c[cRow1Start+j] = hwy.Float32ToFloat16(c[cRow1Start+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -181,7 +181,7 @@ func BaseBlockMulAdd2_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 				hwy.Store(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRowStart+j] += hwy.Float32ToFloat16(aik.Float32() * b[bRowStart+j].Float32())
+				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -202,7 +202,7 @@ func BaseBlockMulAdd2_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			a0k := aT[k*blockDim+i]
 			a1k := aT[k*blockDim+i+1]
 			vA0 := hwy.Set(a0k)
@@ -219,14 +219,14 @@ func BaseBlockMulAdd2_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 				hwy.Store(vC1, c[cRow1Start+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += hwy.Float32ToBFloat16(a0k.Float32() * b[bRowStart+j].Float32())
-				c[cRow1Start+j] += hwy.Float32ToBFloat16(a1k.Float32() * b[bRowStart+j].Float32())
+				c[cRow0Start+j] = hwy.Float32ToBFloat16(c[cRow0Start+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
+				c[cRow1Start+j] = hwy.Float32ToBFloat16(c[cRow1Start+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -238,7 +238,7 @@ func BaseBlockMulAdd2_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 				hwy.Store(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRowStart+j] += hwy.Float32ToBFloat16(aik.Float32() * b[bRowStart+j].Float32())
+				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -259,7 +259,7 @@ func BaseBlockMulAdd2_fallback(aT []float32, b []float32, c []float32, blockDim 
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			a0k := aT[k*blockDim+i]
 			a1k := aT[k*blockDim+i+1]
 			vA0 := hwy.Set(a0k)
@@ -283,7 +283,7 @@ func BaseBlockMulAdd2_fallback(aT []float32, b []float32, c []float32, blockDim 
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -316,7 +316,7 @@ func BaseBlockMulAdd2_fallback_Float64(aT []float64, b []float64, c []float64, b
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			a0k := aT[k*blockDim+i]
 			a1k := aT[k*blockDim+i+1]
 			vA0 := hwy.Set(a0k)
@@ -340,7 +340,7 @@ func BaseBlockMulAdd2_fallback_Float64(aT []float64, b []float64, c []float64, b
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -375,7 +375,7 @@ func BaseBlockMulAdd4_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aTRowK := k * blockDim
 			a0k := aT[aTRowK+i]
 			a1k := aT[aTRowK+i+1]
@@ -403,16 +403,16 @@ func BaseBlockMulAdd4_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 				hwy.Store(vC3, c[cRow3+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRow0+j] += hwy.Float32ToFloat16(a0k.Float32() * b[bRowStart+j].Float32())
-				c[cRow1+j] += hwy.Float32ToFloat16(a1k.Float32() * b[bRowStart+j].Float32())
-				c[cRow2+j] += hwy.Float32ToFloat16(a2k.Float32() * b[bRowStart+j].Float32())
-				c[cRow3+j] += hwy.Float32ToFloat16(a3k.Float32() * b[bRowStart+j].Float32())
+				c[cRow0+j] = hwy.Float32ToFloat16(c[cRow0+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
+				c[cRow1+j] = hwy.Float32ToFloat16(c[cRow1+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
+				c[cRow2+j] = hwy.Float32ToFloat16(c[cRow2+j].Float32() + a2k.Float32()*b[bRowStart+j].Float32())
+				c[cRow3+j] = hwy.Float32ToFloat16(c[cRow3+j].Float32() + a3k.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -424,7 +424,7 @@ func BaseBlockMulAdd4_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 				hwy.Store(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRowStart+j] += hwy.Float32ToFloat16(aik.Float32() * b[bRowStart+j].Float32())
+				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -447,7 +447,7 @@ func BaseBlockMulAdd4_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aTRowK := k * blockDim
 			a0k := aT[aTRowK+i]
 			a1k := aT[aTRowK+i+1]
@@ -475,16 +475,16 @@ func BaseBlockMulAdd4_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 				hwy.Store(vC3, c[cRow3+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRow0+j] += hwy.Float32ToBFloat16(a0k.Float32() * b[bRowStart+j].Float32())
-				c[cRow1+j] += hwy.Float32ToBFloat16(a1k.Float32() * b[bRowStart+j].Float32())
-				c[cRow2+j] += hwy.Float32ToBFloat16(a2k.Float32() * b[bRowStart+j].Float32())
-				c[cRow3+j] += hwy.Float32ToBFloat16(a3k.Float32() * b[bRowStart+j].Float32())
+				c[cRow0+j] = hwy.Float32ToBFloat16(c[cRow0+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
+				c[cRow1+j] = hwy.Float32ToBFloat16(c[cRow1+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
+				c[cRow2+j] = hwy.Float32ToBFloat16(c[cRow2+j].Float32() + a2k.Float32()*b[bRowStart+j].Float32())
+				c[cRow3+j] = hwy.Float32ToBFloat16(c[cRow3+j].Float32() + a3k.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -496,7 +496,7 @@ func BaseBlockMulAdd4_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 				hwy.Store(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
-				c[cRowStart+j] += hwy.Float32ToBFloat16(aik.Float32() * b[bRowStart+j].Float32())
+				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
 			}
 		}
 	}
@@ -519,7 +519,7 @@ func BaseBlockMulAdd4_fallback(aT []float32, b []float32, c []float32, blockDim 
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aTRowK := k * blockDim
 			a0k := aT[aTRowK+i]
 			a1k := aT[aTRowK+i+1]
@@ -556,7 +556,7 @@ func BaseBlockMulAdd4_fallback(aT []float32, b []float32, c []float32, blockDim 
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim
@@ -591,7 +591,7 @@ func BaseBlockMulAdd4_fallback_Float64(aT []float64, b []float64, c []float64, b
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aTRowK := k * blockDim
 			a0k := aT[aTRowK+i]
 			a1k := aT[aTRowK+i+1]
@@ -628,7 +628,7 @@ func BaseBlockMulAdd4_fallback_Float64(aT []float64, b []float64, c []float64, b
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := 0; k < blockDim; k++ {
+		for k := range blockDim {
 			aik := aT[k*blockDim+i]
 			vA := hwy.Set(aik)
 			bRowStart := k * blockDim

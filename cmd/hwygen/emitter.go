@@ -79,6 +79,20 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				pkgs.StdMath = true
 				continue
 			}
+			// Check for stdlib math package calls BEFORE OpMap lookup
+			// This is needed because OpMap might have entries like "Sqrt" for hwy.Sqrt,
+			// but we need to distinguish math.Sqrt (stdlib) from hwy.Sqrt
+			if call.Package == "math" {
+				if stdMathFuncs[call.FuncName] {
+					// This is a stdlib math function call (math.Sqrt, math.Inf, etc.)
+					pkgs.StdMath = true
+					continue
+				} else if strings.HasPrefix(call.FuncName, "Base") {
+					// This is a contrib math function reference (like math.BaseExpVec)
+					pkgs.Math = true
+					continue
+				}
+			}
 			if opInfo, ok := target.OpMap[call.FuncName]; ok {
 				switch opInfo.SubPackage {
 				case "math":
@@ -97,14 +111,6 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				// Track if core hwy operations are used (Load, Store, Add, etc.)
 				if call.Package == "hwy" {
 					pkgs.HwyCore = true
-				}
-			} else if call.Package == "math" {
-				if stdMathFuncs[call.FuncName] {
-					// This is a stdlib math function call (not in OpMap)
-					pkgs.StdMath = true
-				} else if strings.HasPrefix(call.FuncName, "Base") {
-					// This is a contrib math function reference (like math.BaseExpVec)
-					pkgs.Math = true
 				}
 			} else if call.Package == "algo" && strings.HasPrefix(call.FuncName, "Base") {
 				// This is a contrib algo function reference (like algo.BaseApply)
@@ -807,45 +813,97 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 
 		fmt.Fprintf(buf, "\tcase %s:\n", caseType)
 
-		// Build the call with type assertions
-		// Check if return type is a type parameter that needs wrapping
-		needsReturnWrap := len(pf.Returns) > 0 && containsTypeParam(pf.Returns[0].Type, pf.TypeParams)
-		if len(pf.Returns) > 0 {
-			if needsReturnWrap {
-				fmt.Fprintf(buf, "\t\treturn any(")
-			} else {
-				fmt.Fprintf(buf, "\t\treturn ")
+		// Check if any return type is a type parameter that needs wrapping
+		needsReturnWrap := false
+		for _, ret := range pf.Returns {
+			if containsTypeParam(ret.Type, pf.TypeParams) {
+				needsReturnWrap = true
+				break
 			}
-		} else {
-			fmt.Fprintf(buf, "\t\t")
 		}
-		fmt.Fprintf(buf, "%s(", dispatchName)
 
-		for i, param := range pf.Params {
-			if i > 0 {
-				fmt.Fprintf(buf, ", ")
+		// Handle multiple return values that need type conversion
+		if needsReturnWrap && len(pf.Returns) > 1 {
+			// Generate temp variable assignment: _r0, _r1 := Func(...)
+			fmt.Fprintf(buf, "\t\t")
+			for i := range pf.Returns {
+				if i > 0 {
+					fmt.Fprintf(buf, ", ")
+				}
+				fmt.Fprintf(buf, "_r%d", i)
 			}
-			// Check if this parameter needs type assertion
-			if containsTypeParam(param.Type, pf.TypeParams) {
-				// Use specializeType to get the correct concrete type
-				concreteParamType := specializeType(param.Type, pf.TypeParams, elemType)
-				fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
-			} else if param.Type == "T" {
-				fmt.Fprintf(buf, "any(%s).(%s)", param.Name, elemType)
-			} else if isInterfaceTypeParam(param.Type, pf.TypeParams) {
-				// Interface type parameter (e.g., P constrained by Predicate[T])
-				// Need to assert to concrete interface type (e.g., Predicate[float32])
-				concreteType := specializeType(getConstraintForParam(param.Type, pf.TypeParams), pf.TypeParams, elemType)
-				fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
+			fmt.Fprintf(buf, " := %s(", dispatchName)
+
+			for i, param := range pf.Params {
+				if i > 0 {
+					fmt.Fprintf(buf, ", ")
+				}
+				if containsTypeParam(param.Type, pf.TypeParams) {
+					concreteParamType := specializeType(param.Type, pf.TypeParams, elemType)
+					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
+				} else if param.Type == "T" {
+					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, elemType)
+				} else if isInterfaceTypeParam(param.Type, pf.TypeParams) {
+					concreteType := specializeType(getConstraintForParam(param.Type, pf.TypeParams), pf.TypeParams, elemType)
+					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
+				} else {
+					fmt.Fprintf(buf, "%s", param.Name)
+				}
+			}
+			fmt.Fprintf(buf, ")\n")
+
+			// Generate return statement: return any(_r0).(T), any(_r1).(T)
+			fmt.Fprintf(buf, "\t\treturn ")
+			for i, ret := range pf.Returns {
+				if i > 0 {
+					fmt.Fprintf(buf, ", ")
+				}
+				if containsTypeParam(ret.Type, pf.TypeParams) {
+					fmt.Fprintf(buf, "any(_r%d).(%s)", i, ret.Type)
+				} else {
+					fmt.Fprintf(buf, "_r%d", i)
+				}
+			}
+			fmt.Fprintf(buf, "\n")
+		} else {
+			// Single return or no return - use simpler inline form
+			if len(pf.Returns) > 0 {
+				if needsReturnWrap {
+					fmt.Fprintf(buf, "\t\treturn any(")
+				} else {
+					fmt.Fprintf(buf, "\t\treturn ")
+				}
 			} else {
-				fmt.Fprintf(buf, "%s", param.Name)
+				fmt.Fprintf(buf, "\t\t")
 			}
+			fmt.Fprintf(buf, "%s(", dispatchName)
+
+			for i, param := range pf.Params {
+				if i > 0 {
+					fmt.Fprintf(buf, ", ")
+				}
+				// Check if this parameter needs type assertion
+				if containsTypeParam(param.Type, pf.TypeParams) {
+					// Use specializeType to get the correct concrete type
+					concreteParamType := specializeType(param.Type, pf.TypeParams, elemType)
+					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
+				} else if param.Type == "T" {
+					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, elemType)
+				} else if isInterfaceTypeParam(param.Type, pf.TypeParams) {
+					// Interface type parameter (e.g., P constrained by Predicate[T])
+					// Need to assert to concrete interface type (e.g., Predicate[float32])
+					concreteType := specializeType(getConstraintForParam(param.Type, pf.TypeParams), pf.TypeParams, elemType)
+					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
+				} else {
+					fmt.Fprintf(buf, "%s", param.Name)
+				}
+			}
+			fmt.Fprintf(buf, ")")
+			if needsReturnWrap {
+				fmt.Fprintf(buf, ").(%s)", pf.Returns[0].Type)
+			}
+			fmt.Fprintf(buf, "\n")
 		}
-		fmt.Fprintf(buf, ")")
-		if needsReturnWrap {
-			fmt.Fprintf(buf, ").(T)")
-		}
-		fmt.Fprintf(buf, "\n")
 	}
 
 	fmt.Fprintf(buf, "\t}\n")

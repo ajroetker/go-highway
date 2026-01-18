@@ -9,7 +9,7 @@ func DotBatch(queries, keys [][]float32) []float32 {
 	n := min(len(queries), len(keys))
 	results := make([]float32, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		results[i] = Dot(queries[i], keys[i])
 	}
 
@@ -21,7 +21,7 @@ func DotBatchFloat64(queries, keys [][]float64) []float64 {
 	n := min(len(queries), len(keys))
 	results := make([]float64, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		results[i] = DotFloat64(queries[i], keys[i])
 	}
 

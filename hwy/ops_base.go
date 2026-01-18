@@ -9,10 +9,7 @@ import "math"
 
 // Load creates a vector by loading data from a slice.
 func Load[T Lanes](src []T) Vec[T] {
-	n := MaxLanes[T]()
-	if len(src) < n {
-		n = len(src)
-	}
+	n := min(len(src), MaxLanes[T]())
 	data := make([]T, n)
 	copy(data, src[:n])
 	return Vec[T]{data: data}
@@ -20,10 +17,7 @@ func Load[T Lanes](src []T) Vec[T] {
 
 // Store writes a vector's data to a slice.
 func Store[T Lanes](v Vec[T], dst []T) {
-	n := len(v.data)
-	if len(dst) < n {
-		n = len(dst)
-	}
+	n := min(len(dst), len(v.data))
 	copy(dst[:n], v.data[:n])
 }
 
@@ -66,12 +60,9 @@ func Zero[T Lanes]() Vec[T] {
 
 // Add performs element-wise addition.
 func Add[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = addHelper(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -117,12 +108,9 @@ func addHelper[T Lanes](a, b T) T {
 
 // Sub performs element-wise subtraction.
 func Sub[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = subHelper(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -163,12 +151,9 @@ func subHelper[T Lanes](a, b T) T {
 
 // Mul performs element-wise multiplication.
 func Mul[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = mulHelper(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -209,23 +194,20 @@ func mulHelper[T Lanes](a, b T) T {
 
 // Div performs element-wise division.
 func Div[T Floats](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
 
 	// Check type once, then use optimized loop
 	var zero T
 	switch any(zero).(type) {
 	case Float16:
-		for i := 0; i < n; i++ {
+		for i := range n {
 			av := any(a.data[i]).(Float16)
 			bv := any(b.data[i]).(Float16)
 			result[i] = any(Float32ToFloat16(av.Float32() / bv.Float32())).(T)
 		}
 	case BFloat16:
-		for i := 0; i < n; i++ {
+		for i := range n {
 			av := any(a.data[i]).(BFloat16)
 			bv := any(b.data[i]).(BFloat16)
 			result[i] = any(Float32ToBFloat16(av.Float32() / bv.Float32())).(T)
@@ -235,14 +217,14 @@ func Div[T Floats](a, b Vec[T]) Vec[T] {
 		aData := any(a.data).([]float32)
 		bData := any(b.data).([]float32)
 		rData := any(result).([]float32)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rData[i] = aData[i] / bData[i]
 		}
 	case float64:
 		aData := any(a.data).([]float64)
 		bData := any(b.data).([]float64)
 		rData := any(result).([]float64)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rData[i] = aData[i] / bData[i]
 		}
 	}
@@ -357,12 +339,9 @@ func absHelper[T Lanes](a T) T {
 
 // Min returns element-wise minimum.
 func Min[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if lessHelper(a.data[i], b.data[i]) {
 			result[i] = a.data[i]
 		} else {
@@ -405,12 +384,9 @@ func lessHelper[T Lanes](a, b T) bool {
 
 // Max returns element-wise maximum.
 func Max[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if greaterHelper(a.data[i], b.data[i]) {
 			result[i] = a.data[i]
 		} else {
@@ -471,12 +447,9 @@ func Sqrt[T Floats](v Vec[T]) Vec[T] {
 
 // Pow computes base^exp element-wise.
 func Pow[T Floats](base, exp Vec[T]) Vec[T] {
-	n := len(base.data)
-	if len(exp.data) < n {
-		n = len(exp.data)
-	}
+	n := min(len(exp.data), len(base.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		switch b := any(base.data[i]).(type) {
 		case Float16:
 			e := any(exp.data[i]).(Float16)
@@ -497,15 +470,9 @@ func Pow[T Floats](base, exp Vec[T]) Vec[T] {
 
 // FMA performs fused multiply-add.
 func FMA[T Floats](a, b, c Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
-	if len(c.data) < n {
-		n = len(c.data)
-	}
+	n := min(len(c.data), min(len(b.data), len(a.data)))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		switch av := any(a.data[i]).(type) {
 		case Float16:
 			bv := any(b.data[i]).(Float16)
@@ -569,12 +536,9 @@ func ReduceMax[T Lanes](v Vec[T]) T {
 
 // Equal performs element-wise equality comparison.
 func Equal[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bits[i] = a.data[i] == b.data[i]
 	}
 	return Mask[T]{bits: bits}
@@ -582,12 +546,9 @@ func Equal[T Lanes](a, b Vec[T]) Mask[T] {
 
 // NotEqual performs element-wise inequality comparison.
 func NotEqual[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bits[i] = a.data[i] != b.data[i]
 	}
 	return Mask[T]{bits: bits}
@@ -595,12 +556,9 @@ func NotEqual[T Lanes](a, b Vec[T]) Mask[T] {
 
 // LessThan performs element-wise less-than comparison.
 func LessThan[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bits[i] = a.data[i] < b.data[i]
 	}
 	return Mask[T]{bits: bits}
@@ -608,12 +566,9 @@ func LessThan[T Lanes](a, b Vec[T]) Mask[T] {
 
 // GreaterThan performs element-wise greater-than comparison.
 func GreaterThan[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bits[i] = a.data[i] > b.data[i]
 	}
 	return Mask[T]{bits: bits}
@@ -621,12 +576,9 @@ func GreaterThan[T Lanes](a, b Vec[T]) Mask[T] {
 
 // LessEqual performs element-wise less-than-or-equal comparison.
 func LessEqual[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bits[i] = a.data[i] <= b.data[i]
 	}
 	return Mask[T]{bits: bits}
@@ -634,12 +586,9 @@ func LessEqual[T Lanes](a, b Vec[T]) Mask[T] {
 
 // GreaterEqual performs element-wise greater-than-or-equal comparison.
 func GreaterEqual[T Lanes](a, b Vec[T]) Mask[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bits[i] = a.data[i] >= b.data[i]
 	}
 	return Mask[T]{bits: bits}
@@ -739,15 +688,9 @@ func testBitHelper[T Integers](val T, bit int) bool {
 
 // IfThenElse performs conditional selection.
 func IfThenElse[T Lanes](mask Mask[T], a, b Vec[T]) Vec[T] {
-	n := len(mask.bits)
-	if len(a.data) < n {
-		n = len(a.data)
-	}
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), min(len(a.data), len(mask.bits)))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			result[i] = a.data[i]
 		} else {
@@ -760,12 +703,9 @@ func IfThenElse[T Lanes](mask Mask[T], a, b Vec[T]) Vec[T] {
 // IfThenElseZero returns a where mask is true, zero otherwise.
 // Equivalent to IfThenElse(mask, a, Zero()) but more efficient.
 func IfThenElseZero[T Lanes](mask Mask[T], a Vec[T]) Vec[T] {
-	n := len(mask.bits)
-	if len(a.data) < n {
-		n = len(a.data)
-	}
+	n := min(len(a.data), len(mask.bits))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			result[i] = a.data[i]
 		}
@@ -777,12 +717,9 @@ func IfThenElseZero[T Lanes](mask Mask[T], a Vec[T]) Vec[T] {
 // IfThenZeroElse returns zero where mask is true, b otherwise.
 // Equivalent to IfThenElse(mask, Zero(), b) but more efficient.
 func IfThenZeroElse[T Lanes](mask Mask[T], b Vec[T]) Vec[T] {
-	n := len(mask.bits)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(mask.bits))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if !mask.bits[i] {
 			result[i] = b.data[i]
 		}
@@ -806,12 +743,9 @@ func ZeroIfNegative[T Lanes](v Vec[T]) Vec[T] {
 
 // MaskLoad loads data from a slice only for lanes where the mask is true.
 func MaskLoad[T Lanes](mask Mask[T], src []T) Vec[T] {
-	n := len(mask.bits)
-	if len(src) < n {
-		n = len(src)
-	}
+	n := min(len(src), len(mask.bits))
 	result := make([]T, len(mask.bits))
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			result[i] = src[i]
 		}
@@ -822,14 +756,8 @@ func MaskLoad[T Lanes](mask Mask[T], src []T) Vec[T] {
 
 // MaskStore stores vector data to a slice only for lanes where the mask is true.
 func MaskStore[T Lanes](mask Mask[T], v Vec[T], dst []T) {
-	n := len(mask.bits)
-	if len(v.data) < n {
-		n = len(v.data)
-	}
-	if len(dst) < n {
-		n = len(dst)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(dst), min(len(v.data), len(mask.bits)))
+	for i := range n {
 		if mask.bits[i] {
 			dst[i] = v.data[i]
 		}
@@ -838,12 +766,9 @@ func MaskStore[T Lanes](mask Mask[T], v Vec[T], dst []T) {
 
 // And performs element-wise bitwise AND.
 func And[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		// Perform bitwise AND by reinterpreting as integers
 		result[i] = bitwiseAnd(a.data[i], b.data[i])
 	}
@@ -852,12 +777,9 @@ func And[T Lanes](a, b Vec[T]) Vec[T] {
 
 // Or performs element-wise bitwise OR.
 func Or[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = bitwiseOr(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -865,12 +787,9 @@ func Or[T Lanes](a, b Vec[T]) Vec[T] {
 
 // Xor performs element-wise bitwise XOR.
 func Xor[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = bitwiseXor(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -887,12 +806,9 @@ func Not[T Lanes](v Vec[T]) Vec[T] {
 
 // AndNot performs element-wise bitwise AND NOT (~a & b).
 func AndNot[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = bitwiseAndNot(a.data[i], b.data[i])
 	}
 	return Vec[T]{data: result}
@@ -1198,25 +1114,25 @@ func RoundToEven[T Floats](v Vec[T]) Vec[T] {
 	case Float16:
 		vData := any(v.data).([]Float16)
 		rData := any(result).([]Float16)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rData[i] = Float32ToFloat16(float32(math.RoundToEven(float64(vData[i].Float32()))))
 		}
 	case BFloat16:
 		vData := any(v.data).([]BFloat16)
 		rData := any(result).([]BFloat16)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rData[i] = Float32ToBFloat16(float32(math.RoundToEven(float64(vData[i].Float32()))))
 		}
 	case float32:
 		vData := any(v.data).([]float32)
 		rData := any(result).([]float32)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rData[i] = float32(math.RoundToEven(float64(vData[i])))
 		}
 	case float64:
 		vData := any(v.data).([]float64)
 		rData := any(result).([]float64)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			rData[i] = math.RoundToEven(vData[i])
 		}
 	}

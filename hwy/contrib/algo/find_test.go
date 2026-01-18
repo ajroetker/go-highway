@@ -263,9 +263,8 @@ func BenchmarkFind(b *testing.B) {
 	}
 	target := float32(benchSize - 1) // Worst case: last element
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Find(slice, target)
 	}
 }
@@ -277,9 +276,8 @@ func BenchmarkFind_Stdlib(b *testing.B) {
 	}
 	target := float32(benchSize - 1)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range slice {
 			if v == target {
 				_ = j
@@ -296,9 +294,8 @@ func BenchmarkFind_Early(b *testing.B) {
 	}
 	target := float32(10) // Best case: early element
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Find(slice, target)
 	}
 }
@@ -313,9 +310,8 @@ func BenchmarkCount(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Count(slice, 42)
 	}
 }
@@ -331,9 +327,8 @@ func BenchmarkCount_Stdlib(b *testing.B) {
 	}
 	target := float32(42)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		count := 0
 		for _, v := range slice {
 			if v == target {
@@ -350,9 +345,8 @@ func BenchmarkCountIf(b *testing.B) {
 		slice[i] = float32(i) - float32(benchSize/2)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		CountIf(slice, func(v hwy.Vec[float32]) hwy.Mask[float32] {
 			return hwy.GreaterThan(v, hwy.Zero[float32]())
 		})
@@ -365,9 +359,8 @@ func BenchmarkAll(b *testing.B) {
 		slice[i] = float32(i + 1) // All positive
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		All(slice, func(v hwy.Vec[float32]) hwy.Mask[float32] {
 			return hwy.GreaterThan(v, hwy.Zero[float32]())
 		})
@@ -381,9 +374,8 @@ func BenchmarkAny(b *testing.B) {
 	}
 	slice[benchSize-1] = 1 // One positive at the end
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Any(slice, func(v hwy.Vec[float32]) hwy.Mask[float32] {
 			return hwy.GreaterThan(v, hwy.Zero[float32]())
 		})
@@ -572,9 +564,8 @@ func BenchmarkFindIfP(b *testing.B) {
 
 	pred := GreaterThan[float32]{Threshold: float32(benchSize - 1)}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		FindIfP(slice, pred)
 	}
 }
@@ -587,9 +578,8 @@ func BenchmarkCountIfP(b *testing.B) {
 
 	pred := GreaterThan[float32]{Threshold: 0}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		CountIfP(slice, pred)
 	}
 }
@@ -602,9 +592,8 @@ func BenchmarkAllP(b *testing.B) {
 
 	pred := GreaterThan[float32]{Threshold: 0}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		AllP(slice, pred)
 	}
 }
@@ -618,9 +607,8 @@ func BenchmarkAnyP(b *testing.B) {
 
 	pred := GreaterThan[float32]{Threshold: 0}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		AnyP(slice, pred)
 	}
 }

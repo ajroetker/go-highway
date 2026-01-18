@@ -7,12 +7,12 @@ import (
 
 func TestMatVec(t *testing.T) {
 	tests := []struct {
-		name   string
-		m      []float32
-		rows   int
-		cols   int
-		v      []float32
-		want   []float32
+		name string
+		m    []float32
+		rows int
+		cols int
+		v    []float32
+		want []float32
 	}{
 		{
 			name: "2x3 matrix",
@@ -102,12 +102,12 @@ func TestMatVec(t *testing.T) {
 
 func TestMatVecFloat64(t *testing.T) {
 	tests := []struct {
-		name   string
-		m      []float64
-		rows   int
-		cols   int
-		v      []float64
-		want   []float64
+		name string
+		m    []float64
+		rows int
+		cols int
+		v    []float64
+		want []float64
 	}{
 		{
 			name: "2x3 matrix",
@@ -189,7 +189,7 @@ func TestMatVecPanics(t *testing.T) {
 
 func make16x16Identity() []float32 {
 	m := make([]float32, 16*16)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		m[i*16+i] = 1
 	}
 	return m
@@ -249,8 +249,8 @@ func BenchmarkMatVecFloat64(b *testing.B) {
 	result := make([]float64, rows)
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		MatVecFloat64(m, rows, cols, v, result)
 	}
 }

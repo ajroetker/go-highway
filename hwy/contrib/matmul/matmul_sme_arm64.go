@@ -7,6 +7,7 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
 // NOTE: SME implementation confirmed working on Apple M4!
@@ -53,33 +54,28 @@ func matmul_fmopa_at_f32(at, b, c unsafe.Pointer, m, n, k int64)
 //go:noescape
 func matmul_fmopa_at_f64(at, b, c unsafe.Pointer, m, n, k int64)
 
-//go:noescape
-func matmul_fmopa_at_f16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)
-
-//go:noescape
-func matmul_bfmopa_at_bf16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)
 
 // Transpose buffer pools to avoid allocations
 var transposePool32 = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make([]float32, 0, 256*256)
 	},
 }
 
 var transposePool64 = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make([]float64, 0, 256*256)
 	},
 }
 
 var transposePoolF16 = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make([]hwy.Float16, 0, 256*256)
 	},
 }
 
 var transposePoolBF16 = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make([]hwy.BFloat16, 0, 256*256)
 	},
 }
@@ -88,8 +84,8 @@ var transposePoolBF16 = sync.Pool{
 // AT[k,i] = A[i,k]
 // Uses generics to support all float types.
 func transposeMatrix[T hwy.Floats](a []T, m, k int, at []T) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			at[j*m+i] = a[i*k+j]
 		}
 	}
@@ -234,8 +230,8 @@ func matmulFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 	nVal := int64(n)
 	kVal := int64(k)
 
-	// Call FMOPA with transposed A
-	matmul_fmopa_at_f16(
+	// Call FMOPA with transposed A (from asm package)
+	asm.MatmulFmopaAtF16(
 		unsafe.Pointer(unsafe.SliceData(atBuf)),
 		unsafe.Pointer(unsafe.SliceData(b)),
 		unsafe.Pointer(unsafe.SliceData(c)),
@@ -283,8 +279,8 @@ func matmulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	nVal := int64(n)
 	kVal := int64(k)
 
-	// Call BFMOPA with transposed A
-	matmul_bfmopa_at_bf16(
+	// Call BFMOPA with transposed A (from asm package)
+	asm.MatmulBfmopaAtBF16(
 		unsafe.Pointer(unsafe.SliceData(atBuf)),
 		unsafe.Pointer(unsafe.SliceData(b)),
 		unsafe.Pointer(unsafe.SliceData(c)),

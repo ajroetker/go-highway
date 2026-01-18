@@ -41,7 +41,7 @@ func BaseMatVec[T hwy.Floats](m []T, rows, cols int, v, result []T) {
 		panic("result slice too small")
 	}
 
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 
 		// SIMD dot product for this row

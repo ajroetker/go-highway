@@ -12,14 +12,8 @@ import "unsafe"
 // This is useful when you want conditional updates without affecting
 // the non-selected lanes in the destination.
 func BlendedStore[T Lanes](v Vec[T], mask Mask[T], dst []T) {
-	n := len(v.data)
-	if len(mask.bits) < n {
-		n = len(mask.bits)
-	}
-	if len(dst) < n {
-		n = len(dst)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(dst), min(len(mask.bits), len(v.data)))
+	for i := range n {
 		if mask.bits[i] {
 			dst[i] = v.data[i]
 		}
@@ -63,10 +57,7 @@ func LoadDup128[T Lanes](src []T) Vec[T] {
 	result := make([]T, totalLanes)
 
 	// Determine how many source lanes we can load (up to one 128-bit block)
-	srcLanes := blockLanes
-	if len(src) < srcLanes {
-		srcLanes = len(src)
-	}
+	srcLanes := min(len(src), blockLanes)
 
 	// Duplicate the 128-bit block across the entire vector
 	for block := 0; block < totalLanes; block += blockLanes {
@@ -191,10 +182,7 @@ func LoadInterleaved4[T Lanes](src []T) (Vec[T], Vec[T], Vec[T], Vec[T]) {
 //
 // This is the inverse of LoadInterleaved2.
 func StoreInterleaved2[T Lanes](a, b Vec[T], dst []T) {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 
 	dstIdx := 0
 	for i := 0; i < n && dstIdx+1 < len(dst); i++ {
@@ -219,13 +207,7 @@ func StoreInterleaved2[T Lanes](a, b Vec[T], dst []T) {
 //
 // This is the inverse of LoadInterleaved3.
 func StoreInterleaved3[T Lanes](a, b, c Vec[T], dst []T) {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
-	if len(c.data) < n {
-		n = len(c.data)
-	}
+	n := min(len(c.data), min(len(b.data), len(a.data)))
 
 	dstIdx := 0
 	for i := 0; i < n && dstIdx+2 < len(dst); i++ {
@@ -252,16 +234,7 @@ func StoreInterleaved3[T Lanes](a, b, c Vec[T], dst []T) {
 //
 // This is the inverse of LoadInterleaved4.
 func StoreInterleaved4[T Lanes](a, b, c, d Vec[T], dst []T) {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
-	if len(c.data) < n {
-		n = len(c.data)
-	}
-	if len(d.data) < n {
-		n = len(d.data)
-	}
+	n := min(len(d.data), min(len(c.data), min(len(b.data), len(a.data))))
 
 	dstIdx := 0
 	for i := 0; i < n && dstIdx+3 < len(dst); i++ {

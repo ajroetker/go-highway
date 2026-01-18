@@ -43,13 +43,13 @@ func matvec_sme_f64(mt, v, result unsafe.Pointer, rows, cols int64)
 
 // Transpose buffer pools to avoid allocations
 var matvecTransposePool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make([]float32, 0, 256*256)
 	},
 }
 
 var matvecTransposePool64 = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make([]float64, 0, 256*256)
 	},
 }
@@ -57,8 +57,8 @@ var matvecTransposePool64 = sync.Pool{
 // transposeForMatVec transposes rows×cols matrix M into cols×rows matrix MT
 // MT[k,i] = M[i,k]
 func transposeForMatVec(m []float32, rows, cols int, mt []float32) {
-	for i := 0; i < rows; i++ {
-		for k := 0; k < cols; k++ {
+	for i := range rows {
+		for k := range cols {
 			mt[k*rows+i] = m[i*cols+k]
 		}
 	}
@@ -66,8 +66,8 @@ func transposeForMatVec(m []float32, rows, cols int, mt []float32) {
 
 // transposeForMatVec64 transposes rows×cols matrix M into cols×rows matrix MT for float64
 func transposeForMatVec64(m []float64, rows, cols int, mt []float64) {
-	for i := 0; i < rows; i++ {
-		for k := 0; k < cols; k++ {
+	for i := range rows {
+		for k := range cols {
 			mt[k*rows+i] = m[i*cols+k]
 		}
 	}

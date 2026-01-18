@@ -91,7 +91,7 @@ func TestPopCount(t *testing.T) {
 		v := Vec[uint64]{data: []uint64{0, 1, 0xFFFFFFFFFFFFFFFF, 0x8000000000000001}}
 		result := PopCount(v)
 		want := []uint64{0, 1, 64, 2}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if result.data[i] != want[i] {
 				t.Errorf("lane %d: got %d, want %d", i, result.data[i], want[i])
 			}
@@ -176,7 +176,7 @@ func TestLeadingZeroCount(t *testing.T) {
 		v := Vec[uint64]{data: []uint64{0, 1, 0x8000000000000000, 0xFFFFFFFFFFFFFFFF}}
 		result := LeadingZeroCount(v)
 		want := []uint64{64, 63, 0, 0}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if result.data[i] != want[i] {
 				t.Errorf("lane %d: got %d, want %d", i, result.data[i], want[i])
 			}
@@ -266,7 +266,7 @@ func TestTrailingZeroCount(t *testing.T) {
 		v := Vec[uint64]{data: []uint64{0, 1, 0x8000000000000000, 0x0000000100000000}}
 		result := TrailingZeroCount(v)
 		want := []uint64{64, 0, 63, 32}
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if result.data[i] != want[i] {
 				t.Errorf("lane %d: got %d, want %d", i, result.data[i], want[i])
 			}
@@ -471,7 +471,7 @@ func TestReverseBits(t *testing.T) {
 		input := []uint32{0x12345678, 0xABCDEF01}
 		v := Vec[uint32]{data: input}
 		result := ReverseBits(ReverseBits(v))
-		for i := 0; i < len(input); i++ {
+		for i := range input {
 			if result.data[i] != input[i] {
 				t.Errorf("lane %d: double reverse got 0x%08X, want 0x%08X", i, result.data[i], input[i])
 			}
@@ -562,7 +562,7 @@ func TestHighestSetBitIndex(t *testing.T) {
 		v := Vec[uint64]{data: []uint64{0, 1, 0x8000000000000000, 0xFFFFFFFFFFFFFFFF}}
 		result := HighestSetBitIndex(v)
 		want := []uint64{0xFFFFFFFFFFFFFFFF, 0, 63, 63} // -1 as uint64, 0, 63, 63
-		for i := 0; i < len(want); i++ {
+		for i := range want {
 			if result.data[i] != want[i] {
 				t.Errorf("lane %d: got %d, want %d", i, result.data[i], want[i])
 			}
@@ -574,48 +574,48 @@ func TestHighestSetBitIndex(t *testing.T) {
 
 func BenchmarkPopCount_U32(b *testing.B) {
 	v := Vec[uint32]{data: []uint32{0xAAAAAAAA, 0x55555555, 0xFFFF0000, 0x00FFFF00, 0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = PopCount(v)
 	}
 }
 
 func BenchmarkLeadingZeroCount_U32(b *testing.B) {
 	v := Vec[uint32]{data: []uint32{0xAAAAAAAA, 0x55555555, 0xFFFF0000, 0x00FFFF00, 0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = LeadingZeroCount(v)
 	}
 }
 
 func BenchmarkTrailingZeroCount_U32(b *testing.B) {
 	v := Vec[uint32]{data: []uint32{0xAAAAAAAA, 0x55555555, 0xFFFF0000, 0x00FFFF00, 0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = TrailingZeroCount(v)
 	}
 }
 
 func BenchmarkRotateRight_U32(b *testing.B) {
 	v := Vec[uint32]{data: []uint32{0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE, 0xAAAAAAAA, 0x55555555, 0xFFFF0000, 0x00FFFF00}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = RotateRight(v, 7)
 	}
 }
 
 func BenchmarkReverseBits_U32(b *testing.B) {
 	v := Vec[uint32]{data: []uint32{0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE, 0xAAAAAAAA, 0x55555555, 0xFFFF0000, 0x00FFFF00}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = ReverseBits(v)
 	}
 }
 
 func BenchmarkHighestSetBitIndex_U32(b *testing.B) {
 	v := Vec[uint32]{data: []uint32{0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE, 0xAAAAAAAA, 0x55555555, 0xFFFF0000, 0x00FFFF00}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = HighestSetBitIndex(v)
 	}
 }

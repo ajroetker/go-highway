@@ -217,9 +217,8 @@ func BenchmarkAddF32_NEON(b *testing.B) {
 		bb[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		AddF32(a, bb, result)
 	}
 }
@@ -234,9 +233,8 @@ func BenchmarkMulF32_NEON(b *testing.B) {
 		bb[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		MulF32(a, bb, result)
 	}
 }
@@ -248,9 +246,8 @@ func BenchmarkReduceSumF32_NEON(b *testing.B) {
 		input[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = ReduceSumF32(input)
 	}
 }
@@ -263,9 +260,8 @@ func BenchmarkSqrtF32_NEON(b *testing.B) {
 		input[i] = float32(i + 1)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SqrtF32(input, result)
 	}
 }
@@ -281,9 +277,8 @@ func BenchmarkAddF32_Scalar(b *testing.B) {
 		bb[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range a {
 			result[j] = a[j] + bb[j]
 		}
@@ -297,9 +292,8 @@ func BenchmarkReduceSumF32_Scalar(b *testing.B) {
 		input[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var sum float32
 		for _, v := range input {
 			sum += v
@@ -316,9 +310,8 @@ func BenchmarkSqrtF32_Scalar(b *testing.B) {
 		input[i] = float32(i + 1)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Sqrt(float64(v)))
 		}
@@ -333,9 +326,8 @@ func BenchmarkExpF32_Scalar(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Exp(float64(v)))
 		}
@@ -350,9 +342,8 @@ func BenchmarkSinF32_Scalar(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Sin(float64(v)))
 		}
@@ -367,9 +358,8 @@ func BenchmarkAtanF32_Scalar(b *testing.B) {
 		input[i] = float32(i-512) * 0.01 // range [-5.12, 5.11]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Atan(float64(v)))
 		}
@@ -384,9 +374,8 @@ func BenchmarkLog2F32_Scalar(b *testing.B) {
 		input[i] = float32(i+1) * 0.1 // range [0.1, 102.4]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Log2(float64(v)))
 		}
@@ -829,9 +818,8 @@ func BenchmarkGatherF32_NEON(b *testing.B) {
 		indices[i] = int32((i * 7) % n) // pseudo-random indices
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		GatherF32(base, indices, result)
 	}
 }
@@ -844,9 +832,8 @@ func BenchmarkPromoteF32ToF64_NEON(b *testing.B) {
 		input[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		PromoteF32ToF64(input, result)
 	}
 }
@@ -859,9 +846,8 @@ func BenchmarkRoundF32_NEON(b *testing.B) {
 		input[i] = float32(i) + 0.5
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		RoundF32(input, result)
 	}
 }
@@ -1381,9 +1367,8 @@ func BenchmarkReverseF32_NEON(b *testing.B) {
 		input[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ReverseF32(input, result)
 	}
 }
@@ -1398,9 +1383,8 @@ func BenchmarkEqF32_NEON(b *testing.B) {
 		bb[i] = float32(i % 10)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		EqF32(a, bb, result)
 	}
 }
@@ -1415,9 +1399,8 @@ func BenchmarkLtF32_NEON(b *testing.B) {
 		bb[i] = float32(n - i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		LtF32(a, bb, result)
 	}
 }
@@ -1661,7 +1644,7 @@ func TestCompressF32(t *testing.T) {
 	if count != 4 {
 		t.Errorf("CompressF32: count = %v, want 4", count)
 	}
-	for i := int64(0); i < count; i++ {
+	for i := range count {
 		if result[i] != expected[i] {
 			t.Errorf("CompressF32[%d]: got %v, want %v", i, result[i], expected[i])
 		}
@@ -1845,9 +1828,8 @@ func BenchmarkAndI32_NEON(b *testing.B) {
 		bb[i] = int32(i * 0x01010)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		AndI32(a, bb, result)
 	}
 }
@@ -1866,9 +1848,8 @@ func BenchmarkIfThenElseF32_NEON(b *testing.B) {
 		no[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		IfThenElseF32(mask, yes, no, result)
 	}
 }
@@ -1881,9 +1862,8 @@ func BenchmarkExpF32_NEON(b *testing.B) {
 		input[i] = float32(i%10) - 5 // range [-5, 4]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ExpF32(input, result)
 	}
 }
@@ -1896,9 +1876,8 @@ func BenchmarkSinF32_NEON(b *testing.B) {
 		input[i] = float32(i) * 0.01 // range [0, ~10]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SinF32(input, result)
 	}
 }
@@ -1911,9 +1890,8 @@ func BenchmarkTanhF32_NEON(b *testing.B) {
 		input[i] = float32(i%20) - 10 // range [-10, 9]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		TanhF32(input, result)
 	}
 }
@@ -1926,9 +1904,8 @@ func BenchmarkSigmoidF32_NEON(b *testing.B) {
 		input[i] = float32(i%20) - 10 // range [-10, 9]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SigmoidF32(input, result)
 	}
 }
@@ -2177,9 +2154,8 @@ func BenchmarkTanF32_NEON(b *testing.B) {
 		input[i] = float32(i) * 0.001 // avoid asymptotes
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		TanF32(input, result)
 	}
 }
@@ -2192,9 +2168,8 @@ func BenchmarkAtanF32_NEON(b *testing.B) {
 		input[i] = float32(i%20) - 10
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		AtanF32(input, result)
 	}
 }
@@ -2209,9 +2184,8 @@ func BenchmarkPowF32_NEON(b *testing.B) {
 		exp[i] = float32(i%5) * 0.5
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		PowF32(base, exp, result)
 	}
 }
@@ -2224,9 +2198,8 @@ func BenchmarkErfF32_NEON(b *testing.B) {
 		input[i] = float32(i%10) - 5
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ErfF32(input, result)
 	}
 }
@@ -2239,9 +2212,8 @@ func BenchmarkExp2F32_NEON(b *testing.B) {
 		input[i] = float32(i%16) - 8
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Exp2F32(input, result)
 	}
 }
@@ -2254,9 +2226,8 @@ func BenchmarkLog2F32_NEON(b *testing.B) {
 		input[i] = float32(i+1) * 0.1
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Log2F32(input, result)
 	}
 }
@@ -2271,9 +2242,8 @@ func BenchmarkExp2F64_NEON(b *testing.B) {
 		input[i] = float64(i%16) - 8
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Exp2F64(input, result)
 	}
 }
@@ -2286,9 +2256,8 @@ func BenchmarkLog2F64_NEON(b *testing.B) {
 		input[i] = float64(i+1) * 0.1
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Log2F64(input, result)
 	}
 }
@@ -2301,9 +2270,8 @@ func BenchmarkExpF64_NEON(b *testing.B) {
 		input[i] = float64(i%10) - 5
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ExpF64(input, result)
 	}
 }
@@ -2316,9 +2284,8 @@ func BenchmarkLogF64_NEON(b *testing.B) {
 		input[i] = float64(i+1) * 0.1
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		LogF64(input, result)
 	}
 }
@@ -2331,9 +2298,8 @@ func BenchmarkSinF64_NEON(b *testing.B) {
 		input[i] = float64(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SinF64(input, result)
 	}
 }
@@ -2346,9 +2312,8 @@ func BenchmarkCosF64_NEON(b *testing.B) {
 		input[i] = float64(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		CosF64(input, result)
 	}
 }
@@ -2361,9 +2326,8 @@ func BenchmarkTanhF64_NEON(b *testing.B) {
 		input[i] = float64(i%20) - 10
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		TanhF64(input, result)
 	}
 }
@@ -2376,9 +2340,8 @@ func BenchmarkSigmoidF64_NEON(b *testing.B) {
 		input[i] = float64(i%20) - 10
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SigmoidF64(input, result)
 	}
 }
@@ -2425,10 +2388,10 @@ func TestSinCosF32(t *testing.T) {
 	for i := range input {
 		expectedSin := float32(math.Sin(float64(input[i])))
 		expectedCos := float32(math.Cos(float64(input[i])))
-		
+
 		sinErr := math.Abs(float64(sinResult[i] - expectedSin))
 		cosErr := math.Abs(float64(cosResult[i] - expectedCos))
-		
+
 		if sinErr > 1e-3 {
 			t.Errorf("SinCosF32[%d] sin: got %v, want %v (error: %v)", i, sinResult[i], expectedSin, sinErr)
 		}
@@ -2448,9 +2411,8 @@ func BenchmarkLog10F32_NEON(b *testing.B) {
 		input[i] = float32(i+1) * 0.1
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Log10F32(input, result)
 	}
 }
@@ -2463,9 +2425,8 @@ func BenchmarkLog10F32_Scalar(b *testing.B) {
 		input[i] = float32(i+1) * 0.1
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Log10(float64(v)))
 		}
@@ -2480,9 +2441,8 @@ func BenchmarkExp10F32_NEON(b *testing.B) {
 		input[i] = float32(i%6) - 2 // range [-2, 3]
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Exp10F32(input, result)
 	}
 }
@@ -2495,9 +2455,8 @@ func BenchmarkExp10F32_Scalar(b *testing.B) {
 		input[i] = float32(i%6) - 2
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			result[j] = float32(math.Pow(10, float64(v)))
 		}
@@ -2513,9 +2472,8 @@ func BenchmarkSinCosF32_NEON(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SinCosF32(input, sinResult, cosResult)
 	}
 }
@@ -2529,9 +2487,8 @@ func BenchmarkSinCosF32_Scalar(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j, v := range input {
 			sinResult[j] = float32(math.Sin(float64(v)))
 			cosResult[j] = float32(math.Cos(float64(v)))
@@ -2680,8 +2637,8 @@ func BenchmarkTanF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i) * 0.01
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		TanF64(input, result)
 	}
 }
@@ -2693,8 +2650,8 @@ func BenchmarkAtanF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i-512) * 0.01
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		AtanF64(input, result)
 	}
 }
@@ -2708,8 +2665,8 @@ func BenchmarkPowF64_NEON(b *testing.B) {
 		base[i] = float64(i%10) + 1
 		exp[i] = float64(i%5) + 0.5
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		PowF64(base, exp, result)
 	}
 }
@@ -2721,8 +2678,8 @@ func BenchmarkLog10F64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i+1) * 0.1
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		Log10F64(input, result)
 	}
 }
@@ -2734,8 +2691,8 @@ func BenchmarkExp10F64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i%6) - 2
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		Exp10F64(input, result)
 	}
 }
@@ -2748,8 +2705,8 @@ func BenchmarkSinCosF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i) * 0.01
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		SinCosF64(input, sinResult, cosResult)
 	}
 }
@@ -2917,8 +2874,8 @@ func BenchmarkSubF64_NEON(b *testing.B) {
 		a[i] = float64(i)
 		bv[i] = float64(i) * 0.5
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		SubF64(a, bv, result)
 	}
 }
@@ -2931,8 +2888,8 @@ func BenchmarkDivF64_NEON(b *testing.B) {
 		a[i] = float64(i + 1)
 		bv[i] = float64(i+1) * 0.5
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		DivF64(a, bv, result)
 	}
 }
@@ -2945,8 +2902,8 @@ func BenchmarkMinF64_NEON(b *testing.B) {
 		a[i] = float64(i)
 		bv[i] = float64(1024 - i)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		MinF64(a, bv, result)
 	}
 }
@@ -2959,8 +2916,8 @@ func BenchmarkMaxF64_NEON(b *testing.B) {
 		a[i] = float64(i)
 		bv[i] = float64(1024 - i)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		MaxF64(a, bv, result)
 	}
 }
@@ -2971,8 +2928,8 @@ func BenchmarkSqrtF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i + 1)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		SqrtF64(input, result)
 	}
 }
@@ -2983,8 +2940,8 @@ func BenchmarkAbsF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i) - 512
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		AbsF64(input, result)
 	}
 }
@@ -2995,8 +2952,8 @@ func BenchmarkNegF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		NegF64(input, result)
 	}
 }
@@ -3006,8 +2963,8 @@ func BenchmarkReduceMinF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		ReduceMinF64(input)
 	}
 }
@@ -3017,8 +2974,8 @@ func BenchmarkReduceMaxF64_NEON(b *testing.B) {
 	for i := range input {
 		input[i] = float64(i)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		ReduceMaxF64(input)
 	}
 }
@@ -3034,7 +2991,7 @@ func TestUint8x16_Saturating(t *testing.T) {
 
 	// Saturating add should clamp at 255
 	sat := a.AddSaturated(b)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if sat.Get(i) != 255 {
 			t.Errorf("AddSaturated[%d]: got %d, want 255", i, sat.Get(i))
 		}
@@ -3044,7 +3001,7 @@ func TestUint8x16_Saturating(t *testing.T) {
 	c := BroadcastUint8x16(5)
 	d := BroadcastUint8x16(10)
 	satSub := c.SubSaturated(d)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if satSub.Get(i) != 0 {
 			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
 		}
@@ -3061,7 +3018,7 @@ func TestUint8x16_MinMax(t *testing.T) {
 	expectedMin := []uint8{1, 50, 100, 50, 10, 100, 0, 64, 1, 50, 100, 50, 10, 100, 0, 64}
 	expectedMax := []uint8{2, 100, 200, 100, 20, 255, 1, 128, 2, 100, 200, 100, 20, 255, 1, 128}
 
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if minResult.Get(i) != expectedMin[i] {
 			t.Errorf("Min[%d]: got %d, want %d", i, minResult.Get(i), expectedMin[i])
 		}
@@ -3101,7 +3058,7 @@ func TestUint32x4_Saturating(t *testing.T) {
 	b := BroadcastUint32x4(10)
 
 	sat := a.AddSaturated(b)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if sat.Get(i) != 0xFFFFFFFF {
 			t.Errorf("AddSaturated[%d]: got %d, want %d", i, sat.Get(i), uint32(0xFFFFFFFF))
 		}
@@ -3111,7 +3068,7 @@ func TestUint32x4_Saturating(t *testing.T) {
 	c := BroadcastUint32x4(5)
 	d := BroadcastUint32x4(10)
 	satSub := c.SubSaturated(d)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if satSub.Get(i) != 0 {
 			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
 		}
@@ -3132,7 +3089,7 @@ func TestUint32x4_MinMax(t *testing.T) {
 	// Unsigned max: 200, 0x80000000, 0xFFFFFFFF, 1
 	expectedMax := []uint32{200, 0x80000000, 0xFFFFFFFF, 1}
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if minResult.Get(i) != expectedMin[i] {
 			t.Errorf("Min[%d]: got %d, want %d", i, minResult.Get(i), expectedMin[i])
 		}
@@ -3176,7 +3133,7 @@ func TestUint64x2_Saturating(t *testing.T) {
 	b := BroadcastUint64x2(10)
 
 	sat := a.AddSaturated(b)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if sat.Get(i) != 0xFFFFFFFFFFFFFFFF {
 			t.Errorf("AddSaturated[%d]: got %d, want max uint64", i, sat.Get(i))
 		}
@@ -3186,7 +3143,7 @@ func TestUint64x2_Saturating(t *testing.T) {
 	c := BroadcastUint64x2(5)
 	d := BroadcastUint64x2(10)
 	satSub := c.SubSaturated(d)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if satSub.Get(i) != 0 {
 			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
 		}
@@ -3256,7 +3213,7 @@ func TestUint16x8_Saturating(t *testing.T) {
 	b := BroadcastUint16x8(10)
 
 	sat := a.AddSaturated(b)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if sat.Get(i) != 65535 {
 			t.Errorf("AddSaturated[%d]: got %d, want 65535", i, sat.Get(i))
 		}
@@ -3266,7 +3223,7 @@ func TestUint16x8_Saturating(t *testing.T) {
 	c := BroadcastUint16x8(5)
 	d := BroadcastUint16x8(10)
 	satSub := c.SubSaturated(d)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if satSub.Get(i) != 0 {
 			t.Errorf("SubSaturated[%d]: got %d, want 0", i, satSub.Get(i))
 		}

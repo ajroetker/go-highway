@@ -88,8 +88,8 @@ func (g *Generator) Run() error {
 			if len(pf.TypeParams) > 0 {
 				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 			} else {
-				// Non-generic function, use a default type
-				concreteTypes = []string{"float32"}
+				// Non-generic function, infer type from parameters
+				concreteTypes = inferTypesFromParams(pf.Params)
 			}
 
 			// Transform for each concrete type
@@ -162,6 +162,26 @@ func (g *Generator) parseTargets() ([]Target, error) {
 	}
 
 	return targets, nil
+}
+
+// inferTypesFromParams examines function parameters to infer the element type.
+// For non-generic functions like BasePack32(src []uint32, ...), this returns the
+// element type of the first slice parameter.
+func inferTypesFromParams(params []Param) []string {
+	for _, p := range params {
+		// Look for slice types like []uint32, []uint64, []float32, etc.
+		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
+			elemType := after
+			switch elemType {
+			case "uint8", "uint16", "uint32", "uint64",
+				"int8", "int16", "int32", "int64",
+				"float32", "float64":
+				return []string{elemType}
+			}
+		}
+	}
+	// Default to float32 if no slice parameter found
+	return []string{"float32"}
 }
 
 // hasInterfaceTypeParams returns true if any type parameter has an interface constraint

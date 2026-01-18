@@ -18,7 +18,7 @@ func BaseMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 	if len(c) < m*n {
 		panic("matmul: C slice too short")
 	}
-	for i := 0; i < m; i++ {
+	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 		vZero := hwy.Zero[hwy.Float16]()
 		lanes := 8
@@ -29,7 +29,7 @@ func BaseMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 		for ; j < n; j++ {
 			cRow[j] = hwy.Float32ToFloat16(0)
 		}
-		for p := 0; p < k; p++ {
+		for p := range k {
 			aip := a[i*k+p]
 			vA := hwy.Set(aip)
 			bRow := b[p*n : (p+1)*n]
@@ -40,7 +40,7 @@ func BaseMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 				hwy.Store(vC, cRow[j:])
 			}
 			for ; j < n; j++ {
-				cRow[j] += hwy.Float32ToFloat16(aip.Float32() * bRow[j].Float32())
+				cRow[j] = hwy.Float32ToFloat16(cRow[j].Float32() + aip.Float32()*bRow[j].Float32())
 			}
 		}
 	}
@@ -56,7 +56,7 @@ func BaseMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 	if len(c) < m*n {
 		panic("matmul: C slice too short")
 	}
-	for i := 0; i < m; i++ {
+	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 		vZero := hwy.Zero[hwy.BFloat16]()
 		lanes := 8
@@ -67,7 +67,7 @@ func BaseMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 		for ; j < n; j++ {
 			cRow[j] = hwy.Float32ToBFloat16(0)
 		}
-		for p := 0; p < k; p++ {
+		for p := range k {
 			aip := a[i*k+p]
 			vA := hwy.Set(aip)
 			bRow := b[p*n : (p+1)*n]
@@ -78,7 +78,7 @@ func BaseMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 				hwy.Store(vC, cRow[j:])
 			}
 			for ; j < n; j++ {
-				cRow[j] += hwy.Float32ToBFloat16(aip.Float32() * bRow[j].Float32())
+				cRow[j] = hwy.Float32ToBFloat16(cRow[j].Float32() + aip.Float32()*bRow[j].Float32())
 			}
 		}
 	}
@@ -94,7 +94,7 @@ func BaseMatMul_neon(a []float32, b []float32, c []float32, m int, n int, k int)
 	if len(c) < m*n {
 		panic("matmul: C slice too short")
 	}
-	for i := 0; i < m; i++ {
+	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 		vZero := asm.ZeroFloat32x4()
 		lanes := 4
@@ -105,7 +105,7 @@ func BaseMatMul_neon(a []float32, b []float32, c []float32, m int, n int, k int)
 		for ; j < n; j++ {
 			cRow[j] = 0
 		}
-		for p := 0; p < k; p++ {
+		for p := range k {
 			aip := a[i*k+p]
 			vA := asm.BroadcastFloat32x4(aip)
 			bRow := b[p*n : (p+1)*n]
@@ -132,7 +132,7 @@ func BaseMatMul_neon_Float64(a []float64, b []float64, c []float64, m int, n int
 	if len(c) < m*n {
 		panic("matmul: C slice too short")
 	}
-	for i := 0; i < m; i++ {
+	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 		vZero := asm.ZeroFloat64x2()
 		lanes := 2
@@ -143,7 +143,7 @@ func BaseMatMul_neon_Float64(a []float64, b []float64, c []float64, m int, n int
 		for ; j < n; j++ {
 			cRow[j] = 0
 		}
-		for p := 0; p < k; p++ {
+		for p := range k {
 			aip := a[i*k+p]
 			vA := asm.BroadcastFloat64x2(aip)
 			bRow := b[p*n : (p+1)*n]

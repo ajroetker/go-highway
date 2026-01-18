@@ -898,7 +898,7 @@ func BaseMinImage_neon_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 	}
 	lanes := 8
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -931,7 +931,7 @@ func BaseMinImage_neon_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 	}
 	lanes := 8
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -964,7 +964,7 @@ func BaseMinImage_neon(a *Image[float32], b *Image[float32], out *Image[float32]
 	}
 	lanes := 4
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -997,7 +997,7 @@ func BaseMinImage_neon_Float64(a *Image[float64], b *Image[float64], out *Image[
 	}
 	lanes := 2
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1030,7 +1030,7 @@ func BaseMaxImage_neon_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 	}
 	lanes := 8
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1063,7 +1063,7 @@ func BaseMaxImage_neon_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 	}
 	lanes := 8
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1096,7 +1096,7 @@ func BaseMaxImage_neon(a *Image[float32], b *Image[float32], out *Image[float32]
 	}
 	lanes := 4
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)
@@ -1129,7 +1129,7 @@ func BaseMaxImage_neon_Float64(a *Image[float64], b *Image[float64], out *Image[
 	}
 	lanes := 2
 	height := min(a.height, b.height)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		aRow := a.Row(y)
 		bRow := b.Row(y)
 		outRow := out.Row(y)

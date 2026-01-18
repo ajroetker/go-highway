@@ -377,7 +377,7 @@ func TestTruncateI16ToI8(t *testing.T) {
 	result := TruncateI16ToI8(input)
 
 	want := []int8{0, 0, 0} // Lower 8 bits of these values
-	for i := 0; i < len(want); i++ {
+	for i := range want {
 		if result.data[i] != want[i] {
 			t.Errorf("TruncateI16ToI8 lane %d: got %v, want %v", i, result.data[i], want[i])
 		}
@@ -389,7 +389,7 @@ func TestTruncateI32ToI16(t *testing.T) {
 	result := TruncateI32ToI16(input)
 
 	want := []int16{0, 0, 0}
-	for i := 0; i < len(want); i++ {
+	for i := range want {
 		if result.data[i] != want[i] {
 			t.Errorf("TruncateI32ToI16 lane %d: got %v, want %v", i, result.data[i], want[i])
 		}
@@ -401,7 +401,7 @@ func TestTruncateI64ToI32(t *testing.T) {
 	result := TruncateI64ToI32(input)
 
 	want := []int32{0, 0}
-	for i := 0; i < len(want); i++ {
+	for i := range want {
 		if result.data[i] != want[i] {
 			t.Errorf("TruncateI64ToI32 lane %d: got %v, want %v", i, result.data[i], want[i])
 		}
@@ -473,8 +473,7 @@ func BenchmarkPromoteF32ToF64(b *testing.B) {
 	}
 	v := Vec[float32]{data: data}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = PromoteF32ToF64(v)
 	}
 }
@@ -486,8 +485,7 @@ func BenchmarkDemoteF64ToF32(b *testing.B) {
 	}
 	v := Vec[float64]{data: data}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = DemoteF64ToF32(v)
 	}
 }
@@ -499,8 +497,7 @@ func BenchmarkPromoteI32ToI64(b *testing.B) {
 	}
 	v := Vec[int32]{data: data}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = PromoteI32ToI64(v)
 	}
 }
@@ -512,8 +509,7 @@ func BenchmarkDemoteI64ToI32Saturating(b *testing.B) {
 	}
 	v := Vec[int64]{data: data}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = DemoteI64ToI32(v)
 	}
 }

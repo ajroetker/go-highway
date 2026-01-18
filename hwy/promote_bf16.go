@@ -28,7 +28,7 @@ func PromoteBF16ToF32(v Vec[BFloat16]) Vec[float32] {
 func PromoteLowerBF16ToF32(v Vec[BFloat16]) Vec[float32] {
 	n := len(v.data) / 2
 	result := make([]float32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = BFloat16ToFloat32(v.data[i])
 	}
 	return Vec[float32]{data: result}
@@ -40,7 +40,7 @@ func PromoteUpperBF16ToF32(v Vec[BFloat16]) Vec[float32] {
 	half := len(v.data) / 2
 	n := len(v.data) - half
 	result := make([]float32, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = BFloat16ToFloat32(v.data[half+i])
 	}
 	return Vec[float32]{data: result}
@@ -94,12 +94,9 @@ func DemoteF64ToBF16(v Vec[float64]) Vec[BFloat16] {
 // LoadBF16 creates a BFloat16 vector by loading uint16 bits from a slice
 // and interpreting them as BFloat16 values.
 func LoadBF16(src []uint16) Vec[BFloat16] {
-	n := MaxLanes[BFloat16]()
-	if len(src) < n {
-		n = len(src)
-	}
+	n := min(len(src), MaxLanes[BFloat16]())
 	data := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		data[i] = BFloat16(src[i])
 	}
 	return Vec[BFloat16]{data: data}
@@ -107,23 +104,17 @@ func LoadBF16(src []uint16) Vec[BFloat16] {
 
 // StoreBF16 writes BFloat16 vector data to a uint16 slice.
 func StoreBF16(v Vec[BFloat16], dst []uint16) {
-	n := len(v.data)
-	if len(dst) < n {
-		n = len(dst)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(dst), len(v.data))
+	for i := range n {
 		dst[i] = uint16(v.data[i])
 	}
 }
 
 // LoadBF16FromF32 loads float32 values and converts them to BFloat16.
 func LoadBF16FromF32(src []float32) Vec[BFloat16] {
-	n := MaxLanes[BFloat16]()
-	if len(src) < n {
-		n = len(src)
-	}
+	n := min(len(src), MaxLanes[BFloat16]())
 	data := make([]BFloat16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		data[i] = Float32ToBFloat16(src[i])
 	}
 	return Vec[BFloat16]{data: data}
@@ -131,11 +122,8 @@ func LoadBF16FromF32(src []float32) Vec[BFloat16] {
 
 // StoreBF16ToF32 converts BFloat16 vector to float32 and stores.
 func StoreBF16ToF32(v Vec[BFloat16], dst []float32) {
-	n := len(v.data)
-	if len(dst) < n {
-		n = len(dst)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(dst), len(v.data))
+	for i := range n {
 		dst[i] = BFloat16ToFloat32(v.data[i])
 	}
 }

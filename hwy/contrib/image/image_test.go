@@ -43,12 +43,12 @@ func TestImage_Row(t *testing.T) {
 
 	// Set values in first row
 	row0 := img.Row(0)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		row0[i] = float32(i)
 	}
 
 	// Read back
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if row0[i] != float32(i) {
 			t.Errorf("Row[0][%d]: got %v, want %v", i, row0[i], float32(i))
 		}
@@ -137,8 +137,8 @@ func TestImage_ClearFill(t *testing.T) {
 
 	// Fill
 	img.Fill(42.0)
-	for y := 0; y < 10; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 10 {
+		for x := range 10 {
 			if img.At(x, y) != 42.0 {
 				t.Errorf("Fill: At(%d,%d) = %v, want 42.0", x, y, img.At(x, y))
 			}
@@ -147,8 +147,8 @@ func TestImage_ClearFill(t *testing.T) {
 
 	// Clear
 	img.Clear()
-	for y := 0; y < 10; y++ {
-		for x := 0; x < 10; x++ {
+	for y := range 10 {
+		for x := range 10 {
 			if img.At(x, y) != 0 {
 				t.Errorf("Clear: At(%d,%d) = %v, want 0", x, y, img.At(x, y))
 			}
@@ -243,7 +243,7 @@ func TestImage3(t *testing.T) {
 	}
 
 	// Set values in each plane
-	for p := 0; p < 3; p++ {
+	for p := range 3 {
 		plane := img.Plane(p)
 		if plane == nil {
 			t.Errorf("Plane(%d) returned nil", p)
@@ -253,7 +253,7 @@ func TestImage3(t *testing.T) {
 	}
 
 	// Verify each plane is independent
-	for p := 0; p < 3; p++ {
+	for p := range 3 {
 		got := img.Plane(p).At(10, 20)
 		want := float32(p * 100)
 		if got != want {
@@ -280,12 +280,12 @@ func TestMirror(t *testing.T) {
 		{0, 10, 0},
 		{5, 10, 5},
 		{9, 10, 9},
-		{10, 10, 9},   // Mirror at boundary
-		{11, 10, 8},   // Mirror past boundary
-		{-1, 10, 0},   // Mirror negative
-		{-2, 10, 1},   // Mirror more negative
-		{20, 10, 0},   // Double wrap
-		{-10, 10, 9},  // Negative wrap
+		{10, 10, 9},  // Mirror at boundary
+		{11, 10, 8},  // Mirror past boundary
+		{-1, 10, 0},  // Mirror negative
+		{-2, 10, 1},  // Mirror more negative
+		{20, 10, 0},  // Double wrap
+		{-10, 10, 9}, // Negative wrap
 	}
 
 	for _, tt := range tests {
@@ -362,17 +362,17 @@ func TestImage_Float64(t *testing.T) {
 
 func BenchmarkNewImage(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewImage[float32](1920, 1080)
 	}
 }
 
 func BenchmarkImage_RowAccess(b *testing.B) {
 	img := NewImage[float32](1920, 1080)
-	b.ResetTimer()
+
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for y := 0; y < img.Height(); y++ {
 			row := img.Row(y)
 			_ = row
@@ -382,10 +382,10 @@ func BenchmarkImage_RowAccess(b *testing.B) {
 
 func BenchmarkImage_Fill(b *testing.B) {
 	img := NewImage[float32](1920, 1080)
-	b.ResetTimer()
+
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		img.Fill(42.0)
 	}
 }
@@ -393,10 +393,10 @@ func BenchmarkImage_Fill(b *testing.B) {
 func BenchmarkImage_Clone(b *testing.B) {
 	img := NewImage[float32](1920, 1080)
 	img.Fill(42.0)
-	b.ResetTimer()
+
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = img.Clone()
 	}
 }

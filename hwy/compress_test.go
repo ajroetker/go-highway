@@ -179,7 +179,7 @@ func TestCompressExpandRoundTrip(t *testing.T) {
 		expanded := Expand(compressed, mask)
 
 		// Check that positions where mask is true have the original values
-		for i := 0; i < len(data); i++ {
+		for i := range data {
 			if maskBits[i] {
 				if expanded.data[i] != data[i] {
 					t.Errorf("Round trip lane %d: got %v, want %v (mask pattern: %v)",
@@ -209,7 +209,7 @@ func TestCompressStore(t *testing.T) {
 	}
 
 	expected := []float32{1, 3, 4, 7}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if dst[i] != expected[i] {
 			t.Errorf("CompressStore dst[%d]: got %v, want %v", i, dst[i], expected[i])
 		}
@@ -358,16 +358,10 @@ func TestFirstN(t *testing.T) {
 			mask := FirstN[float32](tt.n)
 
 			// Calculate expected count
-			expectedN := tt.n
-			if expectedN < 0 {
-				expectedN = 0
-			}
-			if expectedN > maxLanes {
-				expectedN = maxLanes
-			}
+			expectedN := min(max(tt.n, 0), maxLanes)
 
 			// Check first expectedN lanes are true
-			for i := 0; i < expectedN; i++ {
+			for i := range expectedN {
 				if !mask.GetBit(i) {
 					t.Errorf("FirstN(%d): lane %d should be true", tt.n, i)
 				}
@@ -403,18 +397,12 @@ func TestLastN(t *testing.T) {
 			mask := LastN[float32](tt.n)
 
 			// Calculate expected count
-			expectedN := tt.n
-			if expectedN < 0 {
-				expectedN = 0
-			}
-			if expectedN > maxLanes {
-				expectedN = maxLanes
-			}
+			expectedN := min(max(tt.n, 0), maxLanes)
 
 			start := maxLanes - expectedN
 
 			// Check first lanes are false
-			for i := 0; i < start; i++ {
+			for i := range start {
 				if mask.GetBit(i) {
 					t.Errorf("LastN(%d): lane %d should be false", tt.n, i)
 				}
@@ -510,7 +498,7 @@ func TestMaskAnd(t *testing.T) {
 	result := MaskAnd(a, b)
 	expected := []bool{true, false, false, false}
 
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if result.bits[i] != expected[i] {
 			t.Errorf("MaskAnd lane %d: got %v, want %v", i, result.bits[i], expected[i])
 		}
@@ -524,7 +512,7 @@ func TestMaskOr(t *testing.T) {
 	result := MaskOr(a, b)
 	expected := []bool{true, true, true, false}
 
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if result.bits[i] != expected[i] {
 			t.Errorf("MaskOr lane %d: got %v, want %v", i, result.bits[i], expected[i])
 		}
@@ -538,7 +526,7 @@ func TestMaskXor(t *testing.T) {
 	result := MaskXor(a, b)
 	expected := []bool{false, true, true, false}
 
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if result.bits[i] != expected[i] {
 			t.Errorf("MaskXor lane %d: got %v, want %v", i, result.bits[i], expected[i])
 		}
@@ -551,7 +539,7 @@ func TestMaskNot(t *testing.T) {
 	result := MaskNot(mask)
 	expected := []bool{false, true, false, true}
 
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if result.bits[i] != expected[i] {
 			t.Errorf("MaskNot lane %d: got %v, want %v", i, result.bits[i], expected[i])
 		}
@@ -566,7 +554,7 @@ func TestMaskAndNot(t *testing.T) {
 	result := MaskAndNot(a, b)
 	expected := []bool{false, false, true, false}
 
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if result.bits[i] != expected[i] {
 			t.Errorf("MaskAndNot lane %d: got %v, want %v", i, result.bits[i], expected[i])
 		}
@@ -637,7 +625,7 @@ func TestCompressBlendedStore(t *testing.T) {
 
 	// First 4 should be replaced, rest should remain 99
 	expected := []float32{1, 3, 4, 7, 99, 99, 99, 99}
-	for i := 0; i < len(expected); i++ {
+	for i := range expected {
 		if dst[i] != expected[i] {
 			t.Errorf("CompressBlendedStore dst[%d]: got %v, want %v", i, dst[i], expected[i])
 		}
@@ -655,13 +643,12 @@ func BenchmarkCompress(b *testing.B) {
 
 	// Alternating mask (50% true)
 	bits := make([]bool, maxLanes)
-	for i := 0; i < maxLanes; i++ {
+	for i := range maxLanes {
 		bits[i] = i%2 == 0
 	}
 	mask := Mask[float32]{bits: bits}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = Compress(v, mask)
 	}
 }
@@ -676,13 +663,12 @@ func BenchmarkExpand(b *testing.B) {
 
 	// Alternating mask (50% true)
 	bits := make([]bool, maxLanes)
-	for i := 0; i < maxLanes; i++ {
+	for i := range maxLanes {
 		bits[i] = i%2 == 0
 	}
 	mask := Mask[float32]{bits: bits}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = Expand(v, mask)
 	}
 }
@@ -696,14 +682,13 @@ func BenchmarkCompressStore(b *testing.B) {
 	v := Vec[float32]{data: data}
 
 	bits := make([]bool, maxLanes)
-	for i := 0; i < maxLanes; i++ {
+	for i := range maxLanes {
 		bits[i] = i%2 == 0
 	}
 	mask := Mask[float32]{bits: bits}
 	dst := make([]float32, maxLanes)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = CompressStore(v, mask, dst)
 	}
 }

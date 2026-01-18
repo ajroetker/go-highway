@@ -22,12 +22,12 @@ func ConvertToInt32[T Floats](v Vec[T]) Vec[int32] {
 		}
 	case float32:
 		data := any(v.data).([]float32)
-		for i := 0; i < len(data); i++ {
+		for i := range data {
 			result[i] = int32(data[i])
 		}
 	case float64:
 		data := any(v.data).([]float64)
-		for i := 0; i < len(data); i++ {
+		for i := range data {
 			result[i] = int32(data[i])
 		}
 	}
@@ -75,7 +75,7 @@ func ConvertExponentToFloat[T Floats](e Vec[int32]) Vec[T] {
 	for i := 0; i < len(e.data); i++ {
 		// Use float64 as intermediate to avoid type assertion issues
 		f := float64(e.data[i])
-		switch r := (interface{})(result).(type) {
+		switch r := (any)(result).(type) {
 		case []Float16:
 			r[i] = Float32ToFloat16(float32(f))
 		case []BFloat16:

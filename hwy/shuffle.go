@@ -8,7 +8,7 @@ package hwy
 func Reverse[T Lanes](v Vec[T]) Vec[T] {
 	n := len(v.data)
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = v.data[n-1-i]
 	}
 	return Vec[T]{data: result}
@@ -59,7 +59,7 @@ func Reverse4[T Lanes](v Vec[T]) Vec[T] {
 			result[i+3] = v.data[i]
 		} else {
 			// Handle partial group at end
-			for j := 0; j < remaining; j++ {
+			for j := range remaining {
 				result[i+j] = v.data[i+remaining-1-j]
 			}
 		}
@@ -75,12 +75,12 @@ func Reverse8[T Lanes](v Vec[T]) Vec[T] {
 	for i := 0; i < n; i += 8 {
 		remaining := n - i
 		if remaining >= 8 {
-			for j := 0; j < 8; j++ {
+			for j := range 8 {
 				result[i+j] = v.data[i+7-j]
 			}
 		} else {
 			// Handle partial group at end
-			for j := 0; j < remaining; j++ {
+			for j := range remaining {
 				result[i+j] = v.data[i+remaining-1-j]
 			}
 		}
@@ -114,13 +114,10 @@ func InsertLane[T Lanes](v Vec[T], idx int, val T) Vec[T] {
 // InterleaveLower interleaves the lower halves of two vectors.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a0,b0,a1,b1]
 func InterleaveLower[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	half := n / 2
 	result := make([]T, n)
-	for i := 0; i < half; i++ {
+	for i := range half {
 		result[2*i] = a.data[i]
 		result[2*i+1] = b.data[i]
 	}
@@ -130,13 +127,10 @@ func InterleaveLower[T Lanes](a, b Vec[T]) Vec[T] {
 // InterleaveUpper interleaves the upper halves of two vectors.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a2,b2,a3,b3]
 func InterleaveUpper[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	half := n / 2
 	result := make([]T, n)
-	for i := 0; i < half; i++ {
+	for i := range half {
 		result[2*i] = a.data[half+i]
 		result[2*i+1] = b.data[half+i]
 	}
@@ -146,10 +140,7 @@ func InterleaveUpper[T Lanes](a, b Vec[T]) Vec[T] {
 // ConcatLowerLower concatenates the lower halves of two vectors.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a0,a1,b0,b1]
 func ConcatLowerLower[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	half := n / 2
 	result := make([]T, n)
 	copy(result[:half], a.data[:half])
@@ -160,10 +151,7 @@ func ConcatLowerLower[T Lanes](a, b Vec[T]) Vec[T] {
 // ConcatUpperUpper concatenates the upper halves of two vectors.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a2,a3,b2,b3]
 func ConcatUpperUpper[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	half := n / 2
 	result := make([]T, n)
 	copy(result[:half], a.data[half:])
@@ -174,10 +162,7 @@ func ConcatUpperUpper[T Lanes](a, b Vec[T]) Vec[T] {
 // ConcatLowerUpper concatenates lower half of a with upper half of b.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a0,a1,b2,b3]
 func ConcatLowerUpper[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	half := n / 2
 	result := make([]T, n)
 	copy(result[:half], a.data[:half])
@@ -188,10 +173,7 @@ func ConcatLowerUpper[T Lanes](a, b Vec[T]) Vec[T] {
 // ConcatUpperLower concatenates upper half of a with lower half of b.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [a2,a3,b0,b1]
 func ConcatUpperLower[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	half := n / 2
 	result := make([]T, n)
 	copy(result[:half], a.data[half:])
@@ -203,12 +185,9 @@ func ConcatUpperLower[T Lanes](a, b Vec[T]) Vec[T] {
 // Returns a vector where even indices have b's values and odd indices have a's values.
 // [a0,a1,a2,a3], [b0,b1,b2,b3] -> [b0,a1,b2,a3]
 func OddEven[T Lanes](a, b Vec[T]) Vec[T] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]T, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i%2 == 0 {
 			result[i] = b.data[i]
 		} else {
@@ -282,14 +261,11 @@ func SwapAdjacentBlocks[T Lanes](v Vec[T]) Vec[T] {
 // This is a scalar fallback; SIMD versions use PSHUFB/TBL instructions.
 func TableLookupBytes[T Lanes](tbl, idx Vec[T]) Vec[T] {
 	// Convert to bytes, lookup, convert back
-	n := len(tbl.data)
-	if len(idx.data) < n {
-		n = len(idx.data)
-	}
+	n := min(len(idx.data), len(tbl.data))
 	result := make([]T, n)
 
 	// For scalar fallback, treat each lane as a lookup index
-	for i := 0; i < n; i++ {
+	for i := range n {
 		idxVal := int(idx.data[i])
 		if idxVal >= 0 && idxVal < n {
 			result[i] = tbl.data[idxVal]
@@ -304,13 +280,10 @@ func TableLookupBytes[T Lanes](tbl, idx Vec[T]) Vec[T] {
 // Unlike TableLookupBytes which works at byte granularity,
 // this operates on full lanes (elements).
 func TableLookupLanes[T Lanes](tbl Vec[T], idx Vec[int32]) Vec[T] {
-	n := len(tbl.data)
-	if len(idx.data) < n {
-		n = len(idx.data)
-	}
+	n := min(len(idx.data), len(tbl.data))
 	result := make([]T, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		idxVal := int(idx.data[i])
 		if idxVal >= 0 && idxVal < len(tbl.data) {
 			result[i] = tbl.data[idxVal]
@@ -322,16 +295,10 @@ func TableLookupLanes[T Lanes](tbl Vec[T], idx Vec[int32]) Vec[T] {
 
 // TableLookupLanesOr returns fallback[i] when idx[i] is out of bounds.
 func TableLookupLanesOr[T Lanes](tbl Vec[T], idx Vec[int32], fallback Vec[T]) Vec[T] {
-	n := len(tbl.data)
-	if len(idx.data) < n {
-		n = len(idx.data)
-	}
-	if len(fallback.data) < n {
-		n = len(fallback.data)
-	}
+	n := min(len(fallback.data), min(len(idx.data), len(tbl.data)))
 	result := make([]T, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		idxVal := int(idx.data[i])
 		if idxVal >= 0 && idxVal < len(tbl.data) {
 			result[i] = tbl.data[idxVal]

@@ -20,10 +20,7 @@ func BaseCopyIf_neon(src []float32, dst []float32, pred func(asm.Float32x4) asm.
 		v := asm.LoadFloat32x4Slice(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
-		count := asm.CompressStore(v, mask, dst[dstIdx:])
-		if count > remaining {
-			count = remaining
-		}
+		count := min(asm.CompressStore(v, mask, dst[dstIdx:]), remaining)
 		dstIdx += count
 		if dstIdx >= dstLen {
 			break
@@ -37,10 +34,7 @@ func BaseCopyIf_neon(src []float32, dst []float32, pred func(asm.Float32x4) asm.
 		tailMask := asm.FirstN(remaining)
 		mask = mask.And(tailMask)
 		dstRemaining := dstLen - dstIdx
-		count := asm.CompressStore(v, mask, dst[dstIdx:])
-		if count > dstRemaining {
-			count = dstRemaining
-		}
+		count := min(asm.CompressStore(v, mask, dst[dstIdx:]), dstRemaining)
 		dstIdx += count
 	}
 	return dstIdx
@@ -59,10 +53,7 @@ func BaseCopyIf_neon_Float64(src []float64, dst []float64, pred func(asm.Float64
 		v := asm.LoadFloat64x2Slice(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
-		count := asm.CompressStoreFloat64(v, mask, dst[dstIdx:])
-		if count > remaining {
-			count = remaining
-		}
+		count := min(asm.CompressStoreFloat64(v, mask, dst[dstIdx:]), remaining)
 		dstIdx += count
 		if dstIdx >= dstLen {
 			break
@@ -76,10 +67,7 @@ func BaseCopyIf_neon_Float64(src []float64, dst []float64, pred func(asm.Float64
 		tailMask := asm.FirstNFloat64(remaining)
 		mask = mask.And(tailMask)
 		dstRemaining := dstLen - dstIdx
-		count := asm.CompressStoreFloat64(v, mask, dst[dstIdx:])
-		if count > dstRemaining {
-			count = dstRemaining
-		}
+		count := min(asm.CompressStoreFloat64(v, mask, dst[dstIdx:]), dstRemaining)
 		dstIdx += count
 	}
 	return dstIdx
@@ -98,10 +86,7 @@ func BaseCopyIf_neon_Int32(src []int32, dst []int32, pred func(asm.Int32x4) asm.
 		v := asm.LoadInt32x4Slice(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
-		count := asm.CompressStoreInt32(v, mask, dst[dstIdx:])
-		if count > remaining {
-			count = remaining
-		}
+		count := min(asm.CompressStoreInt32(v, mask, dst[dstIdx:]), remaining)
 		dstIdx += count
 		if dstIdx >= dstLen {
 			break
@@ -115,10 +100,7 @@ func BaseCopyIf_neon_Int32(src []int32, dst []int32, pred func(asm.Int32x4) asm.
 		tailMask := asm.FirstN(remaining)
 		mask = mask.And(tailMask)
 		dstRemaining := dstLen - dstIdx
-		count := asm.CompressStoreInt32(v, mask, dst[dstIdx:])
-		if count > dstRemaining {
-			count = dstRemaining
-		}
+		count := min(asm.CompressStoreInt32(v, mask, dst[dstIdx:]), dstRemaining)
 		dstIdx += count
 	}
 	return dstIdx
@@ -137,10 +119,7 @@ func BaseCopyIf_neon_Int64(src []int64, dst []int64, pred func(asm.Int64x2) asm.
 		v := asm.LoadInt64x2Slice(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
-		count := asm.CompressStoreInt64(v, mask, dst[dstIdx:])
-		if count > remaining {
-			count = remaining
-		}
+		count := min(asm.CompressStoreInt64(v, mask, dst[dstIdx:]), remaining)
 		dstIdx += count
 		if dstIdx >= dstLen {
 			break
@@ -154,10 +133,7 @@ func BaseCopyIf_neon_Int64(src []int64, dst []int64, pred func(asm.Int64x2) asm.
 		tailMask := asm.FirstNInt64(remaining)
 		mask = mask.And(tailMask)
 		dstRemaining := dstLen - dstIdx
-		count := asm.CompressStoreInt64(v, mask, dst[dstIdx:])
-		if count > dstRemaining {
-			count = dstRemaining
-		}
+		count := min(asm.CompressStoreInt64(v, mask, dst[dstIdx:]), dstRemaining)
 		dstIdx += count
 	}
 	return dstIdx

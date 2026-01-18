@@ -11,10 +11,10 @@ func matmulScalar(a, b, c []float32, m, n, k int) {
 	}
 
 	// Standard triple-loop matrix multiply
-	for i := 0; i < m; i++ {
-		for p := 0; p < k; p++ {
+	for i := range m {
+		for p := range k {
 			aip := a[i*k+p]
-			for j := 0; j < n; j++ {
+			for j := range n {
 				c[i*n+j] += aip * b[p*n+j]
 			}
 		}
@@ -29,10 +29,10 @@ func matmulScalar64(a, b, c []float64, m, n, k int) {
 	}
 
 	// Standard triple-loop matrix multiply
-	for i := 0; i < m; i++ {
-		for p := 0; p < k; p++ {
+	for i := range m {
+		for p := range k {
 			aip := a[i*k+p]
-			for j := 0; j < n; j++ {
+			for j := range n {
 				c[i*n+j] += aip * b[p*n+j]
 			}
 		}

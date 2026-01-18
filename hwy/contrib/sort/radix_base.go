@@ -30,7 +30,7 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 		// Extract digits and count
 		var buf [16]T // Max AVX-512 lanes
 		hwy.Store(digits, buf[:])
-		for j := 0; j < lanes; j++ {
+		for j := range lanes {
 			digit := int(buf[j]) & 0xFF
 			count[digit]++
 		}
@@ -45,14 +45,14 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 
 	// Compute prefix sum to get bucket offsets
 	offset := 0
-	for b := 0; b < 256; b++ {
+	for b := range 256 {
 		c := count[b]
 		count[b] = offset
 		offset += c
 	}
 
 	// Scatter elements to destination
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := int(src[i]>>shift) & 0xFF
 		dst[count[digit]] = src[i]
 		count[digit]++
@@ -74,21 +74,21 @@ func BaseRadixPass16[T hwy.SignedInts](src, dst []T, shift int) {
 	var count [65536]int
 
 	// Histogram counting
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := int((src[i] >> shift) & mask)
 		count[digit]++
 	}
 
 	// Compute prefix sum to get bucket offsets
 	offset := 0
-	for b := 0; b < 65536; b++ {
+	for b := range 65536 {
 		c := count[b]
 		count[b] = offset
 		offset += c
 	}
 
 	// Scatter elements to destination
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := int((src[i] >> shift) & mask)
 		dst[count[digit]] = src[i]
 		count[digit]++
@@ -108,7 +108,7 @@ func BaseRadixPass16Signed[T hwy.SignedInts](src, dst []T, shift int) {
 	var count [65536]int
 
 	// Histogram counting
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := int((src[i] >> shift) & mask)
 		count[digit]++
 	}
@@ -120,14 +120,14 @@ func BaseRadixPass16Signed[T hwy.SignedInts](src, dst []T, shift int) {
 		count[b] = offset
 		offset += c
 	}
-	for b := 0; b < 32768; b++ {
+	for b := range 32768 {
 		c := count[b]
 		count[b] = offset
 		offset += c
 	}
 
 	// Scatter
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := int((src[i] >> shift) & mask)
 		dst[count[digit]] = src[i]
 		count[digit]++
@@ -157,7 +157,7 @@ func BaseRadixPassSigned[T hwy.SignedInts](src, dst []T, shift int) {
 
 		var buf [16]T
 		hwy.Store(digits, buf[:])
-		for j := 0; j < lanes; j++ {
+		for j := range lanes {
 			digit := int(buf[j]) & 0xFF
 			count[digit]++
 		}
@@ -176,14 +176,14 @@ func BaseRadixPassSigned[T hwy.SignedInts](src, dst []T, shift int) {
 		count[b] = offset
 		offset += c
 	}
-	for b := 0; b < 128; b++ {
+	for b := range 128 {
 		c := count[b]
 		count[b] = offset
 		offset += c
 	}
 
 	// Scatter
-	for i := 0; i < n; i++ {
+	for i := range n {
 		digit := int(src[i]>>shift) & 0xFF
 		dst[count[digit]] = src[i]
 		count[digit]++

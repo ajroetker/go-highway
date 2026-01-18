@@ -39,17 +39,15 @@ func ParallelMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 	// Work queue of row strips
 	work := make(chan int, numStrips)
-	for strip := 0; strip < numStrips; strip++ {
+	for strip := range numStrips {
 		work <- strip
 	}
 	close(work)
 
 	// Workers grab strips from queue and use BlockedMatMul for each
 	var wg sync.WaitGroup
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numWorkers {
+		wg.Go(func() {
 			for strip := range work {
 				rowStart := strip * RowsPerStrip
 				rowEnd := min(rowStart+RowsPerStrip, m)
@@ -62,7 +60,7 @@ func ParallelMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				// Use optimized blocked matmul for this strip
 				BlockedMatMul(aStrip, b, cStrip, stripM, n, k)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

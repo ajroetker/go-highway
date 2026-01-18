@@ -102,7 +102,7 @@ func TestCopy_DifferentSizes(t *testing.T) {
 		t.Errorf("Copy returned %d, want 10", copied)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		if dst[i] != float32(i) {
 			t.Errorf("Copy[%d]: got %v, want %v", i, dst[i], float32(i))
 		}
@@ -208,9 +208,8 @@ func TestCopyIf_SmallDst(t *testing.T) {
 func BenchmarkFill(b *testing.B) {
 	dst := make([]float32, benchSize)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Fill(dst, 42.0)
 	}
 }
@@ -219,9 +218,8 @@ func BenchmarkFill_Stdlib(b *testing.B) {
 	dst := make([]float32, benchSize)
 	value := float32(42.0)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range dst {
 			dst[j] = value
 		}
@@ -235,9 +233,8 @@ func BenchmarkCopy(b *testing.B) {
 		src[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Copy(src, dst)
 	}
 }
@@ -249,9 +246,8 @@ func BenchmarkCopy_Stdlib(b *testing.B) {
 		src[i] = float32(i)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		copy(dst, src)
 	}
 }
@@ -263,9 +259,8 @@ func BenchmarkCopyIf(b *testing.B) {
 		src[i] = float32(i) - float32(benchSize/2) // Half positive, half negative
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		CopyIf(src, dst, func(v hwy.Vec[float32]) hwy.Mask[float32] {
 			return hwy.GreaterThan(v, hwy.Zero[float32]())
 		})
@@ -279,9 +274,8 @@ func BenchmarkCopyIf_Stdlib(b *testing.B) {
 		src[i] = float32(i) - float32(benchSize/2)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		j := 0
 		for _, v := range src {
 			if v > 0 {
@@ -299,9 +293,8 @@ func BenchmarkCopyIfP(b *testing.B) {
 		src[i] = float32(i) - float32(benchSize/2) // Half positive, half negative
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		CopyIfP(src, dst, GreaterThan[float32]{Threshold: 0})
 	}
 }

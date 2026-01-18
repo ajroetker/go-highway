@@ -622,7 +622,7 @@ func TestReverse(t *testing.T) {
 	result := Reverse(a)
 
 	n := result.NumLanes()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		expected := int32(n - i)
 		if i < len(a.data) {
 			expected = a.data[n-1-i]

@@ -16,7 +16,7 @@ func BaseMatVec_fallback_Float16(m []hwy.Float16, rows int, cols int, v []hwy.Fl
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[hwy.Float16]()
 		lanes := sum.NumLanes()
@@ -45,7 +45,7 @@ func BaseMatVec_fallback_BFloat16(m []hwy.BFloat16, rows int, cols int, v []hwy.
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[hwy.BFloat16]()
 		lanes := sum.NumLanes()
@@ -74,7 +74,7 @@ func BaseMatVec_fallback(m []float32, rows int, cols int, v []float32, result []
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[float32]()
 		lanes := sum.NumLanes()
@@ -103,7 +103,7 @@ func BaseMatVec_fallback_Float64(m []float64, rows int, cols int, v []float64, r
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[float64]()
 		lanes := sum.NumLanes()

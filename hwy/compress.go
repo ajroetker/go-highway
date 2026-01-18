@@ -9,14 +9,11 @@ package hwy
 // Returns compressed vector and count of valid elements.
 // For example: v=[1,2,3,4], mask=[T,F,T,F] -> result=[1,3,0,0], count=2
 func Compress[T Lanes](v Vec[T], mask Mask[T]) (Vec[T], int) {
-	n := len(v.data)
-	if len(mask.bits) < n {
-		n = len(mask.bits)
-	}
+	n := min(len(mask.bits), len(v.data))
 
 	result := make([]T, len(v.data))
 	count := 0
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			result[count] = v.data[i]
 			count++
@@ -33,7 +30,7 @@ func Expand[T Lanes](v Vec[T], mask Mask[T]) Vec[T] {
 	result := make([]T, n)
 
 	srcIdx := 0
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			if srcIdx < len(v.data) {
 				result[i] = v.data[srcIdx]
@@ -48,13 +45,10 @@ func Expand[T Lanes](v Vec[T], mask Mask[T]) Vec[T] {
 // CompressStore compresses and stores directly to slice.
 // Returns number of elements stored.
 func CompressStore[T Lanes](v Vec[T], mask Mask[T], dst []T) int {
-	n := len(v.data)
-	if len(mask.bits) < n {
-		n = len(mask.bits)
-	}
+	n := min(len(mask.bits), len(v.data))
 
 	count := 0
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			if count < len(dst) {
 				dst[count] = v.data[i]
@@ -179,12 +173,9 @@ func CompressBlendedStore[T Lanes](v Vec[T], mask Mask[T], dst []T) int {
 
 // MaskAnd performs bitwise AND on two masks.
 func MaskAnd[T Lanes](a, b Mask[T]) Mask[T] {
-	n := len(a.bits)
-	if len(b.bits) < n {
-		n = len(b.bits)
-	}
+	n := min(len(b.bits), len(a.bits))
 	result := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = a.bits[i] && b.bits[i]
 	}
 	return Mask[T]{bits: result}
@@ -192,12 +183,9 @@ func MaskAnd[T Lanes](a, b Mask[T]) Mask[T] {
 
 // MaskOr performs bitwise OR on two masks.
 func MaskOr[T Lanes](a, b Mask[T]) Mask[T] {
-	n := len(a.bits)
-	if len(b.bits) < n {
-		n = len(b.bits)
-	}
+	n := min(len(b.bits), len(a.bits))
 	result := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = a.bits[i] || b.bits[i]
 	}
 	return Mask[T]{bits: result}
@@ -205,12 +193,9 @@ func MaskOr[T Lanes](a, b Mask[T]) Mask[T] {
 
 // MaskXor performs bitwise XOR on two masks.
 func MaskXor[T Lanes](a, b Mask[T]) Mask[T] {
-	n := len(a.bits)
-	if len(b.bits) < n {
-		n = len(b.bits)
-	}
+	n := min(len(b.bits), len(a.bits))
 	result := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = a.bits[i] != b.bits[i]
 	}
 	return Mask[T]{bits: result}
@@ -227,12 +212,9 @@ func MaskNot[T Lanes](mask Mask[T]) Mask[T] {
 
 // MaskAndNot performs (~a) & b on masks.
 func MaskAndNot[T Lanes](a, b Mask[T]) Mask[T] {
-	n := len(a.bits)
-	if len(b.bits) < n {
-		n = len(b.bits)
-	}
+	n := min(len(b.bits), len(a.bits))
 	result := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = !a.bits[i] && b.bits[i]
 	}
 	return Mask[T]{bits: result}

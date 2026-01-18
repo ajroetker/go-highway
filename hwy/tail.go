@@ -59,7 +59,7 @@ func ProcessWithTail[T Lanes](size int, fullFn func(offset int), tailFn func(off
 
 	// Process full vectors
 	fullVectors := size / maxLanes
-	for i := 0; i < fullVectors; i++ {
+	for i := range fullVectors {
 		fullFn(i * maxLanes)
 	}
 
@@ -94,7 +94,7 @@ func ProcessWithTailNoMask[T Lanes](size int, fullFn func(offset int)) {
 
 	// Process full vectors
 	fullVectors := size / maxLanes
-	for i := 0; i < fullVectors; i++ {
+	for i := range fullVectors {
 		fullFn(i * maxLanes)
 	}
 

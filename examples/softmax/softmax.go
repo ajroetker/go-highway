@@ -43,7 +43,7 @@ func BaseSoftmax[T hwy.Floats](input, output []T) {
 
 	// Step 2: Subtract max from input (for numerical stability)
 	shifted := make([]T, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		shifted[i] = input[i] - maxVal
 	}
 
@@ -52,13 +52,13 @@ func BaseSoftmax[T hwy.Floats](input, output []T) {
 
 	// Step 4: Compute sum of exponentials
 	var expSum T
-	for i := 0; i < size; i++ {
+	for i := range size {
 		expSum += output[i]
 	}
 
 	// Step 5: Normalize by dividing by sum
 	invSum := T(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = output[i] * invSum
 	}
 }
@@ -80,14 +80,14 @@ func BaseSoftmaxScalar[T hwy.Floats](input, output []T) {
 
 	// Compute exp and sum
 	var expSum T
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = T(stdmath.Exp(float64(input[i] - maxVal)))
 		expSum += output[i]
 	}
 
 	// Normalize
 	invSum := T(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = output[i] * invSum
 	}
 }

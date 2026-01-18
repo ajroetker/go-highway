@@ -118,7 +118,6 @@ func TestErfTransform(t *testing.T) {
 	}
 }
 
-
 // TestExpTransform_TailHandling tests that non-vector-aligned sizes work correctly
 func TestExpTransform_TailHandling(t *testing.T) {
 	// Test sizes that don't align with vector width (8 for AVX2)
@@ -145,8 +144,6 @@ func TestExpTransform_TailHandling(t *testing.T) {
 	}
 }
 
-
-
 func closeEnough32(a, b, tol float32) bool {
 	if math.IsNaN(float64(a)) && math.IsNaN(float64(b)) {
 		return true
@@ -170,9 +167,8 @@ func BenchmarkExpTransform(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ExpTransform(input, output)
 	}
 }
@@ -184,9 +180,8 @@ func BenchmarkLogTransform(b *testing.B) {
 		input[i] = float32(i+1) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		LogTransform(input, output)
 	}
 }
@@ -198,9 +193,8 @@ func BenchmarkSinTransform(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SinTransform(input, output)
 	}
 }
@@ -212,9 +206,8 @@ func BenchmarkCosTransform(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		CosTransform(input, output)
 	}
 }
@@ -226,9 +219,8 @@ func BenchmarkTanhTransform(b *testing.B) {
 		input[i] = float32(i-benchSize/2) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		TanhTransform(input, output)
 	}
 }
@@ -240,9 +232,8 @@ func BenchmarkSigmoidTransform(b *testing.B) {
 		input[i] = float32(i-benchSize/2) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		SigmoidTransform(input, output)
 	}
 }
@@ -254,9 +245,8 @@ func BenchmarkErfTransform(b *testing.B) {
 		input[i] = float32(i-benchSize/2) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ErfTransform(input, output)
 	}
 }
@@ -270,9 +260,8 @@ func BenchmarkExpTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(math.Exp(float64(input[j])))
 		}
@@ -286,9 +275,8 @@ func BenchmarkLogTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i+1) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(math.Log(float64(input[j])))
 		}
@@ -302,9 +290,8 @@ func BenchmarkSinTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(math.Sin(float64(input[j])))
 		}
@@ -318,9 +305,8 @@ func BenchmarkCosTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(math.Cos(float64(input[j])))
 		}
@@ -334,9 +320,8 @@ func BenchmarkTanhTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i-benchSize/2) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(math.Tanh(float64(input[j])))
 		}
@@ -350,9 +335,8 @@ func BenchmarkSigmoidTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i-benchSize/2) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(1.0 / (1.0 + math.Exp(-float64(input[j]))))
 		}
@@ -366,9 +350,8 @@ func BenchmarkErfTransform_Stdlib(b *testing.B) {
 		input[i] = float32(i-benchSize/2) * 0.01
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for j := range input {
 			output[j] = float32(math.Erf(float64(input[j])))
 		}

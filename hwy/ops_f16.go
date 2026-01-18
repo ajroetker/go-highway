@@ -13,12 +13,9 @@ import "math"
 
 // AddF16 performs element-wise addition of two Float16 vectors.
 func AddF16(a, b Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		result[i] = Float32ToFloat16(af + bf)
@@ -28,12 +25,9 @@ func AddF16(a, b Vec[Float16]) Vec[Float16] {
 
 // SubF16 performs element-wise subtraction of two Float16 vectors.
 func SubF16(a, b Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		result[i] = Float32ToFloat16(af - bf)
@@ -43,12 +37,9 @@ func SubF16(a, b Vec[Float16]) Vec[Float16] {
 
 // MulF16 performs element-wise multiplication of two Float16 vectors.
 func MulF16(a, b Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		result[i] = Float32ToFloat16(af * bf)
@@ -58,12 +49,9 @@ func MulF16(a, b Vec[Float16]) Vec[Float16] {
 
 // DivF16 performs element-wise division of two Float16 vectors.
 func DivF16(a, b Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		result[i] = Float32ToFloat16(af / bf)
@@ -74,15 +62,9 @@ func DivF16(a, b Vec[Float16]) Vec[Float16] {
 // FMAF16 performs fused multiply-add: a * b + c.
 // Using FMA in float32 preserves precision better than separate mul and add.
 func FMAF16(a, b, c Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
-	if len(c.data) < n {
-		n = len(c.data)
-	}
+	n := min(len(c.data), min(len(b.data), len(a.data)))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := float64(Float16ToFloat32(a.data[i]))
 		bf := float64(Float16ToFloat32(b.data[i]))
 		cf := float64(Float16ToFloat32(c.data[i]))
@@ -113,12 +95,9 @@ func AbsF16(v Vec[Float16]) Vec[Float16] {
 
 // MinF16 returns element-wise minimum.
 func MinF16(a, b Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		if af < bf {
@@ -132,12 +111,9 @@ func MinF16(a, b Vec[Float16]) Vec[Float16] {
 
 // MaxF16 returns element-wise maximum.
 func MaxF16(a, b Vec[Float16]) Vec[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		if af > bf {
@@ -226,12 +202,9 @@ func ReduceMaxF16(v Vec[Float16]) Float16 {
 // DotF16 computes dot product of two Float16 vectors, returning float32.
 // This is the common ML pattern: accumulate in higher precision.
 func DotF16(a, b Vec[Float16]) float32 {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	var sum float32
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		sum += af * bf
@@ -241,12 +214,9 @@ func DotF16(a, b Vec[Float16]) float32 {
 
 // EqualF16 compares two Float16 vectors for equality.
 func EqualF16(a, b Vec[Float16]) Mask[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		bits[i] = af == bf
@@ -256,12 +226,9 @@ func EqualF16(a, b Vec[Float16]) Mask[Float16] {
 
 // LessThanF16 compares a < b element-wise.
 func LessThanF16(a, b Vec[Float16]) Mask[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		bits[i] = af < bf
@@ -271,12 +238,9 @@ func LessThanF16(a, b Vec[Float16]) Mask[Float16] {
 
 // LessThanOrEqualF16 compares a <= b element-wise.
 func LessThanOrEqualF16(a, b Vec[Float16]) Mask[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		bits[i] = af <= bf
@@ -286,12 +250,9 @@ func LessThanOrEqualF16(a, b Vec[Float16]) Mask[Float16] {
 
 // GreaterThanF16 compares a > b element-wise.
 func GreaterThanF16(a, b Vec[Float16]) Mask[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		bits[i] = af > bf
@@ -301,12 +262,9 @@ func GreaterThanF16(a, b Vec[Float16]) Mask[Float16] {
 
 // GreaterThanOrEqualF16 compares a >= b element-wise.
 func GreaterThanOrEqualF16(a, b Vec[Float16]) Mask[Float16] {
-	n := len(a.data)
-	if len(b.data) < n {
-		n = len(b.data)
-	}
+	n := min(len(b.data), len(a.data))
 	bits := make([]bool, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		af := Float16ToFloat32(a.data[i])
 		bf := Float16ToFloat32(b.data[i])
 		bits[i] = af >= bf
@@ -357,15 +315,9 @@ func IsFiniteF16(v Vec[Float16]) Mask[Float16] {
 
 // IfThenElseF16 selects elements based on mask: mask ? yes : no.
 func IfThenElseF16(mask Mask[Float16], yes, no Vec[Float16]) Vec[Float16] {
-	n := len(mask.bits)
-	if len(yes.data) < n {
-		n = len(yes.data)
-	}
-	if len(no.data) < n {
-		n = len(no.data)
-	}
+	n := min(len(no.data), min(len(yes.data), len(mask.bits)))
 	result := make([]Float16, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if mask.bits[i] {
 			result[i] = yes.data[i]
 		} else {

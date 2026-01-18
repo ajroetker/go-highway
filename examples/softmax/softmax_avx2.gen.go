@@ -22,16 +22,16 @@ func BaseSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 		}
 	}
 	shifted := make([]hwy.Float16, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		shifted[i] = hwy.Float32ToFloat16(input[i].Float32() - maxVal.Float32())
 	}
 	algo.BaseApply_avx2_Float16(shifted, output, math.BaseExpVec_avx2_Float16)
 	var expSum float32
-	for i := 0; i < size; i++ {
+	for i := range size {
 		expSum += output[i].Float32()
 	}
 	invSum := float32(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
 	}
 }
@@ -48,16 +48,16 @@ func BaseSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 		}
 	}
 	shifted := make([]hwy.BFloat16, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		shifted[i] = hwy.Float32ToBFloat16(input[i].Float32() - maxVal.Float32())
 	}
 	algo.BaseApply_avx2_BFloat16(shifted, output, math.BaseExpVec_avx2_BFloat16)
 	var expSum float32
-	for i := 0; i < size; i++ {
+	for i := range size {
 		expSum += output[i].Float32()
 	}
 	invSum := float32(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
 	}
 }
@@ -74,16 +74,16 @@ func BaseSoftmax_avx2(input []float32, output []float32) {
 		}
 	}
 	shifted := make([]float32, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		shifted[i] = input[i] - maxVal
 	}
 	algo.BaseApply_avx2(shifted, output, math.BaseExpVec_avx2)
 	var expSum float32
-	for i := 0; i < size; i++ {
+	for i := range size {
 		expSum += output[i]
 	}
 	invSum := float32(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = output[i] * invSum
 	}
 }
@@ -100,16 +100,16 @@ func BaseSoftmax_avx2_Float64(input []float64, output []float64) {
 		}
 	}
 	shifted := make([]float64, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		shifted[i] = input[i] - maxVal
 	}
 	algo.BaseApply_avx2_Float64(shifted, output, math.BaseExpVec_avx2_Float64)
 	var expSum float64
-	for i := 0; i < size; i++ {
+	for i := range size {
 		expSum += output[i]
 	}
 	invSum := float64(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = output[i] * invSum
 	}
 }
@@ -126,12 +126,12 @@ func BaseSoftmaxScalar_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 		}
 	}
 	var expSum float32
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[i] - maxVal))))
 		expSum += output[i].Float32()
 	}
 	invSum := float32(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
 	}
 }
@@ -148,12 +148,12 @@ func BaseSoftmaxScalar_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 		}
 	}
 	var expSum float32
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[i] - maxVal))))
 		expSum += output[i].Float32()
 	}
 	invSum := float32(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
 	}
 }
@@ -170,12 +170,12 @@ func BaseSoftmaxScalar_avx2(input []float32, output []float32) {
 		}
 	}
 	var expSum float32
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = float32(stdmath.Exp(float64(input[i] - maxVal)))
 		expSum += output[i]
 	}
 	invSum := float32(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = output[i] * invSum
 	}
 }
@@ -192,12 +192,12 @@ func BaseSoftmaxScalar_avx2_Float64(input []float64, output []float64) {
 		}
 	}
 	var expSum float64
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = float64(stdmath.Exp(float64(input[i] - maxVal)))
 		expSum += output[i]
 	}
 	invSum := float64(1.0) / expSum
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = output[i] * invSum
 	}
 }

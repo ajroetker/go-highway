@@ -168,7 +168,7 @@ func TestPartition3Way(t *testing.T) {
 	lt, gt := Partition3Way(data, pivot)
 
 	// Verify partitioning
-	for i := 0; i < lt; i++ {
+	for i := range lt {
 		if data[i] >= pivot {
 			t.Errorf("data[%d]=%v should be < pivot %v", i, data[i], pivot)
 		}
@@ -193,7 +193,7 @@ func TestPartition(t *testing.T) {
 	idx := Partition(data, pivot)
 
 	// Verify partitioning
-	for i := 0; i < idx; i++ {
+	for i := range idx {
 		if data[i] > pivot {
 			t.Errorf("data[%d]=%v should be <= pivot %v", i, data[i], pivot)
 		}
@@ -210,7 +210,7 @@ func TestNthElement(t *testing.T) {
 	// Create sorted reference
 	ref := []float32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
-	for k := 0; k < len(ref); k++ {
+	for k := range ref {
 		// Shuffle data
 		data := make([]float32, len(ref))
 		copy(data, ref)
@@ -294,9 +294,9 @@ func TestCompressPartition3WayFloat32(t *testing.T) {
 		{"all_greater", []float32{6, 7, 8, 9}, 5},
 		{"all_equal", []float32{5, 5, 5, 5}, 5},
 		{"mixed", []float32{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5}, 5},
-		{"random_small", nil, 50},   // will be filled
-		{"random_medium", nil, 50},  // will be filled
-		{"random_large", nil, 50},   // will be filled
+		{"random_small", nil, 50},  // will be filled
+		{"random_medium", nil, 50}, // will be filled
+		{"random_large", nil, 50},  // will be filled
 	}
 
 	// Fill random test cases
@@ -329,7 +329,7 @@ func TestCompressPartition3WayFloat32(t *testing.T) {
 			lt, gt := CompressPartition3WayFloat32(data, tt.pivot)
 
 			// Verify partitioning
-			for i := 0; i < lt; i++ {
+			for i := range lt {
 				if data[i] >= tt.pivot {
 					t.Errorf("data[%d]=%v should be < pivot %v", i, data[i], tt.pivot)
 				}

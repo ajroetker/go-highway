@@ -34,20 +34,20 @@ func TestMatMulFMOPAF16Debug(t *testing.T) {
 	t.Logf("Expected value: %f", expected)
 
 	t.Log("\nFirst 16 elements of C (row 0):")
-	for j := 0; j < n; j++ {
+	for j := range n {
 		actual := hwy.Float16ToFloat32(c[j])
 		t.Logf("  [0,%d] expected=%f actual=%f diff=%f", j, expected, actual, actual-expected)
 	}
 
 	t.Log("\nColumn 0 (first element of each row):")
-	for i := 0; i < n; i++ {
+	for i := range n {
 		actual := hwy.Float16ToFloat32(c[i*n])
 		t.Logf("  [%d,0] expected=%f actual=%f diff=%f", i, expected, actual, actual-expected)
 	}
 
 	errCount := 0
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			actual := hwy.Float16ToFloat32(c[i*n+j])
 			diff := actual - expected
 			if diff < 0 {
@@ -81,13 +81,13 @@ func TestMatMulFMOPAF16Identity(t *testing.T) {
 	// AT is K x M, so AT[k,m] = A[m,k]
 	// For A = identity, AT is also identity
 	at := make([]hwy.Float16, n*n) // K x M (transposed)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		at[i*n+i] = hwy.Float32ToFloat16(1.0)
 	}
 
 	// B with test values
 	b := make([]hwy.Float16, n*n)
-	for i := 0; i < n*n; i++ {
+	for i := range n * n {
 		b[i] = hwy.Float32ToFloat16(float32(i%n + 1)) // 1, 2, 3, ..., 16, 1, 2, 3, ...
 	}
 
@@ -100,15 +100,15 @@ func TestMatMulFMOPAF16Identity(t *testing.T) {
 	MatMulFMOPAF16(at, b, c, n, n, n)
 
 	t.Log("First row of C (expected 1, 2, 3, ..., 16):")
-	for j := 0; j < n; j++ {
+	for j := range n {
 		expected := float32(j + 1)
 		actual := hwy.Float16ToFloat32(c[j])
 		t.Logf("  [0,%d] expected=%f actual=%f diff=%f", j, expected, actual, actual-expected)
 	}
 
 	errCount := 0
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			expected := float32(j + 1) // B's row pattern
 			actual := hwy.Float16ToFloat32(c[i*n+j])
 			diff := actual - expected

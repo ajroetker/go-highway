@@ -18,7 +18,7 @@ func BaseMatVec_avx2_Float16(m []hwy.Float16, rows int, cols int, v []hwy.Float1
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[hwy.Float16]()
 		lanes := 16
@@ -47,7 +47,7 @@ func BaseMatVec_avx2_BFloat16(m []hwy.BFloat16, rows int, cols int, v []hwy.BFlo
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := hwy.Zero[hwy.BFloat16]()
 		lanes := 16
@@ -76,7 +76,7 @@ func BaseMatVec_avx2(m []float32, rows int, cols int, v []float32, result []floa
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := archsimd.BroadcastFloat32x8(0)
 		lanes := 8
@@ -109,7 +109,7 @@ func BaseMatVec_avx2_Float64(m []float64, rows int, cols int, v []float64, resul
 	if len(result) < rows {
 		panic("result slice too small")
 	}
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
 		sum := archsimd.BroadcastFloat64x4(0)
 		lanes := 4

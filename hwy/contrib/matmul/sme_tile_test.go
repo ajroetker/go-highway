@@ -102,12 +102,12 @@ func TestSMEFMOPAStoreAll(t *testing.T) {
 	// All values should be 6.0 (2.0 * 3.0)
 	expected := float32(6.0)
 	t.Logf("First row (expected all %f):", expected)
-	for j := 0; j < n; j++ {
+	for j := range n {
 		t.Logf("  data[0][%d] = %f", j, data[j])
 	}
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			if data[i*n+j] != expected {
 				t.Errorf("data[%d][%d] = %f, want %f", i, j, data[i*n+j], expected)
 			}
@@ -128,7 +128,7 @@ func TestFMOPAMatMul16x16(t *testing.T) {
 
 	// Create identity matrix B
 	b := make([]float32, n*n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		b[i*n+i] = 1.0
 	}
 
@@ -147,7 +147,7 @@ func TestFMOPAMatMul16x16(t *testing.T) {
 
 	// Check results: C should equal A
 	t.Log("First row of C (expected 1, 2, 3, ..., 16):")
-	for j := 0; j < n; j++ {
+	for j := range n {
 		t.Logf("  c[0][%d] = %f (expected %f)", j, c[j], a[j])
 	}
 
@@ -216,7 +216,7 @@ func TestFMOPAMatMulOnes16x16(t *testing.T) {
 	// If only 1 FMOPA: 6
 	expected := float32(96)
 	t.Logf("First few elements of C (expected 96 if 16 FMOPAs, 6 if 1 FMOPA):")
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		t.Logf("  c[%d] = %f", i, c[i])
 	}
 
@@ -257,8 +257,8 @@ func TestFMOPAMatMul32x32(t *testing.T) {
 	errCount := 0
 	maxErr := float32(0)
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			err := c[i*n+j] - expected
 			if err < 0 {
 				err = -err
@@ -312,8 +312,8 @@ func TestFMOPAMatMul64x64(t *testing.T) {
 	expected := float32(384) // 64 * 2 * 3
 	errCount := 0
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			if c[i*n+j] != expected {
 				if errCount < 10 {
 					t.Errorf("c[%d,%d] = %f, want %f", i, j, c[i*n+j], expected)
@@ -492,8 +492,8 @@ func TestFMOPATransposed(t *testing.T) {
 
 	// Transpose A manually: AT[k,i] = A[i,k]
 	at := make([]float32, n*n)
-	for i := 0; i < n; i++ {
-		for k := 0; k < n; k++ {
+	for i := range n {
+		for k := range n {
 			at[k*n+i] = a[i*n+k]
 		}
 	}
@@ -513,8 +513,8 @@ func TestFMOPATransposed(t *testing.T) {
 	expected := float32(384) // 64 * 2 * 3
 	errCount := 0
 
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+	for i := range n {
+		for j := range n {
 			if c[i*n+j] != expected {
 				if errCount < 10 {
 					t.Errorf("c[%d,%d] = %f, want %f", i, j, c[i*n+j], expected)
@@ -556,8 +556,8 @@ func BenchmarkFMOPA_vs_NEON(b *testing.B) {
 
 		// Pre-transpose A for FMOPA_AT benchmark
 		at := make([]float32, k*m)
-		for i := 0; i < m; i++ {
-			for j := 0; j < k; j++ {
+		for i := range m {
+			for j := range k {
 				at[j*m+i] = a[i*k+j]
 			}
 		}
