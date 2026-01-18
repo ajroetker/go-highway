@@ -801,9 +801,9 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		return
 	}
 
-	// Handle hwy.* and contrib subpackage calls (math.*, dot.*, matvec.*, algo.*)
+	// Handle hwy.* and contrib subpackage calls (math.*, vec.*, matvec.*, algo.*)
 	switch ident.Name {
-	case "hwy", "contrib", "math", "dot", "matvec", "algo":
+	case "hwy", "contrib", "math", "vec", "matvec", "algo":
 		// Continue processing
 	default:
 		return
@@ -2287,7 +2287,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		// e.g., math.BaseExpVec_avx2, math.BaseExpVec_avx2_Float64
 		if opInfo.SubPackage != "" {
 			fullName = fmt.Sprintf("%s_%s%s", opInfo.Name, strings.ToLower(ctx.target.Name), getHwygenTypeSuffix(ctx.elemType))
-			selExpr.X = ast.NewIdent(opInfo.SubPackage) // math, dot, matvec, algo
+			selExpr.X = ast.NewIdent(opInfo.SubPackage) // math, vec, matvec, algo
 		} else if opInfo.Package == "hwy" {
 			// Core ops from hwy package (e.g., hwy.Sqrt_AVX2_F32x8)
 			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
@@ -3933,7 +3933,7 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 			if ident, ok := sel.X.(*ast.Ident); ok {
 				// Check if it's a contrib package with a Base* function
 				switch ident.Name {
-				case "math", "dot", "matvec", "algo":
+				case "math", "vec", "matvec", "algo":
 					if strings.HasPrefix(sel.Sel.Name, "Base") {
 						// Transform math.BaseExpVec to math.BaseExpVec_avx2
 						suffix := ctx.target.Suffix()
@@ -3955,7 +3955,7 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 			if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
 				if ident, ok := sel.X.(*ast.Ident); ok {
 					switch ident.Name {
-					case "math", "dot", "matvec", "algo":
+					case "math", "vec", "matvec", "algo":
 						if strings.HasPrefix(sel.Sel.Name, "Base") {
 							// Transform to non-generic version with suffix
 							suffix := ctx.target.Suffix()

@@ -14,8 +14,8 @@ type Target struct {
 
 // OpInfo describes how to transform a hwy operation for this target.
 type OpInfo struct {
-	Package    string // "" for archsimd methods, "hwy" for core package, "math"/"dot" for contrib
-	SubPackage string // For contrib: "math", "dot", "matvec", "algo"
+	Package    string // "" for archsimd methods, "hwy" for core package, "math"/"vec" for contrib
+	SubPackage string // For contrib: "math", "vec", "matvec", "algo"
 	Name       string // Target function/method name
 	IsMethod   bool   // true if a.Add(b), false if Add(a, b)
 }
@@ -197,8 +197,8 @@ func AVX2Target() Target {
 			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
 			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
-			// ===== contrib/dot: Dot product operations =====
-			"Dot": {Package: "dot", SubPackage: "dot", Name: "Dot", IsMethod: false},
+			// ===== contrib/vec: Dot product operations =====
+			"Dot": {Package: "vec", SubPackage: "vec", Name: "Dot", IsMethod: false},
 
 			// ===== IEEE 754 Operations =====
 			// Pow2 computes 2^k via bit manipulation. Transformer adds target and type suffix.
@@ -392,8 +392,8 @@ func AVX512Target() Target {
 			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
 			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
-			// ===== contrib/dot: Dot product operations =====
-			"Dot": {Package: "dot", SubPackage: "dot", Name: "Dot", IsMethod: false},
+			// ===== contrib/vec: Dot product operations =====
+			"Dot": {Package: "vec", SubPackage: "vec", Name: "Dot", IsMethod: false},
 
 			// ===== IEEE 754 Operations =====
 			"Pow2": {Package: "hwy", Name: "Pow2", IsMethod: false},
@@ -576,8 +576,8 @@ func FallbackTarget() Target {
 			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
 			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
-			// ===== contrib/dot: Dot product =====
-			"Dot": {Package: "hwy", SubPackage: "dot", Name: "Dot", IsMethod: false},
+			// ===== contrib/vec: Dot product =====
+			"Dot": {Package: "vec", SubPackage: "vec", Name: "Dot", IsMethod: false},
 
 			// ===== IEEE 754 Operations =====
 			"Pow2": {Package: "hwy", Name: "Pow2", IsMethod: false},
@@ -757,8 +757,8 @@ func NEONTarget() Target {
 			"Sigmoid": {Package: "math", SubPackage: "math", Name: "BaseSigmoidVec", IsMethod: false},
 			"Erf":     {Package: "math", SubPackage: "math", Name: "BaseErfVec", IsMethod: false},
 
-			// ===== contrib/dot: Dot product operations =====
-			"Dot": {Package: "dot", SubPackage: "dot", Name: "Dot", IsMethod: false},
+			// ===== contrib/vec: Dot product operations =====
+			"Dot": {Package: "vec", SubPackage: "vec", Name: "Dot", IsMethod: false},
 
 			// ===== IEEE 754 Operations =====
 			"Pow2": {Name: "Pow2", IsMethod: true},

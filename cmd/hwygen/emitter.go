@@ -16,7 +16,7 @@ import (
 // ContribPackages tracks which contrib subpackages are needed for imports.
 type ContribPackages struct {
 	Math      bool // contrib/math (Exp, Log, Sin, etc.)
-	Dot       bool // contrib/dot (Dot product)
+	Vec       bool // contrib/vec (Dot product, Norm, etc.)
 	MatVec    bool // contrib/matvec (Matrix-vector ops)
 	Algo      bool // contrib/algo (Transform utilities)
 	HwyPkg    bool // hwy package functions (Pow2, etc.) used in SIMD targets
@@ -37,8 +37,8 @@ func detectContribPackages(funcs []ParsedFunc, targets []Target) ContribPackages
 					switch opInfo.SubPackage {
 					case "math":
 						pkgs.Math = true
-					case "dot":
-						pkgs.Dot = true
+					case "vec":
+						pkgs.Vec = true
 					case "matvec":
 						pkgs.MatVec = true
 					case "algo":
@@ -97,8 +97,8 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				switch opInfo.SubPackage {
 				case "math":
 					pkgs.Math = true
-				case "dot":
-					pkgs.Dot = true
+				case "vec":
+					pkgs.Vec = true
 				case "matvec":
 					pkgs.MatVec = true
 				case "algo":
@@ -588,8 +588,8 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 		if contribPkgs.Math {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/math"`)
 		}
-		if contribPkgs.Dot {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/dot"`)
+		if contribPkgs.Vec {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/vec"`)
 		}
 		if contribPkgs.MatVec {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
@@ -610,8 +610,8 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 		if contribPkgs.Math {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/math"`)
 		}
-		if contribPkgs.Dot {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/dot"`)
+		if contribPkgs.Vec {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/vec"`)
 		}
 		if contribPkgs.MatVec {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)

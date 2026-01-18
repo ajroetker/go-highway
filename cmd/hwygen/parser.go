@@ -320,10 +320,10 @@ func findHwyCalls(node ast.Node) []HwyCall {
 			return true
 		}
 
-		// Recognize hwy package and contrib subpackages (math, dot, matvec, algo)
+		// Recognize hwy package and contrib subpackages (math, vec, matvec, algo)
 		// Also recognize "stdmath" as an alias for stdlib math package
 		switch ident.Name {
-		case "hwy", "contrib", "math", "dot", "matvec", "algo", "stdmath":
+		case "hwy", "contrib", "math", "vec", "matvec", "algo", "stdmath":
 			key := ident.Name + "." + selExpr.Sel.Name
 			if !seen[key] {
 				seen[key] = true

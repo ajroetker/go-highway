@@ -390,29 +390,29 @@ func TestDetectContribPackages(t *testing.T) {
 		name      string
 		calls     []HwyCall
 		wantMath  bool
-		wantDot   bool
+		wantVec   bool
 		wantAlgo  bool
 	}{
 		{
 			name:     "No contrib",
 			calls:    []HwyCall{{Package: "hwy", FuncName: "Add"}},
-			wantMath: false, wantDot: false, wantAlgo: false,
+			wantMath: false, wantVec: false, wantAlgo: false,
 		},
 		{
 			name:     "Math function",
 			calls:    []HwyCall{{Package: "contrib", FuncName: "Exp"}},
-			wantMath: true, wantDot: false, wantAlgo: false,
+			wantMath: true, wantVec: false, wantAlgo: false,
 		},
 		{
 			name:     "Dot function",
 			calls:    []HwyCall{{Package: "contrib", FuncName: "Dot"}},
-			wantMath: false, wantDot: true, wantAlgo: false,
+			wantMath: false, wantVec: true, wantAlgo: false,
 		},
 		{
 			name:      "Multiple functions",
 			calls:     []HwyCall{{Package: "contrib", FuncName: "Sigmoid"}, {Package: "contrib", FuncName: "Dot"}},
 			wantMath:  true,
-			wantDot:   true,
+			wantVec:   true,
 			wantAlgo:  false,
 		},
 	}
@@ -425,8 +425,8 @@ func TestDetectContribPackages(t *testing.T) {
 			if pkgs.Math != tt.wantMath {
 				t.Errorf("Math = %v, want %v", pkgs.Math, tt.wantMath)
 			}
-			if pkgs.Dot != tt.wantDot {
-				t.Errorf("Dot = %v, want %v", pkgs.Dot, tt.wantDot)
+			if pkgs.Vec != tt.wantVec {
+				t.Errorf("Dot = %v, want %v", pkgs.Vec, tt.wantVec)
 			}
 			if pkgs.Algo != tt.wantAlgo {
 				t.Errorf("Algo = %v, want %v", pkgs.Algo, tt.wantAlgo)
