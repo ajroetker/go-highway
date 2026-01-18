@@ -801,9 +801,9 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		return
 	}
 
-	// Handle hwy.* and contrib subpackage calls (math.*, vec.*, matvec.*, algo.*)
+	// Handle hwy.* and contrib subpackage calls
 	switch ident.Name {
-	case "hwy", "contrib", "math", "vec", "matvec", "algo":
+	case "hwy", "contrib", "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
 		// Continue processing
 	default:
 		return
@@ -3933,7 +3933,7 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 			if ident, ok := sel.X.(*ast.Ident); ok {
 				// Check if it's a contrib package with a Base* function
 				switch ident.Name {
-				case "math", "vec", "matvec", "algo":
+				case "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
 					if strings.HasPrefix(sel.Sel.Name, "Base") {
 						// Transform math.BaseExpVec to math.BaseExpVec_avx2
 						suffix := ctx.target.Suffix()
@@ -3955,7 +3955,7 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 			if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
 				if ident, ok := sel.X.(*ast.Ident); ok {
 					switch ident.Name {
-					case "math", "vec", "matvec", "algo":
+					case "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
 						if strings.HasPrefix(sel.Sel.Name, "Base") {
 							// Transform to non-generic version with suffix
 							suffix := ctx.target.Suffix()

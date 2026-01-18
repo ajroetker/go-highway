@@ -15,7 +15,7 @@ type Target struct {
 // OpInfo describes how to transform a hwy operation for this target.
 type OpInfo struct {
 	Package    string // "" for archsimd methods, "hwy" for core package, "math"/"vec" for contrib
-	SubPackage string // For contrib: "math", "vec", "matvec", "algo"
+	SubPackage string // For contrib: "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort"
 	Name       string // Target function/method name
 	IsMethod   bool   // true if a.Add(b), false if Add(a, b)
 }

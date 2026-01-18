@@ -15,13 +15,17 @@ import (
 
 // ContribPackages tracks which contrib subpackages are needed for imports.
 type ContribPackages struct {
-	Math      bool // contrib/math (Exp, Log, Sin, etc.)
-	Vec       bool // contrib/vec (Dot product, Norm, etc.)
-	MatVec    bool // contrib/matvec (Matrix-vector ops)
-	Algo      bool // contrib/algo (Transform utilities)
-	HwyPkg    bool // hwy package functions (Pow2, etc.) used in SIMD targets
-	StdMath   bool // stdlib math package (math.Inf, math.NaN, etc.)
-	HwyCore   bool // hwy core ops (Load, Store, Add, etc.) that need vec package
+	Math    bool // contrib/math (Exp, Log, Sin, etc.)
+	Vec     bool // contrib/vec (Dot product, Norm, etc.)
+	MatVec  bool // contrib/matvec (Matrix-vector ops)
+	Matmul  bool // contrib/matmul (Matrix multiplication)
+	Algo    bool // contrib/algo (Transform utilities)
+	Image   bool // contrib/image (Image processing)
+	Bitpack bool // contrib/bitpack (Bit packing)
+	Sort    bool // contrib/sort (Sorting algorithms)
+	HwyPkg  bool // hwy package functions (Pow2, etc.) used in SIMD targets
+	StdMath bool // stdlib math package (math.Inf, math.NaN, etc.)
+	HwyCore bool // hwy core ops (Load, Store, Add, etc.) that need vec package
 }
 
 // detectContribPackages analyzes parsed functions to determine which contrib subpackages are used.
@@ -41,8 +45,16 @@ func detectContribPackages(funcs []ParsedFunc, targets []Target) ContribPackages
 						pkgs.Vec = true
 					case "matvec":
 						pkgs.MatVec = true
+					case "matmul":
+						pkgs.Matmul = true
 					case "algo":
 						pkgs.Algo = true
+					case "image":
+						pkgs.Image = true
+					case "bitpack":
+						pkgs.Bitpack = true
+					case "sort":
+						pkgs.Sort = true
 					}
 					// HwyPkg is set per-target in detectContribPackagesForTarget
 				}
@@ -101,8 +113,16 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 					pkgs.Vec = true
 				case "matvec":
 					pkgs.MatVec = true
+				case "matmul":
+					pkgs.Matmul = true
 				case "algo":
 					pkgs.Algo = true
+				case "image":
+					pkgs.Image = true
+				case "bitpack":
+					pkgs.Bitpack = true
+				case "sort":
+					pkgs.Sort = true
 				}
 				// Check if this is a hwy package function (like RoundToEven for AVX512) for this target
 				if opInfo.Package == "hwy" && !opInfo.IsMethod && target.Name != "Fallback" {
@@ -594,8 +614,20 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 		if contribPkgs.MatVec {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
 		}
+		if contribPkgs.Matmul {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matmul"`)
+		}
 		if contribPkgs.Algo {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/algo"`)
+		}
+		if contribPkgs.Image {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/image"`)
+		}
+		if contribPkgs.Bitpack {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/bitpack"`)
+		}
+		if contribPkgs.Sort {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/sort"`)
 		}
 		// stdmath only if explicitly needed (math.Inf, math.NaN, etc. were found)
 		if contribPkgs.StdMath {
@@ -616,8 +648,20 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 		if contribPkgs.MatVec {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
 		}
+		if contribPkgs.Matmul {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matmul"`)
+		}
 		if contribPkgs.Algo {
 			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/algo"`)
+		}
+		if contribPkgs.Image {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/image"`)
+		}
+		if contribPkgs.Bitpack {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/bitpack"`)
+		}
+		if contribPkgs.Sort {
+			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/sort"`)
 		}
 		// Include stdmath if the source file uses stdlib math functions
 		if contribPkgs.StdMath {
