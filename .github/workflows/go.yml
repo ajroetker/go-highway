@@ -43,6 +43,7 @@ jobs:
           go1.26rc2 download
           echo "GOROOT=$(go1.26rc2 env GOROOT)" >> $GITHUB_ENV
           echo "$(go1.26rc2 env GOROOT)/bin" >> $GITHUB_PATH
+          echo "GOEXPERIMENT=simd" >> $GITHUB_ENV
 
       - name: Verify Go version
         run: go version
@@ -57,16 +58,7 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-go-1.26rc2-
 
-      # amd64: needs GOEXPERIMENT=simd for archsimd
-      - name: Run go vet (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
-        run: go vet ./...
-
-      # arm64: no GOEXPERIMENT needed for asm package
-      - name: Run go vet (arm64)
-        if: runner.arch == 'ARM64'
+      - name: Run go vet
         run: go vet ./...
 
       - name: Run tests (fallback path)
@@ -74,20 +66,10 @@ jobs:
           HWY_NO_SIMD: "1"
         run: go test -v -race ./...
 
-      - name: Run tests (amd64 SIMD enabled)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
+      - name: Run tests (SIMD enabled)
         run: go test -v -race ./...
 
-      - name: Run benchmarks (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
-        run: go test -bench=. -benchmem -run=^$ ./hwy/contrib/...
-
-      - name: Run benchmarks (arm64)
-        if: runner.arch == 'ARM64'
+      - name: Run benchmarks
         run: go test -bench=. -benchmem -run=^$ ./hwy/contrib/...
 
       - name: Build hwygen
@@ -99,60 +81,21 @@ jobs:
           cd examples/softmax && go generate ./...
           cd ../gelu && go generate ./...
 
-      - name: Build examples (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
+      - name: Build examples
         run: |
           go build -o examples/basic/basic ./examples/basic
           go build -o examples/contrib_test/contrib_test ./examples/contrib_test
           go build -o examples/softmax/softmax_test ./examples/softmax
           go build -o examples/gelu/gelu_test ./examples/gelu
 
-      - name: Build examples (arm64)
-        if: runner.arch == 'ARM64'
-        run: |
-          go build -o examples/basic/basic ./examples/basic
-          go build -o examples/contrib_test/contrib_test ./examples/contrib_test
-          go build -o examples/softmax/softmax_test ./examples/softmax
-          go build -o examples/gelu/gelu_test ./examples/gelu
-
-      - name: Run basic example (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
+      - name: Run basic example
         run: ./examples/basic/basic
 
-      - name: Run basic example (arm64)
-        if: runner.arch == 'ARM64'
-        run: ./examples/basic/basic
-
-      - name: Run contrib_test example (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
+      - name: Run contrib_test example
         run: ./examples/contrib_test/contrib_test
 
-      - name: Run contrib_test example (arm64)
-        if: runner.arch == 'ARM64'
-        run: ./examples/contrib_test/contrib_test
-
-      - name: Test softmax example (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
+      - name: Test softmax example
         run: go test -v ./examples/softmax/...
 
-      - name: Test softmax example (arm64)
-        if: runner.arch == 'ARM64'
-        run: go test -v ./examples/softmax/...
-
-      - name: Test gelu example (amd64)
-        if: runner.arch == 'X64'
-        env:
-          GOEXPERIMENT: simd
-        run: go test -v ./examples/gelu/...
-
-      - name: Test gelu example (arm64)
-        if: runner.arch == 'ARM64'
+      - name: Test gelu example
         run: go test -v ./examples/gelu/...
