@@ -485,6 +485,37 @@ func Sqrt[T Floats](v Vec[T]) Vec[T] {
 	return Vec[T]{data: result}
 }
 
+// RSqrt computes reciprocal square root (1/sqrt(x)).
+// This is a scalar fallback implementation.
+func RSqrt[T Floats](v Vec[T]) Vec[T] {
+	result := make([]T, len(v.data))
+	for i := 0; i < len(v.data); i++ {
+		switch x := any(v.data[i]).(type) {
+		case Float16:
+			result[i] = any(Float32ToFloat16(float32(1.0 / math.Sqrt(float64(x.Float32()))))).(T)
+		case BFloat16:
+			result[i] = any(Float32ToBFloat16(float32(1.0 / math.Sqrt(float64(x.Float32()))))).(T)
+		case float32:
+			result[i] = any(float32(1.0 / math.Sqrt(float64(x)))).(T)
+		case float64:
+			result[i] = any(1.0 / math.Sqrt(x)).(T)
+		}
+	}
+	return Vec[T]{data: result}
+}
+
+// RSqrtNewtonRaphson computes 1/sqrt(x) with one Newton-Raphson refinement.
+// For the fallback, this is identical to RSqrt since we use precise math.Sqrt.
+func RSqrtNewtonRaphson[T Floats](v Vec[T]) Vec[T] {
+	return RSqrt(v)
+}
+
+// RSqrtPrecise computes precise 1/sqrt(x).
+// For the fallback, this is identical to RSqrt since we use precise math.Sqrt.
+func RSqrtPrecise[T Floats](v Vec[T]) Vec[T] {
+	return RSqrt(v)
+}
+
 // Pow computes base^exp element-wise.
 func Pow[T Floats](base, exp Vec[T]) Vec[T] {
 	n := min(len(exp.data), len(base.data))

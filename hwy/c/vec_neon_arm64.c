@@ -686,6 +686,62 @@ uint64x2_t sel_u64x2(uint64x2_t mask, uint64x2_t yes, uint64x2_t no) {
 }
 
 // ============================================================================
+// Slide/Extract Operations (for prefix sum, etc.)
+// ============================================================================
+// vextq extracts from concatenation: result[i] = (i < 16-n) ? b[i+n] : a[i+n-16]
+// For slide up by 1: we want [0, v[0], v[1], v[2]] from [v[0], v[1], v[2], v[3]]
+
+// SlideUp: shift elements up (toward higher indices), fill lower with zero
+// slide_up_1_f32x4([a,b,c,d]) = [0,a,b,c]
+float32x4_t slide_up_1_f32x4(float32x4_t v) {
+    float32x4_t zero = vdupq_n_f32(0);
+    return vextq_f32(zero, v, 3);  // Take last 3 from zero, first 1 from v? No...
+    // vextq_f32(a, b, n) = [a[n], a[n+1], ..., b[0], b[1], ...]
+    // We want [0, v[0], v[1], v[2]]
+    // vextq_f32(zero, v, 3) = [zero[3], v[0], v[1], v[2]] = [0, v[0], v[1], v[2]] ✓
+}
+
+float32x4_t slide_up_2_f32x4(float32x4_t v) {
+    float32x4_t zero = vdupq_n_f32(0);
+    return vextq_f32(zero, v, 2);  // [0, 0, v[0], v[1]]
+}
+
+float64x2_t slide_up_1_f64x2(float64x2_t v) {
+    float64x2_t zero = vdupq_n_f64(0);
+    return vextq_f64(zero, v, 1);  // [0, v[0]]
+}
+
+int32x4_t slide_up_1_i32x4(int32x4_t v) {
+    int32x4_t zero = vdupq_n_s32(0);
+    return vextq_s32(zero, v, 3);  // [0, v[0], v[1], v[2]]
+}
+
+int32x4_t slide_up_2_i32x4(int32x4_t v) {
+    int32x4_t zero = vdupq_n_s32(0);
+    return vextq_s32(zero, v, 2);  // [0, 0, v[0], v[1]]
+}
+
+int64x2_t slide_up_1_i64x2(int64x2_t v) {
+    int64x2_t zero = vdupq_n_s64(0);
+    return vextq_s64(zero, v, 1);  // [0, v[0]]
+}
+
+uint32x4_t slide_up_1_u32x4(uint32x4_t v) {
+    uint32x4_t zero = vdupq_n_u32(0);
+    return vextq_u32(zero, v, 3);  // [0, v[0], v[1], v[2]]
+}
+
+uint32x4_t slide_up_2_u32x4(uint32x4_t v) {
+    uint32x4_t zero = vdupq_n_u32(0);
+    return vextq_u32(zero, v, 2);  // [0, 0, v[0], v[1]]
+}
+
+uint64x2_t slide_up_1_u64x2(uint64x2_t v) {
+    uint64x2_t zero = vdupq_n_u64(0);
+    return vextq_u64(zero, v, 1);  // [0, v[0]]
+}
+
+// ============================================================================
 // Multi-Register Load Operations (for better memory bandwidth)
 // ============================================================================
 // These use ld1 with 4 registers which loads 64 bytes in a single instruction,
@@ -762,3 +818,4 @@ void load4_u16x8(unsigned short *ptr, uint16x8_t *out0, uint16x8_t *out1, uint16
     *out2 = v.val[2];
     *out3 = v.val[3];
 }
+

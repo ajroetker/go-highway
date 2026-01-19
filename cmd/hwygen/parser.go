@@ -572,27 +572,54 @@ func exprToString(expr ast.Expr) string {
 
 // GetConcreteTypes returns the concrete types that should be generated
 // from a generic type parameter constraint.
+// Handles union constraints like "hwy.Integers | hwy.FloatsNative" by returning
+// all applicable types.
 func GetConcreteTypes(constraint string) []string {
-	// Map constraint names to concrete types
-	switch {
-	case strings.Contains(constraint, "FloatsNative"):
-		// FloatsNative is float32/float64 only (no Float16/BFloat16)
-		return []string{"float32", "float64"}
-	case strings.Contains(constraint, "Floats"):
-		// Full Floats constraint includes Float16/BFloat16
-		return []string{"hwy.Float16", "hwy.BFloat16", "float32", "float64"}
-	case strings.Contains(constraint, "SignedInts"):
-		return []string{"int32", "int64"}
-	case strings.Contains(constraint, "UnsignedInts"):
-		return []string{"uint32", "uint64"}
-	case strings.Contains(constraint, "Integers"):
-		return []string{"int32", "int64", "uint32", "uint64"}
-	case strings.Contains(constraint, "Lanes"):
+	// Handle union constraints by collecting all applicable types
+	var types []string
+	seen := make(map[string]bool)
+
+	addTypes := func(newTypes []string) {
+		for _, t := range newTypes {
+			if !seen[t] {
+				seen[t] = true
+				types = append(types, t)
+			}
+		}
+	}
+
+	// Check for Lanes first (covers all types)
+	if strings.Contains(constraint, "Lanes") {
 		return []string{"float32", "float64", "int32", "int64", "uint32", "uint64"}
-	default:
-		// Unknown constraint, default to common types
+	}
+
+	// Check for float constraints
+	if strings.Contains(constraint, "FloatsNative") {
+		// FloatsNative is float32/float64 only (no Float16/BFloat16)
+		addTypes([]string{"float32", "float64"})
+	} else if strings.Contains(constraint, "Floats") {
+		// Full Floats constraint includes Float16/BFloat16
+		addTypes([]string{"hwy.Float16", "hwy.BFloat16", "float32", "float64"})
+	}
+
+	// Check for integer constraints
+	if strings.Contains(constraint, "SignedInts") {
+		addTypes([]string{"int32", "int64"})
+	}
+	if strings.Contains(constraint, "UnsignedInts") {
+		addTypes([]string{"uint32", "uint64"})
+	}
+	// Integers covers both signed and unsigned (but only if not already added)
+	if strings.Contains(constraint, "Integers") && !strings.Contains(constraint, "SignedInts") && !strings.Contains(constraint, "UnsignedInts") {
+		addTypes([]string{"int32", "int64", "uint32", "uint64"})
+	}
+
+	// If no types were added, default to common types
+	if len(types) == 0 {
 		return []string{"float32", "float64"}
 	}
+
+	return types
 }
 
 // typeSuffixes are recognized type suffixes for type-specific constants.

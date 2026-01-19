@@ -431,6 +431,33 @@ func xor_u64x2(a, b [16]byte) (result [16]byte)
 func sel_u64x2(mask, yes, no [16]byte) (result [16]byte)
 
 //go:noescape
+func slide_up_1_f32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_2_f32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_1_f64x2(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_1_i32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_2_i32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_1_i64x2(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_1_u32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_2_u32x4(v [16]byte) (result [16]byte)
+
+//go:noescape
+func slide_up_1_u64x2(v [16]byte) (result [16]byte)
+
+//go:noescape
 func load4_f32x4(ptr, out0, out1, out2, out3 unsafe.Pointer)
 
 //go:noescape

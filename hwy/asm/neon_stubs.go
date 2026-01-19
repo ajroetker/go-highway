@@ -478,3 +478,19 @@ func and_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
 func or_u64x2(a, b [16]byte) [16]byte           { panic("NEON not available") }
 func xor_u64x2(a, b [16]byte) [16]byte          { panic("NEON not available") }
 func sel_u64x2(mask, yes, no [16]byte) [16]byte { panic("NEON not available") }
+
+// SlideUpLanes stubs
+func SlideUpLanesFloat32x4(v Float32x4, offset int) Float32x4 { panic("NEON not available") }
+func SlideUpLanesFloat64x2(v Float64x2, offset int) Float64x2 { panic("NEON not available") }
+func SlideUpLanesInt32x4(v Int32x4, offset int) Int32x4       { panic("NEON not available") }
+func SlideUpLanesInt64x2(v Int64x2, offset int) Int64x2       { panic("NEON not available") }
+func SlideUpLanesUint32x4(v Uint32x4, offset int) Uint32x4    { panic("NEON not available") }
+func SlideUpLanesUint64x2(v Uint64x2, offset int) Uint64x2    { panic("NEON not available") }
+
+// InsertLane stubs
+func InsertLaneFloat32x4(v Float32x4, lane int, val float32) Float32x4 { panic("NEON not available") }
+func InsertLaneFloat64x2(v Float64x2, lane int, val float64) Float64x2 { panic("NEON not available") }
+func InsertLaneInt32x4(v Int32x4, lane int, val int32) Int32x4         { panic("NEON not available") }
+func InsertLaneInt64x2(v Int64x2, lane int, val int64) Int64x2         { panic("NEON not available") }
+func InsertLaneUint32x4(v Uint32x4, lane int, val uint32) Uint32x4     { panic("NEON not available") }
+func InsertLaneUint64x2(v Uint64x2, lane int, val uint64) Uint64x2     { panic("NEON not available") }

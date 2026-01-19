@@ -63,6 +63,72 @@ func Sqrt_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	return x.Sqrt()
 }
 
+// RSqrt_AVX2_F32x8 computes approximate 1/sqrt(x) for 8 float32 values.
+// Uses the hardware VRSQRTPS instruction which provides ~12-bit precision.
+// For values where x <= 0, result is undefined.
+func RSqrt_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
+	return x.ReciprocalSqrt()
+}
+
+// RSqrt_AVX2_F64x4 computes approximate 1/sqrt(x) for 4 float64 values.
+// Uses the hardware VRSQRTPD instruction which provides ~12-bit precision.
+// For values where x <= 0, result is undefined.
+func RSqrt_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
+	return x.ReciprocalSqrt()
+}
+
+// RSqrtNewtonRaphson_AVX2_F32x8 computes 1/sqrt(x) with one Newton-Raphson refinement.
+// Provides ~23-bit precision (sufficient for float32).
+// Formula: y = y * (1.5 - 0.5 * x * y * y)
+func RSqrtNewtonRaphson_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
+	half := archsimd.BroadcastFloat32x8(0.5)
+	threeHalf := archsimd.BroadcastFloat32x8(1.5)
+
+	// Initial approximation
+	y := x.ReciprocalSqrt()
+
+	// One Newton-Raphson iteration: y = y * (1.5 - 0.5 * x * y * y)
+	xHalf := x.Mul(half)
+	yy := y.Mul(y)
+	xyy := xHalf.Mul(yy)
+	correction := threeHalf.Sub(xyy)
+	return y.Mul(correction)
+}
+
+// RSqrtNewtonRaphson_AVX2_F64x4 computes 1/sqrt(x) with one Newton-Raphson refinement.
+// Provides improved precision over the approximate version.
+// Formula: y = y * (1.5 - 0.5 * x * y * y)
+func RSqrtNewtonRaphson_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
+	half := archsimd.BroadcastFloat64x4(0.5)
+	threeHalf := archsimd.BroadcastFloat64x4(1.5)
+
+	// Initial approximation
+	y := x.ReciprocalSqrt()
+
+	// One Newton-Raphson iteration: y = y * (1.5 - 0.5 * x * y * y)
+	xHalf := x.Mul(half)
+	yy := y.Mul(y)
+	xyy := xHalf.Mul(yy)
+	correction := threeHalf.Sub(xyy)
+	return y.Mul(correction)
+}
+
+// RSqrtPrecise_AVX2_F32x8 computes precise 1/sqrt(x) via sqrt + reciprocal.
+// Uses VSQRTPS + VRCPPS for high precision at higher latency.
+func RSqrtPrecise_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {
+	one := archsimd.BroadcastFloat32x8(1.0)
+	sqrtX := x.Sqrt()
+	return one.Div(sqrtX)
+}
+
+// RSqrtPrecise_AVX2_F64x4 computes precise 1/sqrt(x) via sqrt + division.
+// Uses VSQRTPD + VDIVPD for full precision.
+func RSqrtPrecise_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
+	one := archsimd.BroadcastFloat64x4(1.0)
+	sqrtX := x.Sqrt()
+	return one.Div(sqrtX)
+}
+
 // ReduceMax_AVX2_Uint32x8 returns the maximum element in the vector.
 func ReduceMax_AVX2_Uint32x8(v archsimd.Uint32x8) uint32 {
 	// Reduce 8 -> 4 -> 2 -> 1

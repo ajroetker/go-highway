@@ -2078,6 +2078,123 @@ TEXT ·sel_u64x2(SB), $0-64
 	MOVD R10, result_8+56(FP)
 	RET
 
+TEXT ·slide_up_1_f32x4(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e006020          // ext.16b	v0, v1, v0, #12
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_2_f32x4(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e004020          // ext.16b	v0, v1, v0, #8
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_1_f64x2(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e004020          // ext.16b	v0, v1, v0, #8
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_1_i32x4(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e006020          // ext.16b	v0, v1, v0, #12
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_2_i32x4(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e004020          // ext.16b	v0, v1, v0, #8
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_1_i64x2(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e004020          // ext.16b	v0, v1, v0, #8
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_1_u32x4(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e006020          // ext.16b	v0, v1, v0, #12
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_2_u32x4(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e004020          // ext.16b	v0, v1, v0, #8
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
+TEXT ·slide_up_1_u64x2(SB), $0-32
+	MOVD v_0+0(FP), R9
+	MOVD v_8+8(FP), R10
+	VMOV R9, V0.D[0]
+	VMOV R10, V0.D[1]
+	WORD $0x6f00e401          // movi.2d	v1, #0000000000000000
+	WORD $0x6e004020          // ext.16b	v0, v1, v0, #8
+	VMOV V0.D[0], R9
+	VMOV V0.D[1], R10
+	MOVD R9, result_0+16(FP)
+	MOVD R10, result_8+24(FP)
+	RET
+
 TEXT ·load4_f32x4(SB), $0-40
 	MOVD ptr+0(FP), R0
 	MOVD out0+8(FP), R1

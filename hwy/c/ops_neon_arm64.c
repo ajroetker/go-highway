@@ -436,6 +436,136 @@ void sqrt_f32_neon(float *a, float *result, long *len) {
     }
 }
 
+// Reciprocal square root (approximate): result[i] = 1/sqrt(a[i])
+// Uses FRSQRTE instruction (~8-bit precision)
+void rsqrt_f32_neon(float *a, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        vst1q_f32(result + i, vrsqrteq_f32(a0));
+        vst1q_f32(result + i + 4, vrsqrteq_f32(a1));
+        vst1q_f32(result + i + 8, vrsqrteq_f32(a2));
+        vst1q_f32(result + i + 12, vrsqrteq_f32(a3));
+    }
+
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        vst1q_f32(result + i, vrsqrteq_f32(av));
+    }
+
+    for (; i < n; i++) {
+        float x = a[i];
+        if (x <= 0.0f) {
+            result[i] = 0.0f;
+        }
+        if (x > 0.0f) {
+            result[i] = 1.0f / result[i];  // Fallback for scalar
+        }
+    }
+}
+
+// Reciprocal square root with Newton-Raphson refinement: result[i] = 1/sqrt(a[i])
+// Uses FRSQRTE + FRSQRTS for improved precision (~16-bit)
+void rsqrt_nr_f32_neon(float *a, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        // Initial estimate
+        float32x4_t e0 = vrsqrteq_f32(a0);
+        float32x4_t e1 = vrsqrteq_f32(a1);
+        float32x4_t e2 = vrsqrteq_f32(a2);
+        float32x4_t e3 = vrsqrteq_f32(a3);
+
+        // Newton-Raphson step: e = e * vrsqrts(a * e, e)
+        // vrsqrts computes (3 - a * e * e) / 2
+        e0 = vmulq_f32(e0, vrsqrtsq_f32(vmulq_f32(a0, e0), e0));
+        e1 = vmulq_f32(e1, vrsqrtsq_f32(vmulq_f32(a1, e1), e1));
+        e2 = vmulq_f32(e2, vrsqrtsq_f32(vmulq_f32(a2, e2), e2));
+        e3 = vmulq_f32(e3, vrsqrtsq_f32(vmulq_f32(a3, e3), e3));
+
+        vst1q_f32(result + i, e0);
+        vst1q_f32(result + i + 4, e1);
+        vst1q_f32(result + i + 8, e2);
+        vst1q_f32(result + i + 12, e3);
+    }
+
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t e = vrsqrteq_f32(av);
+        e = vmulq_f32(e, vrsqrtsq_f32(vmulq_f32(av, e), e));
+        vst1q_f32(result + i, e);
+    }
+
+    for (; i < n; i++) {
+        float x = a[i];
+        if (x <= 0.0f) {
+            result[i] = 0.0f;
+        }
+        if (x > 0.0f) {
+            // Newton-Raphson for scalar: y = y * (1.5 - 0.5 * x * y * y)
+            float y = 1.0f / x;  // Initial estimate
+            y = y * (1.5f - 0.5f * x * y * y);
+            y = y * (1.5f - 0.5f * x * y * y);
+            result[i] = y;
+        }
+    }
+}
+
+// Reciprocal square root (precise): result[i] = 1/sqrt(a[i])
+// Uses sqrt + reciprocal for full precision
+void rsqrt_precise_f32_neon(float *a, float *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 15 < n; i += 16) {
+        float32x4_t a0 = vld1q_f32(a + i);
+        float32x4_t a1 = vld1q_f32(a + i + 4);
+        float32x4_t a2 = vld1q_f32(a + i + 8);
+        float32x4_t a3 = vld1q_f32(a + i + 12);
+
+        // sqrt then reciprocal
+        float32x4_t one = vdupq_n_f32(1.0f);
+        vst1q_f32(result + i, vdivq_f32(one, vsqrtq_f32(a0)));
+        vst1q_f32(result + i + 4, vdivq_f32(one, vsqrtq_f32(a1)));
+        vst1q_f32(result + i + 8, vdivq_f32(one, vsqrtq_f32(a2)));
+        vst1q_f32(result + i + 12, vdivq_f32(one, vsqrtq_f32(a3)));
+    }
+
+    for (; i + 3 < n; i += 4) {
+        float32x4_t av = vld1q_f32(a + i);
+        float32x4_t one = vdupq_n_f32(1.0f);
+        vst1q_f32(result + i, vdivq_f32(one, vsqrtq_f32(av)));
+    }
+
+    for (; i < n; i++) {
+        float x = a[i];
+        if (x <= 0.0f) {
+            result[i] = 0.0f;
+        }
+        if (x > 0.0f) {
+            // Use Newton-Raphson sqrt then invert
+            float y = x * 0.5f;
+            y = 0.5f * (y + x / y);
+            y = 0.5f * (y + x / y);
+            y = 0.5f * (y + x / y);
+            y = 0.5f * (y + x / y);
+            result[i] = 1.0f / y;
+        }
+    }
+}
+
 // Absolute value: result[i] = abs(a[i])
 void abs_f32_neon(float *a, float *result, long *len) {
     long n = *len;
@@ -808,6 +938,122 @@ void sqrt_f64_neon(double *a, double *result, long *len) {
     for (; i < n; i++) {
         float64x2_t v = vdupq_n_f64(a[i]);
         v = vsqrtq_f64(v);
+        result[i] = vgetq_lane_f64(v, 0);
+    }
+}
+
+// Reciprocal square root (approximate): result[i] = 1/sqrt(a[i])
+// Uses FRSQRTE instruction (~8-bit precision)
+void rsqrt_f64_neon(double *a, double *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 7 < n; i += 8) {
+        float64x2_t a0 = vld1q_f64(a + i);
+        float64x2_t a1 = vld1q_f64(a + i + 2);
+        float64x2_t a2 = vld1q_f64(a + i + 4);
+        float64x2_t a3 = vld1q_f64(a + i + 6);
+
+        vst1q_f64(result + i, vrsqrteq_f64(a0));
+        vst1q_f64(result + i + 2, vrsqrteq_f64(a1));
+        vst1q_f64(result + i + 4, vrsqrteq_f64(a2));
+        vst1q_f64(result + i + 6, vrsqrteq_f64(a3));
+    }
+
+    for (; i + 1 < n; i += 2) {
+        float64x2_t av = vld1q_f64(a + i);
+        vst1q_f64(result + i, vrsqrteq_f64(av));
+    }
+
+    for (; i < n; i++) {
+        float64x2_t v = vdupq_n_f64(a[i]);
+        v = vrsqrteq_f64(v);
+        result[i] = vgetq_lane_f64(v, 0);
+    }
+}
+
+// Reciprocal square root with Newton-Raphson refinement: result[i] = 1/sqrt(a[i])
+// Uses FRSQRTE + FRSQRTS for improved precision
+void rsqrt_nr_f64_neon(double *a, double *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 7 < n; i += 8) {
+        float64x2_t a0 = vld1q_f64(a + i);
+        float64x2_t a1 = vld1q_f64(a + i + 2);
+        float64x2_t a2 = vld1q_f64(a + i + 4);
+        float64x2_t a3 = vld1q_f64(a + i + 6);
+
+        // Initial estimate
+        float64x2_t e0 = vrsqrteq_f64(a0);
+        float64x2_t e1 = vrsqrteq_f64(a1);
+        float64x2_t e2 = vrsqrteq_f64(a2);
+        float64x2_t e3 = vrsqrteq_f64(a3);
+
+        // Newton-Raphson step: e = e * vrsqrts(a * e, e)
+        e0 = vmulq_f64(e0, vrsqrtsq_f64(vmulq_f64(a0, e0), e0));
+        e1 = vmulq_f64(e1, vrsqrtsq_f64(vmulq_f64(a1, e1), e1));
+        e2 = vmulq_f64(e2, vrsqrtsq_f64(vmulq_f64(a2, e2), e2));
+        e3 = vmulq_f64(e3, vrsqrtsq_f64(vmulq_f64(a3, e3), e3));
+
+        // Second Newton-Raphson step for better precision
+        e0 = vmulq_f64(e0, vrsqrtsq_f64(vmulq_f64(a0, e0), e0));
+        e1 = vmulq_f64(e1, vrsqrtsq_f64(vmulq_f64(a1, e1), e1));
+        e2 = vmulq_f64(e2, vrsqrtsq_f64(vmulq_f64(a2, e2), e2));
+        e3 = vmulq_f64(e3, vrsqrtsq_f64(vmulq_f64(a3, e3), e3));
+
+        vst1q_f64(result + i, e0);
+        vst1q_f64(result + i + 2, e1);
+        vst1q_f64(result + i + 4, e2);
+        vst1q_f64(result + i + 6, e3);
+    }
+
+    for (; i + 1 < n; i += 2) {
+        float64x2_t av = vld1q_f64(a + i);
+        float64x2_t e = vrsqrteq_f64(av);
+        e = vmulq_f64(e, vrsqrtsq_f64(vmulq_f64(av, e), e));
+        e = vmulq_f64(e, vrsqrtsq_f64(vmulq_f64(av, e), e));
+        vst1q_f64(result + i, e);
+    }
+
+    for (; i < n; i++) {
+        float64x2_t v = vdupq_n_f64(a[i]);
+        float64x2_t e = vrsqrteq_f64(v);
+        e = vmulq_f64(e, vrsqrtsq_f64(vmulq_f64(v, e), e));
+        e = vmulq_f64(e, vrsqrtsq_f64(vmulq_f64(v, e), e));
+        result[i] = vgetq_lane_f64(e, 0);
+    }
+}
+
+// Reciprocal square root (precise): result[i] = 1/sqrt(a[i])
+// Uses sqrt + reciprocal for full precision
+void rsqrt_precise_f64_neon(double *a, double *result, long *len) {
+    long n = *len;
+    long i = 0;
+
+    for (; i + 7 < n; i += 8) {
+        float64x2_t a0 = vld1q_f64(a + i);
+        float64x2_t a1 = vld1q_f64(a + i + 2);
+        float64x2_t a2 = vld1q_f64(a + i + 4);
+        float64x2_t a3 = vld1q_f64(a + i + 6);
+
+        float64x2_t one = vdupq_n_f64(1.0);
+        vst1q_f64(result + i, vdivq_f64(one, vsqrtq_f64(a0)));
+        vst1q_f64(result + i + 2, vdivq_f64(one, vsqrtq_f64(a1)));
+        vst1q_f64(result + i + 4, vdivq_f64(one, vsqrtq_f64(a2)));
+        vst1q_f64(result + i + 6, vdivq_f64(one, vsqrtq_f64(a3)));
+    }
+
+    for (; i + 1 < n; i += 2) {
+        float64x2_t av = vld1q_f64(a + i);
+        float64x2_t one = vdupq_n_f64(1.0);
+        vst1q_f64(result + i, vdivq_f64(one, vsqrtq_f64(av)));
+    }
+
+    for (; i < n; i++) {
+        float64x2_t v = vdupq_n_f64(a[i]);
+        float64x2_t one = vdupq_n_f64(1.0);
+        v = vdivq_f64(one, vsqrtq_f64(v));
         result[i] = vgetq_lane_f64(v, 0);
     }
 }
@@ -4897,3 +5143,148 @@ void compress_keys_i64x2_neon(long *input, unsigned char *perm_entry, long *outp
     vst1q_u8((unsigned char*)output, result_bytes);
 }
 
+
+// ============================================================================
+// Slide Operations (shift lanes within vector)
+// ============================================================================
+
+// SlideUpLanes for Float32x4: shifts lanes up (toward higher indices),
+// filling low lanes with zeros.
+// [1,2,3,4] with offset=1 -> [0,1,2,3]
+// [1,2,3,4] with offset=2 -> [0,0,1,2]
+void slide_up_f32_neon(float *input, long *offset_ptr, float *result) {
+    long offset = *offset_ptr;
+    float32x4_t v = vld1q_f32(input);
+    float32x4_t zero = vdupq_n_f32(0.0f);
+    float32x4_t out;
+    
+    if (offset <= 0) {
+        out = v;
+    }
+    if (offset == 1) {
+        out = vextq_f32(zero, v, 3);
+    }
+    if (offset == 2) {
+        out = vextq_f32(zero, v, 2);
+    }
+    if (offset == 3) {
+        out = vextq_f32(zero, v, 1);
+    }
+    if (offset >= 4) {
+        out = zero;
+    }
+    
+    vst1q_f32(result, out);
+}
+
+// SlideUpLanes for Float64x2
+void slide_up_f64_neon(double *input, long *offset_ptr, double *result) {
+    long offset = *offset_ptr;
+    float64x2_t v = vld1q_f64(input);
+    float64x2_t zero = vdupq_n_f64(0.0);
+    float64x2_t out;
+    
+    if (offset <= 0) {
+        out = v;
+    }
+    if (offset == 1) {
+        out = vextq_f64(zero, v, 1);
+    }
+    if (offset >= 2) {
+        out = zero;
+    }
+    
+    vst1q_f64(result, out);
+}
+
+// SlideUpLanes for Int32x4
+void slide_up_i32_neon(long *input, long *offset_ptr, long *result) {
+    long offset = *offset_ptr;
+    int32x4_t v = vld1q_s32((int32_t*)input);
+    int32x4_t zero = vdupq_n_s32(0);
+    int32x4_t out;
+    
+    if (offset <= 0) {
+        out = v;
+    }
+    if (offset == 1) {
+        out = vextq_s32(zero, v, 3);
+    }
+    if (offset == 2) {
+        out = vextq_s32(zero, v, 2);
+    }
+    if (offset == 3) {
+        out = vextq_s32(zero, v, 1);
+    }
+    if (offset >= 4) {
+        out = zero;
+    }
+    
+    vst1q_s32((int32_t*)result, out);
+}
+
+// SlideUpLanes for Int64x2
+void slide_up_i64_neon(long *input, long *offset_ptr, long *result) {
+    long offset = *offset_ptr;
+    int64x2_t v = vld1q_s64(input);
+    int64x2_t zero = vdupq_n_s64(0);
+    int64x2_t out;
+    
+    if (offset <= 0) {
+        out = v;
+    }
+    if (offset == 1) {
+        out = vextq_s64(zero, v, 1);
+    }
+    if (offset >= 2) {
+        out = zero;
+    }
+    
+    vst1q_s64(result, out);
+}
+
+// SlideUpLanes for Uint32x4
+void slide_up_u32_neon(long *input, long *offset_ptr, long *result) {
+    long offset = *offset_ptr;
+    uint32x4_t v = vld1q_u32((uint32_t*)input);
+    uint32x4_t zero = vdupq_n_u32(0);
+    uint32x4_t out;
+    
+    if (offset <= 0) {
+        out = v;
+    }
+    if (offset == 1) {
+        out = vextq_u32(zero, v, 3);
+    }
+    if (offset == 2) {
+        out = vextq_u32(zero, v, 2);
+    }
+    if (offset == 3) {
+        out = vextq_u32(zero, v, 1);
+    }
+    if (offset >= 4) {
+        out = zero;
+    }
+    
+    vst1q_u32((uint32_t*)result, out);
+}
+
+// SlideUpLanes for Uint64x2
+void slide_up_u64_neon(long *input, long *offset_ptr, long *result) {
+    long offset = *offset_ptr;
+    uint64x2_t v = vld1q_u64((uint64_t*)input);
+    uint64x2_t zero = vdupq_n_u64(0);
+    uint64x2_t out;
+    
+    if (offset <= 0) {
+        out = v;
+    }
+    if (offset == 1) {
+        out = vextq_u64(zero, v, 1);
+    }
+    if (offset >= 2) {
+        out = zero;
+    }
+    
+    vst1q_u64((uint64_t*)result, out);
+}

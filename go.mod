@@ -21,7 +21,7 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-// Use ajroetker/goat fork with SVE/SME streaming mode, FP16 headers, and ABI offset fixes
-replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-sve-sme-support-007
+// Use ajroetker/goat fork with SVE/SME streaming mode, FP16 headers, ABI offset fixes, and int32_t support
+replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-sve-sme-support-008
 
 tool github.com/gorse-io/goat

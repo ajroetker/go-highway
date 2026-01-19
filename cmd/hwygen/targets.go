@@ -82,8 +82,11 @@ func AVX2Target() Target {
 			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations (hardware instructions) =====
-			"Sqrt":   {Name: "Sqrt", IsMethod: true},   // VSQRTPS/VSQRTPD
-			"FMA":    {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
+			"Sqrt":              {Name: "Sqrt", IsMethod: true},            // VSQRTPS/VSQRTPD
+			"RSqrt":             {Name: "ReciprocalSqrt", IsMethod: true},  // VRSQRTPS/VRSQRTPD (~12-bit precision)
+			"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson_AVX2", IsMethod: false}, // N-R refined
+			"RSqrtPrecise":      {Package: "hwy", Name: "RSqrtPrecise_AVX2", IsMethod: false},        // sqrt + div
+			"FMA":               {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
 			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
 
 			// ===== Rounding operations =====
@@ -276,9 +279,12 @@ func AVX512Target() Target {
 			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations =====
-			"Sqrt":   {Name: "Sqrt", IsMethod: true},
-			"FMA":    {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
-			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
+			"Sqrt":               {Name: "Sqrt", IsMethod: true},
+			"RSqrt":              {Name: "ReciprocalSqrt", IsMethod: true},  // VRSQRT14PS/VRSQRT14PD (~14-bit precision)
+			"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson_AVX512", IsMethod: false}, // N-R refined
+			"RSqrtPrecise":       {Package: "hwy", Name: "RSqrtPrecise_AVX512", IsMethod: false},       // sqrt + div
+			"FMA":                {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
+			"MulAdd":             {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
 
 			// ===== Rounding operations =====
 			// AVX512 archsimd doesn't have plain RoundToEven, use hwy package function
@@ -469,10 +475,13 @@ func FallbackTarget() Target {
 			"Not":    {Package: "hwy", Name: "Not", IsMethod: false},
 
 			// ===== Core math operations =====
-			"Sqrt":   {Package: "hwy", Name: "Sqrt", IsMethod: false},
-			"FMA":    {Package: "hwy", Name: "FMA", IsMethod: false},
-			"MulAdd": {Package: "hwy", Name: "MulAdd", IsMethod: false}, // hwy.MulAdd(a, b, c)
-			"Pow":    {Package: "hwy", Name: "Pow", IsMethod: false},    // hwy.Pow(base, exp)
+			"Sqrt":               {Package: "hwy", Name: "Sqrt", IsMethod: false},
+			"RSqrt":              {Package: "hwy", Name: "RSqrt", IsMethod: false},
+			"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson", IsMethod: false},
+			"RSqrtPrecise":       {Package: "hwy", Name: "RSqrtPrecise", IsMethod: false},
+			"FMA":                {Package: "hwy", Name: "FMA", IsMethod: false},
+			"MulAdd":             {Package: "hwy", Name: "MulAdd", IsMethod: false}, // hwy.MulAdd(a, b, c)
+			"Pow":                {Package: "hwy", Name: "Pow", IsMethod: false},    // hwy.Pow(base, exp)
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Package: "hwy", Name: "RoundToEven", IsMethod: false},
@@ -547,6 +556,8 @@ func FallbackTarget() Target {
 			"DupEven":            {Package: "hwy", Name: "DupEven", IsMethod: false},
 			"DupOdd":             {Package: "hwy", Name: "DupOdd", IsMethod: false},
 			"SwapAdjacentBlocks": {Package: "hwy", Name: "SwapAdjacentBlocks", IsMethod: false},
+			"SlideUpLanes":       {Package: "hwy", Name: "SlideUpLanes", IsMethod: false},
+			"SlideDownLanes":     {Package: "hwy", Name: "SlideDownLanes", IsMethod: false},
 
 			// ===== Type Conversions =====
 			"ConvertToInt32":   {Package: "hwy", Name: "ConvertToInt32", IsMethod: false},
@@ -655,10 +666,13 @@ func NEONTarget() Target {
 			"Not":    {Name: "Not", IsMethod: true},
 
 			// ===== Core math operations =====
-			"Sqrt":   {Name: "Sqrt", IsMethod: true},
-			"FMA":    {Name: "MulAdd", IsMethod: true}, // FMA maps to MulAdd in NEON asm
-			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
-			"Pow":    {Name: "Pow", IsMethod: true},    // v.Pow(exp) = v^exp element-wise
+			"Sqrt":               {Name: "Sqrt", IsMethod: true},
+			"RSqrt":              {Package: "asm", Name: "RSqrt", IsMethod: false},              // asm.RSqrtF32/F64
+			"RSqrtNewtonRaphson": {Package: "asm", Name: "RSqrtNewtonRaphson", IsMethod: false}, // asm.RSqrtNewtonRaphsonF32/F64
+			"RSqrtPrecise":       {Package: "asm", Name: "RSqrtPrecise", IsMethod: false},       // asm.RSqrtPreciseF32/F64
+			"FMA":                {Name: "MulAdd", IsMethod: true}, // FMA maps to MulAdd in NEON asm
+			"MulAdd":             {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
+			"Pow":                {Name: "Pow", IsMethod: true},    // v.Pow(exp) = v^exp element-wise
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Name: "RoundToEven", IsMethod: true}, // Banker's rounding
@@ -731,6 +745,8 @@ func NEONTarget() Target {
 			"DupEven":            {Name: "DupEven", IsMethod: false},
 			"DupOdd":             {Name: "DupOdd", IsMethod: false},
 			"SwapAdjacentBlocks": {Name: "SwapAdjacentBlocks", IsMethod: false},
+			"SlideUpLanes":       {Package: "asm", Name: "SlideUpLanes", IsMethod: false},
+			"SlideDownLanes":     {Package: "asm", Name: "SlideDownLanes", IsMethod: false},
 
 			// ===== Type Conversions =====
 			"ConvertToInt32":   {Name: "ConvertToInt32", IsMethod: true},

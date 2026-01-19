@@ -1,6 +1,9 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -515,6 +518,104 @@ func TestParseCondition(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("parseCondition(%q).Evaluate(%q, %q) = %v, want %v",
 					tt.condition, tt.target, tt.elemType, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsScalarTailLoop(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     string
+		iterator string
+		end      string
+		want     bool
+	}{
+		{
+			name:     "valid scalar tail loop",
+			code:     "for ; i < n; i++ { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "n",
+			want:     true,
+		},
+		{
+			name:     "scalar tail loop with different iterator",
+			code:     "for ; j < n; j++ { dst[j] += s[j] }",
+			iterator: "j",
+			end:      "n",
+			want:     true,
+		},
+		{
+			name:     "scalar tail loop with different end var",
+			code:     "for ; i < size; i++ { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "size",
+			want:     true,
+		},
+		{
+			name:     "not a scalar tail - has init",
+			code:     "for i := 0; i < n; i++ { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "n",
+			want:     false,
+		},
+		{
+			name:     "not a scalar tail - wrong iterator in condition",
+			code:     "for ; j < n; i++ { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "n",
+			want:     false,
+		},
+		{
+			name:     "not a scalar tail - wrong end variable",
+			code:     "for ; i < m; i++ { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "n",
+			want:     false,
+		},
+		{
+			name:     "not a scalar tail - decrement instead of increment",
+			code:     "for ; i < n; i-- { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "n",
+			want:     false,
+		},
+		{
+			name:     "not a scalar tail - >= condition",
+			code:     "for ; i >= n; i++ { dst[i] += s[i] }",
+			iterator: "i",
+			end:      "n",
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Parse the for loop
+			src := "package test\nfunc f() { " + tt.code + " }"
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, "", src, 0)
+			if err != nil {
+				t.Fatalf("Failed to parse test code: %v", err)
+			}
+
+			// Find the for statement
+			var forStmt *ast.ForStmt
+			ast.Inspect(file, func(n ast.Node) bool {
+				if f, ok := n.(*ast.ForStmt); ok {
+					forStmt = f
+					return false
+				}
+				return true
+			})
+
+			if forStmt == nil {
+				t.Fatal("No for statement found in parsed code")
+			}
+
+			got := isScalarTailLoop(forStmt, tt.iterator, tt.end)
+			if got != tt.want {
+				t.Errorf("isScalarTailLoop() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -667,3 +667,160 @@ func TestBroadcast(t *testing.T) {
 		}
 	}
 }
+
+func TestRSqrt(t *testing.T) {
+	// Test with perfect squares for easy verification
+	v := Load([]float32{1.0, 4.0, 9.0, 16.0, 25.0, 36.0, 49.0, 64.0})
+	result := RSqrt(v)
+
+	// RSqrt is approximate, allow ~0.2% relative error
+	tolerance := float64(0.002)
+
+	for i := 0; i < result.NumLanes() && i < 8; i++ {
+		expected := float64(1.0 / math.Sqrt(float64(v.data[i])))
+		got := float64(result.data[i])
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrt: lane %d: got %v, want ~%v (rel error %.4f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtNewtonRaphson(t *testing.T) {
+	// Test with perfect squares
+	v := Load([]float32{1.0, 4.0, 9.0, 16.0, 25.0, 36.0, 49.0, 64.0})
+	result := RSqrtNewtonRaphson(v)
+
+	// Newton-Raphson refinement should give ~0.01% relative error
+	tolerance := float64(0.0001)
+
+	for i := 0; i < result.NumLanes() && i < 8; i++ {
+		expected := float64(1.0 / math.Sqrt(float64(v.data[i])))
+		got := float64(result.data[i])
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtNewtonRaphson: lane %d: got %v, want ~%v (rel error %.6f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtPrecise(t *testing.T) {
+	// Test with perfect squares
+	v := Load([]float32{1.0, 4.0, 9.0, 16.0, 25.0, 36.0, 49.0, 64.0})
+	result := RSqrtPrecise(v)
+
+	// Precise version uses sqrt + div, should be exact within float32 precision
+	tolerance := float64(1e-6)
+
+	for i := 0; i < result.NumLanes() && i < 8; i++ {
+		expected := float64(1.0 / math.Sqrt(float64(v.data[i])))
+		got := float64(result.data[i])
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtPrecise: lane %d: got %v, want ~%v (rel error %.9f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtFloat64(t *testing.T) {
+	// Test with float64 values
+	v := Load([]float64{1.0, 4.0, 9.0, 16.0})
+	result := RSqrt(v)
+
+	// RSqrt is approximate, allow ~0.2% relative error
+	tolerance := float64(0.002)
+
+	for i := 0; i < result.NumLanes() && i < 4; i++ {
+		expected := 1.0 / math.Sqrt(v.data[i])
+		got := result.data[i]
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrt (float64): lane %d: got %v, want ~%v (rel error %.4f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtNewtonRaphsonFloat64(t *testing.T) {
+	v := Load([]float64{1.0, 4.0, 9.0, 16.0})
+	result := RSqrtNewtonRaphson(v)
+
+	// Newton-Raphson should give better precision
+	tolerance := float64(0.0001)
+
+	for i := 0; i < result.NumLanes() && i < 4; i++ {
+		expected := 1.0 / math.Sqrt(v.data[i])
+		got := result.data[i]
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtNewtonRaphson (float64): lane %d: got %v, want ~%v (rel error %.6f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtPreciseFloat64(t *testing.T) {
+	v := Load([]float64{1.0, 4.0, 9.0, 16.0})
+	result := RSqrtPrecise(v)
+
+	// Precise version should be very accurate
+	tolerance := float64(1e-14)
+
+	for i := 0; i < result.NumLanes() && i < 4; i++ {
+		expected := 1.0 / math.Sqrt(v.data[i])
+		got := result.data[i]
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtPrecise (float64): lane %d: got %v, want ~%v (rel error %.15f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtNonPerfectSquares(t *testing.T) {
+	// Test with non-perfect squares to verify correctness
+	v := Load([]float32{2.0, 3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0})
+	result := RSqrtPrecise(v)
+
+	tolerance := float64(1e-6)
+
+	for i := 0; i < result.NumLanes() && i < 8; i++ {
+		expected := float64(1.0 / math.Sqrt(float64(v.data[i])))
+		got := float64(result.data[i])
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtPrecise (non-perfect): lane %d: got %v, want ~%v (rel error %.9f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtLargeValues(t *testing.T) {
+	// Test with larger values to verify scaling behavior
+	v := Load([]float32{100.0, 1000.0, 10000.0, 100000.0, 1e6, 1e7, 1e8, 1e9})
+	result := RSqrtPrecise(v)
+
+	tolerance := float64(1e-6)
+
+	for i := 0; i < result.NumLanes() && i < 8; i++ {
+		expected := float64(1.0 / math.Sqrt(float64(v.data[i])))
+		got := float64(result.data[i])
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtPrecise (large): lane %d: got %v, want ~%v (rel error %.9f%%)", i, got, expected, relErr*100)
+		}
+	}
+}
+
+func TestRSqrtSmallValues(t *testing.T) {
+	// Test with small values
+	v := Load([]float32{0.1, 0.01, 0.001, 0.0001, 1e-5, 1e-6, 1e-7, 1e-8})
+	result := RSqrtPrecise(v)
+
+	tolerance := float64(1e-5) // slightly looser for very small values
+
+	for i := 0; i < result.NumLanes() && i < 8; i++ {
+		expected := float64(1.0 / math.Sqrt(float64(v.data[i])))
+		got := float64(result.data[i])
+		relErr := math.Abs(got-expected) / expected
+		if relErr > tolerance {
+			t.Errorf("RSqrtPrecise (small): lane %d: got %v, want ~%v (rel error %.9f%%)", i, got, expected, relErr*100)
+		}
+	}
+}

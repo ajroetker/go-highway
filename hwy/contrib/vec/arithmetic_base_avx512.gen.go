@@ -25,9 +25,6 @@ func BaseAdd_avx512_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	if i < n {
 		BaseAdd_fallback_Float16(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + s[i].Float32())
-	}
 }
 
 func BaseAdd_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
@@ -46,9 +43,6 @@ func BaseAdd_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	}
 	if i < n {
 		BaseAdd_fallback_BFloat16(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + s[i].Float32())
 	}
 }
 
@@ -69,9 +63,6 @@ func BaseAdd_avx512(dst []float32, s []float32) {
 	if i < n {
 		BaseAdd_fallback(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] += s[i]
-	}
 }
 
 func BaseAdd_avx512_Float64(dst []float64, s []float64) {
@@ -90,9 +81,6 @@ func BaseAdd_avx512_Float64(dst []float64, s []float64) {
 	}
 	if i < n {
 		BaseAdd_fallback_Float64(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] += s[i]
 	}
 }
 
@@ -113,9 +101,6 @@ func BaseAddTo_avx512_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float1
 	if i < n {
 		BaseAddTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(a[i].Float32() + b[i].Float32())
-	}
 }
 
 func BaseAddTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
@@ -134,9 +119,6 @@ func BaseAddTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFl
 	}
 	if i < n {
 		BaseAddTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() + b[i].Float32())
 	}
 }
 
@@ -157,9 +139,6 @@ func BaseAddTo_avx512(dst []float32, a []float32, b []float32) {
 	if i < n {
 		BaseAddTo_fallback(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = a[i] + b[i]
-	}
 }
 
 func BaseAddTo_avx512_Float64(dst []float64, a []float64, b []float64) {
@@ -178,9 +157,6 @@ func BaseAddTo_avx512_Float64(dst []float64, a []float64, b []float64) {
 	}
 	if i < n {
 		BaseAddTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] + b[i]
 	}
 }
 
@@ -201,9 +177,6 @@ func BaseSub_avx512_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	if i < n {
 		BaseSub_fallback_Float16(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() - s[i].Float32())
-	}
 }
 
 func BaseSub_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
@@ -222,9 +195,6 @@ func BaseSub_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	}
 	if i < n {
 		BaseSub_fallback_BFloat16(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() - s[i].Float32())
 	}
 }
 
@@ -245,9 +215,6 @@ func BaseSub_avx512(dst []float32, s []float32) {
 	if i < n {
 		BaseSub_fallback(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] -= s[i]
-	}
 }
 
 func BaseSub_avx512_Float64(dst []float64, s []float64) {
@@ -266,9 +233,6 @@ func BaseSub_avx512_Float64(dst []float64, s []float64) {
 	}
 	if i < n {
 		BaseSub_fallback_Float64(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] -= s[i]
 	}
 }
 
@@ -289,9 +253,6 @@ func BaseSubTo_avx512_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float1
 	if i < n {
 		BaseSubTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(a[i].Float32() - b[i].Float32())
-	}
 }
 
 func BaseSubTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
@@ -310,9 +271,6 @@ func BaseSubTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFl
 	}
 	if i < n {
 		BaseSubTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() - b[i].Float32())
 	}
 }
 
@@ -333,9 +291,6 @@ func BaseSubTo_avx512(dst []float32, a []float32, b []float32) {
 	if i < n {
 		BaseSubTo_fallback(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = a[i] - b[i]
-	}
 }
 
 func BaseSubTo_avx512_Float64(dst []float64, a []float64, b []float64) {
@@ -354,9 +309,6 @@ func BaseSubTo_avx512_Float64(dst []float64, a []float64, b []float64) {
 	}
 	if i < n {
 		BaseSubTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] - b[i]
 	}
 }
 
@@ -377,9 +329,6 @@ func BaseMul_avx512_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	if i < n {
 		BaseMul_fallback_Float16(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() * s[i].Float32())
-	}
 }
 
 func BaseMul_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
@@ -398,9 +347,6 @@ func BaseMul_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	}
 	if i < n {
 		BaseMul_fallback_BFloat16(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() * s[i].Float32())
 	}
 }
 
@@ -421,9 +367,6 @@ func BaseMul_avx512(dst []float32, s []float32) {
 	if i < n {
 		BaseMul_fallback(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] *= s[i]
-	}
 }
 
 func BaseMul_avx512_Float64(dst []float64, s []float64) {
@@ -442,9 +385,6 @@ func BaseMul_avx512_Float64(dst []float64, s []float64) {
 	}
 	if i < n {
 		BaseMul_fallback_Float64(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] *= s[i]
 	}
 }
 
@@ -465,9 +405,6 @@ func BaseMulTo_avx512_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float1
 	if i < n {
 		BaseMulTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(a[i].Float32() * b[i].Float32())
-	}
 }
 
 func BaseMulTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
@@ -486,9 +423,6 @@ func BaseMulTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFl
 	}
 	if i < n {
 		BaseMulTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() * b[i].Float32())
 	}
 }
 
@@ -509,9 +443,6 @@ func BaseMulTo_avx512(dst []float32, a []float32, b []float32) {
 	if i < n {
 		BaseMulTo_fallback(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = a[i] * b[i]
-	}
 }
 
 func BaseMulTo_avx512_Float64(dst []float64, a []float64, b []float64) {
@@ -530,9 +461,6 @@ func BaseMulTo_avx512_Float64(dst []float64, a []float64, b []float64) {
 	}
 	if i < n {
 		BaseMulTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] * b[i]
 	}
 }
 
@@ -553,9 +481,6 @@ func BaseDiv_avx512_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	if i < n {
 		BaseDiv_fallback_Float16(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() / s[i].Float32())
-	}
 }
 
 func BaseDiv_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
@@ -574,9 +499,6 @@ func BaseDiv_avx512_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	}
 	if i < n {
 		BaseDiv_fallback_BFloat16(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() / s[i].Float32())
 	}
 }
 
@@ -597,9 +519,6 @@ func BaseDiv_avx512(dst []float32, s []float32) {
 	if i < n {
 		BaseDiv_fallback(dst[i:n], s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] /= s[i]
-	}
 }
 
 func BaseDiv_avx512_Float64(dst []float64, s []float64) {
@@ -618,9 +537,6 @@ func BaseDiv_avx512_Float64(dst []float64, s []float64) {
 	}
 	if i < n {
 		BaseDiv_fallback_Float64(dst[i:n], s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] /= s[i]
 	}
 }
 
@@ -641,9 +557,6 @@ func BaseDivTo_avx512_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float1
 	if i < n {
 		BaseDivTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(a[i].Float32() / b[i].Float32())
-	}
 }
 
 func BaseDivTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
@@ -662,9 +575,6 @@ func BaseDivTo_avx512_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFl
 	}
 	if i < n {
 		BaseDivTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() / b[i].Float32())
 	}
 }
 
@@ -685,9 +595,6 @@ func BaseDivTo_avx512(dst []float32, a []float32, b []float32) {
 	if i < n {
 		BaseDivTo_fallback(dst[i:n], a[i:n], b[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = a[i] / b[i]
-	}
 }
 
 func BaseDivTo_avx512_Float64(dst []float64, a []float64, b []float64) {
@@ -706,9 +613,6 @@ func BaseDivTo_avx512_Float64(dst []float64, a []float64, b []float64) {
 	}
 	if i < n {
 		BaseDivTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] / b[i]
 	}
 }
 
@@ -729,9 +633,6 @@ func BaseScale_avx512_Float16(c hwy.Float16, dst []hwy.Float16) {
 	if i < n {
 		BaseScale_fallback_Float16(c, dst[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() * c.Float32())
-	}
 }
 
 func BaseScale_avx512_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
@@ -750,9 +651,6 @@ func BaseScale_avx512_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
 	}
 	if i < n {
 		BaseScale_fallback_BFloat16(c, dst[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() * c.Float32())
 	}
 }
 
@@ -773,9 +671,6 @@ func BaseScale_avx512(c float32, dst []float32) {
 	if i < n {
 		BaseScale_fallback(c, dst[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] *= c
-	}
 }
 
 func BaseScale_avx512_Float64(c float64, dst []float64) {
@@ -794,9 +689,6 @@ func BaseScale_avx512_Float64(c float64, dst []float64) {
 	}
 	if i < n {
 		BaseScale_fallback_Float64(c, dst[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] *= c
 	}
 }
 
@@ -817,9 +709,6 @@ func BaseScaleTo_avx512_Float16(dst []hwy.Float16, c hwy.Float16, s []hwy.Float1
 	if i < n {
 		BaseScaleTo_fallback_Float16(dst[i:n], c, s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(c.Float32() * s[i].Float32())
-	}
 }
 
 func BaseScaleTo_avx512_BFloat16(dst []hwy.BFloat16, c hwy.BFloat16, s []hwy.BFloat16) {
@@ -838,9 +727,6 @@ func BaseScaleTo_avx512_BFloat16(dst []hwy.BFloat16, c hwy.BFloat16, s []hwy.BFl
 	}
 	if i < n {
 		BaseScaleTo_fallback_BFloat16(dst[i:n], c, s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(c.Float32() * s[i].Float32())
 	}
 }
 
@@ -861,9 +747,6 @@ func BaseScaleTo_avx512(dst []float32, c float32, s []float32) {
 	if i < n {
 		BaseScaleTo_fallback(dst[i:n], c, s[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = c * s[i]
-	}
 }
 
 func BaseScaleTo_avx512_Float64(dst []float64, c float64, s []float64) {
@@ -882,9 +765,6 @@ func BaseScaleTo_avx512_Float64(dst []float64, c float64, s []float64) {
 	}
 	if i < n {
 		BaseScaleTo_fallback_Float64(dst[i:n], c, s[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = c * s[i]
 	}
 }
 
@@ -905,9 +785,6 @@ func BaseAddConst_avx512_Float16(c hwy.Float16, dst []hwy.Float16) {
 	if i < n {
 		BaseAddConst_fallback_Float16(c, dst[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + c.Float32())
-	}
 }
 
 func BaseAddConst_avx512_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
@@ -926,9 +803,6 @@ func BaseAddConst_avx512_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
 	}
 	if i < n {
 		BaseAddConst_fallback_BFloat16(c, dst[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + c.Float32())
 	}
 }
 
@@ -949,9 +823,6 @@ func BaseAddConst_avx512(c float32, dst []float32) {
 	if i < n {
 		BaseAddConst_fallback(c, dst[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] += c
-	}
 }
 
 func BaseAddConst_avx512_Float64(c float64, dst []float64) {
@@ -970,9 +841,6 @@ func BaseAddConst_avx512_Float64(c float64, dst []float64) {
 	}
 	if i < n {
 		BaseAddConst_fallback_Float64(c, dst[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] += c
 	}
 }
 
@@ -994,9 +862,6 @@ func BaseMulConstAddTo_avx512_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.
 	if i < n {
 		BaseMulConstAddTo_fallback_Float16(dst[i:n], a, x[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + a.Float32()*x[i].Float32())
-	}
 }
 
 func BaseMulConstAddTo_avx512_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
@@ -1016,9 +881,6 @@ func BaseMulConstAddTo_avx512_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []h
 	}
 	if i < n {
 		BaseMulConstAddTo_fallback_BFloat16(dst[i:n], a, x[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + a.Float32()*x[i].Float32())
 	}
 }
 
@@ -1040,9 +902,6 @@ func BaseMulConstAddTo_avx512(dst []float32, a float32, x []float32) {
 	if i < n {
 		BaseMulConstAddTo_fallback(dst[i:n], a, x[i:n])
 	}
-	for ; i < n; i++ {
-		dst[i] += a * x[i]
-	}
 }
 
 func BaseMulConstAddTo_avx512_Float64(dst []float64, a float64, x []float64) {
@@ -1062,8 +921,5 @@ func BaseMulConstAddTo_avx512_Float64(dst []float64, a float64, x []float64) {
 	}
 	if i < n {
 		BaseMulConstAddTo_fallback_Float64(dst[i:n], a, x[i:n])
-	}
-	for ; i < n; i++ {
-		dst[i] += a * x[i]
 	}
 }

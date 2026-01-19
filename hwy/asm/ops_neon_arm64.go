@@ -44,6 +44,15 @@ func reduce_max_f32_neon(input, result, len unsafe.Pointer)
 func sqrt_f32_neon(a, result, len unsafe.Pointer)
 
 //go:noescape
+func rsqrt_f32_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func rsqrt_nr_f32_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func rsqrt_precise_f32_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
 func abs_f32_neon(a, result, len unsafe.Pointer)
 
 //go:noescape
@@ -75,6 +84,15 @@ func max_f64_neon(a, b, result, len unsafe.Pointer)
 
 //go:noescape
 func sqrt_f64_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func rsqrt_f64_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func rsqrt_nr_f64_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func rsqrt_precise_f64_neon(a, result, len unsafe.Pointer)
 
 //go:noescape
 func abs_f64_neon(a, result, len unsafe.Pointer)
@@ -435,3 +453,21 @@ func compress_keys_f64x2_neon(input, perm_entry, output unsafe.Pointer)
 
 //go:noescape
 func compress_keys_i64x2_neon(input, perm_entry, output unsafe.Pointer)
+
+//go:noescape
+func slide_up_f32_neon(input, offset_ptr, result unsafe.Pointer)
+
+//go:noescape
+func slide_up_f64_neon(input, offset_ptr, result unsafe.Pointer)
+
+//go:noescape
+func slide_up_i32_neon(input, offset_ptr, result unsafe.Pointer)
+
+//go:noescape
+func slide_up_i64_neon(input, offset_ptr, result unsafe.Pointer)
+
+//go:noescape
+func slide_up_u32_neon(input, offset_ptr, result unsafe.Pointer)
+
+//go:noescape
+func slide_up_u64_neon(input, offset_ptr, result unsafe.Pointer)

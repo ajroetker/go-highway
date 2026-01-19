@@ -131,6 +131,12 @@ func getHalfPrecisionFuncName(opName string, elemType string) string {
 		return "Max" + suffix
 	case "Sqrt":
 		return "Sqrt" + suffix
+	case "RSqrt":
+		return "RSqrt" + suffix
+	case "RSqrtNewtonRaphson":
+		return "RSqrtNewtonRaphson" + suffix
+	case "RSqrtPrecise":
+		return "RSqrtPrecise" + suffix
 	case "Greater", "GreaterThan":
 		return "GreaterThan" + suffix
 	case "Less", "LessThan":
@@ -2143,6 +2149,18 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			fullName = fmt.Sprintf("Zero%s", vecTypeName)
 			selExpr.X = ast.NewIdent(pkgName)
 		}
+	case "SlideUpLanes":
+		// hwy.SlideUpLanes(v, offset) -> asm.SlideUpLanesFloat32x4(v, offset)
+		fullName = fmt.Sprintf("SlideUpLanes%s", vecTypeName)
+		selExpr.X = ast.NewIdent(pkgName)
+	case "SlideDownLanes":
+		// hwy.SlideDownLanes(v, offset) -> asm.SlideDownLanesFloat32x4(v, offset)
+		fullName = fmt.Sprintf("SlideDownLanes%s", vecTypeName)
+		selExpr.X = ast.NewIdent(pkgName)
+	case "InsertLane":
+		// hwy.InsertLane(v, idx, val) -> asm.InsertLaneFloat32x4(v, idx, val)
+		fullName = fmt.Sprintf("InsertLane%s", vecTypeName)
+		selExpr.X = ast.NewIdent(pkgName)
 	case "MaskLoad":
 		fullName = fmt.Sprintf("MaskLoad%sSlice", vecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
@@ -2906,6 +2924,14 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	}
 
 	// Insert init statement, main loop, and tail handling
+	// Skip the original scalar tail loop if present (it's replaced by the fallback call)
+	nextIdx := loopIdx + 1
+	if nextIdx < len(body.List) {
+		if isScalarTailLoop(body.List[nextIdx], loopInfo.Iterator, loopInfo.End) {
+			nextIdx++ // Skip the scalar tail loop
+		}
+	}
+
 	newStmts := make([]ast.Stmt, 0, len(body.List)+2)
 	newStmts = append(newStmts, body.List[:loopIdx]...)
 	if initStmt != nil {
@@ -2913,8 +2939,57 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	}
 	newStmts = append(newStmts, mainLoop)
 	newStmts = append(newStmts, tailIf)
-	newStmts = append(newStmts, body.List[loopIdx+1:]...)
+	newStmts = append(newStmts, body.List[nextIdx:]...)
 	body.List = newStmts
+}
+
+// isScalarTailLoop checks if a statement is a scalar tail loop that should be
+// replaced by the fallback call. A scalar tail loop has the form:
+//
+//	for ; i < n; i++ { ... }
+//
+// where i is the iterator and n is the end variable from the SIMD loop.
+func isScalarTailLoop(stmt ast.Stmt, iterator, end string) bool {
+	forStmt, ok := stmt.(*ast.ForStmt)
+	if !ok {
+		return false
+	}
+
+	// Scalar tail loops have no Init (the iterator is already declared)
+	if forStmt.Init != nil {
+		return false
+	}
+
+	// Check condition: i < n
+	cond, ok := forStmt.Cond.(*ast.BinaryExpr)
+	if !ok || cond.Op != token.LSS {
+		return false
+	}
+
+	// Left side should be the iterator
+	leftIdent, ok := cond.X.(*ast.Ident)
+	if !ok || leftIdent.Name != iterator {
+		return false
+	}
+
+	// Right side should be the end variable
+	rightIdent, ok := cond.Y.(*ast.Ident)
+	if !ok || rightIdent.Name != end {
+		return false
+	}
+
+	// Check post: i++ (increment expression)
+	post, ok := forStmt.Post.(*ast.IncDecStmt)
+	if !ok || post.Tok != token.INC {
+		return false
+	}
+
+	postIdent, ok := post.X.(*ast.Ident)
+	if !ok || postIdent.Name != iterator {
+		return false
+	}
+
+	return true
 }
 
 // specializeType replaces generic type parameters with concrete types.
@@ -4823,3 +4898,4 @@ func isHalfPrecisionSliceExpr(indexExpr *ast.IndexExpr, ctx *transformContext) b
 	}
 	return false
 }
+
