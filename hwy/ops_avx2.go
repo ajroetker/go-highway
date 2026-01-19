@@ -324,6 +324,38 @@ func GetLane_AVX2_Uint64x4(v archsimd.Uint64x4, lane int) uint64 {
 	return v.GetHi().GetElem(uint8(lane - 2))
 }
 
+// GetLane_AVX2_I32x8 extracts the element at the given lane index.
+func GetLane_AVX2_I32x8(v archsimd.Int32x8, lane int) int32 {
+	if lane < 4 {
+		return v.GetLo().GetElem(uint8(lane))
+	}
+	return v.GetHi().GetElem(uint8(lane - 4))
+}
+
+// GetLane_AVX2_I64x4 extracts the element at the given lane index.
+func GetLane_AVX2_I64x4(v archsimd.Int64x4, lane int) int64 {
+	if lane < 2 {
+		return v.GetLo().GetElem(uint8(lane))
+	}
+	return v.GetHi().GetElem(uint8(lane - 2))
+}
+
+// GetLane_AVX2_F32x8 extracts the element at the given lane index.
+func GetLane_AVX2_F32x8(v archsimd.Float32x8, lane int) float32 {
+	if lane < 4 {
+		return v.GetLo().GetElem(uint8(lane))
+	}
+	return v.GetHi().GetElem(uint8(lane - 4))
+}
+
+// GetLane_AVX2_F64x4 extracts the element at the given lane index.
+func GetLane_AVX2_F64x4(v archsimd.Float64x4, lane int) float64 {
+	if lane < 2 {
+		return v.GetLo().GetElem(uint8(lane))
+	}
+	return v.GetHi().GetElem(uint8(lane - 2))
+}
+
 // ===== Load4 wrappers for 4x loop unrolling =====
 // Unlike NEON which has a single ld1 {v0,v1,v2,v3} instruction,
 // AVX2 loads are already 256-bit, so we simply perform 4 separate loads.

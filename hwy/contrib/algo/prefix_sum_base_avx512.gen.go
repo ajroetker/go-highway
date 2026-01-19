@@ -221,16 +221,16 @@ func BaseDeltaDecode_avx512_Uint64(data []uint64, base uint64) {
 func BasePrefixSumVec_avx512(v archsimd.Float32x16) archsimd.Float32x16 {
 	n := 16
 	if n >= 2 {
-		v = v.Add(hwy.SlideUpLanes(v, 1))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F32x16(v, 1))
 	}
 	if n >= 4 {
-		v = v.Add(hwy.SlideUpLanes(v, 2))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F32x16(v, 2))
 	}
 	if n >= 8 {
-		v = v.Add(hwy.SlideUpLanes(v, 4))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F32x16(v, 4))
 	}
 	if n >= 16 {
-		v = v.Add(hwy.SlideUpLanes(v, 8))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F32x16(v, 8))
 	}
 	return v
 }
@@ -238,16 +238,16 @@ func BasePrefixSumVec_avx512(v archsimd.Float32x16) archsimd.Float32x16 {
 func BasePrefixSumVec_avx512_Float64(v archsimd.Float64x8) archsimd.Float64x8 {
 	n := 8
 	if n >= 2 {
-		v = v.Add(hwy.SlideUpLanes(v, 1))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F64x8(v, 1))
 	}
 	if n >= 4 {
-		v = v.Add(hwy.SlideUpLanes(v, 2))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F64x8(v, 2))
 	}
 	if n >= 8 {
-		v = v.Add(hwy.SlideUpLanes(v, 4))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F64x8(v, 4))
 	}
 	if n >= 16 {
-		v = v.Add(hwy.SlideUpLanes(v, 8))
+		v = v.Add(hwy.SlideUpLanes_AVX512_F64x8(v, 8))
 	}
 	return v
 }
@@ -255,16 +255,16 @@ func BasePrefixSumVec_avx512_Float64(v archsimd.Float64x8) archsimd.Float64x8 {
 func BasePrefixSumVec_avx512_Int32(v archsimd.Int32x16) archsimd.Int32x16 {
 	n := 16
 	if n >= 2 {
-		v = v.Add(hwy.SlideUpLanes(v, 1))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I32x16(v, 1))
 	}
 	if n >= 4 {
-		v = v.Add(hwy.SlideUpLanes(v, 2))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I32x16(v, 2))
 	}
 	if n >= 8 {
-		v = v.Add(hwy.SlideUpLanes(v, 4))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I32x16(v, 4))
 	}
 	if n >= 16 {
-		v = v.Add(hwy.SlideUpLanes(v, 8))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I32x16(v, 8))
 	}
 	return v
 }
@@ -272,16 +272,16 @@ func BasePrefixSumVec_avx512_Int32(v archsimd.Int32x16) archsimd.Int32x16 {
 func BasePrefixSumVec_avx512_Int64(v archsimd.Int64x8) archsimd.Int64x8 {
 	n := 8
 	if n >= 2 {
-		v = v.Add(hwy.SlideUpLanes(v, 1))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I64x8(v, 1))
 	}
 	if n >= 4 {
-		v = v.Add(hwy.SlideUpLanes(v, 2))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I64x8(v, 2))
 	}
 	if n >= 8 {
-		v = v.Add(hwy.SlideUpLanes(v, 4))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I64x8(v, 4))
 	}
 	if n >= 16 {
-		v = v.Add(hwy.SlideUpLanes(v, 8))
+		v = v.Add(hwy.SlideUpLanes_AVX512_I64x8(v, 8))
 	}
 	return v
 }
@@ -289,16 +289,16 @@ func BasePrefixSumVec_avx512_Int64(v archsimd.Int64x8) archsimd.Int64x8 {
 func BasePrefixSumVec_avx512_Uint32(v archsimd.Uint32x16) archsimd.Uint32x16 {
 	n := 16
 	if n >= 2 {
-		v = v.Add(hwy.SlideUpLanes(v, 1))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint32x16(v, 1))
 	}
 	if n >= 4 {
-		v = v.Add(hwy.SlideUpLanes(v, 2))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint32x16(v, 2))
 	}
 	if n >= 8 {
-		v = v.Add(hwy.SlideUpLanes(v, 4))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint32x16(v, 4))
 	}
 	if n >= 16 {
-		v = v.Add(hwy.SlideUpLanes(v, 8))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint32x16(v, 8))
 	}
 	return v
 }
@@ -306,16 +306,16 @@ func BasePrefixSumVec_avx512_Uint32(v archsimd.Uint32x16) archsimd.Uint32x16 {
 func BasePrefixSumVec_avx512_Uint64(v archsimd.Uint64x8) archsimd.Uint64x8 {
 	n := 8
 	if n >= 2 {
-		v = v.Add(hwy.SlideUpLanes(v, 1))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint64x8(v, 1))
 	}
 	if n >= 4 {
-		v = v.Add(hwy.SlideUpLanes(v, 2))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint64x8(v, 2))
 	}
 	if n >= 8 {
-		v = v.Add(hwy.SlideUpLanes(v, 4))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint64x8(v, 4))
 	}
 	if n >= 16 {
-		v = v.Add(hwy.SlideUpLanes(v, 8))
+		v = v.Add(hwy.SlideUpLanes_AVX512_Uint64x8(v, 8))
 	}
 	return v
 }

@@ -1270,13 +1270,13 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// but this may cause issues if they try to use method calls
 	}
 
-	// For unsigned integer types on AVX2/AVX512, use wrapper functions for ReduceMax and GetLane.
-	// archsimd doesn't have ReduceMax or GetLane methods for unsigned types.
-	if isUnsignedIntType(ctx.elemType) && (ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512") {
+	// For AVX2/AVX512, use wrapper functions for ReduceMax (unsigned only) and GetLane (all types).
+	// archsimd doesn't have ReduceMax for unsigned types or a direct GetLane method.
+	if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
 		switch funcName {
 		case "ReduceMax":
-			// hwy.ReduceMax(v) -> hwy.ReduceMax_AVX2_Uint32x8(v)
-			if len(call.Args) >= 1 {
+			// hwy.ReduceMax(v) -> hwy.ReduceMax_AVX2_Uint32x8(v) (unsigned only)
+			if isUnsignedIntType(ctx.elemType) && len(call.Args) >= 1 {
 				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
 				wrapperName := fmt.Sprintf("ReduceMax_%s_%s", ctx.target.Name, vecTypeName)
 				call.Fun = &ast.SelectorExpr{
@@ -1287,7 +1287,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				return
 			}
 		case "GetLane":
-			// hwy.GetLane(v, i) -> hwy.GetLane_AVX2_Uint32x8(v, i)
+			// hwy.GetLane(v, i) -> hwy.GetLane_AVX2_Float32x8(v, i) etc.
 			if len(call.Args) >= 2 {
 				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
 				wrapperName := fmt.Sprintf("GetLane_%s_%s", ctx.target.Name, vecTypeName)
@@ -2150,13 +2150,27 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			selExpr.X = ast.NewIdent(pkgName)
 		}
 	case "SlideUpLanes":
-		// hwy.SlideUpLanes(v, offset) -> asm.SlideUpLanesFloat32x4(v, offset)
-		fullName = fmt.Sprintf("SlideUpLanes%s", vecTypeName)
-		selExpr.X = ast.NewIdent(pkgName)
+		// For NEON: hwy.SlideUpLanes(v, offset) -> asm.SlideUpLanesFloat32x4(v, offset)
+		// For AVX2/AVX512: hwy.SlideUpLanes(v, offset) -> hwy.SlideUpLanes_AVX2_F32x8(v, offset)
+		if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
+			shortTypeName := getShortTypeName(ctx.elemType, ctx.target)
+			fullName = fmt.Sprintf("SlideUpLanes_%s_%s", ctx.target.Name, shortTypeName)
+			selExpr.X = ast.NewIdent("hwy")
+		} else {
+			fullName = fmt.Sprintf("SlideUpLanes%s", vecTypeName)
+			selExpr.X = ast.NewIdent(pkgName)
+		}
 	case "SlideDownLanes":
-		// hwy.SlideDownLanes(v, offset) -> asm.SlideDownLanesFloat32x4(v, offset)
-		fullName = fmt.Sprintf("SlideDownLanes%s", vecTypeName)
-		selExpr.X = ast.NewIdent(pkgName)
+		// For NEON: hwy.SlideDownLanes(v, offset) -> asm.SlideDownLanesFloat32x4(v, offset)
+		// For AVX2/AVX512: hwy.SlideDownLanes(v, offset) -> hwy.SlideDownLanes_AVX2_F32x8(v, offset)
+		if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
+			shortTypeName := getShortTypeName(ctx.elemType, ctx.target)
+			fullName = fmt.Sprintf("SlideDownLanes_%s_%s", ctx.target.Name, shortTypeName)
+			selExpr.X = ast.NewIdent("hwy")
+		} else {
+			fullName = fmt.Sprintf("SlideDownLanes%s", vecTypeName)
+			selExpr.X = ast.NewIdent(pkgName)
+		}
 	case "InsertLane":
 		// hwy.InsertLane(v, idx, val) -> asm.InsertLaneFloat32x4(v, idx, val)
 		fullName = fmt.Sprintf("InsertLane%s", vecTypeName)

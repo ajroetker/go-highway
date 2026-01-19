@@ -165,6 +165,8 @@ func AVX2Target() Target {
 			"DupEven":            {Name: "DupEven", IsMethod: false},
 			"DupOdd":             {Name: "DupOdd", IsMethod: false},
 			"SwapAdjacentBlocks": {Name: "SwapAdjacentBlocks", IsMethod: false},
+			"SlideUpLanes":       {Package: "hwy", Name: "SlideUpLanes", IsMethod: false},
+			"SlideDownLanes":     {Package: "hwy", Name: "SlideDownLanes", IsMethod: false},
 
 			// ===== Type Conversions =====
 			"ConvertToInt32":   {Name: "ConvertToInt32", IsMethod: true},
@@ -363,6 +365,8 @@ func AVX512Target() Target {
 			"DupEven":            {Name: "DupEven", IsMethod: false},
 			"DupOdd":             {Name: "DupOdd", IsMethod: false},
 			"SwapAdjacentBlocks": {Name: "SwapAdjacentBlocks", IsMethod: false},
+			"SlideUpLanes":       {Package: "hwy", Name: "SlideUpLanes", IsMethod: false},
+			"SlideDownLanes":     {Package: "hwy", Name: "SlideDownLanes", IsMethod: false},
 
 			// ===== Type Conversions =====
 			"ConvertToInt32":   {Name: "ConvertToInt32", IsMethod: true},
