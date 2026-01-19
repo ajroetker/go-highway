@@ -4,12 +4,12 @@ A portable SIMD abstraction library for Go, inspired by Google's Highway C++ lib
 
 ## Go Version
 
-Use `go1.26rc1` for all Go commands in this repository:
+Use `go1.26rc2` for all Go commands in this repository:
 
 ```bash
-go1.26rc1 build ./...
-go1.26rc1 test ./...
-go1.26rc1 run ./cmd/hwygen
+go1.26rc2 build ./...
+go1.26rc2 test ./...
+go1.26rc2 run ./cmd/hwygen
 ```
 
 ## SIMD Acceleration
@@ -18,17 +18,17 @@ Enable hardware SIMD with the `GOEXPERIMENT=simd` environment variable:
 
 ```bash
 # Build with SIMD
-GOEXPERIMENT=simd go1.26rc1 build ./...
+GOEXPERIMENT=simd go1.26rc2 build ./...
 
 # Test with SIMD
-GOEXPERIMENT=simd go1.26rc1 test ./...
+GOEXPERIMENT=simd go1.26rc2 test ./...
 
 # Force fallback path (for testing pure Go implementation)
-HWY_NO_SIMD=1 GOEXPERIMENT=simd go1.26rc1 test ./...
+HWY_NO_SIMD=1 GOEXPERIMENT=simd go1.26rc2 test ./...
 
 # Run benchmarks
-GOEXPERIMENT=simd go1.26rc1 test -bench=. -benchmem ./hwy/contrib/algo/...
-GOEXPERIMENT=simd go1.26rc1 test -bench=. -benchmem ./hwy/contrib/math/...
+GOEXPERIMENT=simd go1.26rc2 test -bench=. -benchmem ./hwy/contrib/algo/...
+GOEXPERIMENT=simd go1.26rc2 test -bench=. -benchmem ./hwy/contrib/math/...
 ```
 
 ## Project Structure
@@ -47,7 +47,7 @@ GOEXPERIMENT=simd go1.26rc1 test -bench=. -benchmem ./hwy/contrib/math/...
 Generate optimized target-specific code:
 
 ```bash
-go1.26rc1 build -o bin/hwygen ./cmd/hwygen
+go1.26rc2 build -o bin/hwygen ./cmd/hwygen
 ./bin/hwygen -input mycode.go -target avx2 -output mycode_avx2.go
 ```
 
@@ -79,7 +79,7 @@ For ARM64 NEON code generation, see the GOAT.md section on SME/SVE support and m
 Always run tests with SIMD enabled to verify hardware paths:
 
 ```bash
-GOEXPERIMENT=simd go1.26rc1 test ./...
+GOEXPERIMENT=simd go1.26rc2 test ./...
 ```
 
 Tests automatically skip AVX-512 on unsupported hardware.
