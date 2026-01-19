@@ -1539,4 +1539,129 @@ LBB6_118:
 	mov	w9, #10                         ; =0xa
 	b	LBB6_3
                                         ; -- End function
+	.globl	_decode_streamvbyte32_batch     ; -- Begin function decode_streamvbyte32_batch
+	.p2align	2
+_decode_streamvbyte32_batch:            ; @decode_streamvbyte32_batch
+; %bb.0:
+	str	xzr, [x6]
+	cmp	x1, #1
+	b.lt	LBB7_10
+; %bb.1:
+	cmp	x3, #1
+	b.lt	LBB7_10
+; %bb.2:
+	cmp	x5, #1
+	b.lt	LBB7_10
+; %bb.3:
+	stp	x28, x27, [sp, #-96]!           ; 16-byte Folded Spill
+	stp	x26, x25, [sp, #16]             ; 16-byte Folded Spill
+	stp	x24, x23, [sp, #32]             ; 16-byte Folded Spill
+	stp	x22, x21, [sp, #48]             ; 16-byte Folded Spill
+	stp	x20, x19, [sp, #64]             ; 16-byte Folded Spill
+	stp	x29, x30, [sp, #80]             ; 16-byte Folded Spill
+	lsr	x8, x5, #2
+	cmp	x8, x1
+	csel	x8, x8, x1, lo
+	cmp	x5, #4
+	b.hs	LBB7_5
+; %bb.4:
+	mov	x14, #0                         ; =0x0
+	b	LBB7_9
+LBB7_5:
+	mov	x15, #0                         ; =0x0
+	mov	w9, #-128                       ; =0xffffff80
+	mov	w10, #2                         ; =0x2
+	mov	w11, #3                         ; =0x3
+	mov	w12, #192                       ; =0xc0
+Lloh22:
+	adrp	x13, _streamvbyte_data_len@PAGE
+Lloh23:
+	add	x13, x13, _streamvbyte_data_len@PAGEOFF
+LBB7_6:                                 ; =>This Inner Loop Header: Depth=1
+	ldrb	w16, [x0], #1
+	ldrb	w14, [x13, x16]
+	add	x14, x15, x14
+	cmp	x14, x3
+	b.gt	LBB7_8
+; %bb.7:                                ;   in Loop: Header=BB7_6 Depth=1
+	sxtb	w17, w16
+	ands	w1, w16, #0x3
+	add	w5, w1, #1
+	csinc	w7, w9, wzr, eq
+	cmp	w1, #1
+	csel	w19, w10, w9, hi
+	cmp	w1, #3
+	csel	w20, w1, w9, eq
+	ands	w21, w11, w16, lsr #2
+	add	w22, w21, w5
+	add	w23, w22, #1
+	add	w24, w1, #2
+	csel	w24, w9, w24, eq
+	add	w25, w1, #3
+	cmp	w21, #1
+	csel	w25, w25, w9, hi
+	orr	w1, w1, #0x4
+	cmp	w21, #3
+	csel	w1, w1, w9, eq
+	ands	w21, w11, w16, lsr #4
+	add	w26, w21, w23
+	ldr	q0, [x2, x15]
+	add	w15, w22, #2
+	csel	w15, w9, w15, eq
+	add	w27, w22, #3
+	cmp	w21, #1
+	csel	w27, w27, w9, hi
+	add	w22, w22, #4
+	cmp	w21, #3
+	csel	w21, w22, w9, eq
+	add	w22, w26, #1
+	add	w28, w26, #2
+	cmp	w16, #64
+	csel	w28, w9, w28, lo
+	add	w30, w26, #3
+	cmp	w17, #0
+	csel	w17, w30, w9, lt
+	add	w26, w26, #4
+	bics	wzr, w12, w16
+	csel	w16, w26, w9, eq
+	movi.2d	v1, #0000000000000000
+	mov.b	v1[1], w7
+	mov.b	v1[2], w19
+	mov.b	v1[3], w20
+	mov.b	v1[4], w5
+	mov.b	v1[5], w24
+	mov.b	v1[6], w25
+	mov.b	v1[7], w1
+	mov.b	v1[8], w23
+	mov.b	v1[9], w15
+	mov.b	v1[10], w27
+	mov.b	v1[11], w21
+	mov.b	v1[12], w22
+	mov.b	v1[13], w28
+	mov.b	v1[14], w17
+	mov.b	v1[15], w16
+	tbl.16b	v0, { v0 }, v1
+	str	q0, [x4], #16
+	mov	x15, x14
+	subs	x8, x8, #1
+	b.ne	LBB7_6
+	b	LBB7_9
+LBB7_8:
+	mov	x14, x15
+LBB7_9:
+	str	x14, [x6]
+	ldp	x29, x30, [sp, #80]             ; 16-byte Folded Reload
+	ldp	x20, x19, [sp, #64]             ; 16-byte Folded Reload
+	ldp	x22, x21, [sp, #48]             ; 16-byte Folded Reload
+	ldp	x24, x23, [sp, #32]             ; 16-byte Folded Reload
+	ldp	x26, x25, [sp, #16]             ; 16-byte Folded Reload
+	ldp	x28, x27, [sp], #96             ; 16-byte Folded Reload
+LBB7_10:
+	ret
+	.loh AdrpAdd	Lloh22, Lloh23
+                                        ; -- End function
+	.section	__TEXT,__const
+_streamvbyte_data_len:                  ; @streamvbyte_data_len
+	.ascii	"\004\005\006\007\005\006\007\b\006\007\b\t\007\b\t\n\005\006\007\b\006\007\b\t\007\b\t\n\b\t\n\013\006\007\b\t\007\b\t\n\b\t\n\013\t\n\013\f\007\b\t\n\b\t\n\013\t\n\013\f\n\013\f\r\005\006\007\b\006\007\b\t\007\b\t\n\b\t\n\013\006\007\b\t\007\b\t\n\b\t\n\013\t\n\013\f\007\b\t\n\b\t\n\013\t\n\013\f\n\013\f\r\b\t\n\013\t\n\013\f\n\013\f\r\013\f\r\016\006\007\b\t\007\b\t\n\b\t\n\013\t\n\013\f\007\b\t\n\b\t\n\013\t\n\013\f\n\013\f\r\b\t\n\013\t\n\013\f\n\013\f\r\013\f\r\016\t\n\013\f\n\013\f\r\013\f\r\016\f\r\016\017\007\b\t\n\b\t\n\013\t\n\013\f\n\013\f\r\b\t\n\013\t\n\013\f\n\013\f\r\013\f\r\016\t\n\013\f\n\013\f\r\013\f\r\016\f\r\016\017\n\013\f\r\013\f\r\016\f\r\016\017\r\016\017\020"
+
 .subsections_via_symbols

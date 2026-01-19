@@ -537,3 +537,126 @@ void decode_5uvarint64(
 
     *consumed = pos;
 }
+
+// ============================================================================
+// Stream-VByte SIMD Decoding
+// ============================================================================
+
+// Data length per control byte: sum of 4 value lengths (4-16 bytes)
+static const unsigned char streamvbyte_data_len[256] = {
+     4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10,
+     5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10,  8,  9, 10, 11,
+     6,  7,  8,  9,  7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12,
+     7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13,
+     5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10,  8,  9, 10, 11,
+     6,  7,  8,  9,  7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12,
+     7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13,
+     8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14,
+     6,  7,  8,  9,  7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12,
+     7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13,
+     8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14,
+     9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14, 12, 13, 14, 15,
+     7,  8,  9, 10,  8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13,
+     8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14,
+     9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14, 12, 13, 14, 15,
+    10, 11, 12, 13, 11, 12, 13, 14, 12, 13, 14, 15, 13, 14, 15, 16,
+};
+
+// decode_streamvbyte32_batch: Decode n values from Stream-VByte format
+// Uses NEON TBL instruction for shuffle-based decoding of 4 values at a time.
+//
+// control: array of control bytes (1 per 4 values)
+// control_len: length of control array
+// data: array of packed value bytes
+// data_len: length of data array
+// values: output array for decoded uint32 values
+// n: number of values to decode
+// data_consumed: output for number of data bytes consumed
+void decode_streamvbyte32_batch(
+    unsigned char *control, int64_t control_len,
+    unsigned char *data, int64_t data_len,
+    unsigned int *values, int64_t n,
+    int64_t *data_consumed
+) {
+    *data_consumed = 0;
+
+    if (control_len <= 0 || data_len <= 0 || n <= 0) {
+        return;
+    }
+
+    int64_t num_groups = n / 4;
+    if (num_groups > control_len) {
+        num_groups = control_len;
+    }
+
+    int64_t data_pos = 0;
+    int64_t val_pos = 0;
+
+    for (int64_t g = 0; g < num_groups; g++) {
+        unsigned char ctrl = control[g];
+        int64_t group_len = streamvbyte_data_len[ctrl];
+
+        if (data_pos + group_len > data_len) {
+            break;
+        }
+
+        // Extract lengths from control byte
+        int64_t len0 = ((ctrl >> 0) & 0x3) + 1;
+        int64_t len1 = ((ctrl >> 2) & 0x3) + 1;
+        int64_t len2 = ((ctrl >> 4) & 0x3) + 1;
+        int64_t len3 = ((ctrl >> 6) & 0x3) + 1;
+
+        // Load 16 bytes of data (may read past end but we check bounds above)
+        uint8x16_t input = vld1q_u8(data + data_pos);
+
+        // Build shuffle mask dynamically based on control byte
+        // Value 0: source bytes at offset 0
+        // Value 1: source bytes at offset len0
+        // Value 2: source bytes at offset len0+len1
+        // Value 3: source bytes at offset len0+len1+len2
+        int64_t off0 = 0;
+        int64_t off1 = len0;
+        int64_t off2 = len0 + len1;
+        int64_t off3 = len0 + len1 + len2;
+
+        // Create mask: indices into input, or 0x80+ for zero
+        unsigned char mask_bytes[16];
+
+        // Value 0 at output positions 0-3
+        mask_bytes[0] = (0 < len0) ? off0 + 0 : 0x80;
+        mask_bytes[1] = (1 < len0) ? off0 + 1 : 0x80;
+        mask_bytes[2] = (2 < len0) ? off0 + 2 : 0x80;
+        mask_bytes[3] = (3 < len0) ? off0 + 3 : 0x80;
+
+        // Value 1 at output positions 4-7
+        mask_bytes[4] = (0 < len1) ? off1 + 0 : 0x80;
+        mask_bytes[5] = (1 < len1) ? off1 + 1 : 0x80;
+        mask_bytes[6] = (2 < len1) ? off1 + 2 : 0x80;
+        mask_bytes[7] = (3 < len1) ? off1 + 3 : 0x80;
+
+        // Value 2 at output positions 8-11
+        mask_bytes[8]  = (0 < len2) ? off2 + 0 : 0x80;
+        mask_bytes[9]  = (1 < len2) ? off2 + 1 : 0x80;
+        mask_bytes[10] = (2 < len2) ? off2 + 2 : 0x80;
+        mask_bytes[11] = (3 < len2) ? off2 + 3 : 0x80;
+
+        // Value 3 at output positions 12-15
+        mask_bytes[12] = (0 < len3) ? off3 + 0 : 0x80;
+        mask_bytes[13] = (1 < len3) ? off3 + 1 : 0x80;
+        mask_bytes[14] = (2 < len3) ? off3 + 2 : 0x80;
+        mask_bytes[15] = (3 < len3) ? off3 + 3 : 0x80;
+
+        uint8x16_t mask = vld1q_u8(mask_bytes);
+
+        // SIMD shuffle: vqtbl1q_u8 outputs 0 for indices >= 16
+        uint8x16_t shuffled = vqtbl1q_u8(input, mask);
+
+        // Store 4 uint32 values (little-endian)
+        vst1q_u8((unsigned char*)(values + val_pos), shuffled);
+
+        data_pos += group_len;
+        val_pos += 4;
+    }
+
+    *data_consumed = data_pos;
+}

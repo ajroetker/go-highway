@@ -54,6 +54,24 @@ var (
 	GroupVarint64Len func(values [4]uint64) int
 )
 
+// Stream-VByte functions (SIMD-friendly separated control/data streams)
+var (
+	// EncodeStreamVByte32 encodes uint32 values to Stream-VByte format
+	// Returns (control bytes, data bytes)
+	EncodeStreamVByte32 func(values []uint32) (control, data []byte)
+
+	// DecodeStreamVByte32 decodes uint32 values from Stream-VByte format
+	// n is the number of values to decode
+	DecodeStreamVByte32 func(control, data []byte, n int) []uint32
+
+	// DecodeStreamVByte32Into decodes into pre-allocated dst slice
+	// Returns (values decoded, data bytes consumed)
+	DecodeStreamVByte32Into func(control, data []byte, dst []uint32) (decoded, dataConsumed int)
+
+	// StreamVByte32DataLen returns total data length from control bytes
+	StreamVByte32DataLen func(control []byte) int
+)
+
 func init() {
 	// Initialize with base (pure Go) implementations.
 	// These may be overridden by architecture-specific init() functions
@@ -72,4 +90,10 @@ func init() {
 	EncodeGroupVarint64 = BaseEncodeGroupVarint64
 	GroupVarint32Len = BaseGroupVarint32Len
 	GroupVarint64Len = BaseGroupVarint64Len
+
+	// Stream-VByte
+	EncodeStreamVByte32 = BaseEncodeStreamVByte32
+	DecodeStreamVByte32 = BaseDecodeStreamVByte32
+	DecodeStreamVByte32Into = BaseDecodeStreamVByte32Into
+	StreamVByte32DataLen = BaseStreamVByte32DataLen
 }

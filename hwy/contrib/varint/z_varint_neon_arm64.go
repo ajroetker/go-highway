@@ -57,6 +57,9 @@ func init() {
 	// Group varint operations
 	DecodeGroupVarint32 = asm.DecodeGroupVarint32
 	DecodeGroupVarint64 = asm.DecodeGroupVarint64
+
+	// Stream-VByte SIMD decode (uses NEON TBL shuffle)
+	DecodeStreamVByte32Into = asm.DecodeStreamVByte32Into
 }
 
 // wrapFindVarintEnds adapts the asm function signature.

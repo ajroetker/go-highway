@@ -811,3 +811,187 @@ func BenchmarkCompareVarintVsGroupVarint(b *testing.B) {
 		}
 	})
 }
+
+// ============================================================================
+// Stream-VByte Tests
+// ============================================================================
+
+func TestBaseEncodeStreamVByte32_RoundTrip(t *testing.T) {
+	tests := []struct {
+		name   string
+		values []uint32
+	}{
+		{"small_values", []uint32{1, 2, 3, 4}},
+		{"mixed_sizes", []uint32{300, 5, 1000, 2}},
+		{"all_zeros", []uint32{0, 0, 0, 0}},
+		{"max_values", []uint32{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF}},
+		{"8_values", []uint32{1, 128, 300, 65535, 100000, 1, 2, 3}},
+		{"not_multiple_of_4", []uint32{1, 2, 3, 4, 5}}, // Should pad
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			control, data := BaseEncodeStreamVByte32(tt.values)
+
+			// Decode
+			n := len(tt.values)
+			if n%4 != 0 {
+				n = ((n + 3) / 4) * 4 // Round up to multiple of 4
+			}
+			decoded := BaseDecodeStreamVByte32(control, data, n)
+
+			// Verify (account for padding)
+			for i, want := range tt.values {
+				if decoded[i] != want {
+					t.Errorf("value %d: got %d, want %d", i, decoded[i], want)
+				}
+			}
+		})
+	}
+}
+
+func TestBaseDecodeStreamVByte32Into(t *testing.T) {
+	values := []uint32{300, 5, 1000, 2, 7, 128, 50, 1}
+	control, data := BaseEncodeStreamVByte32(values)
+
+	dst := make([]uint32, 8)
+	decoded, dataConsumed := BaseDecodeStreamVByte32Into(control, data, dst)
+
+	if decoded != 8 {
+		t.Errorf("decoded: got %d, want 8", decoded)
+	}
+	if dataConsumed != len(data) {
+		t.Errorf("dataConsumed: got %d, want %d", dataConsumed, len(data))
+	}
+
+	for i, want := range values {
+		if dst[i] != want {
+			t.Errorf("value %d: got %d, want %d", i, dst[i], want)
+		}
+	}
+}
+
+func TestBaseStreamVByte32DataLen(t *testing.T) {
+	values := []uint32{300, 5, 1000, 2}
+	control, data := BaseEncodeStreamVByte32(values)
+
+	calcLen := BaseStreamVByte32DataLen(control)
+	if calcLen != len(data) {
+		t.Errorf("calculated length: got %d, want %d", calcLen, len(data))
+	}
+}
+
+func TestStreamVByteEncoder(t *testing.T) {
+	enc := NewStreamVByteEncoder()
+	enc.Add(100)
+	enc.Add(200)
+	enc.Add(300)
+	enc.Add(400)
+	enc.Add(500)
+
+	control, data := enc.Finish()
+
+	// Should have 2 control bytes (8 values with padding)
+	if len(control) != 2 {
+		t.Errorf("control length: got %d, want 2", len(control))
+	}
+
+	// Decode and verify
+	decoded := BaseDecodeStreamVByte32(control, data, 5)
+	expected := []uint32{100, 200, 300, 400, 500}
+	for i, want := range expected {
+		if decoded[i] != want {
+			t.Errorf("value %d: got %d, want %d", i, decoded[i], want)
+		}
+	}
+}
+
+// ============================================================================
+// Stream-VByte Benchmarks
+// ============================================================================
+
+func BenchmarkBaseEncodeStreamVByte32(b *testing.B) {
+	values := make([]uint32, 100)
+	for i := range values {
+		values[i] = uint32(i * 100)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		control, data := BaseEncodeStreamVByte32(values)
+		_ = control
+		_ = data
+	}
+}
+
+func BenchmarkBaseDecodeStreamVByte32Into(b *testing.B) {
+	values := make([]uint32, 100)
+	for i := range values {
+		values[i] = uint32(i * 100)
+	}
+	control, data := BaseEncodeStreamVByte32(values)
+	dst := make([]uint32, 100)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		BaseDecodeStreamVByte32Into(control, data, dst)
+	}
+}
+
+func BenchmarkDecodeStreamVByte32Into_Dispatch(b *testing.B) {
+	// This benchmark uses the dispatch function which may use SIMD on ARM64
+	values := make([]uint32, 100)
+	for i := range values {
+		values[i] = uint32(i * 100)
+	}
+	control, data := EncodeStreamVByte32(values)
+	dst := make([]uint32, 100)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		DecodeStreamVByte32Into(control, data, dst)
+	}
+}
+
+func BenchmarkCompareGroupVarintVsStreamVByte(b *testing.B) {
+	// Compare Group Varint vs Stream-VByte for 100 values
+	values := make([]uint32, 100)
+	for i := range values {
+		values[i] = uint32(i * 100)
+	}
+
+	// Prepare Group Varint encoded data
+	groupData := make([]byte, 0, 500)
+	for i := 0; i < len(values); i += 4 {
+		dst := make([]byte, 17)
+		n := BaseEncodeGroupVarint32([4]uint32{values[i], values[i+1], values[i+2], values[i+3]}, dst)
+		groupData = append(groupData, dst[:n]...)
+	}
+
+	// Prepare Stream-VByte encoded data
+	control, streamData := BaseEncodeStreamVByte32(values)
+
+	b.Run("GroupVarint_100values", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			offset := 0
+			for j := 0; j < 25; j++ {
+				_, consumed := BaseDecodeGroupVarint32(groupData[offset:])
+				offset += consumed
+			}
+		}
+	})
+
+	b.Run("StreamVByte_100values", func(b *testing.B) {
+		dst := make([]uint32, 100)
+		for i := 0; i < b.N; i++ {
+			BaseDecodeStreamVByte32Into(control, streamData, dst)
+		}
+	})
+
+	b.Run("StreamVByte_Dispatch_100values", func(b *testing.B) {
+		dst := make([]uint32, 100)
+		for i := 0; i < b.N; i++ {
+			DecodeStreamVByte32Into(control, streamData, dst)
+		}
+	})
+}

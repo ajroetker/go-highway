@@ -81,6 +81,9 @@ func AVX2Target() Target {
 			"AndNot": {Name: "AndNot", IsMethod: true},
 			"Not":    {Name: "Not", IsMethod: true},
 
+			// ===== Shuffle operations =====
+			"TableLookupBytes": {Package: "hwy", Name: "TableLookupBytes", IsMethod: false}, // VPSHUFB
+
 			// ===== Core math operations (hardware instructions) =====
 			"Sqrt":              {Name: "Sqrt", IsMethod: true},            // VSQRTPS/VSQRTPD
 			"RSqrt":             {Name: "ReciprocalSqrt", IsMethod: true},  // VRSQRTPS/VRSQRTPD (~12-bit precision)
@@ -280,6 +283,9 @@ func AVX512Target() Target {
 			"AndNot": {Name: "AndNot", IsMethod: true},
 			"Not":    {Name: "Not", IsMethod: true},
 
+			// ===== Shuffle operations =====
+			"TableLookupBytes": {Package: "hwy", Name: "TableLookupBytes", IsMethod: false}, // VPSHUFB
+
 			// ===== Core math operations =====
 			"Sqrt":               {Name: "Sqrt", IsMethod: true},
 			"RSqrt":              {Name: "ReciprocalSqrt", IsMethod: true},  // VRSQRT14PS/VRSQRT14PD (~14-bit precision)
@@ -478,6 +484,9 @@ func FallbackTarget() Target {
 			"AndNot": {Package: "hwy", Name: "AndNot", IsMethod: false},
 			"Not":    {Package: "hwy", Name: "Not", IsMethod: false},
 
+			// ===== Shuffle operations =====
+			"TableLookupBytes": {Package: "hwy", Name: "TableLookupBytes", IsMethod: false},
+
 			// ===== Core math operations =====
 			"Sqrt":               {Package: "hwy", Name: "Sqrt", IsMethod: false},
 			"RSqrt":              {Package: "hwy", Name: "RSqrt", IsMethod: false},
@@ -668,6 +677,9 @@ func NEONTarget() Target {
 			"Xor":    {Name: "Xor", IsMethod: true},
 			"AndNot": {Name: "AndNot", IsMethod: true},
 			"Not":    {Name: "Not", IsMethod: true},
+
+			// ===== Shuffle operations =====
+			"TableLookupBytes": {Name: "TableLookupBytes", IsMethod: true}, // TBL
 
 			// ===== Core math operations =====
 			"Sqrt":               {Name: "Sqrt", IsMethod: true},

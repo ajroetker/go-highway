@@ -74,6 +74,7 @@ func BroadcastUint8x16(v uint8) Uint8x16 {
 }
 
 func LoadUint8x16(s []uint8) Uint8x16       { return *(*Uint8x16)(unsafe.Pointer(&s[0])) }
+func LoadUint8x16Slice(s []uint8) Uint8x16  { return LoadUint8x16(s) }
 func ZeroUint8x16() Uint8x16                { return Uint8x16{} }
 func (v Uint8x16) Get(i int) uint8          { return v[i] }
 func (v *Uint8x16) Set(i int, val uint8)    { v[i] = val }
@@ -95,6 +96,18 @@ func (v Uint8x16) And(other Uint8x16) Uint8x16         { panic("NEON not availab
 func (v Uint8x16) Or(other Uint8x16) Uint8x16          { panic("NEON not available") }
 func (v Uint8x16) Xor(other Uint8x16) Uint8x16         { panic("NEON not available") }
 func (v Uint8x16) Not() Uint8x16                       { panic("NEON not available") }
+func (v Uint8x16) TableLookupBytes(idx Uint8x16) Uint8x16 {
+	// Scalar fallback implementation
+	var result [16]uint8
+	for i := 0; i < 16; i++ {
+		index := idx[i]
+		if index < 16 {
+			result[i] = v[index]
+		}
+		// Out-of-range indices produce 0 (already zero from array initialization)
+	}
+	return *(*Uint8x16)(unsafe.Pointer(&result))
+}
 
 // ===== Uint16x8 stub methods =====
 

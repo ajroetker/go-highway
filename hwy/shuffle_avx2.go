@@ -400,3 +400,10 @@ func Slide1Down_AVX2_F32x8(v archsimd.Float32x8) archsimd.Float32x8 {
 func Slide1Down_AVX2_F64x4(v archsimd.Float64x4) archsimd.Float64x4 {
 	return SlideDownLanes_AVX2_F64x4(v, 1)
 }
+
+// TableLookupBytes_AVX2_Uint8x16 performs byte shuffling using indices.
+// For each byte in indices, selects the corresponding byte from v.
+// If the high bit of an index is set, the result byte is zero (PSHUFB semantics).
+func TableLookupBytes_AVX2_Uint8x16(v, indices archsimd.Uint8x16) archsimd.Uint8x16 {
+	return v.PermuteOrZero(indices.AsInt8x16())
+}

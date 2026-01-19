@@ -2004,6 +2004,11 @@ func LoadUint8x16(s []uint8) Uint8x16 {
 	return *(*Uint8x16)(unsafe.Pointer(&s[0]))
 }
 
+// LoadUint8x16Slice is an alias for LoadUint8x16 for consistency with other types.
+func LoadUint8x16Slice(s []uint8) Uint8x16 {
+	return LoadUint8x16(s)
+}
+
 // Load4Uint8x16Slice loads 4 consecutive Uint8x16 vectors (64 bytes)
 // using a single ARM ld1 instruction with 4 registers.
 func Load4Uint8x16Slice(s []uint8) (Uint8x16, Uint8x16, Uint8x16, Uint8x16) {
@@ -2118,6 +2123,15 @@ func (v Uint8x16) Not() Uint8x16 {
 // GetBit returns true if the element at index i is non-zero.
 func (v Uint8x16) GetBit(i int) bool {
 	return v[i] != 0
+}
+
+// TableLookupBytes performs byte-level table lookup: result[i] = v[idx[i]].
+// If idx[i] >= 16, the result is 0 (NEON TBL behavior with out-of-range indices).
+func (v Uint8x16) TableLookupBytes(idx Uint8x16) Uint8x16 {
+	var result [16]uint8
+	n := int64(16)
+	tbl_u8_neon(unsafe.Pointer(&v[0]), unsafe.Pointer(&idx[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return *(*Uint8x16)(unsafe.Pointer(&result))
 }
 
 // ============================================================================

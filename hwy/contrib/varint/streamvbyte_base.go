@@ -16,9 +16,9 @@
 // Package varint provides variable-length integer encoding/decoding with SIMD acceleration.
 package varint
 
-import (
-	_ "github.com/ajroetker/go-highway/hwy" // for future SIMD use
-)
+import "github.com/ajroetker/go-highway/hwy"
+
+//go:generate go run ../../../cmd/hwygen -input streamvbyte_base.go -output . -targets avx2,avx512,neon,fallback -dispatch streamvbyte
 
 // streamVByte32DataLen[control] = sum of 4 value lengths for this control byte.
 // Each 2-bit field encodes (length - 1), so we add 1 to each.
@@ -178,7 +178,7 @@ func BaseEncodeStreamVByte32(values []uint32) (control, data []byte) {
 // control contains the control bytes, data contains the value bytes.
 // n is the number of values to decode (must be <= len(control)*4).
 // Returns the decoded values.
-func BaseDecodeStreamVByte32(control, data []byte, n int) []uint32 {
+func BaseDecodeStreamVByte32(control []byte, data []uint8, n int) []uint32 {
 	if n <= 0 || len(control) == 0 {
 		return nil
 	}
@@ -190,7 +190,8 @@ func BaseDecodeStreamVByte32(control, data []byte, n int) []uint32 {
 
 // BaseDecodeStreamVByte32Into decodes into a pre-allocated dst slice.
 // Returns number of values decoded and data bytes consumed.
-func BaseDecodeStreamVByte32Into(control, data []byte, dst []uint32) (decoded, dataConsumed int) {
+// Uses SIMD group decode when possible for better performance.
+func BaseDecodeStreamVByte32Into(control []byte, data []uint8, dst []uint32) (decoded, dataConsumed int) {
 	if len(dst) == 0 || len(control) == 0 {
 		return 0, 0
 	}
@@ -199,12 +200,23 @@ func BaseDecodeStreamVByte32Into(control, data []byte, dst []uint32) (decoded, d
 	dstPos := 0
 	n := len(dst)
 
+	// Use SIMD group decode when we have enough dst space for full groups
 	for _, ctrl := range control {
 		if dstPos >= n {
 			break
 		}
 
-		// Decode up to 4 values from this control byte
+		// If we have space for a full group of 4 and enough data for SIMD load (16 bytes)
+		if dstPos+4 <= n && dataPos+16 <= len(data) {
+			consumed := BaseDecodeStreamVByte32GroupSIMD(ctrl, data[dataPos:], dst[dstPos:])
+			if consumed > 0 {
+				dataPos += consumed
+				dstPos += 4
+				continue
+			}
+		}
+
+		// Scalar fallback for partial groups or small buffers
 		for i := 0; i < 4 && dstPos < n; i++ {
 			length := int(((ctrl >> (i * 2)) & 0x3) + 1)
 
@@ -242,4 +254,128 @@ func BaseStreamVByte32DataLen(control []byte) int {
 		total += int(streamVByte32DataLen[ctrl])
 	}
 	return total
+}
+
+// streamVByte32ShuffleMasks contains precomputed shuffle masks for each control byte.
+// For control byte c, masks[c] contains indices to shuffle 16 data bytes into 4 uint32 values.
+// Index 255 means "output zero" (for padding shorter values to 4 bytes).
+var streamVByte32ShuffleMasks [256][16]uint8
+
+func init() {
+	for ctrl := 0; ctrl < 256; ctrl++ {
+		len0 := ((ctrl >> 0) & 0x3) + 1
+		len1 := ((ctrl >> 2) & 0x3) + 1
+		len2 := ((ctrl >> 4) & 0x3) + 1
+		len3 := ((ctrl >> 6) & 0x3) + 1
+
+		off0 := 0
+		off1 := len0
+		off2 := len0 + len1
+		off3 := len0 + len1 + len2
+
+		var mask [16]uint8
+		// Value 0 at output positions 0-3
+		for i := 0; i < 4; i++ {
+			if i < len0 {
+				mask[i] = uint8(off0 + i)
+			} else {
+				mask[i] = 255 // zero padding
+			}
+		}
+		// Value 1 at output positions 4-7
+		for i := 0; i < 4; i++ {
+			if i < len1 {
+				mask[4+i] = uint8(off1 + i)
+			} else {
+				mask[4+i] = 255
+			}
+		}
+		// Value 2 at output positions 8-11
+		for i := 0; i < 4; i++ {
+			if i < len2 {
+				mask[8+i] = uint8(off2 + i)
+			} else {
+				mask[8+i] = 255
+			}
+		}
+		// Value 3 at output positions 12-15
+		for i := 0; i < 4; i++ {
+			if i < len3 {
+				mask[12+i] = uint8(off3 + i)
+			} else {
+				mask[12+i] = 255
+			}
+		}
+		streamVByte32ShuffleMasks[ctrl] = mask
+	}
+}
+
+// BaseDecodeStreamVByte32GroupSIMD decodes 4 uint32 values from one Stream-VByte group
+// using SIMD shuffle operations. This is the core SIMD-accelerated decode function.
+//
+// ctrl: the control byte for this group
+// data: at least 16 bytes of data (reads up to dataLen bytes based on control)
+// dst: output slice for 4 decoded uint32 values
+//
+// Returns the number of data bytes consumed.
+func BaseDecodeStreamVByte32GroupSIMD(ctrl byte, data []uint8, dst []uint32) int {
+	dataLen := int(streamVByte32DataLen[ctrl])
+	if len(data) < dataLen || len(dst) < 4 {
+		return 0
+	}
+
+	// Ensure we have at least 16 bytes for vector load (may read past dataLen but within bounds)
+	if len(data) < 16 {
+		// Fallback to scalar for short buffers
+		return decodeGroupScalarInto(ctrl, data, dst)
+	}
+
+	// Load data bytes into vector (up to 16 bytes)
+	// Explicit uint8 slice to ensure hwygen uses byte-level operations
+	dataVec := hwy.Load[uint8](data[:16])
+
+	// Load shuffle mask for this control byte
+	maskSlice := streamVByte32ShuffleMasks[ctrl][:]
+	maskVec := hwy.Load[uint8](maskSlice)
+
+	// Shuffle: rearrange bytes according to mask
+	// Index 255 (>= 16) produces zero in TableLookupBytes
+	shuffled := hwy.TableLookupBytes(dataVec, maskVec)
+
+	// Store shuffled bytes
+	var result [16]uint8
+	hwy.Store(shuffled, result[:])
+
+	// Convert 16 bytes to 4 uint32 (little-endian)
+	dst[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
+	dst[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
+	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
+	dst[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
+
+	return dataLen
+}
+
+// decodeGroupScalarInto is a scalar fallback for small buffers.
+func decodeGroupScalarInto(ctrl byte, data []uint8, dst []uint32) int {
+	pos := 0
+	for i := 0; i < 4; i++ {
+		length := int(((ctrl >> (i * 2)) & 0x3) + 1)
+		if pos+length > len(data) {
+			return 0
+		}
+		var v uint32
+		switch length {
+		case 1:
+			v = uint32(data[pos])
+		case 2:
+			v = uint32(data[pos]) | uint32(data[pos+1])<<8
+		case 3:
+			v = uint32(data[pos]) | uint32(data[pos+1])<<8 | uint32(data[pos+2])<<16
+		case 4:
+			v = uint32(data[pos]) | uint32(data[pos+1])<<8 | uint32(data[pos+2])<<16 | uint32(data[pos+3])<<24
+		}
+		dst[i] = v
+		pos += length
+	}
+	return pos
 }

@@ -30,3 +30,6 @@ func decode_2uvarint64(src unsafe.Pointer, src_len int64, v1, v2, consumed unsaf
 
 //go:noescape
 func decode_5uvarint64(src unsafe.Pointer, src_len int64, values, consumed unsafe.Pointer)
+
+//go:noescape
+func decode_streamvbyte32_batch(control unsafe.Pointer, control_len int64, data unsafe.Pointer, data_len int64, values unsafe.Pointer, n int64, data_consumed unsafe.Pointer)
