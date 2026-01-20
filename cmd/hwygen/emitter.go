@@ -686,7 +686,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 
 	// Emit hoisted constants as package-level pre-broadcasted vectors
 	if len(hoistedConsts) > 0 && target.Name != "Fallback" {
-		emitHoistedConstants(&buf, hoistedConsts, target)
+		emitHoistedConstants(&buf, hoistedConsts, target, baseName)
 	}
 
 	// Print each function
@@ -694,7 +694,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	for _, funcDecl := range funcs {
 		// For AVX-512 with hoisted constants, inject lazy init call at function start
 		if target.Name == "AVX512" && len(hoistedConsts) > 0 && funcDecl.Body != nil {
-			injectHoistedConstInit(funcDecl)
+			injectHoistedConstInit(funcDecl, baseName)
 		}
 		if err := printer.Fprint(&buf, fset, funcDecl); err != nil {
 			return fmt.Errorf("print function: %w", err)
@@ -723,8 +723,15 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 // emitHoistedConstants writes package-level var declarations for hoisted vector constants.
 // For AVX-512, uses lazy initialization with sync.Once to avoid executing AVX-512 instructions
 // at package init time (which would crash on machines without AVX-512 support).
-func emitHoistedConstants(buf *bytes.Buffer, consts []HoistedConst, target Target) {
+// The baseName parameter is used to generate unique names for _hoistOnce and _initHoistedConstants
+// to avoid conflicts when multiple source files have hoisted constants.
+func emitHoistedConstants(buf *bytes.Buffer, consts []HoistedConst, target Target, baseName string) {
 	if target.Name == "AVX512" {
+		// Generate unique prefix from baseName (e.g., "varint_base" -> "_varintBase")
+		prefix := "_" + toCamelCase(baseName)
+		onceName := prefix + "HoistOnce"
+		initName := prefix + "InitHoistedConstants"
+
 		// AVX-512: Use lazy initialization to avoid init-time crashes on non-AVX512 machines
 		fmt.Fprintf(buf, "// Hoisted constants - lazily initialized on first use to avoid init-time crashes\n")
 		fmt.Fprintf(buf, "var (\n")
@@ -733,12 +740,12 @@ func emitHoistedConstants(buf *bytes.Buffer, consts []HoistedConst, target Targe
 			vecType := strings.Replace(c.Broadcast, "Broadcast", "", 1)
 			fmt.Fprintf(buf, "\t%s %s\n", c.VarName, vecType)
 		}
-		fmt.Fprintf(buf, "\t_hoistOnce sync.Once\n")
+		fmt.Fprintf(buf, "\t%s sync.Once\n", onceName)
 		fmt.Fprintf(buf, ")\n\n")
 
 		// Generate the lazy init function
-		fmt.Fprintf(buf, "func _initHoistedConstants() {\n")
-		fmt.Fprintf(buf, "\t_hoistOnce.Do(func() {\n")
+		fmt.Fprintf(buf, "func %s() {\n", initName)
+		fmt.Fprintf(buf, "\t%s.Do(func() {\n", onceName)
 		for _, c := range consts {
 			fmt.Fprintf(buf, "\t\t%s = %s(%s)\n", c.VarName, c.Broadcast, c.Value)
 		}
@@ -756,23 +763,40 @@ func emitHoistedConstants(buf *bytes.Buffer, consts []HoistedConst, target Targe
 	}
 }
 
-// injectHoistedConstInit prepends a call to _initHoistedConstants() at the start of a function.
+// injectHoistedConstInit prepends a call to the init function at the start of a function.
 // This is used for AVX-512 to ensure lazy initialization of hoisted constants.
-func injectHoistedConstInit(funcDecl *ast.FuncDecl) {
+// The baseName parameter determines the unique init function name.
+func injectHoistedConstInit(funcDecl *ast.FuncDecl, baseName string) {
 	if funcDecl.Body == nil {
 		return
 	}
 
-	// Create the call expression: _initHoistedConstants()
+	// Generate the same init function name used by emitHoistedConstants
+	prefix := "_" + toCamelCase(baseName)
+	initName := prefix + "InitHoistedConstants"
+
+	// Create the call expression
 	initCall := &ast.ExprStmt{
 		X: &ast.CallExpr{
-			Fun:  &ast.Ident{Name: "_initHoistedConstants"},
+			Fun:  &ast.Ident{Name: initName},
 			Args: nil,
 		},
 	}
 
 	// Prepend to function body
 	funcDecl.Body.List = append([]ast.Stmt{initCall}, funcDecl.Body.List...)
+}
+
+// toCamelCase converts a snake_case string to camelCase.
+// E.g., "varint_base" -> "varintBase", "maskedvbyte_base" -> "maskedvbyteBase"
+func toCamelCase(s string) string {
+	parts := strings.Split(s, "_")
+	for i := 1; i < len(parts); i++ {
+		if len(parts[i]) > 0 {
+			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+		}
+	}
+	return strings.Join(parts, "")
 }
 
 // emitGenericDispatcher generates a generic function that dispatches based on type.

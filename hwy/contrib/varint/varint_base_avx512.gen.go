@@ -12,17 +12,17 @@ import (
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
 	BaseFindVarintEnds_AVX512_threshold_f32 archsimd.Uint8x32
-	_hoistOnce                              sync.Once
+	_varintBaseHoistOnce                    sync.Once
 )
 
-func _initHoistedConstants() {
-	_hoistOnce.Do(func() {
+func _varintBaseInitHoistedConstants() {
+	_varintBaseHoistOnce.Do(func() {
 		BaseFindVarintEnds_AVX512_threshold_f32 = archsimd.BroadcastUint8x32(0x80)
 	})
 }
 
 func BaseFindVarintEnds_avx512(src []byte) uint32 {
-	_initHoistedConstants()
+	_varintBaseInitHoistedConstants()
 	if len(src) == 0 {
 		return 0
 	}

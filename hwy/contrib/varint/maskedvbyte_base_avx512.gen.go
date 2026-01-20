@@ -12,17 +12,17 @@ import (
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
 	BaseMaskedVByteDecodeGroup_AVX512_threshold_f32 archsimd.Uint8x16
-	_hoistOnce                                      sync.Once
+	_maskedvbyteBaseHoistOnce                       sync.Once
 )
 
-func _initHoistedConstants() {
-	_hoistOnce.Do(func() {
+func _maskedvbyteBaseInitHoistedConstants() {
+	_maskedvbyteBaseHoistOnce.Do(func() {
 		BaseMaskedVByteDecodeGroup_AVX512_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
 	})
 }
 
 func BaseMaskedVByteDecodeBatch32_avx512(src []byte, dst []uint32, n int) (decoded int, consumed int) {
-	_initHoistedConstants()
+	_maskedvbyteBaseInitHoistedConstants()
 	if len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
 	}
@@ -49,7 +49,7 @@ func BaseMaskedVByteDecodeBatch32_avx512(src []byte, dst []uint32, n int) (decod
 }
 
 func BaseMaskedVByteDecodeGroup_avx512(src []byte, dst []uint32) (decoded int, consumed int) {
-	_initHoistedConstants()
+	_maskedvbyteBaseInitHoistedConstants()
 	if len(src) < 16 || len(dst) < 4 {
 		return 0, 0
 	}
