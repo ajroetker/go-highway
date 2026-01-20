@@ -1,5 +1,5 @@
-github.com/ajroetker/goat v0.0.0-sve-sme-support-012 h1:f4hW4KABkWkBPORVCUcadwe1a1dnvVPhtnymczhtQ6Q=
-github.com/ajroetker/goat v0.0.0-sve-sme-support-012/go.mod h1:gJNF0DP4jKvNp4R36LSOBi7tP1BO2GkscC2+PsyDcTE=
+github.com/ajroetker/goat v0.0.0-sve-sme-support-013 h1:ndt3eaxc2ykb49nK3nMC7xr4Ikq3Js9Hef9SQfD0/1w=
+github.com/ajroetker/goat v0.0.0-sve-sme-support-013/go.mod h1:gJNF0DP4jKvNp4R36LSOBi7tP1BO2GkscC2+PsyDcTE=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

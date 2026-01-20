@@ -60,10 +60,13 @@ func init() {
 	DecodeGroupVarint64 = asm.DecodeGroupVarint64
 
 	// Stream-VByte SIMD decode
-	// Note: Skip on Linux ARM64 due to segfault issue with x29/x30 register
-	// usage in the generated assembly. The GoAT-compiled code uses x29/x30
-	// as scratch registers after saving them, which works on macOS but causes
-	// issues on Linux ARM64. TODO: investigate root cause.
+	// Note: Skip on Linux ARM64 due to frame pointer unwinding crash.
+	// The StreamVByte function uses all available registers, so clang uses
+	// x29/x30 as scratch registers. When Go's runtime sends an async preemption
+	// signal while x29 is corrupted, the frame pointer unwinder crashes.
+	// See: https://github.com/golang/go/issues/63830
+	// GoAT attempts to substitute x29/x30 with free registers, but this
+	// function has no free registers available.
 	if runtime.GOOS != "linux" {
 		DecodeStreamVByte32Into = asm.DecodeStreamVByte32Into
 	}

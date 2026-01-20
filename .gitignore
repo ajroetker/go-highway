@@ -13,3 +13,5 @@ hwy/contrib/matvec/c/*.o
 hwy/contrib/matvec/c/*.s
 hwy/contrib/vec/c/*.o
 hwy/contrib/vec/c/*.s
+hwy/contrib/varint/c/*.o
+hwy/contrib/varint/c/*.s

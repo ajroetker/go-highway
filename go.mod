@@ -22,6 +22,6 @@ require (
 )
 
 // Use ajroetker/goat fork with SVE/SME streaming mode, FP16 headers, ABI offset fixes, int32_t support, size-appropriate load instructions, and stack frame fixes
-replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-sve-sme-support-012
+replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.0-sve-sme-support-013
 
 tool github.com/gorse-io/goat

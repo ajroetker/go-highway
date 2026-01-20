@@ -8,83 +8,19 @@ import (
 )
 
 func BaseSquaredNorm_fallback_Float16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	result := hwy.ReduceSum(sum).Float32()
-	for ; i < n; i++ {
-		result += v[i].Float32() * v[i].Float32()
-	}
-	return hwy.Float32ToFloat16(result)
+	return BaseDot_fallback_Float16(v, v)
 }
 
 func BaseSquaredNorm_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	result := hwy.ReduceSum(sum).Float32()
-	for ; i < n; i++ {
-		result += v[i].Float32() * v[i].Float32()
-	}
-	return hwy.Float32ToBFloat16(result)
+	return BaseDot_fallback_BFloat16(v, v)
 }
 
 func BaseSquaredNorm_fallback(v []float32) float32 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := hwy.Zero[float32]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	result := hwy.ReduceSum(sum)
-	for ; i < n; i++ {
-		result += v[i] * v[i]
-	}
-	return result
+	return BaseDot_fallback(v, v)
 }
 
 func BaseSquaredNorm_fallback_Float64(v []float64) float64 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := hwy.Zero[float64]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	result := hwy.ReduceSum(sum)
-	for ; i < n; i++ {
-		result += v[i] * v[i]
-	}
-	return result
+	return BaseDot_fallback_Float64(v, v)
 }
 
 func BaseNorm_fallback_Float16(v []hwy.Float16) hwy.Float16 {

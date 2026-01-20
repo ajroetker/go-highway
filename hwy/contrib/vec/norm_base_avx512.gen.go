@@ -6,87 +6,22 @@ package vec
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	stdmath "math"
-	"simd/archsimd"
 )
 
 func BaseSquaredNorm_avx512_Float16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := 32
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.MulF16(vec, vec)
-		sum = hwy.AddF16(sum, prod)
-	}
-	result := hwy.ReduceSumF16(sum)
-	for ; i < n; i++ {
-		result += v[i].Float32() * v[i].Float32()
-	}
-	return hwy.Float32ToFloat16(result)
+	return BaseDot_avx512_Float16(v, v)
 }
 
 func BaseSquaredNorm_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := 32
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.MulBF16(vec, vec)
-		sum = hwy.AddBF16(sum, prod)
-	}
-	result := hwy.ReduceSumBF16(sum)
-	for ; i < n; i++ {
-		result += v[i].Float32() * v[i].Float32()
-	}
-	return hwy.Float32ToBFloat16(result)
+	return BaseDot_avx512_BFloat16(v, v)
 }
 
 func BaseSquaredNorm_avx512(v []float32) float32 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := archsimd.BroadcastFloat32x16(0)
-	lanes := 16
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := archsimd.LoadFloat32x16Slice(v[i:])
-		prod := vec.Mul(vec)
-		sum = sum.Add(prod)
-	}
-	result := hwy.ReduceSum_AVX512_F32x16(sum)
-	for ; i < n; i++ {
-		result += v[i] * v[i]
-	}
-	return result
+	return BaseDot_avx512(v, v)
 }
 
 func BaseSquaredNorm_avx512_Float64(v []float64) float64 {
-	if len(v) == 0 {
-		return 0
-	}
-	n := len(v)
-	sum := archsimd.BroadcastFloat64x8(0)
-	lanes := 8
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := archsimd.LoadFloat64x8Slice(v[i:])
-		prod := vec.Mul(vec)
-		sum = sum.Add(prod)
-	}
-	result := hwy.ReduceSum_AVX512_F64x8(sum)
-	for ; i < n; i++ {
-		result += v[i] * v[i]
-	}
-	return result
+	return BaseDot_avx512_Float64(v, v)
 }
 
 func BaseNorm_avx512_Float16(v []hwy.Float16) hwy.Float16 {

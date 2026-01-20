@@ -36,31 +36,9 @@ import (
 //	v := []float32{3, 4}
 //	result := SquaredNorm(v)  // 3*3 + 4*4 = 25
 func BaseSquaredNorm[T hwy.Floats](v []T) T {
-	if len(v) == 0 {
-		return 0
-	}
-
-	n := len(v)
-	sum := hwy.Zero[T]()
-	lanes := sum.NumLanes()
-
-	// Process full vectors
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(v[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-
-	// Reduce vector sum to scalar
-	result := hwy.ReduceSum(sum)
-
-	// Handle tail elements with scalar code
-	for ; i < n; i++ {
-		result += v[i] * v[i]
-	}
-
-	return result
+	// Use Dot(v, v) for consistency with how norms are typically computed.
+	// This ensures the same precision characteristics as dot product operations.
+	return BaseDot(v, v)
 }
 
 // BaseNorm computes the L2 norm (Euclidean magnitude) of a vector using hwy
