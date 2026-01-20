@@ -220,15 +220,15 @@ BB5_2:
 BB5_3:
 	RET
 
-TEXT ·delta_decode_inplace_i32(SB), $0-24
-	MOVD data+0(FP), R0
-	MOVD n+8(FP), R1
-	MOVD base+16(FP), R2
-	WORD $0x4e040c40     // dup.4s	v0, w2
-	WORD $0xf100103f     // cmp	x1, #4
-	BGE  BB6_2
-	WORD $0xd280000a     // mov	x10, #0                         ; =0x0
-	B    BB6_4
+TEXT ·delta_decode_inplace_i32(SB), $0-20
+	MOVD  data+0(FP), R0
+	MOVD  n+8(FP), R1
+	MOVWU base+16(FP), R2
+	WORD  $0x4e040c40     // dup.4s	v0, w2
+	WORD  $0xf100103f     // cmp	x1, #4
+	BGE   BB6_2
+	WORD  $0xd280000a     // mov	x10, #0                         ; =0x0
+	B     BB6_4
 
 BB6_2:
 	WORD $0xd2800008 // mov	x8, #0                          ; =0x0
@@ -283,15 +283,15 @@ BB7_1:
 BB7_2:
 	RET
 
-TEXT ·delta_decode_inplace_u32(SB), $0-24
-	MOVD data+0(FP), R0
-	MOVD n+8(FP), R1
-	MOVD base+16(FP), R2
-	WORD $0x4e040c40     // dup.4s	v0, w2
-	WORD $0xf100103f     // cmp	x1, #4
-	BGE  BB8_2
-	WORD $0xd280000a     // mov	x10, #0                         ; =0x0
-	B    BB8_4
+TEXT ·delta_decode_inplace_u32(SB), $0-20
+	MOVD  data+0(FP), R0
+	MOVD  n+8(FP), R1
+	MOVWU base+16(FP), R2
+	WORD  $0x4e040c40     // dup.4s	v0, w2
+	WORD  $0xf100103f     // cmp	x1, #4
+	BGE   BB8_2
+	WORD  $0xd280000a     // mov	x10, #0                         ; =0x0
+	B     BB8_4
 
 BB8_2:
 	WORD $0xd2800008 // mov	x8, #0                          ; =0x0
