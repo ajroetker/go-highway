@@ -11,13 +11,13 @@ import (
 
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseFindVarintEnds_AVX512_threshold_f32 archsimd.Uint8x32
+	BaseFindVarintEnds_AVX512_threshold_f32 archsimd.Uint8x16
 	_varintBaseHoistOnce                    sync.Once
 )
 
 func _varintBaseInitHoistedConstants() {
 	_varintBaseHoistOnce.Do(func() {
-		BaseFindVarintEnds_AVX512_threshold_f32 = archsimd.BroadcastUint8x32(0x80)
+		BaseFindVarintEnds_AVX512_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
 	})
 }
 
@@ -29,9 +29,13 @@ func BaseFindVarintEnds_avx512(src []byte) uint32 {
 	n := min(len(src), 32)
 	if n == 32 {
 		threshold := BaseFindVarintEnds_AVX512_threshold_f32
-		v := archsimd.LoadUint8x32Slice(src[:32])
-		isTerminator := v.Less(threshold)
-		return uint32(hwy.BitsFromMask_AVX512_Uint8x32(isTerminator))
+		v0 := archsimd.LoadUint8x16Slice(src[:16])
+		isTerminator0 := v0.Less(threshold)
+		mask0 := uint32(hwy.BitsFromMask_AVX512_Uint8x16(isTerminator0))
+		v1 := archsimd.LoadUint8x16Slice(src[16:32])
+		isTerminator1 := v1.Less(threshold)
+		mask1 := uint32(hwy.BitsFromMask_AVX512_Uint8x16(isTerminator1))
+		return mask0 | (mask1 << 16)
 	}
 	var mask uint32
 	for i := 0; i < n; i++ {

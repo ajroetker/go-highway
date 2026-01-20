@@ -65,16 +65,24 @@ func BaseFindVarintEnds(src []byte) uint32 {
 	// Limit to 32 bytes (one uint32 bitmask)
 	n := min(len(src), 32)
 
-	// SIMD path: process all 32 bytes at once
-	// AVX2/AVX512 can handle 32 bytes natively
-	// NEON will use a 16-byte vector (only processing first 16 bytes via SIMD)
+	// SIMD path: process 32 bytes using two 16-byte operations
+	// This works for both NEON (16-byte vectors) and AVX2/AVX512 (which can also use 16-byte ops)
 	if n == 32 {
 		// Create threshold for comparison: bytes < 0x80 are terminators
 		threshold := hwy.Set[uint8](0x80)
-		v := hwy.Load[uint8](src[:32])
-		// LessThan returns true for terminators (high bit clear)
-		isTerminator := hwy.LessThan(v, threshold)
-		return uint32(hwy.BitsFromMask(isTerminator))
+
+		// Process first 16 bytes
+		v0 := hwy.Load[uint8](src[:16])
+		isTerminator0 := hwy.LessThan(v0, threshold)
+		mask0 := uint32(hwy.BitsFromMask(isTerminator0))
+
+		// Process second 16 bytes
+		v1 := hwy.Load[uint8](src[16:32])
+		isTerminator1 := hwy.LessThan(v1, threshold)
+		mask1 := uint32(hwy.BitsFromMask(isTerminator1))
+
+		// Combine masks: lower 16 bits from first half, upper 16 bits from second half
+		return mask0 | (mask1 << 16)
 	}
 
 	// Scalar fallback for partial buffers

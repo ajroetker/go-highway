@@ -20,9 +20,13 @@ func BaseFindVarintEnds_neon(src []byte) uint32 {
 	n := min(len(src), 32)
 	if n == 32 {
 		threshold := BaseFindVarintEnds_NEON_threshold_f32
-		v := asm.LoadUint8x16Slice(src[:32])
-		isTerminator := v.LessThan(threshold)
-		return uint32(hwy.BitsFromMask_NEON_Uint8x16(isTerminator))
+		v0 := asm.LoadUint8x16Slice(src[:16])
+		isTerminator0 := v0.LessThan(threshold)
+		mask0 := uint32(hwy.BitsFromMask_NEON_Uint8x16(isTerminator0))
+		v1 := asm.LoadUint8x16Slice(src[16:32])
+		isTerminator1 := v1.LessThan(threshold)
+		mask1 := uint32(hwy.BitsFromMask_NEON_Uint8x16(isTerminator1))
+		return mask0 | (mask1 << 16)
 	}
 	var mask uint32
 	for i := 0; i < n; i++ {

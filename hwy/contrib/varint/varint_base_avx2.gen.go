@@ -10,7 +10,7 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseFindVarintEnds_AVX2_threshold_f32 = archsimd.BroadcastUint8x32(0x80)
+	BaseFindVarintEnds_AVX2_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
 )
 
 func BaseFindVarintEnds_avx2(src []byte) uint32 {
@@ -20,9 +20,13 @@ func BaseFindVarintEnds_avx2(src []byte) uint32 {
 	n := min(len(src), 32)
 	if n == 32 {
 		threshold := BaseFindVarintEnds_AVX2_threshold_f32
-		v := archsimd.LoadUint8x32Slice(src[:32])
-		isTerminator := v.Less(threshold)
-		return uint32(hwy.BitsFromMask_AVX2_Uint8x32(isTerminator))
+		v0 := archsimd.LoadUint8x16Slice(src[:16])
+		isTerminator0 := v0.Less(threshold)
+		mask0 := uint32(hwy.BitsFromMask_AVX2_Uint8x16(isTerminator0))
+		v1 := archsimd.LoadUint8x16Slice(src[16:32])
+		isTerminator1 := v1.Less(threshold)
+		mask1 := uint32(hwy.BitsFromMask_AVX2_Uint8x16(isTerminator1))
+		return mask0 | (mask1 << 16)
 	}
 	var mask uint32
 	for i := 0; i < n; i++ {
