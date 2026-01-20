@@ -14,6 +14,8 @@
 
 package varint
 
+//go:generate go run ../../../cmd/hwygen -input groupvarint_base.go -output . -targets avx2,avx512,neon,fallback -dispatch groupvarint
+
 import "github.com/ajroetker/go-highway/hwy"
 
 // Group Varint encoding is a SIMD-friendly alternative to standard LEB128 varint encoding.
@@ -39,13 +41,19 @@ import "github.com/ajroetker/go-highway/hwy"
 //   - Bits 9-11: length of value3 minus 1
 
 // Lookup tables for decoding uint32 group varint.
-// For each control byte (0-255), stores total encoded length and per-value offsets.
+// For each control byte (0-255), stores total encoded length, per-value offsets, and shuffle masks.
 var (
 	// groupVarint32TotalLen[control] = 1 + sum of value lengths
 	groupVarint32TotalLen [256]uint8
 
 	// groupVarint32Offsets[control][i] = offset to value i within encoded data
 	groupVarint32Offsets [256][4]uint8
+
+	// groupVarint32ShuffleMasks contains precomputed shuffle masks for SIMD decoding.
+	// For control byte c, masks[c] contains indices to shuffle 16 data bytes into 4 uint32 values.
+	// Index 255 means "output zero" (for padding shorter values to 4 bytes).
+	// Note: indices are relative to src[1:] (after the control byte).
+	groupVarint32ShuffleMasks [256][16]uint8
 )
 
 func init() {
@@ -62,6 +70,48 @@ func init() {
 		groupVarint32Offsets[control][1] = uint8(1 + len0)
 		groupVarint32Offsets[control][2] = uint8(1 + len0 + len1)
 		groupVarint32Offsets[control][3] = uint8(1 + len0 + len1 + len2)
+
+		// Build shuffle mask for SIMD decoding
+		// Data starts at src[1], so offsets are relative to that
+		off0 := 0
+		off1 := len0
+		off2 := len0 + len1
+		off3 := len0 + len1 + len2
+
+		var mask [16]uint8
+		// Value 0 at output positions 0-3
+		for i := 0; i < 4; i++ {
+			if i < len0 {
+				mask[i] = uint8(off0 + i)
+			} else {
+				mask[i] = 255 // zero padding
+			}
+		}
+		// Value 1 at output positions 4-7
+		for i := 0; i < 4; i++ {
+			if i < len1 {
+				mask[4+i] = uint8(off1 + i)
+			} else {
+				mask[4+i] = 255
+			}
+		}
+		// Value 2 at output positions 8-11
+		for i := 0; i < 4; i++ {
+			if i < len2 {
+				mask[8+i] = uint8(off2 + i)
+			} else {
+				mask[8+i] = 255
+			}
+		}
+		// Value 3 at output positions 12-15
+		for i := 0; i < 4; i++ {
+			if i < len3 {
+				mask[12+i] = uint8(off3 + i)
+			} else {
+				mask[12+i] = 255
+			}
+		}
+		groupVarint32ShuffleMasks[control] = mask
 	}
 }
 
@@ -108,6 +158,8 @@ func bytesNeeded64(v uint64) int {
 // subsequent bytes for all encoded values. If src is too short, returns
 // zeros and 0 bytes consumed.
 //
+// Uses SIMD shuffle operations when enough data is available (17 bytes: 1 control + 16 data).
+//
 // Example:
 //
 //	// Encoded: control=0x11, then 2+1+2+1=6 value bytes
@@ -126,9 +178,34 @@ func BaseDecodeGroupVarint32(src []byte) (values [4]uint32, consumed int) {
 		return [4]uint32{}, 0
 	}
 
-	offsets := groupVarint32Offsets[control]
+	// Use SIMD path if we have enough data for vector load (1 control + 16 data bytes)
+	if len(src) >= 17 {
+		// Load data bytes (after control byte) into vector
+		dataVec := hwy.Load[uint8](src[1:17])
 
-	// Decode each value using the precomputed offsets
+		// Load shuffle mask for this control byte
+		maskSlice := groupVarint32ShuffleMasks[control][:]
+		maskVec := hwy.Load[uint8](maskSlice)
+
+		// Shuffle: rearrange bytes according to mask
+		// Index 255 (>= 16) produces zero in TableLookupBytes
+		shuffled := hwy.TableLookupBytes(dataVec, maskVec)
+
+		// Store shuffled bytes
+		var result [16]uint8
+		hwy.Store(shuffled, result[:])
+
+		// Convert 16 bytes to 4 uint32 (little-endian)
+		values[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
+		values[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
+		values[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
+		values[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
+
+		return values, totalLen
+	}
+
+	// Scalar fallback for short buffers
+	offsets := groupVarint32Offsets[control]
 	values[0] = decodeValue32(src, int(offsets[0]), ((int(control)>>0)&0x3)+1)
 	values[1] = decodeValue32(src, int(offsets[1]), ((int(control)>>2)&0x3)+1)
 	values[2] = decodeValue32(src, int(offsets[2]), ((int(control)>>4)&0x3)+1)
@@ -202,41 +279,6 @@ func decodeValue64(src []byte, offset, length int) uint64 {
 	return v
 }
 
-// BaseEncodeGroupVarint32 encodes 4 uint32 values to group-varint format.
-// dst must have at least 17 bytes capacity (1 control + 4*4 max).
-// Returns number of bytes written.
-//
-// Example:
-//
-//	values := [4]uint32{300, 5, 1000, 2}
-//	dst := make([]byte, 17)
-//	n := BaseEncodeGroupVarint32(values, dst)
-//	// dst[:n] contains the encoded data
-func BaseEncodeGroupVarint32(values [4]uint32, dst []byte) int {
-	if len(dst) < 17 {
-		return 0
-	}
-
-	// Compute byte lengths
-	len0 := bytesNeeded32(values[0])
-	len1 := bytesNeeded32(values[1])
-	len2 := bytesNeeded32(values[2])
-	len3 := bytesNeeded32(values[3])
-
-	// Build control byte: 2 bits per value (length - 1)
-	control := byte((len0-1)<<0 | (len1-1)<<2 | (len2-1)<<4 | (len3-1)<<6)
-	dst[0] = control
-
-	// Encode values in little-endian format
-	offset := 1
-	offset += encodeValue32(values[0], dst[offset:], len0)
-	offset += encodeValue32(values[1], dst[offset:], len1)
-	offset += encodeValue32(values[2], dst[offset:], len2)
-	offset += encodeValue32(values[3], dst[offset:], len3)
-
-	return offset
-}
-
 // encodeValue32 writes a uint32 in little-endian format using the specified byte length.
 // Returns the number of bytes written.
 func encodeValue32(v uint32, dst []byte, length int) int {
@@ -244,42 +286,6 @@ func encodeValue32(v uint32, dst []byte, length int) int {
 		dst[i] = byte(v >> (8 * i))
 	}
 	return length
-}
-
-// BaseEncodeGroupVarint64 encodes 4 uint64 values to group-varint format.
-// dst must have at least 34 bytes capacity (2 control + 4*8 max).
-// Returns number of bytes written.
-//
-// Example:
-//
-//	values := [4]uint64{300, 5, 1000, 2}
-//	dst := make([]byte, 34)
-//	n := BaseEncodeGroupVarint64(values, dst)
-//	// dst[:n] contains the encoded data
-func BaseEncodeGroupVarint64(values [4]uint64, dst []byte) int {
-	if len(dst) < 34 {
-		return 0
-	}
-
-	// Compute byte lengths
-	len0 := bytesNeeded64(values[0])
-	len1 := bytesNeeded64(values[1])
-	len2 := bytesNeeded64(values[2])
-	len3 := bytesNeeded64(values[3])
-
-	// Build 12-bit control: 3 bits per value (length - 1)
-	control := uint16((len0-1)<<0 | (len1-1)<<3 | (len2-1)<<6 | (len3-1)<<9)
-	dst[0] = byte(control)
-	dst[1] = byte(control >> 8)
-
-	// Encode values in little-endian format
-	offset := 2
-	offset += encodeValue64(values[0], dst[offset:], len0)
-	offset += encodeValue64(values[1], dst[offset:], len1)
-	offset += encodeValue64(values[2], dst[offset:], len2)
-	offset += encodeValue64(values[3], dst[offset:], len3)
-
-	return offset
 }
 
 // encodeValue64 writes a uint64 in little-endian format using the specified byte length.
@@ -290,32 +296,3 @@ func encodeValue64(v uint64, dst []byte, length int) int {
 	}
 	return length
 }
-
-// BaseGroupVarint32Len returns the encoded length for 4 uint32 values.
-// This is useful for pre-allocating destination buffers.
-//
-// Example:
-//
-//	values := [4]uint32{300, 5, 1000, 2}
-//	length := BaseGroupVarint32Len(values)  // Returns 7
-func BaseGroupVarint32Len(values [4]uint32) int {
-	return 1 + bytesNeeded32(values[0]) + bytesNeeded32(values[1]) +
-		bytesNeeded32(values[2]) + bytesNeeded32(values[3])
-}
-
-// BaseGroupVarint64Len returns the encoded length for 4 uint64 values.
-// This is useful for pre-allocating destination buffers.
-//
-// Example:
-//
-//	values := [4]uint64{300, 5, 1000, 2}
-//	length := BaseGroupVarint64Len(values)  // Returns 8
-func BaseGroupVarint64Len(values [4]uint64) int {
-	return 2 + bytesNeeded64(values[0]) + bytesNeeded64(values[1]) +
-		bytesNeeded64(values[2]) + bytesNeeded64(values[3])
-}
-
-// The following are placeholder references to hwy package to ensure
-// the import is used. SIMD-accelerated implementations will use these
-// for shuffle-based decoding.
-var _ = hwy.Zero[uint32]

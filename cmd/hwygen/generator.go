@@ -186,6 +186,10 @@ func inferTypesFromParams(params []Param) []string {
 		// Look for slice types like []uint32, []uint64, []float32, etc.
 		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
 			elemType := after
+			// Handle byte as alias for uint8
+			if elemType == "byte" {
+				return []string{"uint8"}
+			}
 			switch elemType {
 			case "uint8", "uint16", "uint32", "uint64",
 				"int8", "int16", "int32", "int64",

@@ -67,17 +67,12 @@ func init() {
 	// See: https://github.com/golang/go/issues/63830
 	// GoAT attempts to substitute x29/x30 with free registers, but this
 	// function has no free registers available.
+	//
+	// On Linux, we keep the hwygen-generated NEON implementation (already set by
+	// dispatch_streamvbyte_arm64.gen.go). On other platforms, override with GoAT.
 	if runtime.GOOS != "linux" {
 		DecodeStreamVByte32Into = asm.DecodeStreamVByte32Into
-	} else {
-		// On Linux, use hwygen-generated NEON implementation instead.
-		// This uses the hwy/asm package (Go SIMD intrinsics) rather than
-		// GoAT-generated assembly, avoiding the frame pointer issue.
-		DecodeStreamVByte32Into = DecodeStreamVByte32IntoFloat32
 	}
-
-	// Also wire the allocating variant to SIMD
-	DecodeStreamVByte32 = DecodeStreamVByte32Float32
 }
 
 // wrapFindVarintEnds adapts the asm function signature.

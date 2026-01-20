@@ -305,6 +305,21 @@ func BitsFromMask_AVX512_F64x8(mask archsimd.Mask64x8) uint64 {
 	return uint64(mask.ToBits())
 }
 
+// BitsFromMask_AVX512_Uint8x16 converts a 16-byte mask to bitmask integer.
+func BitsFromMask_AVX512_Uint8x16(mask archsimd.Mask8x16) uint64 {
+	return uint64(mask.ToBits())
+}
+
+// BitsFromMask_AVX512_Uint8x32 converts a 32-byte mask to bitmask integer.
+func BitsFromMask_AVX512_Uint8x32(mask archsimd.Mask8x32) uint64 {
+	return uint64(mask.ToBits())
+}
+
+// BitsFromMask_AVX512_Uint8x64 converts a 64-byte mask to bitmask integer.
+func BitsFromMask_AVX512_Uint8x64(mask archsimd.Mask8x64) uint64 {
+	return mask.ToBits()
+}
+
 // ============================================================================
 // Integer type variants (I32x16, I64x8)
 // ============================================================================

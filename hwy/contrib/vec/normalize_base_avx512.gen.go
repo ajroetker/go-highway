@@ -28,8 +28,8 @@ func BaseNormalize_avx512_Float16(dst []hwy.Float16) {
 		result := hwy.MulF16(vec, scaleVec)
 		hwy.Store(result, dst[i:])
 	}
-	if i < len(dst) {
-		BaseNormalize_fallback_Float16(dst[i:len(dst)])
+	for ; i < len(dst); i++ {
+		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() * scale)
 	}
 }
 
@@ -52,8 +52,8 @@ func BaseNormalize_avx512_BFloat16(dst []hwy.BFloat16) {
 		result := hwy.MulBF16(vec, scaleVec)
 		hwy.Store(result, dst[i:])
 	}
-	if i < len(dst) {
-		BaseNormalize_fallback_BFloat16(dst[i:len(dst)])
+	for ; i < len(dst); i++ {
+		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() * scale)
 	}
 }
 
@@ -76,8 +76,8 @@ func BaseNormalize_avx512(dst []float32) {
 		result := vec.Mul(scaleVec)
 		result.StoreSlice(dst[i:])
 	}
-	if i < len(dst) {
-		BaseNormalize_fallback(dst[i:len(dst)])
+	for ; i < len(dst); i++ {
+		dst[i] *= scale
 	}
 }
 
@@ -100,8 +100,8 @@ func BaseNormalize_avx512_Float64(dst []float64) {
 		result := vec.Mul(scaleVec)
 		result.StoreSlice(dst[i:])
 	}
-	if i < len(dst) {
-		BaseNormalize_fallback_Float64(dst[i:len(dst)])
+	for ; i < len(dst); i++ {
+		dst[i] *= scale
 	}
 }
 
@@ -126,8 +126,8 @@ func BaseNormalizeTo_avx512_Float16(dst []hwy.Float16, src []hwy.Float16) {
 		result := hwy.MulF16(vec, scaleVec)
 		hwy.Store(result, dst[i:])
 	}
-	if i < n {
-		BaseNormalizeTo_fallback_Float16(dst[i:n], src[i:n])
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToFloat16(src[i].Float32() * scale)
 	}
 }
 
@@ -152,8 +152,8 @@ func BaseNormalizeTo_avx512_BFloat16(dst []hwy.BFloat16, src []hwy.BFloat16) {
 		result := hwy.MulBF16(vec, scaleVec)
 		hwy.Store(result, dst[i:])
 	}
-	if i < n {
-		BaseNormalizeTo_fallback_BFloat16(dst[i:n], src[i:n])
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToBFloat16(src[i].Float32() * scale)
 	}
 }
 
@@ -178,8 +178,8 @@ func BaseNormalizeTo_avx512(dst []float32, src []float32) {
 		result := vec.Mul(scaleVec)
 		result.StoreSlice(dst[i:])
 	}
-	if i < n {
-		BaseNormalizeTo_fallback(dst[i:n], src[i:n])
+	for ; i < n; i++ {
+		dst[i] = src[i] * scale
 	}
 }
 
@@ -204,7 +204,7 @@ func BaseNormalizeTo_avx512_Float64(dst []float64, src []float64) {
 		result := vec.Mul(scaleVec)
 		result.StoreSlice(dst[i:])
 	}
-	if i < n {
-		BaseNormalizeTo_fallback_Float64(dst[i:n], src[i:n])
+	for ; i < n; i++ {
+		dst[i] = src[i] * scale
 	}
 }

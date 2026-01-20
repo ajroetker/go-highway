@@ -3063,11 +3063,13 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	}
 
 	// Insert init statement, main loop, and tail handling
-	// Skip the original scalar tail loop if present (it's replaced by the fallback call)
+	// Check if the next statement is a scalar tail loop that can be replaced by fallback
 	nextIdx := loopIdx + 1
+	canReplaceTailLoop := false
 	if nextIdx < len(body.List) {
 		if isScalarTailLoop(body.List[nextIdx], loopInfo.Iterator, loopInfo.End) {
-			nextIdx++ // Skip the scalar tail loop
+			canReplaceTailLoop = true
+			nextIdx++ // Skip the scalar tail loop (it will be replaced by fallback call)
 		}
 	}
 
@@ -3077,7 +3079,12 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 		newStmts = append(newStmts, initStmt)
 	}
 	newStmts = append(newStmts, mainLoop)
-	newStmts = append(newStmts, tailIf)
+	// Only add the fallback call if we're replacing the scalar tail loop.
+	// If the tail loop uses external variables (like 'scale' computed from full array),
+	// we must keep the original loop which correctly uses those variables.
+	if canReplaceTailLoop {
+		newStmts = append(newStmts, tailIf)
+	}
 	newStmts = append(newStmts, body.List[nextIdx:]...)
 	body.List = newStmts
 }
@@ -3136,6 +3143,14 @@ func isScalarTailLoop(stmt ast.Stmt, iterator, end string) bool {
 		return false
 	}
 
+	// Check if the loop body uses external variables (not just the iterator and arrays).
+	// If so, those variables were computed from the full input and the fallback would
+	// recalculate them incorrectly from just the tail.
+	// Example: "dst[i] *= scale" uses external variable "scale" computed from full array.
+	if usesExternalVariables(forStmt.Body, iterator) {
+		return false
+	}
+
 	return true
 }
 
@@ -3169,6 +3184,74 @@ func hasLocalVariableAssignment(body *ast.BlockStmt, iterator string) bool {
 	})
 
 	return hasLocalAssign
+}
+
+// usesExternalVariables checks if a loop body uses variables that were defined
+// outside the loop (excluding the iterator and slice/array variables used in index expressions).
+// For example, "dst[i] *= scale" uses external variable "scale".
+// The fallback function would recalculate such variables from just the tail, which is wrong.
+func usesExternalVariables(body *ast.BlockStmt, iterator string) bool {
+	if body == nil {
+		return false
+	}
+
+	// Collect the names of slices/arrays that appear in index expressions
+	// These are OK to reference since they're function parameters
+	indexedSlices := make(map[string]bool)
+	ast.Inspect(body, func(n ast.Node) bool {
+		if indexExpr, ok := n.(*ast.IndexExpr); ok {
+			if ident, ok := indexExpr.X.(*ast.Ident); ok {
+				indexedSlices[ident.Name] = true
+			}
+		}
+		return true
+	})
+
+	hasExternal := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		ident, ok := n.(*ast.Ident)
+		if !ok {
+			return true
+		}
+
+		name := ident.Name
+
+		// Skip the iterator variable
+		if name == iterator {
+			return true
+		}
+
+		// Skip indexed slices/arrays (these are function parameters)
+		if indexedSlices[name] {
+			return true
+		}
+
+		// Skip built-in identifiers
+		builtins := map[string]bool{
+			"true": true, "false": true, "nil": true,
+			"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+			"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
+			"float32": true, "float64": true, "complex64": true, "complex128": true,
+			"string": true, "bool": true, "byte": true, "rune": true,
+			"len": true, "cap": true, "make": true, "new": true, "append": true,
+			"copy": true, "delete": true, "panic": true, "recover": true, "close": true,
+			"print": true, "println": true,
+		}
+		if builtins[name] {
+			return true
+		}
+
+		// Skip blank identifier
+		if name == "_" {
+			return true
+		}
+
+		// This is an external variable - flag it
+		hasExternal = true
+		return false
+	})
+
+	return hasExternal
 }
 
 // isSimdStyleLoop checks if a for loop appears to be a SIMD-style loop (as opposed
@@ -3407,14 +3490,14 @@ func getVectorTypeNameForLanes(elemType string, lanes int) string {
 	}
 }
 
-// getSliceSize extracts the size from a slice expression like data[:16] or data[0:16].
+// getSliceSize extracts the size from a slice expression like data[:16], data[0:16], or data[1:17].
 // Returns 0 if the size cannot be determined.
 func getSliceSize(expr ast.Expr) int {
 	sliceExpr, ok := expr.(*ast.SliceExpr)
 	if !ok {
 		return 0
 	}
-	// Check for [:N] or [0:N] pattern
+	// Need a high bound to determine size
 	if sliceExpr.High == nil {
 		return 0
 	}
@@ -3422,18 +3505,25 @@ func getSliceSize(expr ast.Expr) int {
 	if !ok || highLit.Kind != token.INT {
 		return 0
 	}
-	size, err := strconv.Atoi(highLit.Value)
+	high, err := strconv.Atoi(highLit.Value)
 	if err != nil {
 		return 0
 	}
-	// If there's a low bound, check if it's 0
+	// If there's a low bound, subtract it from high to get actual size
+	// For [:N] or [0:N], size is N
+	// For [1:17], size is 17-1=16
+	low := 0
 	if sliceExpr.Low != nil {
 		lowLit, ok := sliceExpr.Low.(*ast.BasicLit)
-		if !ok || lowLit.Kind != token.INT || lowLit.Value != "0" {
-			return 0 // Non-zero low bound, can't determine effective size
+		if !ok || lowLit.Kind != token.INT {
+			return 0 // Non-literal low bound, can't determine effective size
+		}
+		low, err = strconv.Atoi(lowLit.Value)
+		if err != nil {
+			return 0
 		}
 	}
-	return size
+	return high - low
 }
 
 // elemTypeSize returns the size in bytes of an element type.
@@ -3479,6 +3569,23 @@ func parseTypeExpr(typeStr string) ast.Expr {
 	if strings.HasPrefix(typeStr, "[]") {
 		return &ast.ArrayType{
 			Elt: parseTypeExpr(typeStr[2:]),
+		}
+	}
+
+	// Handle array types like [4]uint32 or [16]uint8
+	// Must check before generic types since both use brackets
+	if strings.HasPrefix(typeStr, "[") {
+		closeBracket := strings.Index(typeStr, "]")
+		if closeBracket > 0 {
+			sizeStr := typeStr[1:closeBracket]
+			elemType := typeStr[closeBracket+1:]
+			// Check if it's an array type (size is a number) vs generic (size is a type)
+			if _, err := strconv.Atoi(sizeStr); err == nil {
+				return &ast.ArrayType{
+					Len: &ast.BasicLit{Kind: token.INT, Value: sizeStr},
+					Elt: parseTypeExpr(elemType),
+				}
+			}
 		}
 	}
 

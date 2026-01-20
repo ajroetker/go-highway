@@ -286,22 +286,26 @@ func TestSpecializeType(t *testing.T) {
 
 func TestBuildDispatchFuncName(t *testing.T) {
 	tests := []struct {
-		baseName string
-		elemType string
-		want     string
+		baseName  string
+		elemType  string
+		isGeneric bool
+		want      string
 	}{
-		// All types now get explicit suffixes for consistent generic dispatch
-		{"BaseSigmoid", "float32", "SigmoidFloat32"},
-		{"BaseSigmoid", "float64", "SigmoidFloat64"},
-		{"BaseAdd", "float32", "AddFloat32"},
-		{"BaseAdd", "int32", "AddInt32"},
+		// Generic functions get type suffixes
+		{"BaseSigmoid", "float32", true, "SigmoidFloat32"},
+		{"BaseSigmoid", "float64", true, "SigmoidFloat64"},
+		{"BaseAdd", "float32", true, "AddFloat32"},
+		{"BaseAdd", "int32", true, "AddInt32"},
+		// Non-generic functions don't get type suffixes
+		{"BaseDecodeStreamVByte32Into", "uint8", false, "DecodeStreamVByte32Into"},
+		{"BasePack32", "uint32", false, "Pack32"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.baseName+"_"+tt.elemType, func(t *testing.T) {
-			got := buildDispatchFuncName(tt.baseName, tt.elemType)
+			got := buildDispatchFuncName(tt.baseName, tt.elemType, tt.isGeneric)
 			if got != tt.want {
-				t.Errorf("buildDispatchFuncName(%q, %q) = %q, want %q", tt.baseName, tt.elemType, got, tt.want)
+				t.Errorf("buildDispatchFuncName(%q, %q, %v) = %q, want %q", tt.baseName, tt.elemType, tt.isGeneric, got, tt.want)
 			}
 		})
 	}
@@ -588,18 +592,32 @@ func TestIsScalarTailLoop(t *testing.T) {
 			want:     false,
 		},
 		{
-			name:     "scalar tail loop with len(dst) end",
-			code:     "for ; i < len(dst); i++ { dst[i] *= scale }",
+			name:     "scalar tail loop with len(dst) end - simple copy",
+			code:     "for ; i < len(dst); i++ { dst[i] = src[i] }",
 			iterator: "i",
 			end:      "len(dst)",
 			want:     true,
 		},
 		{
-			name:     "scalar tail loop with len(src) end",
-			code:     "for ; i < len(src); i++ { dst[i] = src[i] * scale }",
+			name:     "scalar tail loop with len(src) end - simple copy",
+			code:     "for ; i < len(src); i++ { dst[i] = src[i] }",
 			iterator: "i",
 			end:      "len(src)",
 			want:     true,
+		},
+		{
+			name:     "not a scalar tail - uses external variable scale (multiply)",
+			code:     "for ; i < len(dst); i++ { dst[i] *= scale }",
+			iterator: "i",
+			end:      "len(dst)",
+			want:     false,
+		},
+		{
+			name:     "not a scalar tail - uses external variable scale (expression)",
+			code:     "for ; i < len(src); i++ { dst[i] = src[i] * scale }",
+			iterator: "i",
+			end:      "len(src)",
+			want:     false,
 		},
 		{
 			name:     "not a scalar tail - assigns to local variable",

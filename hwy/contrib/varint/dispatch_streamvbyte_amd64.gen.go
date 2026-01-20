@@ -8,9 +8,9 @@ import (
 	"simd/archsimd"
 )
 
-var DecodeStreamVByte32Float32 func(control []byte, data []uint8, n int) []uint32
-var DecodeStreamVByte32IntoFloat32 func(control []byte, data []uint8, dst []uint32) (decoded int, dataConsumed int)
-var DecodeStreamVByte32GroupSIMDFloat32 func(ctrl byte, data []uint8, dst []uint32) int
+var DecodeStreamVByte32 func(control []byte, data []uint8, n int) []uint32
+var DecodeStreamVByte32Into func(control []byte, data []uint8, dst []uint32) (decoded int, dataConsumed int)
+var DecodeStreamVByte32GroupSIMD func(ctrl byte, data []uint8, dst []uint32) int
 
 func init() {
 	if os.Getenv("HWY_NO_SIMD") != "" {
@@ -29,19 +29,19 @@ func init() {
 }
 
 func initStreamvbyteAVX2() {
-	DecodeStreamVByte32Float32 = BaseDecodeStreamVByte32_avx2
-	DecodeStreamVByte32IntoFloat32 = BaseDecodeStreamVByte32Into_avx2
-	DecodeStreamVByte32GroupSIMDFloat32 = BaseDecodeStreamVByte32GroupSIMD_avx2
+	DecodeStreamVByte32 = BaseDecodeStreamVByte32_avx2
+	DecodeStreamVByte32Into = BaseDecodeStreamVByte32Into_avx2
+	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_avx2
 }
 
 func initStreamvbyteAVX512() {
-	DecodeStreamVByte32Float32 = BaseDecodeStreamVByte32_avx512
-	DecodeStreamVByte32IntoFloat32 = BaseDecodeStreamVByte32Into_avx512
-	DecodeStreamVByte32GroupSIMDFloat32 = BaseDecodeStreamVByte32GroupSIMD_avx512
+	DecodeStreamVByte32 = BaseDecodeStreamVByte32_avx512
+	DecodeStreamVByte32Into = BaseDecodeStreamVByte32Into_avx512
+	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_avx512
 }
 
 func initStreamvbyteFallback() {
-	DecodeStreamVByte32Float32 = BaseDecodeStreamVByte32_fallback
-	DecodeStreamVByte32IntoFloat32 = BaseDecodeStreamVByte32Into_fallback
-	DecodeStreamVByte32GroupSIMDFloat32 = BaseDecodeStreamVByte32GroupSIMD_fallback
+	DecodeStreamVByte32 = BaseDecodeStreamVByte32_fallback
+	DecodeStreamVByte32Into = BaseDecodeStreamVByte32Into_fallback
+	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_fallback
 }

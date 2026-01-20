@@ -342,6 +342,18 @@ func BitsFromMask_AVX2_F64x4(mask archsimd.Mask64x4) uint64 {
 	return uint64(mask64x4ToBits(mask))
 }
 
+// BitsFromMask_AVX2_Uint8x16 converts a byte mask to bitmask integer.
+// Each bit in the result corresponds to one byte lane.
+func BitsFromMask_AVX2_Uint8x16(mask archsimd.Mask8x16) uint64 {
+	return uint64(mask.ToBits())
+}
+
+// BitsFromMask_AVX2_Uint8x32 converts a 32-byte mask to bitmask integer.
+// Each bit in the result corresponds to one byte lane.
+func BitsFromMask_AVX2_Uint8x32(mask archsimd.Mask8x32) uint64 {
+	return uint64(mask.ToBits())
+}
+
 // ============================================================================
 // Integer type variants (I32x8, I64x4)
 // ============================================================================

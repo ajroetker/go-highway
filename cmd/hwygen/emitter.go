@@ -342,15 +342,16 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 	// Declare function variables
 	for _, pf := range dispatchableFuncs {
+		isGeneric := len(pf.TypeParams) > 0
 		var concreteTypes []string
-		if len(pf.TypeParams) > 0 {
+		if isGeneric {
 			concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 		} else {
 			concreteTypes = []string{"float32"}
 		}
 
 		for _, elemType := range concreteTypes {
-			funcName := buildDispatchFuncName(pf.Name, elemType)
+			funcName := buildDispatchFuncName(pf.Name, elemType, isGeneric)
 			signature := buildFuncSignature(pf, elemType)
 			fmt.Fprintf(&buf, "var %s func%s\n", funcName, signature)
 		}
@@ -406,15 +407,16 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 		fmt.Fprintf(&buf, "func %s() {\n", initFuncName)
 
 		for _, pf := range dispatchableFuncs {
+			isGeneric := len(pf.TypeParams) > 0
 			var concreteTypes []string
-			if len(pf.TypeParams) > 0 {
+			if isGeneric {
 				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 			} else {
 				concreteTypes = []string{"float32"}
 			}
 
 			for _, elemType := range concreteTypes {
-				dispatchName := buildDispatchFuncName(pf.Name, elemType)
+				dispatchName := buildDispatchFuncName(pf.Name, elemType, isGeneric)
 				// Functions with interface type parameters only have fallback implementations
 				// so use fallback even for SIMD targets
 				var implName string
@@ -423,7 +425,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 				} else {
 					implName = pf.Name + target.Suffix()
 				}
-				if elemType != "float32" {
+				if elemType != "float32" && isGeneric {
 					implName = implName + "_" + typeNameToSuffix(elemType)
 				}
 				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
@@ -437,17 +439,18 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	if hasFallback {
 		fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 		for _, pf := range dispatchableFuncs {
+			isGeneric := len(pf.TypeParams) > 0
 			var concreteTypes []string
-			if len(pf.TypeParams) > 0 {
+			if isGeneric {
 				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 			} else {
 				concreteTypes = []string{"float32"}
 			}
 
 			for _, elemType := range concreteTypes {
-				dispatchName := buildDispatchFuncName(pf.Name, elemType)
+				dispatchName := buildDispatchFuncName(pf.Name, elemType, isGeneric)
 				implName := pf.Name + "_fallback"
-				if elemType != "float32" {
+				if elemType != "float32" && isGeneric {
 					implName = implName + "_" + typeNameToSuffix(elemType)
 				}
 				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
@@ -507,15 +510,16 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 
 	// Declare function variables
 	for _, pf := range dispatchableFuncs {
+		isGeneric := len(pf.TypeParams) > 0
 		var concreteTypes []string
-		if len(pf.TypeParams) > 0 {
+		if isGeneric {
 			concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 		} else {
 			concreteTypes = []string{"float32"}
 		}
 
 		for _, elemType := range concreteTypes {
-			funcName := buildDispatchFuncName(pf.Name, elemType)
+			funcName := buildDispatchFuncName(pf.Name, elemType, isGeneric)
 			signature := buildFuncSignature(pf, elemType)
 			fmt.Fprintf(&buf, "var %s func%s\n", funcName, signature)
 		}
@@ -540,17 +544,18 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 
 	fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 	for _, pf := range dispatchableFuncs {
+		isGeneric := len(pf.TypeParams) > 0
 		var concreteTypes []string
-		if len(pf.TypeParams) > 0 {
+		if isGeneric {
 			concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 		} else {
 			concreteTypes = []string{"float32"}
 		}
 
 		for _, elemType := range concreteTypes {
-			dispatchName := buildDispatchFuncName(pf.Name, elemType)
+			dispatchName := buildDispatchFuncName(pf.Name, elemType, isGeneric)
 			implName := pf.Name + "_fallback"
-			if elemType != "float32" {
+			if elemType != "float32" && isGeneric {
 				implName = implName + "_" + typeNameToSuffix(elemType)
 			}
 			fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
@@ -851,7 +856,8 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 	fmt.Fprintf(buf, "\tswitch any(%s).(type) {\n", switchParam)
 
 	for _, elemType := range concreteTypes {
-		dispatchName := buildDispatchFuncName(pf.Name, elemType)
+		// emitGenericDispatcher is only called for generic functions, so isGeneric is always true
+		dispatchName := buildDispatchFuncName(pf.Name, elemType, true)
 		// Use specializeType to get the concrete type for the case statement
 		caseType := specializeType(switchParamType, pf.TypeParams, elemType)
 
@@ -961,14 +967,22 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 }
 
 // buildDispatchFuncName creates the public function name for the dispatcher.
-// BaseSigmoid[float32] -> SigmoidFloat32
-// BaseSigmoid[float64] -> SigmoidFloat64
-func buildDispatchFuncName(baseName, elemType string) string {
+// For generic functions (multiple type variants):
+//
+//	BaseSigmoid[float32] -> SigmoidFloat32
+//	BaseSigmoid[float64] -> SigmoidFloat64
+//
+// For non-generic functions (single concrete type):
+//
+//	BaseDecodeStreamVByte32Into -> DecodeStreamVByte32Into
+func buildDispatchFuncName(baseName, elemType string, isGeneric bool) string {
 	// Remove "Base" prefix
 	name := strings.TrimPrefix(baseName, "Base")
 
-	// Always add type suffix for explicit dispatch functions
-	name = name + typeNameToSuffix(elemType)
+	// Only add type suffix for generic functions (which have multiple type variants)
+	if isGeneric {
+		name = name + typeNameToSuffix(elemType)
+	}
 
 	return name
 }
