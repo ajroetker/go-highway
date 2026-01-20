@@ -11,24 +11,15 @@ func BaseNormalize_fallback_Float16(dst []hwy.Float16) {
 	if len(dst) == 0 {
 		return
 	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= len(dst); i += lanes {
-		vec := hwy.Load(dst[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum).Float32()
-	for ; i < len(dst); i++ {
-		squaredNorm += dst[i].Float32() * dst[i].Float32()
-	}
+	squaredNorm := BaseDot_fallback_Float16(dst, dst)
 	if squaredNorm == 0 {
 		return
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
 	scaleVec := hwy.Set(hwy.Float32ToFloat16(scale))
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= len(dst); i += lanes {
 		vec := hwy.Load(dst[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -43,24 +34,15 @@ func BaseNormalize_fallback_BFloat16(dst []hwy.BFloat16) {
 	if len(dst) == 0 {
 		return
 	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= len(dst); i += lanes {
-		vec := hwy.Load(dst[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum).Float32()
-	for ; i < len(dst); i++ {
-		squaredNorm += dst[i].Float32() * dst[i].Float32()
-	}
+	squaredNorm := BaseDot_fallback_BFloat16(dst, dst)
 	if squaredNorm == 0 {
 		return
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
 	scaleVec := hwy.Set(hwy.Float32ToBFloat16(scale))
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= len(dst); i += lanes {
 		vec := hwy.Load(dst[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -75,24 +57,15 @@ func BaseNormalize_fallback(dst []float32) {
 	if len(dst) == 0 {
 		return
 	}
-	sum := hwy.Zero[float32]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= len(dst); i += lanes {
-		vec := hwy.Load(dst[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum)
-	for ; i < len(dst); i++ {
-		squaredNorm += dst[i] * dst[i]
-	}
+	squaredNorm := BaseDot_fallback(dst, dst)
 	if squaredNorm == 0 {
 		return
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
 	scaleVec := hwy.Set(scale)
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= len(dst); i += lanes {
 		vec := hwy.Load(dst[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -107,24 +80,15 @@ func BaseNormalize_fallback_Float64(dst []float64) {
 	if len(dst) == 0 {
 		return
 	}
-	sum := hwy.Zero[float64]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= len(dst); i += lanes {
-		vec := hwy.Load(dst[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum)
-	for ; i < len(dst); i++ {
-		squaredNorm += dst[i] * dst[i]
-	}
+	squaredNorm := BaseDot_fallback_Float64(dst, dst)
 	if squaredNorm == 0 {
 		return
 	}
 	norm := float64(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float64(1) / norm
 	scaleVec := hwy.Set(scale)
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= len(dst); i += lanes {
 		vec := hwy.Load(dst[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -140,18 +104,7 @@ func BaseNormalizeTo_fallback_Float16(dst []hwy.Float16, src []hwy.Float16) {
 	if n == 0 {
 		return
 	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(src[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum).Float32()
-	for ; i < n; i++ {
-		squaredNorm += src[i].Float32() * src[i].Float32()
-	}
+	squaredNorm := BaseDot_fallback_Float16(src[:n], src[:n])
 	if squaredNorm == 0 {
 		copy(dst[:n], src[:n])
 		return
@@ -159,6 +112,8 @@ func BaseNormalizeTo_fallback_Float16(dst []hwy.Float16, src []hwy.Float16) {
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
 	scaleVec := hwy.Set(hwy.Float32ToFloat16(scale))
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vec := hwy.Load(src[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -174,18 +129,7 @@ func BaseNormalizeTo_fallback_BFloat16(dst []hwy.BFloat16, src []hwy.BFloat16) {
 	if n == 0 {
 		return
 	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(src[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum).Float32()
-	for ; i < n; i++ {
-		squaredNorm += src[i].Float32() * src[i].Float32()
-	}
+	squaredNorm := BaseDot_fallback_BFloat16(src[:n], src[:n])
 	if squaredNorm == 0 {
 		copy(dst[:n], src[:n])
 		return
@@ -193,6 +137,8 @@ func BaseNormalizeTo_fallback_BFloat16(dst []hwy.BFloat16, src []hwy.BFloat16) {
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
 	scaleVec := hwy.Set(hwy.Float32ToBFloat16(scale))
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vec := hwy.Load(src[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -208,18 +154,7 @@ func BaseNormalizeTo_fallback(dst []float32, src []float32) {
 	if n == 0 {
 		return
 	}
-	sum := hwy.Zero[float32]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(src[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum)
-	for ; i < n; i++ {
-		squaredNorm += src[i] * src[i]
-	}
+	squaredNorm := BaseDot_fallback(src[:n], src[:n])
 	if squaredNorm == 0 {
 		copy(dst[:n], src[:n])
 		return
@@ -227,6 +162,8 @@ func BaseNormalizeTo_fallback(dst []float32, src []float32) {
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
 	scaleVec := hwy.Set(scale)
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vec := hwy.Load(src[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -242,18 +179,7 @@ func BaseNormalizeTo_fallback_Float64(dst []float64, src []float64) {
 	if n == 0 {
 		return
 	}
-	sum := hwy.Zero[float64]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(src[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-	squaredNorm := hwy.ReduceSum(sum)
-	for ; i < n; i++ {
-		squaredNorm += src[i] * src[i]
-	}
+	squaredNorm := BaseDot_fallback_Float64(src[:n], src[:n])
 	if squaredNorm == 0 {
 		copy(dst[:n], src[:n])
 		return
@@ -261,6 +187,8 @@ func BaseNormalizeTo_fallback_Float64(dst []float64, src []float64) {
 	norm := float64(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float64(1) / norm
 	scaleVec := hwy.Set(scale)
+	lanes := scaleVec.NumLanes()
+	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vec := hwy.Load(src[i:])
 		result := hwy.Mul(vec, scaleVec)

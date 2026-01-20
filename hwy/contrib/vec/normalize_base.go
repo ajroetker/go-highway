@@ -40,25 +40,9 @@ func BaseNormalize[T hwy.Floats](dst []T) {
 		return
 	}
 
-	// Compute squared norm using SIMD
-	sum := hwy.Zero[T]()
-	lanes := sum.NumLanes()
-
-	var i int
-	for i = 0; i+lanes <= len(dst); i += lanes {
-		vec := hwy.Load(dst[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-
-	// Reduce to scalar - for Float16/BFloat16, ReduceSum returns float32 via .Float32()
-	// hwygen will transform this appropriately for each type
-	squaredNorm := hwy.ReduceSum(sum)
-
-	// Handle tail elements
-	for ; i < len(dst); i++ {
-		squaredNorm += dst[i] * dst[i]
-	}
+	// Compute squared norm using Dot(v, v) for consistency with how norms are
+	// computed elsewhere. This ensures the same precision characteristics.
+	squaredNorm := BaseDot(dst, dst)
 
 	// If squared norm is zero, leave unchanged
 	if squaredNorm == 0 {
@@ -72,7 +56,9 @@ func BaseNormalize[T hwy.Floats](dst []T) {
 
 	// Create scale vector - hwy.Set takes value of type T
 	scaleVec := hwy.Set(scale)
+	lanes := scaleVec.NumLanes()
 
+	var i int
 	for i = 0; i+lanes <= len(dst); i += lanes {
 		vec := hwy.Load(dst[i:])
 		result := hwy.Mul(vec, scaleVec)
@@ -106,24 +92,9 @@ func BaseNormalizeTo[T hwy.Floats](dst, src []T) {
 		return
 	}
 
-	// Compute squared norm using SIMD
-	sum := hwy.Zero[T]()
-	lanes := sum.NumLanes()
-
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(src[i:])
-		prod := hwy.Mul(vec, vec)
-		sum = hwy.Add(sum, prod)
-	}
-
-	// Reduce to scalar
-	squaredNorm := hwy.ReduceSum(sum)
-
-	// Handle tail elements
-	for ; i < n; i++ {
-		squaredNorm += src[i] * src[i]
-	}
+	// Compute squared norm using Dot(v, v) for consistency with how norms are
+	// computed elsewhere. This ensures the same precision characteristics.
+	squaredNorm := BaseDot(src[:n], src[:n])
 
 	// If squared norm is zero, copy src to dst unchanged
 	if squaredNorm == 0 {
@@ -137,7 +108,9 @@ func BaseNormalizeTo[T hwy.Floats](dst, src []T) {
 
 	// Create scale vector
 	scaleVec := hwy.Set(scale)
+	lanes := scaleVec.NumLanes()
 
+	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vec := hwy.Load(src[i:])
 		result := hwy.Mul(vec, scaleVec)
