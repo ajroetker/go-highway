@@ -58,8 +58,11 @@ func init() {
 	DecodeGroupVarint32 = asm.DecodeGroupVarint32
 	DecodeGroupVarint64 = asm.DecodeGroupVarint64
 
-	// Stream-VByte SIMD decode (uses NEON TBL shuffle)
-	DecodeStreamVByte32Into = asm.DecodeStreamVByte32Into
+	// Stream-VByte SIMD decode
+	// NOTE: asm.DecodeStreamVByte32Into is disabled due to GoAT stack frame bug
+	// (double stack allocation causes segfault on Linux). Using hwygen-generated
+	// NEON path via BaseDecodeStreamVByte32Into_neon instead.
+	DecodeStreamVByte32Into = BaseDecodeStreamVByte32Into_neon
 }
 
 // wrapFindVarintEnds adapts the asm function signature.
