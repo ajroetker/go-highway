@@ -151,7 +151,7 @@ func (g *Generator) Run() error {
 		// Detect which contrib subpackages are needed for this specific target
 		contribPkgs := detectContribPackagesForTarget(result.Funcs, target)
 		hoistedConsts := targetHoisted[target.Name]
-		if err := EmitTarget(funcDecls, target, g.PackageOut, baseFilename, g.OutputDir, contribPkgs, hoistedConsts); err != nil {
+		if err := EmitTarget(funcDecls, target, g.PackageOut, baseFilename, g.OutputDir, contribPkgs, hoistedConsts, result.Imports); err != nil {
 			return fmt.Errorf("emit target %s: %w", target.Name, err)
 		}
 	}

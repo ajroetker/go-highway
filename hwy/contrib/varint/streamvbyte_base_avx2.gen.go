@@ -6,6 +6,7 @@ package varint
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
+	"unsafe"
 )
 
 func BaseDecodeStreamVByte32_avx2(control []byte, data []uint8, n int) []uint32 {
@@ -79,4 +80,111 @@ func BaseDecodeStreamVByte32GroupSIMD_avx2(ctrl byte, data []uint8, dst []uint32
 	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
 	dst[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
 	return dataLen
+}
+
+func BaseEncodeStreamVByte32_avx2(values []uint32) (control []byte, data []byte) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	numGroups := (len(values) + 3) / 4
+	control = make([]byte, numGroups)
+	data = make([]byte, 0, len(values)*4)
+	for g := 0; g < numGroups; g++ {
+		baseIdx := g * 4
+		remaining := len(values) - baseIdx
+		if remaining >= 4 {
+			ctrl, groupData := BaseEncodeStreamVByte32GroupSIMD_avx2(values[baseIdx : baseIdx+4])
+			control[g] = ctrl
+			data = append(data, groupData...)
+		} else {
+			var group [4]uint32
+			copy(group[:], values[baseIdx:])
+			ctrl, groupData := encodeGroupScalar(group[:])
+			control[g] = ctrl
+			data = append(data, groupData...)
+		}
+	}
+	return control, data
+}
+
+func BaseEncodeStreamVByte32Into_avx2(values []uint32, controlBuf []byte, dataBuf []byte) (control []byte, data []byte) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	numGroups := (len(values) + 3) / 4
+	if cap(controlBuf) < numGroups {
+		controlBuf = make([]byte, numGroups)
+	} else {
+		controlBuf = controlBuf[:numGroups]
+	}
+	maxDataLen := len(values) * 4
+	if cap(dataBuf) < maxDataLen {
+		dataBuf = make([]byte, maxDataLen)
+	} else {
+		dataBuf = dataBuf[:maxDataLen]
+	}
+	dataPos := 0
+	for g := 0; g < numGroups; g++ {
+		baseIdx := g * 4
+		remaining := len(values) - baseIdx
+		if remaining >= 4 && dataPos+16 <= len(dataBuf) {
+			ctrl, n := BaseEncodeStreamVByte32GroupSIMDInto_avx2(values[baseIdx:baseIdx+4], dataBuf[dataPos:])
+			controlBuf[g] = ctrl
+			dataPos += n
+		} else {
+			var group [4]uint32
+			copy(group[:], values[baseIdx:])
+			ctrl, n := encodeGroupScalarInto(group[:], dataBuf[dataPos:])
+			controlBuf[g] = ctrl
+			dataPos += n
+		}
+	}
+	return controlBuf, dataBuf[:dataPos]
+}
+
+func BaseEncodeStreamVByte32GroupSIMD_avx2(values []uint32) (ctrl byte, data []byte) {
+	if len(values) < 4 {
+		return encodeGroupScalar(values)
+	}
+	ctrl = 0
+	for i := 0; i < 4; i++ {
+		length := encodedLengthU32(values[i])
+		ctrl |= byte(length-1) << (i * 2)
+	}
+	dataLen := int(streamVByte32DataLen[ctrl])
+	data = make([]byte, dataLen)
+	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
+	inputVec := archsimd.LoadUint8x16Slice(inputBytes[:16])
+	maskVec := archsimd.LoadUint8x16Slice(streamVByte32EncodeShuffleMasks[ctrl][:16])
+	shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(inputVec, maskVec)
+	var outputBytes [16]uint8
+	shuffled.StoreSlice(outputBytes[:16])
+	copy(data, outputBytes[:dataLen])
+	return ctrl, data
+}
+
+func BaseEncodeStreamVByte32GroupSIMDInto_avx2(values []uint32, dst []uint8) (ctrl byte, n int) {
+	if len(values) < 4 || len(dst) < 16 {
+		return 0, 0
+	}
+	combined := values[0] | values[1] | values[2] | values[3]
+	if combined <= 0xFF {
+		dst[0] = byte(values[0])
+		dst[1] = byte(values[1])
+		dst[2] = byte(values[2])
+		dst[3] = byte(values[3])
+		return 0, 4
+	}
+	ctrl = 0
+	for i := 0; i < 4; i++ {
+		length := encodedLengthU32(values[i])
+		ctrl |= byte(length-1) << (i * 2)
+	}
+	n = int(streamVByte32DataLen[ctrl])
+	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
+	inputVec := archsimd.LoadUint8x16Slice(inputBytes[:16])
+	maskVec := archsimd.LoadUint8x16Slice(streamVByte32EncodeShuffleMasks[ctrl][:16])
+	shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(inputVec, maskVec)
+	shuffled.StoreSlice(dst[:16])
+	return ctrl, n
 }
