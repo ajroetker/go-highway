@@ -813,41 +813,13 @@ void load4_u8x16(unsigned char *ptr, uint8x16_t *out0, uint8x16_t *out1, uint8x1
 // ============================================================================
 // Mask Operations for Uint8x16
 // ============================================================================
-
-// movmsk_u8x16 extracts the high bit from each byte into a 16-bit mask.
-// This is the NEON equivalent of x86 pmovmskb.
-// Input: mask vector where each byte is either 0xFF (true) or 0x00 (false)
-// Output: bit i is set if byte i had its high bit set (i.e., was 0xFF)
-long movmsk_u8x16(uint8x16_t v) {
-    // Method: Use narrowing shifts and polynomial-style bit packing
-    // 1. Shift right by 7 to get [0,1] per byte from [0x00, 0xFF]
-    uint8x16_t bits = vshrq_n_u8(v, 7);
-
-    // 2. Use multiply-based packing: multiply each byte by its position power-of-2
-    // Position weights: [1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128]
-    // for lower and upper halves separately
-    static const uint8_t weights_data[16] = {
-        1, 2, 4, 8, 16, 32, 64, 128,
-        1, 2, 4, 8, 16, 32, 64, 128
-    };
-    uint8x16_t weights = vld1q_u8(weights_data);
-
-    // Multiply each bit by its position weight
-    uint8x16_t weighted = vmulq_u8(bits, weights);
-
-    // Sum the lower 8 bytes and upper 8 bytes separately
-    // Get lower and upper halves
-    uint8x8_t lo = vget_low_u8(weighted);
-    uint8x8_t hi = vget_high_u8(weighted);
-
-    // Horizontal add within each half to get the bitmask bytes
-    // vaddv_u8 sums all 8 bytes to a single value
-    uint8_t lo_mask = vaddv_u8(lo);
-    uint8_t hi_mask = vaddv_u8(hi);
-
-    // Combine: low byte is bits 0-7, high byte is bits 8-15
-    return (long)lo_mask | ((long)hi_mask << 8);
-}
+// NOTE: movmsk_u8x16 (NEON equivalent of x86 pmovmskb) is implemented in pure Go
+// as BitsFromMaskFast in hwy/asm/bits_from_mask_fast.go. The C implementation was
+// removed because GoAT doesn't properly handle static const arrays - it generates
+// empty data labels, causing the assembly to load zeros instead of the weight constants.
+// The pure Go implementation uses bit manipulation (AND + multiply trick) which
+// is equally fast and doesn't need constant data from memory.
+// ============================================================================
 
 // Uint16x8: 4 vectors = 32 uint16s = 64 bytes
 void load4_u16x8(unsigned short *ptr, uint16x8_t *out0, uint16x8_t *out1, uint16x8_t *out2, uint16x8_t *out3) {
