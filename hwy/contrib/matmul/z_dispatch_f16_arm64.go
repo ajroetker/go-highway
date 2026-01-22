@@ -18,26 +18,34 @@ package matmul
 
 import "github.com/ajroetker/go-highway/hwy"
 
-// Override Float16/BFloat16 dispatch based on CPU feature detection.
+// Override Float16/BFloat16 dispatch to use fallback implementations.
 //
-// The NEON assembly code is compiled with:
-// - F16 code: -march=armv8.2-a+fp16 (requires ARMv8.2-A FP16 extension)
-// - BF16 code: -march=armv8.6-a+bf16 (requires ARMv8.6-A BF16 extension)
+// The NEON assembly code for F16/BF16 requires ARMv8.2-A+ FP16 and ARMv8.6-A+ BF16
+// extensions respectively. However, CPU feature detection via golang.org/x/sys/cpu
+// can be unreliable on some Linux ARM64 systems, leading to crashes when the
+// detected features don't match actual hardware capabilities.
 //
-// The generated dispatch files (dispatch_*_arm64.gen.go) unconditionally use
-// the NEON versions, but not all ARM64 CPUs support FP16/BF16. This file runs
-// after the generated dispatch files (alphabetically via "z_" prefix) and
-// downgrades to fallback implementations if the CPU doesn't support the
-// required extensions.
+// This file runs after the generated dispatch files (alphabetically via "z_" prefix)
+// and forces fallback implementations for F16/BF16 on all ARM64 systems for safety.
+//
+// To enable optimized F16/BF16 paths on known-good hardware (like Apple Silicon),
+// set HWY_ENABLE_F16=1 environment variable.
 func init() {
-	// The generated dispatch and matmul_neon_arm64.go already set the dispatch
-	// variables. If the CPU doesn't support FP16/BF16, downgrade to fallback.
-	if !hwy.HasARMFP16() {
-		MatMulFloat16 = BaseMatMul_fallback_Float16
-		BlockedMatMulFloat16 = BaseBlockedMatMul_fallback_Float16
-	}
-	if !hwy.HasARMBF16() {
-		MatMulBFloat16 = BaseMatMul_fallback_BFloat16
-		BlockedMatMulBFloat16 = BaseBlockedMatMul_fallback_BFloat16
+	// Always use fallback for F16/BF16 by default - CPU feature detection
+	// has proven unreliable on some ARM64 systems
+	MatMulFloat16 = BaseMatMul_fallback_Float16
+	BlockedMatMulFloat16 = BaseBlockedMatMul_fallback_Float16
+	MatMulBFloat16 = BaseMatMul_fallback_BFloat16
+	BlockedMatMulBFloat16 = BaseBlockedMatMul_fallback_BFloat16
+
+	// Allow opting into optimized paths on known-good hardware
+	// This is useful for Apple Silicon and other verified platforms
+	if hwy.EnableF16Env() && hwy.HasARMFP16() {
+		// Re-enable optimized F16 paths
+		// matmul_neon_arm64.go would have set these, but we overwrote them above
+		// Let matmul_neon_arm64.go's dispatch stand (it already ran before us)
+		// We need to re-set them here since we cleared them
+		MatMulFloat16 = matmulNEONF16
+		BlockedMatMulFloat16 = blockedMatMulNEONF16
 	}
 }
