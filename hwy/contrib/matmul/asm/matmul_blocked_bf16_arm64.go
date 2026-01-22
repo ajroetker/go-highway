@@ -3,15 +3,12 @@
 // versions:
 // 	clang   21.1.8
 // 	objdump 2.45.1
-// flags: -march=armv8.6-a+fp16+bf16 -O3
-// source: ../c/matmul_blocked_neon_arm64.c
+// flags: -march=armv8.6-a+bf16 -O3
+// source: ../c/matmul_blocked_bf16_arm64.c
 
 package asm
 
 import "unsafe"
-
-//go:noescape
-func blocked_matmul_neon_f16(a, b, c, pm, pn, pk unsafe.Pointer)
 
 //go:noescape
 func blocked_matmul_neon_bf16(a, b, c, pm, pn, pk unsafe.Pointer)

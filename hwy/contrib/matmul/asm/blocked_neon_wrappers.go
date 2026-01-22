@@ -24,7 +24,10 @@ import (
 )
 
 // Generate assembly from C using goat
-//go:generate go tool goat ../c/matmul_blocked_neon_arm64.c -O3 --target arm64 -e="-march=armv8.6-a+fp16+bf16"
+// F16: Requires ARMv8.2-A with FP16 extension
+//go:generate go tool goat ../c/matmul_blocked_f16_arm64.c -O3 --target arm64 -e="-march=armv8.2-a+fp16"
+// BF16: Requires ARMv8.6-A with BF16 extension
+//go:generate go tool goat ../c/matmul_blocked_bf16_arm64.c -O3 --target arm64 -e="-march=armv8.6-a+bf16"
 
 // BlockedMatMulNEONF16 performs cache-tiled matrix multiplication using NEON: C = A * B
 // A is M x K (row-major), B is K x N (row-major), C is M x N (row-major).

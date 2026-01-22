@@ -19,16 +19,19 @@ package matmul
 import "github.com/ajroetker/go-highway/hwy"
 
 // Override Float16/BFloat16 dispatch based on CPU feature detection.
-// The generated dispatch files (dispatch_*_arm64.gen.go) unconditionally use
-// the NEON versions for Float16/BFloat16, but these require ARMv8.2+ FP16
-// and ARMv8.6+ BF16 extensions respectively.
 //
-// This file runs after the generated dispatch files (alphabetically) and
+// The NEON assembly code is compiled with:
+// - F16 code: -march=armv8.2-a+fp16 (requires ARMv8.2-A FP16 extension)
+// - BF16 code: -march=armv8.6-a+bf16 (requires ARMv8.6-A BF16 extension)
+//
+// The generated dispatch files (dispatch_*_arm64.gen.go) unconditionally use
+// the NEON versions, but not all ARM64 CPUs support FP16/BF16. This file runs
+// after the generated dispatch files (alphabetically via "z_" prefix) and
 // downgrades to fallback implementations if the CPU doesn't support the
 // required extensions.
 func init() {
-	// The generated dispatch already set MatMulFloat16/BFloat16 to NEON versions.
-	// If the CPU doesn't support FP16/BF16, downgrade to fallback.
+	// The generated dispatch and matmul_neon_arm64.go already set the dispatch
+	// variables. If the CPU doesn't support FP16/BF16, downgrade to fallback.
 	if !hwy.HasARMFP16() {
 		MatMulFloat16 = BaseMatMul_fallback_Float16
 		BlockedMatMulFloat16 = BaseBlockedMatMul_fallback_Float16
