@@ -479,7 +479,4 @@ func load4_u64x2(ptr, out0, out1, out2, out3 unsafe.Pointer)
 func load4_u8x16(ptr, out0, out1, out2, out3 unsafe.Pointer)
 
 //go:noescape
-func movmsk_u8x16(v [16]byte) (result int64)
-
-//go:noescape
 func load4_u16x8(ptr, out0, out1, out2, out3 unsafe.Pointer)

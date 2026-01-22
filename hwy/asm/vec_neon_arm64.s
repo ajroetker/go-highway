@@ -2286,29 +2286,6 @@ TEXT ·load4_u8x16(SB), $0-40
 	WORD $0x3d800083     // str	q3, [x4]
 	RET
 
-lCPI156_0:
-lCPI156_1:
-
-TEXT ·movmsk_u8x16(SB), $0-24
-	MOVD v_0+0(FP), R9
-	MOVD v_8+8(FP), R10
-	VMOV R9, V0.D[0]
-	VMOV R10, V0.D[1]
-	WORD $0x90000008       // adrp	x8, lCPI156_0@PAGE
-	WORD $0x3dc00101       // ldr	q1, [x8, lCPI156_0@PAGEOFF]
-	WORD $0x6e214400       // ushl.16b	v0, v0, v1
-	WORD $0x90000008       // adrp	x8, lCPI156_1@PAGE
-	WORD $0x3dc00101       // ldr	q1, [x8, lCPI156_1@PAGEOFF]
-	WORD $0x4e211c00       // and.16b	v0, v0, v1
-	WORD $0x6e004001       // ext.16b	v1, v0, v0, #8
-	WORD $0x0e31b821       // addv.8b	b1, v1
-	WORD $0x1e260028       // fmov	w8, s1
-	WORD $0x0e31b800       // addv.8b	b0, v0
-	WORD $0x1e260000       // fmov	w0, s0
-	WORD $0x33181d00       // bfi	w0, w8, #8, #8
-	MOVD R0, result+16(FP)
-	RET
-
 TEXT ·load4_u16x8(SB), $0-40
 	MOVD ptr+0(FP), R0
 	MOVD out0+8(FP), R1

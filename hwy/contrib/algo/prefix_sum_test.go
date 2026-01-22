@@ -159,6 +159,125 @@ func TestBaseDeltaDecode_Empty(t *testing.T) {
 	}
 }
 
+func TestDeltaEncode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []uint64
+		base     uint64
+		expected []uint64
+	}{
+		{
+			name:     "simple",
+			input:    []uint64{13, 15, 20, 21},
+			base:     10,
+			expected: []uint64{3, 2, 5, 1},
+		},
+		{
+			name:     "zero_base",
+			input:    []uint64{1, 3, 6, 10},
+			base:     0,
+			expected: []uint64{1, 2, 3, 4},
+		},
+		{
+			name:     "single",
+			input:    []uint64{105},
+			base:     100,
+			expected: []uint64{5},
+		},
+		{
+			name:     "posting_list_simulation",
+			input:    []uint64{100, 105, 115, 117, 132, 135, 143, 144},
+			base:     0,
+			expected: []uint64{100, 5, 10, 2, 15, 3, 8, 1},
+		},
+		{
+			name:     "large_aligned",
+			input:    []uint64{0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150},
+			base:     0,
+			expected: []uint64{0, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := slices.Clone(tt.input)
+			DeltaEncode(data, tt.base)
+
+			if len(data) != len(tt.expected) {
+				t.Fatalf("length mismatch: got %d, want %d", len(data), len(tt.expected))
+			}
+
+			for i := range data {
+				if data[i] != tt.expected[i] {
+					t.Errorf("DeltaEncode[%d]: got %d, want %d", i, data[i], tt.expected[i])
+				}
+			}
+		})
+	}
+}
+
+func TestDeltaEncode_Empty(t *testing.T) {
+	data := []uint64{}
+	DeltaEncode(data, 10) // should not panic
+	if len(data) != 0 {
+		t.Errorf("expected empty slice, got %v", data)
+	}
+}
+
+func TestDeltaEncodeDecodeRoundtrip(t *testing.T) {
+	// Test that encode followed by decode gives back the original
+	original := []uint64{100, 200, 250, 300, 400, 500, 600, 700, 800, 900}
+	base := uint64(50)
+
+	// Make a copy and encode
+	encoded := slices.Clone(original)
+	DeltaEncode(encoded, base)
+
+	// Decode
+	decoded := slices.Clone(encoded)
+	BaseDeltaDecode(decoded, base)
+
+	// Should match original
+	for i := range original {
+		if decoded[i] != original[i] {
+			t.Errorf("roundtrip[%d]: got %d, want %d (encoded was %d)",
+				i, decoded[i], original[i], encoded[i])
+		}
+	}
+}
+
+func TestDeltaEncodeDecodeRoundtrip_LargeSlice(t *testing.T) {
+	// Test with a larger slice to exercise multiple vector iterations
+	size := 1000
+	original := make([]uint32, size)
+	for i := range original {
+		original[i] = uint32(i * 100) // Monotonically increasing
+	}
+	base := uint32(0)
+
+	// Encode
+	encoded := slices.Clone(original)
+	DeltaEncode(encoded, base)
+
+	// All deltas should be 100 (except first which is 0)
+	for i := 1; i < len(encoded); i++ {
+		if encoded[i] != 100 {
+			t.Errorf("encoded[%d]: got %d, want 100", i, encoded[i])
+		}
+	}
+
+	// Decode
+	decoded := slices.Clone(encoded)
+	BaseDeltaDecode(decoded, base)
+
+	// Should match original
+	for i := range original {
+		if decoded[i] != original[i] {
+			t.Errorf("roundtrip[%d]: got %d, want %d", i, decoded[i], original[i])
+		}
+	}
+}
+
 func TestBasePrefixSumVec(t *testing.T) {
 	// Test the vector-level prefix sum directly
 	input := []int64{1, 2, 3, 4}
@@ -324,6 +443,54 @@ func BenchmarkBasePrefixSum_Scalar_Float32(b *testing.B) {
 		for i, v := range data {
 			acc += v
 			data[i] = acc
+		}
+	}
+}
+
+func BenchmarkDeltaEncode_Uint64(b *testing.B) {
+	template := make([]uint64, benchSize)
+	for i := range template {
+		template[i] = uint64(i * 10) // Monotonically increasing
+	}
+	data := make([]uint64, benchSize)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		copy(data, template)
+		DeltaEncode(data, 0)
+	}
+}
+
+func BenchmarkDeltaEncode_Uint32(b *testing.B) {
+	template := make([]uint32, benchSize)
+	for i := range template {
+		template[i] = uint32(i * 10) // Monotonically increasing
+	}
+	data := make([]uint32, benchSize)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		copy(data, template)
+		DeltaEncode(data, 0)
+	}
+}
+
+func BenchmarkDeltaEncode_Scalar(b *testing.B) {
+	template := make([]uint64, benchSize)
+	for i := range template {
+		template[i] = uint64(i * 10)
+	}
+	data := make([]uint64, benchSize)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		copy(data, template)
+		// Scalar delta encode (in reverse order)
+		for i := len(data) - 1; i > 0; i-- {
+			data[i] -= data[i-1]
 		}
 	}
 }

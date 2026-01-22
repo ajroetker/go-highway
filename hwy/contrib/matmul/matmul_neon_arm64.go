@@ -76,4 +76,6 @@ func init() {
 	// This overrides the generated dispatch for better performance
 	// Will be overridden by SME if available
 	MatMulFloat32 = matmulNEON
+	MatMulFloat16 = matmulNEONF16
+	MatMulBFloat16 = matmulNEONBF16
 }

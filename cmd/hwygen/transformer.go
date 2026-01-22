@@ -265,6 +265,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		halfPrecisionSlices:     make(map[string]bool),
 		halfPrecisionScalarVars: make(map[string]bool),
 		varVecLanes:             make(map[string]int),
+		varVecElemType:          make(map[string]string),
 	}
 
 	// Add function parameters to localVars to prevent them from being hoisted
@@ -362,62 +363,83 @@ type transformContext struct {
 	halfPrecisionScalarVars map[string]bool               // Variables assigned from half-precision slice reads
 	halfPrecisionSlices     map[string]bool               // Slice variables that hold half-precision elements
 	varVecLanes             map[string]int                // map[var_name]lanes for detected vector sizes from Load
+	varVecElemType          map[string]string             // map[var_name]elemType for detected element types from Load
 	inferredFuncLanes       int                           // Inferred lane count for function (from first detected Load size)
 }
 
+// vecLoadInfo contains inferred information from an hwy.Load call.
+type vecLoadInfo struct {
+	lanes    int    // Number of vector lanes (0 if not detected)
+	elemType string // Element type (empty if not detected or same as function's elemType)
+}
+
 // inferVecLanesFromLoad checks if an expression is an hwy.Load call with a detectable slice size.
-// Returns the number of lanes if detected, 0 otherwise.
-func inferVecLanesFromLoad(expr ast.Expr, ctx *transformContext) int {
+// Returns the number of lanes and element type if detected.
+func inferVecLanesFromLoad(expr ast.Expr, ctx *transformContext) vecLoadInfo {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
-		return 0
+		return vecLoadInfo{}
 	}
 
 	// Check for hwy.Load(...) or hwy.Load[T](...) call
 	var funcName string
+	var explicitElemType string // Explicit type param from hwy.Load[uint8] style calls
 	switch fun := call.Fun.(type) {
 	case *ast.SelectorExpr:
 		// hwy.Load(...)
 		pkgIdent, ok := fun.X.(*ast.Ident)
 		if !ok || pkgIdent.Name != "hwy" {
-			return 0
+			return vecLoadInfo{}
 		}
 		funcName = fun.Sel.Name
 	case *ast.IndexExpr:
-		// hwy.Load[T](...) - generic call
+		// hwy.Load[T](...) - generic call with explicit type param
 		sel, ok := fun.X.(*ast.SelectorExpr)
 		if !ok {
-			return 0
+			return vecLoadInfo{}
 		}
 		pkgIdent, ok := sel.X.(*ast.Ident)
 		if !ok || pkgIdent.Name != "hwy" {
-			return 0
+			return vecLoadInfo{}
 		}
 		funcName = sel.Sel.Name
+		// Extract explicit type parameter
+		if typeIdent, ok := fun.Index.(*ast.Ident); ok {
+			explicitElemType = typeIdent.Name
+		}
 	default:
-		return 0
+		return vecLoadInfo{}
 	}
 
 	if funcName != "Load" {
-		return 0
+		return vecLoadInfo{}
 	}
 
 	// Check if we have an argument with a detectable slice size
 	if len(call.Args) == 0 {
-		return 0
+		return vecLoadInfo{}
 	}
 
 	sliceBytes := getSliceSize(call.Args[0])
 	if sliceBytes <= 0 {
-		return 0
+		return vecLoadInfo{}
 	}
 
-	elemSize := elemTypeSize(ctx.elemType)
+	// Use explicit type param if present, otherwise fall back to function's elemType
+	effectiveElemType := ctx.elemType
+	if explicitElemType != "" {
+		effectiveElemType = explicitElemType
+	}
+
+	elemSize := elemTypeSize(effectiveElemType)
 	if elemSize <= 0 {
-		return 0
+		return vecLoadInfo{}
 	}
 
-	return sliceBytes / elemSize
+	return vecLoadInfo{
+		lanes:    sliceBytes / elemSize,
+		elemType: explicitElemType, // Only set if different from function's elemType
+	}
 }
 
 // inferTypeFromExpr analyzes an expression and returns its inferred type.
@@ -520,12 +542,15 @@ func collectLocalVariables(node ast.Node, ctx *transformContext) {
 							if inferredType := inferTypeFromExpr(stmt.Rhs[i], ctx); inferredType != "" {
 								ctx.varTypes[ident.Name] = inferredType
 							}
-							// Track vector lanes for variables assigned from Load with known slice size
-							if lanes := inferVecLanesFromLoad(stmt.Rhs[i], ctx); lanes > 0 {
-								ctx.varVecLanes[ident.Name] = lanes
+							// Track vector lanes and element type for variables assigned from Load
+							if loadInfo := inferVecLanesFromLoad(stmt.Rhs[i], ctx); loadInfo.lanes > 0 {
+								ctx.varVecLanes[ident.Name] = loadInfo.lanes
+								if loadInfo.elemType != "" {
+									ctx.varVecElemType[ident.Name] = loadInfo.elemType
+								}
 								// Set function-wide inferred lanes on first detection
 								if ctx.inferredFuncLanes == 0 {
-									ctx.inferredFuncLanes = lanes
+									ctx.inferredFuncLanes = loadInfo.lanes
 								}
 							}
 						}
@@ -697,22 +722,27 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 		if strings.HasPrefix(ident.Name, "Base") {
 			// Transform BaseFoo to BaseFoo_avx2 (or BaseFoo_fallback, etc.)
 			suffix := ctx.target.Suffix()
-			// Add type suffix for non-float32 types
-			switch ctx.elemType {
-			case "float64":
-				suffix = suffix + "_Float64"
-			case "hwy.Float16":
-				suffix = suffix + "_Float16"
-			case "hwy.BFloat16":
-				suffix = suffix + "_BFloat16"
-			case "int32":
-				suffix = suffix + "_Int32"
-			case "int64":
-				suffix = suffix + "_Int64"
-			case "uint32":
-				suffix = suffix + "_Uint32"
-			case "uint64":
-				suffix = suffix + "_Uint64"
+			// Add type suffix for non-float32 types, but ONLY if the current function
+			// has type parameters (indicating it's a generic function with type variants).
+			// Concrete functions like BaseEncodeStreamVByte32GroupSIMD([]uint32) don't
+			// have type variants, so their internal Base* calls shouldn't add type suffix.
+			if len(ctx.typeParams) > 0 {
+				switch ctx.elemType {
+				case "float64":
+					suffix = suffix + "_Float64"
+				case "hwy.Float16":
+					suffix = suffix + "_Float16"
+				case "hwy.BFloat16":
+					suffix = suffix + "_BFloat16"
+				case "int32":
+					suffix = suffix + "_Int32"
+				case "int64":
+					suffix = suffix + "_Int64"
+				case "uint32":
+					suffix = suffix + "_Uint32"
+				case "uint64":
+					suffix = suffix + "_Uint64"
+				}
 			}
 			ident.Name = ident.Name + suffix
 		}
@@ -773,17 +803,34 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 
 	var selExpr *ast.SelectorExpr
 	var ok bool
+	var hasExplicitTypeParam bool // Track if we have an explicit type param to preserve
 
 	// Handle both regular calls (hwy.Load) and generic calls (hwy.Zero[T])
 	switch fun := call.Fun.(type) {
 	case *ast.SelectorExpr:
 		selExpr = fun
 	case *ast.IndexExpr:
-		// Generic function call like hwy.Zero[T]()
+		// Generic function call like hwy.Zero[T]() or hwy.Load[uint8]()
 		// The IndexExpr wraps the SelectorExpr
 		selExpr, ok = fun.X.(*ast.SelectorExpr)
 		if !ok {
 			return
+		}
+		// Check if the type parameter is a concrete type (not a generic type param like T)
+		if typeIdent, ok := fun.Index.(*ast.Ident); ok {
+			typeName := typeIdent.Name
+			isTypeParam := false
+			for _, tp := range ctx.typeParams {
+				if typeName == tp.Name {
+					isTypeParam = true
+					break
+				}
+			}
+			if !isTypeParam {
+				// This is an explicit concrete type like uint8, float32, etc.
+				// Keep the IndexExpr so transformToFunction can use it
+				hasExplicitTypeParam = true
+			}
 		}
 		// Transform hwy.Const[T](val) to hwy.Set(val) for non-float32 types
 		// ONLY when val is a named constant (identifier), not a literal.
@@ -866,7 +913,11 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 				return
 			default:
 				// Strip the type param (will be transformed later)
-				call.Fun = selExpr
+				// BUT preserve IndexExpr if we have an explicit concrete type param
+				// (e.g., hwy.Load[uint8]) so transformToFunction can use it
+				if !hasExplicitTypeParam {
+					call.Fun = selExpr
+				}
 			}
 		}
 	case *ast.IndexListExpr:
@@ -2006,12 +2057,29 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *transformContext) {
 	// Handle both SelectorExpr (hwy.Load) and IndexExpr (hwy.Zero[float32])
 	var selExpr *ast.SelectorExpr
+	var explicitTypeParam string // Explicit type parameter from hwy.Load[uint8] style calls
 	switch fun := call.Fun.(type) {
 	case *ast.SelectorExpr:
 		selExpr = fun
 	case *ast.IndexExpr:
-		// For fallback generic functions like hwy.Zero[float32]()
+		// For generic functions like hwy.Load[uint8]() or hwy.Zero[float32]()
 		selExpr = fun.X.(*ast.SelectorExpr)
+		// Extract explicit type parameter if it's a concrete type (not a generic type param like T)
+		if typeIdent, ok := fun.Index.(*ast.Ident); ok {
+			typeName := typeIdent.Name
+			// Check if this is a concrete type, not a generic type parameter
+			isTypeParam := false
+			for _, tp := range ctx.typeParams {
+				if typeName == tp.Name {
+					isTypeParam = true
+					break
+				}
+			}
+			if !isTypeParam {
+				// This is an explicit concrete type like uint8, float32, etc.
+				explicitTypeParam = typeName
+			}
+		}
 	default:
 		return
 	}
@@ -2179,38 +2247,50 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 
 	// For SIMD targets, transform to package calls (archsimd for AVX, asm for NEON)
 	var fullName string
-	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+	// Use explicit type parameter if present (e.g., hwy.Load[uint8]), otherwise use function's elemType
+	effectiveElemType := ctx.elemType
+	if explicitTypeParam != "" {
+		effectiveElemType = explicitTypeParam
+	}
+	vecTypeName := getVectorTypeName(effectiveElemType, ctx.target)
 	pkgName := getVecPackageName(ctx.target)
 
 	// Check if this op should be redirected to hwy wrappers (archsimd doesn't have it)
 	if opInfo.Package == "hwy" && opInfo.SubPackage == "" {
 		// Use hwy wrapper instead of archsimd
-		// Try to infer lanes from any argument (for operations like TableLookupBytes)
-		shortTypeName := getShortTypeName(ctx.elemType, ctx.target)
+		// Try to infer lanes and element type from any argument (for operations like TableLookupBytes)
+		shortTypeName := getShortTypeName(effectiveElemType, ctx.target)
 		inferredLanes := 0
+		inferredElemType := effectiveElemType
 		for _, arg := range call.Args {
 			if argIdent, ok := arg.(*ast.Ident); ok {
 				if lanes, found := ctx.varVecLanes[argIdent.Name]; found {
 					inferredLanes = lanes
+					// Also check if we have an element type for this variable
+					if elemType, hasType := ctx.varVecElemType[argIdent.Name]; hasType {
+						inferredElemType = elemType
+					}
 					break // Use the first known lanes
 				}
 			}
 		}
 		if inferredLanes > 0 {
-			shortTypeName = getShortTypeNameForLanes(ctx.elemType, inferredLanes)
+			shortTypeName = getShortTypeNameForLanes(inferredElemType, inferredLanes)
 		} else if ctx.inferredFuncLanes > 0 {
 			// Fall back to function-level inferred lanes (from Load calls)
 			// Cap at target's max lanes to avoid generating invalid types (e.g., Uint8x32 on NEON)
 			useLanes := ctx.inferredFuncLanes
-			targetLanes := ctx.target.LanesFor(ctx.elemType)
+			targetLanes := ctx.target.LanesFor(effectiveElemType)
 			if useLanes > targetLanes {
 				useLanes = targetLanes
 			}
-			shortTypeName = getShortTypeNameForLanes(ctx.elemType, useLanes)
+			shortTypeName = getShortTypeNameForLanes(effectiveElemType, useLanes)
 		}
 		fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, shortTypeName)
 		selExpr.X = ast.NewIdent("hwy")
 		selExpr.Sel.Name = fullName
+		// Strip the IndexExpr if call.Fun was hwy.Func[T]() - the wrapper doesn't use type params
+		call.Fun = selExpr
 		return
 	}
 
@@ -2221,18 +2301,18 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		loadVecTypeName := vecTypeName
 		if len(call.Args) > 0 {
 			sliceBytes := getSliceSize(call.Args[0])
-			elemSize := elemTypeSize(ctx.elemType)
-			targetLanes := ctx.target.LanesFor(ctx.elemType)
+			elemSize := elemTypeSize(effectiveElemType)
+			targetLanes := ctx.target.LanesFor(effectiveElemType)
 			if sliceBytes > 0 && elemSize > 0 {
 				detectedLanes := sliceBytes / elemSize
 				// Only use smaller type if detected lanes is less than target default
 				// and is a valid vector size (power of 2, typically 2, 4, 8, 16, 32, 64)
 				if detectedLanes < targetLanes && detectedLanes > 0 {
-					loadVecTypeName = getVectorTypeNameForLanes(ctx.elemType, detectedLanes)
+					loadVecTypeName = getVectorTypeNameForLanes(effectiveElemType, detectedLanes)
 				}
 			} else if ctx.inferredFuncLanes > 0 && ctx.inferredFuncLanes < targetLanes {
 				// No explicit size, but we have inferred lanes from earlier in the function
-				loadVecTypeName = getVectorTypeNameForLanes(ctx.elemType, ctx.inferredFuncLanes)
+				loadVecTypeName = getVectorTypeNameForLanes(effectiveElemType, ctx.inferredFuncLanes)
 			}
 		}
 		fullName = fmt.Sprintf("Load%sSlice", loadVecTypeName)
@@ -2518,6 +2598,12 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	}
 
 	selExpr.Sel.Name = fullName
+
+	// If call.Fun is an IndexExpr (from explicit type param like hwy.Load[uint8]),
+	// strip the IndexExpr since asm/archsimd package functions don't use type params
+	if _, ok := call.Fun.(*ast.IndexExpr); ok {
+		call.Fun = selExpr
+	}
 }
 
 // getVecPackageName returns the package name for vector types based on target.
