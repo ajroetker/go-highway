@@ -24,8 +24,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// NEON f16/bf16 requires ARMv8.2-A FP16 and ARMv8.6-A BF16 extensions
-//go:generate go tool goat ../c/matmul_neon_arm64.c -O3 --target arm64 -e="-march=armv8.6-a+fp16+bf16"
+// F16/F32/F64: Requires ARMv8.2-A with FP16 extension
+//go:generate go tool goat ../c/matmul_neon_f16_arm64.c -O3 --target arm64 -e="-march=armv8.2-a+fp16"
+// BF16: Requires ARMv8.6-A with BF16 extension
+//go:generate go tool goat ../c/matmul_neon_bf16_arm64.c -O3 --target arm64 -e="-march=armv8.6-a+bf16"
 
 // ============================================================================
 // NEON Matrix Multiplication

@@ -4,6 +4,10 @@ cmd/hwygen/hwygen
 examples/basic/basic
 examples/contrib_test/contrib_test
 
+# Go workspace files (local dev only)
+go.work
+go.work.sum
+
 # GOAT build artifacts
 hwy/c/*.o
 hwy/c/*.s

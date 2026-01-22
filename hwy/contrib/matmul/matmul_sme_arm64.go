@@ -308,6 +308,20 @@ func matmulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	transposePoolBF16.Put(atBuf)
 }
 
+// blockedMatMulFMOPAF16 uses SME FMOPA for blocked float16 matmul.
+// This is used by ParallelMatMul for large matrices.
+func blockedMatMulFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
+	// The FMOPA implementation handles blocking internally with 16x16 tiles
+	matmulFMOPAF16(a, b, c, m, n, k)
+}
+
+// blockedMatMulFMOPABF16 uses SME BFMOPA for blocked bfloat16 matmul.
+// This is used by ParallelMatMul for large matrices.
+func blockedMatMulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	// The BFMOPA implementation handles blocking internally with 16x16 tiles
+	matmulFMOPABF16(a, b, c, m, n, k)
+}
+
 func init() {
 	if hwy.HasSME() {
 		// Use FMOPA implementation which works on Apple M4
@@ -316,5 +330,9 @@ func init() {
 		MatMulFloat64 = matmulFMOPA64
 		MatMulFloat16 = matmulFMOPAF16
 		MatMulBFloat16 = matmulFMOPABF16
+
+		// Also override blocked matmul for ParallelMatMul usage
+		BlockedMatMulFloat16 = blockedMatMulFMOPAF16
+		BlockedMatMulBFloat16 = blockedMatMulFMOPABF16
 	}
 }

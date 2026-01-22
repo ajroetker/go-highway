@@ -69,6 +69,21 @@ jobs:
       - name: Run tests (SIMD enabled)
         run: go test -v -race ./...
 
+      - name: Debug ARM64 CPU features
+        if: runner.arch == 'ARM64'
+        run: |
+          echo "=== /proc/cpuinfo features ==="
+          grep -i features /proc/cpuinfo | head -1 || true
+          echo ""
+          echo "=== HWCAP flags ==="
+          LD_SHOW_AUXV=1 /bin/true 2>&1 | grep -i hwcap || true
+          echo ""
+          echo "=== CPU model ==="
+          grep -i "model name\|CPU implementer\|CPU part" /proc/cpuinfo | head -4 || true
+          echo ""
+          echo "=== Go runtime ARM64 features ==="
+          go run -exec "" -v ./internal/cpuinfo || true
+
       - name: Run benchmarks
         run: go test -bench=. -benchmem -run=^$ ./hwy/contrib/...
 

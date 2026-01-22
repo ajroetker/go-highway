@@ -971,6 +971,23 @@ func BenchmarkEncodeStreamVByte32(b *testing.B) {
 	}
 }
 
+func BenchmarkEncodeStreamVByte32Into(b *testing.B) {
+	values := make([]uint32, 100)
+	for i := range values {
+		values[i] = uint32(i * 100)
+	}
+	// Pre-allocate buffers
+	controlBuf := make([]byte, (len(values)+3)/4)
+	dataBuf := make([]byte, len(values)*4)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		control, data := EncodeStreamVByte32Into(values, controlBuf, dataBuf)
+		_ = control
+		_ = data
+	}
+}
+
 func BenchmarkBaseDecodeStreamVByte32Into(b *testing.B) {
 	values := make([]uint32, 100)
 	for i := range values {

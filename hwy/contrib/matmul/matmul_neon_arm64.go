@@ -76,4 +76,13 @@ func init() {
 	// This overrides the generated dispatch for better performance
 	// Will be overridden by SME if available
 	MatMulFloat32 = matmulNEON
+
+	// FP16/BF16 NEON instructions require ARMv8.2+ extensions
+	// Only use them if the CPU supports the extensions
+	if hwy.HasARMFP16() {
+		MatMulFloat16 = matmulNEONF16
+	}
+	if hwy.HasARMBF16() {
+		MatMulBFloat16 = matmulNEONBF16
+	}
 }

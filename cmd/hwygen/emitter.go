@@ -578,7 +578,9 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 }
 
 // EmitTarget generates a target-specific implementation file.
-func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath string, contribPkgs ContribPackages, hoistedConsts []HoistedConst) error {
+// sourceImports contains the imports from the original source file that should be preserved
+// if they're still used after transformation (e.g., "unsafe", "math/bits").
+func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath string, contribPkgs ContribPackages, hoistedConsts []HoistedConst, sourceImports map[string]string) error {
 	var buf bytes.Buffer
 
 	// File header
@@ -671,6 +673,26 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 		// Include stdmath if the source file uses stdlib math functions
 		if contribPkgs.StdMath {
 			imports = append(imports, `stdmath "math"`)
+		}
+	}
+
+	// Add source imports that are still used after transformation
+	// Walk the AST to find which packages are actually referenced
+	usedPkgs := collectUsedPackages(funcs)
+
+	// These are stdlib packages that don't get transformed (unlike hwy -> asm)
+	preservedImports := map[string]bool{
+		"unsafe":          true,
+		"math/bits":       true,
+		"encoding/binary": true,
+	}
+	for localName, importPath := range sourceImports {
+		if preservedImports[importPath] && usedPkgs[localName] {
+			if localName == importPath || localName == "" || localName == filepath.Base(importPath) {
+				imports = append(imports, fmt.Sprintf(`"%s"`, importPath))
+			} else {
+				imports = append(imports, fmt.Sprintf(`%s "%s"`, localName, importPath))
+			}
 		}
 	}
 
@@ -1146,4 +1168,24 @@ func containsTypeParam(typeStr string, typeParams []TypeParam) bool {
 		}
 	}
 	return false
+}
+
+// collectUsedPackages walks the AST of the given functions and returns
+// a set of package names that are referenced (e.g., "unsafe" from "unsafe.Slice").
+func collectUsedPackages(funcs []*ast.FuncDecl) map[string]bool {
+	used := make(map[string]bool)
+
+	for _, fn := range funcs {
+		ast.Inspect(fn, func(n ast.Node) bool {
+			// Look for selector expressions like "unsafe.Slice" or "bits.Len32"
+			if sel, ok := n.(*ast.SelectorExpr); ok {
+				if ident, ok := sel.X.(*ast.Ident); ok {
+					used[ident.Name] = true
+				}
+			}
+			return true
+		})
+	}
+
+	return used
 }

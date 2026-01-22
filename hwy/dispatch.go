@@ -113,6 +113,26 @@ func NoSimdEnv() bool {
 	return true
 }
 
+// EnableF16Env checks if the HWY_ENABLE_F16 environment variable is set.
+// When set, Highway will enable optimized F16/BF16 SIMD paths on ARM64 even
+// when the default is to use fallback implementations for safety.
+//
+// On some Linux ARM64 systems, CPU feature detection via golang.org/x/sys/cpu
+// can be unreliable, so F16/BF16 optimized paths are disabled by default.
+// Set HWY_ENABLE_F16=1 to opt into optimized paths on known-good hardware
+// (like Apple Silicon).
+func EnableF16Env() bool {
+	val := os.Getenv("HWY_ENABLE_F16")
+	if val == "" {
+		return false
+	}
+	// Any non-empty value is considered true, but also parse as bool
+	if b, err := strconv.ParseBool(val); err == nil {
+		return b
+	}
+	return true
+}
+
 // MaxLanes returns the maximum number of lanes for type T with the current SIMD width.
 //
 // For example, with AVX2 (256 bits / 32 bytes):

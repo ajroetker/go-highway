@@ -10,6 +10,10 @@ import (
 var DecodeStreamVByte32 func(control []byte, data []uint8, n int) []uint32
 var DecodeStreamVByte32Into func(control []byte, data []uint8, dst []uint32) (decoded int, dataConsumed int)
 var DecodeStreamVByte32GroupSIMD func(ctrl byte, data []uint8, dst []uint32) int
+var EncodeStreamVByte32 func(values []uint32) (control []byte, data []byte)
+var EncodeStreamVByte32Into func(values []uint32, controlBuf []byte, dataBuf []byte) (control []byte, data []byte)
+var EncodeStreamVByte32GroupSIMD func(values []uint32) (ctrl byte, data []byte)
+var EncodeStreamVByte32GroupSIMDInto func(values []uint32, dst []uint8) (ctrl byte, n int)
 
 func init() {
 	_ = os.Getenv // silence unused import
@@ -20,4 +24,8 @@ func initStreamvbyteFallback() {
 	DecodeStreamVByte32 = BaseDecodeStreamVByte32_fallback
 	DecodeStreamVByte32Into = BaseDecodeStreamVByte32Into_fallback
 	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_fallback
+	EncodeStreamVByte32 = BaseEncodeStreamVByte32_fallback
+	EncodeStreamVByte32Into = BaseEncodeStreamVByte32Into_fallback
+	EncodeStreamVByte32GroupSIMD = BaseEncodeStreamVByte32GroupSIMD_fallback
+	EncodeStreamVByte32GroupSIMDInto = BaseEncodeStreamVByte32GroupSIMDInto_fallback
 }

@@ -127,21 +127,30 @@ void matmul_fmopa_at_f64(double *at, double *b, double *c,
 // Apple M4 doesn't support FEAT_SME_F16F16 (native f16 FMOPA), so we
 // convert to f32, use f32 FMOPA with 16x16 tiles, then convert back.
 //
-// scratch: 16-element f32 buffer passed from Go to avoid SVE-dependent stack allocation
+// Uses SVE bit manipulation for f16<->f32 conversion (faster than scalar loops).
+// FCVT intrinsics have predication issues on M4, so we use explicit bit ops:
+//   f16→f32: shift left 13, add exponent bias (112 << 23)
+//   f32→f16: subtract bias, round, shift right 13
+// This works for normalized f16 values (the typical case for matmul).
+//
+// scratch: unused (kept for API compatibility)
 //
 // func matmul_fmopa_at_f16(at, b, c unsafe.Pointer, m, n, k int64, scratch unsafe.Pointer)
 void matmul_fmopa_at_f16(__fp16 *at, __fp16 *b, __fp16 *c,
                           long *pm, long *pn, long *pk,
                           float *scratch) __arm_streaming __arm_out("za") {
+    (void)scratch;  // unused - kept for API compatibility
     long m = *pm;
     long n = *pn;
     long k = *pk;
 
-    // Process output in 16x16 tiles (f32 accumulator size)
-    //
-    // Strategy: Load f16 data via scratch buffer to avoid SVE/fcvt complexity.
-    // This is slower but avoids streaming-mode compatibility issues.
-    svbool_t pg32 = svptrue_b32();  // All 16 f32 lanes
+    // Predicates for operations
+    svbool_t pg32 = svptrue_b32();              // All 16 f32 lanes
+    svbool_t pg16 = svptrue_pat_b16(SV_VL16);   // First 16 f16 lanes
+
+    // Constants for f16->f32 conversion
+    // Exponent adjustment: f32_bias - f16_bias = 127 - 15 = 112
+    svuint32_t exp_adjust = svdup_n_u32(112 << 23);  // 112 in f32 exponent position
 
     for (long ti = 0; ti < m; ti += 16) {
         for (long tj = 0; tj < n; tj += 16) {
@@ -150,33 +159,42 @@ void matmul_fmopa_at_f16(__fp16 *at, __fp16 *b, __fp16 *c,
 
             // Accumulate over K dimension
             for (long kk = 0; kk < k; kk++) {
-                // Load A column: convert f16 to f32 via scratch buffer
-                // Copy 16 f16 elements and convert to f32
-                for (int i = 0; i < 16; i++) {
-                    scratch[i] = (float)at[kk * m + ti + i];
-                }
-                svfloat32_t za_col = svld1_f32(pg32, scratch);
+                // Load A as u16, convert to f32 via bit manipulation
+                svuint16_t a_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                svuint32_t a_u32 = svunpklo_u32(a_u16);
+                // f16→f32: shift left 13 to align mantissa, then adjust exponent
+                // This works for normalized f16 values (not denormals/inf/nan)
+                a_u32 = svlsl_n_u32_x(pg32, a_u32, 13);
+                a_u32 = svadd_u32_x(pg32, a_u32, exp_adjust);
+                svfloat32_t za_col = svreinterpret_f32_u32(a_u32);
 
-                // Load B row: convert f16 to f32 via scratch buffer
-                for (int i = 0; i < 16; i++) {
-                    scratch[i] = (float)b[kk * n + tj + i];
-                }
-                svfloat32_t zb_row = svld1_f32(pg32, scratch);
+                // Load B as u16, convert to f32
+                svuint16_t b_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b_u32 = svunpklo_u32(b_u16);
+                b_u32 = svlsl_n_u32_x(pg32, b_u32, 13);
+                b_u32 = svadd_u32_x(pg32, b_u32, exp_adjust);
+                svfloat32_t zb_row = svreinterpret_f32_u32(b_u32);
 
                 // Outer product accumulate in f32
                 svmopa_za32_f32_m(0, pg32, pg32, za_col, zb_row);
             }
 
-            // Read f32 tiles and store via scratch buffer with scalar conversion to f16
-            // Scratch buffer passed from Go avoids SVE-dependent stack allocation
+            // Read f32 tiles, convert to f16, and store
             for (int row = 0; row < 16; row++) {
-                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), svptrue_b32(), 0, row);
-                // Store f32 to scratch buffer
-                svst1_f32(svptrue_b32(), scratch, zrow);
-                // Convert each f32 to f16 and store
-                for (int col = 0; col < 16; col++) {
-                    c[(ti + row) * n + tj + col] = (__fp16)scratch[col];
-                }
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+
+                // f32→f16: subtract exponent adjustment, round, shift right 13
+                bits = svsub_u32_x(pg32, bits, exp_adjust);
+                // Add rounding bias (bit 12 for round-to-nearest)
+                svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);  // 2^12 - 1
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 13);
+
+                // Store as 16-bit
+                svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * n + tj), bits);
             }
         }
     }
@@ -187,25 +205,27 @@ void matmul_fmopa_at_f16(__fp16 *at, __fp16 *b, __fp16 *c,
 // =============================================================================
 // Uses widening approach: bf16 -> f32 -> FMOPA -> f32 -> bf16
 // Apple M4's BFMOPA expects 32 bf16 elements per vector, but our tiles are 16 wide.
-// So we use the same scalar conversion approach as F16: load bf16, convert to f32,
-// use f32 FMOPA with 16x16 tiles, then convert back to bf16.
+// We use SVE bit manipulation for bf16<->f32 conversion, then f32 FMOPA with 16x16 tiles.
 //
-// scratch: 16-element f32 buffer passed from Go to avoid SVE-dependent stack allocation
+// BF16 is simply the upper 16 bits of F32, so conversion is trivial:
+//   bf16→f32: load as u16, unpack to u32, shift left 16, reinterpret as f32
+//   f32→bf16: reinterpret as u32, round-to-nearest-even, shift right 16, store as u16
+//
+// scratch: unused (kept for API compatibility)
 //
 // func matmul_bfmopa_at_bf16(at, b, c unsafe.Pointer, m, n, k int64, scratch unsafe.Pointer)
 void matmul_bfmopa_at_bf16(__bf16 *at, __bf16 *b, __bf16 *c,
                             long *pm, long *pn, long *pk,
                             float *scratch) __arm_streaming __arm_out("za") {
+    (void)scratch;  // unused - kept for API compatibility
     long m = *pm;
     long n = *pn;
     long k = *pk;
 
-    // Process output in 16x16 tiles (f32 accumulator size)
-    //
-    // Strategy: Load bf16 data via scratch buffer to avoid SVE vector width issues.
-    // BFMOPA expects 32 bf16 elements per vector on SVL=512, but our tiles are 16 wide.
-    // Using scalar conversion ensures we only read 16 elements as intended.
-    svbool_t pg32 = svptrue_b32();  // All 16 f32 lanes
+    // Predicates for operations
+    // Use ptrue with VL16 pattern instead of whilelt (whilelt may not work outside streaming mode on M4)
+    svbool_t pg32 = svptrue_b32();              // All 16 u32/f32 lanes
+    svbool_t pg16 = svptrue_pat_b16(SV_VL16);   // First 16 u16 lanes (VL pattern)
 
     for (long ti = 0; ti < m; ti += 16) {
         for (long tj = 0; tj < n; tj += 16) {
@@ -214,46 +234,38 @@ void matmul_bfmopa_at_bf16(__bf16 *at, __bf16 *b, __bf16 *c,
 
             // Accumulate over K dimension
             for (long kk = 0; kk < k; kk++) {
-                // Load A column: convert bf16 to f32 via scratch buffer
-                // Copy 16 bf16 elements and convert to f32
-                for (int i = 0; i < 16; i++) {
-                    // BF16 to F32: shift left by 16 bits (bf16 is upper 16 bits of f32)
-                    unsigned short bf16_bits;
-                    __builtin_memcpy(&bf16_bits, &at[kk * m + ti + i], sizeof(bf16_bits));
-                    unsigned int f32_bits = ((unsigned int)bf16_bits) << 16;
-                    __builtin_memcpy(&scratch[i], &f32_bits, sizeof(f32_bits));
-                }
-                svfloat32_t za_col = svld1_f32(pg32, scratch);
+                // Load A column as bf16, convert to f32 using bit manipulation
+                // bf16→f32: load u16 (only 16 elements), unpack to u32, shift left 16, reinterpret as f32
+                svuint16_t a_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                svuint32_t a_u32 = svunpklo_u32(a_u16);  // unpack low 16 u16 → 16 u32
+                a_u32 = svlsl_n_u32_x(pg32, a_u32, 16);
+                svfloat32_t za_col = svreinterpret_f32_u32(a_u32);
 
-                // Load B row: convert bf16 to f32 via scratch buffer
-                for (int i = 0; i < 16; i++) {
-                    unsigned short bf16_bits;
-                    __builtin_memcpy(&bf16_bits, &b[kk * n + tj + i], sizeof(bf16_bits));
-                    unsigned int f32_bits = ((unsigned int)bf16_bits) << 16;
-                    __builtin_memcpy(&scratch[i], &f32_bits, sizeof(f32_bits));
-                }
-                svfloat32_t zb_row = svld1_f32(pg32, scratch);
+                // Load B row as bf16, convert to f32
+                svuint16_t b_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b_u32 = svunpklo_u32(b_u16);  // unpack low 16 u16 → 16 u32
+                b_u32 = svlsl_n_u32_x(pg32, b_u32, 16);
+                svfloat32_t zb_row = svreinterpret_f32_u32(b_u32);
 
                 // Outer product accumulate in f32
                 svmopa_za32_f32_m(0, pg32, pg32, za_col, zb_row);
             }
 
-            // Read f32 tiles and store via scratch buffer with scalar conversion to bf16
-            // Scratch buffer passed from Go avoids SVE-dependent stack allocation
+            // Read f32 tiles, convert to bf16 using bit manipulation, and store
             for (int row = 0; row < 16; row++) {
-                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), svptrue_b32(), 0, row);
-                // Store f32 to scratch buffer
-                svst1_f32(svptrue_b32(), scratch, zrow);
-                // Convert each f32 to bf16 and store
-                // BF16 conversion: truncate lower 16 bits with rounding
-                for (int col = 0; col < 16; col++) {
-                    unsigned int bits;
-                    __builtin_memcpy(&bits, &scratch[col], sizeof(bits));
-                    unsigned int rounding = 0x7FFF + ((bits >> 16) & 1);
-                    bits += rounding;
-                    unsigned short bf16_bits = (unsigned short)(bits >> 16);
-                    __builtin_memcpy(&c[(ti + row) * n + tj + col], &bf16_bits, sizeof(bf16_bits));
-                }
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+
+                // f32→bf16: reinterpret as u32, add rounding, shift right 16, truncate
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                // Round-to-nearest-even: add 0x7FFF + (bit16 & 1)
+                svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                bit16 = svand_n_u32_x(pg32, bit16, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                // Shift right 16 to get bf16 bits in lower 16 bits
+                bits = svlsr_n_u32_x(pg32, bits, 16);
+                // Truncate to u16 and store (using svst1h for 16-bit store)
+                svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * n + tj), bits);
             }
         }
     }

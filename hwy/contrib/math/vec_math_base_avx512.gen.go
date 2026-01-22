@@ -11,40 +11,40 @@ import (
 
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseCosVec_AVX512_intOne_i32_f64   archsimd.Int32x8
-	BaseCosVec_AVX512_intThree_i32_f64 archsimd.Int32x8
-	BaseSinVec_AVX512_intOne_i32_f64   archsimd.Int32x8
-	BaseCosVec_AVX512_intOne_i32_f32   archsimd.Int32x16
-	BaseCosVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
-	BaseCosVec_AVX512_intTwo_i32_f64   archsimd.Int32x8
 	BaseSinVec_AVX512_intOne_i32_f32   archsimd.Int32x16
+	BaseSinVec_AVX512_intOne_i32_f64   archsimd.Int32x8
+	BaseSinVec_AVX512_intThree_i32_f64 archsimd.Int32x8
+	BaseCosVec_AVX512_intOne_i32_f32   archsimd.Int32x16
+	BaseCosVec_AVX512_intThree_i32_f64 archsimd.Int32x8
+	BaseCosVec_AVX512_intOne_i32_f64   archsimd.Int32x8
 	BaseSinVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
 	BaseSinVec_AVX512_intThree_i32_f32 archsimd.Int32x16
 	BaseSinVec_AVX512_intTwo_i32_f64   archsimd.Int32x8
-	BaseSinVec_AVX512_intThree_i32_f64 archsimd.Int32x8
+	BaseCosVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
 	BaseCosVec_AVX512_intThree_i32_f32 archsimd.Int32x16
-	_hoistOnce                         sync.Once
+	BaseCosVec_AVX512_intTwo_i32_f64   archsimd.Int32x8
+	_vecMathBaseHoistOnce              sync.Once
 )
 
-func _initHoistedConstants() {
-	_hoistOnce.Do(func() {
-		BaseCosVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
-		BaseCosVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
-		BaseSinVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
-		BaseCosVec_AVX512_intOne_i32_f32 = archsimd.BroadcastInt32x16(1)
-		BaseCosVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
-		BaseCosVec_AVX512_intTwo_i32_f64 = archsimd.BroadcastInt32x8(2)
+func _vecMathBaseInitHoistedConstants() {
+	_vecMathBaseHoistOnce.Do(func() {
 		BaseSinVec_AVX512_intOne_i32_f32 = archsimd.BroadcastInt32x16(1)
+		BaseSinVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
+		BaseSinVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
+		BaseCosVec_AVX512_intOne_i32_f32 = archsimd.BroadcastInt32x16(1)
+		BaseCosVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
+		BaseCosVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
 		BaseSinVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
 		BaseSinVec_AVX512_intThree_i32_f32 = archsimd.BroadcastInt32x16(3)
 		BaseSinVec_AVX512_intTwo_i32_f64 = archsimd.BroadcastInt32x8(2)
-		BaseSinVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
+		BaseCosVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
 		BaseCosVec_AVX512_intThree_i32_f32 = archsimd.BroadcastInt32x16(3)
+		BaseCosVec_AVX512_intTwo_i32_f64 = archsimd.BroadcastInt32x8(2)
 	})
 }
 
 func BaseExpVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	overflow := hwy.Set[hwy.Float16](expOverflow_f16)
 	underflow := hwy.Set[hwy.Float16](expUnderflow_f16)
 	one := hwy.Set[hwy.Float16](expOne_f16)
@@ -79,7 +79,7 @@ func BaseExpVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseExpVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	overflow := hwy.Set[hwy.BFloat16](expOverflow_bf16)
 	underflow := hwy.Set[hwy.BFloat16](expUnderflow_bf16)
 	one := hwy.Set[hwy.BFloat16](expOne_bf16)
@@ -114,7 +114,7 @@ func BaseExpVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseExpVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	overflow := archsimd.BroadcastFloat32x16(expOverflow_f32)
 	underflow := archsimd.BroadcastFloat32x16(expUnderflow_f32)
 	one := archsimd.BroadcastFloat32x16(expOne_f32)
@@ -149,7 +149,7 @@ func BaseExpVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseExpVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	overflow := archsimd.BroadcastFloat64x8(expOverflow_f64)
 	underflow := archsimd.BroadcastFloat64x8(expUnderflow_f64)
 	one := archsimd.BroadcastFloat64x8(expOne_f64)
@@ -184,7 +184,7 @@ func BaseExpVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseSigmoidVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Set[hwy.Float16](sigmoidOne_f16)
 	zero := hwy.Set[hwy.Float16](sigmoidZero_f16)
 	satHi := hwy.Set[hwy.Float16](sigmoidSatHi_f16)
@@ -199,7 +199,7 @@ func BaseSigmoidVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] 
 }
 
 func BaseSigmoidVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Set[hwy.BFloat16](sigmoidOne_bf16)
 	zero := hwy.Set[hwy.BFloat16](sigmoidZero_bf16)
 	satHi := hwy.Set[hwy.BFloat16](sigmoidSatHi_bf16)
@@ -214,7 +214,7 @@ func BaseSigmoidVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat1
 }
 
 func BaseSigmoidVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(sigmoidOne_f32)
 	zero := archsimd.BroadcastFloat32x16(sigmoidZero_f32)
 	satHi := archsimd.BroadcastFloat32x16(sigmoidSatHi_f32)
@@ -229,7 +229,7 @@ func BaseSigmoidVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseSigmoidVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(sigmoidOne_f64)
 	zero := archsimd.BroadcastFloat64x8(sigmoidZero_f64)
 	satHi := archsimd.BroadcastFloat64x8(sigmoidSatHi_f64)
@@ -244,7 +244,7 @@ func BaseSigmoidVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseTanhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	two := hwy.Const[hwy.Float16](2.0)
 	one := hwy.Set[hwy.Float16](tanhOne_f16)
 	negOne := hwy.Set[hwy.Float16](tanhNegOne_f16)
@@ -259,7 +259,7 @@ func BaseTanhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseTanhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	two := hwy.Const[hwy.BFloat16](2.0)
 	one := hwy.Set[hwy.BFloat16](tanhOne_bf16)
 	negOne := hwy.Set[hwy.BFloat16](tanhNegOne_bf16)
@@ -274,7 +274,7 @@ func BaseTanhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] 
 }
 
 func BaseTanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	two := archsimd.BroadcastFloat32x16(2.0)
 	one := archsimd.BroadcastFloat32x16(tanhOne_f32)
 	negOne := archsimd.BroadcastFloat32x16(tanhNegOne_f32)
@@ -289,7 +289,7 @@ func BaseTanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseTanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	two := archsimd.BroadcastFloat64x8(2.0)
 	one := archsimd.BroadcastFloat64x8(tanhOne_f64)
 	negOne := archsimd.BroadcastFloat64x8(tanhNegOne_f64)
@@ -304,7 +304,7 @@ func BaseTanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseLogVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Set[hwy.Float16](logOne_f16)
 	two := hwy.Set[hwy.Float16](logTwo_f16)
 	zero := hwy.Const[hwy.Float16](0.0)
@@ -343,7 +343,7 @@ func BaseLogVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseLogVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Set[hwy.BFloat16](logOne_bf16)
 	two := hwy.Set[hwy.BFloat16](logTwo_bf16)
 	zero := hwy.Const[hwy.BFloat16](0.0)
@@ -382,7 +382,7 @@ func BaseLogVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseLogVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(logOne_f32)
 	two := archsimd.BroadcastFloat32x16(logTwo_f32)
 	zero := archsimd.BroadcastFloat32x16(0.0)
@@ -421,7 +421,7 @@ func BaseLogVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseLogVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(logOne_f64)
 	two := archsimd.BroadcastFloat64x8(logTwo_f64)
 	zero := archsimd.BroadcastFloat64x8(0.0)
@@ -460,7 +460,7 @@ func BaseLogVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseSinVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := hwy.Set[hwy.Float16](trig2OverPi_f16)
 	piOver2Hi := hwy.Set[hwy.Float16](trigPiOver2Hi_f16)
 	piOver2Lo := hwy.Set[hwy.Float16](trigPiOver2Lo_f16)
@@ -527,7 +527,7 @@ func BaseSinVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseSinVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := hwy.Set[hwy.BFloat16](trig2OverPi_bf16)
 	piOver2Hi := hwy.Set[hwy.BFloat16](trigPiOver2Hi_bf16)
 	piOver2Lo := hwy.Set[hwy.BFloat16](trigPiOver2Lo_bf16)
@@ -594,7 +594,7 @@ func BaseSinVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := archsimd.BroadcastFloat32x16(trig2OverPi_f32)
 	piOver2Hi := archsimd.BroadcastFloat32x16(trigPiOver2Hi_f32)
 	piOver2Lo := archsimd.BroadcastFloat32x16(trigPiOver2Lo_f32)
@@ -675,7 +675,7 @@ func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := archsimd.BroadcastFloat64x8(trig2OverPi_f64)
 	piOver2Hi := archsimd.BroadcastFloat64x8(trigPiOver2Hi_f64)
 	piOver2Lo := archsimd.BroadcastFloat64x8(trigPiOver2Lo_f64)
@@ -756,7 +756,7 @@ func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseCosVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := hwy.Set[hwy.Float16](trig2OverPi_f16)
 	piOver2Hi := hwy.Set[hwy.Float16](trigPiOver2Hi_f16)
 	piOver2Lo := hwy.Set[hwy.Float16](trigPiOver2Lo_f16)
@@ -823,7 +823,7 @@ func BaseCosVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseCosVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := hwy.Set[hwy.BFloat16](trig2OverPi_bf16)
 	piOver2Hi := hwy.Set[hwy.BFloat16](trigPiOver2Hi_bf16)
 	piOver2Lo := hwy.Set[hwy.BFloat16](trigPiOver2Lo_bf16)
@@ -890,7 +890,7 @@ func BaseCosVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := archsimd.BroadcastFloat32x16(trig2OverPi_f32)
 	piOver2Hi := archsimd.BroadcastFloat32x16(trigPiOver2Hi_f32)
 	piOver2Lo := archsimd.BroadcastFloat32x16(trigPiOver2Lo_f32)
@@ -971,7 +971,7 @@ func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	twoOverPi := archsimd.BroadcastFloat64x8(trig2OverPi_f64)
 	piOver2Hi := archsimd.BroadcastFloat64x8(trigPiOver2Hi_f64)
 	piOver2Lo := archsimd.BroadcastFloat64x8(trigPiOver2Lo_f64)
@@ -1052,7 +1052,7 @@ func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseErfVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	a1 := hwy.Set[hwy.Float16](erfA1_f16)
 	a2 := hwy.Set[hwy.Float16](erfA2_f16)
 	a3 := hwy.Set[hwy.Float16](erfA3_f16)
@@ -1080,7 +1080,7 @@ func BaseErfVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseErfVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	a1 := hwy.Set[hwy.BFloat16](erfA1_bf16)
 	a2 := hwy.Set[hwy.BFloat16](erfA2_bf16)
 	a3 := hwy.Set[hwy.BFloat16](erfA3_bf16)
@@ -1108,7 +1108,7 @@ func BaseErfVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseErfVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	a1 := archsimd.BroadcastFloat32x16(erfA1_f32)
 	a2 := archsimd.BroadcastFloat32x16(erfA2_f32)
 	a3 := archsimd.BroadcastFloat32x16(erfA3_f32)
@@ -1136,7 +1136,7 @@ func BaseErfVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseErfVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	a1 := archsimd.BroadcastFloat64x8(erfA1_f64)
 	a2 := archsimd.BroadcastFloat64x8(erfA2_f64)
 	a3 := archsimd.BroadcastFloat64x8(erfA3_f64)
@@ -1164,91 +1164,91 @@ func BaseErfVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseLog2Vec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log2E := hwy.Set[hwy.Float16](log2E_f16)
 	lnX := BaseLogVec_avx512_Float16(x)
 	return hwy.MulF16(lnX, log2E)
 }
 
 func BaseLog2Vec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log2E := hwy.Set[hwy.BFloat16](log2E_bf16)
 	lnX := BaseLogVec_avx512_BFloat16(x)
 	return hwy.MulBF16(lnX, log2E)
 }
 
 func BaseLog2Vec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log2E := archsimd.BroadcastFloat32x16(log2E_f32)
 	lnX := BaseLogVec_avx512(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLog2Vec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log2E := archsimd.BroadcastFloat64x8(log2E_f64)
 	lnX := BaseLogVec_avx512_Float64(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLog10Vec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log10E := hwy.Set[hwy.Float16](log10E_f16)
 	lnX := BaseLogVec_avx512_Float16(x)
 	return hwy.MulF16(lnX, log10E)
 }
 
 func BaseLog10Vec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log10E := hwy.Set[hwy.BFloat16](log10E_bf16)
 	lnX := BaseLogVec_avx512_BFloat16(x)
 	return hwy.MulBF16(lnX, log10E)
 }
 
 func BaseLog10Vec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log10E := archsimd.BroadcastFloat32x16(log10E_f32)
 	lnX := BaseLogVec_avx512(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseLog10Vec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	log10E := archsimd.BroadcastFloat64x8(log10E_f64)
 	lnX := BaseLogVec_avx512_Float64(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseExp2Vec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	ln2 := hwy.Set[hwy.Float16](ln2_f16)
 	xLn2 := hwy.MulF16(x, ln2)
 	return BaseExpVec_avx512_Float16(xLn2)
 }
 
 func BaseExp2Vec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	ln2 := hwy.Set[hwy.BFloat16](ln2_bf16)
 	xLn2 := hwy.MulBF16(x, ln2)
 	return BaseExpVec_avx512_BFloat16(xLn2)
 }
 
 func BaseExp2Vec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	ln2 := archsimd.BroadcastFloat32x16(ln2_f32)
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_avx512(xLn2)
 }
 
 func BaseExp2Vec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	ln2 := archsimd.BroadcastFloat64x8(ln2_f64)
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_avx512_Float64(xLn2)
 }
 
 func BaseSinhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Set[hwy.Float16](sinhOne_f16)
 	c3 := hwy.Set[hwy.Float16](sinhC3_f16)
 	c5 := hwy.Set[hwy.Float16](sinhC5_f16)
@@ -1261,7 +1261,7 @@ func BaseSinhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseSinhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Set[hwy.BFloat16](sinhOne_bf16)
 	c3 := hwy.Set[hwy.BFloat16](sinhC3_bf16)
 	c5 := hwy.Set[hwy.BFloat16](sinhC5_bf16)
@@ -1274,7 +1274,7 @@ func BaseSinhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] 
 }
 
 func BaseSinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(sinhOne_f32)
 	c3 := archsimd.BroadcastFloat32x16(sinhC3_f32)
 	c5 := archsimd.BroadcastFloat32x16(sinhC5_f32)
@@ -1287,7 +1287,7 @@ func BaseSinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseSinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(sinhOne_f64)
 	c3 := archsimd.BroadcastFloat64x8(sinhC3_f64)
 	c5 := archsimd.BroadcastFloat64x8(sinhC5_f64)
@@ -1300,7 +1300,7 @@ func BaseSinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseCoshVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.Float16](1.0)
 	c2 := hwy.Const[hwy.Float16](0.5)
 	c4 := hwy.Const[hwy.Float16](0.041666666666666664)
@@ -1312,7 +1312,7 @@ func BaseCoshVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseCoshVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.BFloat16](1.0)
 	c2 := hwy.Const[hwy.BFloat16](0.5)
 	c4 := hwy.Const[hwy.BFloat16](0.041666666666666664)
@@ -1324,7 +1324,7 @@ func BaseCoshVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] 
 }
 
 func BaseCoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(1.0)
 	c2 := archsimd.BroadcastFloat32x16(0.5)
 	c4 := archsimd.BroadcastFloat32x16(0.041666666666666664)
@@ -1336,7 +1336,7 @@ func BaseCoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseCoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(1.0)
 	c2 := archsimd.BroadcastFloat64x8(0.5)
 	c4 := archsimd.BroadcastFloat64x8(0.041666666666666664)
@@ -1348,7 +1348,7 @@ func BaseCoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseAsinhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.Float16](1.0)
 	x2 := hwy.MulF16(x, x)
 	x2Plus1 := hwy.AddF16(x2, one)
@@ -1358,7 +1358,7 @@ func BaseAsinhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseAsinhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.BFloat16](1.0)
 	x2 := hwy.MulBF16(x, x)
 	x2Plus1 := hwy.AddBF16(x2, one)
@@ -1368,7 +1368,7 @@ func BaseAsinhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]
 }
 
 func BaseAsinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(1.0)
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
@@ -1378,7 +1378,7 @@ func BaseAsinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseAsinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(1.0)
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
@@ -1388,7 +1388,7 @@ func BaseAsinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseAcoshVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.Float16](1.0)
 	zero := hwy.Const[hwy.Float16](0.0)
 	x2 := hwy.MulF16(x, x)
@@ -1402,7 +1402,7 @@ func BaseAcoshVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseAcoshVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.BFloat16](1.0)
 	zero := hwy.Const[hwy.BFloat16](0.0)
 	x2 := hwy.MulBF16(x, x)
@@ -1416,7 +1416,7 @@ func BaseAcoshVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]
 }
 
 func BaseAcoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(1.0)
 	zero := archsimd.BroadcastFloat32x16(0.0)
 	x2 := x.Mul(x)
@@ -1430,7 +1430,7 @@ func BaseAcoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseAcoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(1.0)
 	zero := archsimd.BroadcastFloat64x8(0.0)
 	x2 := x.Mul(x)
@@ -1444,7 +1444,7 @@ func BaseAcoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseAtanhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.Float16](1.0)
 	half := hwy.Const[hwy.Float16](0.5)
 	zero := hwy.Const[hwy.Float16](0.0)
@@ -1459,7 +1459,7 @@ func BaseAtanhVec_avx512_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 }
 
 func BaseAtanhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.BFloat16](1.0)
 	half := hwy.Const[hwy.BFloat16](0.5)
 	zero := hwy.Const[hwy.BFloat16](0.0)
@@ -1474,7 +1474,7 @@ func BaseAtanhVec_avx512_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]
 }
 
 func BaseAtanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(1.0)
 	half := archsimd.BroadcastFloat32x16(0.5)
 	zero := archsimd.BroadcastFloat32x16(0.0)
@@ -1489,7 +1489,7 @@ func BaseAtanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseAtanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(1.0)
 	half := archsimd.BroadcastFloat64x8(0.5)
 	zero := archsimd.BroadcastFloat64x8(0.0)
@@ -1504,7 +1504,7 @@ func BaseAtanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BasePowVec_avx512_Float16(base hwy.Vec[hwy.Float16], exp hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.Float16](1.0)
 	zero := hwy.Const[hwy.Float16](0.0)
 	logBase := BaseLogVec_avx512_Float16(base)
@@ -1522,7 +1522,7 @@ func BasePowVec_avx512_Float16(base hwy.Vec[hwy.Float16], exp hwy.Vec[hwy.Float1
 }
 
 func BasePowVec_avx512_BFloat16(base hwy.Vec[hwy.BFloat16], exp hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := hwy.Const[hwy.BFloat16](1.0)
 	zero := hwy.Const[hwy.BFloat16](0.0)
 	logBase := BaseLogVec_avx512_BFloat16(base)
@@ -1540,7 +1540,7 @@ func BasePowVec_avx512_BFloat16(base hwy.Vec[hwy.BFloat16], exp hwy.Vec[hwy.BFlo
 }
 
 func BasePowVec_avx512(base archsimd.Float32x16, exp archsimd.Float32x16) archsimd.Float32x16 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat32x16(1.0)
 	zero := archsimd.BroadcastFloat32x16(0.0)
 	logBase := BaseLogVec_avx512(base)
@@ -1558,7 +1558,7 @@ func BasePowVec_avx512(base archsimd.Float32x16, exp archsimd.Float32x16) archsi
 }
 
 func BasePowVec_avx512_Float64(base archsimd.Float64x8, exp archsimd.Float64x8) archsimd.Float64x8 {
-	_initHoistedConstants()
+	_vecMathBaseInitHoistedConstants()
 	one := archsimd.BroadcastFloat64x8(1.0)
 	zero := archsimd.BroadcastFloat64x8(0.0)
 	logBase := BaseLogVec_avx512_Float64(base)
