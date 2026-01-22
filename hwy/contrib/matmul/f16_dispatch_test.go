@@ -109,13 +109,48 @@ func TestF16MatMulMultipleIterations(t *testing.T) {
 		b[i] = hwy.Float32ToFloat16(float32(i%11) + 0.25)
 	}
 
-	// Run multiple iterations like a benchmark would
-	iterations := 10
+	// Run MANY iterations - benchmarks might run hundreds of times
+	// The crash might only occur after many iterations
+	iterations := 1000
 	t.Logf("Running %d iterations of MatMulAuto...", iterations)
 	for i := 0; i < iterations; i++ {
 		MatMulAuto(a, b, c, n, n, n)
+		if i > 0 && i%100 == 0 {
+			t.Logf("Completed %d iterations", i)
+		}
 	}
 	t.Logf("All %d iterations completed successfully", iterations)
+}
+
+// TestF16MatMulManyIterationsInGoroutine tests many iterations in a goroutine
+func TestF16MatMulManyIterationsInGoroutine(t *testing.T) {
+	if !hwy.HasARMFP16() {
+		t.Skip("CPU does not support ARM FP16")
+	}
+
+	n := 64
+
+	a := make([]hwy.Float16, n*n)
+	b := make([]hwy.Float16, n*n)
+	c := make([]hwy.Float16, n*n)
+
+	for i := range a {
+		a[i] = hwy.Float32ToFloat16(float32(i%7) + 0.5)
+		b[i] = hwy.Float32ToFloat16(float32(i%11) + 0.25)
+	}
+
+	iterations := 1000
+	t.Logf("Running %d iterations in a goroutine...", iterations)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < iterations; i++ {
+			MatMulAuto(a, b, c, n, n, n)
+		}
+	}()
+	<-done
+	t.Logf("All %d goroutine iterations completed successfully", iterations)
 }
 
 // TestF16StreamingMatMul tests the streaming (non-blocked) matmul path
