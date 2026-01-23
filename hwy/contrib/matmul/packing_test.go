@@ -548,6 +548,83 @@ func TestMicroKernelIRIsolation(t *testing.T) {
 	}
 }
 
+// TestSubSliceBug tests if passing a sub-slice to PackedMicroKernel causes issues.
+// This isolates whether the bug is in slice handling.
+func TestSubSliceBug(t *testing.T) {
+	t.Logf("=== Environment ===")
+	t.Logf("HWY_NO_SIMD=%q", os.Getenv("HWY_NO_SIMD"))
+	t.Logf("lanes=%d, CurrentName=%s", hwy.Zero[float32]().NumLanes(), hwy.CurrentName())
+
+	mr, nr := 4, 8
+	m, n, k := 16, 16, 16
+
+	// Create packedA with 4 panels worth of data (like the real test)
+	numAPanels := 4
+	fullPackedA := make([]float32, numAPanels*k*mr)
+	for i := range fullPackedA {
+		fullPackedA[i] = float32(i + 1)
+	}
+
+	packedB := make([]float32, k*nr)
+	for i := range packedB {
+		packedB[i] = float32(i + 1)
+	}
+
+	// Test 1: Pass full slice, use offset 0 in the slice, ir=0
+	t.Logf("=== Test 1: Full slice, ir=0 ===")
+	c1 := make([]float32, m*n)
+	PackedMicroKernel(fullPackedA[0:k*mr], packedB, c1, n, 0, 0, k, mr, nr)
+	t.Logf("c1[0, 0:8] = %v", c1[0:8])
+	t.Logf("Test 1 result: c1[0]=%f (baseline)", c1[0])
+
+	// Test 2: Pass sub-slice starting at offset 192, ir=0 (write to row 0)
+	// This should produce the SAME result as Test 1 since we use same data (panel 3 = offset 192)
+	// but writes to row 0
+	t.Logf("=== Test 2: Sub-slice [192:], ir=0 ===")
+	c2 := make([]float32, m*n)
+	subSliceA := fullPackedA[192:] // Same as panel 3
+	t.Logf("subSliceA[0:8] = %v", subSliceA[0:8])
+	t.Logf("subSliceA address offset check: fullPackedA[192]=%f, subSliceA[0]=%f",
+		fullPackedA[192], subSliceA[0])
+	PackedMicroKernel(subSliceA, packedB, c2, n, 0, 0, k, mr, nr)
+	t.Logf("c2[0, 0:8] = %v", c2[0:8])
+
+	// The values should be different since we're using different A data
+	// Panel 3 starts with [193, 209, 225, 241, ...]
+	// Panel 0 starts with [1, 2, 3, 4, ...]
+	t.Logf("Test 2 result: c2[0]=%f (should be non-zero)", c2[0])
+	if c2[0] == 0 {
+		t.Errorf("BUG: Passing sub-slice with ir=0 produces 0!")
+	}
+
+	// Test 3: Pass sub-slice starting at offset 192, ir=12 (write to row 12)
+	t.Logf("=== Test 3: Sub-slice [192:], ir=12 ===")
+	c3 := make([]float32, m*n)
+	PackedMicroKernel(subSliceA, packedB, c3, n, 12, 0, k, mr, nr)
+	t.Logf("c3[12, 0:8] = %v", c3[12*n:12*n+8])
+
+	t.Logf("Test 3 result: c3[12*n]=%f (should equal c2[0]=%f)", c3[12*n], c2[0])
+	if c3[12*n] == 0 && c2[0] != 0 {
+		t.Errorf("BUG: Sub-slice with ir=12 produces 0 but ir=0 works!")
+	}
+
+	// Test 4: Copy sub-slice to new slice, then pass it
+	t.Logf("=== Test 4: Copied sub-slice, ir=12 ===")
+	copiedA := make([]float32, k*mr)
+	copy(copiedA, fullPackedA[192:192+k*mr])
+	t.Logf("copiedA[0:8] = %v", copiedA[0:8])
+	c4 := make([]float32, m*n)
+	PackedMicroKernel(copiedA, packedB, c4, n, 12, 0, k, mr, nr)
+	t.Logf("c4[12, 0:8] = %v", c4[12*n:12*n+8])
+
+	if c4[12*n] == 0 && c2[0] != 0 {
+		t.Errorf("BUG: Even copied sub-slice with ir=12 produces 0!")
+	} else if c4[12*n] != 0 && c3[12*n] == 0 {
+		t.Logf("INTERESTING: Copied slice works but sub-slice doesn't!")
+		t.Logf("This suggests the bug is related to slice capacity or pointer arithmetic")
+	}
+}
+
 // TestPureGoMicroKernel tests a pure Go implementation to isolate if the bug
 // is in hwy functions or in something else.
 func TestPureGoMicroKernel(t *testing.T) {
