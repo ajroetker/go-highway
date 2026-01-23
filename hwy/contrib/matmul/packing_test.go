@@ -400,33 +400,49 @@ func TestPackedMatMulDiagnostic(t *testing.T) {
 	// Test micro-kernel for second B panel
 	t.Logf("=== Testing Micro-Kernel for Second B Panel ===")
 
-	// Pack A (first panel, rows 0-3)
+	// Pack ALL of A (all 16 rows)
 	packedASize := params.PackedASize()
 	packedA := make([]float32, packedASize)
-	PackLHS(a, packedA, m, k, 0, 0, mr, k, mr)
+	panelRows := m // all 16 rows
+	activeRowsLast := PackLHS(a, packedA, m, k, 0, 0, panelRows, k, mr)
+	t.Logf("PackLHS returned activeRowsLast=%d", activeRowsLast)
 
 	// Initialize C to zero
 	c := make([]float32, m*n)
 
-	// Call micro-kernel for second B panel (columns 8-15)
-	// ir=0, jr=8, kc=16, mr=4, nr=8
-	PackedMicroKernel(packedA, packedB[bPanel1Offset:], c, n, 0, 8, k, mr, nr)
-
-	// Check results for row 0, columns 8-15
+	// Test iPanel=0 (rows 0-3) with jPanel=1 (columns 8-15)
+	t.Logf("--- Testing iPanel=0 (rows 0-3) with jPanel=1 (cols 8-15) ---")
+	aPanelOffset0 := 0 * k * mr // 0
+	PackedMicroKernel(packedA[aPanelOffset0:], packedB[bPanel1Offset:], c, n, 0, 8, k, mr, nr)
 	t.Logf("After micro-kernel, C[0, 8:16] = %v", c[8:16])
 
-	// Compute expected values for C[0, 8:15]
-	// C[0,j] = sum(A[0,kk] * B[kk,j]) for kk=0..15
-	// A[0,:] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
-	// B[:,8] = [9,25,41,57,73,89,105,121,137,153,169,185,201,217,233,249]
+	// Compute expected for C[0,8]
 	var expectedC08 float32
 	for kk := 0; kk < k; kk++ {
-		expectedC08 += a[kk] * b[kk*n+8]
+		expectedC08 += a[0*k+kk] * b[kk*n+8]
 	}
 	t.Logf("Expected C[0,8] = %f, got %f", expectedC08, c[8])
-
 	if c[8] == 0 && expectedC08 != 0 {
-		t.Errorf("MICRO-KERNEL BUG: C[0,8] is 0 but should be %f", expectedC08)
+		t.Errorf("MICRO-KERNEL BUG (iPanel=0): C[0,8] is 0 but should be %f", expectedC08)
+	}
+
+	// Test iPanel=3 (rows 12-15) with jPanel=1 (columns 8-15) - THE FAILING CASE
+	t.Logf("--- Testing iPanel=3 (rows 12-15) with jPanel=1 (cols 8-15) ---")
+	aPanelOffset3 := 3 * k * mr // 3 * 16 * 4 = 192
+	t.Logf("aPanelOffset3 = %d", aPanelOffset3)
+	t.Logf("packedA[%d:%d] = %v", aPanelOffset3, aPanelOffset3+8, packedA[aPanelOffset3:aPanelOffset3+8])
+
+	PackedMicroKernel(packedA[aPanelOffset3:], packedB[bPanel1Offset:], c, n, 12, 8, k, mr, nr)
+	t.Logf("After micro-kernel, C[12, 8:16] = %v", c[12*n+8:12*n+16])
+
+	// Compute expected for C[12,8]
+	var expectedC128 float32
+	for kk := 0; kk < k; kk++ {
+		expectedC128 += a[12*k+kk] * b[kk*n+8]
+	}
+	t.Logf("Expected C[12,8] = %f, got %f", expectedC128, c[12*n+8])
+	if c[12*n+8] == 0 && expectedC128 != 0 {
+		t.Errorf("MICRO-KERNEL BUG (iPanel=3): C[12,8] is 0 but should be %f", expectedC128)
 	}
 }
 
