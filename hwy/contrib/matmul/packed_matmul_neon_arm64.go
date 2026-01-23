@@ -147,7 +147,14 @@ func packedMicroKernelPartialNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFlo
 func init() {
 	// On ARM64 without SME, use NEON assembly micro-kernels for packed GEBP
 	// This overrides the pure Go hwy implementation with optimized NEON
-	if !hwy.HasSME() {
+	//
+	// Only enable if hwy detected NEON (lanes >= 4 for float32).
+	// This avoids using NEON assembly on emulators or fallback environments
+	// where NEON might not be properly supported.
+	lanesF32 := hwy.Zero[float32]().NumLanes()
+	hasNEON := lanesF32 >= 4
+
+	if hasNEON && !hwy.HasSME() {
 		// Float32
 		PackedMicroKernelFloat32 = packedMicroKernelNEONF32
 		PackedMicroKernelPartialFloat32 = packedMicroKernelPartialNEONF32
@@ -158,13 +165,13 @@ func init() {
 	}
 
 	// F16: Requires ARMv8.2-A FP16 extension
-	if hwy.HasARMFP16() && !hwy.HasSME() {
+	if hasNEON && hwy.HasARMFP16() && !hwy.HasSME() {
 		PackedMicroKernelFloat16 = packedMicroKernelNEONF16
 		PackedMicroKernelPartialFloat16 = packedMicroKernelPartialNEONF16
 	}
 
 	// BF16: Requires ARMv8.6-A BF16 extension
-	if hwy.HasARMBF16() && !hwy.HasSME() {
+	if hasNEON && hwy.HasARMBF16() && !hwy.HasSME() {
 		PackedMicroKernelBFloat16 = packedMicroKernelNEONBF16
 		PackedMicroKernelPartialBFloat16 = packedMicroKernelPartialNEONBF16
 	}
