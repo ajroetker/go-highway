@@ -163,6 +163,94 @@ func TestScalarMatmulReference(t *testing.T) {
 	}
 }
 
+// TestPackedMatMulSmall tests packed matmul with a small matrix that spans
+// multiple micro-panels to exercise the GEBP loop structure.
+func TestPackedMatMulSmall(t *testing.T) {
+	lanes := hwy.Zero[float32]().NumLanes()
+	t.Logf("lanes=%d, CurrentName=%s", lanes, hwy.CurrentName())
+
+	// 8x8 matmul with simple values
+	// This spans multiple micro-panels: with Mr=4, we have 2 row panels
+	// With Nr=8, we have 1 column panel
+	m, n, k := 8, 8, 4
+
+	// A is 8x4, B is 4x8, C is 8x8
+	// Use simple values: A[i,j] = i*k + j + 1, B[i,j] = i*n + j + 1
+	a := make([]float32, m*k)
+	for i := 0; i < m; i++ {
+		for j := 0; j < k; j++ {
+			a[i*k+j] = float32(i*k + j + 1)
+		}
+	}
+
+	b := make([]float32, k*n)
+	for i := 0; i < k; i++ {
+		for j := 0; j < n; j++ {
+			b[i*n+j] = float32(i*n + j + 1)
+		}
+	}
+
+	// Compute expected result using simple triple loop
+	expected := make([]float32, m*n)
+	for i := 0; i < m; i++ {
+		for j := 0; j < n; j++ {
+			var sum float32
+			for kk := 0; kk < k; kk++ {
+				sum += a[i*k+kk] * b[kk*n+j]
+			}
+			expected[i*n+j] = sum
+		}
+	}
+
+	t.Logf("A (8x4):")
+	for i := 0; i < m; i++ {
+		t.Logf("  row %d: %v", i, a[i*k:(i+1)*k])
+	}
+
+	t.Logf("B (4x8):")
+	for i := 0; i < k; i++ {
+		t.Logf("  row %d: %v", i, b[i*n:(i+1)*n])
+	}
+
+	t.Logf("Expected C (8x8):")
+	for i := 0; i < m; i++ {
+		t.Logf("  row %d: %v", i, expected[i*n:(i+1)*n])
+	}
+
+	// Run packed matmul
+	c := make([]float32, m*n)
+	PackedMatMul(a, b, c, m, n, k)
+
+	t.Logf("Actual C (8x8):")
+	for i := 0; i < m; i++ {
+		t.Logf("  row %d: %v", i, c[i*n:(i+1)*n])
+	}
+
+	// Compare
+	var maxErr float32
+	var maxErrI, maxErrJ int
+	for i := 0; i < m; i++ {
+		for j := 0; j < n; j++ {
+			idx := i*n + j
+			diff := c[idx] - expected[idx]
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff > maxErr {
+				maxErr = diff
+				maxErrI, maxErrJ = i, j
+			}
+		}
+	}
+
+	t.Logf("Max error: %f at C[%d,%d] (expected=%f, got=%f)",
+		maxErr, maxErrI, maxErrJ, expected[maxErrI*n+maxErrJ], c[maxErrI*n+maxErrJ])
+
+	if maxErr > 1e-4 {
+		t.Errorf("max error %f exceeds threshold", maxErr)
+	}
+}
+
 // TestPackLHS verifies that LHS packing produces the expected layout.
 func TestPackLHS(t *testing.T) {
 	// 6x4 matrix A, Mr=2
