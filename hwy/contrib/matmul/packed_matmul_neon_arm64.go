@@ -25,26 +25,24 @@ import (
 // It adapts the signature to match the dispatched interface.
 //
 // Parameters:
-//   - packedA: Packed A buffer, total size >= ir*kc + kc*mr
-//   - packedB: Packed B buffer, total size >= jr*kc + kc*nr
-//   - c: Output C matrix (row-major), size >= m*n
+//   - packedA: Pre-sliced packed A buffer for this micro-panel
+//   - packedB: Pre-sliced packed B buffer for this micro-panel
+//   - c: Output C matrix (row-major), full matrix
 //   - n: Leading dimension of C (total columns)
-//   - ir: Starting row micro-panel index in A
-//   - jr: Starting column micro-panel index in B
-//   - kc: K-blocking size
+//   - ir: Starting row index in C (absolute, not panel index)
+//   - jr: Starting column index in C (absolute, not panel index)
+//   - kc: K-blocking size (actual panelK, not cache param Kc)
 //   - mr: Micro-tile row dimension
 //   - nr: Micro-tile column dimension
 func packedMicroKernelNEONF32(packedA []float32, packedB []float32, c []float32, n, ir, jr, kc, mr, nr int) {
-	// packedA offset: ir-th panel, each panel has kc*mr elements
-	aOffset := ir * kc * mr
-	// packedB offset: jr-th panel, each panel has kc*nr elements
-	bOffset := jr * kc * nr
-	// C offset: row ir*mr, column jr*nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	// C offset: row ir, column jr
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONF32(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, mr, nr,
 	)
@@ -52,14 +50,14 @@ func packedMicroKernelNEONF32(packedA []float32, packedB []float32, c []float32,
 
 // packedMicroKernelPartialNEONF32 handles edge micro-tiles with partial rows/columns.
 func packedMicroKernelPartialNEONF32(packedA []float32, packedB []float32, c []float32, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
-	// The NEON kernel handles partial tiles internally via mr/nr parameters
+	// The NEON kernel handles partial tiles internally via activeRows/activeCols parameters
 	asm.PackedMicroKernelNEONF32(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, activeRows, activeCols,
 	)
@@ -67,26 +65,26 @@ func packedMicroKernelPartialNEONF32(packedA []float32, packedB []float32, c []f
 
 // packedMicroKernelNEONF64 wraps the GOAT-generated NEON micro-kernel for float64.
 func packedMicroKernelNEONF64(packedA []float64, packedB []float64, c []float64, n, ir, jr, kc, mr, nr int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONF64(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, mr, nr,
 	)
 }
 
 func packedMicroKernelPartialNEONF64(packedA []float64, packedB []float64, c []float64, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONF64(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, activeRows, activeCols,
 	)
@@ -94,26 +92,26 @@ func packedMicroKernelPartialNEONF64(packedA []float64, packedB []float64, c []f
 
 // packedMicroKernelNEONF16 wraps the GOAT-generated NEON FP16 micro-kernel.
 func packedMicroKernelNEONF16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n, ir, jr, kc, mr, nr int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONF16(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, mr, nr,
 	)
 }
 
 func packedMicroKernelPartialNEONF16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONF16(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, activeRows, activeCols,
 	)
@@ -121,26 +119,26 @@ func packedMicroKernelPartialNEONF16(packedA []hwy.Float16, packedB []hwy.Float1
 
 // packedMicroKernelNEONBF16 wraps the GOAT-generated NEON BF16 micro-kernel.
 func packedMicroKernelNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONBF16(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, mr, nr,
 	)
 }
 
 func packedMicroKernelPartialNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	aOffset := ir * kc * mr
-	bOffset := jr * kc * nr
-	cOffset := ir*mr*n + jr*nr
+	// packedA and packedB are already sliced to the correct offset by gebp
+	// ir and jr are absolute row/column indices in C
+	cOffset := ir*n + jr
 
 	asm.PackedMicroKernelNEONBF16(
-		packedA[aOffset:],
-		packedB[bOffset:],
+		packedA,
+		packedB,
 		c[cOffset:],
 		kc, n, activeRows, activeCols,
 	)
