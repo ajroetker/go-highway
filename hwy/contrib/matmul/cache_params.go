@@ -125,6 +125,30 @@ func CacheParamsFloat64NEON() CacheParams {
 	}
 }
 
+// CacheParamsFloat16NEON returns blocking parameters for ARM NEON with float16.
+// Optimized for 128-bit vectors (8 float16s per vector).
+func CacheParamsFloat16NEON() CacheParams {
+	return CacheParams{
+		Mr: 4,    // 4 rows per micro-tile
+		Nr: 16,   // 2 vectors × 8 lanes = 16 columns
+		Kc: 512,  // L1 blocking: 4 * 512 * 2 bytes = 4KB packed A strip
+		Mc: 512,  // L2 blocking: 512 * 512 * 2 bytes = 512KB packed A panel
+		Nc: 2048, // L3 blocking: 512 * 2048 * 2 bytes = 2MB packed B panel
+	}
+}
+
+// CacheParamsBFloat16NEON returns blocking parameters for ARM NEON with bfloat16.
+// Uses f32 accumulation, so Nr matches f32 (8 columns).
+func CacheParamsBFloat16NEON() CacheParams {
+	return CacheParams{
+		Mr: 4,    // 4 rows per micro-tile
+		Nr: 8,    // 2 f32 vectors × 4 lanes = 8 columns (f32 accumulation)
+		Kc: 256,  // L1 blocking: 4 * 256 * 2 bytes = 2KB packed A strip
+		Mc: 256,  // L2 blocking: 256 * 256 * 2 bytes = 128KB packed A panel
+		Nc: 1024, // L3 blocking: 256 * 1024 * 2 bytes = 512KB packed B panel
+	}
+}
+
 // PackedASize returns the buffer size needed for packed A matrix.
 // Packed A layout: ceil(Mc/Mr) micro-panels, each Mr × Kc elements.
 func (p CacheParams) PackedASize() int {
