@@ -352,8 +352,15 @@ func TestPackedMatMulDiagnostic(t *testing.T) {
 	mr, nr := params.Mr, params.Nr
 	t.Logf("CacheParams: Mr=%d, Nr=%d", mr, nr)
 
-	// Simple 16x16 case: 2 B panels (columns 0-7 and 8-15)
-	m, n, k := 16, 16, 16
+	// Use dimensions large enough to have multiple panels on all architectures.
+	// With AVX-512 nr=32, we need n >= 64 for 2 B panels.
+	// With mr=4, we need m >= 16 for 4 A panels.
+	m, k := 16, 16
+	n := nr * 2 // Ensure at least 2 B panels
+	if n < 16 {
+		n = 16
+	}
+	t.Logf("Test dimensions: m=%d, k=%d, n=%d (nr=%d, numBPanels=%d)", m, k, n, nr, (n+nr-1)/nr)
 
 	// Create deterministic inputs
 	a := make([]float32, m*k)
@@ -365,31 +372,31 @@ func TestPackedMatMulDiagnostic(t *testing.T) {
 		b[i] = float32(i + 1)
 	}
 
-	// Test RHS packing for both B panels
+	// Test RHS packing
 	t.Logf("=== Testing RHS Packing ===")
 	packedBSize := params.PackedBSize()
 	packedB := make([]float32, packedBSize)
 
-	// Pack B: all 16 columns
+	// Pack B: all n columns
 	activeColsLast := PackRHS(b, packedB, k, n, 0, 0, k, n, nr)
 	t.Logf("PackRHS returned activeColsLast=%d", activeColsLast)
 
-	// Check first B panel (columns 0-7) at offset 0
-	t.Logf("First B panel (cols 0-7), first k-row:")
-	t.Logf("  packedB[0:8] = %v", packedB[0:8])
+	// Check first B panel at offset 0
+	t.Logf("First B panel, first k-row:")
+	t.Logf("  packedB[0:%d] = %v", min(8, nr), packedB[0:min(8, nr)])
 
-	// Check second B panel (columns 8-15) at offset k*nr = 16*8 = 128
+	// Check second B panel at offset k*nr
 	bPanel1Offset := k * nr
-	t.Logf("Second B panel (cols 8-15), first k-row (offset=%d):", bPanel1Offset)
-	t.Logf("  packedB[%d:%d] = %v", bPanel1Offset, bPanel1Offset+8, packedB[bPanel1Offset:bPanel1Offset+8])
+	t.Logf("Second B panel, first k-row (offset=%d):", bPanel1Offset)
+	t.Logf("  packedB[%d:%d] = %v", bPanel1Offset, bPanel1Offset+min(8, nr), packedB[bPanel1Offset:bPanel1Offset+min(8, nr)])
 
-	// Verify packing is correct
-	// For k-row 0, columns 8-15: b[0*16+8..15] = b[8:16] = [9,10,11,12,13,14,15,16]
-	expectedB1 := []float32{9, 10, 11, 12, 13, 14, 15, 16}
+	// Verify packing is correct for second panel
+	// For k-row 0, columns nr..(nr+7): b[0*n+nr..nr+7]
 	packingOK := true
-	for i, exp := range expectedB1 {
-		if packedB[bPanel1Offset+i] != exp {
-			t.Errorf("packedB[%d] = %f, want %f", bPanel1Offset+i, packedB[bPanel1Offset+i], exp)
+	for i := 0; i < min(8, nr); i++ {
+		expected := float32(nr + i + 1) // b[0*n + nr + i] = nr + i + 1
+		if packedB[bPanel1Offset+i] != expected {
+			t.Errorf("packedB[%d] = %f, want %f", bPanel1Offset+i, packedB[bPanel1Offset+i], expected)
 			packingOK = false
 		}
 	}
@@ -400,49 +407,53 @@ func TestPackedMatMulDiagnostic(t *testing.T) {
 	// Test micro-kernel for second B panel
 	t.Logf("=== Testing Micro-Kernel for Second B Panel ===")
 
-	// Pack ALL of A (all 16 rows)
+	// Pack ALL of A (all m rows)
 	packedASize := params.PackedASize()
 	packedA := make([]float32, packedASize)
-	panelRows := m // all 16 rows
+	panelRows := m
 	activeRowsLast := PackLHS(a, packedA, m, k, 0, 0, panelRows, k, mr)
 	t.Logf("PackLHS returned activeRowsLast=%d", activeRowsLast)
 
 	// Initialize C to zero
 	c := make([]float32, m*n)
 
-	// Test iPanel=0 (rows 0-3) with jPanel=1 (columns 8-15)
-	t.Logf("--- Testing iPanel=0 (rows 0-3) with jPanel=1 (cols 8-15) ---")
-	aPanelOffset0 := 0 * k * mr // 0
-	PackedMicroKernel(packedA[aPanelOffset0:], packedB[bPanel1Offset:], c, n, 0, 8, k, mr, nr)
-	t.Logf("After micro-kernel, C[0, 8:16] = %v", c[8:16])
+	// Test iPanel=0 (rows 0 to mr-1) with jPanel=1 (columns nr to 2*nr-1)
+	t.Logf("--- Testing iPanel=0 (rows 0-%d) with jPanel=1 (cols %d-%d) ---", mr-1, nr, 2*nr-1)
+	aPanelOffset0 := 0
+	PackedMicroKernel(packedA[aPanelOffset0:], packedB[bPanel1Offset:], c, n, 0, nr, k, mr, nr)
+	t.Logf("After micro-kernel, C[0, %d:%d] = %v", nr, nr+min(8, nr), c[nr:nr+min(8, nr)])
 
-	// Compute expected for C[0,8]
-	var expectedC08 float32
+	// Compute expected for C[0,nr]
+	var expectedC0nr float32
 	for kk := 0; kk < k; kk++ {
-		expectedC08 += a[0*k+kk] * b[kk*n+8]
+		expectedC0nr += a[0*k+kk] * b[kk*n+nr]
 	}
-	t.Logf("Expected C[0,8] = %f, got %f", expectedC08, c[8])
-	if c[8] == 0 && expectedC08 != 0 {
-		t.Errorf("MICRO-KERNEL BUG (iPanel=0): C[0,8] is 0 but should be %f", expectedC08)
+	t.Logf("Expected C[0,%d] = %f, got %f", nr, expectedC0nr, c[nr])
+	if c[nr] == 0 && expectedC0nr != 0 {
+		t.Errorf("MICRO-KERNEL BUG (iPanel=0): C[0,%d] is 0 but should be %f", nr, expectedC0nr)
 	}
 
-	// Test iPanel=3 (rows 12-15) with jPanel=1 (columns 8-15) - THE FAILING CASE
-	t.Logf("--- Testing iPanel=3 (rows 12-15) with jPanel=1 (cols 8-15) ---")
-	aPanelOffset3 := 3 * k * mr // 3 * 16 * 4 = 192
-	t.Logf("aPanelOffset3 = %d", aPanelOffset3)
-	t.Logf("packedA[%d:%d] = %v", aPanelOffset3, aPanelOffset3+8, packedA[aPanelOffset3:aPanelOffset3+8])
+	// Test iPanel=3 (rows 12-15) with jPanel=1 - THE FAILING CASE on ARM64 CI
+	numAPanels := (m + mr - 1) / mr
+	lastAPanel := numAPanels - 1
+	irLast := lastAPanel * mr
+	t.Logf("--- Testing iPanel=%d (rows %d-%d) with jPanel=1 (cols %d-%d) ---",
+		lastAPanel, irLast, irLast+mr-1, nr, 2*nr-1)
+	aPanelOffsetLast := lastAPanel * k * mr
+	t.Logf("aPanelOffsetLast = %d", aPanelOffsetLast)
+	t.Logf("packedA[%d:%d] = %v", aPanelOffsetLast, aPanelOffsetLast+min(8, mr*2), packedA[aPanelOffsetLast:aPanelOffsetLast+min(8, mr*2)])
 
-	PackedMicroKernel(packedA[aPanelOffset3:], packedB[bPanel1Offset:], c, n, 12, 8, k, mr, nr)
-	t.Logf("After micro-kernel, C[12, 8:16] = %v", c[12*n+8:12*n+16])
+	PackedMicroKernel(packedA[aPanelOffsetLast:], packedB[bPanel1Offset:], c, n, irLast, nr, k, mr, nr)
+	t.Logf("After micro-kernel, C[%d, %d:%d] = %v", irLast, nr, nr+min(8, nr), c[irLast*n+nr:irLast*n+nr+min(8, nr)])
 
-	// Compute expected for C[12,8]
-	var expectedC128 float32
+	// Compute expected for C[irLast,nr]
+	var expectedCLast float32
 	for kk := 0; kk < k; kk++ {
-		expectedC128 += a[12*k+kk] * b[kk*n+8]
+		expectedCLast += a[irLast*k+kk] * b[kk*n+nr]
 	}
-	t.Logf("Expected C[12,8] = %f, got %f", expectedC128, c[12*n+8])
-	if c[12*n+8] == 0 && expectedC128 != 0 {
-		t.Errorf("MICRO-KERNEL BUG (iPanel=3): C[12,8] is 0 but should be %f", expectedC128)
+	t.Logf("Expected C[%d,%d] = %f, got %f", irLast, nr, expectedCLast, c[irLast*n+nr])
+	if c[irLast*n+nr] == 0 && expectedCLast != 0 {
+		t.Errorf("MICRO-KERNEL BUG (iPanel=%d): C[%d,%d] is 0 but should be %f", lastAPanel, irLast, nr, expectedCLast)
 	}
 }
 
