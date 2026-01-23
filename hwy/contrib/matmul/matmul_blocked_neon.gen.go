@@ -28,30 +28,117 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 	for ; idx < total; idx++ {
 		c[idx] = hwy.Float32ToFloat16(0)
 	}
+	mr := 4
+	nr := lanes * 2
 	for i0 := 0; i0 < m; i0 += BlockSize {
 		iEnd := min(i0+BlockSize, m)
 		for j0 := 0; j0 < n; j0 += BlockSize {
 			jEnd := min(j0+BlockSize, n)
-			blockN := jEnd - j0
-			for p0 := 0; p0 < k; p0 += BlockSize {
-				pEnd := min(p0+BlockSize, k)
-				for i := i0; i < iEnd; i++ {
-					cRowStart := i*n + j0
-					for p := p0; p < pEnd; p++ {
-						aip := a[i*k+p]
-						vA := hwy.Set(aip)
-						bRowStart := p*n + j0
-						var j int
-						for j = 0; j+lanes <= blockN; j += lanes {
-							vB := hwy.Load(b[bRowStart+j:])
-							vC := hwy.Load(c[cRowStart+j:])
-							vC = hwy.FMAF16(vA, vB, vC)
-							hwy.Store(vC, c[cRowStart+j:])
-						}
-						for ; j < blockN; j++ {
-							c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aip.Float32()*b[bRowStart+j].Float32())
-						}
+			var i int
+			for i = i0; i+mr <= iEnd; i += mr {
+				var j int
+				for j = j0; j+nr <= jEnd; j += nr {
+					acc00 := hwy.Zero[hwy.Float16]()
+					acc01 := hwy.Zero[hwy.Float16]()
+					acc10 := hwy.Zero[hwy.Float16]()
+					acc11 := hwy.Zero[hwy.Float16]()
+					acc20 := hwy.Zero[hwy.Float16]()
+					acc21 := hwy.Zero[hwy.Float16]()
+					acc30 := hwy.Zero[hwy.Float16]()
+					acc31 := hwy.Zero[hwy.Float16]()
+					for p := 0; p < k; p++ {
+						a0p := a[i*k+p]
+						a1p := a[(i+1)*k+p]
+						a2p := a[(i+2)*k+p]
+						a3p := a[(i+3)*k+p]
+						vA0 := hwy.Set(a0p)
+						vA1 := hwy.Set(a1p)
+						vA2 := hwy.Set(a2p)
+						vA3 := hwy.Set(a3p)
+						bRowStart := p * n
+						vB0 := hwy.Load(b[bRowStart+j:])
+						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						acc00 = hwy.FMAF16(vA0, vB0, acc00)
+						acc01 = hwy.FMAF16(vA0, vB1, acc01)
+						acc10 = hwy.FMAF16(vA1, vB0, acc10)
+						acc11 = hwy.FMAF16(vA1, vB1, acc11)
+						acc20 = hwy.FMAF16(vA2, vB0, acc20)
+						acc21 = hwy.FMAF16(vA2, vB1, acc21)
+						acc30 = hwy.FMAF16(vA3, vB0, acc30)
+						acc31 = hwy.FMAF16(vA3, vB1, acc31)
 					}
+					cRow0 := i * n
+					cRow1 := (i + 1) * n
+					cRow2 := (i + 2) * n
+					cRow3 := (i + 3) * n
+					hwy.Store(acc00, c[cRow0+j:])
+					hwy.Store(acc01, c[cRow0+j+lanes:])
+					hwy.Store(acc10, c[cRow1+j:])
+					hwy.Store(acc11, c[cRow1+j+lanes:])
+					hwy.Store(acc20, c[cRow2+j:])
+					hwy.Store(acc21, c[cRow2+j+lanes:])
+					hwy.Store(acc30, c[cRow3+j:])
+					hwy.Store(acc31, c[cRow3+j+lanes:])
+				}
+				for ; j < jEnd; j += lanes {
+					remaining := jEnd - j
+					if remaining >= lanes {
+						acc0 := hwy.Zero[hwy.Float16]()
+						acc1 := hwy.Zero[hwy.Float16]()
+						acc2 := hwy.Zero[hwy.Float16]()
+						acc3 := hwy.Zero[hwy.Float16]()
+						for p := 0; p < k; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.FMAF16(vA0, vB, acc0)
+							acc1 = hwy.FMAF16(vA1, vB, acc1)
+							acc2 = hwy.FMAF16(vA2, vB, acc2)
+							acc3 = hwy.FMAF16(vA3, vB, acc3)
+						}
+						hwy.Store(acc0, c[i*n+j:])
+						hwy.Store(acc1, c[(i+1)*n+j:])
+						hwy.Store(acc2, c[(i+2)*n+j:])
+						hwy.Store(acc3, c[(i+3)*n+j:])
+					} else {
+						for jj := j; jj < jEnd; jj++ {
+							var sum0, sum1, sum2, sum3 float32
+							for p := 0; p < k; p++ {
+								bpj := b[p*n+jj]
+								sum0 += a[i*k+p].Float32() * bpj.Float32()
+								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
+								sum2 += a[(i+2)*k+p].Float32() * bpj.Float32()
+								sum3 += a[(i+3)*k+p].Float32() * bpj.Float32()
+							}
+							c[i*n+jj] = hwy.Float32ToFloat16(sum0)
+							c[(i+1)*n+jj] = hwy.Float32ToFloat16(sum1)
+							c[(i+2)*n+jj] = hwy.Float32ToFloat16(sum2)
+							c[(i+3)*n+jj] = hwy.Float32ToFloat16(sum3)
+						}
+						break
+					}
+				}
+			}
+			for ; i < iEnd; i++ {
+				cRowStart := i * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc := hwy.Zero[hwy.Float16]()
+					for p := 0; p < k; p++ {
+						vA := hwy.Set(a[i*k+p])
+						vB := hwy.Load(b[p*n+j:])
+						acc = hwy.FMAF16(vA, vB, acc)
+					}
+					hwy.Store(acc, c[cRowStart+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum float32
+					for p := 0; p < k; p++ {
+						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+					}
+					c[cRowStart+j] = hwy.Float32ToFloat16(sum)
 				}
 			}
 		}
@@ -78,30 +165,117 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 	for ; idx < total; idx++ {
 		c[idx] = hwy.Float32ToBFloat16(0)
 	}
+	mr := 4
+	nr := lanes * 2
 	for i0 := 0; i0 < m; i0 += BlockSize {
 		iEnd := min(i0+BlockSize, m)
 		for j0 := 0; j0 < n; j0 += BlockSize {
 			jEnd := min(j0+BlockSize, n)
-			blockN := jEnd - j0
-			for p0 := 0; p0 < k; p0 += BlockSize {
-				pEnd := min(p0+BlockSize, k)
-				for i := i0; i < iEnd; i++ {
-					cRowStart := i*n + j0
-					for p := p0; p < pEnd; p++ {
-						aip := a[i*k+p]
-						vA := hwy.Set(aip)
-						bRowStart := p*n + j0
-						var j int
-						for j = 0; j+lanes <= blockN; j += lanes {
-							vB := hwy.Load(b[bRowStart+j:])
-							vC := hwy.Load(c[cRowStart+j:])
-							vC = hwy.FMABF16(vA, vB, vC)
-							hwy.Store(vC, c[cRowStart+j:])
-						}
-						for ; j < blockN; j++ {
-							c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aip.Float32()*b[bRowStart+j].Float32())
-						}
+			var i int
+			for i = i0; i+mr <= iEnd; i += mr {
+				var j int
+				for j = j0; j+nr <= jEnd; j += nr {
+					acc00 := hwy.Zero[hwy.BFloat16]()
+					acc01 := hwy.Zero[hwy.BFloat16]()
+					acc10 := hwy.Zero[hwy.BFloat16]()
+					acc11 := hwy.Zero[hwy.BFloat16]()
+					acc20 := hwy.Zero[hwy.BFloat16]()
+					acc21 := hwy.Zero[hwy.BFloat16]()
+					acc30 := hwy.Zero[hwy.BFloat16]()
+					acc31 := hwy.Zero[hwy.BFloat16]()
+					for p := 0; p < k; p++ {
+						a0p := a[i*k+p]
+						a1p := a[(i+1)*k+p]
+						a2p := a[(i+2)*k+p]
+						a3p := a[(i+3)*k+p]
+						vA0 := hwy.Set(a0p)
+						vA1 := hwy.Set(a1p)
+						vA2 := hwy.Set(a2p)
+						vA3 := hwy.Set(a3p)
+						bRowStart := p * n
+						vB0 := hwy.Load(b[bRowStart+j:])
+						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						acc00 = hwy.FMABF16(vA0, vB0, acc00)
+						acc01 = hwy.FMABF16(vA0, vB1, acc01)
+						acc10 = hwy.FMABF16(vA1, vB0, acc10)
+						acc11 = hwy.FMABF16(vA1, vB1, acc11)
+						acc20 = hwy.FMABF16(vA2, vB0, acc20)
+						acc21 = hwy.FMABF16(vA2, vB1, acc21)
+						acc30 = hwy.FMABF16(vA3, vB0, acc30)
+						acc31 = hwy.FMABF16(vA3, vB1, acc31)
 					}
+					cRow0 := i * n
+					cRow1 := (i + 1) * n
+					cRow2 := (i + 2) * n
+					cRow3 := (i + 3) * n
+					hwy.Store(acc00, c[cRow0+j:])
+					hwy.Store(acc01, c[cRow0+j+lanes:])
+					hwy.Store(acc10, c[cRow1+j:])
+					hwy.Store(acc11, c[cRow1+j+lanes:])
+					hwy.Store(acc20, c[cRow2+j:])
+					hwy.Store(acc21, c[cRow2+j+lanes:])
+					hwy.Store(acc30, c[cRow3+j:])
+					hwy.Store(acc31, c[cRow3+j+lanes:])
+				}
+				for ; j < jEnd; j += lanes {
+					remaining := jEnd - j
+					if remaining >= lanes {
+						acc0 := hwy.Zero[hwy.BFloat16]()
+						acc1 := hwy.Zero[hwy.BFloat16]()
+						acc2 := hwy.Zero[hwy.BFloat16]()
+						acc3 := hwy.Zero[hwy.BFloat16]()
+						for p := 0; p < k; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.FMABF16(vA0, vB, acc0)
+							acc1 = hwy.FMABF16(vA1, vB, acc1)
+							acc2 = hwy.FMABF16(vA2, vB, acc2)
+							acc3 = hwy.FMABF16(vA3, vB, acc3)
+						}
+						hwy.Store(acc0, c[i*n+j:])
+						hwy.Store(acc1, c[(i+1)*n+j:])
+						hwy.Store(acc2, c[(i+2)*n+j:])
+						hwy.Store(acc3, c[(i+3)*n+j:])
+					} else {
+						for jj := j; jj < jEnd; jj++ {
+							var sum0, sum1, sum2, sum3 float32
+							for p := 0; p < k; p++ {
+								bpj := b[p*n+jj]
+								sum0 += a[i*k+p].Float32() * bpj.Float32()
+								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
+								sum2 += a[(i+2)*k+p].Float32() * bpj.Float32()
+								sum3 += a[(i+3)*k+p].Float32() * bpj.Float32()
+							}
+							c[i*n+jj] = hwy.Float32ToBFloat16(sum0)
+							c[(i+1)*n+jj] = hwy.Float32ToBFloat16(sum1)
+							c[(i+2)*n+jj] = hwy.Float32ToBFloat16(sum2)
+							c[(i+3)*n+jj] = hwy.Float32ToBFloat16(sum3)
+						}
+						break
+					}
+				}
+			}
+			for ; i < iEnd; i++ {
+				cRowStart := i * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc := hwy.Zero[hwy.BFloat16]()
+					for p := 0; p < k; p++ {
+						vA := hwy.Set(a[i*k+p])
+						vB := hwy.Load(b[p*n+j:])
+						acc = hwy.FMABF16(vA, vB, acc)
+					}
+					hwy.Store(acc, c[cRowStart+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum float32
+					for p := 0; p < k; p++ {
+						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+					}
+					c[cRowStart+j] = hwy.Float32ToBFloat16(sum)
 				}
 			}
 		}
@@ -128,30 +302,117 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 	for ; idx < total; idx++ {
 		c[idx] = 0
 	}
+	mr := 4
+	nr := lanes * 2
 	for i0 := 0; i0 < m; i0 += BlockSize {
 		iEnd := min(i0+BlockSize, m)
 		for j0 := 0; j0 < n; j0 += BlockSize {
 			jEnd := min(j0+BlockSize, n)
-			blockN := jEnd - j0
-			for p0 := 0; p0 < k; p0 += BlockSize {
-				pEnd := min(p0+BlockSize, k)
-				for i := i0; i < iEnd; i++ {
-					cRowStart := i*n + j0
-					for p := p0; p < pEnd; p++ {
-						aip := a[i*k+p]
-						vA := asm.BroadcastFloat32x4(aip)
-						bRowStart := p*n + j0
-						var j int
-						for j = 0; j+lanes <= blockN; j += lanes {
-							vB := asm.LoadFloat32x4Slice(b[bRowStart+j:])
-							vC := asm.LoadFloat32x4Slice(c[cRowStart+j:])
-							vC = vA.MulAdd(vB, vC)
-							vC.StoreSlice(c[cRowStart+j:])
-						}
-						for ; j < blockN; j++ {
-							c[cRowStart+j] += aip * b[bRowStart+j]
-						}
+			var i int
+			for i = i0; i+mr <= iEnd; i += mr {
+				var j int
+				for j = j0; j+nr <= jEnd; j += nr {
+					acc00 := asm.ZeroFloat32x4()
+					acc01 := asm.ZeroFloat32x4()
+					acc10 := asm.ZeroFloat32x4()
+					acc11 := asm.ZeroFloat32x4()
+					acc20 := asm.ZeroFloat32x4()
+					acc21 := asm.ZeroFloat32x4()
+					acc30 := asm.ZeroFloat32x4()
+					acc31 := asm.ZeroFloat32x4()
+					for p := 0; p < k; p++ {
+						a0p := a[i*k+p]
+						a1p := a[(i+1)*k+p]
+						a2p := a[(i+2)*k+p]
+						a3p := a[(i+3)*k+p]
+						vA0 := asm.BroadcastFloat32x4(a0p)
+						vA1 := asm.BroadcastFloat32x4(a1p)
+						vA2 := asm.BroadcastFloat32x4(a2p)
+						vA3 := asm.BroadcastFloat32x4(a3p)
+						bRowStart := p * n
+						vB0 := asm.LoadFloat32x4Slice(b[bRowStart+j:])
+						vB1 := asm.LoadFloat32x4Slice(b[bRowStart+j+lanes:])
+						acc00 = vA0.MulAdd(vB0, acc00)
+						acc01 = vA0.MulAdd(vB1, acc01)
+						acc10 = vA1.MulAdd(vB0, acc10)
+						acc11 = vA1.MulAdd(vB1, acc11)
+						acc20 = vA2.MulAdd(vB0, acc20)
+						acc21 = vA2.MulAdd(vB1, acc21)
+						acc30 = vA3.MulAdd(vB0, acc30)
+						acc31 = vA3.MulAdd(vB1, acc31)
 					}
+					cRow0 := i * n
+					cRow1 := (i + 1) * n
+					cRow2 := (i + 2) * n
+					cRow3 := (i + 3) * n
+					acc00.StoreSlice(c[cRow0+j:])
+					acc01.StoreSlice(c[cRow0+j+lanes:])
+					acc10.StoreSlice(c[cRow1+j:])
+					acc11.StoreSlice(c[cRow1+j+lanes:])
+					acc20.StoreSlice(c[cRow2+j:])
+					acc21.StoreSlice(c[cRow2+j+lanes:])
+					acc30.StoreSlice(c[cRow3+j:])
+					acc31.StoreSlice(c[cRow3+j+lanes:])
+				}
+				for ; j < jEnd; j += lanes {
+					remaining := jEnd - j
+					if remaining >= lanes {
+						acc0 := asm.ZeroFloat32x4()
+						acc1 := asm.ZeroFloat32x4()
+						acc2 := asm.ZeroFloat32x4()
+						acc3 := asm.ZeroFloat32x4()
+						for p := 0; p < k; p++ {
+							vA0 := asm.BroadcastFloat32x4(a[i*k+p])
+							vA1 := asm.BroadcastFloat32x4(a[(i+1)*k+p])
+							vA2 := asm.BroadcastFloat32x4(a[(i+2)*k+p])
+							vA3 := asm.BroadcastFloat32x4(a[(i+3)*k+p])
+							vB := asm.LoadFloat32x4Slice(b[p*n+j:])
+							acc0 = vA0.MulAdd(vB, acc0)
+							acc1 = vA1.MulAdd(vB, acc1)
+							acc2 = vA2.MulAdd(vB, acc2)
+							acc3 = vA3.MulAdd(vB, acc3)
+						}
+						acc0.StoreSlice(c[i*n+j:])
+						acc1.StoreSlice(c[(i+1)*n+j:])
+						acc2.StoreSlice(c[(i+2)*n+j:])
+						acc3.StoreSlice(c[(i+3)*n+j:])
+					} else {
+						for jj := j; jj < jEnd; jj++ {
+							var sum0, sum1, sum2, sum3 float32
+							for p := 0; p < k; p++ {
+								bpj := b[p*n+jj]
+								sum0 += a[i*k+p] * bpj
+								sum1 += a[(i+1)*k+p] * bpj
+								sum2 += a[(i+2)*k+p] * bpj
+								sum3 += a[(i+3)*k+p] * bpj
+							}
+							c[i*n+jj] = sum0
+							c[(i+1)*n+jj] = sum1
+							c[(i+2)*n+jj] = sum2
+							c[(i+3)*n+jj] = sum3
+						}
+						break
+					}
+				}
+			}
+			for ; i < iEnd; i++ {
+				cRowStart := i * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc := asm.ZeroFloat32x4()
+					for p := 0; p < k; p++ {
+						vA := asm.BroadcastFloat32x4(a[i*k+p])
+						vB := asm.LoadFloat32x4Slice(b[p*n+j:])
+						acc = vA.MulAdd(vB, acc)
+					}
+					acc.StoreSlice(c[cRowStart+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum float32
+					for p := 0; p < k; p++ {
+						sum += a[i*k+p] * b[p*n+j]
+					}
+					c[cRowStart+j] = sum
 				}
 			}
 		}
@@ -178,30 +439,117 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 	for ; idx < total; idx++ {
 		c[idx] = 0
 	}
+	mr := 4
+	nr := lanes * 2
 	for i0 := 0; i0 < m; i0 += BlockSize {
 		iEnd := min(i0+BlockSize, m)
 		for j0 := 0; j0 < n; j0 += BlockSize {
 			jEnd := min(j0+BlockSize, n)
-			blockN := jEnd - j0
-			for p0 := 0; p0 < k; p0 += BlockSize {
-				pEnd := min(p0+BlockSize, k)
-				for i := i0; i < iEnd; i++ {
-					cRowStart := i*n + j0
-					for p := p0; p < pEnd; p++ {
-						aip := a[i*k+p]
-						vA := asm.BroadcastFloat64x2(aip)
-						bRowStart := p*n + j0
-						var j int
-						for j = 0; j+lanes <= blockN; j += lanes {
-							vB := asm.LoadFloat64x2Slice(b[bRowStart+j:])
-							vC := asm.LoadFloat64x2Slice(c[cRowStart+j:])
-							vC = vA.MulAdd(vB, vC)
-							vC.StoreSlice(c[cRowStart+j:])
-						}
-						for ; j < blockN; j++ {
-							c[cRowStart+j] += aip * b[bRowStart+j]
-						}
+			var i int
+			for i = i0; i+mr <= iEnd; i += mr {
+				var j int
+				for j = j0; j+nr <= jEnd; j += nr {
+					acc00 := asm.ZeroFloat64x2()
+					acc01 := asm.ZeroFloat64x2()
+					acc10 := asm.ZeroFloat64x2()
+					acc11 := asm.ZeroFloat64x2()
+					acc20 := asm.ZeroFloat64x2()
+					acc21 := asm.ZeroFloat64x2()
+					acc30 := asm.ZeroFloat64x2()
+					acc31 := asm.ZeroFloat64x2()
+					for p := 0; p < k; p++ {
+						a0p := a[i*k+p]
+						a1p := a[(i+1)*k+p]
+						a2p := a[(i+2)*k+p]
+						a3p := a[(i+3)*k+p]
+						vA0 := asm.BroadcastFloat64x2(a0p)
+						vA1 := asm.BroadcastFloat64x2(a1p)
+						vA2 := asm.BroadcastFloat64x2(a2p)
+						vA3 := asm.BroadcastFloat64x2(a3p)
+						bRowStart := p * n
+						vB0 := asm.LoadFloat64x2Slice(b[bRowStart+j:])
+						vB1 := asm.LoadFloat64x2Slice(b[bRowStart+j+lanes:])
+						acc00 = vA0.MulAdd(vB0, acc00)
+						acc01 = vA0.MulAdd(vB1, acc01)
+						acc10 = vA1.MulAdd(vB0, acc10)
+						acc11 = vA1.MulAdd(vB1, acc11)
+						acc20 = vA2.MulAdd(vB0, acc20)
+						acc21 = vA2.MulAdd(vB1, acc21)
+						acc30 = vA3.MulAdd(vB0, acc30)
+						acc31 = vA3.MulAdd(vB1, acc31)
 					}
+					cRow0 := i * n
+					cRow1 := (i + 1) * n
+					cRow2 := (i + 2) * n
+					cRow3 := (i + 3) * n
+					acc00.StoreSlice(c[cRow0+j:])
+					acc01.StoreSlice(c[cRow0+j+lanes:])
+					acc10.StoreSlice(c[cRow1+j:])
+					acc11.StoreSlice(c[cRow1+j+lanes:])
+					acc20.StoreSlice(c[cRow2+j:])
+					acc21.StoreSlice(c[cRow2+j+lanes:])
+					acc30.StoreSlice(c[cRow3+j:])
+					acc31.StoreSlice(c[cRow3+j+lanes:])
+				}
+				for ; j < jEnd; j += lanes {
+					remaining := jEnd - j
+					if remaining >= lanes {
+						acc0 := asm.ZeroFloat64x2()
+						acc1 := asm.ZeroFloat64x2()
+						acc2 := asm.ZeroFloat64x2()
+						acc3 := asm.ZeroFloat64x2()
+						for p := 0; p < k; p++ {
+							vA0 := asm.BroadcastFloat64x2(a[i*k+p])
+							vA1 := asm.BroadcastFloat64x2(a[(i+1)*k+p])
+							vA2 := asm.BroadcastFloat64x2(a[(i+2)*k+p])
+							vA3 := asm.BroadcastFloat64x2(a[(i+3)*k+p])
+							vB := asm.LoadFloat64x2Slice(b[p*n+j:])
+							acc0 = vA0.MulAdd(vB, acc0)
+							acc1 = vA1.MulAdd(vB, acc1)
+							acc2 = vA2.MulAdd(vB, acc2)
+							acc3 = vA3.MulAdd(vB, acc3)
+						}
+						acc0.StoreSlice(c[i*n+j:])
+						acc1.StoreSlice(c[(i+1)*n+j:])
+						acc2.StoreSlice(c[(i+2)*n+j:])
+						acc3.StoreSlice(c[(i+3)*n+j:])
+					} else {
+						for jj := j; jj < jEnd; jj++ {
+							var sum0, sum1, sum2, sum3 float64
+							for p := 0; p < k; p++ {
+								bpj := b[p*n+jj]
+								sum0 += a[i*k+p] * bpj
+								sum1 += a[(i+1)*k+p] * bpj
+								sum2 += a[(i+2)*k+p] * bpj
+								sum3 += a[(i+3)*k+p] * bpj
+							}
+							c[i*n+jj] = sum0
+							c[(i+1)*n+jj] = sum1
+							c[(i+2)*n+jj] = sum2
+							c[(i+3)*n+jj] = sum3
+						}
+						break
+					}
+				}
+			}
+			for ; i < iEnd; i++ {
+				cRowStart := i * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc := asm.ZeroFloat64x2()
+					for p := 0; p < k; p++ {
+						vA := asm.BroadcastFloat64x2(a[i*k+p])
+						vB := asm.LoadFloat64x2Slice(b[p*n+j:])
+						acc = vA.MulAdd(vB, acc)
+					}
+					acc.StoreSlice(c[cRowStart+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum float64
+					for p := 0; p < k; p++ {
+						sum += a[i*k+p] * b[p*n+j]
+					}
+					c[cRowStart+j] = sum
 				}
 			}
 		}

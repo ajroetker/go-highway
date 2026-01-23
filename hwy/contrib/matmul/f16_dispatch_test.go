@@ -17,6 +17,7 @@
 package matmul
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
@@ -151,6 +152,35 @@ func TestF16MatMulManyIterationsInGoroutine(t *testing.T) {
 	}()
 	<-done
 	t.Logf("All %d goroutine iterations completed successfully", iterations)
+}
+
+// TestF16WithLockOSThread tests with the goroutine locked to OS thread
+// This prevents goroutine migration which might affect SIMD state
+func TestF16WithLockOSThread(t *testing.T) {
+	if !hwy.HasARMFP16() {
+		t.Skip("CPU does not support ARM FP16")
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	n := 64
+
+	a := make([]hwy.Float16, n*n)
+	b := make([]hwy.Float16, n*n)
+	c := make([]hwy.Float16, n*n)
+
+	for i := range a {
+		a[i] = hwy.Float32ToFloat16(float32(i%7) + 0.5)
+		b[i] = hwy.Float32ToFloat16(float32(i%11) + 0.25)
+	}
+
+	iterations := 1000
+	t.Logf("Running %d iterations with LockOSThread...", iterations)
+	for i := 0; i < iterations; i++ {
+		MatMulAuto(a, b, c, n, n, n)
+	}
+	t.Logf("All %d iterations completed successfully", iterations)
 }
 
 // TestF16StreamingMatMul tests the streaming (non-blocked) matmul path

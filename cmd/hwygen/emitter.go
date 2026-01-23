@@ -13,6 +13,22 @@ import (
 	"strings"
 )
 
+// targetPriority returns a priority value for SIMD targets.
+// Higher values are checked first in dispatch code.
+// This ensures AVX512 is checked before AVX2 (since AVX512 CPUs also have AVX2).
+func targetPriority(name string) int {
+	switch name {
+	case "AVX512":
+		return 3
+	case "AVX2":
+		return 2
+	case "NEON":
+		return 1
+	default:
+		return 0
+	}
+}
+
 // ContribPackages tracks which contrib subpackages are needed for imports.
 type ContribPackages struct {
 	Math    bool // contrib/math (Exp, Log, Sin, etc.)
@@ -375,8 +391,16 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	fmt.Fprintf(&buf, "\t\treturn\n")
 	fmt.Fprintf(&buf, "\t}\n")
 
-	// Add CPU detection for each target
-	for _, target := range archTargets {
+	// Add CPU detection for each target.
+	// IMPORTANT: Sort targets so more capable SIMD is checked first.
+	// AVX512 CPUs also have AVX2, so we must check AVX512 before AVX2.
+	sortedTargets := make([]Target, len(archTargets))
+	copy(sortedTargets, archTargets)
+	sort.Slice(sortedTargets, func(i, j int) bool {
+		return targetPriority(sortedTargets[i].Name) > targetPriority(sortedTargets[j].Name)
+	})
+
+	for _, target := range sortedTargets {
 		switch target.Name {
 		case "AVX512":
 			fmt.Fprintf(&buf, "\tif archsimd.X86.AVX512() {\n")
@@ -389,14 +413,23 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		case "NEON":
-			// NEON is always available on arm64, so just init directly
+			// Check if hwy actually detected NEON (lanes >= 4 for float32).
+			// On emulators or fallback environments, hwy may report scalar mode.
+			fmt.Fprintf(&buf, "\t// Check if hwy actually detected NEON (lanes >= 4 for float32).\n")
+			fmt.Fprintf(&buf, "\t// On emulators or fallback environments, hwy may report scalar mode.\n")
+			fmt.Fprintf(&buf, "\tlanes := hwy.Zero[float32]().NumLanes()\n")
+			fmt.Fprintf(&buf, "\tif lanes < 4 {\n")
+			fmt.Fprintf(&buf, "\t\tinit%sFallback()\n", capPrefix)
+			fmt.Fprintf(&buf, "\t\treturn\n")
+			fmt.Fprintf(&buf, "\t}\n")
 			fmt.Fprintf(&buf, "\tinit%sNEON()\n", capPrefix)
 			fmt.Fprintf(&buf, "\treturn\n")
 		}
 	}
 
-	// Fallback to scalar (only if not NEON which always succeeds)
-	if arch != "arm64" {
+	// Add fallback at end for x86 (in case no SIMD detected)
+	// ARM64 handles fallback in the NEON case above
+	if arch != "arm64" && hasFallback {
 		fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	}
 	fmt.Fprintf(&buf, "}\n\n")

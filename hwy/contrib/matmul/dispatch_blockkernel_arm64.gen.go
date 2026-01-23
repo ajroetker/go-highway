@@ -17,6 +17,10 @@ var BlockMulAdd2Float16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16,
 var BlockMulAdd2BFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
 var BlockMulAdd2Float32 func(aT []float32, b []float32, c []float32, blockDim int)
 var BlockMulAdd2Float64 func(aT []float64, b []float64, c []float64, blockDim int)
+var BlockMulAddRegBlockedFloat16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int)
+var BlockMulAddRegBlockedBFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
+var BlockMulAddRegBlockedFloat32 func(aT []float32, b []float32, c []float32, blockDim int)
+var BlockMulAddRegBlockedFloat64 func(aT []float64, b []float64, c []float64, blockDim int)
 var BlockMulAdd4Float16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int)
 var BlockMulAdd4BFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
 var BlockMulAdd4Float32 func(aT []float32, b []float32, c []float32, blockDim int)
@@ -50,6 +54,20 @@ func BlockMulAdd2[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	}
 }
 
+// BlockMulAddRegBlocked is the generic API that dispatches to the appropriate SIMD implementation.
+func BlockMulAddRegBlocked[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
+	switch any(aT).(type) {
+	case []hwy.Float16:
+		BlockMulAddRegBlockedFloat16(any(aT).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), blockDim)
+	case []hwy.BFloat16:
+		BlockMulAddRegBlockedBFloat16(any(aT).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), blockDim)
+	case []float32:
+		BlockMulAddRegBlockedFloat32(any(aT).([]float32), any(b).([]float32), any(c).([]float32), blockDim)
+	case []float64:
+		BlockMulAddRegBlockedFloat64(any(aT).([]float64), any(b).([]float64), any(c).([]float64), blockDim)
+	}
+}
+
 // BlockMulAdd4 is the generic API that dispatches to the appropriate SIMD implementation.
 func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	switch any(aT).(type) {
@@ -69,6 +87,13 @@ func init() {
 		initBlockkernelFallback()
 		return
 	}
+	// Check if hwy actually detected NEON (lanes >= 4 for float32).
+	// On emulators or fallback environments, hwy may report scalar mode.
+	lanes := hwy.Zero[float32]().NumLanes()
+	if lanes < 4 {
+		initBlockkernelFallback()
+		return
+	}
 	initBlockkernelNEON()
 	return
 }
@@ -82,6 +107,10 @@ func initBlockkernelNEON() {
 	BlockMulAdd2BFloat16 = BaseBlockMulAdd2_neon_BFloat16
 	BlockMulAdd2Float32 = BaseBlockMulAdd2_neon
 	BlockMulAdd2Float64 = BaseBlockMulAdd2_neon_Float64
+	BlockMulAddRegBlockedFloat16 = BaseBlockMulAddRegBlocked_neon_Float16
+	BlockMulAddRegBlockedBFloat16 = BaseBlockMulAddRegBlocked_neon_BFloat16
+	BlockMulAddRegBlockedFloat32 = BaseBlockMulAddRegBlocked_neon
+	BlockMulAddRegBlockedFloat64 = BaseBlockMulAddRegBlocked_neon_Float64
 	BlockMulAdd4Float16 = BaseBlockMulAdd4_neon_Float16
 	BlockMulAdd4BFloat16 = BaseBlockMulAdd4_neon_BFloat16
 	BlockMulAdd4Float32 = BaseBlockMulAdd4_neon
@@ -97,6 +126,10 @@ func initBlockkernelFallback() {
 	BlockMulAdd2BFloat16 = BaseBlockMulAdd2_fallback_BFloat16
 	BlockMulAdd2Float32 = BaseBlockMulAdd2_fallback
 	BlockMulAdd2Float64 = BaseBlockMulAdd2_fallback_Float64
+	BlockMulAddRegBlockedFloat16 = BaseBlockMulAddRegBlocked_fallback_Float16
+	BlockMulAddRegBlockedBFloat16 = BaseBlockMulAddRegBlocked_fallback_BFloat16
+	BlockMulAddRegBlockedFloat32 = BaseBlockMulAddRegBlocked_fallback
+	BlockMulAddRegBlockedFloat64 = BaseBlockMulAddRegBlocked_fallback_Float64
 	BlockMulAdd4Float16 = BaseBlockMulAdd4_fallback_Float16
 	BlockMulAdd4BFloat16 = BaseBlockMulAdd4_fallback_BFloat16
 	BlockMulAdd4Float32 = BaseBlockMulAdd4_fallback

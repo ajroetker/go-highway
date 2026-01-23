@@ -34,12 +34,12 @@ func init() {
 		initBlockedmatmulFallback()
 		return
 	}
-	if archsimd.X86.AVX2() {
-		initBlockedmatmulAVX2()
-		return
-	}
 	if archsimd.X86.AVX512() {
 		initBlockedmatmulAVX512()
+		return
+	}
+	if archsimd.X86.AVX2() {
+		initBlockedmatmulAVX2()
 		return
 	}
 	initBlockedmatmulFallback()
