@@ -548,6 +548,83 @@ func TestMicroKernelIRIsolation(t *testing.T) {
 	}
 }
 
+// TestPureGoMicroKernel tests a pure Go implementation to isolate if the bug
+// is in hwy functions or in something else.
+func TestPureGoMicroKernel(t *testing.T) {
+	t.Logf("=== Environment ===")
+	t.Logf("HWY_NO_SIMD=%q", os.Getenv("HWY_NO_SIMD"))
+
+	// Use fixed small parameters that work on all architectures
+	mr, nr := 4, 8
+	m, n, k := 16, 16, 16
+
+	// Create simple packed A and B data
+	packedA := make([]float32, k*mr)
+	for i := range packedA {
+		packedA[i] = float32(i + 1)
+	}
+
+	packedB := make([]float32, k*nr)
+	for i := range packedB {
+		packedB[i] = float32(i + 1)
+	}
+
+	// Pure Go micro-kernel implementation (no hwy)
+	pureGoMicroKernel := func(pA, pB []float32, c []float32, n, ir, jr, kc, mr, nr int) {
+		// Compute C[ir:ir+mr, jr:jr+nr] += pA * pB
+		for r := 0; r < mr; r++ {
+			for col := 0; col < nr; col++ {
+				var sum float32
+				for p := 0; p < kc; p++ {
+					sum += pA[p*mr+r] * pB[p*nr+col]
+				}
+				c[(ir+r)*n+jr+col] += sum
+			}
+		}
+	}
+
+	// Test ir=0
+	t.Logf("=== Pure Go: ir=0 ===")
+	c1 := make([]float32, m*n)
+	pureGoMicroKernel(packedA, packedB, c1, n, 0, 0, k, mr, nr)
+	t.Logf("c1[0, 0:8] = %v", c1[0:8])
+
+	// Compute expected
+	var expected float32
+	for p := 0; p < k; p++ {
+		expected += packedA[p*mr+0] * packedB[p*nr+0]
+	}
+	t.Logf("Expected C[0,0] = %f, got %f", expected, c1[0])
+
+	// Test ir=12 with same data
+	t.Logf("=== Pure Go: ir=12 ===")
+	c2 := make([]float32, m*n)
+	pureGoMicroKernel(packedA, packedB, c2, n, 12, 0, k, mr, nr)
+	t.Logf("c2[12, 0:8] = %v", c2[12*n:12*n+8])
+	t.Logf("Expected C[12,0] = %f, got %f", expected, c2[12*n])
+
+	if c2[12*n] != expected {
+		t.Errorf("Pure Go kernel failed: got %f, want %f", c2[12*n], expected)
+	}
+
+	// Now compare with PackedMicroKernel
+	t.Logf("=== PackedMicroKernel: ir=0 ===")
+	c3 := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, c3, n, 0, 0, k, mr, nr)
+	t.Logf("c3[0, 0:8] = %v", c3[0:8])
+
+	t.Logf("=== PackedMicroKernel: ir=12 ===")
+	c4 := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, c4, n, 12, 0, k, mr, nr)
+	t.Logf("c4[12, 0:8] = %v", c4[12*n:12*n+8])
+
+	// Compare pure Go vs PackedMicroKernel for ir=12
+	if c4[12*n] != c2[12*n] {
+		t.Errorf("PackedMicroKernel differs from pure Go: PackedMicroKernel=%f, PureGo=%f",
+			c4[12*n], c2[12*n])
+	}
+}
+
 // TestPackLHS verifies that LHS packing produces the expected layout.
 func TestPackLHS(t *testing.T) {
 	// 6x4 matrix A, Mr=2
