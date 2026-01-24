@@ -255,6 +255,71 @@ func TestPackedMatMulSmall(t *testing.T) {
 	}
 }
 
+// TestDispatchPointer checks which kernel function is actually assigned to the dispatch variable.
+func TestDispatchPointer(t *testing.T) {
+	t.Logf("=== Environment ===")
+	t.Logf("HWY_NO_SIMD=%q", os.Getenv("HWY_NO_SIMD"))
+	lanes := hwy.Zero[float32]().NumLanes()
+	t.Logf("lanes=%d, CurrentName=%s", lanes, hwy.CurrentName())
+
+	// Check what the dispatch variable points to by calling both and comparing
+	mr, nr := 4, 8
+	m, n, k := 16, 16, 16
+
+	packedA := make([]float32, k*mr)
+	for i := range packedA {
+		packedA[i] = float32(i + 1)
+	}
+	packedB := make([]float32, k*nr)
+	for i := range packedB {
+		packedB[i] = float32(i + 1)
+	}
+
+	// Call fallback directly
+	cFallback := make([]float32, m*n)
+	BasePackedMicroKernel_fallback(packedA, packedB, cFallback, n, 12, 8, k, mr, nr)
+
+	// Call NEON directly
+	cNeon := make([]float32, m*n)
+	BasePackedMicroKernel_neon(packedA, packedB, cNeon, n, 12, 8, k, mr, nr)
+
+	// Call via dispatch
+	cDispatch := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, cDispatch, n, 12, 8, k, mr, nr)
+
+	t.Logf("Fallback result: c[200:208] = %v", cFallback[200:208])
+	t.Logf("NEON result:     c[200:208] = %v", cNeon[200:208])
+	t.Logf("Dispatch result: c[200:208] = %v", cDispatch[200:208])
+
+	// Check which one dispatch matches
+	fallbackMatch := true
+	neonMatch := true
+	for i := 200; i < 208; i++ {
+		if cDispatch[i] != cFallback[i] {
+			fallbackMatch = false
+		}
+		if cDispatch[i] != cNeon[i] {
+			neonMatch = false
+		}
+	}
+
+	if fallbackMatch {
+		t.Logf("Dispatch is using FALLBACK kernel")
+	} else if neonMatch {
+		t.Logf("Dispatch is using NEON kernel")
+		if cNeon[200] == 0 {
+			t.Errorf("BUG: NEON kernel produces zeros! The NEON implementation has a bug.")
+		}
+	} else {
+		t.Logf("Dispatch matches neither fallback nor NEON!")
+	}
+
+	// Also check if NEON kernel has the bug
+	if cNeon[200] == 0 && cFallback[200] != 0 {
+		t.Errorf("NEON KERNEL BUG: NEON produces 0 but fallback produces %f", cFallback[200])
+	}
+}
+
 // TestDirectFallbackKernel calls the fallback kernel directly, bypassing dispatch.
 func TestDirectFallbackKernel(t *testing.T) {
 	t.Logf("=== Environment ===")
