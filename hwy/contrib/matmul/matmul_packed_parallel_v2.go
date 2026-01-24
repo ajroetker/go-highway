@@ -203,7 +203,7 @@ func gebpWithPackedOutput[T hwy.Floats](
 	}
 
 	// Zero the packed output buffer for this panel
-	zeroSlice(packedOut, panelRows*ncStride)
+	ZeroSlice(packedOut, panelRows*ncStride)
 
 	// Loop 2: micro-tile columns (jr)
 	for jPanel := 0; jPanel < numMicroPanelsB; jPanel++ {
@@ -255,6 +255,9 @@ func gebpWithPackedOutput[T hwy.Floats](
 // This writes a full Mr x Nr tile without bounds checking.
 //
 // Optimized for mr=4 and nr=2*lanes (8 accumulators).
+// Uses the generated dispatch function PackedMicroKernel4x2 which is optimized
+// for each architecture (AVX2, AVX-512, NEON). Falls back to packedMicroKernelGenericImpl
+// for non-standard configurations.
 func packedMicroKernelToBuffer[T hwy.Floats](
 	packedA, packedB []T,
 	output []T,
@@ -262,218 +265,53 @@ func packedMicroKernelToBuffer[T hwy.Floats](
 	outRowStart, outColStart int,
 	panelK, mr, nr int,
 ) {
-	lanes := hwy.Zero[T]().NumLanes()
+	lanes := getLanes[T]()
 	numBVecs := nr / lanes
 
 	// For typical 4x(2*lanes) config, we have 8 accumulators.
-	// Unroll for common case.
+	// Use the generated dispatch function which calls the architecture-specific kernel.
 	if mr == 4 && numBVecs == 2 {
-		packedMicroKernel4x2(packedA, packedB, output, outputStride, outRowStart, outColStart, panelK, lanes)
+		PackedMicroKernel4x2(packedA, packedB, output, outputStride, outRowStart, outColStart, panelK, lanes)
 		return
 	}
 
-	// Generic fallback (allocates, but rare)
-	packedMicroKernelGeneric(packedA, packedB, output, outputStride, outRowStart, outColStart, panelK, mr, nr, lanes)
+	// Generic fallback for non-standard configurations (uses hwy.* calls which may allocate).
+	packedMicroKernelGenericImpl(packedA, packedB, output, outputStride, outRowStart, outColStart, panelK, mr, nr, lanes)
 }
 
-// packedMicroKernel4x2 is optimized for mr=4, numBVecs=2 (common case).
-// Includes 4x K-loop unrolling for better instruction-level parallelism.
-func packedMicroKernel4x2[T hwy.Floats](
-	packedA, packedB []T,
-	output []T,
-	outputStride int,
-	outRowStart, outColStart int,
-	panelK, lanes int,
-) {
-	// 4 rows × 2 B vectors = 8 accumulator vectors
-	acc00 := hwy.Zero[T]()
-	acc01 := hwy.Zero[T]()
-	acc10 := hwy.Zero[T]()
-	acc11 := hwy.Zero[T]()
-	acc20 := hwy.Zero[T]()
-	acc21 := hwy.Zero[T]()
-	acc30 := hwy.Zero[T]()
-	acc31 := hwy.Zero[T]()
-
-	nr := 2 * lanes
-	mr := 4
-	aIdx := 0
-	bIdx := 0
-
-	// BCE hints for bounds check elimination
-	_ = packedA[panelK*mr-1]
-	_ = packedB[panelK*nr-1]
-
-	// Main loop: 4x unrolled for better ILP
-	p := 0
-	for ; p+3 < panelK; p += 4 {
-		// --- Step 0 ---
-		bVec0_0 := hwy.Load(packedB[bIdx:])
-		bVec1_0 := hwy.Load(packedB[bIdx+lanes:])
-		a0_0 := hwy.Set(packedA[aIdx])
-		a1_0 := hwy.Set(packedA[aIdx+1])
-		a2_0 := hwy.Set(packedA[aIdx+2])
-		a3_0 := hwy.Set(packedA[aIdx+3])
-
-		acc00 = hwy.MulAdd(a0_0, bVec0_0, acc00)
-		acc01 = hwy.MulAdd(a0_0, bVec1_0, acc01)
-		acc10 = hwy.MulAdd(a1_0, bVec0_0, acc10)
-		acc11 = hwy.MulAdd(a1_0, bVec1_0, acc11)
-		acc20 = hwy.MulAdd(a2_0, bVec0_0, acc20)
-		acc21 = hwy.MulAdd(a2_0, bVec1_0, acc21)
-		acc30 = hwy.MulAdd(a3_0, bVec0_0, acc30)
-		acc31 = hwy.MulAdd(a3_0, bVec1_0, acc31)
-
-		// --- Step 1 ---
-		bVec0_1 := hwy.Load(packedB[bIdx+nr:])
-		bVec1_1 := hwy.Load(packedB[bIdx+nr+lanes:])
-		a0_1 := hwy.Set(packedA[aIdx+mr])
-		a1_1 := hwy.Set(packedA[aIdx+mr+1])
-		a2_1 := hwy.Set(packedA[aIdx+mr+2])
-		a3_1 := hwy.Set(packedA[aIdx+mr+3])
-
-		acc00 = hwy.MulAdd(a0_1, bVec0_1, acc00)
-		acc01 = hwy.MulAdd(a0_1, bVec1_1, acc01)
-		acc10 = hwy.MulAdd(a1_1, bVec0_1, acc10)
-		acc11 = hwy.MulAdd(a1_1, bVec1_1, acc11)
-		acc20 = hwy.MulAdd(a2_1, bVec0_1, acc20)
-		acc21 = hwy.MulAdd(a2_1, bVec1_1, acc21)
-		acc30 = hwy.MulAdd(a3_1, bVec0_1, acc30)
-		acc31 = hwy.MulAdd(a3_1, bVec1_1, acc31)
-
-		// --- Step 2 ---
-		bVec0_2 := hwy.Load(packedB[bIdx+2*nr:])
-		bVec1_2 := hwy.Load(packedB[bIdx+2*nr+lanes:])
-		a0_2 := hwy.Set(packedA[aIdx+2*mr])
-		a1_2 := hwy.Set(packedA[aIdx+2*mr+1])
-		a2_2 := hwy.Set(packedA[aIdx+2*mr+2])
-		a3_2 := hwy.Set(packedA[aIdx+2*mr+3])
-
-		acc00 = hwy.MulAdd(a0_2, bVec0_2, acc00)
-		acc01 = hwy.MulAdd(a0_2, bVec1_2, acc01)
-		acc10 = hwy.MulAdd(a1_2, bVec0_2, acc10)
-		acc11 = hwy.MulAdd(a1_2, bVec1_2, acc11)
-		acc20 = hwy.MulAdd(a2_2, bVec0_2, acc20)
-		acc21 = hwy.MulAdd(a2_2, bVec1_2, acc21)
-		acc30 = hwy.MulAdd(a3_2, bVec0_2, acc30)
-		acc31 = hwy.MulAdd(a3_2, bVec1_2, acc31)
-
-		// --- Step 3 ---
-		bVec0_3 := hwy.Load(packedB[bIdx+3*nr:])
-		bVec1_3 := hwy.Load(packedB[bIdx+3*nr+lanes:])
-		a0_3 := hwy.Set(packedA[aIdx+3*mr])
-		a1_3 := hwy.Set(packedA[aIdx+3*mr+1])
-		a2_3 := hwy.Set(packedA[aIdx+3*mr+2])
-		a3_3 := hwy.Set(packedA[aIdx+3*mr+3])
-
-		acc00 = hwy.MulAdd(a0_3, bVec0_3, acc00)
-		acc01 = hwy.MulAdd(a0_3, bVec1_3, acc01)
-		acc10 = hwy.MulAdd(a1_3, bVec0_3, acc10)
-		acc11 = hwy.MulAdd(a1_3, bVec1_3, acc11)
-		acc20 = hwy.MulAdd(a2_3, bVec0_3, acc20)
-		acc21 = hwy.MulAdd(a2_3, bVec1_3, acc21)
-		acc30 = hwy.MulAdd(a3_3, bVec0_3, acc30)
-		acc31 = hwy.MulAdd(a3_3, bVec1_3, acc31)
-
-		aIdx += 4 * mr
-		bIdx += 4 * nr
-	}
-
-	// Handle remaining iterations (0-3)
-	for ; p < panelK; p++ {
-		bVec0 := hwy.Load(packedB[bIdx:])
-		bVec1 := hwy.Load(packedB[bIdx+lanes:])
-		bIdx += nr
-
-		a0 := hwy.Set(packedA[aIdx])
-		a1 := hwy.Set(packedA[aIdx+1])
-		a2 := hwy.Set(packedA[aIdx+2])
-		a3 := hwy.Set(packedA[aIdx+3])
-		aIdx += mr
-
-		acc00 = hwy.MulAdd(a0, bVec0, acc00)
-		acc01 = hwy.MulAdd(a0, bVec1, acc01)
-		acc10 = hwy.MulAdd(a1, bVec0, acc10)
-		acc11 = hwy.MulAdd(a1, bVec1, acc11)
-		acc20 = hwy.MulAdd(a2, bVec0, acc20)
-		acc21 = hwy.MulAdd(a2, bVec1, acc21)
-		acc30 = hwy.MulAdd(a3, bVec0, acc30)
-		acc31 = hwy.MulAdd(a3, bVec1, acc31)
-	}
-
-	// Write accumulators to output
-	outIdx0 := outRowStart*outputStride + outColStart
-	outIdx1 := outIdx0 + outputStride
-	outIdx2 := outIdx1 + outputStride
-	outIdx3 := outIdx2 + outputStride
-
-	hwy.Store(acc00, output[outIdx0:])
-	hwy.Store(acc01, output[outIdx0+lanes:])
-	hwy.Store(acc10, output[outIdx1:])
-	hwy.Store(acc11, output[outIdx1+lanes:])
-	hwy.Store(acc20, output[outIdx2:])
-	hwy.Store(acc21, output[outIdx2+lanes:])
-	hwy.Store(acc30, output[outIdx3:])
-	hwy.Store(acc31, output[outIdx3+lanes:])
-}
-
-// packedMicroKernelGeneric is the generic fallback for non-4x2 configs.
-func packedMicroKernelGeneric[T hwy.Floats](
-	packedA, packedB []T,
-	output []T,
-	outputStride int,
-	outRowStart, outColStart int,
-	panelK, mr, nr, lanes int,
-) {
-	numBVecs := nr / lanes
-
-	// Allocate accumulators (this path is rarely taken)
-	acc := make([]hwy.Vec[T], mr*numBVecs)
-	for i := range acc {
-		acc[i] = hwy.Zero[T]()
-	}
-
-	aIdx := 0
-	bIdx := 0
-
-	for p := 0; p < panelK; p++ {
-		// Load B vectors
-		for v := 0; v < numBVecs; v++ {
-			bVec := hwy.Load(packedB[bIdx+v*lanes:])
-
-			// FMA with each A row
-			for row := 0; row < mr; row++ {
-				aVec := hwy.Set(packedA[aIdx+row])
-				accIdx := row*numBVecs + v
-				acc[accIdx] = hwy.MulAdd(aVec, bVec, acc[accIdx])
-			}
-		}
-		aIdx += mr
-		bIdx += nr
-	}
-
-	// Write accumulators
-	for row := 0; row < mr; row++ {
-		outIdx := (outRowStart+row)*outputStride + outColStart
-		for v := 0; v < numBVecs; v++ {
-			hwy.Store(acc[row*numBVecs+v], output[outIdx+v*lanes:])
-		}
+// getLanes returns the vector width for type T.
+// This returns the lanes appropriate for the SIMD implementation being used,
+// NOT the global currentWidth (which may be SME 512-bit on M4).
+//
+// The generated NEON kernels use Float32x4/Float64x2 intrinsics, so we must
+// return NEON-appropriate lanes regardless of SME detection.
+func getLanes[T hwy.Floats]() int {
+	var zero T
+	switch any(zero).(type) {
+	case float32:
+		return getLanesFloat32()
+	case float64:
+		return getLanesFloat64()
+	default:
+		// Fallback for other float types - use actual vector width
+		return hwy.Zero[T]().NumLanes()
 	}
 }
 
-// zeroSlice zeros a slice using SIMD.
-func zeroSlice[T hwy.Floats](s []T, n int) {
-	vZero := hwy.Zero[T]()
-	lanes := vZero.NumLanes()
+var lanesFloat32 int
+var lanesFloat64 int
 
-	var idx int
-	for idx = 0; idx+lanes <= n; idx += lanes {
-		hwy.Store(vZero, s[idx:])
-	}
-	for ; idx < n; idx++ {
-		s[idx] = 0
-	}
+func init() {
+	// Get the actual lanes from the SIMD implementation.
+	// On ARM64, even if SME is detected (512-bit), the generated NEON kernels
+	// use Float32x4 (4 lanes) and Float64x2 (2 lanes) intrinsics.
+	// Use getKernelLanes() to get the implementation-appropriate lanes.
+	lanesFloat32 = getKernelLanesFloat32()
+	lanesFloat64 = getKernelLanesFloat64()
 }
+
+func getLanesFloat32() int { return lanesFloat32 }
+func getLanesFloat64() int { return lanesFloat64 }
 
 // ParallelPackedMatMulV2Float32 is the non-generic version for float32.
 func ParallelPackedMatMulV2Float32(a, b, c []float32, m, n, k int) {
