@@ -343,6 +343,44 @@ func TestKernelWithJR8(t *testing.T) {
 	} else {
 		t.Logf("OK: c5[12*n+8]=%f", c5[12*n+8])
 	}
+
+	// Test 6: Pure Go implementation (no hwy) with ir=12, jr=8
+	t.Logf("=== Test 6: Pure Go kernel with ir=12, jr=8 ===")
+	c6 := make([]float32, m*n)
+	pureGoMicroKernel(packedA, packedB, c6, n, 12, 8, k, mr, nr)
+	t.Logf("c6[12, 8:16] = %v", c6[12*n+8:12*n+16])
+	if c6[12*n+8] == 0 {
+		t.Errorf("BUG: Even pure Go kernel fails with ir=12, jr=8!")
+	} else {
+		t.Logf("OK: Pure Go works! c6[12*n+8]=%f", c6[12*n+8])
+		t.Logf("This means the bug is in hwy.Load/Store/Add, not in the algorithm")
+	}
+}
+
+// pureGoMicroKernel is a pure Go implementation with no hwy dependencies.
+func pureGoMicroKernel(packedA, packedB, c []float32, n, ir, jr, kc, mr, nr int) {
+	// Accumulators: mr x nr
+	acc := make([]float32, mr*nr)
+
+	// Main loop over K
+	for p := 0; p < kc; p++ {
+		aBase := p * mr
+		bBase := p * nr
+		for i := 0; i < mr; i++ {
+			aVal := packedA[aBase+i]
+			for j := 0; j < nr; j++ {
+				acc[i*nr+j] += aVal * packedB[bBase+j]
+			}
+		}
+	}
+
+	// Store to C
+	for i := 0; i < mr; i++ {
+		cRowStart := (ir + i) * n
+		for j := 0; j < nr; j++ {
+			c[cRowStart+jr+j] += acc[i*nr+j]
+		}
+	}
 }
 
 // TestPackedMatMul16x16Deterministic tests with 16x16 deterministic values
