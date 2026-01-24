@@ -256,6 +256,7 @@ func TestPackedMatMulSmall(t *testing.T) {
 }
 
 // TestDispatchPointer checks which kernel function is actually assigned to the dispatch variable.
+// This test compares fallback vs dispatch. NEON-specific tests are in packing_arm64_test.go.
 func TestDispatchPointer(t *testing.T) {
 	t.Logf("=== Environment ===")
 	t.Logf("HWY_NO_SIMD=%q", os.Getenv("HWY_NO_SIMD"))
@@ -279,44 +280,29 @@ func TestDispatchPointer(t *testing.T) {
 	cFallback := make([]float32, m*n)
 	BasePackedMicroKernel_fallback(packedA, packedB, cFallback, n, 12, 8, k, mr, nr)
 
-	// Call NEON directly
-	cNeon := make([]float32, m*n)
-	BasePackedMicroKernel_neon(packedA, packedB, cNeon, n, 12, 8, k, mr, nr)
-
 	// Call via dispatch
 	cDispatch := make([]float32, m*n)
 	PackedMicroKernel(packedA, packedB, cDispatch, n, 12, 8, k, mr, nr)
 
 	t.Logf("Fallback result: c[200:208] = %v", cFallback[200:208])
-	t.Logf("NEON result:     c[200:208] = %v", cNeon[200:208])
 	t.Logf("Dispatch result: c[200:208] = %v", cDispatch[200:208])
 
-	// Check which one dispatch matches
+	// Check if dispatch matches fallback
 	fallbackMatch := true
-	neonMatch := true
 	for i := 200; i < 208; i++ {
 		if cDispatch[i] != cFallback[i] {
 			fallbackMatch = false
-		}
-		if cDispatch[i] != cNeon[i] {
-			neonMatch = false
+			break
 		}
 	}
 
 	if fallbackMatch {
-		t.Logf("Dispatch is using FALLBACK kernel")
-	} else if neonMatch {
-		t.Logf("Dispatch is using NEON kernel")
-		if cNeon[200] == 0 {
-			t.Errorf("BUG: NEON kernel produces zeros! The NEON implementation has a bug.")
-		}
+		t.Logf("Dispatch matches FALLBACK kernel")
 	} else {
-		t.Logf("Dispatch matches neither fallback nor NEON!")
-	}
-
-	// Also check if NEON kernel has the bug
-	if cNeon[200] == 0 && cFallback[200] != 0 {
-		t.Errorf("NEON KERNEL BUG: NEON produces 0 but fallback produces %f", cFallback[200])
+		t.Logf("Dispatch does NOT match fallback - using different kernel")
+		if cDispatch[200] == 0 && cFallback[200] != 0 {
+			t.Errorf("BUG: Dispatch produces 0 but fallback produces %f", cFallback[200])
+		}
 	}
 }
 
