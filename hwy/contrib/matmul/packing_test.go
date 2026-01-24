@@ -357,6 +357,86 @@ func TestKernelWithJR8(t *testing.T) {
 	}
 }
 
+// TestHwyOpsDirectly tests hwy.Load/Store/Add directly with the failing indices.
+func TestHwyOpsDirectly(t *testing.T) {
+	t.Logf("=== Environment ===")
+	t.Logf("HWY_NO_SIMD=%q", os.Getenv("HWY_NO_SIMD"))
+	lanes := hwy.Zero[float32]().NumLanes()
+	t.Logf("lanes=%d, CurrentName=%s", lanes, hwy.CurrentName())
+
+	// Create a slice like the C matrix
+	c := make([]float32, 256)
+
+	// Test storing to index 200 (the failing case: ir=12, jr=8, cRow0=192, cRow0+jr=200)
+	t.Logf("=== Test: Store to c[200:] ===")
+	acc := hwy.Set[float32](41136.0) // The expected value
+	t.Logf("acc.NumLanes()=%d", acc.NumLanes())
+
+	// First, store using simple assignment
+	c[200] = 41136.0
+	t.Logf("After c[200]=41136: c[200]=%f", c[200])
+
+	// Reset
+	c[200] = 0
+
+	// Now test hwy.Store
+	t.Logf("Before hwy.Store: c[200:204]=%v", c[200:204])
+	hwy.Store(acc, c[200:])
+	t.Logf("After hwy.Store(acc, c[200:]): c[200:204]=%v", c[200:204])
+
+	if c[200] == 0 {
+		t.Errorf("BUG: hwy.Store to c[200:] produced 0!")
+	}
+
+	// Test with different offsets
+	offsets := []int{0, 8, 192, 196, 200, 204, 248, 252}
+	for _, off := range offsets {
+		c2 := make([]float32, 256)
+		hwy.Store(acc, c2[off:])
+		if c2[off] == 0 {
+			t.Errorf("BUG: hwy.Store to c2[%d:] produced 0!", off)
+		} else {
+			t.Logf("OK: c2[%d]=%f after Store", off, c2[off])
+		}
+	}
+
+	// Test Load -> Add -> Store pattern
+	t.Logf("=== Test: Load -> Add -> Store pattern ===")
+	c3 := make([]float32, 256) // all zeros
+	vC := hwy.Load(c3[200:])
+	t.Logf("Loaded vC from c3[200:]: first element should be 0")
+	vC = hwy.Add(vC, acc)
+	t.Logf("After Add: vC should have 41136")
+	hwy.Store(vC, c3[200:])
+	t.Logf("After Store: c3[200:204]=%v", c3[200:204])
+
+	if c3[200] == 0 {
+		t.Errorf("BUG: Load->Add->Store to c3[200:] produced 0!")
+	}
+
+	// Test the exact pattern from the kernel with cRow0+jr+lanes
+	t.Logf("=== Test: Exact kernel pattern ===")
+	ir, jr, n := 12, 8, 16
+	cRow0 := ir * n // 192
+	c4 := make([]float32, 256)
+
+	// First store (columns jr to jr+lanes)
+	vC = hwy.Load(c4[cRow0+jr:])
+	vC = hwy.Add(vC, acc)
+	hwy.Store(vC, c4[cRow0+jr:])
+	t.Logf("Store 1: c4[%d:%d]=%v", cRow0+jr, cRow0+jr+4, c4[cRow0+jr:cRow0+jr+4])
+
+	// Second store (columns jr+lanes to jr+2*lanes)
+	vC = hwy.Load(c4[cRow0+jr+lanes:])
+	vC = hwy.Add(vC, acc)
+	hwy.Store(vC, c4[cRow0+jr+lanes:])
+	t.Logf("Store 2: c4[%d:%d]=%v", cRow0+jr+lanes, cRow0+jr+lanes+4, c4[cRow0+jr+lanes:cRow0+jr+lanes+4])
+
+	if c4[200] == 0 || c4[204] == 0 {
+		t.Errorf("BUG: Kernel pattern failed! c4[200]=%f, c4[204]=%f", c4[200], c4[204])
+	}
+}
+
 // pureGoMicroKernel is a pure Go implementation with no hwy dependencies.
 func pureGoMicroKernel(packedA, packedB, c []float32, n, ir, jr, kc, mr, nr int) {
 	// Accumulators: mr x nr
