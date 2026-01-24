@@ -255,6 +255,96 @@ func TestPackedMatMulSmall(t *testing.T) {
 	}
 }
 
+// TestKernelWithJR8 tests the micro-kernel specifically with jr=8.
+// This is the failing case from TestPackedMatMul16x16Deterministic.
+func TestKernelWithJR8(t *testing.T) {
+	t.Logf("=== Environment ===")
+	t.Logf("HWY_NO_SIMD=%q", os.Getenv("HWY_NO_SIMD"))
+	lanes := hwy.Zero[float32]().NumLanes()
+	t.Logf("lanes=%d, CurrentName=%s", lanes, hwy.CurrentName())
+
+	mr, nr := 4, 8
+	m, n, k := 16, 16, 16
+
+	// Create packed data
+	packedA := make([]float32, k*mr)
+	for i := range packedA {
+		packedA[i] = float32(i + 1)
+	}
+
+	packedB := make([]float32, k*nr)
+	for i := range packedB {
+		packedB[i] = float32(i + 1)
+	}
+
+	// Test 1: ir=0, jr=0 (baseline)
+	t.Logf("=== Test 1: ir=0, jr=0 ===")
+	c1 := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, c1, n, 0, 0, k, mr, nr)
+	t.Logf("c1[0, 0:8] = %v", c1[0:8])
+
+	// Test 2: ir=0, jr=8
+	t.Logf("=== Test 2: ir=0, jr=8 ===")
+	c2 := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, c2, n, 0, 8, k, mr, nr)
+	t.Logf("c2[0, 8:16] = %v", c2[8:16])
+	if c2[8] == 0 {
+		t.Errorf("BUG: ir=0, jr=8 produces 0 at c[0,8]!")
+	} else {
+		t.Logf("OK: c2[8]=%f (should match c1[0]=%f)", c2[8], c1[0])
+	}
+
+	// Test 3: ir=12, jr=0
+	t.Logf("=== Test 3: ir=12, jr=0 ===")
+	c3 := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, c3, n, 12, 0, k, mr, nr)
+	t.Logf("c3[12, 0:8] = %v", c3[12*n:12*n+8])
+	if c3[12*n] == 0 {
+		t.Errorf("BUG: ir=12, jr=0 produces 0!")
+	}
+
+	// Test 4: ir=12, jr=8 (the exact failing case)
+	t.Logf("=== Test 4: ir=12, jr=8 ===")
+	c4 := make([]float32, m*n)
+	PackedMicroKernel(packedA, packedB, c4, n, 12, 8, k, mr, nr)
+	t.Logf("c4[12, 8:16] = %v", c4[12*n+8:12*n+16])
+	if c4[12*n+8] == 0 && c1[0] != 0 {
+		t.Errorf("BUG: ir=12, jr=8 produces 0!")
+	} else {
+		t.Logf("OK: c4[12*n+8]=%f (should match c1[0]=%f)", c4[12*n+8], c1[0])
+	}
+
+	// Test 5: Use sub-slices like the real GEBP does
+	t.Logf("=== Test 5: Sub-slices with ir=12, jr=8 ===")
+	// Create full packed buffers like GEBP
+	fullPackedA := make([]float32, 4*k*mr) // 4 A panels
+	for i := range fullPackedA {
+		fullPackedA[i] = float32((i % (k * mr)) + 1) // Same pattern in each panel
+	}
+	fullPackedB := make([]float32, 2*k*nr) // 2 B panels
+	for i := range fullPackedB {
+		fullPackedB[i] = float32((i % (k * nr)) + 1) // Same pattern in each panel
+	}
+
+	aPanelOffset := 3 * k * mr // Panel 3
+	bPanelOffset := 1 * k * nr // Panel 1
+
+	t.Logf("aPanelOffset=%d, bPanelOffset=%d", aPanelOffset, bPanelOffset)
+	t.Logf("fullPackedA[%d:%d] first 8: %v", aPanelOffset, aPanelOffset+8, fullPackedA[aPanelOffset:aPanelOffset+8])
+	t.Logf("fullPackedB[%d:%d] first 8: %v", bPanelOffset, bPanelOffset+8, fullPackedB[bPanelOffset:bPanelOffset+8])
+
+	c5 := make([]float32, m*n)
+	PackedMicroKernel(fullPackedA[aPanelOffset:], fullPackedB[bPanelOffset:], c5, n, 12, 8, k, mr, nr)
+	t.Logf("c5[12, 8:16] = %v", c5[12*n+8:12*n+16])
+
+	if c5[12*n+8] == 0 && c1[0] != 0 {
+		t.Errorf("BUG: Sub-slices with ir=12, jr=8 produces 0!")
+		t.Logf("Expected ~%f based on c1[0]", c1[0])
+	} else {
+		t.Logf("OK: c5[12*n+8]=%f", c5[12*n+8])
+	}
+}
+
 // TestPackedMatMul16x16Deterministic tests with 16x16 deterministic values
 // to isolate whether the bug is size-dependent or random-value-dependent.
 func TestPackedMatMul16x16Deterministic(t *testing.T) {
