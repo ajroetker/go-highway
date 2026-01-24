@@ -148,6 +148,11 @@ func init() {
 	// On ARM64 without SME, use NEON assembly micro-kernels for packed GEBP
 	// This overrides the pure Go hwy implementation with optimized NEON
 	//
+	// Skip NEON assembly if HWY_NO_SIMD is set - use pure Go fallback instead.
+	if hwy.NoSimdEnv() {
+		return
+	}
+
 	// Only enable if hwy detected NEON (lanes >= 4 for float32).
 	// This avoids using NEON assembly on emulators or fallback environments
 	// where NEON might not be properly supported.
