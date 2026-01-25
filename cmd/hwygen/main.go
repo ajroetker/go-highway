@@ -35,12 +35,13 @@ import (
 )
 
 var (
-	inputFile    = flag.String("input", "", "Input Go source file (required)")
-	outputDir    = flag.String("output", ".", "Output directory (default: current directory)")
-	targets      = flag.String("targets", "avx2,fallback", "Comma-separated targets: avx2,avx512,fallback")
-	packageOut   = flag.String("pkg", "", "Output package name (default: same as input)")
-	dispatchName = flag.String("dispatch", "", "Dispatch file prefix (default: derived from function name)")
-	bulkMode     = flag.Bool("bulk", false, "Generate bulk C code for NEON (for GOAT compilation)")
+	inputFile      = flag.String("input", "", "Input Go source file (required)")
+	outputDir      = flag.String("output", ".", "Output directory (default: current directory)")
+	outputPrefix   = flag.String("output_prefix", "", "Output file prefix, the default (if empty) is the input file name without .go")
+	targets        = flag.String("targets", "avx2,fallback", "Comma-separated targets: avx2,avx512,fallback")
+	packageOut     = flag.String("pkg", "", "Output package name (default: same as input)")
+	dispatchPrefix = flag.String("dispatch", "", "Dispatch file prefix (default: derived from function name)")
+	bulkMode       = flag.Bool("bulk", false, "Generate bulk C code for NEON (for GOAT compilation)")
 )
 
 func main() {
@@ -61,12 +62,13 @@ func main() {
 
 	// Create and run generator
 	gen := &Generator{
-		InputFile:    *inputFile,
-		OutputDir:    *outputDir,
-		Targets:      targetList,
-		PackageOut:   *packageOut,
-		DispatchName: *dispatchName,
-		BulkMode:     *bulkMode,
+		InputFile:      *inputFile,
+		OutputDir:      *outputDir,
+		OutputPrefix:   *outputPrefix,
+		Targets:        targetList,
+		PackageOut:     *packageOut,
+		DispatchPrefix: *dispatchPrefix,
+		BulkMode:       *bulkMode,
 	}
 
 	if err := gen.Run(); err != nil {
