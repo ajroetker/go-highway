@@ -651,21 +651,26 @@ func BenchmarkPacking(b *testing.B) {
 	packedA := make([]float32, params.PackedASize())
 	packedB := make([]float32, params.PackedBSize())
 
+	// Clamp panel sizes to actual matrix dimensions (matching how matmul uses these)
+	panelRows := min(params.Mc, m)
+	panelK := min(params.Kc, k)
+	panelCols := min(params.Nc, n)
+
 	b.Run("PackLHS", func(b *testing.B) {
-		b.SetBytes(int64(params.Mc * params.Kc * 4))
+		b.SetBytes(int64(panelRows * panelK * 4))
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			PackLHS(a, packedA, m, k, 0, 0, params.Mc, params.Kc, params.Mr)
+			PackLHS(a, packedA, m, k, 0, 0, panelRows, panelK, params.Mr)
 		}
 	})
 
 	b.Run("PackRHS", func(b *testing.B) {
-		b.SetBytes(int64(params.Nc * params.Kc * 4))
+		b.SetBytes(int64(panelCols * panelK * 4))
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			PackRHS(bMat, packedB, k, n, 0, 0, params.Kc, params.Nc, params.Nr)
+			PackRHS(bMat, packedB, k, n, 0, 0, panelK, panelCols, params.Nr)
 		}
 	})
 }
