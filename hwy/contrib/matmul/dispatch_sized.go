@@ -26,9 +26,11 @@ const (
 	// Below this total ops count, streaming is faster (less overhead)
 	SmallMatrixThreshold = 64 * 64 * 64 // 262144 ops
 
-	// Above this total ops count, use packed matmul for best cache efficiency
-	// 256^3 = 16M ops, where K-blocking benefit outweighs packing overhead
-	LargeMatrixThreshold = 256 * 256 * 256 // 16777216 ops
+	// Above this total ops count, use V2 packed matmul on AMD64 for best cache efficiency
+	// 1024^3 = 1B ops, where K-blocking benefit outweighs V2 overhead
+	// Benchmarks on AMD EPYC 7763 (AVX2) show V2 is slower until ~1024x1024:
+	//   256x256: V2 +8% slower, 512x512: V2 +32% slower, 1024x1024: V2 -8% faster
+	LargeMatrixThreshold = 1024 * 1024 * 1024 // 1073741824 ops
 
 	// When K/N ratio exceeds this, blocking helps reduce C traffic
 	DeepKRatio = 4
