@@ -36,12 +36,13 @@ func typeNameToSuffix(elemType string) string {
 
 // Generator orchestrates the code generation process.
 type Generator struct {
-	InputFile    string   // Input Go source file
-	OutputDir    string   // Output directory
-	Targets      []string // Target architectures (e.g., ["avx2", "fallback"])
-	PackageOut   string   // Output package name (defaults to input package)
-	DispatchName string   // Dispatch file prefix (defaults to function name)
-	BulkMode     bool     // Generate bulk C code for NEON (for GOAT compilation)
+	InputFile      string   // Input Go source file
+	OutputDir      string   // Output directory
+	OutputPrefix   string   // Output file prefix (defaults to input file name without .go)
+	Targets        []string // Target architectures (e.g., ["avx2", "fallback"])
+	PackageOut     string   // Output package name (defaults to input package)
+	DispatchPrefix string   // Dispatch file prefix (defaults to function name)
+	BulkMode       bool     // Generate bulk C code for NEON (for GOAT compilation)
 }
 
 // Run executes the code generation pipeline.
@@ -135,12 +136,15 @@ func (g *Generator) Run() error {
 	}
 
 	// 4. Emit the dispatcher file
-	if err := EmitDispatcher(result.Funcs, targets, g.PackageOut, g.OutputDir, g.DispatchName); err != nil {
+	if err := EmitDispatcher(result.Funcs, targets, g.PackageOut, g.OutputDir, g.DispatchPrefix); err != nil {
 		return fmt.Errorf("emit dispatcher: %w", err)
 	}
 
 	// 5. Emit target-specific files
-	baseFilename := getBaseFilename(g.InputFile)
+	baseFilename := g.OutputPrefix
+	if baseFilename == "" {
+		baseFilename = getBaseFilename(g.InputFile)
+	}
 
 	for _, target := range targets {
 		funcDecls := targetFuncs[target.Name]
