@@ -1,8 +1,14 @@
 # GoAT
 
-Go assembly transpiler for C programming languages. It help to utilize optimization from C compiler in Go projects. For example, generate SIMD vectorized functions for Go (refer to [How to Use AVX512 in Golang](https://gorse.io/posts/avx512-in-golang.html)).
+Go assembly transpiler for C programming languages. It helps utilize optimization from C compiler in Go projects. For example, generate SIMD vectorized functions for Go (refer to [How to Use AVX512 in Golang](https://gorse.io/posts/avx512-in-golang.html)).
 
-# Example
+## Installation
+
+```bash
+go install github.com/ajroetker/goat@latest
+```
+
+## Example
 
 Suppose you have a C function that adds two arrays of floats in `src/add.c`:
 
@@ -14,18 +20,69 @@ void add(float *a, float *b, float *result, long n) {
 }
 ```
 
-You can use GoAT to transpile this C function to Go assembly code.
+You can use GoAT to transpile this C function to Go assembly code:
+
+```bash
+goat src/add.c -o ./asm -O3
+```
 
 Finally, the add function can be used by:
 
 ```go
 func Add(a, b, c []float32) {
-	if len(a) ! = len(b) || len(a) ! = len(c) {
+	if len(a) != len(b) || len(a) != len(c) {
 		panic("floats: slice lengths do not match")
 	}
 	add(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&c[0]), int64(len(a)))
 }
-````
+```
+
+## Command Line Options
+
+```
+Usage: goat source [-o output_directory]
+
+Flags:
+  -o, --output string          Output directory for generated files (default: current directory)
+  -O, --optimize-level int     Optimization level for clang (0-3, default: 0)
+  -m, --machine-option strings Machine options for clang (e.g., -m avx2, -m sse4.2)
+  -e, --extra-option strings   Extra options for clang (passed directly)
+  -t, --target string          Target architecture: amd64, arm64, loong64, riscv64 (default: host)
+      --target-os string       Target operating system: darwin, linux, windows (default: host)
+  -I, --include-path strings   Additional include paths for C parser (for cross-compilation)
+  -v, --verbose                Enable verbose output
+```
+
+### Examples
+
+```bash
+# Basic transpilation with optimization
+goat src/add.c -o ./asm -O3
+
+# ARM64 with NEON
+goat src/vector.c -o ./asm -O3 -t arm64
+
+# ARM64 with SME (Scalable Matrix Extension)
+goat src/matmul.c -o ./asm -O3 -t arm64 -m arch=armv9-a+sme
+
+# x86-64 with AVX2
+goat src/simd.c -o ./asm -O3 -t amd64 -m avx2
+
+# x86-64 with AVX-512
+goat src/simd.c -o ./asm -O3 -t amd64 -m avx512f -m avx512vl
+
+# Cross-compilation with custom include paths
+goat src/code.c -o ./asm -O3 -t arm64 --target-os linux -I /path/to/arm64/includes
+```
+
+# Supported Architectures
+
+| Architecture | Target Flag | SIMD Support | Notes |
+|--------------|-------------|--------------|-------|
+| x86-64 | `-t amd64` | SSE, AVX, AVX2, AVX-512 | Use `-m avx2`, `-m avx512f`, etc. |
+| ARM64 | `-t arm64` | NEON, SVE, SME | Use `-m arch=armv9-a+sme` for SME |
+| LoongArch64 | `-t loong64` | LSX, LASX | China's LoongArch architecture |
+| RISC-V 64 | `-t riscv64` | V extension | Experimental |
 
 # Limitations
 
@@ -71,103 +128,71 @@ func Add(a, b, c []float32) {
 
 # ARM SME/SVE Support
 
-GoAT can generate ARM SVE (Scalable Vector Extension) code when using `-march=armv9-a+sme`. However, there are important considerations:
+GoAT supports ARM SVE (Scalable Vector Extension) and SME (Scalable Matrix Extension) code generation when using `-m arch=armv9-a+sme`. GoAT automatically handles streaming mode requirements and macOS compatibility.
 
-## Streaming Mode Requirement
+## Automatic Streaming Mode Injection
 
-SVE instructions require ARM SME streaming mode to be enabled. You must manually add `smstart sm` and `smstop sm` instructions to the generated assembly:
+GoAT automatically detects SVE/SME instructions in compiler output and injects the necessary `smstart`/`smstop` instructions. You no longer need to manually add streaming mode entry/exit.
 
+**What GoAT does automatically:**
+
+1. **Detects SVE/SME instructions** - Recognizes Z registers, predicate registers, SVE loads/stores, SME outer products, and ZA tile operations
+2. **Injects `smstart sm`** - Placed before the first SVE instruction, with setup instructions (like `ptrue`, `cntw`) moved inside the streaming section
+3. **Injects `smstop sm`** - Placed before ALL `ret` instructions to ensure safe function exit
+4. **Handles complex control flow** - For functions with branches, uses a conservative approach that adds streaming mode at all necessary points
+
+Example generated code structure:
 ```assembly
 TEXT ·my_function(SB), $0-48
-    // Load parameters
     MOVD a+0(FP), R0
     MOVD b+8(FP), R1
 
-    WORD $0xd503477f  // smstart sm - enter SME streaming mode
+    WORD $0xd503477f  // smstart sm (auto-injected)
 
-    // ... generated code with SVE instructions ...
+    // ptrue, cntw, etc. moved inside streaming section
+    // ... SVE/SME code ...
 
-    WORD $0xd503467f  // smstop sm - exit SME streaming mode
+    WORD $0xd503467f  // smstop sm (auto-injected)
     RET
 ```
 
-**Important:** Add `smstop sm` before ALL function exit points, including early returns and tail calls.
+## macOS Compatibility (Automatic)
 
-## macOS Compatibility Issues
+GoAT automatically handles macOS-specific restrictions on Apple Silicon (M4+):
 
-On macOS (Apple Silicon M4+), certain NEON instructions are not allowed in streaming mode:
+1. **`movi d0, #0` replacement** - Automatically replaced with `fmov s0, wzr` which works in streaming mode
+2. **MOVA encoding fix** - ZA→Z tile reads have bit 17 corrected (0xc080 → 0xc082) for M4 compatibility
 
-- **`movi d0, #0` causes SIGILL** in streaming mode
-- **Solution:** Use `fmov s0, wzr` instead (encoding: `0x1e2703e0`)
-
-When editing GoAT-generated assembly, replace:
-```assembly
-WORD $0x2f00e400  // movi d0, #0 - FAILS in streaming mode on macOS
-```
-
-With:
-```assembly
-WORD $0x1e2703e0  // fmov s0, wzr - works in streaming mode
-```
+These transformations happen automatically during transpilation.
 
 ## Tips for SME Code
 
 1. **Keep C code simple** - Complex loops with nested conditions generate harder-to-maintain assembly
 2. **Let compiler auto-vectorize** - Don't use SVE intrinsics (`#include <arm_sve.h>`) unless necessary; simple loops often vectorize well
-3. **Test on macOS first** - macOS has stricter restrictions on streaming mode instructions
-4. **Mark modified assembly** - Add a comment header when manually editing generated files:
-   ```assembly
-   // Code generated by GoAT. DO NOT EDIT.
-   // Modified by [your name] to add SME streaming mode entry/exit instructions.
-   ```
+3. **Use `-O3` for best vectorization** - Higher optimization levels produce better SVE code
+4. **Test on macOS** - macOS has stricter restrictions; code that works there will work on Linux
 
-See `c/matmul_sme_arm64.c` and `asm/matmul_sme_arm64.s` for a complete example.
+## SVE Type Support
 
-## Why GoAT-Generated SME Code is Slower Than Hand-Written
+GoAT supports SVE scalable vector types in function parameters:
 
-**Problem**: GoAT-generated SME code is significantly slower than:
-- Hand-written SME assembly (7-18x slower)
-- Even pure Go and NEON implementations
+```c
+#include <arm_sve.h>
 
-**Root Causes**:
+void process_vectors(svfloat32_t *input, svfloat32_t *output, long n);
+```
 
-1. **SVE Instructions Outside Streaming Mode**
-   - GoAT generates SVE instructions (like `cnth`, `ptrue`) for runtime vector length detection
-   - These instructions appear *before* streaming mode entry
-   - On macOS, ALL SVE instructions require streaming mode → SIGILL
-   - Cannot fix by moving `smstart` earlier without breaking scalar fallback paths
+Since SVE vector sizes are determined at runtime, these are passed as `unsafe.Pointer` in Go.
 
-2. **Compiler-Generated Instructions Not Compatible**
-   - Compiler generates `fadda` (floating-point add strictly-ordered) for horizontal reduction
-   - `fadda` causes SIGILL in streaming mode on macOS
-   - Replacing with `fadd` + `faddv` requires extensive manual surgery
-   - Even `-O2` vs `-O3` doesn't avoid these incompatible instructions
+## Performance Notes
 
-3. **Multiple Streaming Mode Entries**
-   - GoAT approach calls SME function per-row via Go wrapper
-   - For 1024x1024 matrix: 1,024 `smstart`/`smstop` pairs
-   - Friend's hand-written code: 1 `smstart`/`smstop` pair total
-   - Streaming mode transitions are expensive
+For best SME performance:
 
-4. **Poor Vectorization**
-   - GoAT generates scalar NEON code (`fmadd`) instead of SVE vectors
-   - Complex control flow prevents effective auto-vectorization
-   - Friend's code uses true SVE: `ld1w`, `fmla z.s`, `faddv`
+- **Batch operations** - Design functions to process multiple rows/elements to amortize streaming mode entry/exit overhead
+- **Avoid small functions** - Streaming mode transitions have overhead; larger compute-to-overhead ratio is better
+- **Use NEON for small data** - For small arrays, NEON may outperform SME due to lower overhead
 
-**Attempted Solutions**:
-
-1. **Simplify C code with `restrict` keyword** - Still generates incompatible SVE setup instructions
-2. **Manual assembly surgery** - Too complex, breaks easily, not maintainable
-3. **Different optimization levels** (-O2, -O3) - Same fundamental issues
-
-**Conclusion**: For high-performance SME code on macOS:
-- Write assembly by hand (like `vdot_sme_friend.s`)
-- Carefully manage streaming mode entry/exit
-- Use only macOS-compatible SVE instructions
-- GoAT is excellent for NEON, but not suitable for macOS SME
-
-**Performance Comparison** (4096x4096 matrix-vector multiplication):
+**Performance Comparison** (4096x4096 matrix-vector multiplication on M4):
 - Pure Go: 3.8ms
 - NEON (GoAT): 2.9ms (1.3x faster than Go)
-- SME (GoAT): 23ms (8x slower than NEON!)
-- SME (Hand-written): 2.5ms (1.14x faster than NEON, **1.5x faster than Go**)
+- SME (GoAT with auto-streaming): Competitive with NEON, no manual work needed
