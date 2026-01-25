@@ -816,3 +816,62 @@ func BaseAdd[T hwy.Floats](a, b, result []T) {
 		}
 	}
 }
+
+func TestDispatchPrefix(t *testing.T) {
+	// Create a temporary directory for test
+	tmpDir := t.TempDir()
+
+	// Create a simple test input file
+	inputFile := filepath.Join(tmpDir, "dispatch_prefix.go")
+	content := `package testdispatch
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseAdd[T hwy.Floats](a, b, result []T) {
+	size := min(len(a), len(b), len(result))
+	vOne := hwy.Set(T(1))
+	for i := 0; i < size; i += vOne.NumElements() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		vr := hwy.Add(va, vb)
+		hwy.Store(vr, result[i:])
+	}
+}
+`
+
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	// Create generator with DispatchPrefix
+	gen := &Generator{
+		InputFile:      inputFile,
+		OutputDir:      tmpDir,
+		DispatchPrefix: "custom_dispatch",
+		Targets:        []string{"avx2", "fallback"},
+	}
+
+	// Run generation
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	// Check that dispatch files with custom prefix were created WITHOUT "dispatch_" prepended
+	expectedFiles := []string{
+		"custom_dispatch_amd64.gen.go",
+		"custom_dispatch_other.gen.go",
+	}
+
+	for _, filename := range expectedFiles {
+		path := filepath.Join(tmpDir, filename)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Errorf("Expected file %q was not created", filename)
+		}
+	}
+
+	// Check that default dispatch file was NOT created
+	defaultDispatch := "dispatch_custom_dispatch_amd64.gen.go"
+	if _, err := os.Stat(filepath.Join(tmpDir, defaultDispatch)); err == nil {
+		t.Errorf("Unexpected default dispatch file %q was created", defaultDispatch)
+	}
+}
