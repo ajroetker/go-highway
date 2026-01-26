@@ -945,4 +945,16 @@ func BaseCopyFull[T hwy.FloatsNative](src, dst []T) {
 	if strings.Contains(contentStr, "StoreSlice") {
 		t.Error("Generated code should use v.Store (pointer-based), not StoreSlice")
 	}
+
+	// Verify the slice-to-pointer optimization is applied:
+	// Should generate &src[i] instead of &src[i:][0]
+	// The pattern [i:][0] should NOT appear in the output
+	if strings.Contains(contentStr, ":][0]") {
+		t.Error("Generated code has unoptimized slice access &slice[i:][0], should be &slice[i]")
+	}
+
+	// Verify the optimized pattern &src[i]) or &dst[i]) appears
+	if !strings.Contains(contentStr, "&src[i])") && !strings.Contains(contentStr, "&dst[i])") {
+		t.Error("Generated code missing optimized pointer pattern &slice[i]")
+	}
 }
