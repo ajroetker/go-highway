@@ -205,9 +205,13 @@ func deriveDispatchPrefix(funcs []ParsedFunc) string {
 // If dispatchName is empty, derives prefix from function names.
 func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string) error {
 	// Use provided dispatch name or derive from function names
+	// Use provided dispatch name or derive from function names
 	prefix := dispatchName
+	useCustomPrefix := false
 	if prefix == "" {
 		prefix = deriveDispatchPrefix(funcs)
+	} else {
+		useCustomPrefix = true
 	}
 
 	// Group targets by architecture
@@ -230,14 +234,14 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 
 	// Generate amd64 dispatch if we have amd64 targets
 	if len(amd64Targets) > 0 {
-		if err := emitArchDispatcher(funcs, amd64Targets, hasFallback, pkgName, outPath, "amd64", prefix); err != nil {
+		if err := emitArchDispatcher(funcs, amd64Targets, hasFallback, pkgName, outPath, "amd64", prefix, useCustomPrefix); err != nil {
 			return err
 		}
 	}
 
 	// Generate arm64 dispatch if we have arm64 targets
 	if len(arm64Targets) > 0 {
-		if err := emitArchDispatcher(funcs, arm64Targets, hasFallback, pkgName, outPath, "arm64", prefix); err != nil {
+		if err := emitArchDispatcher(funcs, arm64Targets, hasFallback, pkgName, outPath, "arm64", prefix, useCustomPrefix); err != nil {
 			return err
 		}
 	}
@@ -256,14 +260,14 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 		}
 
 		buildTag := strings.Join(constraints, " && ")
-		
+
 		// Use "other" suffix if we have constraints, to avoid conflict with arch-specific files
 		suffix := ""
 		if buildTag != "" {
 			suffix = "_other"
 		}
 
-		if err := emitFallbackOnlyDispatcher(funcs, pkgName, outPath, prefix, suffix, buildTag); err != nil {
+		if err := emitFallbackOnlyDispatcher(funcs, pkgName, outPath, prefix, suffix, buildTag, useCustomPrefix); err != nil {
 			return err
 		}
 	}
@@ -278,9 +282,9 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 // - Return types containing Vec
 //
 // Functions with Vec in their signature cannot have dispatch generated because:
-// - The concrete Vec type differs per architecture (archsimd.Float32x8 vs asm.Float32x4)
-// - Function type parameters containing Vec are especially problematic since you can't
-//   assign func(archsimd.Float32x8) to func(hwy.Vec[float32])
+//   - The concrete Vec type differs per architecture (archsimd.Float32x8 vs asm.Float32x4)
+//   - Function type parameters containing Vec are especially problematic since you can't
+//     assign func(archsimd.Float32x8) to func(hwy.Vec[float32])
 func hasVecInSignature(pf ParsedFunc) bool {
 	for _, param := range pf.Params {
 		if strings.Contains(param.Type, "hwy.Vec[") || strings.Contains(param.Type, "Vec[") {
@@ -310,7 +314,7 @@ func filterDispatchableFuncs(funcs []ParsedFunc) []ParsedFunc {
 }
 
 // emitArchDispatcher generates an architecture-specific dispatch file.
-func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bool, pkgName, outPath, arch, prefix string) error {
+func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bool, pkgName, outPath, arch, prefix string, useCustomPrefix bool) error {
 	// Filter out Vec→Vec functions - they don't need dispatch
 	dispatchableFuncs := filterDispatchableFuncs(funcs)
 	if len(dispatchableFuncs) == 0 {
@@ -413,22 +417,14 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		case "NEON":
-			// Check if hwy actually detected NEON (lanes >= 4 for float32).
-			// On emulators or fallback environments, hwy may report scalar mode.
-			fmt.Fprintf(&buf, "\t// Check if hwy actually detected NEON (lanes >= 4 for float32).\n")
-			fmt.Fprintf(&buf, "\t// On emulators or fallback environments, hwy may report scalar mode.\n")
-			fmt.Fprintf(&buf, "\tlanes := hwy.Zero[float32]().NumLanes()\n")
-			fmt.Fprintf(&buf, "\tif lanes < 4 {\n")
-			fmt.Fprintf(&buf, "\t\tinit%sFallback()\n", capPrefix)
-			fmt.Fprintf(&buf, "\t\treturn\n")
-			fmt.Fprintf(&buf, "\t}\n")
+			// NEON is mandatory on ARM64, so always use it
 			fmt.Fprintf(&buf, "\tinit%sNEON()\n", capPrefix)
 			fmt.Fprintf(&buf, "\treturn\n")
 		}
 	}
 
 	// Add fallback at end for x86 (in case no SIMD detected)
-	// ARM64 handles fallback in the NEON case above
+	// ARM64 always uses NEON (mandatory on ARMv8) so doesn't need fallback here
 	if arch != "arm64" && hasFallback {
 		fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	}
@@ -500,7 +496,12 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	}
 
 	// Write to file with prefix and architecture suffix
-	filename := filepath.Join(outPath, fmt.Sprintf("dispatch_%s_%s.gen.go", prefix, arch))
+	// Write to file with prefix and architecture suffix
+	filePrefix := "dispatch_"
+	if useCustomPrefix {
+		filePrefix = ""
+	}
+	filename := filepath.Join(outPath, fmt.Sprintf("%s%s_%s.gen.go", filePrefix, prefix, arch))
 	if err := os.WriteFile(filename, formatted, 0644); err != nil {
 		return fmt.Errorf("write dispatcher: %w", err)
 	}
@@ -509,7 +510,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 }
 
 // emitFallbackOnlyDispatcher generates a dispatch file with no build tags for fallback-only builds.
-func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, suffix, buildTag string) error {
+func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, suffix, buildTag string, useCustomPrefix bool) error {
 	// Filter out Vec→Vec functions - they don't need dispatch
 	dispatchableFuncs := filterDispatchableFuncs(funcs)
 	if len(dispatchableFuncs) == 0 {
@@ -602,7 +603,11 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 		formatted = buf.Bytes()
 	}
 
-	filename := filepath.Join(outPath, fmt.Sprintf("dispatch_%s%s.gen.go", prefix, suffix))
+	filePrefix := "dispatch_"
+	if useCustomPrefix {
+		filePrefix = ""
+	}
+	filename := filepath.Join(outPath, fmt.Sprintf("%s%s%s.gen.go", filePrefix, prefix, suffix))
 	if err := os.WriteFile(filename, formatted, 0644); err != nil {
 		return fmt.Errorf("write dispatcher: %w", err)
 	}

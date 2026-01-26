@@ -11,35 +11,35 @@ import (
 
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseSinVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
-	BaseSinVec_AVX512_intOne_i32_f64   archsimd.Int32x8
-	BaseSinVec_AVX512_intTwo_i32_f64   archsimd.Int32x8
 	BaseCosVec_AVX512_intOne_i32_f32   archsimd.Int32x16
-	BaseSinVec_AVX512_intOne_i32_f32   archsimd.Int32x16
-	BaseSinVec_AVX512_intThree_i32_f32 archsimd.Int32x16
-	BaseSinVec_AVX512_intThree_i32_f64 archsimd.Int32x8
-	BaseCosVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
+	BaseCosVec_AVX512_intOne_i32_f64   archsimd.Int32x8
 	BaseCosVec_AVX512_intThree_i32_f32 archsimd.Int32x16
 	BaseCosVec_AVX512_intThree_i32_f64 archsimd.Int32x8
-	BaseCosVec_AVX512_intOne_i32_f64   archsimd.Int32x8
+	BaseCosVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
 	BaseCosVec_AVX512_intTwo_i32_f64   archsimd.Int32x8
+	BaseSinVec_AVX512_intOne_i32_f32   archsimd.Int32x16
+	BaseSinVec_AVX512_intOne_i32_f64   archsimd.Int32x8
+	BaseSinVec_AVX512_intThree_i32_f32 archsimd.Int32x16
+	BaseSinVec_AVX512_intThree_i32_f64 archsimd.Int32x8
+	BaseSinVec_AVX512_intTwo_i32_f32   archsimd.Int32x16
+	BaseSinVec_AVX512_intTwo_i32_f64   archsimd.Int32x8
 	_vecMathBaseHoistOnce              sync.Once
 )
 
 func _vecMathBaseInitHoistedConstants() {
 	_vecMathBaseHoistOnce.Do(func() {
-		BaseSinVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
-		BaseSinVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
-		BaseSinVec_AVX512_intTwo_i32_f64 = archsimd.BroadcastInt32x8(2)
 		BaseCosVec_AVX512_intOne_i32_f32 = archsimd.BroadcastInt32x16(1)
-		BaseSinVec_AVX512_intOne_i32_f32 = archsimd.BroadcastInt32x16(1)
-		BaseSinVec_AVX512_intThree_i32_f32 = archsimd.BroadcastInt32x16(3)
-		BaseSinVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
-		BaseCosVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
+		BaseCosVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
 		BaseCosVec_AVX512_intThree_i32_f32 = archsimd.BroadcastInt32x16(3)
 		BaseCosVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
-		BaseCosVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
+		BaseCosVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
 		BaseCosVec_AVX512_intTwo_i32_f64 = archsimd.BroadcastInt32x8(2)
+		BaseSinVec_AVX512_intOne_i32_f32 = archsimd.BroadcastInt32x16(1)
+		BaseSinVec_AVX512_intOne_i32_f64 = archsimd.BroadcastInt32x8(1)
+		BaseSinVec_AVX512_intThree_i32_f32 = archsimd.BroadcastInt32x16(3)
+		BaseSinVec_AVX512_intThree_i32_f64 = archsimd.BroadcastInt32x8(3)
+		BaseSinVec_AVX512_intTwo_i32_f32 = archsimd.BroadcastInt32x16(2)
+		BaseSinVec_AVX512_intTwo_i32_f64 = archsimd.BroadcastInt32x8(2)
 	})
 }
 

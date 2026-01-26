@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -333,10 +334,15 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		insertTailHandling(funcDecl.Body, pf.LoopInfo, elemType, target, pf.Name, pf.Params, pf.TypeParams)
 	}
 
-	// Collect hoisted constants
+	// Collect hoisted constants in deterministic order
 	var hoisted []HoistedConst
-	for _, hc := range ctx.hoistedConsts {
-		hoisted = append(hoisted, hc)
+	keys := make([]string, 0, len(ctx.hoistedConsts))
+	for k := range ctx.hoistedConsts {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		hoisted = append(hoisted, ctx.hoistedConsts[k])
 	}
 
 	return &TransformResult{

@@ -162,3 +162,68 @@ func (p CacheParams) PackedBSize() int {
 	numPanels := (p.Nc + p.Nr - 1) / p.Nr
 	return numPanels * p.Kc * p.Nr
 }
+
+// PackedOutputSize returns the buffer size needed for packed output.
+// Used as intermediate buffer between micro-kernel and final output.
+// Layout: Mc × Nc elements (one panel's worth of output).
+func (p CacheParams) PackedOutputSize() int {
+	return p.Mc * p.Nc
+}
+
+// V2 Cache Parameters
+//
+// These parameters are optimized for the packed output buffer pattern used in V2.
+// Key differences from V1:
+//   - Much smaller Mc: Reduces packed output buffer size for better cache locality
+//   - Smaller Nc: Further reduces packed output buffer
+//   - These match the approach in gomlx's packgemm-simd-large-opt
+//
+// The packed output pattern benefits from smaller panels because:
+//   - Micro-kernel writes to a small contiguous buffer (no bounds checking)
+//   - ApplyPackedOutput then copies to final output with SIMD
+//   - Smaller buffer = better L1/L2 cache utilization
+
+// CacheParamsV2AVX512 returns V2 blocking parameters for AVX-512.
+// Optimized for the packed output buffer pattern.
+func CacheParamsV2AVX512() CacheParams {
+	return CacheParams{
+		Mr: 4,   // 4 rows per micro-tile
+		Nr: 32,  // 2 vectors × 16 lanes = 32 columns
+		Kc: 256, // L1 blocking: smaller for better reuse
+		Mc: 4,   // Very small: matches Jan's approach, tiny packed output
+		Nc: 512, // Smaller: 4 * 512 = 2KB packed output buffer
+	}
+}
+
+// CacheParamsV2AVX2 returns V2 blocking parameters for AVX2.
+func CacheParamsV2AVX2() CacheParams {
+	return CacheParams{
+		Mr: 4,   // 4 rows per micro-tile
+		Nr: 16,  // 2 vectors × 8 lanes = 16 columns
+		Kc: 256, // L1 blocking
+		Mc: 4,   // Very small for packed output pattern
+		Nc: 512, // 4 * 512 = 2KB packed output buffer
+	}
+}
+
+// CacheParamsV2NEON returns V2 blocking parameters for ARM NEON.
+func CacheParamsV2NEON() CacheParams {
+	return CacheParams{
+		Mr: 4,   // 4 rows per micro-tile
+		Nr: 8,   // 2 vectors × 4 lanes = 8 columns
+		Kc: 256, // L1 blocking
+		Mc: 4,   // Very small for packed output pattern
+		Nc: 512, // 4 * 512 = 2KB packed output buffer
+	}
+}
+
+// CacheParamsV2Fallback returns V2 blocking parameters for fallback.
+func CacheParamsV2Fallback() CacheParams {
+	return CacheParams{
+		Mr: 4,   // 4 rows per micro-tile
+		Nr: 4,   // Smaller for scalar code
+		Kc: 128, // Smaller K-blocking
+		Mc: 4,   // Very small for packed output pattern
+		Nc: 256, // 4 * 256 = 1KB packed output buffer
+	}
+}

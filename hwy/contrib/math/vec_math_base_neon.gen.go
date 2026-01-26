@@ -10,18 +10,18 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseSinVec_NEON_intThree_i32_f64 = asm.BroadcastInt32x2(3)
 	BaseCosVec_NEON_intOne_i32_f32   = asm.BroadcastInt32x4(1)
-	BaseCosVec_NEON_intTwo_i32_f64   = asm.BroadcastInt32x2(2)
-	BaseCosVec_NEON_intThree_i32_f64 = asm.BroadcastInt32x2(3)
-	BaseSinVec_NEON_intOne_i32_f32   = asm.BroadcastInt32x4(1)
-	BaseSinVec_NEON_intThree_i32_f32 = asm.BroadcastInt32x4(3)
-	BaseSinVec_NEON_intTwo_i32_f64   = asm.BroadcastInt32x2(2)
-	BaseCosVec_NEON_intTwo_i32_f32   = asm.BroadcastInt32x4(2)
-	BaseCosVec_NEON_intThree_i32_f32 = asm.BroadcastInt32x4(3)
 	BaseCosVec_NEON_intOne_i32_f64   = asm.BroadcastInt32x2(1)
-	BaseSinVec_NEON_intTwo_i32_f32   = asm.BroadcastInt32x4(2)
+	BaseCosVec_NEON_intThree_i32_f32 = asm.BroadcastInt32x4(3)
+	BaseCosVec_NEON_intThree_i32_f64 = asm.BroadcastInt32x2(3)
+	BaseCosVec_NEON_intTwo_i32_f32   = asm.BroadcastInt32x4(2)
+	BaseCosVec_NEON_intTwo_i32_f64   = asm.BroadcastInt32x2(2)
+	BaseSinVec_NEON_intOne_i32_f32   = asm.BroadcastInt32x4(1)
 	BaseSinVec_NEON_intOne_i32_f64   = asm.BroadcastInt32x2(1)
+	BaseSinVec_NEON_intThree_i32_f32 = asm.BroadcastInt32x4(3)
+	BaseSinVec_NEON_intThree_i32_f64 = asm.BroadcastInt32x2(3)
+	BaseSinVec_NEON_intTwo_i32_f32   = asm.BroadcastInt32x4(2)
+	BaseSinVec_NEON_intTwo_i32_f64   = asm.BroadcastInt32x2(2)
 )
 
 func BaseExpVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
