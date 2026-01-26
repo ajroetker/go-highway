@@ -123,13 +123,6 @@ func init() {
 		initGeluFallback()
 		return
 	}
-	// Check if hwy actually detected NEON (lanes >= 4 for float32).
-	// On emulators or fallback environments, hwy may report scalar mode.
-	lanes := hwy.Zero[float32]().NumLanes()
-	if lanes < 4 {
-		initGeluFallback()
-		return
-	}
 	initGeluNEON()
 	return
 }

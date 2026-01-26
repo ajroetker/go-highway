@@ -63,3 +63,15 @@ func reduce_max_u32_neon(src, pn, result unsafe.Pointer)
 
 //go:noescape
 func reduce_max_u64_neon(src, pn, result unsafe.Pointer)
+
+//go:noescape
+func argmax_f32(v, pn, result unsafe.Pointer)
+
+//go:noescape
+func argmin_f32(v, pn, result unsafe.Pointer)
+
+//go:noescape
+func argmax_f64(v, pn, result unsafe.Pointer)
+
+//go:noescape
+func argmin_f64(v, pn, result unsafe.Pointer)

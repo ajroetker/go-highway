@@ -323,3 +323,75 @@ func ReduceMaxU64(v []uint64) uint64 {
 	)
 	return uint64(result)
 }
+
+// ============================================================================
+// Argmax/Argmin Operations
+// ============================================================================
+
+// ArgmaxF32 returns the index of the maximum element in a float32 slice.
+// NaN values are skipped. First occurrence wins on ties.
+// Panics if the slice is empty.
+func ArgmaxF32(v []float32) int {
+	if len(v) == 0 {
+		panic("vec: Argmax called on empty slice")
+	}
+	n := int64(len(v))
+	var result int64
+	argmax_f32(
+		unsafe.Pointer(&v[0]),
+		unsafe.Pointer(&n),
+		unsafe.Pointer(&result),
+	)
+	return int(result)
+}
+
+// ArgminF32 returns the index of the minimum element in a float32 slice.
+// NaN values are skipped. First occurrence wins on ties.
+// Panics if the slice is empty.
+func ArgminF32(v []float32) int {
+	if len(v) == 0 {
+		panic("vec: Argmin called on empty slice")
+	}
+	n := int64(len(v))
+	var result int64
+	argmin_f32(
+		unsafe.Pointer(&v[0]),
+		unsafe.Pointer(&n),
+		unsafe.Pointer(&result),
+	)
+	return int(result)
+}
+
+// ArgmaxF64 returns the index of the maximum element in a float64 slice.
+// NaN values are skipped. First occurrence wins on ties.
+// Panics if the slice is empty.
+func ArgmaxF64(v []float64) int {
+	if len(v) == 0 {
+		panic("vec: Argmax called on empty slice")
+	}
+	n := int64(len(v))
+	var result int64
+	argmax_f64(
+		unsafe.Pointer(&v[0]),
+		unsafe.Pointer(&n),
+		unsafe.Pointer(&result),
+	)
+	return int(result)
+}
+
+// ArgminF64 returns the index of the minimum element in a float64 slice.
+// NaN values are skipped. First occurrence wins on ties.
+// Panics if the slice is empty.
+func ArgminF64(v []float64) int {
+	if len(v) == 0 {
+		panic("vec: Argmin called on empty slice")
+	}
+	n := int64(len(v))
+	var result int64
+	argmin_f64(
+		unsafe.Pointer(&v[0]),
+		unsafe.Pointer(&n),
+		unsafe.Pointer(&result),
+	)
+	return int(result)
+}

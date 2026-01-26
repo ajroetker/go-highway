@@ -14,10 +14,14 @@ var CompressPartition3WayFloat32 func(data []float32, pivot float32) (int, int)
 var CompressPartition3WayFloat64 func(data []float64, pivot float64) (int, int)
 var CompressPartition3WayInt32 func(data []int32, pivot int32) (int, int)
 var CompressPartition3WayInt64 func(data []int64, pivot int64) (int, int)
+var CompressPartition3WayUint32 func(data []uint32, pivot uint32) (int, int)
+var CompressPartition3WayUint64 func(data []uint64, pivot uint64) (int, int)
 var CompressPartitionFloat32 func(data []float32, pivot float32) int
 var CompressPartitionFloat64 func(data []float64, pivot float64) int
 var CompressPartitionInt32 func(data []int32, pivot int32) int
 var CompressPartitionInt64 func(data []int64, pivot int64) int
+var CompressPartitionUint32 func(data []uint32, pivot uint32) int
+var CompressPartitionUint64 func(data []uint64, pivot uint64) int
 
 // CompressPartition3Way is the generic API that dispatches to the appropriate SIMD implementation.
 func CompressPartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
@@ -30,6 +34,10 @@ func CompressPartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 		return CompressPartition3WayInt32(any(data).([]int32), any(pivot).(int32))
 	case []int64:
 		return CompressPartition3WayInt64(any(data).([]int64), any(pivot).(int64))
+	case []uint32:
+		return CompressPartition3WayUint32(any(data).([]uint32), any(pivot).(uint32))
+	case []uint64:
+		return CompressPartition3WayUint64(any(data).([]uint64), any(pivot).(uint64))
 	}
 	panic("unreachable")
 }
@@ -45,6 +53,10 @@ func CompressPartition[T hwy.Lanes](data []T, pivot T) int {
 		return CompressPartitionInt32(any(data).([]int32), any(pivot).(int32))
 	case []int64:
 		return CompressPartitionInt64(any(data).([]int64), any(pivot).(int64))
+	case []uint32:
+		return CompressPartitionUint32(any(data).([]uint32), any(pivot).(uint32))
+	case []uint64:
+		return CompressPartitionUint64(any(data).([]uint64), any(pivot).(uint64))
 	}
 	panic("unreachable")
 }
@@ -54,12 +66,12 @@ func init() {
 		initCompress_partitionFallback()
 		return
 	}
-	if archsimd.X86.AVX2() {
-		initCompress_partitionAVX2()
-		return
-	}
 	if archsimd.X86.AVX512() {
 		initCompress_partitionAVX512()
+		return
+	}
+	if archsimd.X86.AVX2() {
+		initCompress_partitionAVX2()
 		return
 	}
 	initCompress_partitionFallback()
@@ -70,10 +82,14 @@ func initCompress_partitionAVX2() {
 	CompressPartition3WayFloat64 = BaseCompressPartition3Way_avx2_Float64
 	CompressPartition3WayInt32 = BaseCompressPartition3Way_avx2_Int32
 	CompressPartition3WayInt64 = BaseCompressPartition3Way_avx2_Int64
+	CompressPartition3WayUint32 = BaseCompressPartition3Way_avx2_Uint32
+	CompressPartition3WayUint64 = BaseCompressPartition3Way_avx2_Uint64
 	CompressPartitionFloat32 = BaseCompressPartition_avx2
 	CompressPartitionFloat64 = BaseCompressPartition_avx2_Float64
 	CompressPartitionInt32 = BaseCompressPartition_avx2_Int32
 	CompressPartitionInt64 = BaseCompressPartition_avx2_Int64
+	CompressPartitionUint32 = BaseCompressPartition_avx2_Uint32
+	CompressPartitionUint64 = BaseCompressPartition_avx2_Uint64
 }
 
 func initCompress_partitionAVX512() {
@@ -81,10 +97,14 @@ func initCompress_partitionAVX512() {
 	CompressPartition3WayFloat64 = BaseCompressPartition3Way_avx512_Float64
 	CompressPartition3WayInt32 = BaseCompressPartition3Way_avx512_Int32
 	CompressPartition3WayInt64 = BaseCompressPartition3Way_avx512_Int64
+	CompressPartition3WayUint32 = BaseCompressPartition3Way_avx512_Uint32
+	CompressPartition3WayUint64 = BaseCompressPartition3Way_avx512_Uint64
 	CompressPartitionFloat32 = BaseCompressPartition_avx512
 	CompressPartitionFloat64 = BaseCompressPartition_avx512_Float64
 	CompressPartitionInt32 = BaseCompressPartition_avx512_Int32
 	CompressPartitionInt64 = BaseCompressPartition_avx512_Int64
+	CompressPartitionUint32 = BaseCompressPartition_avx512_Uint32
+	CompressPartitionUint64 = BaseCompressPartition_avx512_Uint64
 }
 
 func initCompress_partitionFallback() {
@@ -92,8 +112,12 @@ func initCompress_partitionFallback() {
 	CompressPartition3WayFloat64 = BaseCompressPartition3Way_fallback_Float64
 	CompressPartition3WayInt32 = BaseCompressPartition3Way_fallback_Int32
 	CompressPartition3WayInt64 = BaseCompressPartition3Way_fallback_Int64
+	CompressPartition3WayUint32 = BaseCompressPartition3Way_fallback_Uint32
+	CompressPartition3WayUint64 = BaseCompressPartition3Way_fallback_Uint64
 	CompressPartitionFloat32 = BaseCompressPartition_fallback
 	CompressPartitionFloat64 = BaseCompressPartition_fallback_Float64
 	CompressPartitionInt32 = BaseCompressPartition_fallback_Int32
 	CompressPartitionInt64 = BaseCompressPartition_fallback_Int64
+	CompressPartitionUint32 = BaseCompressPartition_fallback_Uint32
+	CompressPartitionUint64 = BaseCompressPartition_fallback_Uint64
 }

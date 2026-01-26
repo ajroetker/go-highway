@@ -129,6 +129,16 @@ func RSqrtPrecise_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 	return one.Div(sqrtX)
 }
 
+// Iota_AVX2_F32x8 returns a vector with lane indices [0, 1, 2, 3, 4, 5, 6, 7].
+func Iota_AVX2_F32x8() archsimd.Float32x8 {
+	return archsimd.LoadFloat32x8Slice([]float32{0, 1, 2, 3, 4, 5, 6, 7})
+}
+
+// Iota_AVX2_F64x4 returns a vector with lane indices [0, 1, 2, 3].
+func Iota_AVX2_F64x4() archsimd.Float64x4 {
+	return archsimd.LoadFloat64x4Slice([]float64{0, 1, 2, 3})
+}
+
 // ReduceMax_AVX2_Uint32x8 returns the maximum element in the vector.
 func ReduceMax_AVX2_Uint32x8(v archsimd.Uint32x8) uint32 {
 	// Reduce 8 -> 4 -> 2 -> 1

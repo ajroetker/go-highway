@@ -26,109 +26,33 @@ func Zero[T ~float32 | ~float64](dst []T) {
 // MinIdx returns the index of the minimum value in the input slice.
 // If several entries have the minimum value, the first such index is returned.
 // It panics if s is zero length.
+//
+// Deprecated: Use Argmin instead, which supports all float types and uses SIMD acceleration.
 func MinIdx(s []float32) int {
-	if len(s) == 0 {
-		panic("MinIdx input cannot be zero")
-	}
-
-	// Set min index to first position that's not NaN.
-	var ind int
-	var min float32
-	for i, v := range s {
-		min = v
-		ind = i
-		if !math.IsNaN(float64(v)) {
-			break
-		}
-	}
-
-	// Now look for smaller value. Further NaN values will be ignored.
-	for i := ind + 1; i < len(s); i++ {
-		if s[i] < min {
-			min = s[i]
-			ind = i
-		}
-	}
-	return ind
+	return Argmin(s)
 }
 
 // MaxIdx returns the index of the maximum value in the input slice.
 // If several entries have the maximum value, the first such index is returned.
 // It panics if s is zero length.
+//
+// Deprecated: Use Argmax instead, which supports all float types and uses SIMD acceleration.
 func MaxIdx(s []float32) int {
-	if len(s) == 0 {
-		panic("MaxIdx input cannot be zero")
-	}
-
-	// Set max index to first position that's not NaN.
-	var ind int
-	var max float32
-	for i, v := range s {
-		max = v
-		ind = i
-		if !math.IsNaN(float64(v)) {
-			break
-		}
-	}
-
-	// Now look for larger value. Further NaN values will be ignored.
-	for i := ind + 1; i < len(s); i++ {
-		if s[i] > max {
-			max = s[i]
-			ind = i
-		}
-	}
-	return ind
+	return Argmax(s)
 }
 
 // MinIdx64 returns the index of the minimum value in the input slice.
+//
+// Deprecated: Use Argmin instead, which supports all float types and uses SIMD acceleration.
 func MinIdx64(s []float64) int {
-	if len(s) == 0 {
-		panic("MinIdx64 input cannot be zero")
-	}
-
-	var ind int
-	var min float64
-	for i, v := range s {
-		min = v
-		ind = i
-		if !math.IsNaN(v) {
-			break
-		}
-	}
-
-	for i := ind + 1; i < len(s); i++ {
-		if s[i] < min {
-			min = s[i]
-			ind = i
-		}
-	}
-	return ind
+	return Argmin(s)
 }
 
 // MaxIdx64 returns the index of the maximum value in the input slice.
+//
+// Deprecated: Use Argmax instead, which supports all float types and uses SIMD acceleration.
 func MaxIdx64(s []float64) int {
-	if len(s) == 0 {
-		panic("MaxIdx64 input cannot be zero")
-	}
-
-	var ind int
-	var max float64
-	for i, v := range s {
-		max = v
-		ind = i
-		if !math.IsNaN(v) {
-			break
-		}
-	}
-
-	for i := ind + 1; i < len(s); i++ {
-		if s[i] > max {
-			max = s[i]
-			ind = i
-		}
-	}
-	return ind
+	return Argmax(s)
 }
 
 // EncodeFloat32s encodes a slice of float32 values into a byte slice (little-endian).

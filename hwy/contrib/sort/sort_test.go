@@ -206,15 +206,15 @@ func TestPartition(t *testing.T) {
 
 	idx := Partition(data, pivot)
 
-	// Verify partitioning
+	// Verify partitioning: data[0:idx] < pivot, data[idx:n] >= pivot
 	for i := range idx {
-		if data[i] > pivot {
-			t.Errorf("data[%d]=%v should be <= pivot %v", i, data[i], pivot)
+		if data[i] >= pivot {
+			t.Errorf("data[%d]=%v should be < pivot %v", i, data[i], pivot)
 		}
 	}
 	for i := idx; i < len(data); i++ {
-		if data[i] <= pivot {
-			t.Errorf("data[%d]=%v should be > pivot %v", i, data[i], pivot)
+		if data[i] < pivot {
+			t.Errorf("data[%d]=%v should be >= pivot %v", i, data[i], pivot)
 		}
 	}
 }

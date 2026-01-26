@@ -83,6 +83,12 @@ func SignBitFloat32x4() Float32x4 {
 	return BroadcastFloat32x4(signBit)
 }
 
+// IotaFloat32x4 returns a vector with lane indices [0, 1, 2, 3].
+func IotaFloat32x4() Float32x4 {
+	arr := [4]float32{0, 1, 2, 3}
+	return *(*Float32x4)(unsafe.Pointer(&arr))
+}
+
 // ===== Float32x4 accessors =====
 
 // asF32 returns the vector as a pointer to [4]float32 for element access.
@@ -432,6 +438,12 @@ func ZeroFloat64x2() Float64x2 {
 func SignBitFloat64x2() Float64x2 {
 	signBit := math.Float64frombits(0x8000000000000000)
 	return BroadcastFloat64x2(signBit)
+}
+
+// IotaFloat64x2 returns a vector with lane indices [0, 1].
+func IotaFloat64x2() Float64x2 {
+	arr := [2]float64{0, 1}
+	return *(*Float64x2)(unsafe.Pointer(&arr))
 }
 
 // ===== Float64x2 accessors =====
@@ -1687,6 +1699,54 @@ func CompressKeysI64x2(v Int64x2, mask Int64x2) (Int64x2, int) {
 	return *(*Int64x2)(unsafe.Pointer(&result)), 0
 }
 
+// CompressKeysU32x4 reorders v so elements where mask=true come first.
+// Returns (reordered vector, count of true elements).
+func CompressKeysU32x4(v Uint32x4, mask Uint32x4) (Uint32x4, int) {
+	idx := maskToIndex4(Int32x4(mask))
+	count := compressCountTable[idx]
+	perm := &compressPartitionTableF32[idx]
+
+	a := (*[4]uint32)(unsafe.Pointer(&v))
+	result := [4]uint32{a[perm[0]], a[perm[1]], a[perm[2]], a[perm[3]]}
+	return *(*Uint32x4)(unsafe.Pointer(&result)), count
+}
+
+// CompressKeysU64x2 reorders v so elements where mask=true come first.
+// Returns (reordered vector, count of true elements).
+func CompressKeysU64x2(v Uint64x2, mask Uint64x2) (Uint64x2, int) {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	m := (*[2]uint64)(unsafe.Pointer(&mask))
+
+	idx := 0
+	if m[0] != 0 {
+		idx |= 1
+	}
+	if m[1] != 0 {
+		idx |= 2
+	}
+
+	var result [2]uint64
+	switch idx {
+	case 0:
+		result[0] = a[0]
+		result[1] = a[1]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 0
+	case 1:
+		result[0] = a[0]
+		result[1] = a[1]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 1
+	case 2:
+		result[0] = a[1]
+		result[1] = a[0]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 1
+	case 3:
+		result[0] = a[0]
+		result[1] = a[1]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 2
+	}
+	return *(*Uint64x2)(unsafe.Pointer(&result)), 0
+}
+
 // ===== Fast CountTrue functions =====
 // These use popcount to count set mask bits efficiently.
 
@@ -2315,6 +2375,12 @@ func ZeroUint32x4() Uint32x4 {
 	return Uint32x4{}
 }
 
+// IotaUint32x4 returns a vector with lane indices [0, 1, 2, 3].
+func IotaUint32x4() Uint32x4 {
+	arr := [4]uint32{0, 1, 2, 3}
+	return *(*Uint32x4)(unsafe.Pointer(&arr))
+}
+
 // Get returns the element at the given index.
 func (v Uint32x4) Get(i int) uint32 {
 	return (*[4]uint32)(unsafe.Pointer(&v))[i]
@@ -2495,6 +2561,12 @@ func Load4Uint64x2Slice(s []uint64) (Uint64x2, Uint64x2, Uint64x2, Uint64x2) {
 // ZeroUint64x2 returns a zero vector.
 func ZeroUint64x2() Uint64x2 {
 	return Uint64x2{}
+}
+
+// IotaUint64x2 returns a vector with lane indices [0, 1].
+func IotaUint64x2() Uint64x2 {
+	arr := [2]uint64{0, 1}
+	return *(*Uint64x2)(unsafe.Pointer(&arr))
 }
 
 // Get returns the element at the given index.

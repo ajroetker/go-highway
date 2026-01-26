@@ -544,6 +544,44 @@ func FindLastTrue_AVX2_I64x4(mask archsimd.Mask64x4) int {
 // Unsigned integer wrappers (use same masks as signed)
 // ============================================================================
 
+// Compress_AVX2_Uint32x8 compresses elements where mask is true to the front.
+func Compress_AVX2_Uint32x8(v archsimd.Uint32x8, mask archsimd.Mask32x8) (archsimd.Uint32x8, int) {
+	var data [8]uint32
+	v.StoreSlice(data[:])
+
+	bits := mask32x8ToBits(mask)
+	var result [8]uint32
+	count := 0
+
+	for i := 0; i < 8; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[count] = data[i]
+			count++
+		}
+	}
+
+	return archsimd.LoadUint32x8Slice(result[:]), count
+}
+
+// Compress_AVX2_Uint64x4 compresses elements where mask is true to the front.
+func Compress_AVX2_Uint64x4(v archsimd.Uint64x4, mask archsimd.Mask64x4) (archsimd.Uint64x4, int) {
+	var data [4]uint64
+	v.StoreSlice(data[:])
+
+	bits := mask64x4ToBits(mask)
+	var result [4]uint64
+	count := 0
+
+	for i := 0; i < 4; i++ {
+		if (bits & (1 << i)) != 0 {
+			result[count] = data[i]
+			count++
+		}
+	}
+
+	return archsimd.LoadUint64x4Slice(result[:]), count
+}
+
 // CompressStore_AVX2_Uint32x8 compresses and stores directly to slice.
 func CompressStore_AVX2_Uint32x8(v archsimd.Uint32x8, mask archsimd.Mask32x8, dst []uint32) int {
 	var data [8]uint32

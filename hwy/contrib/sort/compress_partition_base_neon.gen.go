@@ -83,6 +83,44 @@ func BaseCompressPartition3Way_neon_Int64(data []int64, pivot int64) (int, int) 
 	return lt, gt
 }
 
+func BaseCompressPartition3Way_neon_Uint32(data []uint32, pivot uint32) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
+func BaseCompressPartition3Way_neon_Uint64(data []uint64, pivot uint64) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
 func BaseCompressPartition_neon(data []float32, pivot float32) int {
 	n := len(data)
 	if n == 0 {
@@ -393,6 +431,166 @@ func BaseCompressPartition_neon_Int64(data []int64, pivot int64) int {
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
 		compressed, _ := asm.CompressKeysI64x2(v, maskLess)
+		compressed.StoreSlice(buf[bufL:])
+		bufL += numLess
+		numRight := lanes - numLess
+		writeR -= numRight
+		copy(data[writeR:], buf[bufL:bufL+numRight])
+	}
+	copy(data[writeL:], buf[:bufL])
+	return writeL + bufL
+}
+
+func BaseCompressPartition_neon_Uint32(data []uint32, pivot uint32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	kUnroll := 4
+	preloadSize := kUnroll * lanes
+	if n < 2*preloadSize {
+		return scalarPartition2Way(data, pivot)
+	}
+	middleSize := n - 2*preloadSize
+	if middleSize%lanes != 0 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastUint32x4(pivot)
+	preloadL := make([]uint32, preloadSize)
+	preloadR := make([]uint32, preloadSize)
+	copy(preloadL, data[:preloadSize])
+	copy(preloadR, data[n-preloadSize:])
+	readL := preloadSize
+	readR := n - preloadSize
+	writeL := 0
+	remaining := n
+	for readL < readR {
+		var v asm.Uint32x4
+		capacityL := readL - writeL
+		if capacityL > preloadSize {
+			readR -= lanes
+			v = asm.LoadUint32x4Slice(data[readR:])
+		} else {
+			v = asm.LoadUint32x4Slice(data[readL:])
+			readL += lanes
+		}
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
+		remaining -= lanes
+		compressed.StoreSlice(data[writeL:])
+		compressed.StoreSlice(data[remaining+writeL:])
+		writeL += numLess
+	}
+	for i := 0; i+4 <= preloadSize; i += lanes {
+		v := asm.LoadUint32x4Slice(preloadL[i:])
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
+		remaining -= lanes
+		compressed.StoreSlice(data[writeL:])
+		compressed.StoreSlice(data[remaining+writeL:])
+		writeL += numLess
+	}
+	for i := 0; i+4 <= preloadSize-2*lanes; i += lanes {
+		v := asm.LoadUint32x4Slice(preloadR[i:])
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
+		remaining -= lanes
+		compressed.StoreSlice(data[writeL:])
+		compressed.StoreSlice(data[remaining+writeL:])
+		writeL += numLess
+	}
+	var buf [32]uint32
+	bufL := 0
+	writeR := writeL + remaining
+	for i := preloadSize - 2*lanes; i+4 <= preloadSize; i += lanes {
+		v := asm.LoadUint32x4Slice(preloadR[i:])
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
+		compressed.StoreSlice(buf[bufL:])
+		bufL += numLess
+		numRight := lanes - numLess
+		writeR -= numRight
+		copy(data[writeR:], buf[bufL:bufL+numRight])
+	}
+	copy(data[writeL:], buf[:bufL])
+	return writeL + bufL
+}
+
+func BaseCompressPartition_neon_Uint64(data []uint64, pivot uint64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 2
+	kUnroll := 4
+	preloadSize := kUnroll * lanes
+	if n < 2*preloadSize {
+		return scalarPartition2Way(data, pivot)
+	}
+	middleSize := n - 2*preloadSize
+	if middleSize%lanes != 0 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastUint64x2(pivot)
+	preloadL := make([]uint64, preloadSize)
+	preloadR := make([]uint64, preloadSize)
+	copy(preloadL, data[:preloadSize])
+	copy(preloadR, data[n-preloadSize:])
+	readL := preloadSize
+	readR := n - preloadSize
+	writeL := 0
+	remaining := n
+	for readL < readR {
+		var v asm.Uint64x2
+		capacityL := readL - writeL
+		if capacityL > preloadSize {
+			readR -= lanes
+			v = asm.LoadUint64x2Slice(data[readR:])
+		} else {
+			v = asm.LoadUint64x2Slice(data[readL:])
+			readL += lanes
+		}
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
+		remaining -= lanes
+		compressed.StoreSlice(data[writeL:])
+		compressed.StoreSlice(data[remaining+writeL:])
+		writeL += numLess
+	}
+	for i := 0; i+2 <= preloadSize; i += lanes {
+		v := asm.LoadUint64x2Slice(preloadL[i:])
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
+		remaining -= lanes
+		compressed.StoreSlice(data[writeL:])
+		compressed.StoreSlice(data[remaining+writeL:])
+		writeL += numLess
+	}
+	for i := 0; i+2 <= preloadSize-2*lanes; i += lanes {
+		v := asm.LoadUint64x2Slice(preloadR[i:])
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
+		remaining -= lanes
+		compressed.StoreSlice(data[writeL:])
+		compressed.StoreSlice(data[remaining+writeL:])
+		writeL += numLess
+	}
+	var buf [32]uint64
+	bufL := 0
+	writeR := writeL + remaining
+	for i := preloadSize - 2*lanes; i+2 <= preloadSize; i += lanes {
+		v := asm.LoadUint64x2Slice(preloadR[i:])
+		maskLess := v.LessThan(pivotVec)
+		numLess := asm.CountTrue(maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
 		compressed.StoreSlice(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
