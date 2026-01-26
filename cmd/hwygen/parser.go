@@ -19,6 +19,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -142,10 +143,8 @@ func Parse(filename string) (*ParseResult, error) {
 			// Explicit alias: import foo "path/to/bar"
 			localName = imp.Name.Name
 		} else {
-			// Default: use last component of path
-			// e.g., "math" -> "math", "path/to/foo" -> "foo"
-			parts := strings.Split(importPath, "/")
-			localName = parts[len(parts)-1]
+			// Default package name: "math" -> "math"; "path/to/foo" -> "foo"
+			localName = filepath.Base(importPath)
 		}
 
 		// Skip blank imports (import _ "pkg")
