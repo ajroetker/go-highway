@@ -2323,6 +2323,52 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		}
 		fullName = fmt.Sprintf("Load%sSlice", loadVecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
+	case "LoadFull":
+		if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
+			// For AVX targets, use unsafe pointer cast to avoid checks
+			// archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&src[0])))
+			lanes := ctx.target.LanesFor(effectiveElemType)
+			fullName = fmt.Sprintf("Load%s", vecTypeName)
+			selExpr.X = ast.NewIdent(pkgName)
+
+			// Transform argument to pointer case
+			if len(call.Args) > 0 {
+				src := call.Args[0]
+				// unsafe.Pointer(&src[0])
+				ptr := &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("unsafe"),
+						Sel: ast.NewIdent("Pointer"),
+					},
+					Args: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.IndexExpr{
+								X:     src,
+								Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
+							},
+						},
+					},
+				}
+				// (*[lanes]T)(ptr)
+				cast := &ast.CallExpr{
+					Fun: &ast.ParenExpr{
+						X: &ast.StarExpr{
+							X: &ast.ArrayType{
+								Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
+								Elt: ast.NewIdent(effectiveElemType),
+							},
+						},
+					},
+					Args: []ast.Expr{ptr},
+				}
+				call.Args[0] = cast
+			}
+		} else {
+			// fallback/neon use generic hwy.LoadFull
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "LoadFull"
+		}
 	case "Load4":
 		// For Vec types (Float16/BFloat16), use hwy wrapper since asm doesn't have Load4VecSlice
 		if strings.HasPrefix(vecTypeName, "Vec") || strings.HasPrefix(vecTypeName, "hwy.Vec") {
@@ -5571,4 +5617,3 @@ func isHalfPrecisionSliceExpr(indexExpr *ast.IndexExpr, ctx *transformContext) b
 	}
 	return false
 }
-

@@ -29,6 +29,16 @@ func Load[T Lanes](src []T) Vec[T] {
 	return Vec[T]{data: data}
 }
 
+// LoadFull loads the elements of the slice into a vector of MaxLanes[T]
+//
+// This expects len(src >= MaxLanes[T] and avoids boundary checking, use with care.
+func LoadFull[T Lanes](src []T) Vec[T] {
+	n := MaxLanes[T]()
+	data := make([]T, n)
+	copy(data, src[:n])
+	return Vec[T]{data: data}
+}
+
 // Load4 loads 4 consecutive vectors from a slice for 4x loop unrolling.
 // On ARM NEON, this maps to a single ld1 instruction with 4 registers,
 // which is more efficient than 4 separate Load calls.

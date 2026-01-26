@@ -53,11 +53,12 @@ func AVX2Target() Target {
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
-			"Load":      {Name: "Load", IsMethod: false},      // archsimd.LoadFloat32x8Slice
-			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false}, // hwy.Load4_AVX2_Float32 - 4 separate loads
-			"Store":     {Name: "Store", IsMethod: true},      // v.StoreSlice
-			"Set":       {Name: "Broadcast", IsMethod: false}, // archsimd.BroadcastFloat32x8
-			"Const":     {Name: "Broadcast", IsMethod: false}, // archsimd.BroadcastFloat32x8 (same as Set)
+			"Load":      {Name: "Load", IsMethod: false},                     // archsimd.LoadFloat32x8Slice
+			"LoadFull":  {Name: "LoadFull", IsMethod: false},                 // archsimd.LoadFloat32x8 (pointer based)
+			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false},    // hwy.Load4_AVX2_Float32 - 4 separate loads
+			"Store":     {Name: "Store", IsMethod: true},                     // v.StoreSlice
+			"Set":       {Name: "Broadcast", IsMethod: false},                // archsimd.BroadcastFloat32x8
+			"Const":     {Name: "Broadcast", IsMethod: false},                // archsimd.BroadcastFloat32x8 (same as Set)
 			"Zero":      {Package: "special", Name: "Zero", IsMethod: false}, // Use Broadcast(0)
 			"MaskLoad":  {Name: "MaskLoad", IsMethod: false},
 			"MaskStore": {Name: "MaskStore", IsMethod: true},
@@ -67,7 +68,7 @@ func AVX2Target() Target {
 			"Sub": {Name: "Sub", IsMethod: true},
 			"Mul": {Name: "Mul", IsMethod: true},
 			"Div": {Name: "Div", IsMethod: true},
-			"Neg": {Name: "Neg", IsMethod: true}, // Implemented as 0 - x
+			"Neg": {Name: "Neg", IsMethod: true},                     // Implemented as 0 - x
 			"Abs": {Package: "special", Name: "Abs", IsMethod: true}, // Implemented as Max(x, -x)
 			"Min": {Name: "Min", IsMethod: true},
 			"Max": {Name: "Max", IsMethod: true},
@@ -85,12 +86,12 @@ func AVX2Target() Target {
 			"TableLookupBytes": {Package: "hwy", Name: "TableLookupBytes", IsMethod: false}, // VPSHUFB
 
 			// ===== Core math operations (hardware instructions) =====
-			"Sqrt":              {Name: "Sqrt", IsMethod: true},            // VSQRTPS/VSQRTPD
-			"RSqrt":             {Name: "ReciprocalSqrt", IsMethod: true},  // VRSQRTPS/VRSQRTPD (~12-bit precision)
+			"Sqrt":               {Name: "Sqrt", IsMethod: true},                                     // VSQRTPS/VSQRTPD
+			"RSqrt":              {Name: "ReciprocalSqrt", IsMethod: true},                           // VRSQRTPS/VRSQRTPD (~12-bit precision)
 			"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson_AVX2", IsMethod: false}, // N-R refined
-			"RSqrtPrecise":      {Package: "hwy", Name: "RSqrtPrecise_AVX2", IsMethod: false},        // sqrt + div
-			"FMA":               {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
-			"MulAdd": {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
+			"RSqrtPrecise":       {Package: "hwy", Name: "RSqrtPrecise_AVX2", IsMethod: false},       // sqrt + div
+			"FMA":                {Name: "MulAdd", IsMethod: true},                                   // archsimd uses MulAdd for FMA
+			"MulAdd":             {Name: "MulAdd", IsMethod: true},                                   // a.MulAdd(b, c) = a*b + c
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Name: "RoundToEven", IsMethod: true}, // Banker's rounding
@@ -257,10 +258,11 @@ func AVX512Target() Target {
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
 			"Load":      {Name: "Load", IsMethod: false},
+			"LoadFull":  {Name: "LoadFull", IsMethod: false},
 			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false}, // hwy.Load4_AVX512_Float32 - 4 separate loads
 			"Store":     {Name: "Store", IsMethod: true},
 			"Set":       {Name: "Broadcast", IsMethod: false},
-			"Const":     {Name: "Broadcast", IsMethod: false}, // Same as Set
+			"Const":     {Name: "Broadcast", IsMethod: false},                // Same as Set
 			"Zero":      {Package: "special", Name: "Zero", IsMethod: false}, // Use Broadcast(0)
 			"MaskLoad":  {Name: "MaskLoad", IsMethod: false},
 			"MaskStore": {Name: "MaskStore", IsMethod: true},
@@ -289,11 +291,11 @@ func AVX512Target() Target {
 
 			// ===== Core math operations =====
 			"Sqrt":               {Name: "Sqrt", IsMethod: true},
-			"RSqrt":              {Name: "ReciprocalSqrt", IsMethod: true},  // VRSQRT14PS/VRSQRT14PD (~14-bit precision)
+			"RSqrt":              {Name: "ReciprocalSqrt", IsMethod: true},                             // VRSQRT14PS/VRSQRT14PD (~14-bit precision)
 			"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson_AVX512", IsMethod: false}, // N-R refined
 			"RSqrtPrecise":       {Package: "hwy", Name: "RSqrtPrecise_AVX512", IsMethod: false},       // sqrt + div
-			"FMA":                {Name: "MulAdd", IsMethod: true}, // archsimd uses MulAdd for FMA
-			"MulAdd":             {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
+			"FMA":                {Name: "MulAdd", IsMethod: true},                                     // archsimd uses MulAdd for FMA
+			"MulAdd":             {Name: "MulAdd", IsMethod: true},                                     // a.MulAdd(b, c) = a*b + c
 
 			// ===== Rounding operations =====
 			// AVX512 archsimd doesn't have plain RoundToEven, use hwy package function
@@ -462,6 +464,7 @@ func FallbackTarget() Target {
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations - use hwy package =====
 			"Load":      {Package: "hwy", Name: "Load", IsMethod: false},
+			"LoadFull":  {Package: "hwy", Name: "LoadFull", IsMethod: false},
 			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false}, // hwy.Load4 fallback (4 separate loads)
 			"Store":     {Package: "hwy", Name: "Store", IsMethod: false},
 			"Set":       {Package: "hwy", Name: "Set", IsMethod: false},
@@ -656,6 +659,7 @@ func NEONTarget() Target {
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
 			"Load":      {Name: "Load", IsMethod: false},
+			"LoadFull":  {Package: "hwy", Name: "LoadFull", IsMethod: false},
 			"Load4":     {Name: "Load4", IsMethod: false}, // asm.Load4Float32x4Slice - single ld1 instruction
 			"Store":     {Name: "Store", IsMethod: true},
 			"Set":       {Name: "Broadcast", IsMethod: false},
@@ -689,9 +693,9 @@ func NEONTarget() Target {
 			"RSqrt":              {Package: "asm", Name: "RSqrt", IsMethod: false},              // asm.RSqrtF32/F64
 			"RSqrtNewtonRaphson": {Package: "asm", Name: "RSqrtNewtonRaphson", IsMethod: false}, // asm.RSqrtNewtonRaphsonF32/F64
 			"RSqrtPrecise":       {Package: "asm", Name: "RSqrtPrecise", IsMethod: false},       // asm.RSqrtPreciseF32/F64
-			"FMA":                {Name: "MulAdd", IsMethod: true}, // FMA maps to MulAdd in NEON asm
-			"MulAdd":             {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
-			"Pow":                {Name: "Pow", IsMethod: true},    // v.Pow(exp) = v^exp element-wise
+			"FMA":                {Name: "MulAdd", IsMethod: true},                              // FMA maps to MulAdd in NEON asm
+			"MulAdd":             {Name: "MulAdd", IsMethod: true},                              // a.MulAdd(b, c) = a*b + c
+			"Pow":                {Name: "Pow", IsMethod: true},                                 // v.Pow(exp) = v^exp element-wise
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Name: "RoundToEven", IsMethod: true}, // Banker's rounding
