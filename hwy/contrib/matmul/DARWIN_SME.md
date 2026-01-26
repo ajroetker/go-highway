@@ -170,3 +170,120 @@ All tests should pass:
 - `TestSMEFMOPADebug` - Comprehensive FMOPA test with intermediate values
 - `TestSMEMOVAToZA` - MOVA in both directions
 - `TestSMEZAStore` - ZERO {ZA} + MOVA ZA→Z
+
+## GoAT vs Handwritten Performance Investigation
+
+### Summary
+
+GoAT-generated FMOPA assembly is **11-27% slower** than handwritten assembly on Apple M4, despite having a tighter inner loop. This is due to memory latency hiding patterns that clang's optimizer cannot produce.
+
+### Performance Results
+
+| Size | GoAT Generated | Handwritten | Performance Gap |
+|------|----------------|-------------|-----------------|
+| 32×32 | 313 GFLOPS | 430 GFLOPS | 27% slower |
+| 48×48 | 389 GFLOPS | 479 GFLOPS | 19% slower |
+| 64×64 | 447 GFLOPS | 500 GFLOPS | 11% slower |
+
+Benchmarks run on Apple M4 Max with `GOEXPERIMENT=simd go1.26rc2`.
+
+### Root Cause: Memory Latency Hiding
+
+The performance difference stems from how the K-loop handles memory latency.
+
+**GoAT-Generated K-Loop (7 instructions):**
+```asm
+BB0_4:
+    ldr   z0, [x16]           ; Load aT (memory latency starts)
+    ldr   z1, [x15]           ; Load b (stalls waiting for bus)
+    fmopa za0.s, p0/m, p0/m, z0.s, z1.s
+    add   x16, x16, x9        ; aT_ptr += stride
+    add   x15, x15, x9        ; b_ptr += stride
+    subs  x14, x14, #1        ; k--
+    bne   BB0_4
+```
+
+The loads are back-to-back with no work between them. The CPU stalls waiting for memory.
+
+**Handwritten K-Loop (13+ instructions):**
+```asm
+fmopa_k_loop:
+    ; Calculate aT address (4 instructions, ~4 cycles)
+    MUL   R23, R3, R4         ; k * stride
+    ADD   R19, R4, R4         ; + base
+    LSL   $2, R0, R5          ; ti * 4
+    ADD   R4, R5, R4          ; final address
+
+    ld1w  {z2.s}, p0/z, [x4, x10, lsl #2]  ; Load aT
+
+    ; Calculate b address (4 instructions, ~4 cycles)
+    MUL   R23, R3, R6         ; k * stride (aT load in flight)
+    ADD   R20, R6, R6         ; + base
+    LSL   $2, R2, R7          ; tj * 4
+    ADD   R6, R7, R6          ; final address (aT data arrives)
+
+    ld1w  {z0.s}, p0/z, [x6, x10, lsl #2]  ; Load b
+
+    fmopa za0.s, p0/m, p1/m, z2.s, z0.s
+    ADD   $1, R3, R3          ; k++
+    B     fmopa_k_loop
+```
+
+The address calculations fill the time while waiting for memory, keeping the CPU busy.
+
+**Visual Timeline:**
+```
+GoAT (7 instructions, many stalls):
+Cycle:  1    2    3    4    5    6    7    8
+        ldr  ldr  WAIT WAIT WAIT fmopa add  add ...
+
+Handwritten (13 instructions, pipelined):
+Cycle:  1    2    3    4    5    6    7    8    9    10   11
+        MUL  ADD  LSL  ADD  ld1w MUL  ADD  LSL  ADD  ld1w fmopa
+                            ↑                        ↑    ↑
+                            |                        |    └── both ready!
+                            |                        └── b loads
+                            └── aT loads (completes by cycle 9)
+```
+
+### The Optimization Paradox
+
+Clang sees the address calculations as "redundant" and converts them to pointer increments. This produces **tighter code** that is actually **slower** because:
+
+- Fewer instructions = less latency hiding
+- Back-to-back loads = pipeline stalls
+- SME unit starves for data
+
+### Attempted Fixes
+
+| Approach | Result | Reason |
+|----------|--------|--------|
+| Software prefetching (`svprfw`) | No improvement | M4's hardware prefetcher already effective |
+| 2x loop unrolling | No improvement | Loads still back-to-back before FMOPAs |
+| Explicit `k * n + ti` calculation | No improvement | Clang optimizes MUL back to ADD stride |
+| `volatile` offsets | **Worse** (270-317 GFLOPS) | Forces stack spills, adds memory latency |
+
+Clang is too good at optimizing away "useless" instructions.
+
+### Other Observations
+
+**Predicate Register Optimization:**
+- Handwritten uses two predicates: `fmopa za0.s, p0/m, p1/m, ...`
+- Clang merges identical `svptrue_b32()` to same register: `fmopa za0.s, p0/m, p0/m, ...`
+- Using `svwhilelt` to force separate predicates causes SIGILL (executes before `smstart`)
+
+**Load Instruction Form:**
+- Handwritten: `ld1w {z.s}, p0/z, [x, offset, lsl #2]` (predicated)
+- GoAT: `ldr z, [x]` (unpredicated)
+- Both work in streaming mode
+
+### Recommendations
+
+1. **For maximum performance**: Keep handwritten FMOPA assembly for the block kernel
+2. **For maintainability**: GoAT version provides 73-89% of peak performance
+3. **For other kernels**: NEON kernels don't have this latency sensitivity
+
+### Files
+
+- `c/block_kernel_fmopa_arm64.c` - C source for GoAT transpilation
+- `asm/block_kernel_fmopa_arm64.s` - GoAT-generated assembly

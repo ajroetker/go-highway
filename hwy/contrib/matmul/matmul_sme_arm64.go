@@ -24,49 +24,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
-// NOTE: SME implementation confirmed working on Apple M4!
-//
-// Initial testing showed zeros from ZA due to incorrect MOVA encodings.
-// After fixing instruction encodings from LLVM reference:
-//
-// What WORKS on Apple M4:
-//   - SMSTART/SMSTOP (streaming mode entry/exit)
-//   - PTRUE, ZERO {ZA}, DUP
-//   - ST1W from Z registers (SVE stores in streaming mode)
-//   - FMOPA (outer product accumulate) - 512 FP32 ops per instruction!
-//   - MOVA Z→ZA (write to ZA): encoding 0xc080XXXX
-//   - MOVA ZA→Z (read from ZA): encoding 0xc082XXXX (bit 17 set!)
-//
-// Key encoding corrections:
-//   - MOVA tile-to-vector requires bit 17 set (0xc082 prefix, not 0xc080)
-//   - FMOPA encoding: 0x8081XXXX for za.s with z registers
-//   - PTRUE p0.s for FP32 operations, not p0.b
-//
-// Apple M4 SVL = 512 bits, meaning:
-//   - Z registers hold 16 × float32
-//   - ZA tiles are 16×16 = 256 float32 elements
-//   - Single FMOPA does 16×16×2 = 512 FP32 ops
-//
-// Two implementations available:
-//   1. matmul_fmopa_f32: original with scalar A column loading (slower)
-//   2. matmul_fmopa_at_f32: with pre-transposed A for contiguous loads (faster!)
-
 // Minimum dimensions to use SME FMOPA MatMul
 // With pre-transposed A, FMOPA uses contiguous loads and is competitive with NEON.
 // Below this threshold, NEON is used (streaming mode has fixed overhead).
 const minDimForSME = 64
-
-//go:noescape
-func matmul_sme_f32(a, b, c unsafe.Pointer, m, n, k int64)
-
-//go:noescape
-func matmul_fmopa_f32(a, b, c unsafe.Pointer, m, n, k int64)
-
-//go:noescape
-func matmul_fmopa_at_f32(at, b, c unsafe.Pointer, m, n, k int64)
-
-//go:noescape
-func matmul_fmopa_at_f64(at, b, c unsafe.Pointer, m, n, k int64)
 
 
 // Transpose buffer pools to avoid allocations
@@ -105,26 +66,6 @@ func transposeMatrix[T hwy.Floats](a []T, m, k int, at []T) {
 	}
 }
 
-// matmulStreamingSVE uses ARM streaming SVE mode with SVE instructions.
-// NOTE: This does NOT work on Apple M4 - ld1w doesn't function in streaming mode.
-// Kept for reference, but use matmulFMOPA instead.
-func matmulStreamingSVE(a, b, c []float32, m, n, k int) {
-	// For small matrices, fall back to NEON (streaming mode has overhead)
-	if m < minDimForSME || n < minDimForSME || k < minDimForSME {
-		matmulNEON(a, b, c, m, n, k)
-		return
-	}
-
-	matmul_sme_f32(
-		unsafe.Pointer(unsafe.SliceData(a)),
-		unsafe.Pointer(unsafe.SliceData(b)),
-		unsafe.Pointer(unsafe.SliceData(c)),
-		int64(m),
-		int64(n),
-		int64(k),
-	)
-}
-
 // matmulFMOPA uses ARM SME FMOPA instruction for matrix multiplication.
 // Uses outer product accumulate with ZA tiles - confirmed working on Apple M4!
 // Processes matrices in 16x16 tiles using the ZA accumulator.
@@ -155,14 +96,7 @@ func matmulFMOPA(a, b, c []float32, m, n, k int) {
 	transposeMatrix(a, m, k, atBuf)
 
 	// Call FMOPA with transposed A
-	matmul_fmopa_at_f32(
-		unsafe.Pointer(unsafe.SliceData(atBuf)),
-		unsafe.Pointer(unsafe.SliceData(b)),
-		unsafe.Pointer(unsafe.SliceData(c)),
-		int64(m),
-		int64(n),
-		int64(k),
-	)
+	asm.MatMulFMOPAF32(atBuf, b, c, m, n, k)
 
 	// Return buffer to pool
 	transposePool32.Put(atBuf)
@@ -197,14 +131,7 @@ func matmulFMOPA64(a, b, c []float64, m, n, k int) {
 	transposeMatrix(a, m, k, atBuf)
 
 	// Call FMOPA with transposed A
-	matmul_fmopa_at_f64(
-		unsafe.Pointer(unsafe.SliceData(atBuf)),
-		unsafe.Pointer(unsafe.SliceData(b)),
-		unsafe.Pointer(unsafe.SliceData(c)),
-		int64(m),
-		int64(n),
-		int64(k),
-	)
+	asm.MatMulFMOPAF64(atBuf, b, c, m, n, k)
 
 	// Return buffer to pool
 	transposePool64.Put(atBuf)

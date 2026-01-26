@@ -4,20 +4,13 @@
 
 package matmul
 
-import "unsafe"
+import "github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 
 // =============================================================================
 // Float32 NEON
 // =============================================================================
 
-// block_muladd_neon_f32 computes C += A^T * B using NEON SIMD.
-// A must be pre-transposed (rows are original A columns).
-// Uses register blocking for efficiency.
-//
-//go:noescape
-func block_muladd_neon_f32(aT, b, c unsafe.Pointer, blockDim int64)
-
-// BlockMulAddNEON computes C += A^T * B for square blocks using hand-optimized NEON.
+// BlockMulAddNEON computes C += A^T * B for square blocks using NEON.
 // aT must be pre-transposed (rows are original A columns).
 // b is normal row-major (rows are B rows).
 // This computes C += A * B where A is the original (non-transposed) matrix.
@@ -31,21 +24,14 @@ func BlockMulAddNEON(aT, b, c []float32, blockDim int) {
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAddNEON: C slice too short")
 	}
-	block_muladd_neon_f32(unsafe.Pointer(&aT[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&c[0]), int64(blockDim))
+	asm.BlockMulAddNEONF32(aT, b, c, blockDim)
 }
 
 // =============================================================================
 // Float64 NEON
 // =============================================================================
 
-// block_muladd_neon_f64 computes C += A^T * B using NEON SIMD for float64.
-// A must be pre-transposed (rows are original A columns).
-// Uses register blocking for efficiency.
-//
-//go:noescape
-func block_muladd_neon_f64(aT, b, c unsafe.Pointer, blockDim int64)
-
-// BlockMulAddNEONFloat64 computes C += A^T * B for square blocks using hand-optimized NEON.
+// BlockMulAddNEONFloat64 computes C += A^T * B for square blocks using NEON.
 // aT must be pre-transposed (rows are original A columns).
 // b is normal row-major (rows are B rows).
 func BlockMulAddNEONFloat64(aT, b, c []float64, blockDim int) {
@@ -58,5 +44,5 @@ func BlockMulAddNEONFloat64(aT, b, c []float64, blockDim int) {
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAddNEONFloat64: C slice too short")
 	}
-	block_muladd_neon_f64(unsafe.Pointer(&aT[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&c[0]), int64(blockDim))
+	asm.BlockMulAddNEONF64(aT, b, c, blockDim)
 }
