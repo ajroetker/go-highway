@@ -68,14 +68,17 @@ void block_muladd_fmopa_f32(float *aT, float *b, float *c,
             }
 
             // Store: C[tile] += ZA
+            // Use pointer incrementing to avoid expensive offset pre-computation
+            float *c_ptr = c + ti * n + tj;
             for (int row = 0; row < 16; row++) {
                 // Read ZA row
                 svfloat32_t za_row = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
                 // Load existing C row
-                svfloat32_t c_row = svld1_f32(pg, c + (ti + row) * n + tj);
+                svfloat32_t c_row = svld1_f32(pg, c_ptr);
                 // Add and store
                 c_row = svadd_f32_x(pg, c_row, za_row);
-                svst1_f32(pg, c + (ti + row) * n + tj, c_row);
+                svst1_f32(pg, c_ptr, c_row);
+                c_ptr += n;  // Move to next row
             }
         }
     }
@@ -108,11 +111,14 @@ void block_muladd_fmopa_f64(double *aT, double *b, double *c,
             }
 
             // Store: C[tile] += ZA
+            // Use pointer incrementing to avoid expensive offset pre-computation
+            double *c_ptr = c + ti * n + tj;
             for (int row = 0; row < 8; row++) {
                 svfloat64_t za_row = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
-                svfloat64_t c_row = svld1_f64(pg, c + (ti + row) * n + tj);
+                svfloat64_t c_row = svld1_f64(pg, c_ptr);
                 c_row = svadd_f64_x(pg, c_row, za_row);
-                svst1_f64(pg, c + (ti + row) * n + tj, c_row);
+                svst1_f64(pg, c_ptr, c_row);
+                c_ptr += n;  // Move to next row
             }
         }
     }

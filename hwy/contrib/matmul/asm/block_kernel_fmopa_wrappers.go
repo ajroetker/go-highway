@@ -22,7 +22,7 @@ import "unsafe"
 
 // Generate assembly from C using goat
 // -march=armv9-a+sme+sme-f64f64 enables SME with f32/f64 support
-//go:generate go tool goat ../c/block_kernel_fmopa_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64"
+//go:generate go tool goat ../c/block_kernel_fmopa_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64" -e="-fno-unroll-loops"
 
 // BlockMulAddFMOPAF32 computes C += A^T * B for square blocks using SME FMOPA (float32).
 // aT must be pre-transposed (rows are original A columns).

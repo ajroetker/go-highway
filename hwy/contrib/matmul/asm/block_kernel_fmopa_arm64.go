@@ -3,7 +3,7 @@
 // versions:
 // 	clang   21.1.8
 // 	objdump 2.45.1
-// flags: -march=armv9-a+sme+sme-f64f64 -O3
+// flags: -march=armv9-a+sme+sme-f64f64 -fno-unroll-loops -O3
 // source: ../c/block_kernel_fmopa_arm64.c
 
 package asm
