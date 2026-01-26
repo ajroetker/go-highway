@@ -477,7 +477,7 @@ func BaseCompressPartition_neon_Uint32(data []uint32, pivot uint32) int {
 		}
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
 		remaining -= lanes
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
@@ -487,7 +487,7 @@ func BaseCompressPartition_neon_Uint32(data []uint32, pivot uint32) int {
 		v := asm.LoadUint32x4Slice(preloadL[i:])
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
 		remaining -= lanes
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
@@ -497,7 +497,7 @@ func BaseCompressPartition_neon_Uint32(data []uint32, pivot uint32) int {
 		v := asm.LoadUint32x4Slice(preloadR[i:])
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
 		remaining -= lanes
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
@@ -510,7 +510,7 @@ func BaseCompressPartition_neon_Uint32(data []uint32, pivot uint32) int {
 		v := asm.LoadUint32x4Slice(preloadR[i:])
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU32x4(v, maskLess)
 		compressed.StoreSlice(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
@@ -557,7 +557,7 @@ func BaseCompressPartition_neon_Uint64(data []uint64, pivot uint64) int {
 		}
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
 		remaining -= lanes
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
@@ -567,7 +567,7 @@ func BaseCompressPartition_neon_Uint64(data []uint64, pivot uint64) int {
 		v := asm.LoadUint64x2Slice(preloadL[i:])
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
 		remaining -= lanes
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
@@ -577,7 +577,7 @@ func BaseCompressPartition_neon_Uint64(data []uint64, pivot uint64) int {
 		v := asm.LoadUint64x2Slice(preloadR[i:])
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
 		remaining -= lanes
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
@@ -590,7 +590,7 @@ func BaseCompressPartition_neon_Uint64(data []uint64, pivot uint64) int {
 		v := asm.LoadUint64x2Slice(preloadR[i:])
 		maskLess := v.LessThan(pivotVec)
 		numLess := asm.CountTrue(maskLess)
-		compressed, _ := asm.CompressKeysF32x4(v, maskLess)
+		compressed, _ := asm.CompressKeysU64x2(v, maskLess)
 		compressed.StoreSlice(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess

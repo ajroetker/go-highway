@@ -1699,6 +1699,54 @@ func CompressKeysI64x2(v Int64x2, mask Int64x2) (Int64x2, int) {
 	return *(*Int64x2)(unsafe.Pointer(&result)), 0
 }
 
+// CompressKeysU32x4 reorders v so elements where mask=true come first.
+// Returns (reordered vector, count of true elements).
+func CompressKeysU32x4(v Uint32x4, mask Uint32x4) (Uint32x4, int) {
+	idx := maskToIndex4(Int32x4(mask))
+	count := compressCountTable[idx]
+	perm := &compressPartitionTableF32[idx]
+
+	a := (*[4]uint32)(unsafe.Pointer(&v))
+	result := [4]uint32{a[perm[0]], a[perm[1]], a[perm[2]], a[perm[3]]}
+	return *(*Uint32x4)(unsafe.Pointer(&result)), count
+}
+
+// CompressKeysU64x2 reorders v so elements where mask=true come first.
+// Returns (reordered vector, count of true elements).
+func CompressKeysU64x2(v Uint64x2, mask Uint64x2) (Uint64x2, int) {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	m := (*[2]uint64)(unsafe.Pointer(&mask))
+
+	idx := 0
+	if m[0] != 0 {
+		idx |= 1
+	}
+	if m[1] != 0 {
+		idx |= 2
+	}
+
+	var result [2]uint64
+	switch idx {
+	case 0:
+		result[0] = a[0]
+		result[1] = a[1]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 0
+	case 1:
+		result[0] = a[0]
+		result[1] = a[1]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 1
+	case 2:
+		result[0] = a[1]
+		result[1] = a[0]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 1
+	case 3:
+		result[0] = a[0]
+		result[1] = a[1]
+		return *(*Uint64x2)(unsafe.Pointer(&result)), 2
+	}
+	return *(*Uint64x2)(unsafe.Pointer(&result)), 0
+}
+
 // ===== Fast CountTrue functions =====
 // These use popcount to count set mask bits efficiently.
 

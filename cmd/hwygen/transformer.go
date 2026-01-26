@@ -2394,6 +2394,10 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 				fullName = "CompressKeysI32x4"
 			case "int64":
 				fullName = "CompressKeysI64x2"
+			case "uint32":
+				fullName = "CompressKeysU32x4"
+			case "uint64":
+				fullName = "CompressKeysU64x2"
 			default:
 				fullName = "CompressKeysF32x4"
 			}
@@ -2515,35 +2519,40 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		}
 		selExpr.X = ast.NewIdent(pkgName)
 	case "Iota":
-		// Iota has type-specific versions for NEON: IotaFloat32x4, IotaFloat64x2, etc.
-		// For Float16/BFloat16, use hwy.Iota[T]() as there's no native NEON support
+		// Iota needs target-specific handling since archsimd doesn't have a generic Iota.
+		// NEON: type-specific asm functions (IotaFloat32x4, IotaFloat64x2, etc.)
+		// AVX2/AVX512: hwy wrapper functions (Iota_AVX2_F32x8, Iota_AVX512_F32x16, etc.)
+		// Float16/BFloat16 on any target: hwy.Iota[T]() generic function
+		if isHalfPrecisionType(effectiveElemType) {
+			// Half-precision types use hwy.Iota[T]() on all targets
+			call.Fun = &ast.IndexExpr{
+				X: &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent("Iota"),
+				},
+				Index: ast.NewIdent(ctx.elemType),
+			}
+			return
+		}
 		if ctx.target.Name == "NEON" {
 			switch ctx.elemType {
 			case "float32":
 				fullName = "IotaFloat32x4"
-				selExpr.X = ast.NewIdent(pkgName)
 			case "float64":
 				fullName = "IotaFloat64x2"
-				selExpr.X = ast.NewIdent(pkgName)
 			case "uint32":
 				fullName = "IotaUint32x4"
-				selExpr.X = ast.NewIdent(pkgName)
 			case "uint64":
 				fullName = "IotaUint64x2"
-				selExpr.X = ast.NewIdent(pkgName)
 			default:
-				// Float16/BFloat16 and other types use hwy package's generic Iota
-				// Need to reconstruct the type parameter since it was stripped
-				fullName = opInfo.Name
-				selExpr.X = ast.NewIdent("hwy")
-				selExpr.Sel = ast.NewIdent(fullName)
-				// Reconstruct hwy.Iota[T]() with the concrete type
-				call.Fun = &ast.IndexExpr{
-					X:     selExpr,
-					Index: ast.NewIdent(ctx.elemType),
-				}
-				return
+				fullName = "Iota"
 			}
+			selExpr.X = ast.NewIdent(pkgName)
+		} else if ctx.target.VecPackage == "archsimd" {
+			// AVX2/AVX512: use hwy.Iota_{target}_{shortType}()
+			shortTypeName := getShortTypeName(effectiveElemType, ctx.target)
+			fullName = fmt.Sprintf("Iota_%s_%s", ctx.target.Name, shortTypeName)
+			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			fullName = opInfo.Name
 			selExpr.X = ast.NewIdent(pkgName)
@@ -5070,11 +5079,15 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 						}
 					}
 					// Check for hwy.ReduceMax, hwy.ReduceMin, hwy.ReduceSum etc.
-					// These return the element type, so the result variable is half-precision.
+					// Only match base names (not F16/BF16 suffixed versions) because:
+					// - Base versions (ReduceSum) return element type T (e.g., Float16)
+					//   → result IS half-precision, needs .Float32() for scalar ops
+					// - Suffixed versions (ReduceSumF16) already return float32
+					//   → result is NOT half-precision, .Float32() on float32 is invalid
 					if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 						if pkgIdent, ok := sel.X.(*ast.Ident); ok && pkgIdent.Name == "hwy" {
 							funcName := sel.Sel.Name
-							if isReduceFunction(funcName) {
+							if isBaseReduceFunction(funcName) {
 								if varName != "" && assign.Tok == token.DEFINE {
 									halfPrecisionScalarVars[varName] = true
 								}
@@ -5228,10 +5241,12 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 								},
 							}
 						}
-						// Track the variable name if it's a simple identifier
+						// Track as float32 and remove from half-precision tracking,
+						// since the variable is now float32 (either already was or just wrapped).
 						if len(node.Lhs) > i {
 							if ident, ok := node.Lhs[i].(*ast.Ident); ok {
 								reduceSumVars[ident.Name] = true
+								delete(halfPrecisionScalarVars, ident.Name)
 							}
 						}
 						continue
@@ -5355,13 +5370,16 @@ func transformHalfPrecisionAssignment(stmt *ast.AssignStmt, ctx *transformContex
 		}
 	}
 
-	// Transform RHS expressions to add .Float32() for slice index reads
-	// But skip if LHS is a simple identifier being tracked as half-precision scalar
-	// (we want to keep those as Float16 and only convert them in scalar arithmetic)
+	// Transform RHS expressions to add .Float32() for slice index reads.
+	// Skip if LHS is a simple identifier tracked as half-precision scalar AND
+	// this is a simple assignment (:= or =). For compound assignments (+=, -=, etc.),
+	// always wrap because the LHS variable is already float32 (from ReduceSum wrapping)
+	// and the RHS needs to be float32 for arithmetic.
+	isCompound := stmt.Tok == token.ADD_ASSIGN || stmt.Tok == token.SUB_ASSIGN ||
+		stmt.Tok == token.MUL_ASSIGN || stmt.Tok == token.QUO_ASSIGN
 	for i, rhs := range stmt.Rhs {
-		// Check if LHS is a tracked half-precision scalar variable
 		skipConversion := false
-		if i < len(stmt.Lhs) {
+		if !isCompound && i < len(stmt.Lhs) {
 			if ident, ok := stmt.Lhs[i].(*ast.Ident); ok {
 				if ctx.halfPrecisionScalarVars != nil && ctx.halfPrecisionScalarVars[ident.Name] {
 					// Don't convert the slice read - keep the variable as Float16
@@ -5527,12 +5545,13 @@ var reduceBaseFunctions = []string{
 	"ReduceSum",
 }
 
-// isReduceFunction returns true if the function name is a hwy reduce operation
-// that returns the element type. Matches both base names (ReduceMax) and
-// suffixed versions (ReduceMaxF16, ReduceMaxBF16).
-func isReduceFunction(funcName string) bool {
+// isBaseReduceFunction returns true if the function name is a base hwy reduce
+// operation (ReduceMax, ReduceMin, ReduceSum). These return the element type T,
+// so for Float16/BFloat16, the result is a half-precision scalar.
+// Does NOT match F16/BF16 suffixed versions which already return float32.
+func isBaseReduceFunction(funcName string) bool {
 	for _, base := range reduceBaseFunctions {
-		if funcName == base || funcName == base+"F16" || funcName == base+"BF16" {
+		if funcName == base {
 			return true
 		}
 	}
