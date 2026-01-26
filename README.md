@@ -60,16 +60,24 @@ These are fundamental SIMD operations that map directly to hardware instructions
 
 | Category | Operations |
 |----------|------------|
-| Load/Store | `Load`, `Store`, `Set`, `Zero`, `MaskLoad`, `MaskStore` |
-| Arithmetic | `Add`, `Sub`, `Mul`, `Div`, `Neg`, `Abs`, `Min`, `Max` |
-| Math | `Sqrt`, `FMA` |
+| Load/Store | `Load`, `LoadFull`, `Store`, `StoreFull`, `Set`, `Zero`, `MaskLoad`, `MaskStore`, `Load4` |
+| Arithmetic | `Add`, `Sub`, `Mul`, `Div`, `Neg`, `Abs`, `Min`, `Max`, `FMA`, `MulAdd` |
+| Math | `Sqrt`, `RSqrt`, `RSqrtNewtonRaphson`, `RSqrtPrecise`, `Pow` |
 | Reduction | `ReduceSum`, `ReduceMin`, `ReduceMax` |
-| Comparison | `Equal`, `LessThan`, `GreaterThan` |
-| Conditional | `IfThenElse` |
+| Comparison | `Equal`, `NotEqual`, `LessThan`, `LessEqual`, `GreaterThan`, `GreaterEqual` |
+| Conditional | `IfThenElse`, `IfThenElseZero`, `IfThenZeroElse`, `ZeroIfNegative` |
+| Bitwise | `And`, `Or`, `Xor`, `Not`, `AndNot`, `ShiftLeft`, `ShiftRight`, `PopCount` |
+| Shuffle | `GetLane`, `Reverse`, `Broadcast`, `Iota` |
+| Type Cast | `AsInt32`, `AsFloat32`, `AsInt64`, `AsFloat64` |
+| Float Check | `IsNaN`, `IsInf`, `IsFinite`, `RoundToEven` |
+| Utilities | `NumLanes`, `SignBit`, `Const`, `ConstValue` |
+
+`LoadFull`/`StoreFull` provide bounds-check-free operations when you know the slice has sufficient capacity.
 
 Low-level SIMD functions for direct archsimd usage:
 - `Sqrt_AVX2_F32x8`, `Sqrt_AVX2_F64x4` - Hardware sqrt (VSQRTPS/VSQRTPD)
 - `Sqrt_AVX512_F32x16`, `Sqrt_AVX512_F64x8` - AVX-512 variants
+- `PopCount_AVX2_*`, `PopCount_AVX512_*` - Population count for bit manipulation
 
 ### Extended Math (`hwy/contrib/algo` and `hwy/contrib/math` packages)
 
@@ -98,6 +106,21 @@ The contrib package is organized into two subpackages:
 | `Erf_AVX2_F32x8` | Error function on SIMD vectors |
 
 All functions support `float32` and `float64` with ~4 ULP accuracy.
+
+### Additional Contrib Packages
+
+| Package | Description |
+|---------|-------------|
+| `hwy/contrib/matmul` | Matrix multiplication with SME/NEON acceleration |
+| `hwy/contrib/matvec` | Matrix-vector multiplication |
+| `hwy/contrib/rabitq` | RaBitQ SIMD operations for vector quantization (ANN search) |
+| `hwy/contrib/activation` | Neural network activation functions |
+| `hwy/contrib/nn` | Neural network primitives |
+| `hwy/contrib/sort` | SIMD-accelerated sorting algorithms |
+| `hwy/contrib/vec` | Vector distance and similarity functions |
+| `hwy/contrib/bitpack` | Bit packing/unpacking operations |
+| `hwy/contrib/varint` | Variable-length integer encoding |
+| `hwy/contrib/image` | Image processing operations |
 
 ## Code Generator (hwygen)
 
@@ -211,7 +234,11 @@ GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/math/...
 | AMD64 AVX2 | 256-bit | Supported |
 | AMD64 AVX-512 | 512-bit | Supported |
 | ARM64 NEON | 128-bit | Supported |
+| ARM64 SME | Scalable | Experimental (matrix ops) |
+| ARM64 SVE | Scalable | Experimental |
 | Pure Go | Scalar | Supported (fallback) |
+
+SME (Scalable Matrix Extension) provides dedicated matrix multiplication hardware on Apple Silicon M4 and newer ARM processors.
 
 ## License
 
