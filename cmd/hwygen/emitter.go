@@ -727,6 +727,8 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 		"math/bits":       true,
 		"encoding/binary": true,
 	}
+
+	// First, add imports that were present in the source and are still used
 	for localName, importPath := range sourceImports {
 		if preservedImports[importPath] && usedPkgs[localName] {
 			if localName == importPath || localName == "" || localName == filepath.Base(importPath) {
@@ -734,6 +736,21 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 			} else {
 				imports = append(imports, fmt.Sprintf(`%s "%s"`, localName, importPath))
 			}
+		}
+	}
+
+	// Always add "unsafe" if it's used in the generated code (e.g. by LoadFull),
+	// even if it wasn't in the source file.
+	if usedPkgs["unsafe"] {
+		alreadyImported := false
+		for _, imp := range imports {
+			if strings.Contains(imp, `"unsafe"`) {
+				alreadyImported = true
+				break
+			}
+		}
+		if !alreadyImported {
+			imports = append(imports, `"unsafe"`)
 		}
 	}
 

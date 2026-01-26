@@ -57,6 +57,7 @@ func AVX2Target() Target {
 			"LoadFull":  {Name: "LoadFull", IsMethod: false},                 // archsimd.LoadFloat32x8 (pointer based)
 			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false},    // hwy.Load4_AVX2_Float32 - 4 separate loads
 			"Store":     {Name: "Store", IsMethod: true},                     // v.StoreSlice
+			"StoreFull": {Name: "StoreFull", IsMethod: true},                 // v.StoreFloat32x8 (pointer based)
 			"Set":       {Name: "Broadcast", IsMethod: false},                // archsimd.BroadcastFloat32x8
 			"Const":     {Name: "Broadcast", IsMethod: false},                // archsimd.BroadcastFloat32x8 (same as Set)
 			"Zero":      {Package: "special", Name: "Zero", IsMethod: false}, // Use Broadcast(0)
@@ -261,6 +262,7 @@ func AVX512Target() Target {
 			"LoadFull":  {Name: "LoadFull", IsMethod: false},
 			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false}, // hwy.Load4_AVX512_Float32 - 4 separate loads
 			"Store":     {Name: "Store", IsMethod: true},
+			"StoreFull": {Name: "StoreFull", IsMethod: true},
 			"Set":       {Name: "Broadcast", IsMethod: false},
 			"Const":     {Name: "Broadcast", IsMethod: false},                // Same as Set
 			"Zero":      {Package: "special", Name: "Zero", IsMethod: false}, // Use Broadcast(0)
@@ -467,6 +469,7 @@ func FallbackTarget() Target {
 			"LoadFull":  {Package: "hwy", Name: "LoadFull", IsMethod: false},
 			"Load4":     {Package: "hwy", Name: "Load4", IsMethod: false}, // hwy.Load4 fallback (4 separate loads)
 			"Store":     {Package: "hwy", Name: "Store", IsMethod: false},
+			"StoreFull": {Package: "hwy", Name: "StoreFull", IsMethod: false},
 			"Set":       {Package: "hwy", Name: "Set", IsMethod: false},
 			"Zero":      {Package: "hwy", Name: "Zero", IsMethod: false},
 			"MaskLoad":  {Package: "hwy", Name: "MaskLoad", IsMethod: false},
@@ -662,6 +665,7 @@ func NEONTarget() Target {
 			"LoadFull":  {Package: "hwy", Name: "LoadFull", IsMethod: false},
 			"Load4":     {Name: "Load4", IsMethod: false}, // asm.Load4Float32x4Slice - single ld1 instruction
 			"Store":     {Name: "Store", IsMethod: true},
+			"StoreFull": {Package: "hwy", Name: "StoreFull", IsMethod: false},
 			"Set":       {Name: "Broadcast", IsMethod: false},
 			"Const":     {Name: "Broadcast", IsMethod: false}, // Same as Set
 			"Zero":      {Name: "Zero", IsMethod: false},

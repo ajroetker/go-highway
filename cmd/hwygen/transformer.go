@@ -1373,6 +1373,10 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			// Keep hwy.Store(v, dst) as-is for half-precision types
 			// (hwy.Vec[Float16] has a Store method that handles the conversion)
 			return
+		case "StoreFull":
+			// Keep hwy.StoreFull(v, dst) as-is for half-precision types
+			// (archsimd doesn't support pointer-based Store for F16/BF16 types yet)
+			return
 		case "Pow2":
 			// Pow2 needs a type parameter: hwy.Pow2[hwy.Float16](kInt)
 			call.Fun = &ast.IndexExpr{
@@ -1463,6 +1467,50 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 
 	// For SIMD targets, convert to method calls on archsimd types
 	switch funcName {
+	case "StoreFull":
+		// hwy.StoreFull(v, dst) -> v.StoreFloat32x8((*[8]float32)(unsafe.Pointer(&dst[0])))
+		if len(call.Args) >= 2 {
+			methodName := "Store"
+			lanes := ctx.target.LanesFor(ctx.elemType)
+
+			// unsafe.Pointer(&dst[0])
+			dst := call.Args[1]
+			ptr := &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("unsafe"),
+					Sel: ast.NewIdent("Pointer"),
+				},
+				Args: []ast.Expr{
+					&ast.UnaryExpr{
+						Op: token.AND,
+						X: &ast.IndexExpr{
+							X:     dst,
+							Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
+						},
+					},
+				},
+			}
+
+			// (*[lanes]T)(ptr)
+			cast := &ast.CallExpr{
+				Fun: &ast.ParenExpr{
+					X: &ast.StarExpr{
+						X: &ast.ArrayType{
+							Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
+							Elt: ast.NewIdent(ctx.elemType),
+						},
+					},
+				},
+				Args: []ast.Expr{ptr},
+			}
+
+			call.Fun = &ast.SelectorExpr{
+				X:   call.Args[0],
+				Sel: ast.NewIdent(methodName),
+			}
+			call.Args = []ast.Expr{cast}
+		}
+
 	case "Store":
 		// hwy.Store(v, dst) -> v.StoreSlice(dst)
 		if len(call.Args) >= 2 {
@@ -2324,6 +2372,14 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		fullName = fmt.Sprintf("Load%sSlice", loadVecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
 	case "LoadFull":
+		// For half-precision types on SIMD targets, fallback to hwy.Load()
+		// archsimd doesn't support pointer-based Load for Float16/BFloat16 yet.
+		if isHalfPrecisionType(effectiveElemType) {
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Load"
+			return
+		}
+
 		if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
 			// For AVX targets, use unsafe pointer cast to avoid checks
 			// archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&src[0])))
@@ -2369,6 +2425,10 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			selExpr.X = ast.NewIdent("hwy")
 			selExpr.Sel.Name = "LoadFull"
 		}
+	case "StoreFull":
+		// For NEON/Fallback (IsMethod: false), use generic hwy.StoreFull
+		selExpr.X = ast.NewIdent("hwy")
+		selExpr.Sel.Name = "StoreFull"
 	case "Load4":
 		// For Vec types (Float16/BFloat16), use hwy wrapper since asm doesn't have Load4VecSlice
 		if strings.HasPrefix(vecTypeName, "Vec") || strings.HasPrefix(vecTypeName, "hwy.Vec") {

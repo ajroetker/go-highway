@@ -71,6 +71,13 @@ func Store[T Lanes](v Vec[T], dst []T) {
 	copy(dst[:n], v.data[:n])
 }
 
+// StoreFull writes a vector's data to a slice of size MaxLanes[T].
+// This expects len(dst) >= MaxLanes[T] and avoids boundary checking, use with care.
+func StoreFull[T Lanes](v Vec[T], dst []T) {
+	n := MaxLanes[T]()
+	copy(dst[:n], v.data)
+}
+
 // Set creates a vector with all lanes set to the same value.
 func Set[T Lanes](value T) Vec[T] {
 	n := MaxLanes[T]()
