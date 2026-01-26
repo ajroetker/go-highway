@@ -1,6 +1,6 @@
 module github.com/ajroetker/go-highway
 
-go 1.26rc2
+go 1.26
 
 require golang.org/x/sys v0.40.0
 
