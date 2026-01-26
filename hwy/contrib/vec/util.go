@@ -55,8 +55,18 @@ func MaxIdx64(s []float64) int {
 	return Argmax(s)
 }
 
+// EncodeFloat32s and DecodeFloat32s are provided by the generated dispatch code
+// (encode_amd64.gen.go, encode_arm64.gen.go, encode_other.gen.go).
+// They use SIMD acceleration when available, with fallback to scalar code.
+//
 // EncodeFloat32s encodes a slice of float32 values into a byte slice (little-endian).
-func EncodeFloat32s(dst []byte, src []float32) {
+// var EncodeFloat32s func(dst []byte, src []float32) - declared in generated code
+//
+// DecodeFloat32s decodes a byte slice into a slice of float32 values (little-endian).
+// var DecodeFloat32s func(dst []float32, src []byte) - declared in generated code
+
+// encodeFloat32sScalar is the scalar reference implementation (kept for documentation).
+func encodeFloat32sScalar(dst []byte, src []float32) {
 	if len(dst) < len(src)*4 {
 		panic("dst is too short")
 	}
@@ -69,8 +79,8 @@ func EncodeFloat32s(dst []byte, src []float32) {
 	}
 }
 
-// DecodeFloat32s decodes a byte slice into a slice of float32 values (little-endian).
-func DecodeFloat32s(src []byte, dst []float32) {
+// decodeFloat32sScalar is the scalar reference implementation (kept for documentation).
+func decodeFloat32sScalar(src []byte, dst []float32) {
 	if len(src) < len(dst)*4 {
 		panic("src is too short")
 	}

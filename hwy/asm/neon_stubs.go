@@ -73,12 +73,13 @@ func BroadcastUint8x16(v uint8) Uint8x16 {
 	return *(*Uint8x16)(unsafe.Pointer(&arr))
 }
 
-func LoadUint8x16(s []uint8) Uint8x16       { return *(*Uint8x16)(unsafe.Pointer(&s[0])) }
-func LoadUint8x16Slice(s []uint8) Uint8x16  { return LoadUint8x16(s) }
+func LoadUint8x16(p *[16]uint8) Uint8x16    { return *(*Uint8x16)(unsafe.Pointer(p)) }
+func LoadUint8x16Slice(s []uint8) Uint8x16  { return *(*Uint8x16)(unsafe.Pointer(&s[0])) }
 func ZeroUint8x16() Uint8x16                { return Uint8x16{} }
 func (v Uint8x16) Get(i int) uint8          { return v[i] }
 func (v *Uint8x16) Set(i int, val uint8)    { v[i] = val }
 func (v Uint8x16) Data() []uint8            { return v[:] }
+func (v Uint8x16) Store(p *[16]uint8)       { *(*Uint8x16)(unsafe.Pointer(p)) = v }
 func (v Uint8x16) StoreSlice(s []uint8)     { *(*Uint8x16)(unsafe.Pointer(&s[0])) = v }
 func (v Uint8x16) GetBit(i int) bool        { return v[i] != 0 }
 func (v Uint8x16) Add(other Uint8x16) Uint8x16         { panic("NEON not available") }
@@ -116,11 +117,13 @@ func BroadcastUint16x8(v uint16) Uint16x8 {
 	return *(*Uint16x8)(unsafe.Pointer(&arr))
 }
 
-func LoadUint16x8(s []uint16) Uint16x8      { return *(*Uint16x8)(unsafe.Pointer(&s[0])) }
+func LoadUint16x8(p *[8]uint16) Uint16x8    { return *(*Uint16x8)(unsafe.Pointer(p)) }
+func LoadUint16x8Slice(s []uint16) Uint16x8 { return *(*Uint16x8)(unsafe.Pointer(&s[0])) }
 func ZeroUint16x8() Uint16x8                { return Uint16x8{} }
 func (v Uint16x8) Get(i int) uint16         { return (*[8]uint16)(unsafe.Pointer(&v))[i] }
 func (v *Uint16x8) Set(i int, val uint16)   { (*[8]uint16)(unsafe.Pointer(v))[i] = val }
 func (v Uint16x8) Data() []uint16           { return (*[8]uint16)(unsafe.Pointer(&v))[:] }
+func (v Uint16x8) Store(p *[8]uint16)       { *(*Uint16x8)(unsafe.Pointer(p)) = v }
 func (v Uint16x8) StoreSlice(s []uint16)    { *(*Uint16x8)(unsafe.Pointer(&s[0])) = v }
 func (v Uint16x8) GetBit(i int) bool        { return (*[8]uint16)(unsafe.Pointer(&v))[i] != 0 }
 func (v Uint16x8) Add(other Uint16x8) Uint16x8         { panic("NEON not available") }
@@ -146,12 +149,13 @@ func BroadcastUint32x4(v uint32) Uint32x4 {
 	return *(*Uint32x4)(unsafe.Pointer(&arr))
 }
 
-func LoadUint32x4(s []uint32) Uint32x4      { return *(*Uint32x4)(unsafe.Pointer(&s[0])) }
-func LoadUint32x4Slice(s []uint32) Uint32x4 { return LoadUint32x4(s) }
+func LoadUint32x4(p *[4]uint32) Uint32x4    { return *(*Uint32x4)(unsafe.Pointer(p)) }
+func LoadUint32x4Slice(s []uint32) Uint32x4 { return *(*Uint32x4)(unsafe.Pointer(&s[0])) }
 func ZeroUint32x4() Uint32x4                { return Uint32x4{} }
 func (v Uint32x4) Get(i int) uint32         { return (*[4]uint32)(unsafe.Pointer(&v))[i] }
 func (v *Uint32x4) Set(i int, val uint32)   { (*[4]uint32)(unsafe.Pointer(v))[i] = val }
 func (v Uint32x4) Data() []uint32           { return (*[4]uint32)(unsafe.Pointer(&v))[:] }
+func (v Uint32x4) Store(p *[4]uint32)       { *(*Uint32x4)(unsafe.Pointer(p)) = v }
 func (v Uint32x4) StoreSlice(s []uint32)    { *(*Uint32x4)(unsafe.Pointer(&s[0])) = v }
 func (v Uint32x4) GetBit(i int) bool        { return (*[4]uint32)(unsafe.Pointer(&v))[i] != 0 }
 func (v Uint32x4) AsInt32x4() Int32x4       { return Int32x4(v) }
@@ -184,12 +188,13 @@ func BroadcastUint64x2(v uint64) Uint64x2 {
 	return *(*Uint64x2)(unsafe.Pointer(&arr))
 }
 
-func LoadUint64x2(s []uint64) Uint64x2      { return *(*Uint64x2)(unsafe.Pointer(&s[0])) }
-func LoadUint64x2Slice(s []uint64) Uint64x2 { return LoadUint64x2(s) }
+func LoadUint64x2(p *[2]uint64) Uint64x2    { return *(*Uint64x2)(unsafe.Pointer(p)) }
+func LoadUint64x2Slice(s []uint64) Uint64x2 { return *(*Uint64x2)(unsafe.Pointer(&s[0])) }
 func ZeroUint64x2() Uint64x2                { return Uint64x2{} }
 func (v Uint64x2) Get(i int) uint64         { return (*[2]uint64)(unsafe.Pointer(&v))[i] }
 func (v *Uint64x2) Set(i int, val uint64)   { (*[2]uint64)(unsafe.Pointer(v))[i] = val }
 func (v Uint64x2) Data() []uint64           { return (*[2]uint64)(unsafe.Pointer(&v))[:] }
+func (v Uint64x2) Store(p *[2]uint64)       { *(*Uint64x2)(unsafe.Pointer(p)) = v }
 func (v Uint64x2) StoreSlice(s []uint64)    { *(*Uint64x2)(unsafe.Pointer(&s[0])) = v }
 func (v Uint64x2) GetBit(i int) bool        { return (*[2]uint64)(unsafe.Pointer(&v))[i] != 0 }
 func (v Uint64x2) AsInt64x2() Int64x2       { return Int64x2(v) }
@@ -221,12 +226,13 @@ func BroadcastInt32x4(v int32) Int32x4 {
 	return *(*Int32x4)(unsafe.Pointer(&arr))
 }
 
-func LoadInt32x4(s []int32) Int32x4      { return *(*Int32x4)(unsafe.Pointer(&s[0])) }
-func LoadInt32x4Slice(s []int32) Int32x4 { return LoadInt32x4(s) }
+func LoadInt32x4(p *[4]int32) Int32x4    { return *(*Int32x4)(unsafe.Pointer(p)) }
+func LoadInt32x4Slice(s []int32) Int32x4 { return *(*Int32x4)(unsafe.Pointer(&s[0])) }
 func ZeroInt32x4() Int32x4               { return Int32x4{} }
 func (v Int32x4) Get(i int) int32        { return (*[4]int32)(unsafe.Pointer(&v))[i] }
 func (v *Int32x4) Set(i int, val int32)  { (*[4]int32)(unsafe.Pointer(v))[i] = val }
 func (v Int32x4) Data() []int32          { return (*[4]int32)(unsafe.Pointer(&v))[:] }
+func (v Int32x4) Store(p *[4]int32)      { *(*Int32x4)(unsafe.Pointer(p)) = v }
 func (v Int32x4) StoreSlice(s []int32)   { *(*Int32x4)(unsafe.Pointer(&s[0])) = v }
 func (v Int32x4) GetBit(i int) bool      { return (*[4]int32)(unsafe.Pointer(&v))[i] != 0 }
 func (v Int32x4) Add(other Int32x4) Int32x4     { panic("NEON not available") }
@@ -251,12 +257,13 @@ func BroadcastInt64x2(v int64) Int64x2 {
 	return *(*Int64x2)(unsafe.Pointer(&arr))
 }
 
-func LoadInt64x2(s []int64) Int64x2      { return *(*Int64x2)(unsafe.Pointer(&s[0])) }
-func LoadInt64x2Slice(s []int64) Int64x2 { return LoadInt64x2(s) }
+func LoadInt64x2(p *[2]int64) Int64x2    { return *(*Int64x2)(unsafe.Pointer(p)) }
+func LoadInt64x2Slice(s []int64) Int64x2 { return *(*Int64x2)(unsafe.Pointer(&s[0])) }
 func ZeroInt64x2() Int64x2               { return Int64x2{} }
 func (v Int64x2) Get(i int) int64        { return (*[2]int64)(unsafe.Pointer(&v))[i] }
 func (v *Int64x2) Set(i int, val int64)  { (*[2]int64)(unsafe.Pointer(v))[i] = val }
 func (v Int64x2) Data() []int64          { return (*[2]int64)(unsafe.Pointer(&v))[:] }
+func (v Int64x2) Store(p *[2]int64)      { *(*Int64x2)(unsafe.Pointer(p)) = v }
 func (v Int64x2) StoreSlice(s []int64)   { *(*Int64x2)(unsafe.Pointer(&s[0])) = v }
 func (v Int64x2) GetBit(i int) bool      { return (*[2]int64)(unsafe.Pointer(&v))[i] != 0 }
 func (v Int64x2) Add(other Int64x2) Int64x2     { panic("NEON not available") }

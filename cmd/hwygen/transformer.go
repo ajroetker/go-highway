@@ -2882,13 +2882,19 @@ func transformAssignStmt(stmt *ast.AssignStmt, ctx *transformContext) {
 	// Look for v.NumElements(), hwy.Lanes[T](), or similar and replace with constant
 	for i, rhs := range stmt.Rhs {
 		if call, ok := rhs.(*ast.CallExpr); ok {
-			// Check for hwy.Lanes[T]() - IndexExpr wrapping SelectorExpr
+			// Check for hwy.Lanes[T]() or hwy.NumLanes[T]() - IndexExpr wrapping SelectorExpr
 			if indexExpr, ok := call.Fun.(*ast.IndexExpr); ok {
 				if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
 					if pkgIdent, ok := sel.X.(*ast.Ident); ok {
 						if pkgIdent.Name == "hwy" && (sel.Sel.Name == "Lanes" || sel.Sel.Name == "MaxLanes" || sel.Sel.Name == "NumLanes") {
-							// Replace with constant lane count
-							lanes := ctx.target.LanesFor(ctx.elemType)
+							// Extract the actual type parameter from hwy.NumLanes[T]()
+							// Use it instead of ctx.elemType to get correct lane count
+							effectiveElemType := ctx.elemType
+							if typeIdent, ok := indexExpr.Index.(*ast.Ident); ok {
+								effectiveElemType = typeIdent.Name
+							}
+							// Replace with constant lane count for the actual type parameter
+							lanes := ctx.target.LanesFor(effectiveElemType)
 							stmt.Rhs[i] = &ast.BasicLit{
 								Kind:  token.INT,
 								Value: strconv.Itoa(lanes),
@@ -2907,8 +2913,17 @@ func transformAssignStmt(stmt *ast.AssignStmt, ctx *transformContext) {
 			// Check for v.NumElements() or v.NumLanes()
 			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 				if sel.Sel.Name == "NumElements" || sel.Sel.Name == "NumLanes" {
+					// Try to look up the element type of the vector variable
+					// If the receiver is a variable we've tracked from a Load call,
+					// use its element type instead of the function's default
+					effectiveElemType := ctx.elemType
+					if varIdent, ok := sel.X.(*ast.Ident); ok {
+						if varElemType, ok := ctx.varVecElemType[varIdent.Name]; ok {
+							effectiveElemType = varElemType
+						}
+					}
 					// Replace with constant lane count
-					lanes := ctx.target.LanesFor(ctx.elemType)
+					lanes := ctx.target.LanesFor(effectiveElemType)
 					stmt.Rhs[i] = &ast.BasicLit{
 						Kind:  token.INT,
 						Value: strconv.Itoa(lanes),
@@ -4391,7 +4406,7 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 		return
 	}
 
-	lanes := ctx.target.LanesFor(ctx.elemType)
+	defaultLanes := ctx.target.LanesFor(ctx.elemType)
 	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
 
 	// Walk all statements and expressions, replacing as needed
@@ -4400,7 +4415,7 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 		case *ast.IfStmt:
 			// Replace comparisons like: remaining >= v.NumLanes()
 			if binExpr, ok := stmt.Cond.(*ast.BinaryExpr); ok {
-				replaceNumLanesInExpr(binExpr, lanes)
+				replaceNumLanesInExpr(binExpr, defaultLanes, ctx)
 			}
 		case *ast.AssignStmt:
 			// Replace: sum += v.ReduceSum() or sum += hwy.ReduceSum(v)
@@ -4417,7 +4432,7 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 					if call, ok := rhs.(*ast.CallExpr); ok {
 						if isReduceSumCall(call) {
 							// Transform to store + sum pattern
-							stmt.Rhs[i] = createReduceSumExpr(call, lanes, vecTypeName, ctx.elemType)
+							stmt.Rhs[i] = createReduceSumExpr(call, defaultLanes, vecTypeName, ctx.elemType)
 						}
 					}
 				}
@@ -4430,10 +4445,11 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 }
 
 // replaceNumLanesInExpr replaces v.NumLanes() with a constant in a binary expression.
-func replaceNumLanesInExpr(binExpr *ast.BinaryExpr, lanes int) {
+// It uses the context to look up the actual element type of vector variables.
+func replaceNumLanesInExpr(binExpr *ast.BinaryExpr, defaultLanes int, ctx *transformContext) {
 	// Check RHS
 	if call, ok := binExpr.Y.(*ast.CallExpr); ok {
-		if isNumLanesCall(call) {
+		if lanes := getLanesForNumLanesCall(call, defaultLanes, ctx); lanes > 0 {
 			binExpr.Y = &ast.BasicLit{
 				Kind:  token.INT,
 				Value: strconv.Itoa(lanes),
@@ -4442,7 +4458,7 @@ func replaceNumLanesInExpr(binExpr *ast.BinaryExpr, lanes int) {
 	}
 	// Check LHS (less common but possible)
 	if call, ok := binExpr.X.(*ast.CallExpr); ok {
-		if isNumLanesCall(call) {
+		if lanes := getLanesForNumLanesCall(call, defaultLanes, ctx); lanes > 0 {
 			binExpr.X = &ast.BasicLit{
 				Kind:  token.INT,
 				Value: strconv.Itoa(lanes),
@@ -4451,13 +4467,24 @@ func replaceNumLanesInExpr(binExpr *ast.BinaryExpr, lanes int) {
 	}
 }
 
-// isNumLanesCall checks if a call expression is v.NumLanes() or v.NumElements().
-func isNumLanesCall(call *ast.CallExpr) bool {
+// getLanesForNumLanesCall returns the lane count for a NumLanes() call,
+// taking into account the actual element type of the vector variable.
+// Returns 0 if the call is not a NumLanes call.
+func getLanesForNumLanesCall(call *ast.CallExpr, defaultLanes int, ctx *transformContext) int {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
-		return false
+		return 0
 	}
-	return sel.Sel.Name == "NumLanes" || sel.Sel.Name == "NumElements"
+	if sel.Sel.Name != "NumLanes" && sel.Sel.Name != "NumElements" {
+		return 0
+	}
+	// Try to look up the element type of the vector variable
+	if varIdent, ok := sel.X.(*ast.Ident); ok {
+		if varElemType, ok := ctx.varVecElemType[varIdent.Name]; ok {
+			return ctx.target.LanesFor(varElemType)
+		}
+	}
+	return defaultLanes
 }
 
 // isReduceSumCall checks if a call expression is v.ReduceSum(), hwy.ReduceSum(v),
