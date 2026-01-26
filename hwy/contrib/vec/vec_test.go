@@ -1555,3 +1555,334 @@ func BenchmarkBaseL2SquaredDistance_Stdlib(b *testing.B) {
 		})
 	}
 }
+
+// ============================================================================
+// Argmax/Argmin Tests
+// ============================================================================
+
+func TestArgmax(t *testing.T) {
+	tests := []struct {
+		name string
+		v    []float32
+		want int
+	}{
+		{"single", []float32{5}, 0},
+		{"max at start", []float32{5, 4, 3, 2, 1}, 0},
+		{"max at end", []float32{1, 2, 3, 4, 5}, 4},
+		{"max in middle", []float32{1, 2, 5, 2, 1}, 2},
+		{"all same", []float32{3, 3, 3}, 0},
+		{"negative", []float32{-5, -3, -1, -4}, 2},
+		{"mixed", []float32{-1, 4, -5, 2}, 1},
+		{"first occurrence wins", []float32{5, 3, 5, 2}, 0},
+
+		// SIMD boundary cases
+		{"len 3", []float32{1, 3, 2}, 1},
+		{"len 4", []float32{1, 4, 2, 3}, 1},
+		{"len 5", []float32{1, 2, 5, 3, 4}, 2},
+		{"len 7", []float32{1, 2, 3, 4, 5, 6, 7}, 6},
+		{"len 8", []float32{1, 2, 3, 4, 5, 6, 7, 8}, 7},
+		{"len 9", []float32{1, 2, 3, 4, 9, 6, 7, 8, 5}, 4},
+
+		// Max at end of large slice
+		{"len 16 max at end", append(makeVector32(15, func(i int) float32 { return float32(i) }), 100), 15},
+		{"len 17 max at end", append(makeVector32(16, func(i int) float32 { return float32(i) }), 100), 16},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Argmax(tt.v)
+			if got != tt.want {
+				t.Errorf("Argmax() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArgmax_Float64(t *testing.T) {
+	tests := []struct {
+		name string
+		v    []float64
+		want int
+	}{
+		{"single", []float64{5}, 0},
+		{"max at start", []float64{5, 4, 3, 2, 1}, 0},
+		{"max at end", []float64{1, 2, 3, 4, 5}, 4},
+		{"max in middle", []float64{1, 2, 5, 2, 1}, 2},
+		{"first occurrence wins", []float64{5, 3, 5, 2}, 0},
+
+		// SIMD boundary cases for float64 (2-wide on NEON)
+		{"len 2", []float64{1, 2}, 1},
+		{"len 3", []float64{1, 3, 2}, 1},
+		{"len 4", []float64{1, 4, 2, 3}, 1},
+		{"len 5", []float64{1, 2, 5, 3, 4}, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Argmax(tt.v)
+			if got != tt.want {
+				t.Errorf("Argmax() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArgmax_NaN(t *testing.T) {
+	nan := float32(math.NaN())
+
+	tests := []struct {
+		name string
+		v    []float32
+		want int
+	}{
+		{"NaN at start", []float32{nan, 1, 2, 3}, 3},           // max is 3 at index 3
+		{"NaN in middle", []float32{1, nan, 3, 2}, 2},          // max is 3 at index 2
+		{"NaN at end", []float32{1, 3, 2, nan}, 1},             // max is 3 at index 1
+		{"multiple NaN", []float32{nan, 1, nan, 3, nan}, 3},    // max is 3 at index 3
+		{"all NaN returns 0", []float32{nan, nan, nan}, 0},     // all NaN, return 0
+		{"NaN between max", []float32{5, nan, 5}, 0},           // first 5 wins
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Argmax(tt.v)
+			if got != tt.want {
+				t.Errorf("Argmax() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArgmax_PanicOnEmpty(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Argmax() did not panic on empty slice")
+		}
+	}()
+	Argmax([]float32{})
+}
+
+func TestArgmin(t *testing.T) {
+	tests := []struct {
+		name string
+		v    []float32
+		want int
+	}{
+		{"single", []float32{5}, 0},
+		{"min at start", []float32{1, 2, 3, 4, 5}, 0},
+		{"min at end", []float32{5, 4, 3, 2, 1}, 4},
+		{"min in middle", []float32{5, 2, 1, 2, 5}, 2},
+		{"all same", []float32{3, 3, 3}, 0},
+		{"negative", []float32{-1, -3, -5, -4}, 2},
+		{"mixed", []float32{4, -1, 5, -2}, 3},
+		{"first occurrence wins", []float32{1, 3, 1, 2}, 0},
+
+		// SIMD boundary cases
+		{"len 3", []float32{3, 1, 2}, 1},
+		{"len 4", []float32{4, 1, 2, 3}, 1},
+		{"len 5", []float32{5, 2, 1, 3, 4}, 2},
+		{"len 7", []float32{7, 6, 5, 4, 3, 2, 1}, 6},
+		{"len 8", []float32{8, 7, 6, 5, 4, 3, 2, 1}, 7},
+		{"len 9", []float32{9, 8, 7, 6, 1, 4, 3, 2, 5}, 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Argmin(tt.v)
+			if got != tt.want {
+				t.Errorf("Argmin() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArgmin_Float64(t *testing.T) {
+	tests := []struct {
+		name string
+		v    []float64
+		want int
+	}{
+		{"single", []float64{5}, 0},
+		{"min at start", []float64{1, 2, 3, 4, 5}, 0},
+		{"min at end", []float64{5, 4, 3, 2, 1}, 4},
+		{"min in middle", []float64{5, 2, 1, 2, 5}, 2},
+		{"first occurrence wins", []float64{1, 3, 1, 2}, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Argmin(tt.v)
+			if got != tt.want {
+				t.Errorf("Argmin() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArgmin_NaN(t *testing.T) {
+	nan := float32(math.NaN())
+
+	tests := []struct {
+		name string
+		v    []float32
+		want int
+	}{
+		{"NaN at start", []float32{nan, 3, 2, 1}, 3},           // min is 1 at index 3
+		{"NaN in middle", []float32{3, nan, 1, 2}, 2},          // min is 1 at index 2
+		{"NaN at end", []float32{3, 1, 2, nan}, 1},             // min is 1 at index 1
+		{"multiple NaN", []float32{nan, 3, nan, 1, nan}, 3},    // min is 1 at index 3
+		{"all NaN returns 0", []float32{nan, nan, nan}, 0},     // all NaN, return 0
+		{"NaN between min", []float32{1, nan, 1}, 0},           // first 1 wins
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Argmin(tt.v)
+			if got != tt.want {
+				t.Errorf("Argmin() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestArgmin_PanicOnEmpty(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Argmin() did not panic on empty slice")
+		}
+	}()
+	Argmin([]float32{})
+}
+
+func TestArgmax_ConsistencyWithMaxIdx(t *testing.T) {
+	// Verify that Argmax returns the same result as the existing MaxIdx
+	tests := [][]float32{
+		{1, 2, 3, 4, 5},
+		{5, 4, 3, 2, 1},
+		{3, 1, 4, 1, 5, 9, 2, 6},
+		{-5, -3, -1, -4, -2},
+		makeVector32(100, func(i int) float32 { return float32(i * i % 97) }),
+	}
+
+	for i, v := range tests {
+		argmax := Argmax(v)
+		maxIdx := MaxIdx(v)
+		if argmax != maxIdx {
+			t.Errorf("test %d: Argmax()=%v != MaxIdx()=%v for %v", i, argmax, maxIdx, v)
+		}
+	}
+}
+
+func TestArgmin_ConsistencyWithMinIdx(t *testing.T) {
+	// Verify that Argmin returns the same result as the existing MinIdx
+	tests := [][]float32{
+		{1, 2, 3, 4, 5},
+		{5, 4, 3, 2, 1},
+		{3, 1, 4, 1, 5, 9, 2, 6},
+		{-5, -3, -1, -4, -2},
+		makeVector32(100, func(i int) float32 { return float32(i * i % 97) }),
+	}
+
+	for i, v := range tests {
+		argmin := Argmin(v)
+		minIdx := MinIdx(v)
+		if argmin != minIdx {
+			t.Errorf("test %d: Argmin()=%v != MinIdx()=%v for %v", i, argmin, minIdx, v)
+		}
+	}
+}
+
+// Large array test for ML vocab size use case
+func TestArgmax_LargeArray(t *testing.T) {
+	// Simulate vocab-size array (50k elements)
+	size := 50000
+	v := make([]float32, size)
+	for i := range v {
+		v[i] = float32(i) * 0.001
+	}
+	// Put max at specific position
+	maxPos := 12345
+	v[maxPos] = 1000.0
+
+	got := Argmax(v)
+	if got != maxPos {
+		t.Errorf("Argmax() = %v, want %v", got, maxPos)
+	}
+}
+
+func TestArgmin_LargeArray(t *testing.T) {
+	size := 50000
+	v := make([]float32, size)
+	for i := range v {
+		v[i] = float32(i) * 0.001
+	}
+	// Put min at specific position
+	minPos := 23456
+	v[minPos] = -1000.0
+
+	got := Argmin(v)
+	if got != minPos {
+		t.Errorf("Argmin() = %v, want %v", got, minPos)
+	}
+}
+
+// ============================================================================
+// Argmax/Argmin Benchmarks
+// ============================================================================
+
+func BenchmarkArgmax(b *testing.B) {
+	sizes := []int{16, 256, 1024, 4096, 50000}
+
+	for _, size := range sizes {
+		v := makeVector32(size, func(i int) float32 { return float32(i) })
+		// Put max in the middle
+		v[size/2] = float32(size * 10)
+
+		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
+			b.ReportAllocs()
+			var result int
+			for i := 0; i < b.N; i++ {
+				result = Argmax(v)
+			}
+			_ = result
+		})
+	}
+}
+
+func BenchmarkArgmin(b *testing.B) {
+	sizes := []int{16, 256, 1024, 4096, 50000}
+
+	for _, size := range sizes {
+		v := makeVector32(size, func(i int) float32 { return float32(size - i) })
+		// Put min in the middle
+		v[size/2] = -float32(size * 10)
+
+		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
+			b.ReportAllocs()
+			var result int
+			for i := 0; i < b.N; i++ {
+				result = Argmin(v)
+			}
+			_ = result
+		})
+	}
+}
+
+func BenchmarkArgmax_Scalar(b *testing.B) {
+	// Benchmark the scalar MaxIdx for comparison
+	sizes := []int{256, 1024, 50000}
+
+	for _, size := range sizes {
+		v := makeVector32(size, func(i int) float32 { return float32(i) })
+		v[size/2] = float32(size * 10)
+
+		b.Run(fmt.Sprintf("size_%d", size), func(b *testing.B) {
+			b.ReportAllocs()
+			var result int
+			for i := 0; i < b.N; i++ {
+				result = MaxIdx(v)
+			}
+			_ = result
+		})
+	}
+}

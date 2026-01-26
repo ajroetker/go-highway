@@ -831,3 +831,356 @@ void reduce_max_u64_neon(unsigned long *src, long *pn, long *result) {
 
     *result = max_val;
 }
+
+// =============================================================================
+// argmax_f32: Find index of maximum element in float32 slice
+// =============================================================================
+// Returns first occurrence when multiple elements equal the max.
+// NaN values are skipped (consistent with existing MaxIdx behavior).
+void argmax_f32(float *v, long *pn, long *result) {
+    long n = *pn;
+
+    if (n <= 0) {
+        *result = 0;
+        return;
+    }
+
+    // Find first non-NaN position for initialization
+    long start = 0;
+    for (; start < n; start++) {
+        if (v[start] == v[start]) {  // !isnan check without builtin
+            break;
+        }
+    }
+    if (start >= n) {
+        *result = 0;  // All NaN - return 0 like MaxIdx
+        return;
+    }
+
+    // Small slices: scalar path
+    if (n < 4) {
+        float max_val = v[start];
+        long max_idx = start;
+        for (long i = start + 1; i < n; i++) {
+            if (v[i] == v[i]) {  // skip NaN
+                if (v[i] > max_val) {
+                    max_val = v[i];
+                    max_idx = i;
+                }
+            }
+        }
+        *result = max_idx;
+        return;
+    }
+
+    // Two-pass algorithm:
+    // Pass 1: Use SIMD to find the max VALUE (use compare+select to handle NaN)
+    // Pass 2: Scalar scan to find the INDEX of that value
+
+    // Initialize with first non-NaN value
+    float max_val = v[start];
+    long i = start + 1;
+
+    // Check if we have enough aligned elements for SIMD
+    // Need to process from an aligned position with 4+ elements
+    long simd_start = (start + 3) & ~3L;  // Round up to next multiple of 4
+    if (simd_start >= n) {
+        simd_start = n;  // No SIMD possible
+    }
+
+    // Scalar until we reach SIMD start
+    for (; i < simd_start; i++) {
+        if (v[i] == v[i] && v[i] > max_val) {
+            max_val = v[i];
+        }
+    }
+
+    // SIMD main loop - use NaN-safe comparison
+    float32x4_t max_vec = vdupq_n_f32(max_val);
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t v_vec = vld1q_f32(v + i);
+        // NaN > anything is false, so this naturally skips NaN
+        uint32x4_t mask = vcgtq_f32(v_vec, max_vec);
+        max_vec = vbslq_f32(mask, v_vec, max_vec);
+    }
+
+    // Horizontal reduction
+    max_val = vmaxvq_f32(max_vec);
+
+    // Handle tail elements
+    for (; i < n; i++) {
+        if (v[i] == v[i] && v[i] > max_val) {
+            max_val = v[i];
+        }
+    }
+
+    // Pass 2: Find the first index with max_val
+    for (long j = start; j < n; j++) {
+        if (v[j] == max_val) {
+            *result = j;
+            return;
+        }
+    }
+
+    *result = start;
+}
+
+// =============================================================================
+// argmin_f32: Find index of minimum element in float32 slice
+// =============================================================================
+// Returns first occurrence when multiple elements equal the min.
+// NaN values are skipped.
+void argmin_f32(float *v, long *pn, long *result) {
+    long n = *pn;
+
+    if (n <= 0) {
+        *result = 0;
+        return;
+    }
+
+    // Find first non-NaN position for initialization
+    long start = 0;
+    for (; start < n; start++) {
+        if (v[start] == v[start]) {
+            break;
+        }
+    }
+    if (start >= n) {
+        *result = 0;
+        return;
+    }
+
+    // Small slices: scalar path
+    if (n < 4) {
+        float min_val = v[start];
+        long min_idx = start;
+        for (long i = start + 1; i < n; i++) {
+            if (v[i] == v[i]) {
+                if (v[i] < min_val) {
+                    min_val = v[i];
+                    min_idx = i;
+                }
+            }
+        }
+        *result = min_idx;
+        return;
+    }
+
+    // Two-pass algorithm:
+    // Pass 1: Use SIMD to find the min VALUE (use compare+select to handle NaN)
+    // Pass 2: Scalar scan to find the INDEX of that value
+
+    // Initialize with first non-NaN value
+    float min_val = v[start];
+    long i = start + 1;
+
+    // Check if we have enough aligned elements for SIMD
+    long simd_start = (start + 3) & ~3L;  // Round up to next multiple of 4
+    if (simd_start >= n) {
+        simd_start = n;
+    }
+
+    // Scalar until we reach SIMD start
+    for (; i < simd_start; i++) {
+        if (v[i] == v[i] && v[i] < min_val) {
+            min_val = v[i];
+        }
+    }
+
+    // SIMD main loop - use NaN-safe comparison
+    float32x4_t min_vec = vdupq_n_f32(min_val);
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t v_vec = vld1q_f32(v + i);
+        // NaN < anything is false, so this naturally skips NaN
+        uint32x4_t mask = vcltq_f32(v_vec, min_vec);
+        min_vec = vbslq_f32(mask, v_vec, min_vec);
+    }
+
+    // Horizontal reduction
+    min_val = vminvq_f32(min_vec);
+
+    // Handle tail elements
+    for (; i < n; i++) {
+        if (v[i] == v[i] && v[i] < min_val) {
+            min_val = v[i];
+        }
+    }
+
+    // Pass 2: Find the first index with min_val
+    for (long j = start; j < n; j++) {
+        if (v[j] == min_val) {
+            *result = j;
+            return;
+        }
+    }
+
+    *result = start;
+}
+
+// =============================================================================
+// argmax_f64: Find index of maximum element in float64 slice
+// =============================================================================
+void argmax_f64(double *v, long *pn, long *result) {
+    long n = *pn;
+
+    if (n <= 0) {
+        *result = 0;
+        return;
+    }
+
+    // Find first non-NaN position
+    long start = 0;
+    for (; start < n; start++) {
+        if (v[start] == v[start]) {
+            break;
+        }
+    }
+    if (start >= n) {
+        *result = 0;
+        return;
+    }
+
+    // Small slices: scalar path
+    if (n < 2) {
+        *result = start;
+        return;
+    }
+
+    // Two-pass algorithm:
+    // Pass 1: Use SIMD to find the max VALUE (use compare+select to handle NaN)
+    // Pass 2: Scalar scan to find the INDEX of that value
+
+    // Initialize with first non-NaN value
+    double max_val = v[start];
+    long i = start + 1;
+
+    // Check if we have enough aligned elements for SIMD
+    long simd_start = (start + 1) & ~1L;  // Round up to next multiple of 2
+    if (simd_start >= n) {
+        simd_start = n;
+    }
+
+    // Scalar until we reach SIMD start
+    for (; i < simd_start; i++) {
+        if (v[i] == v[i] && v[i] > max_val) {
+            max_val = v[i];
+        }
+    }
+
+    // SIMD main loop - use NaN-safe comparison
+    float64x2_t max_vec = vdupq_n_f64(max_val);
+    for (; i + 2 <= n; i += 2) {
+        float64x2_t v_vec = vld1q_f64(v + i);
+        // NaN > anything is false, so this naturally skips NaN
+        uint64x2_t mask = vcgtq_f64(v_vec, max_vec);
+        max_vec = vbslq_f64(mask, v_vec, max_vec);
+    }
+
+    // Horizontal reduction
+    double d0 = vgetq_lane_f64(max_vec, 0);
+    double d1 = vgetq_lane_f64(max_vec, 1);
+    max_val = d0;
+    if (d1 > max_val) {
+        max_val = d1;
+    }
+
+    // Handle tail elements
+    for (; i < n; i++) {
+        if (v[i] == v[i] && v[i] > max_val) {
+            max_val = v[i];
+        }
+    }
+
+    // Pass 2: Find the first index with max_val
+    for (long j = start; j < n; j++) {
+        if (v[j] == max_val) {
+            *result = j;
+            return;
+        }
+    }
+
+    *result = start;
+}
+
+// =============================================================================
+// argmin_f64: Find index of minimum element in float64 slice
+// =============================================================================
+void argmin_f64(double *v, long *pn, long *result) {
+    long n = *pn;
+
+    if (n <= 0) {
+        *result = 0;
+        return;
+    }
+
+    long start = 0;
+    for (; start < n; start++) {
+        if (v[start] == v[start]) {
+            break;
+        }
+    }
+    if (start >= n) {
+        *result = 0;
+        return;
+    }
+
+    if (n < 2) {
+        *result = start;
+        return;
+    }
+
+    // Two-pass algorithm:
+    // Pass 1: Use SIMD to find the min VALUE (use compare+select to handle NaN)
+    // Pass 2: Scalar scan to find the INDEX of that value
+
+    // Initialize with first non-NaN value
+    double min_val = v[start];
+    long i = start + 1;
+
+    // Check if we have enough aligned elements for SIMD
+    long simd_start = (start + 1) & ~1L;  // Round up to next multiple of 2
+    if (simd_start >= n) {
+        simd_start = n;
+    }
+
+    // Scalar until we reach SIMD start
+    for (; i < simd_start; i++) {
+        if (v[i] == v[i] && v[i] < min_val) {
+            min_val = v[i];
+        }
+    }
+
+    // SIMD main loop - use NaN-safe comparison
+    float64x2_t min_vec = vdupq_n_f64(min_val);
+    for (; i + 2 <= n; i += 2) {
+        float64x2_t v_vec = vld1q_f64(v + i);
+        // NaN < anything is false, so this naturally skips NaN
+        uint64x2_t mask = vcltq_f64(v_vec, min_vec);
+        min_vec = vbslq_f64(mask, v_vec, min_vec);
+    }
+
+    // Horizontal reduction
+    double d0 = vgetq_lane_f64(min_vec, 0);
+    double d1 = vgetq_lane_f64(min_vec, 1);
+    min_val = d0;
+    if (d1 < min_val) {
+        min_val = d1;
+    }
+
+    // Handle tail elements
+    for (; i < n; i++) {
+        if (v[i] == v[i] && v[i] < min_val) {
+            min_val = v[i];
+        }
+    }
+
+    // Pass 2: Find the first index with min_val
+    for (long j = start; j < n; j++) {
+        if (v[j] == min_val) {
+            *result = j;
+            return;
+        }
+    }
+
+    *result = start;
+}
