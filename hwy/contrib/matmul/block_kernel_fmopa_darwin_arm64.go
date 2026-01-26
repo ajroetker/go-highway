@@ -4,18 +4,11 @@
 
 package matmul
 
-import "unsafe"
+import "github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 
 // =============================================================================
 // Float32 SME FMOPA (true outer product)
 // =============================================================================
-
-// block_muladd_fmopa_f32 computes C += A^T * B using SME FMOPA outer products.
-// A must be pre-transposed (rows are original A columns).
-// Uses 16x16 outer product tiles for maximum performance on Apple Silicon.
-//
-//go:noescape
-func block_muladd_fmopa_f32(aT, b, c unsafe.Pointer, blockDim int64)
 
 // BlockMulAddFMOPA computes C += A^T * B for square blocks using SME FMOPA.
 // aT must be pre-transposed (rows are original A columns).
@@ -31,19 +24,12 @@ func BlockMulAddFMOPA(aT, b, c []float32, blockDim int) {
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAddFMOPA: C slice too short")
 	}
-	block_muladd_fmopa_f32(unsafe.Pointer(&aT[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&c[0]), int64(blockDim))
+	asm.BlockMulAddFMOPAF32(aT, b, c, blockDim)
 }
 
 // =============================================================================
 // Float64 SME FMOPA
 // =============================================================================
-
-// block_muladd_fmopa_f64 computes C += A^T * B using SME FMOPA for float64.
-// A must be pre-transposed (rows are original A columns).
-// Uses 8x8 outer product tiles (SVL=512 bits = 8 doubles).
-//
-//go:noescape
-func block_muladd_fmopa_f64(aT, b, c unsafe.Pointer, blockDim int64)
 
 // BlockMulAddFMOPAFloat64 computes C += A^T * B for square blocks using SME FMOPA.
 // aT must be pre-transposed (rows are original A columns).
@@ -58,5 +44,5 @@ func BlockMulAddFMOPAFloat64(aT, b, c []float64, blockDim int) {
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAddFMOPAFloat64: C slice too short")
 	}
-	block_muladd_fmopa_f64(unsafe.Pointer(&aT[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&c[0]), int64(blockDim))
+	asm.BlockMulAddFMOPAF64(aT, b, c, blockDim)
 }

@@ -23,34 +23,13 @@
 package matmul
 
 import (
-	"unsafe"
-
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
-
-// Blocked FMOPA implementation for SME.
-//
-// Combines the cache-tiled blocking strategy (48×48 blocks for L1 cache) with
-// SME FMOPA outer product tiles (16×16 for f32, 8×8 for f64).
-//
-// Key optimizations:
-//   - Enters streaming mode ONCE for the entire operation (vs per-tile)
-//   - Pre-transposes A for contiguous column loads during FMOPA
-//   - Cache-tiled to keep working set in L1 for large matrices
-//
-// Apple M4 SVL = 512 bits:
-//   - f32: 16 lanes, 16×16 tiles, 512 FLOPs per FMOPA
-//   - f64: 8 lanes, 8×8 tiles, 128 FLOPs per FMOPA
 
 // Minimum dimensions to use SME blocked FMOPA.
 // Below this, the streaming mode overhead outweighs the benefits.
 const minDimForBlockedSME = 64
-
-//go:noescape
-func blockedmatmul_fmopa_at_f32(at, b, c unsafe.Pointer, m, n, k int64)
-
-//go:noescape
-func blockedmatmul_fmopa_at_f64(at, b, c unsafe.Pointer, m, n, k int64)
 
 // blockedMatMulFMOPA uses ARM SME FMOPA for blocked matrix multiplication (f32).
 // Uses outer product accumulate with ZA tiles and cache-tiled blocking.
@@ -81,14 +60,7 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	transposeMatrix(a, m, k, atBuf)
 
 	// Call blocked FMOPA with transposed A
-	blockedmatmul_fmopa_at_f32(
-		unsafe.Pointer(unsafe.SliceData(atBuf)),
-		unsafe.Pointer(unsafe.SliceData(b)),
-		unsafe.Pointer(unsafe.SliceData(c)),
-		int64(m),
-		int64(n),
-		int64(k),
-	)
+	asm.BlockedMatMulFMOPAF32(atBuf, b, c, m, n, k)
 
 	// Return buffer to pool
 	transposePool32.Put(atBuf)
@@ -123,14 +95,7 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	transposeMatrix(a, m, k, atBuf)
 
 	// Call blocked FMOPA with transposed A
-	blockedmatmul_fmopa_at_f64(
-		unsafe.Pointer(unsafe.SliceData(atBuf)),
-		unsafe.Pointer(unsafe.SliceData(b)),
-		unsafe.Pointer(unsafe.SliceData(c)),
-		int64(m),
-		int64(n),
-		int64(k),
-	)
+	asm.BlockedMatMulFMOPAF64(atBuf, b, c, m, n, k)
 
 	// Return buffer to pool
 	transposePool64.Put(atBuf)

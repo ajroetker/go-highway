@@ -17,18 +17,12 @@
 package matmul
 
 import (
-	"unsafe"
-
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
 // Minimum dimensions to use NEON vectorization
 const minDimForNEON = 16
-
-//go:noescape
-func matmul_neon_f32(a, b, c unsafe.Pointer, m, n, k int64)
-
 
 // matmulNEON uses ARM NEON FMLA instructions for matrix multiplication.
 // Falls back to scalar for small matrices.
@@ -39,14 +33,7 @@ func matmulNEON(a, b, c []float32, m, n, k int) {
 		return
 	}
 
-	matmul_neon_f32(
-		unsafe.Pointer(unsafe.SliceData(a)),
-		unsafe.Pointer(unsafe.SliceData(b)),
-		unsafe.Pointer(unsafe.SliceData(c)),
-		int64(m),
-		int64(n),
-		int64(k),
-	)
+	asm.MatMulNEONF32(a, b, c, m, n, k)
 }
 
 // matmulNEONF16 uses ARM NEON for float16 matrix multiplication.
