@@ -360,7 +360,10 @@ func parallelFusedNF4MatMulSME(
 			} else {
 				tileBuf = tileBuf[:tileSize]
 			}
-			defer fusedTilePool.Put(tileBuf)
+			defer func() {
+				clear(tileBuf) // Zero before returning to pool
+				fusedTilePool.Put(tileBuf)
+			}()
 
 			outputTile := fusedOutputTilePool.Get().([]float32)
 			outputTileSize := M * 16
@@ -369,7 +372,10 @@ func parallelFusedNF4MatMulSME(
 			} else {
 				outputTile = outputTile[:outputTileSize]
 			}
-			defer fusedOutputTilePool.Put(outputTile)
+			defer func() {
+				clear(outputTile) // Zero before returning to pool
+				fusedOutputTilePool.Put(outputTile)
+			}()
 
 			for nTile := range work {
 				processFusedNF4Tile(inputT, packed, scales, output, tileBuf, outputTile,
@@ -435,7 +441,10 @@ func parallelFusedInt4MatMulSME(
 			} else {
 				tileBuf = tileBuf[:tileSize]
 			}
-			defer fusedTilePool.Put(tileBuf)
+			defer func() {
+				clear(tileBuf) // Zero before returning to pool
+				fusedTilePool.Put(tileBuf)
+			}()
 
 			outputTile := fusedOutputTilePool.Get().([]float32)
 			outputTileSize := M * 16
@@ -444,7 +453,10 @@ func parallelFusedInt4MatMulSME(
 			} else {
 				outputTile = outputTile[:outputTileSize]
 			}
-			defer fusedOutputTilePool.Put(outputTile)
+			defer func() {
+				clear(outputTile) // Zero before returning to pool
+				fusedOutputTilePool.Put(outputTile)
+			}()
 
 			for nTile := range work {
 				processFusedInt4Tile(inputT, packed, scales, output, tileBuf, outputTile,
