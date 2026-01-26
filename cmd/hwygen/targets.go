@@ -133,6 +133,10 @@ func AVX2Target() Target {
 			"ReduceMin": {Package: "hwy", Name: "ReduceMin", IsMethod: false},
 			"ReduceMax": {Package: "hwy", Name: "ReduceMax", IsMethod: false},
 
+			// ===== Bit manipulation =====
+			// archsimd doesn't have PopCount method. Using hwy wrapper.
+			"PopCount": {Package: "hwy", Name: "PopCount", IsMethod: false},
+
 			// ===== Comparisons =====
 			// Note: archsimd uses Less/Greater, not LessThan/GreaterThan
 			"Equal":        {Name: "Equal", IsMethod: true},
@@ -340,6 +344,10 @@ func AVX512Target() Target {
 			"ReduceMin": {Package: "hwy", Name: "ReduceMin", IsMethod: false},
 			"ReduceMax": {Package: "hwy", Name: "ReduceMax", IsMethod: false},
 
+			// ===== Bit manipulation =====
+			// archsimd doesn't have PopCount method. Using hwy wrapper.
+			"PopCount": {Package: "hwy", Name: "PopCount", IsMethod: false},
+
 			// ===== Comparisons =====
 			// Note: archsimd uses Less/Greater, not LessThan/GreaterThan
 			"Equal":        {Name: "Equal", IsMethod: true},
@@ -540,6 +548,9 @@ func FallbackTarget() Target {
 			"ReduceMin": {Package: "hwy", Name: "ReduceMin", IsMethod: false},
 			"ReduceMax": {Package: "hwy", Name: "ReduceMax", IsMethod: false},
 
+			// ===== Bit manipulation =====
+			"PopCount": {Package: "hwy", Name: "PopCount", IsMethod: false},
+
 			// ===== Comparisons =====
 			"Equal":        {Package: "hwy", Name: "Equal", IsMethod: false},
 			"NotEqual":     {Package: "hwy", Name: "NotEqual", IsMethod: false},
@@ -697,9 +708,9 @@ func NEONTarget() Target {
 
 			// ===== Core math operations =====
 			"Sqrt":               {Name: "Sqrt", IsMethod: true},
-			"RSqrt":              {Package: "asm", Name: "RSqrt", IsMethod: false},              // asm.RSqrtF32/F64
-			"RSqrtNewtonRaphson": {Package: "asm", Name: "RSqrtNewtonRaphson", IsMethod: false}, // asm.RSqrtNewtonRaphsonF32/F64
-			"RSqrtPrecise":       {Package: "asm", Name: "RSqrtPrecise", IsMethod: false},       // asm.RSqrtPreciseF32/F64
+			"RSqrt":              {Name: "ReciprocalSqrt", IsMethod: true}, // v.ReciprocalSqrt() (~12-bit precision)
+			"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson_NEON", IsMethod: false}, // N-R refined
+			"RSqrtPrecise":       {Package: "hwy", Name: "RSqrtPrecise_NEON", IsMethod: false},       // sqrt + div
 			"FMA":                {Name: "MulAdd", IsMethod: true}, // FMA maps to MulAdd in NEON asm
 			"MulAdd":             {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
 			"Pow":                {Name: "Pow", IsMethod: true},    // v.Pow(exp) = v^exp element-wise
@@ -736,6 +747,10 @@ func NEONTarget() Target {
 			"ReduceSum": {Name: "ReduceSum", IsMethod: true},
 			"ReduceMin": {Name: "ReduceMin", IsMethod: true},
 			"ReduceMax": {Name: "ReduceMax", IsMethod: true},
+
+			// ===== Bit manipulation =====
+			// asm types don't have PopCount method. Using hwy wrapper.
+			"PopCount": {Package: "hwy", Name: "PopCount", IsMethod: false},
 
 			// ===== Comparisons =====
 			"Equal":        {Name: "Equal", IsMethod: true},

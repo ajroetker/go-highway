@@ -202,6 +202,11 @@ float64x2_t sqrt_f64x2(float64x2_t a) {
     return vsqrtq_f64(a);
 }
 
+// Reciprocal square root estimate (1/sqrt(x)) - ~8-bit precision
+float64x2_t rsqrt_f64x2(float64x2_t a) {
+    return vrsqrteq_f64(a);
+}
+
 double hsum_f64x2(float64x2_t v) {
     return vaddvq_f64(v);
 }

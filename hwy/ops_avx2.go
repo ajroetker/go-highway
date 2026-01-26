@@ -51,6 +51,17 @@ func ReduceSum_AVX2_F64x4(v archsimd.Float64x4) float64 {
 	return e0 + e1
 }
 
+// ReduceSum_AVX2_Uint64x4 returns the sum of all 4 uint64 elements.
+func ReduceSum_AVX2_Uint64x4(v archsimd.Uint64x4) uint64 {
+	lo := v.GetLo() // Uint64x2
+	hi := v.GetHi() // Uint64x2
+	e0 := lo.GetElem(0)
+	e1 := lo.GetElem(1)
+	e2 := hi.GetElem(0)
+	e3 := hi.GetElem(1)
+	return e0 + e1 + e2 + e3
+}
+
 // Sqrt_AVX2_F32x8 computes sqrt(x) for a single Float32x8 vector.
 // Uses the hardware VSQRTPS instruction which provides correctly rounded results.
 func Sqrt_AVX2_F32x8(x archsimd.Float32x8) archsimd.Float32x8 {

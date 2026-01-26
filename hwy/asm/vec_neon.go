@@ -173,8 +173,8 @@ func (v Float32x4) Recip() Float32x4 {
 	return Float32x4(recip_f32x4([16]byte(v)))
 }
 
-// RSqrt returns the reciprocal square root estimate (1/sqrt(x)).
-func (v Float32x4) RSqrt() Float32x4 {
+// ReciprocalSqrt returns the reciprocal square root estimate (1/sqrt(x)).
+func (v Float32x4) ReciprocalSqrt() Float32x4 {
 	return Float32x4(rsqrt_f32x4([16]byte(v)))
 }
 
@@ -503,6 +503,12 @@ func (v Float64x2) Max(other Float64x2) Float64x2 {
 // Sqrt performs element-wise square root.
 func (v Float64x2) Sqrt() Float64x2 {
 	return Float64x2(sqrt_f64x2([16]byte(v)))
+}
+
+// ReciprocalSqrt returns the reciprocal square root estimate (1/sqrt(x)).
+// Uses NEON vrsqrteq_f64 which provides ~8-bit precision.
+func (v Float64x2) ReciprocalSqrt() Float64x2 {
+	return Float64x2(rsqrt_f64x2([16]byte(v)))
 }
 
 // Abs performs element-wise absolute value.
@@ -1399,6 +1405,12 @@ func (v Int64x2) ReduceMin() int64 {
 		return a[0]
 	}
 	return a[1]
+}
+
+// ReduceSum returns the sum of all elements.
+func (v Int64x2) ReduceSum() int64 {
+	a := (*[2]int64)(unsafe.Pointer(&v))
+	return a[0] + a[1]
 }
 
 // ===== Bool mask types for conditional operations =====
@@ -2701,6 +2713,12 @@ func (v Uint64x2) ReduceMax() uint64 {
 		return a[0]
 	}
 	return a[1]
+}
+
+// ReduceSum returns the sum of all elements.
+func (v Uint64x2) ReduceSum() uint64 {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	return a[0] + a[1]
 }
 
 // GetBit returns true if the element at index i is non-zero.
