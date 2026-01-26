@@ -83,6 +83,12 @@ func SignBitFloat32x4() Float32x4 {
 	return BroadcastFloat32x4(signBit)
 }
 
+// IotaFloat32x4 returns a vector with lane indices [0, 1, 2, 3].
+func IotaFloat32x4() Float32x4 {
+	arr := [4]float32{0, 1, 2, 3}
+	return *(*Float32x4)(unsafe.Pointer(&arr))
+}
+
 // ===== Float32x4 accessors =====
 
 // asF32 returns the vector as a pointer to [4]float32 for element access.
@@ -432,6 +438,12 @@ func ZeroFloat64x2() Float64x2 {
 func SignBitFloat64x2() Float64x2 {
 	signBit := math.Float64frombits(0x8000000000000000)
 	return BroadcastFloat64x2(signBit)
+}
+
+// IotaFloat64x2 returns a vector with lane indices [0, 1].
+func IotaFloat64x2() Float64x2 {
+	arr := [2]float64{0, 1}
+	return *(*Float64x2)(unsafe.Pointer(&arr))
 }
 
 // ===== Float64x2 accessors =====
@@ -2315,6 +2327,12 @@ func ZeroUint32x4() Uint32x4 {
 	return Uint32x4{}
 }
 
+// IotaUint32x4 returns a vector with lane indices [0, 1, 2, 3].
+func IotaUint32x4() Uint32x4 {
+	arr := [4]uint32{0, 1, 2, 3}
+	return *(*Uint32x4)(unsafe.Pointer(&arr))
+}
+
 // Get returns the element at the given index.
 func (v Uint32x4) Get(i int) uint32 {
 	return (*[4]uint32)(unsafe.Pointer(&v))[i]
@@ -2495,6 +2513,12 @@ func Load4Uint64x2Slice(s []uint64) (Uint64x2, Uint64x2, Uint64x2, Uint64x2) {
 // ZeroUint64x2 returns a zero vector.
 func ZeroUint64x2() Uint64x2 {
 	return Uint64x2{}
+}
+
+// IotaUint64x2 returns a vector with lane indices [0, 1].
+func IotaUint64x2() Uint64x2 {
+	arr := [2]uint64{0, 1}
+	return *(*Uint64x2)(unsafe.Pointer(&arr))
 }
 
 // Get returns the element at the given index.

@@ -18,11 +18,7 @@ var ArgminBFloat16 func(v []hwy.BFloat16) int
 var ArgminFloat32 func(v []float32) int
 var ArgminFloat64 func(v []float64) int
 
-// Argmax returns the index of the maximum value in a slice.
-// Supports all float types: float32, float64, Float16, BFloat16.
-// If multiple elements have the maximum value, returns the first occurrence.
-// NaN values are skipped.
-// Panics if the slice is empty.
+// Argmax is the generic API that dispatches to the appropriate SIMD implementation.
 func Argmax[T hwy.Floats](v []T) int {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -37,11 +33,7 @@ func Argmax[T hwy.Floats](v []T) int {
 	panic("unreachable")
 }
 
-// Argmin returns the index of the minimum value in a slice.
-// Supports all float types: float32, float64, Float16, BFloat16.
-// If multiple elements have the minimum value, returns the first occurrence.
-// NaN values are skipped.
-// Panics if the slice is empty.
+// Argmin is the generic API that dispatches to the appropriate SIMD implementation.
 func Argmin[T hwy.Floats](v []T) int {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -62,12 +54,12 @@ func init() {
 }
 
 func initArgmaxFallback() {
-	ArgmaxFloat32 = BaseArgmaxFloat32
-	ArgmaxFloat64 = BaseArgmaxFloat64
-	ArgmaxFloat16 = BaseArgmaxFloat16
-	ArgmaxBFloat16 = BaseArgmaxBFloat16
-	ArgminFloat32 = BaseArgminFloat32
-	ArgminFloat64 = BaseArgminFloat64
-	ArgminFloat16 = BaseArgminFloat16
-	ArgminBFloat16 = BaseArgminBFloat16
+	ArgmaxFloat16 = BaseArgmax_fallback_Float16
+	ArgmaxBFloat16 = BaseArgmax_fallback_BFloat16
+	ArgmaxFloat32 = BaseArgmax_fallback
+	ArgmaxFloat64 = BaseArgmax_fallback_Float64
+	ArgminFloat16 = BaseArgmin_fallback_Float16
+	ArgminBFloat16 = BaseArgmin_fallback_BFloat16
+	ArgminFloat32 = BaseArgmin_fallback
+	ArgminFloat64 = BaseArgmin_fallback_Float64
 }

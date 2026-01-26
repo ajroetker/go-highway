@@ -51,6 +51,12 @@ func init() {
 	DotFloat32 = asm.DotF32
 	DotFloat64 = asm.DotF64
 
+	// Override argmax/argmin with GoAT whole-loop assembly
+	ArgmaxFloat32 = asm.ArgmaxF32
+	ArgmaxFloat64 = asm.ArgmaxF64
+	ArgminFloat32 = asm.ArgminF32
+	ArgminFloat64 = asm.ArgminF64
+
 	// Override 2-arg in-place arithmetic operations for float32
 	// These use the 3-arg GoAT functions with dst as both destination and first source
 	AddFloat32 = goatAddF32

@@ -163,24 +163,6 @@ func scalarPartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 	return lt, gt
 }
 
-// scalarPartition2Way performs scalar 2-way partitioning.
-// Used as fallback for small arrays.
-func scalarPartition2Way[T hwy.Lanes](data []T, pivot T) int {
-	left := 0
-	right := len(data)
-
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-
-	return left
-}
-
 // SortTwoVectors sorts elements that fit in two vectors using bitonic merge.
 func SortTwoVectors[T hwy.Lanes](data []T) {
 	n := len(data)

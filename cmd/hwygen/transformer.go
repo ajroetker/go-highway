@@ -2514,6 +2514,40 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			fullName = "SignBit"
 		}
 		selExpr.X = ast.NewIdent(pkgName)
+	case "Iota":
+		// Iota has type-specific versions for NEON: IotaFloat32x4, IotaFloat64x2, etc.
+		// For Float16/BFloat16, use hwy.Iota[T]() as there's no native NEON support
+		if ctx.target.Name == "NEON" {
+			switch ctx.elemType {
+			case "float32":
+				fullName = "IotaFloat32x4"
+				selExpr.X = ast.NewIdent(pkgName)
+			case "float64":
+				fullName = "IotaFloat64x2"
+				selExpr.X = ast.NewIdent(pkgName)
+			case "uint32":
+				fullName = "IotaUint32x4"
+				selExpr.X = ast.NewIdent(pkgName)
+			case "uint64":
+				fullName = "IotaUint64x2"
+				selExpr.X = ast.NewIdent(pkgName)
+			default:
+				// Float16/BFloat16 and other types use hwy package's generic Iota
+				// Need to reconstruct the type parameter since it was stripped
+				fullName = opInfo.Name
+				selExpr.X = ast.NewIdent("hwy")
+				selExpr.Sel = ast.NewIdent(fullName)
+				// Reconstruct hwy.Iota[T]() with the concrete type
+				call.Fun = &ast.IndexExpr{
+					X:     selExpr,
+					Index: ast.NewIdent(ctx.elemType),
+				}
+				return
+			}
+		} else {
+			fullName = opInfo.Name
+			selExpr.X = ast.NewIdent(pkgName)
+		}
 	case "MaskNot":
 		// MaskNot(mask) -> mask.Xor(allTrue)
 		// where allTrue = one.Equal(one) (comparing 1.0 == 1.0 gives all-true mask)
@@ -5035,6 +5069,18 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 							}
 						}
 					}
+					// Check for hwy.ReduceMax, hwy.ReduceMin, hwy.ReduceSum etc.
+					// These return the element type, so the result variable is half-precision.
+					if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+						if pkgIdent, ok := sel.X.(*ast.Ident); ok && pkgIdent.Name == "hwy" {
+							funcName := sel.Sel.Name
+							if isReduceFunction(funcName) {
+								if varName != "" && assign.Tok == token.DEFINE {
+									halfPrecisionScalarVars[varName] = true
+								}
+							}
+						}
+					}
 				}
 
 				// Check if RHS is a binary operation involving type conversions or
@@ -5100,6 +5146,34 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 									if elemTypeStr == ctx.elemType || elemTypeStr == "hwy.Float16" || elemTypeStr == "hwy.BFloat16" {
 										if varName != "" {
 											ctx.halfPrecisionSlices[varName] = true
+										}
+									}
+								}
+							}
+						}
+					}
+					// Check if RHS is a .Data() call on a vector
+					// hwy.Vec[T].Data() returns []T, so for half-precision types this is a half-precision slice
+					if sel, ok := callExpr.Fun.(*ast.SelectorExpr); ok {
+						if sel.Sel.Name == "Data" && len(callExpr.Args) == 0 {
+							// This is a .Data() call - for half-precision element types,
+							// the result is a half-precision slice
+							if varName != "" && assign.Tok == token.DEFINE {
+								ctx.halfPrecisionSlices[varName] = true
+							}
+						}
+					}
+					// Check if RHS is an IIFE (from transformed .Data() for NEON target)
+					// Pattern: func() []T { var _simd_tmp [N]T; ...; return _simd_tmp[:] }()
+					if funcLit, ok := callExpr.Fun.(*ast.FuncLit); ok {
+						if funcLit.Type.Results != nil && len(funcLit.Type.Results.List) == 1 {
+							if arrType, ok := funcLit.Type.Results.List[0].Type.(*ast.ArrayType); ok {
+								if arrType.Len == nil { // slice type (no length)
+									if ident, ok := arrType.Elt.(*ast.Ident); ok {
+										if isHalfPrecisionType(ident.Name) {
+											if varName != "" && assign.Tok == token.DEFINE {
+												ctx.halfPrecisionSlices[varName] = true
+											}
 										}
 									}
 								}
@@ -5442,6 +5516,27 @@ var vectorOperations = map[string]bool{
 // that needs half-precision arguments to produce half-precision vectors.
 func isVectorOperation(funcName string) bool {
 	return vectorOperations[funcName]
+}
+
+// reduceBaseFunctions is a set of hwy reduce function base names that reduce vectors to scalars
+// and return the element type. Variables assigned from these functions need to be
+// tracked as half-precision scalars for Float16/BFloat16.
+var reduceBaseFunctions = []string{
+	"ReduceMax",
+	"ReduceMin",
+	"ReduceSum",
+}
+
+// isReduceFunction returns true if the function name is a hwy reduce operation
+// that returns the element type. Matches both base names (ReduceMax) and
+// suffixed versions (ReduceMaxF16, ReduceMaxBF16).
+func isReduceFunction(funcName string) bool {
+	for _, base := range reduceBaseFunctions {
+		if funcName == base || funcName == base+"F16" || funcName == base+"BF16" {
+			return true
+		}
+	}
+	return false
 }
 
 // isHalfPrecisionSliceExpr checks if an index expression is accessing a half-precision slice.
