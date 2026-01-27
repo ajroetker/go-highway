@@ -5,8 +5,6 @@
 package matvec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -15,7 +13,34 @@ var MatVecBFloat16 func(m []hwy.BFloat16, rows int, cols int, v []hwy.BFloat16, 
 var MatVecFloat32 func(m []float32, rows int, cols int, v []float32, result []float32)
 var MatVecFloat64 func(m []float64, rows int, cols int, v []float64, result []float64)
 
-// MatVec is the generic API that dispatches to the appropriate SIMD implementation.
+// MatVec computes the matrix-vector product: result = M * v
+//
+// Parameters:
+//   - m: matrix in row-major order with shape [rows, cols]
+//   - rows: number of rows in the matrix
+//   - cols: number of columns in the matrix
+//   - v: input vector of length cols
+//   - result: output vector of length rows (must be pre-allocated)
+//
+// Each element result[i] is the dot product of row i with vector v.
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Panics if:
+//   - len(m) < rows * cols
+//   - len(v) < cols
+//   - len(result) < rows
+//
+// Example:
+//
+//	// 2x3 matrix:
+//	//   [1 2 3]
+//	//   [4 5 6]
+//	m := []float32{1, 2, 3, 4, 5, 6}
+//	v := []float32{1, 0, 1}
+//	result := make([]float32, 2)
+//	MatVec(m, 2, 3, v, result)  // result = [4, 10]
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MatVec[T hwy.Floats](m []T, rows int, cols int, v []T, result []T) {
 	switch any(m).(type) {
 	case []hwy.Float16:
@@ -30,7 +55,7 @@ func MatVec[T hwy.Floats](m []T, rows int, cols int, v []T, result []T) {
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initMatvecFallback()
 		return
 	}

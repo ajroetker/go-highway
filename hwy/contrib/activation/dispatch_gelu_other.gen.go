@@ -5,8 +5,6 @@
 package activation
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -35,7 +33,14 @@ var ELUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFlo
 var ELUFloat32 func(input []float32, output []float32, alpha float32)
 var ELUFloat64 func(input []float64, output []float64, alpha float64)
 
-// GELU is the generic API that dispatches to the appropriate SIMD implementation.
+// GELU computes the Gaussian Error Linear Unit activation function.
+//
+// GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2)))
+//
+// This is the exact GELU formula used in BERT, GPT, and other transformer models.
+// For a faster approximation, see BaseGELUApprox.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func GELU[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -49,7 +54,13 @@ func GELU[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// GELUApprox is the generic API that dispatches to the appropriate SIMD implementation.
+// GELUApprox computes a fast approximation of GELU.
+//
+// Uses the sigmoid approximation: GELU(x) = x * sigmoid(1.702 * x)
+//
+// This is faster than the exact formula and commonly used in practice.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func GELUApprox[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -63,7 +74,12 @@ func GELUApprox[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// ReLU is the generic API that dispatches to the appropriate SIMD implementation.
+// ReLU computes the Rectified Linear Unit activation: max(0, x).
+//
+// ReLU is the most common activation function, providing fast computation
+// and good gradient flow for positive values.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ReLU[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -77,7 +93,14 @@ func ReLU[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// SiLU is the generic API that dispatches to the appropriate SIMD implementation.
+// SiLU computes the Sigmoid Linear Unit (also known as Swish) activation.
+//
+// SiLU(x) = x * sigmoid(x)
+//
+// SiLU is used in EfficientNet, GPT-J, and other modern architectures.
+// It provides smooth gradients and better optimization than ReLU in some cases.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SiLU[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -91,7 +114,13 @@ func SiLU[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// LeakyReLU is the generic API that dispatches to the appropriate SIMD implementation.
+// LeakyReLU computes the Leaky ReLU activation with a configurable slope.
+//
+// LeakyReLU(x) = x if x > 0, else alpha * x
+//
+// This helps prevent "dying ReLU" by allowing small gradients for negative values.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func LeakyReLU[T hwy.Floats](input []T, output []T, alpha T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -105,7 +134,13 @@ func LeakyReLU[T hwy.Floats](input []T, output []T, alpha T) {
 	}
 }
 
-// ELU is the generic API that dispatches to the appropriate SIMD implementation.
+// ELU computes the Exponential Linear Unit activation.
+//
+// ELU(x) = x if x > 0, else alpha * (exp(x) - 1)
+//
+// ELU has smooth gradients everywhere and can push mean activations toward zero.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ELU[T hwy.Floats](input []T, output []T, alpha T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -120,7 +155,7 @@ func ELU[T hwy.Floats](input []T, output []T, alpha T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initGeluFallback()
 }
 

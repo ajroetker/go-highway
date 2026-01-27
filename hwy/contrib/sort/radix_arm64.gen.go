@@ -5,8 +5,6 @@
 package sort
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,11 @@ var RadixPass16SignedInt64 func(src []int64, dst []int64, shift int)
 var RadixPassSignedInt32 func(src []int32, dst []int32, shift int)
 var RadixPassSignedInt64 func(src []int64, dst []int64, shift int)
 
-// RadixPass is the generic API that dispatches to the appropriate SIMD implementation.
+// RadixPass performs one pass of LSD radix sort.
+// shift specifies which byte to use for bucketing (0, 8, 16, 24 for int32).
+// This is the core SIMD-accelerated function for histogram counting.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func RadixPass[T hwy.SignedInts](src []T, dst []T, shift int) {
 	switch any(src).(type) {
 	case []int32:
@@ -29,7 +31,11 @@ func RadixPass[T hwy.SignedInts](src []T, dst []T, shift int) {
 	}
 }
 
-// RadixPass16 is the generic API that dispatches to the appropriate SIMD implementation.
+// RadixPass16 performs one pass of 16-bit radix sort.
+// shift specifies which 16-bit chunk to use (0, 16, 32, 48 for int64).
+// Uses 65536 buckets for faster sorting of int64 (4 passes vs 8 with 8-bit radix).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func RadixPass16[T hwy.SignedInts](src []T, dst []T, shift int) {
 	switch any(src).(type) {
 	case []int32:
@@ -39,7 +45,10 @@ func RadixPass16[T hwy.SignedInts](src []T, dst []T, shift int) {
 	}
 }
 
-// RadixPass16Signed is the generic API that dispatches to the appropriate SIMD implementation.
+// RadixPass16Signed performs the final 16-bit pass for signed int64.
+// The MSB chunk contains the sign bit, so negative numbers (32768-65535) come before positive (0-32767).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func RadixPass16Signed[T hwy.SignedInts](src []T, dst []T, shift int) {
 	switch any(src).(type) {
 	case []int32:
@@ -49,7 +58,10 @@ func RadixPass16Signed[T hwy.SignedInts](src []T, dst []T, shift int) {
 	}
 }
 
-// RadixPassSigned is the generic API that dispatches to the appropriate SIMD implementation.
+// RadixPassSigned performs the final pass for signed integers.
+// The MSB byte contains the sign bit, so negative numbers (128-255) come before positive (0-127).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func RadixPassSigned[T hwy.SignedInts](src []T, dst []T, shift int) {
 	switch any(src).(type) {
 	case []int32:
@@ -60,7 +72,7 @@ func RadixPassSigned[T hwy.SignedInts](src []T, dst []T, shift int) {
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initRadixFallback()
 		return
 	}

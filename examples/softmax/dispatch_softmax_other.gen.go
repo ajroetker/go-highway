@@ -5,8 +5,6 @@
 package softmax
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,16 @@ var SoftmaxScalarBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var SoftmaxScalarFloat32 func(input []float32, output []float32)
 var SoftmaxScalarFloat64 func(input []float64, output []float64)
 
-// Softmax is the generic API that dispatches to the appropriate SIMD implementation.
+// Softmax computes the softmax function over the input slice.
+//
+// softmax(x_i) = exp(x_i - max(x)) / sum(exp(x_j - max(x)))
+//
+// The max subtraction provides numerical stability by preventing overflow
+// in the exponential computation.
+//
+// This function uses algo.BaseApply for efficient SIMD processing.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Softmax[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -33,7 +40,9 @@ func Softmax[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// SoftmaxScalar is the generic API that dispatches to the appropriate SIMD implementation.
+// SoftmaxScalar is a scalar reference implementation for comparison.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -48,7 +57,7 @@ func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initSoftmaxFallback()
 }
 

@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,21 @@ var NormalizeToBFloat16 func(dst []hwy.BFloat16, src []hwy.BFloat16)
 var NormalizeToFloat32 func(dst []float32, src []float32)
 var NormalizeToFloat64 func(dst []float64, src []float64)
 
-// Normalize is the generic API that dispatches to the appropriate SIMD implementation.
+// Normalize normalizes a vector in-place to unit length (L2 norm = 1).
+// The L2 norm is defined as sqrt(sum of squares): ||v|| = sqrt(Σ v[i]^2).
+//
+// If the vector is empty or has zero norm (all zeros), it is left unchanged.
+// This prevents division by zero while preserving the zero vector.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	v := []float32{3, 0, 4}
+//	BaseNormalize(v)  // v is now [0.6, 0, 0.8] since ||[3,0,4]|| = 5
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Normalize[T hwy.Floats](dst []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -33,7 +45,23 @@ func Normalize[T hwy.Floats](dst []T) {
 	}
 }
 
-// NormalizeTo is the generic API that dispatches to the appropriate SIMD implementation.
+// NormalizeTo normalizes src and stores the result in dst.
+// The L2 norm is defined as sqrt(sum of squares): ||v|| = sqrt(Σ v[i]^2).
+//
+// Uses the minimum of len(dst) and len(src) as the effective length.
+// If the source vector is empty or has zero norm, dst is filled with the
+// source values unchanged (for zero norm) or left unchanged (for empty).
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	src := []float32{3, 0, 4}
+//	dst := make([]float32, 3)
+//	BaseNormalizeTo(dst, src)  // dst is now [0.6, 0, 0.8]
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func NormalizeTo[T hwy.Floats](dst []T, src []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -48,7 +76,7 @@ func NormalizeTo[T hwy.Floats](dst []T, src []T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initNormalizeFallback()
 }
 

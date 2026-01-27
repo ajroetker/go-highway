@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,28 @@ var ZeroSliceBFloat16 func(s []hwy.BFloat16, n int)
 var ZeroSliceFloat32 func(s []float32, n int)
 var ZeroSliceFloat64 func(s []float64, n int)
 
-// PackedMicroKernel4x2 is the generic API that dispatches to the appropriate SIMD implementation.
+// PackedMicroKernel4x2 computes a 4-row × 2-vector micro-tile for the V2 GEBP.
+//
+// This is the optimized inner kernel for V2, targeting mr=4 and nr=2*lanes.
+// It uses 8 accumulator vectors (4 rows × 2 column vectors) that stay in
+// registers across the entire K loop.
+//
+// The V2 kernel writes to a packed output buffer rather than directly to C,
+// which eliminates bounds checking in the hot path.
+//
+// Includes 4x K-loop unrolling for better instruction-level parallelism.
+//
+// Parameters:
+//   - packedA: Packed A micro-panel, size panelK * mr (K-first layout)
+//   - packedB: Packed B micro-panel, size panelK * nr (K-first layout)
+//   - output: Packed output buffer (not final C matrix)
+//   - outputStride: Row stride in output buffer
+//   - outRowStart: Starting row in output buffer
+//   - outColStart: Starting column in output buffer
+//   - panelK: K-dimension of the packed panels
+//   - lanes: Vector width in elements (e.g., 8 for AVX2 float32)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackedMicroKernel4x2[T hwy.Floats](packedA []T, packedB []T, output []T, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
 	switch any(packedA).(type) {
 	case []hwy.Float16:
@@ -33,7 +52,12 @@ func PackedMicroKernel4x2[T hwy.Floats](packedA []T, packedB []T, output []T, ou
 	}
 }
 
-// ZeroSlice is the generic API that dispatches to the appropriate SIMD implementation.
+// ZeroSlice zeros a slice using SIMD.
+//
+// This is used to clear the packed output buffer before accumulating
+// micro-kernel results.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ZeroSlice[T hwy.Floats](s []T, n int) {
 	switch any(s).(type) {
 	case []hwy.Float16:
@@ -48,7 +72,7 @@ func ZeroSlice[T hwy.Floats](s []T, n int) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initPackedkernelv2Fallback()
 }
 

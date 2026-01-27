@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -15,7 +13,19 @@ var MatMulBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m 
 var MatMulFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int)
 var MatMulFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int)
 
-// MatMul is the generic API that dispatches to the appropriate SIMD implementation.
+// MatMul computes C = A * B where:
+//   - A is M x K (row-major)
+//   - B is K x N (row-major)
+//   - C is M x N (row-major)
+//
+// Uses the "broadcast A, stream B" algorithm which is efficient for SIMD:
+// For each row i of C and each column k of A, broadcast A[i,k] and
+// multiply with the corresponding row of B, accumulating into C.
+//
+// This function is designed for code generation by hwygen.
+// It will be specialized for AVX2, AVX-512, NEON, and fallback targets.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -30,7 +40,7 @@ func MatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initMatmulFallback()
 }
 

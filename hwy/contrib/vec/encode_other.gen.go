@@ -5,7 +5,7 @@
 package vec
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 var EncodeFloat32s func(dst []byte, src []float32)
@@ -14,7 +14,7 @@ var EncodeFloat64s func(dst []byte, src []float64)
 var DecodeFloat64s func(dst []float64, src []byte)
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initEncodeFallback()
 }
 

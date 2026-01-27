@@ -5,13 +5,13 @@
 package varint
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 var DecodeGroupVarint32 func(src []byte) (values [4]uint32, consumed int)
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initGroupvarintFallback()
 }
 

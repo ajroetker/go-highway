@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,22 @@ var L2DistanceBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16
 var L2DistanceFloat32 func(a []float32, b []float32) float32
 var L2DistanceFloat64 func(a []float64, b []float64) float64
 
-// L2SquaredDistance is the generic API that dispatches to the appropriate SIMD implementation.
+// L2SquaredDistance computes the squared Euclidean distance between two slices.
+// The result is the sum of squared differences: sum((a[i] - b[i])^2).
+//
+// If the slices have different lengths, the computation uses the minimum length.
+// Returns 0 if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3}
+//	b := []float32{4, 5, 6}
+//	result := L2SquaredDistance(a, b)  // (1-4)^2 + (2-5)^2 + (3-6)^2 = 9 + 9 + 9 = 27
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func L2SquaredDistance[T hwy.Floats](a []T, b []T) T {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -34,7 +47,22 @@ func L2SquaredDistance[T hwy.Floats](a []T, b []T) T {
 	panic("unreachable")
 }
 
-// L2Distance is the generic API that dispatches to the appropriate SIMD implementation.
+// L2Distance computes the Euclidean distance (L2 norm) between two slices.
+// The result is the square root of the sum of squared differences: sqrt(sum((a[i] - b[i])^2)).
+//
+// If the slices have different lengths, the computation uses the minimum length.
+// Returns 0 if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3}
+//	b := []float32{4, 5, 6}
+//	result := L2Distance(a, b)  // sqrt((1-4)^2 + (2-5)^2 + (3-6)^2) = sqrt(27) ≈ 5.196
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func L2Distance[T hwy.Floats](a []T, b []T) T {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -50,7 +78,7 @@ func L2Distance[T hwy.Floats](a []T, b []T) T {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initDistanceFallback()
 }
 

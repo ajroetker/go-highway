@@ -5,7 +5,7 @@
 package vec
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
 )
 
@@ -15,7 +15,7 @@ var EncodeFloat64s func(dst []byte, src []float64)
 var DecodeFloat64s func(dst []float64, src []byte)
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initEncodeFallback()
 		return
 	}

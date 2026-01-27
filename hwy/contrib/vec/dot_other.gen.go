@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -15,7 +13,22 @@ var DotBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16
 var DotFloat32 func(a []float32, b []float32) float32
 var DotFloat64 func(a []float64, b []float64) float64
 
-// Dot is the generic API that dispatches to the appropriate SIMD implementation.
+// Dot computes the dot product (inner product) of two vectors using hwy primitives.
+// The result is the sum of element-wise products: Σ(a[i] * b[i]).
+//
+// If the slices have different lengths, the computation uses the minimum length.
+// Returns 0 if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3}
+//	b := []float32{4, 5, 6}
+//	result := Dot(a, b)  // 1*4 + 2*5 + 3*6 = 32
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Dot[T hwy.Floats](a []T, b []T) T {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -31,7 +44,7 @@ func Dot[T hwy.Floats](a []T, b []T) T {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initDotFallback()
 }
 

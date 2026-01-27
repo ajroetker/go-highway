@@ -88,9 +88,9 @@ func BaseGELU_fallback_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vHalf := hwy.Const[float64](0.5)
-	vOne := hwy.Const[float64](1.0)
-	vInvSqrt2 := hwy.Const[float64](0.7071067811865476)
+	vHalf := hwy.Set[float64](0.5)
+	vOne := hwy.Set[float64](1.0)
+	vInvSqrt2 := hwy.Set[float64](0.7071067811865476)
 	lanes := vOne.NumLanes()
 	ii := 0
 	for ; ii+lanes <= size; ii += lanes {
@@ -179,7 +179,7 @@ func BaseGELUApprox_fallback_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vCoeff := hwy.Const[float64](1.702)
+	vCoeff := hwy.Set[float64](1.702)
 	lanes := vCoeff.NumLanes()
 	ii := 0
 	for ; ii+lanes <= size; ii += lanes {
@@ -267,7 +267,7 @@ func BaseReLU_fallback_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vZero := hwy.Const[float64](0.0)
+	vZero := hwy.Set[float64](0.0)
 	lanes := vZero.NumLanes()
 	ii := 0
 	for ; ii+lanes <= size; ii += lanes {
@@ -548,8 +548,8 @@ func BaseELU_fallback_Float64(input []float64, output []float64, alpha float64) 
 	if size == 0 {
 		return
 	}
-	vZero := hwy.Const[float64](0.0)
-	vOne := hwy.Const[float64](1.0)
+	vZero := hwy.Set[float64](0.0)
+	vOne := hwy.Set[float64](1.0)
 	vAlpha := hwy.Set(alpha)
 	lanes := hwy.MaxLanes[float64]()
 	ii := 0

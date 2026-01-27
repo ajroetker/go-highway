@@ -5,8 +5,6 @@
 package algo
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -21,7 +19,21 @@ var DeltaDecodeInt64 func(data []int64, base int64)
 var DeltaDecodeUint32 func(data []uint32, base uint32)
 var DeltaDecodeUint64 func(data []uint64, base uint64)
 
-// PrefixSum is the generic API that dispatches to the appropriate SIMD implementation.
+// PrefixSum computes the inclusive prefix sum in place.
+// Result[i] = data[0] + data[1] + ... + data[i]
+//
+// Example:
+//
+//	data := []int64{1, 2, 3, 4, 5, 6, 7, 8}
+//	BasePrefixSum(data)
+//	// data = [1, 3, 6, 10, 15, 21, 28, 36]
+//
+// If you need to preserve the original, copy first:
+//
+//	result := slices.Clone(src)
+//	BasePrefixSum(result)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PrefixSum[T hwy.Integers | hwy.FloatsNative](data []T) {
 	switch any(data).(type) {
 	case []float32:
@@ -39,7 +51,27 @@ func PrefixSum[T hwy.Integers | hwy.FloatsNative](data []T) {
 	}
 }
 
-// DeltaDecode is the generic API that dispatches to the appropriate SIMD implementation.
+// DeltaDecode decodes delta-encoded values in place.
+// Each value represents a delta from the previous value.
+// Result[i] = base + data[0] + data[1] + ... + data[i]
+//
+// This is equivalent to PrefixSum with a base offset, commonly used
+// for decoding posting lists in full-text search indexes.
+//
+// Example:
+//
+//	// Encoded deltas: [3, 2, 5, 1] with base=10
+//	// Represents document IDs: 13, 15, 20, 21
+//	data := []uint64{3, 2, 5, 1}
+//	BaseDeltaDecode(data, 10)
+//	// data = [13, 15, 20, 21]
+//
+// If you need to preserve the original, copy first:
+//
+//	result := slices.Clone(src)
+//	BaseDeltaDecode(result, base)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func DeltaDecode[T hwy.Integers](data []T, base T) {
 	switch any(data).(type) {
 	case []int32:
@@ -54,7 +86,7 @@ func DeltaDecode[T hwy.Integers](data []T, base T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initPrefix_sumFallback()
 }
 

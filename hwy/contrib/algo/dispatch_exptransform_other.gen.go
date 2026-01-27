@@ -5,8 +5,6 @@
 package algo
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -39,7 +37,10 @@ var ErfTransformBFloat16 func(in []hwy.BFloat16, out []hwy.BFloat16)
 var ErfTransformFloat32 func(in []float32, out []float32)
 var ErfTransformFloat64 func(in []float64, out []float64)
 
-// ExpTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// ExpTransform applies exp(x) to each element using SIMD.
+// Uses Apply for loop and buffer-based tail handling - no scalar fallback needed.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ExpTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -53,7 +54,9 @@ func ExpTransform[T hwy.Floats](in []T, out []T) {
 	}
 }
 
-// LogTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// LogTransform applies ln(x) to each element using SIMD.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func LogTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -67,7 +70,9 @@ func LogTransform[T hwy.Floats](in []T, out []T) {
 	}
 }
 
-// SinTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// SinTransform applies sin(x) to each element using SIMD.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SinTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -81,7 +86,9 @@ func SinTransform[T hwy.Floats](in []T, out []T) {
 	}
 }
 
-// CosTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// CosTransform applies cos(x) to each element using SIMD.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func CosTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -95,7 +102,9 @@ func CosTransform[T hwy.Floats](in []T, out []T) {
 	}
 }
 
-// TanhTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// TanhTransform applies tanh(x) to each element using SIMD.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func TanhTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -109,7 +118,9 @@ func TanhTransform[T hwy.Floats](in []T, out []T) {
 	}
 }
 
-// SigmoidTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// SigmoidTransform applies sigmoid(x) to each element using SIMD.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SigmoidTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -123,7 +134,9 @@ func SigmoidTransform[T hwy.Floats](in []T, out []T) {
 	}
 }
 
-// ErfTransform is the generic API that dispatches to the appropriate SIMD implementation.
+// ErfTransform applies erf(x) to each element using SIMD.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ErfTransform[T hwy.Floats](in []T, out []T) {
 	switch any(in).(type) {
 	case []hwy.Float16:
@@ -138,7 +151,7 @@ func ErfTransform[T hwy.Floats](in []T, out []T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initExptransformFallback()
 }
 

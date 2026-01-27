@@ -5,7 +5,7 @@
 package varint
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
 )
 
@@ -13,7 +13,7 @@ var MaskedVByteDecodeBatch32 func(src []byte, dst []uint32, n int) (decoded int,
 var MaskedVByteDecodeGroup func(src []byte, dst []uint32) (decoded int, consumed int)
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initMaskedvbyteFallback()
 		return
 	}

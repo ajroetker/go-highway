@@ -5,8 +5,6 @@
 package sort
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -23,7 +21,11 @@ var IsSortedInt64 func(data []int64) bool
 var IsSortedUint32 func(data []uint32) bool
 var IsSortedUint64 func(data []uint64) bool
 
-// SortSmall is the generic API that dispatches to the appropriate SIMD implementation.
+// SortSmall sorts a small slice in-place using sorting networks.
+// For slices up to 2*lanes elements, uses optimized sorting.
+// For larger slices, falls back to insertion sort.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SortSmall[T hwy.Lanes](data []T) {
 	switch any(data).(type) {
 	case []float32:
@@ -41,7 +43,9 @@ func SortSmall[T hwy.Lanes](data []T) {
 	}
 }
 
-// IsSorted is the generic API that dispatches to the appropriate SIMD implementation.
+// IsSorted checks if a slice is sorted in ascending order.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func IsSorted[T hwy.Lanes](data []T) bool {
 	switch any(data).(type) {
 	case []float32:
@@ -61,7 +65,7 @@ func IsSorted[T hwy.Lanes](data []T) bool {
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initNetworkFallback()
 		return
 	}

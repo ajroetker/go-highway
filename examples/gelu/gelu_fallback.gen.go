@@ -94,9 +94,9 @@ func BaseGELU_fallback_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vHalf := hwy.Const[float64](0.5)
-	vOne := hwy.Const[float64](1.0)
-	vInvSqrt2 := hwy.Const[float64](0.7071067811865476)
+	vHalf := hwy.Set[float64](0.5)
+	vOne := hwy.Set[float64](1.0)
+	vInvSqrt2 := hwy.Set[float64](0.7071067811865476)
 	for ii := 0; ii < size; ii += vOne.NumLanes() {
 		remaining := size - ii
 		if remaining >= vOne.NumLanes() {
@@ -193,7 +193,7 @@ func BaseGELUApprox_fallback_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vCoeff := hwy.Const[float64](1.702)
+	vCoeff := hwy.Set[float64](1.702)
 	for ii := 0; ii < size; ii += vCoeff.NumLanes() {
 		remaining := size - ii
 		if remaining >= vCoeff.NumLanes() {

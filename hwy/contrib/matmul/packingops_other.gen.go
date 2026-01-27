@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -27,7 +25,26 @@ var ApplyPackedOutputAccumBFloat16 func(packedOutput []hwy.BFloat16, output []hw
 var ApplyPackedOutputAccumFloat32 func(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumFloat64 func(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 
-// PackRHSFast is the generic API that dispatches to the appropriate SIMD implementation.
+// PackRHSFast packs a panel of the RHS matrix (B) using SIMD when possible.
+//
+// This is an optimized version of BasePackRHS that uses vector loads/stores
+// for full micro-panels where nr matches common SIMD widths.
+//
+// For AVX-512 with float32 (nr=32), this uses 2x ZMM loads/stores per row.
+// For AVX2 with float32 (nr=16), this uses 2x YMM loads/stores per row.
+// For NEON with float32 (nr=8), this uses 2x vector loads/stores per row.
+//
+// Parameters:
+//   - b: Input matrix B in row-major order (K x N)
+//   - packed: Output buffer for packed data
+//   - n: Number of columns in B (row stride)
+//   - rowStart: Starting row index in B (K-dimension offset)
+//   - colStart: Starting column index in B
+//   - panelK: Number of rows to pack (K dimension)
+//   - panelCols: Number of columns to pack
+//   - nr: Micro-tile column dimension (should match vector width * 2)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackRHSFast[T hwy.Floats](b []T, packed []T, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) {
 	switch any(b).(type) {
 	case []hwy.Float16:
@@ -41,7 +58,29 @@ func PackRHSFast[T hwy.Floats](b []T, packed []T, n int, rowStart int, colStart 
 	}
 }
 
-// ApplyPackedOutput is the generic API that dispatches to the appropriate SIMD implementation.
+// ApplyPackedOutput applies the computed packed output to the final output matrix.
+//
+// This function transfers results from a temporary packed output buffer to the
+// actual output matrix, applying alpha and beta scaling:
+//
+//	output = alpha * packedOutput + beta * output
+//
+// Using a packed output buffer allows the micro-kernel to write contiguously
+// without bounds checking, improving performance. The alpha/beta application
+// is then done efficiently with SIMD in this separate pass.
+//
+// Parameters:
+//   - packedOutput: Temporary buffer with computed results [height, packedStride]
+//   - output: Final output matrix in row-major order
+//   - alpha, beta: Scaling factors (output = alpha*packed + beta*output)
+//   - packedStride: Row stride in packedOutput (typically params.Nc)
+//   - outputRowOffset: Starting row in output matrix
+//   - outputColOffset: Starting column in output matrix
+//   - outputStride: Row stride in output matrix (N dimension)
+//   - height: Number of rows to apply
+//   - width: Number of columns to apply
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ApplyPackedOutput[T hwy.Floats](packedOutput []T, output []T, alpha T, beta T, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	switch any(packedOutput).(type) {
 	case []hwy.Float16:
@@ -55,7 +94,12 @@ func ApplyPackedOutput[T hwy.Floats](packedOutput []T, output []T, alpha T, beta
 	}
 }
 
-// ApplyPackedOutputSimple is the generic API that dispatches to the appropriate SIMD implementation.
+// ApplyPackedOutputSimple is a simplified version for alpha=1, beta=0.
+//
+// When no scaling is needed, this directly copies from packed to output,
+// which is faster than the general case.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ApplyPackedOutputSimple[T hwy.Floats](packedOutput []T, output []T, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	switch any(packedOutput).(type) {
 	case []hwy.Float16:
@@ -69,7 +113,12 @@ func ApplyPackedOutputSimple[T hwy.Floats](packedOutput []T, output []T, packedS
 	}
 }
 
-// ApplyPackedOutputAccum is the generic API that dispatches to the appropriate SIMD implementation.
+// ApplyPackedOutputAccum is for accumulation (alpha=1, beta=1).
+//
+// This is the common case when accumulating K-dimension blocks:
+// output += packedOutput
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ApplyPackedOutputAccum[T hwy.Floats](packedOutput []T, output []T, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	switch any(packedOutput).(type) {
 	case []hwy.Float16:
@@ -84,7 +133,7 @@ func ApplyPackedOutputAccum[T hwy.Floats](packedOutput []T, output []T, packedSt
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initPackingopsFallback()
 }
 

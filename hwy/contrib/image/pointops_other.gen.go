@@ -5,8 +5,6 @@
 package image
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -51,7 +49,10 @@ var MaxImageBFloat16 func(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *I
 var MaxImageFloat32 func(a *Image[float32], b *Image[float32], out *Image[float32])
 var MaxImageFloat64 func(a *Image[float64], b *Image[float64], out *Image[float64])
 
-// BrightnessContrast is the generic API that dispatches to the appropriate SIMD implementation.
+// BrightnessContrast applies linear transformation: out = in * scale + offset.
+// This is the fundamental point operation for adjusting image brightness and contrast.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func BrightnessContrast[T hwy.Floats](img *Image[T], out *Image[T], scale T, offset T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -65,7 +66,9 @@ func BrightnessContrast[T hwy.Floats](img *Image[T], out *Image[T], scale T, off
 	}
 }
 
-// ClampImage is the generic API that dispatches to the appropriate SIMD implementation.
+// ClampImage clamps pixel values to [minVal, maxVal].
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ClampImage[T hwy.Floats](img *Image[T], out *Image[T], minVal T, maxVal T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -79,7 +82,9 @@ func ClampImage[T hwy.Floats](img *Image[T], out *Image[T], minVal T, maxVal T) 
 	}
 }
 
-// Threshold is the generic API that dispatches to the appropriate SIMD implementation.
+// Threshold applies binary threshold: out = (in >= threshold) ? above : below.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Threshold[T hwy.Floats](img *Image[T], out *Image[T], threshold T, below T, above T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -93,7 +98,10 @@ func Threshold[T hwy.Floats](img *Image[T], out *Image[T], threshold T, below T,
 	}
 }
 
-// Invert is the generic API that dispatches to the appropriate SIMD implementation.
+// Invert inverts pixel values: out = maxVal - in.
+// For normalized images [0,1], use maxVal=1.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Invert[T hwy.Floats](img *Image[T], out *Image[T], maxVal T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -107,7 +115,9 @@ func Invert[T hwy.Floats](img *Image[T], out *Image[T], maxVal T) {
 	}
 }
 
-// Abs is the generic API that dispatches to the appropriate SIMD implementation.
+// Abs computes absolute value of each pixel: out = |in|.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Abs[T hwy.Floats](img *Image[T], out *Image[T]) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -121,7 +131,9 @@ func Abs[T hwy.Floats](img *Image[T], out *Image[T]) {
 	}
 }
 
-// Scale is the generic API that dispatches to the appropriate SIMD implementation.
+// Scale multiplies all pixels by a constant: out = in * scale.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Scale[T hwy.Floats](img *Image[T], out *Image[T], scale T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -135,7 +147,9 @@ func Scale[T hwy.Floats](img *Image[T], out *Image[T], scale T) {
 	}
 }
 
-// Offset is the generic API that dispatches to the appropriate SIMD implementation.
+// Offset adds a constant to all pixels: out = in + offset.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Offset[T hwy.Floats](img *Image[T], out *Image[T], offset T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -149,7 +163,11 @@ func Offset[T hwy.Floats](img *Image[T], out *Image[T], offset T) {
 	}
 }
 
-// Gamma is the generic API that dispatches to the appropriate SIMD implementation.
+// Gamma applies gamma correction: out = pow(in, gamma).
+// Input should be in [0, 1] range for proper gamma correction.
+// Uses SIMD pow for vectorized processing.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Gamma[T hwy.Floats](img *Image[T], out *Image[T], gamma T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
@@ -163,7 +181,9 @@ func Gamma[T hwy.Floats](img *Image[T], out *Image[T], gamma T) {
 	}
 }
 
-// MinImage is the generic API that dispatches to the appropriate SIMD implementation.
+// MinImage computes element-wise minimum: out = min(a, b).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MinImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 	switch any(a).(type) {
 	case *Image[hwy.Float16]:
@@ -177,7 +197,9 @@ func MinImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 	}
 }
 
-// MaxImage is the generic API that dispatches to the appropriate SIMD implementation.
+// MaxImage computes element-wise maximum: out = max(a, b).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MaxImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 	switch any(a).(type) {
 	case *Image[hwy.Float16]:
@@ -192,7 +214,7 @@ func MaxImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initPointopsFallback()
 }
 

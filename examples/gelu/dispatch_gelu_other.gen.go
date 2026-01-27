@@ -5,8 +5,6 @@
 package gelu
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,16 @@ var GELUApproxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var GELUApproxFloat32 func(input []float32, output []float32)
 var GELUApproxFloat64 func(input []float64, output []float64)
 
-// GELU is the generic API that dispatches to the appropriate SIMD implementation.
+// GELU computes the Gaussian Error Linear Unit activation function.
+//
+// GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2)))
+//
+// This is the exact GELU formula. For a faster approximation, see BaseGELUApprox.
+//
+// GELU is widely used in transformer architectures (BERT, GPT, etc.) as it
+// provides smoother gradients than ReLU while maintaining similar properties.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func GELU[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -33,7 +40,13 @@ func GELU[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// GELUApprox is the generic API that dispatches to the appropriate SIMD implementation.
+// GELUApprox computes a fast approximation of GELU.
+//
+// Uses the sigmoid approximation: GELU(x) ≈ x * sigmoid(1.702 * x)
+//
+// This is faster than the exact formula and is commonly used in practice.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func GELUApprox[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -48,7 +61,7 @@ func GELUApprox[T hwy.Floats](input []T, output []T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initGeluFallback()
 }
 

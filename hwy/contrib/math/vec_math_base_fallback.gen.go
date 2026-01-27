@@ -241,7 +241,7 @@ func BaseTanhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 }
 
 func BaseTanhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
-	two := hwy.Const[float64](2.0)
+	two := hwy.Set[float64](2.0)
 	one := hwy.Set[float64](tanhOne_f64)
 	negOne := hwy.Set[float64](tanhNegOne_f64)
 	threshold := hwy.Set[float64](tanhClamp_f64)
@@ -371,11 +371,11 @@ func BaseLogVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 func BaseLogVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
 	one := hwy.Set[float64](logOne_f64)
 	two := hwy.Set[float64](logTwo_f64)
-	zero := hwy.Const[float64](0.0)
+	zero := hwy.Set[float64](0.0)
 	ln2Hi := hwy.Set[float64](logLn2Hi_f64)
 	ln2Lo := hwy.Set[float64](logLn2Lo_f64)
 	negInf := hwy.Set[float64](logNegInf_f64)
-	nan := hwy.Const[float64](0.0)
+	nan := hwy.Set[float64](0.0)
 	c1 := hwy.Set[float64](logC1_f64)
 	c2 := hwy.Set[float64](logC2_f64)
 	c3 := hwy.Set[float64](logC3_f64)
@@ -1100,10 +1100,10 @@ func BaseCoshVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 }
 
 func BaseCoshVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
-	one := hwy.Const[float64](1.0)
-	c2 := hwy.Const[float64](0.5)
-	c4 := hwy.Const[float64](0.041666666666666664)
-	c6 := hwy.Const[float64](0.001388888888888889)
+	one := hwy.Set[float64](1.0)
+	c2 := hwy.Set[float64](0.5)
+	c4 := hwy.Set[float64](0.041666666666666664)
+	c6 := hwy.Set[float64](0.001388888888888889)
 	x2 := hwy.Mul(x, x)
 	poly := hwy.MulAdd(c6, x2, c4)
 	poly = hwy.MulAdd(poly, x2, c2)
@@ -1138,7 +1138,7 @@ func BaseAsinhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 }
 
 func BaseAsinhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
-	one := hwy.Const[float64](1.0)
+	one := hwy.Set[float64](1.0)
 	x2 := hwy.Mul(x, x)
 	x2Plus1 := hwy.Add(x2, one)
 	sqrtPart := hwy.Sqrt(x2Plus1)
@@ -1186,8 +1186,8 @@ func BaseAcoshVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 }
 
 func BaseAcoshVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
-	one := hwy.Const[float64](1.0)
-	zero := hwy.Const[float64](0.0)
+	one := hwy.Set[float64](1.0)
+	zero := hwy.Set[float64](0.0)
 	x2 := hwy.Mul(x, x)
 	x2Minus1 := hwy.Sub(x2, one)
 	sqrtPart := hwy.Sqrt(x2Minus1)
@@ -1241,9 +1241,9 @@ func BaseAtanhVec_fallback(x hwy.Vec[float32]) hwy.Vec[float32] {
 }
 
 func BaseAtanhVec_fallback_Float64(x hwy.Vec[float64]) hwy.Vec[float64] {
-	one := hwy.Const[float64](1.0)
-	half := hwy.Const[float64](0.5)
-	zero := hwy.Const[float64](0.0)
+	one := hwy.Set[float64](1.0)
+	half := hwy.Set[float64](0.5)
+	zero := hwy.Set[float64](0.0)
 	onePlusX := hwy.Add(one, x)
 	oneMinusX := hwy.Sub(one, x)
 	ratio := hwy.Div(onePlusX, oneMinusX)
@@ -1306,8 +1306,8 @@ func BasePowVec_fallback(base hwy.Vec[float32], exp hwy.Vec[float32]) hwy.Vec[fl
 }
 
 func BasePowVec_fallback_Float64(base hwy.Vec[float64], exp hwy.Vec[float64]) hwy.Vec[float64] {
-	one := hwy.Const[float64](1.0)
-	zero := hwy.Const[float64](0.0)
+	one := hwy.Set[float64](1.0)
+	zero := hwy.Set[float64](0.0)
 	logBase := BaseLogVec_fallback_Float64(base)
 	expTimesLog := hwy.Mul(exp, logBase)
 	result := BaseExpVec_fallback_Float64(expTimesLog)

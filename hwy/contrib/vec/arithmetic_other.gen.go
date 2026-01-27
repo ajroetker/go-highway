@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -59,7 +57,20 @@ var MulConstAddToBFloat16 func(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloa
 var MulConstAddToFloat32 func(dst []float32, a float32, x []float32)
 var MulConstAddToFloat64 func(dst []float64, a float64, x []float64)
 
-// Add is the generic API that dispatches to the appropriate SIMD implementation.
+// Add performs in-place element-wise addition: dst[i] += s[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	s := []float32{5, 6, 7, 8}
+//	BaseAdd(dst, s)  // dst is now {6, 8, 10, 12}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Add[T hwy.Floats](dst []T, s []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -73,7 +84,21 @@ func Add[T hwy.Floats](dst []T, s []T) {
 	}
 }
 
-// AddTo is the generic API that dispatches to the appropriate SIMD implementation.
+// AddTo performs element-wise addition: dst[i] = a[i] + b[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if any slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3, 4}
+//	b := []float32{5, 6, 7, 8}
+//	dst := make([]float32, 4)
+//	BaseAddTo(dst, a, b)  // dst is now {6, 8, 10, 12}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func AddTo[T hwy.Floats](dst []T, a []T, b []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -87,7 +112,20 @@ func AddTo[T hwy.Floats](dst []T, a []T, b []T) {
 	}
 }
 
-// Sub is the generic API that dispatches to the appropriate SIMD implementation.
+// Sub performs in-place element-wise subtraction: dst[i] -= s[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{10, 20, 30, 40}
+//	s := []float32{1, 2, 3, 4}
+//	BaseSub(dst, s)  // dst is now {9, 18, 27, 36}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Sub[T hwy.Floats](dst []T, s []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -101,7 +139,21 @@ func Sub[T hwy.Floats](dst []T, s []T) {
 	}
 }
 
-// SubTo is the generic API that dispatches to the appropriate SIMD implementation.
+// SubTo performs element-wise subtraction: dst[i] = a[i] - b[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if any slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	a := []float32{10, 20, 30, 40}
+//	b := []float32{1, 2, 3, 4}
+//	dst := make([]float32, 4)
+//	BaseSubTo(dst, a, b)  // dst is now {9, 18, 27, 36}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SubTo[T hwy.Floats](dst []T, a []T, b []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -115,7 +167,20 @@ func SubTo[T hwy.Floats](dst []T, a []T, b []T) {
 	}
 }
 
-// Mul is the generic API that dispatches to the appropriate SIMD implementation.
+// Mul performs in-place element-wise multiplication: dst[i] *= s[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	s := []float32{2, 3, 4, 5}
+//	BaseMul(dst, s)  // dst is now {2, 6, 12, 20}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Mul[T hwy.Floats](dst []T, s []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -129,7 +194,21 @@ func Mul[T hwy.Floats](dst []T, s []T) {
 	}
 }
 
-// MulTo is the generic API that dispatches to the appropriate SIMD implementation.
+// MulTo performs element-wise multiplication: dst[i] = a[i] * b[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if any slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3, 4}
+//	b := []float32{2, 3, 4, 5}
+//	dst := make([]float32, 4)
+//	BaseMulTo(dst, a, b)  // dst is now {2, 6, 12, 20}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MulTo[T hwy.Floats](dst []T, a []T, b []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -143,7 +222,23 @@ func MulTo[T hwy.Floats](dst []T, a []T, b []T) {
 	}
 }
 
-// Div is the generic API that dispatches to the appropriate SIMD implementation.
+// Div performs in-place element-wise division: dst[i] /= s[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Note: Division by zero will result in +Inf, -Inf, or NaN according to
+// IEEE 754 floating-point semantics.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{10, 20, 30, 40}
+//	s := []float32{2, 4, 5, 8}
+//	BaseDiv(dst, s)  // dst is now {5, 5, 6, 5}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Div[T hwy.Floats](dst []T, s []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -157,7 +252,24 @@ func Div[T hwy.Floats](dst []T, s []T) {
 	}
 }
 
-// DivTo is the generic API that dispatches to the appropriate SIMD implementation.
+// DivTo performs element-wise division: dst[i] = a[i] / b[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if any slice is empty.
+//
+// Note: Division by zero will result in +Inf, -Inf, or NaN according to
+// IEEE 754 floating-point semantics.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	a := []float32{10, 20, 30, 40}
+//	b := []float32{2, 4, 5, 8}
+//	dst := make([]float32, 4)
+//	BaseDivTo(dst, a, b)  // dst is now {5, 5, 6, 5}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func DivTo[T hwy.Floats](dst []T, a []T, b []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -171,7 +283,18 @@ func DivTo[T hwy.Floats](dst []T, a []T, b []T) {
 	}
 }
 
-// Scale is the generic API that dispatches to the appropriate SIMD implementation.
+// Scale performs in-place scalar multiplication: dst[i] *= c.
+//
+// Returns early if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	BaseScale(2.5, dst)  // dst is now {2.5, 5, 7.5, 10}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Scale[T hwy.Floats](c T, dst []T) {
 	switch any(c).(type) {
 	case hwy.Float16:
@@ -185,7 +308,20 @@ func Scale[T hwy.Floats](c T, dst []T) {
 	}
 }
 
-// ScaleTo is the generic API that dispatches to the appropriate SIMD implementation.
+// ScaleTo performs scalar multiplication: dst[i] = c * s[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	s := []float32{1, 2, 3, 4}
+//	dst := make([]float32, 4)
+//	BaseScaleTo(dst, 2.5, s)  // dst is now {2.5, 5, 7.5, 10}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func ScaleTo[T hwy.Floats](dst []T, c T, s []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -199,7 +335,18 @@ func ScaleTo[T hwy.Floats](dst []T, c T, s []T) {
 	}
 }
 
-// AddConst is the generic API that dispatches to the appropriate SIMD implementation.
+// AddConst performs in-place scalar addition: dst[i] += c.
+//
+// Returns early if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	BaseAddConst(10, dst)  // dst is now {11, 12, 13, 14}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func AddConst[T hwy.Floats](c T, dst []T) {
 	switch any(c).(type) {
 	case hwy.Float16:
@@ -213,7 +360,24 @@ func AddConst[T hwy.Floats](c T, dst []T) {
 	}
 }
 
-// MulConstAddTo is the generic API that dispatches to the appropriate SIMD implementation.
+// MulConstAddTo performs fused multiply-add: dst[i] += a * x[i].
+//
+// This operation is also known as AXPY (a*x plus y) in BLAS terminology.
+// It uses fused multiply-add (FMA) instructions when available for better
+// performance and precision.
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	x := []float32{1, 1, 1, 1}
+//	BaseMulConstAddTo(dst, 10, x)  // dst is now {11, 12, 13, 14}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MulConstAddTo[T hwy.Floats](dst []T, a T, x []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
@@ -228,7 +392,7 @@ func MulConstAddTo[T hwy.Floats](dst []T, a T, x []T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initArithmeticFallback()
 }
 

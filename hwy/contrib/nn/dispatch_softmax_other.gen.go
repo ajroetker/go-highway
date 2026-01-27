@@ -5,8 +5,6 @@
 package nn
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -35,7 +33,16 @@ var SoftmaxWithTemperatureBFloat16 func(input []hwy.BFloat16, output []hwy.BFloa
 var SoftmaxWithTemperatureFloat32 func(input []float32, output []float32, temperature float32)
 var SoftmaxWithTemperatureFloat64 func(input []float64, output []float64, temperature float64)
 
-// Softmax is the generic API that dispatches to the appropriate SIMD implementation.
+// Softmax computes the softmax function over the input slice.
+//
+// softmax(x_i) = exp(x_i - max(x)) / sum(exp(x_j - max(x)))
+//
+// The max subtraction provides numerical stability by preventing overflow
+// in the exponential computation.
+//
+// This function uses SIMD-accelerated exp for efficient processing.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Softmax[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -49,7 +56,9 @@ func Softmax[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// SoftmaxInPlace is the generic API that dispatches to the appropriate SIMD implementation.
+// SoftmaxInPlace applies softmax in-place, modifying the input slice.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SoftmaxInPlace[T hwy.Floats](x []T) {
 	switch any(x).(type) {
 	case []hwy.Float16:
@@ -63,7 +72,14 @@ func SoftmaxInPlace[T hwy.Floats](x []T) {
 	}
 }
 
-// LogSoftmax is the generic API that dispatches to the appropriate SIMD implementation.
+// LogSoftmax computes the log-softmax function over the input slice.
+//
+// log_softmax(x_i) = x_i - max(x) - log(sum(exp(x_j - max(x))))
+//
+// This is more numerically stable than computing log(softmax(x)) directly,
+// and is commonly used for negative log-likelihood loss computation.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func LogSoftmax[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -77,7 +93,9 @@ func LogSoftmax[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// LogSoftmaxInPlace is the generic API that dispatches to the appropriate SIMD implementation.
+// LogSoftmaxInPlace applies log-softmax in-place, modifying the input slice.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func LogSoftmaxInPlace[T hwy.Floats](x []T) {
 	switch any(x).(type) {
 	case []hwy.Float16:
@@ -91,7 +109,9 @@ func LogSoftmaxInPlace[T hwy.Floats](x []T) {
 	}
 }
 
-// SoftmaxScalar is the generic API that dispatches to the appropriate SIMD implementation.
+// SoftmaxScalar is a scalar reference implementation for comparison and testing.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -105,7 +125,16 @@ func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// SoftmaxWithTemperature is the generic API that dispatches to the appropriate SIMD implementation.
+// SoftmaxWithTemperature computes softmax with a temperature parameter.
+//
+// softmax(x_i / T) = exp((x_i - max(x)) / T) / sum(exp((x_j - max(x)) / T))
+//
+// Temperature controls the "sharpness" of the distribution:
+//   - T < 1: sharper (more confident, closer to argmax)
+//   - T = 1: standard softmax
+//   - T > 1: softer (more uniform)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SoftmaxWithTemperature[T hwy.Floats](input []T, output []T, temperature T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
@@ -120,7 +149,7 @@ func SoftmaxWithTemperature[T hwy.Floats](input []T, output []T, temperature T) 
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initSoftmaxFallback()
 }
 

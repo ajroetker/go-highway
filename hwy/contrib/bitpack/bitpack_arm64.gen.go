@@ -5,7 +5,7 @@
 package bitpack
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 var Pack32 func(src []uint32, bitWidth int, dst []byte) int
@@ -16,7 +16,7 @@ var DeltaEncode32 func(src []uint32, base uint32, dst []uint32)
 var DeltaEncode64 func(src []uint64, base uint64, dst []uint64)
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initBitpackFallback()
 		return
 	}

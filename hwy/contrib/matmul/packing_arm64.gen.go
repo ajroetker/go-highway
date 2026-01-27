@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -27,7 +25,35 @@ var PackRHSVecBFloat16 func(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n in
 var PackRHSVecFloat32 func(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
 var PackRHSVecFloat64 func(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
 
-// PackLHS is the generic API that dispatches to the appropriate SIMD implementation.
+// PackLHS packs a panel of the LHS matrix (A) into a cache-friendly layout.
+//
+// Input A is M x K in row-major order. This function packs a panel of rows
+// [rowStart, rowStart+panelRows) and columns [colStart, colStart+panelK).
+//
+// The packed layout is organized as micro-panels of Mr rows each:
+//   - For each micro-panel i (rows i*Mr to (i+1)*Mr):
+//   - For each k in [0, panelK):
+//   - Store A[rowStart+i*Mr+0, colStart+k], ..., A[rowStart+i*Mr+Mr-1, colStart+k]
+//
+// This gives memory layout: [num_micro_panels, panelK, Mr]
+// where num_micro_panels = ceil(panelRows / Mr)
+//
+// The K-first layout within micro-panels optimizes for the inner loop
+// which iterates over K and needs contiguous A values for each k.
+//
+// Parameters:
+//   - a: Input matrix A in row-major order
+//   - packed: Output buffer, must have size >= ceil(panelRows/Mr) * panelK * Mr
+//   - m, k: Dimensions of the full A matrix
+//   - rowStart: Starting row of the panel to pack
+//   - colStart: Starting column of the panel to pack (K-dimension offset)
+//   - panelRows: Number of rows to pack
+//   - panelK: Number of columns to pack (K dimension)
+//   - mr: Micro-tile row dimension
+//
+// Returns the number of active rows in the last micro-panel (may be < Mr).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackLHS[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -42,7 +68,35 @@ func PackLHS[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colSta
 	panic("unreachable")
 }
 
-// PackRHS is the generic API that dispatches to the appropriate SIMD implementation.
+// PackRHS packs a panel of the RHS matrix (B) into a cache-friendly layout.
+//
+// Input B is K x N in row-major order. This function packs a panel of rows
+// [rowStart, rowStart+panelK) and columns [colStart, colStart+panelCols).
+//
+// The packed layout is organized as micro-panels of Nr columns each:
+//   - For each micro-panel j (cols j*Nr to (j+1)*Nr):
+//   - For each k in [0, panelK):
+//   - Store B[rowStart+k, colStart+j*Nr+0], ..., B[rowStart+k, colStart+j*Nr+Nr-1]
+//
+// This gives memory layout: [num_micro_panels, panelK, Nr]
+// where num_micro_panels = ceil(panelCols / Nr)
+//
+// The K-first layout within micro-panels ensures sequential access
+// when iterating over K in the inner loop.
+//
+// Parameters:
+//   - b: Input matrix B in row-major order
+//   - packed: Output buffer, must have size >= ceil(panelCols/Nr) * panelK * Nr
+//   - k, n: Dimensions of the full B matrix
+//   - rowStart: Starting row of the panel to pack (K-dimension offset)
+//   - colStart: Starting column of the panel to pack
+//   - panelK: Number of rows to pack (K dimension)
+//   - panelCols: Number of columns to pack
+//   - nr: Micro-tile column dimension
+//
+// Returns the number of active columns in the last micro-panel (may be < Nr).
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackRHS[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
 	switch any(b).(type) {
 	case []hwy.Float16:
@@ -57,7 +111,10 @@ func PackRHS[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, colSta
 	panic("unreachable")
 }
 
-// PackLHSVec is the generic API that dispatches to the appropriate SIMD implementation.
+// PackLHSVec packs LHS using SIMD when Mr aligns with vector width.
+// This is a vectorized version of BasePackLHS for better performance.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackLHSVec[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -72,7 +129,10 @@ func PackLHSVec[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, col
 	panic("unreachable")
 }
 
-// PackRHSVec is the generic API that dispatches to the appropriate SIMD implementation.
+// PackRHSVec packs RHS using SIMD loads for contiguous data.
+// This is a vectorized version of BasePackRHS for better performance.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackRHSVec[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
 	switch any(b).(type) {
 	case []hwy.Float16:
@@ -88,7 +148,7 @@ func PackRHSVec[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, col
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initPackingFallback()
 		return
 	}

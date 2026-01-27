@@ -5,13 +5,13 @@
 package varint
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 var FindVarintEnds func(src []byte) uint32
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initVarintFallback()
 }
 

@@ -5,7 +5,7 @@
 package varint
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 var DecodeStreamVByte32 func(control []byte, data []uint8, n int) []uint32
@@ -17,7 +17,7 @@ var EncodeStreamVByte32GroupSIMD func(values []uint32) (ctrl byte, data []byte)
 var EncodeStreamVByte32GroupSIMDInto func(values []uint32, dst []uint8) (ctrl byte, n int)
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initStreamvbyteFallback()
 }
 

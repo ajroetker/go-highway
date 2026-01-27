@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -29,7 +27,19 @@ var MinMaxBFloat16 func(v []hwy.BFloat16) (min hwy.BFloat16, max hwy.BFloat16)
 var MinMaxFloat32 func(v []float32) (min float32, max float32)
 var MinMaxFloat64 func(v []float64) (min float64, max float64)
 
-// Sum is the generic API that dispatches to the appropriate SIMD implementation.
+// Sum computes the sum of all elements in a slice using hwy primitives.
+//
+// Returns 0 if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	data := []float32{1, 2, 3, 4}
+//	result := Sum(data)  // 1 + 2 + 3 + 4 = 10
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Sum[T hwy.Floats](v []T) T {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -44,7 +54,22 @@ func Sum[T hwy.Floats](v []T) T {
 	panic("unreachable")
 }
 
-// Min is the generic API that dispatches to the appropriate SIMD implementation.
+// Min returns the minimum value in a slice using hwy primitives.
+//
+// Panics if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Note: For slices containing NaN values, behavior follows standard Go
+// comparison semantics where NaN comparisons return false.
+//
+// Example:
+//
+//	data := []float32{3, 1, 4, 1, 5}
+//	result := Min(data)  // 1
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Min[T hwy.Floats](v []T) T {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -59,7 +84,23 @@ func Min[T hwy.Floats](v []T) T {
 	panic("unreachable")
 }
 
-// Max is the generic API that dispatches to the appropriate SIMD implementation.
+// Max returns the maximum value in a slice using hwy primitives.
+//
+// Panics if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with all numeric types: float16, bfloat16, float32, float64,
+// int8, int16, int32, int64, uint8, uint16, uint32, uint64.
+//
+// Note: For slices containing NaN values (floats only), the behavior follows
+// IEEE 754 SIMD semantics. NaN comparisons may propagate NaN.
+//
+// Example:
+//
+//	data := []float32{3, 1, 4, 1, 5}
+//	result := Max(data)  // 5
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Max[T hwy.Lanes](v []T) T {
 	switch any(v).(type) {
 	case []float32:
@@ -78,7 +119,25 @@ func Max[T hwy.Lanes](v []T) T {
 	panic("unreachable")
 }
 
-// MinMax is the generic API that dispatches to the appropriate SIMD implementation.
+// MinMax returns both the minimum and maximum values in a slice using hwy primitives.
+//
+// This is more efficient than calling Min and Max separately as it only
+// makes a single pass through the data.
+//
+// Panics if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Note: For slices containing NaN values, behavior follows standard Go
+// comparison semantics where NaN comparisons return false.
+//
+// Example:
+//
+//	data := []float32{3, 1, 4, 1, 5}
+//	min, max := MinMax(data)  // min=1, max=5
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func MinMax[T hwy.Floats](v []T) (min T, max T) {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -98,7 +157,7 @@ func MinMax[T hwy.Floats](v []T) (min T, max T) {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initReduceFallback()
 }
 

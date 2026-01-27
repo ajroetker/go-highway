@@ -5,8 +5,6 @@
 package algo
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -59,7 +57,10 @@ var CountIfInt64 func(slice []int64, pred Predicate[int64]) int
 var CountIfUint32 func(slice []uint32, pred Predicate[uint32]) int
 var CountIfUint64 func(slice []uint64, pred Predicate[uint64]) int
 
-// Find is the generic API that dispatches to the appropriate SIMD implementation.
+// Find returns the index of the first element equal to value, or -1 if not found.
+// Uses SIMD comparison for efficient searching.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Find[T hwy.Lanes](slice []T, value T) int {
 	switch any(slice).(type) {
 	case []float32:
@@ -78,7 +79,10 @@ func Find[T hwy.Lanes](slice []T, value T) int {
 	panic("unreachable")
 }
 
-// Count is the generic API that dispatches to the appropriate SIMD implementation.
+// Count returns the number of elements equal to target.
+// Uses SIMD comparison and popcount for efficiency.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Count[T hwy.Lanes](slice []T, value T) int {
 	switch any(slice).(type) {
 	case []float32:
@@ -97,7 +101,10 @@ func Count[T hwy.Lanes](slice []T, value T) int {
 	panic("unreachable")
 }
 
-// Contains is the generic API that dispatches to the appropriate SIMD implementation.
+// Contains returns true if slice contains the specified value.
+// This is a convenience wrapper around BaseFind.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Contains[T hwy.Lanes](slice []T, value T) bool {
 	switch any(slice).(type) {
 	case []float32:
@@ -116,7 +123,11 @@ func Contains[T hwy.Lanes](slice []T, value T) bool {
 	panic("unreachable")
 }
 
-// AllP is the generic API that dispatches to the appropriate SIMD implementation.
+// AllP returns true if pred returns true for all elements.
+// Short-circuits on first false.
+// The predicate P must implement Predicate[T] interface.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func AllP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	switch any(slice).(type) {
 	case []float32:
@@ -135,7 +146,11 @@ func AllP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	panic("unreachable")
 }
 
-// AnyP is the generic API that dispatches to the appropriate SIMD implementation.
+// AnyP returns true if pred returns true for any element.
+// Short-circuits on first true.
+// The predicate P must implement Predicate[T] interface.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func AnyP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	switch any(slice).(type) {
 	case []float32:
@@ -154,7 +169,11 @@ func AnyP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	panic("unreachable")
 }
 
-// NoneP is the generic API that dispatches to the appropriate SIMD implementation.
+// NoneP returns true if pred returns false for all elements.
+// This is equivalent to !BaseAny(slice, pred).
+// The predicate P must implement Predicate[T] interface.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func NoneP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	switch any(slice).(type) {
 	case []float32:
@@ -173,7 +192,11 @@ func NoneP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	panic("unreachable")
 }
 
-// FindIfP is the generic API that dispatches to the appropriate SIMD implementation.
+// FindIfP returns the index of the first element where pred returns true.
+// Returns -1 if no element matches.
+// The predicate P must implement Predicate[T] interface.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func FindIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 	switch any(slice).(type) {
 	case []float32:
@@ -192,7 +215,10 @@ func FindIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 	panic("unreachable")
 }
 
-// CountIfP is the generic API that dispatches to the appropriate SIMD implementation.
+// CountIfP returns the number of elements where pred returns true.
+// The predicate P must implement Predicate[T] interface.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func CountIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 	switch any(slice).(type) {
 	case []float32:
@@ -212,7 +238,7 @@ func CountIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initFindFallback()
 }
 

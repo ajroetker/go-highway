@@ -5,14 +5,14 @@
 package varint
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
 )
 
 var FindVarintEnds func(src []byte) uint32
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initVarintFallback()
 		return
 	}

@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,32 @@ var PackedMicroKernelPartialBFloat16 func(packedA []hwy.BFloat16, packedB []hwy.
 var PackedMicroKernelPartialFloat32 func(packedA []float32, packedB []float32, c []float32, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int)
 var PackedMicroKernelPartialFloat64 func(packedA []float64, packedB []float64, c []float64, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int)
 
-// PackedMicroKernel is the generic API that dispatches to the appropriate SIMD implementation.
+// PackedMicroKernel computes C[ir:ir+Mr, jr:jr+Nr] += packedA * packedB
+// where packedA and packedB are in the packed layout from BasePackLHS/BasePackRHS.
+//
+// This is the innermost kernel of the GotoBLAS 5-loop algorithm. It operates on
+// pre-packed data to achieve maximum memory bandwidth utilization:
+//
+//   - packedA: Kc values for Mr rows, laid out as [Kc, Mr] (K-first)
+//   - packedB: Kc values for Nr cols, laid out as [Kc, Nr] (K-first)
+//
+// The kernel uses a 4×2-vector accumulator pattern:
+//   - 4 rows (Mr=4) × 2 vector widths (Nr=2*lanes)
+//   - 8 FMA operations per K iteration
+//   - Accumulators held in registers across entire Kc loop
+//
+// Parameters:
+//   - packedA: Packed A micro-panel, size Kc * Mr
+//   - packedB: Packed B micro-panel, size Kc * Nr
+//   - c: Output matrix C in row-major order
+//   - n: Leading dimension of C (number of columns)
+//   - ir: Starting row in C
+//   - jr: Starting column in C
+//   - kc: K-dimension of the packed panels
+//   - mr: Number of rows (must be 4 for this kernel)
+//   - nr: Number of columns (must be 2*lanes for this kernel)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackedMicroKernel[T hwy.Floats](packedA []T, packedB []T, c []T, n int, ir int, jr int, kc int, mr int, nr int) {
 	switch any(packedA).(type) {
 	case []hwy.Float16:
@@ -33,7 +56,17 @@ func PackedMicroKernel[T hwy.Floats](packedA []T, packedB []T, c []T, n int, ir 
 	}
 }
 
-// PackedMicroKernelPartial is the generic API that dispatches to the appropriate SIMD implementation.
+// PackedMicroKernelPartial handles edge cases where the micro-tile
+// extends beyond the matrix bounds.
+//
+// Parameters:
+//   - activeRows: Actual number of valid rows (may be < Mr)
+//   - activeCols: Actual number of valid columns (may be < Nr)
+//
+// The packed data is still Mr × Nr with zero padding, but we only
+// write back the active portion to C.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackedMicroKernelPartial[T hwy.Floats](packedA []T, packedB []T, c []T, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
 	switch any(packedA).(type) {
 	case []hwy.Float16:
@@ -48,7 +81,7 @@ func PackedMicroKernelPartial[T hwy.Floats](packedA []T, packedB []T, c []T, n i
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initPackedkernelFallback()
 		return
 	}

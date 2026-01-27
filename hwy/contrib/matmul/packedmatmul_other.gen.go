@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -23,7 +21,34 @@ var PackedMatMulStripBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.B
 var PackedMatMulStripFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int, rowStart int, rowEnd int, packedA []float32, packedB []float32, params CacheParams)
 var PackedMatMulStripFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int, rowStart int, rowEnd int, packedA []float64, packedB []float64, params CacheParams)
 
-// PackedMatMul is the generic API that dispatches to the appropriate SIMD implementation.
+// PackedMatMul computes C = A * B using the GotoBLAS-style 5-loop algorithm
+// with matrix packing for optimal cache utilization.
+//
+// The algorithm structure (GEBP - GEneral Block Panel multiplication):
+//
+//	for jc := 0; jc < n; jc += Nc:       // Loop 5: B panels (L3 cache)
+//	  for pc := 0; pc < k; pc += Kc:     // Loop 4: K blocking (L1 cache)
+//	    PackRHS(B[pc:pc+Kc, jc:jc+Nc])   // Pack B panel once per (jc, pc)
+//	    for ic := 0; ic < m; ic += Mc:   // Loop 3: A panels (L2 cache)
+//	      PackLHS(A[ic:ic+Mc, pc:pc+Kc]) // Pack A panel once per (jc, pc, ic)
+//	      for jr := 0; jr < Nc; jr += Nr:   // Loop 2: micro-tile columns
+//	        for ir := 0; ir < Mc; ir += Mr: // Loop 1: micro-tile rows
+//	          PackedMicroKernel(...)        // Mr × Nr micro-tile
+//
+// Key benefits over streaming matmul:
+//   - K-dimension blocking prevents L1 cache thrashing
+//   - Packed layout enables sequential memory access in innermost loops
+//   - Accumulators stay in registers across entire Kc loop
+//   - B panel reused across all A panels (L3 blocking)
+//   - A panel reused across all micro-columns (L2 blocking)
+//
+// Parameters:
+//   - a: Input matrix A in row-major order (M × K)
+//   - b: Input matrix B in row-major order (K × N)
+//   - c: Output matrix C in row-major order (M × N), will be zeroed
+//   - m, n, k: Matrix dimensions
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -37,7 +62,10 @@ func PackedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	}
 }
 
-// PackedMatMulWithBuffers is the generic API that dispatches to the appropriate SIMD implementation.
+// PackedMatMulWithBuffers is like BasePackedMatMul but uses pre-allocated buffers.
+// This is useful for parallel execution where each worker has its own buffers.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackedMatMulWithBuffers[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, packedA []T, packedB []T, params CacheParams) {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -51,7 +79,17 @@ func PackedMatMulWithBuffers[T hwy.Floats](a []T, b []T, c []T, m int, n int, k 
 	}
 }
 
-// PackedMatMulStrip is the generic API that dispatches to the appropriate SIMD implementation.
+// PackedMatMulStrip computes a horizontal strip of C = A * B.
+// Used by parallel implementation to divide work across workers.
+//
+// Computes: C[rowStart:rowEnd, :] = A[rowStart:rowEnd, :] * B
+//
+// Parameters:
+//   - rowStart, rowEnd: Row range to compute (0-indexed)
+//   - packedA, packedB: Pre-allocated packing buffers
+//   - params: Cache blocking parameters
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func PackedMatMulStrip[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, rowStart int, rowEnd int, packedA []T, packedB []T, params CacheParams) {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -66,7 +104,7 @@ func PackedMatMulStrip[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, r
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initPackedmatmulFallback()
 }
 

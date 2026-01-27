@@ -5,7 +5,7 @@
 package matmul
 
 import (
-	"os"
+	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
 )
 
@@ -13,7 +13,7 @@ var FusedNF4MatMul func(input []float32, packed []uint8, scales []float32, outpu
 var FusedInt4MatMul func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initFusednf4matmulFallback()
 		return
 	}

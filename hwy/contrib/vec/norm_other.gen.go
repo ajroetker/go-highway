@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,21 @@ var NormBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
 var NormFloat32 func(v []float32) float32
 var NormFloat64 func(v []float64) float64
 
-// SquaredNorm is the generic API that dispatches to the appropriate SIMD implementation.
+// SquaredNorm computes the squared L2 norm (sum of squares) of a vector
+// using hwy primitives.
+// The result is equivalent to Dot(v, v): Σ(v[i] * v[i]).
+//
+// Returns 0 if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	v := []float32{3, 4}
+//	result := SquaredNorm(v)  // 3*3 + 4*4 = 25
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func SquaredNorm[T hwy.Floats](v []T) T {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -34,7 +46,21 @@ func SquaredNorm[T hwy.Floats](v []T) T {
 	panic("unreachable")
 }
 
-// Norm is the generic API that dispatches to the appropriate SIMD implementation.
+// Norm computes the L2 norm (Euclidean magnitude) of a vector using hwy
+// primitives.
+// The result is Sqrt(Σ(v[i] * v[i])).
+//
+// Returns 0 if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	v := []float32{3, 4}
+//	result := Norm(v)  // Sqrt(3*3 + 4*4) = Sqrt(25) = 5
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Norm[T hwy.Floats](v []T) T {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -50,7 +76,7 @@ func Norm[T hwy.Floats](v []T) T {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initNormFallback()
 }
 

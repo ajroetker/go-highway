@@ -5,8 +5,6 @@
 package sort
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -23,7 +21,15 @@ var CompressPartitionInt64 func(data []int64, pivot int64) int
 var CompressPartitionUint32 func(data []uint32, pivot uint32) int
 var CompressPartitionUint64 func(data []uint64, pivot uint64) int
 
-// CompressPartition3Way is the generic API that dispatches to the appropriate SIMD implementation.
+// CompressPartition3Way partitions data into three regions around pivot.
+// For 3-way partitioning, we use the scalar Dutch National Flag algorithm
+// which is faster than SIMD compress on narrow vectors.
+// Returns (lt, gt) where:
+//   - data[0:lt] < pivot
+//   - data[lt:gt] == pivot
+//   - data[gt:n] > pivot
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func CompressPartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 	switch any(data).(type) {
 	case []float32:
@@ -42,7 +48,11 @@ func CompressPartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 	panic("unreachable")
 }
 
-// CompressPartition is the generic API that dispatches to the appropriate SIMD implementation.
+// CompressPartition partitions data using Highway's double-store technique.
+// Returns idx where data[0:idx] < pivot and data[idx:n] >= pivot.
+// This is an in-place O(1) space algorithm.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func CompressPartition[T hwy.Lanes](data []T, pivot T) int {
 	switch any(data).(type) {
 	case []float32:
@@ -62,7 +72,7 @@ func CompressPartition[T hwy.Lanes](data []T, pivot T) int {
 }
 
 func init() {
-	_ = os.Getenv // silence unused import
+	_ = hwy.NoSimdEnv // silence unused import
 	initCompress_partitionFallback()
 }
 

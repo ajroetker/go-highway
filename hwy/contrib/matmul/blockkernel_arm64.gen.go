@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -27,7 +25,26 @@ var BlockMulAdd4BFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloa
 var BlockMulAdd4Float32 func(aT []float32, b []float32, c []float32, blockDim int)
 var BlockMulAdd4Float64 func(aT []float64, b []float64, c []float64, blockDim int)
 
-// BlockMulAdd is the generic API that dispatches to the appropriate SIMD implementation.
+// BlockMulAdd computes C += A * B for square blocks.
+//
+// This is designed for cache-tiled matrix multiplication where:
+//   - aT is blockDim × blockDim (PRE-TRANSPOSED A, so rows are original A columns)
+//   - b is blockDim × blockDim (row-major, rows are B rows)
+//   - c is blockDim × blockDim (row-major, accumulated into)
+//
+// The caller passes A^T (transposed A) and B (normal), and the function computes:
+//
+//	C += (A^T)^T * B = A * B
+//
+// This layout is optimal for SIMD:
+//   - A^T[k, i:i+lanes] gives us A[i:i+lanes, k] (contiguous in A^T)
+//   - B[k, j:j+lanes] gives us B[k, j:j+lanes] (contiguous in B)
+//
+// For standard matmul C = A * B where you have A and B:
+//  1. Transpose A to get A^T
+//  2. Call BaseBlockMulAdd(A^T, B, C, blockDim)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAdd[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	switch any(aT).(type) {
 	case []hwy.Float16:
@@ -41,7 +58,12 @@ func BlockMulAdd[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	}
 }
 
-// BlockMulAdd2 is the generic API that dispatches to the appropriate SIMD implementation.
+// BlockMulAdd2 computes C += A * B processing 2 rows of C at a time.
+//
+// Loop unrolling improves performance by reusing B loads and increasing ILP.
+// Same semantics as BaseBlockMulAdd but with 2-way row unrolling.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAdd2[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	switch any(aT).(type) {
 	case []hwy.Float16:
@@ -55,7 +77,20 @@ func BlockMulAdd2[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	}
 }
 
-// BlockMulAddRegBlocked is the generic API that dispatches to the appropriate SIMD implementation.
+// BlockMulAddRegBlocked computes C += A * B using register blocking.
+//
+// This is the highest-performance kernel that holds accumulators in registers
+// across the entire K dimension, minimizing memory traffic.
+//
+// The kernel processes:
+//   - 4 rows of C (Mr=4)
+//   - 2 vector widths of columns (Nr=2*lanes, e.g., 32 cols for AVX-512)
+//   - The full K dimension with accumulators held in registers
+//
+// This matches the register-blocking strategy used by high-performance BLAS
+// implementations like OpenBLAS and MKL.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAddRegBlocked[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	switch any(aT).(type) {
 	case []hwy.Float16:
@@ -69,7 +104,16 @@ func BlockMulAddRegBlocked[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	}
 }
 
-// BlockMulAdd4 is the generic API that dispatches to the appropriate SIMD implementation.
+// BlockMulAdd4 computes C += A * B processing 4 rows of C at a time.
+//
+// 4-way loop unrolling for maximum performance on large blocks.
+// Same semantics as BaseBlockMulAdd but with 4-way row unrolling.
+//
+// With aT layout, A[i,k], A[i+1,k], A[i+2,k], A[i+3,k] are consecutive
+// in memory: aT[k*blockDim+i], aT[k*blockDim+i+1], etc.
+// This provides excellent cache locality compared to the old interface.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	switch any(aT).(type) {
 	case []hwy.Float16:
@@ -84,7 +128,7 @@ func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initBlockkernelFallback()
 		return
 	}

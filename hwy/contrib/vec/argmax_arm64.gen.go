@@ -5,8 +5,6 @@
 package vec
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -19,7 +17,20 @@ var ArgminBFloat16 func(v []hwy.BFloat16) int
 var ArgminFloat32 func(v []float32) int
 var ArgminFloat64 func(v []float64) int
 
-// Argmax is the generic API that dispatches to the appropriate SIMD implementation.
+// Argmax returns the index of the maximum value in a slice.
+// If multiple elements have the maximum value, returns the first occurrence.
+// NaN values are treated as less than all other values.
+// Panics if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float16, bfloat16, float32, and float64 slices.
+//
+// Example:
+//
+//	data := []float32{3, 1, 4, 1, 5}
+//	idx := Argmax(data)  // 4 (index of value 5)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Argmax[T hwy.Floats](v []T) int {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -34,7 +45,20 @@ func Argmax[T hwy.Floats](v []T) int {
 	panic("unreachable")
 }
 
-// Argmin is the generic API that dispatches to the appropriate SIMD implementation.
+// Argmin returns the index of the minimum value in a slice.
+// If multiple elements have the minimum value, returns the first occurrence.
+// NaN values are treated as greater than all other values.
+// Panics if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float16, bfloat16, float32, and float64 slices.
+//
+// Example:
+//
+//	data := []float32{3, 1, 4, 1, 5}
+//	idx := Argmin(data)  // 1 (index of first value 1)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func Argmin[T hwy.Floats](v []T) int {
 	switch any(v).(type) {
 	case []hwy.Float16:
@@ -50,7 +74,7 @@ func Argmin[T hwy.Floats](v []T) int {
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initArgmaxFallback()
 		return
 	}

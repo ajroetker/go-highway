@@ -5,8 +5,6 @@
 package matmul
 
 import (
-	"os"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -15,7 +13,17 @@ var BlockedMatMulBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloa
 var BlockedMatMulFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int)
 var BlockedMatMulFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int)
 
-// BlockedMatMul is the generic API that dispatches to the appropriate SIMD implementation.
+// BlockedMatMul computes C = A * B using cache-tiled blocking with register accumulation.
+//
+//   - A is M x K (row-major)
+//   - B is K x N (row-major)
+//   - C is M x N (row-major)
+//
+// This implementation uses register blocking: accumulators are held in registers
+// across the entire K dimension to minimize memory traffic. Each micro-tile
+// processes 4 rows × 2 vector widths of output.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	switch any(a).(type) {
 	case []hwy.Float16:
@@ -30,7 +38,7 @@ func BlockedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 }
 
 func init() {
-	if os.Getenv("HWY_NO_SIMD") != "" {
+	if hwy.NoSimdEnv() {
 		initBlockedmatmulFallback()
 		return
 	}
