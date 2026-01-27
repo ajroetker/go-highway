@@ -25,7 +25,6 @@ func init() {
 
 	currentLevel = DispatchScalar
 	currentWidth = 16 // Use 16-byte vectors even in scalar mode for consistency
-	currentName = "scalar"
 }
 
 // HasF16C returns false on non-x86 platforms (F16C is an x86-specific feature).
