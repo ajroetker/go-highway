@@ -21,12 +21,18 @@ func BasePack32_neon(src []uint32, bitWidth int, dst []byte) int {
 	bitPos := 0
 	bytePos := 0
 	var i int
-	for i = 0; i+lanes <= len(src); i += lanes {
+	for i = 0; i+lanes*2 <= len(src); i += lanes * 2 {
 		v := asm.LoadUint32x4Slice(src[i:])
 		v = v.And(maskVec)
 		for lane := range lanes {
 			val := v.Get(lane)
 			packValue32(val, bitWidth, &bitPos, &bytePos, dst)
+		}
+		v1 := asm.LoadUint32x4Slice(src[i+4:])
+		v1 = v1.And(maskVec)
+		for lane := range lanes {
+			val1 := v1.Get(lane)
+			packValue32(val1, bitWidth, &bitPos, &bytePos, dst)
 		}
 	}
 	for ; i < len(src); i++ {
@@ -80,12 +86,18 @@ func BasePack64_neon(src []uint64, bitWidth int, dst []byte) int {
 	bitPos := 0
 	bytePos := 0
 	var i int
-	for i = 0; i+lanes <= len(src); i += lanes {
+	for i = 0; i+lanes*2 <= len(src); i += lanes * 2 {
 		v := asm.LoadUint64x2Slice(src[i:])
 		v = v.And(maskVec)
 		for lane := range lanes {
 			val := v.Get(lane)
 			packValue64(val, bitWidth, &bitPos, &bytePos, dst)
+		}
+		v1 := asm.LoadUint64x2Slice(src[i+2:])
+		v1 = v1.And(maskVec)
+		for lane := range lanes {
+			val1 := v1.Get(lane)
+			packValue64(val1, bitWidth, &bitPos, &bytePos, dst)
 		}
 	}
 	for ; i < len(src); i++ {
@@ -138,11 +150,26 @@ func BaseDeltaEncode32_neon(src []uint32, base uint32, dst []uint32) {
 	prev := src[0]
 	var i int
 	i = 1
-	for ; i+lanes <= len(src); i += lanes {
+	for ; i+lanes*4 <= len(src); i += lanes * 4 {
 		curr := asm.LoadUint32x4Slice(src[i:])
 		prevVec := asm.LoadUint32x4Slice(src[i-1:])
 		delta := curr.Sub(prevVec)
 		delta.StoreSlice(dst[i:])
+		prev = src[i+lanes-1]
+		curr1 := asm.LoadUint32x4Slice(src[i+4:])
+		prevVec1 := asm.LoadUint32x4Slice(src[i-1:])
+		delta1 := curr1.Sub(prevVec1)
+		delta1.StoreSlice(dst[i+4:])
+		prev = src[i+lanes-1]
+		curr2 := asm.LoadUint32x4Slice(src[i+8:])
+		prevVec2 := asm.LoadUint32x4Slice(src[i-1:])
+		delta2 := curr2.Sub(prevVec2)
+		delta2.StoreSlice(dst[i+8:])
+		prev = src[i+lanes-1]
+		curr3 := asm.LoadUint32x4Slice(src[i+12:])
+		prevVec3 := asm.LoadUint32x4Slice(src[i-1:])
+		delta3 := curr3.Sub(prevVec3)
+		delta3.StoreSlice(dst[i+12:])
 		prev = src[i+lanes-1]
 	}
 	for ; i < len(src); i++ {
@@ -163,11 +190,26 @@ func BaseDeltaEncode64_neon(src []uint64, base uint64, dst []uint64) {
 	prev := src[0]
 	var i int
 	i = 1
-	for ; i+lanes <= len(src); i += lanes {
+	for ; i+lanes*4 <= len(src); i += lanes * 4 {
 		curr := asm.LoadUint64x2Slice(src[i:])
 		prevVec := asm.LoadUint64x2Slice(src[i-1:])
 		delta := curr.Sub(prevVec)
 		delta.StoreSlice(dst[i:])
+		prev = src[i+lanes-1]
+		curr1 := asm.LoadUint64x2Slice(src[i+2:])
+		prevVec1 := asm.LoadUint64x2Slice(src[i-1:])
+		delta1 := curr1.Sub(prevVec1)
+		delta1.StoreSlice(dst[i+2:])
+		prev = src[i+lanes-1]
+		curr2 := asm.LoadUint64x2Slice(src[i+4:])
+		prevVec2 := asm.LoadUint64x2Slice(src[i-1:])
+		delta2 := curr2.Sub(prevVec2)
+		delta2.StoreSlice(dst[i+4:])
+		prev = src[i+lanes-1]
+		curr3 := asm.LoadUint64x2Slice(src[i+6:])
+		prevVec3 := asm.LoadUint64x2Slice(src[i-1:])
+		delta3 := curr3.Sub(prevVec3)
+		delta3.StoreSlice(dst[i+6:])
 		prev = src[i+lanes-1]
 	}
 	for ; i < len(src); i++ {

@@ -23,11 +23,10 @@ func init() {
 }
 
 func initEncodeNEON() {
-	// Use GoAT-generated assembly (~2.5x faster than hwygen)
-	EncodeFloat32s = GoATEncodeFloat32s_neon
-	DecodeFloat32s = GoATDecodeFloat32s_neon
-	EncodeFloat64s = GoATEncodeFloat64s_neon
-	DecodeFloat64s = GoATDecodeFloat64s_neon
+	EncodeFloat32s = BaseEncodeFloat32s_neon
+	DecodeFloat32s = BaseDecodeFloat32s_neon
+	EncodeFloat64s = BaseEncodeFloat64s_neon
+	DecodeFloat64s = BaseDecodeFloat64s_neon
 }
 
 func initEncodeFallback() {

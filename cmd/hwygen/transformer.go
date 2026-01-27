@@ -364,6 +364,18 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		transformHalfPrecisionFallback(funcDecl.Body, ctx)
 	}
 
+	// Apply loop unrolling if there's a SIMD loop (not for fallback)
+	if pf.LoopInfo != nil && target.Name != "Fallback" {
+		lanes := target.LanesFor(elemType)
+		unrollFactor := computeUnrollFactor(pf.LoopInfo, pf.HwyCalls, target)
+		if unrollFactor > 1 {
+			// Find the main SIMD loop and unroll it
+			if mainLoop := findMainSimdLoop(funcDecl.Body, pf.LoopInfo); mainLoop != nil {
+				unrollLoopWithCleanup(funcDecl.Body, mainLoop, pf.LoopInfo, unrollFactor, lanes)
+			}
+		}
+	}
+
 	// Insert tail handling if there's a loop and function doesn't return a value
 	// (functions that return values have their own tail handling in the template)
 	if pf.LoopInfo != nil && len(pf.Returns) == 0 {
@@ -385,6 +397,431 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		FuncDecl:      funcDecl,
 		HoistedConsts: hoisted,
 	}
+}
+
+// OperationComplexity categorizes operations by their register pressure and latency.
+type OperationComplexity int
+
+const (
+	// ComplexitySimple: basic arithmetic (Add, Sub, Mul, FMA) - low register pressure
+	ComplexitySimple OperationComplexity = iota
+	// ComplexityMedium: comparisons, blends, shuffles - moderate register pressure
+	ComplexityMedium
+	// ComplexityComplex: transcendentals (Exp, Log, Sin, etc.) - high register pressure
+	ComplexityComplex
+	// ComplexityReduction: reductions (Sum, Min, Max) - data dependencies limit ILP
+	ComplexityReduction
+)
+
+// simpleOps are operations with low register pressure that can be heavily unrolled.
+var simpleOps = map[string]bool{
+	"Add": true, "Sub": true, "Mul": true, "Div": true,
+	"FMA": true, "MulAdd": true, "MulSub": true,
+	"Neg": true, "Abs": true, "Min": true, "Max": true,
+	"And": true, "Or": true, "Xor": true, "AndNot": true, "Not": true,
+	"Load": true, "Store": true, "Set": true, "Zero": true,
+	// Meta-operations that don't affect complexity
+	"MaxLanes": true, "NumLanes": true, "Lanes": true,
+	"Vec": true, "Mask": true, // Type references
+}
+
+// complexOps are operations that use many registers (polynomial coefficients, etc.).
+var complexOps = map[string]bool{
+	"Exp": true, "Exp2": true, "Exp10": true,
+	"Log": true, "Log2": true, "Log10": true,
+	"Sin": true, "Cos": true, "SinCos": true,
+	"Tanh": true, "Sinh": true, "Cosh": true,
+	"Asinh": true, "Acosh": true, "Atanh": true,
+	"Sigmoid": true, "Erf": true, "Pow": true,
+	"Sqrt": true, "RSqrt": true,
+}
+
+// reductionOps have data dependencies that limit instruction-level parallelism.
+var reductionOps = map[string]bool{
+	"ReduceSum": true, "ReduceMin": true, "ReduceMax": true,
+}
+
+// analyzeLoopComplexity determines the complexity of operations in a loop body.
+func analyzeLoopComplexity(hwyCalls []HwyCall) OperationComplexity {
+	hasComplex := false
+	hasReduction := false
+	hasMedium := false
+
+	for _, call := range hwyCalls {
+		if complexOps[call.FuncName] {
+			hasComplex = true
+		}
+		if reductionOps[call.FuncName] {
+			hasReduction = true
+		}
+		if !simpleOps[call.FuncName] && !complexOps[call.FuncName] && !reductionOps[call.FuncName] {
+			hasMedium = true
+		}
+	}
+
+	// Return the highest complexity found
+	if hasComplex {
+		return ComplexityComplex
+	}
+	if hasReduction {
+		return ComplexityReduction
+	}
+	if hasMedium {
+		return ComplexityMedium
+	}
+	return ComplexitySimple
+}
+
+// computeUnrollFactor determines the automatic unroll factor based on operation complexity
+// and target architecture. Returns 1 if unrolling should be disabled.
+func computeUnrollFactor(loopInfo *LoopInfo, hwyCalls []HwyCall, target Target) int {
+	if loopInfo == nil {
+		return 1
+	}
+
+	// Honor explicit //hwy:unroll directive
+	if loopInfo.UnrollHint > 0 {
+		return loopInfo.UnrollHint
+	}
+	// //hwy:unroll 0 or //hwy:unroll 1 disables unrolling
+	if loopInfo.UnrollHint == 0 {
+		// No directive - use automatic heuristics
+	} else {
+		return 1 // Explicit disable
+	}
+
+	// Analyze operation complexity
+	complexity := analyzeLoopComplexity(hwyCalls)
+
+	// Base unroll factors by complexity
+	var baseFactor int
+	switch complexity {
+	case ComplexitySimple:
+		baseFactor = 4 // Simple ops can be heavily unrolled
+	case ComplexityMedium:
+		baseFactor = 2 // Moderate unrolling
+	case ComplexityComplex:
+		baseFactor = 2 // Limited by register pressure from polynomial coefficients
+	case ComplexityReduction:
+		baseFactor = 2 // Data dependencies limit ILP anyway
+	default:
+		baseFactor = 2
+	}
+
+	// Adjust for target architecture
+	// AVX-512 has 32 registers vs AVX2's 16, so can be more aggressive
+	switch target.Name {
+	case "AVX512":
+		if baseFactor < 4 && complexity != ComplexityComplex {
+			baseFactor = min(baseFactor+1, 4)
+		}
+	case "NEON":
+		// NEON has 32 V registers but narrower, keep moderate
+		baseFactor = min(baseFactor, 4)
+	case "Fallback":
+		// No unrolling for fallback - it's scalar anyway
+		return 1
+	}
+
+	return baseFactor
+}
+
+// unrollLoopWithCleanup applies loop unrolling and inserts a cleanup loop for remaining elements.
+// After unrolling with factor N, the main loop processes N*lanes elements per iteration.
+// A cleanup loop is inserted to process any remaining full vector chunks (< N*lanes but >= lanes),
+// UNLESS the function already has an explicit tail loop after the main loop.
+func unrollLoopWithCleanup(body *ast.BlockStmt, forStmt *ast.ForStmt, loopInfo *LoopInfo, unrollFactor int, lanes int) {
+	if body == nil || forStmt == nil || loopInfo == nil || unrollFactor <= 1 {
+		return
+	}
+
+	// Check if there's already a tail loop after the main loop (explicit tail handling).
+	// If so, the cleanup loop is unnecessary since the existing tail loop handles all remaining elements.
+	needsCleanupLoop := !hasExplicitTailLoop(body, forStmt, loopInfo.Iterator)
+
+	// Clone the original loop body before unrolling (for the cleanup loop)
+	var origBodyClone []ast.Stmt
+	var origCond ast.Expr
+	var origPost ast.Stmt
+
+	if needsCleanupLoop {
+		origBodyClone = make([]ast.Stmt, len(forStmt.Body.List))
+		for i, stmt := range forStmt.Body.List {
+			origBodyClone[i] = cloneStmt(stmt)
+		}
+		if forStmt.Cond != nil {
+			origCond = cloneExpr(forStmt.Cond)
+		}
+		if forStmt.Post != nil {
+			origPost = cloneStmt(forStmt.Post)
+		}
+	}
+
+	// Check if iterator is declared in the loop's Init (e.g., "for ii := 0; ...")
+	// If so, we need to hoist it to allow cleanup loop (or existing tail loop) access
+	var hoistedDecl ast.Stmt
+	if forStmt.Init != nil {
+		if assign, ok := forStmt.Init.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
+			// Check if this declares the iterator we're tracking
+			for _, lhs := range assign.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok && ident.Name == loopInfo.Iterator {
+					// Hoist the declaration: create "ii := 0" before the loop
+					hoistedDecl = cloneStmt(forStmt.Init)
+					// Remove Init from the main loop (it becomes "for ; cond; post")
+					forStmt.Init = nil
+					break
+				}
+			}
+		}
+	}
+
+	// Apply unrolling to the main loop (this modifies forStmt in place)
+	unrollLoop(forStmt, loopInfo, unrollFactor, lanes)
+
+	// Find the position of the unrolled loop and insert cleanup loop (if needed) after it
+	for i, stmt := range body.List {
+		if stmt == forStmt {
+			// Build new statement list
+			newList := make([]ast.Stmt, 0, len(body.List)+2)
+			newList = append(newList, body.List[:i]...)
+
+			// Insert hoisted declaration if needed
+			if hoistedDecl != nil {
+				newList = append(newList, hoistedDecl)
+			}
+
+			// Insert main (unrolled) loop
+			newList = append(newList, forStmt)
+
+			// Insert cleanup loop only if function doesn't have its own tail handling
+			if needsCleanupLoop {
+				cleanupLoop := &ast.ForStmt{
+					Cond: origCond,
+					Post: origPost,
+					Body: &ast.BlockStmt{
+						List: origBodyClone,
+					},
+				}
+				newList = append(newList, cleanupLoop)
+			}
+
+			// Insert remaining statements
+			newList = append(newList, body.List[i+1:]...)
+			body.List = newList
+			return
+		}
+	}
+}
+
+// hasExplicitTailLoop checks if there's another for loop after the given loop
+// that uses the same iterator, indicating explicit tail handling.
+func hasExplicitTailLoop(body *ast.BlockStmt, mainLoop *ast.ForStmt, iterator string) bool {
+	foundMain := false
+	for _, stmt := range body.List {
+		if stmt == mainLoop {
+			foundMain = true
+			continue
+		}
+		if foundMain {
+			if fl, ok := stmt.(*ast.ForStmt); ok {
+				if matchesLoopIterator(fl, iterator) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// unrollLoop applies loop unrolling to a for loop, creating N copies of the body.
+// It modifies the loop in place:
+// - Multiplies the stride by unrollFactor
+// - Replicates the body with adjusted indices (i, i+lanes, i+2*lanes, ...)
+// - Renames variables to avoid redeclaration (x -> x0, x1, x2, ...)
+func unrollLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo, unrollFactor int, lanes int) {
+	if forStmt == nil || loopInfo == nil || unrollFactor <= 1 {
+		return
+	}
+
+	// Clone the original body statements
+	origBody := forStmt.Body.List
+
+	// Collect variable names declared in the loop body (need renaming for unrolled copies)
+	declaredVars := collectDeclaredVars(origBody)
+
+	// Build the unrolled body
+	var unrolledBody []ast.Stmt
+
+	for u := 0; u < unrollFactor; u++ {
+		for _, stmt := range origBody {
+			// Clone the statement
+			cloned := cloneStmt(stmt)
+
+			// Rename variables for unrolled iterations (x -> x0, x1, x2, ...)
+			if u > 0 {
+				renameVarsInStmt(cloned, declaredVars, u)
+			}
+
+			// Adjust indices for all iterations except the first
+			if u > 0 {
+				adjustLoopIndices(cloned, loopInfo.Iterator, u, lanes)
+			}
+
+			unrolledBody = append(unrolledBody, cloned)
+		}
+	}
+
+	// Update the loop body
+	forStmt.Body.List = unrolledBody
+
+	// Update the stride: i += lanes -> i += lanes * unrollFactor
+	if assignStmt, ok := forStmt.Post.(*ast.AssignStmt); ok {
+		if len(assignStmt.Rhs) == 1 {
+			// Check if it's already a constant (transformed by transformForStmt)
+			if lit, ok := assignStmt.Rhs[0].(*ast.BasicLit); ok && lit.Kind == token.INT {
+				// Multiply the stride
+				oldStride, _ := strconv.Atoi(lit.Value)
+				lit.Value = strconv.Itoa(oldStride * unrollFactor)
+			} else {
+				// Wrap in multiplication: stride * unrollFactor
+				assignStmt.Rhs[0] = &ast.BinaryExpr{
+					X:  assignStmt.Rhs[0],
+					Op: token.MUL,
+					Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(unrollFactor)},
+				}
+			}
+		}
+	}
+
+	// Update the condition to account for unrolled stride
+	// Change: i+lanes <= n -> i+lanes*unrollFactor <= n
+	if binExpr, ok := forStmt.Cond.(*ast.BinaryExpr); ok {
+		if innerBin, ok := binExpr.X.(*ast.BinaryExpr); ok {
+			if innerBin.Op == token.ADD {
+				// Handle both literal and variable lanes
+				switch y := innerBin.Y.(type) {
+				case *ast.BasicLit:
+					if y.Kind == token.INT {
+						oldLanes, _ := strconv.Atoi(y.Value)
+						y.Value = strconv.Itoa(oldLanes * unrollFactor)
+					}
+				case *ast.Ident:
+					// lanes variable - wrap in multiplication: lanes * unrollFactor
+					innerBin.Y = &ast.BinaryExpr{
+						X:  y,
+						Op: token.MUL,
+						Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(unrollFactor)},
+					}
+				}
+			}
+		}
+	}
+}
+
+// collectDeclaredVars finds all variable names declared with := in the statements.
+// It excludes the blank identifier "_" which should never be renamed.
+func collectDeclaredVars(stmts []ast.Stmt) map[string]bool {
+	vars := make(map[string]bool)
+	for _, stmt := range stmts {
+		ast.Inspect(stmt, func(n ast.Node) bool {
+			if assign, ok := n.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
+				for _, lhs := range assign.Lhs {
+					if ident, ok := lhs.(*ast.Ident); ok && ident.Name != "_" {
+						vars[ident.Name] = true
+					}
+				}
+			}
+			return true
+		})
+	}
+	return vars
+}
+
+// renameVarsInStmt renames declared variables and their uses by appending the iteration number.
+// E.g., for iteration 2: x -> x2, result -> result2
+func renameVarsInStmt(stmt ast.Stmt, declaredVars map[string]bool, iteration int) {
+	suffix := strconv.Itoa(iteration)
+
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok {
+			if declaredVars[ident.Name] {
+				ident.Name = ident.Name + suffix
+			}
+		}
+		return true
+	})
+}
+
+// adjustLoopIndices adjusts array/slice indices in a statement by adding offset*lanes.
+// For iteration u (0-indexed), transforms:
+//   - data[i:] -> data[i+u*lanes:]
+//   - Load(data[i:]) -> Load(data[i+u*lanes:])
+func adjustLoopIndices(stmt ast.Stmt, iterator string, iteration int, lanes int) {
+	offset := iteration * lanes
+
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		switch node := n.(type) {
+		case *ast.SliceExpr:
+			// Transform src[i:] or src[i:n] where low uses the iterator
+			if node.Low != nil {
+				node.Low = addOffsetToExpr(node.Low, iterator, offset)
+			}
+		case *ast.IndexExpr:
+			// Transform src[i] where index uses the iterator
+			if node.Index != nil {
+				node.Index = addOffsetToExpr(node.Index, iterator, offset)
+			}
+		}
+		return true
+	})
+}
+
+// addOffsetToExpr adds an offset to an expression if it references the iterator.
+// E.g., if iterator="i" and offset=8: i -> i+8, i+lanes -> i+lanes+8
+func addOffsetToExpr(expr ast.Expr, iterator string, offset int) ast.Expr {
+	// Check if expr directly references the iterator
+	if ident, ok := expr.(*ast.Ident); ok && ident.Name == iterator {
+		return &ast.BinaryExpr{
+			X:  expr,
+			Op: token.ADD,
+			Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(offset)},
+		}
+	}
+
+	// Check if expr is i+something
+	if binExpr, ok := expr.(*ast.BinaryExpr); ok && binExpr.Op == token.ADD {
+		if ident, ok := binExpr.X.(*ast.Ident); ok && ident.Name == iterator {
+			// Transform i+N to i+N+offset
+			return &ast.BinaryExpr{
+				X:  binExpr,
+				Op: token.ADD,
+				Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(offset)},
+			}
+		}
+	}
+
+	return expr
+}
+
+// findMainSimdLoop finds the main SIMD loop in a function body that matches the given LoopInfo.
+func findMainSimdLoop(body *ast.BlockStmt, loopInfo *LoopInfo) *ast.ForStmt {
+	if body == nil || loopInfo == nil {
+		return nil
+	}
+
+	for _, stmt := range body.List {
+		forStmt, ok := stmt.(*ast.ForStmt)
+		if !ok {
+			continue
+		}
+
+		// Check if this loop's iterator matches loopInfo.Iterator
+		if matchesLoopIterator(forStmt, loopInfo.Iterator) {
+			return forStmt
+		}
+	}
+
+	return nil
 }
 
 type transformContext struct {
@@ -3272,7 +3709,7 @@ func isLikelyConstant(name string) bool {
 }
 
 // matchesLoopIterator checks if a for loop uses the given iterator name.
-// It checks both the init statement (for ii := 0) and the condition (ii < size).
+// It checks the init statement, condition, and post statement.
 func matchesLoopIterator(forStmt *ast.ForStmt, iteratorName string) bool {
 	// Check init statement: for ii := 0
 	if forStmt.Init != nil {
@@ -3285,7 +3722,7 @@ func matchesLoopIterator(forStmt *ast.ForStmt, iteratorName string) bool {
 		}
 	}
 
-	// Check condition: ii < size or ii+N <= size
+	// Check condition: ii < size, ii+N <= size, or (ii+N)+M <= size
 	if forStmt.Cond != nil {
 		if binExpr, ok := forStmt.Cond.(*ast.BinaryExpr); ok {
 			// Check LHS directly (ii < size)
@@ -3297,6 +3734,28 @@ func matchesLoopIterator(forStmt *ast.ForStmt, iteratorName string) bool {
 				if ident, ok := innerBin.X.(*ast.Ident); ok && ident.Name == iteratorName {
 					return true
 				}
+				// Check deeper nesting: (ii+N)+M <= size (after transformForStmt wraps condition)
+				if deeperBin, ok := innerBin.X.(*ast.BinaryExpr); ok {
+					if ident, ok := deeperBin.X.(*ast.Ident); ok && ident.Name == iteratorName {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	// Check post statement: ii += lanes or ii++
+	if forStmt.Post != nil {
+		if assignStmt, ok := forStmt.Post.(*ast.AssignStmt); ok {
+			for _, lhs := range assignStmt.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok && ident.Name == iteratorName {
+					return true
+				}
+			}
+		}
+		if incDecStmt, ok := forStmt.Post.(*ast.IncDecStmt); ok {
+			if ident, ok := incDecStmt.X.(*ast.Ident); ok && ident.Name == iteratorName {
+				return true
 			}
 		}
 	}

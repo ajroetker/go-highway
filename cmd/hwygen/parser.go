@@ -68,10 +68,11 @@ type HwyCall struct {
 
 // LoopInfo represents information about the main vectorized loop.
 type LoopInfo struct {
-	Iterator string // "ii", "i", etc.
-	Start    string // "0"
-	End      string // "size", "len(data)"
-	Stride   string // "vOne.NumElements()", "lanes", etc.
+	Iterator   string // "ii", "i", etc.
+	Start      string // "0"
+	End        string // "size", "len(data)"
+	Stride     string // "vOne.NumElements()", "lanes", etc.
+	UnrollHint int    // Explicit unroll factor from //hwy:unroll directive (0 = auto)
 }
 
 // TypeSpecificConst represents a constant with type-specific variants.
@@ -175,6 +176,9 @@ func Parse(filename string) (*ParseResult, error) {
 	// Parse conditional directives from comments
 	result.ConditionalBlocks = parseConditionalDirectives(file, fset)
 
+	// Parse unroll directives from comments
+	unrollDirectives := parseUnrollDirectives(file, fset)
+
 	for _, decl := range file.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
 		if !ok {
@@ -237,8 +241,8 @@ func Parse(filename string) (*ParseResult, error) {
 		// Find hwy.* and contrib.* calls
 		pf.HwyCalls = findHwyCalls(funcDecl.Body)
 
-		// Detect main vectorized loop
-		pf.LoopInfo = detectLoop(funcDecl.Body)
+		// Detect main vectorized loop (with unroll directive support)
+		pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
 
 		// Include functions that use hwy operations OR have hwy.Lanes type parameters
 		// (generic functions with hwy.Lanes need type specialization even without hwy ops)
@@ -355,10 +359,45 @@ func findHwyCalls(node ast.Node) []HwyCall {
 	return calls
 }
 
+// UnrollDirective represents a parsed //hwy:unroll directive.
+type UnrollDirective struct {
+	Line   int // Line number of the directive
+	Factor int // Unroll factor (1 = no unroll, 0 = disable)
+}
+
+// parseUnrollDirectives parses //hwy:unroll N comments from the file.
+func parseUnrollDirectives(file *ast.File, fset *token.FileSet) []UnrollDirective {
+	var directives []UnrollDirective
+
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+			line := fset.Position(c.Pos()).Line
+
+			if after, ok := strings.CutPrefix(text, "hwy:unroll "); ok {
+				factor := 0
+				if _, err := fmt.Sscanf(after, "%d", &factor); err == nil {
+					directives = append(directives, UnrollDirective{
+						Line:   line,
+						Factor: factor,
+					})
+				}
+			}
+		}
+	}
+
+	return directives
+}
+
 // detectLoop attempts to find the main vectorized loop pattern.
 // Looks for: for ii := 0; ii < size; ii += stride
 // Skips auxiliary loops that only contain Store operations (like zeroing loops).
 func detectLoop(body *ast.BlockStmt) *LoopInfo {
+	return detectLoopWithUnroll(body, nil, nil)
+}
+
+// detectLoopWithUnroll is like detectLoop but also checks for //hwy:unroll directives.
+func detectLoopWithUnroll(body *ast.BlockStmt, fset *token.FileSet, unrollDirectives []UnrollDirective) *LoopInfo {
 	if body == nil {
 		return nil
 	}
@@ -379,6 +418,18 @@ func detectLoop(body *ast.BlockStmt) *LoopInfo {
 						info.Iterator = ident.Name
 					}
 					info.Start = exprToString(assignStmt.Rhs[0])
+				}
+			}
+		}
+
+		// If no init (iterator declared before loop), try to get iterator from Post
+		// Pattern: for ; i+lanes <= n; i += lanes
+		if info.Iterator == "" && forStmt.Post != nil {
+			if assignStmt, ok := forStmt.Post.(*ast.AssignStmt); ok {
+				if len(assignStmt.Lhs) == 1 {
+					if ident, ok := assignStmt.Lhs[0].(*ast.Ident); ok {
+						info.Iterator = ident.Name
+					}
 				}
 			}
 		}
@@ -418,6 +469,17 @@ func detectLoop(body *ast.BlockStmt) *LoopInfo {
 		}
 
 		if info.Iterator != "" && info.End != "" && isSimdLoop {
+			// Check for //hwy:unroll directive on the line before the loop
+			if fset != nil {
+				loopLine := fset.Position(forStmt.Pos()).Line
+				for _, ud := range unrollDirectives {
+					// Directive should be on the line immediately before the loop
+					if ud.Line == loopLine-1 || ud.Line == loopLine-2 {
+						info.UnrollHint = ud.Factor
+						break
+					}
+				}
+			}
 			return info
 		}
 	}

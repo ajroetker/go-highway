@@ -13,6 +13,16 @@ func BaseApply_avx2_Float16(in []hwy.Float16, out []hwy.Float16, fn func(hwy.Vec
 	n := min(len(in), len(out))
 	lanes := 16
 	i := 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
+		x1 := hwy.Load(in[i+16:])
+		hwy.Store(fn(x1), out[i+16:])
+		x2 := hwy.Load(in[i+32:])
+		hwy.Store(fn(x2), out[i+32:])
+		x3 := hwy.Load(in[i+48:])
+		hwy.Store(fn(x3), out[i+48:])
+	}
 	for ; i+lanes <= n; i += lanes {
 		x := hwy.Load(in[i:])
 		hwy.Store(fn(x), out[i:])
@@ -30,6 +40,16 @@ func BaseApply_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(hwy.
 	n := min(len(in), len(out))
 	lanes := 16
 	i := 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		x := hwy.Load(in[i:])
+		hwy.Store(fn(x), out[i:])
+		x1 := hwy.Load(in[i+16:])
+		hwy.Store(fn(x1), out[i+16:])
+		x2 := hwy.Load(in[i+32:])
+		hwy.Store(fn(x2), out[i+32:])
+		x3 := hwy.Load(in[i+48:])
+		hwy.Store(fn(x3), out[i+48:])
+	}
 	for ; i+lanes <= n; i += lanes {
 		x := hwy.Load(in[i:])
 		hwy.Store(fn(x), out[i:])
@@ -47,6 +67,16 @@ func BaseApply_avx2(in []float32, out []float32, fn func(archsimd.Float32x8) arc
 	n := min(len(in), len(out))
 	lanes := 8
 	i := 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		x := archsimd.LoadFloat32x8Slice(in[i:])
+		fn(x).StoreSlice(out[i:])
+		x1 := archsimd.LoadFloat32x8Slice(in[i+8:])
+		fn(x1).StoreSlice(out[i+8:])
+		x2 := archsimd.LoadFloat32x8Slice(in[i+16:])
+		fn(x2).StoreSlice(out[i+16:])
+		x3 := archsimd.LoadFloat32x8Slice(in[i+24:])
+		fn(x3).StoreSlice(out[i+24:])
+	}
 	for ; i+lanes <= n; i += lanes {
 		x := archsimd.LoadFloat32x8Slice(in[i:])
 		fn(x).StoreSlice(out[i:])
@@ -64,6 +94,16 @@ func BaseApply_avx2_Float64(in []float64, out []float64, fn func(archsimd.Float6
 	n := min(len(in), len(out))
 	lanes := 4
 	i := 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		x := archsimd.LoadFloat64x4Slice(in[i:])
+		fn(x).StoreSlice(out[i:])
+		x1 := archsimd.LoadFloat64x4Slice(in[i+4:])
+		fn(x1).StoreSlice(out[i+4:])
+		x2 := archsimd.LoadFloat64x4Slice(in[i+8:])
+		fn(x2).StoreSlice(out[i+8:])
+		x3 := archsimd.LoadFloat64x4Slice(in[i+12:])
+		fn(x3).StoreSlice(out[i+12:])
+	}
 	for ; i+lanes <= n; i += lanes {
 		x := archsimd.LoadFloat64x4Slice(in[i:])
 		fn(x).StoreSlice(out[i:])

@@ -22,12 +22,18 @@ func BasePack32_avx2(src []uint32, bitWidth int, dst []byte) int {
 	bitPos := 0
 	bytePos := 0
 	var i int
-	for i = 0; i+lanes <= len(src); i += lanes {
+	for i = 0; i+lanes*2 <= len(src); i += lanes * 2 {
 		v := archsimd.LoadUint32x8Slice(src[i:])
 		v = v.And(maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane_AVX2_Uint32x8(v, lane)
 			packValue32(val, bitWidth, &bitPos, &bytePos, dst)
+		}
+		v1 := archsimd.LoadUint32x8Slice(src[i+8:])
+		v1 = v1.And(maskVec)
+		for lane := range lanes {
+			val1 := hwy.GetLane_AVX2_Uint32x8(v1, lane)
+			packValue32(val1, bitWidth, &bitPos, &bytePos, dst)
 		}
 	}
 	for ; i < len(src); i++ {
@@ -81,12 +87,18 @@ func BasePack64_avx2(src []uint64, bitWidth int, dst []byte) int {
 	bitPos := 0
 	bytePos := 0
 	var i int
-	for i = 0; i+lanes <= len(src); i += lanes {
+	for i = 0; i+lanes*2 <= len(src); i += lanes * 2 {
 		v := archsimd.LoadUint64x4Slice(src[i:])
 		v = v.And(maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane_AVX2_Uint64x4(v, lane)
 			packValue64(val, bitWidth, &bitPos, &bytePos, dst)
+		}
+		v1 := archsimd.LoadUint64x4Slice(src[i+4:])
+		v1 = v1.And(maskVec)
+		for lane := range lanes {
+			val1 := hwy.GetLane_AVX2_Uint64x4(v1, lane)
+			packValue64(val1, bitWidth, &bitPos, &bytePos, dst)
 		}
 	}
 	for ; i < len(src); i++ {
@@ -139,11 +151,26 @@ func BaseDeltaEncode32_avx2(src []uint32, base uint32, dst []uint32) {
 	prev := src[0]
 	var i int
 	i = 1
-	for ; i+lanes <= len(src); i += lanes {
+	for ; i+lanes*4 <= len(src); i += lanes * 4 {
 		curr := archsimd.LoadUint32x8Slice(src[i:])
 		prevVec := archsimd.LoadUint32x8Slice(src[i-1:])
 		delta := curr.Sub(prevVec)
 		delta.StoreSlice(dst[i:])
+		prev = src[i+lanes-1]
+		curr1 := archsimd.LoadUint32x8Slice(src[i+8:])
+		prevVec1 := archsimd.LoadUint32x8Slice(src[i-1:])
+		delta1 := curr1.Sub(prevVec1)
+		delta1.StoreSlice(dst[i+8:])
+		prev = src[i+lanes-1]
+		curr2 := archsimd.LoadUint32x8Slice(src[i+16:])
+		prevVec2 := archsimd.LoadUint32x8Slice(src[i-1:])
+		delta2 := curr2.Sub(prevVec2)
+		delta2.StoreSlice(dst[i+16:])
+		prev = src[i+lanes-1]
+		curr3 := archsimd.LoadUint32x8Slice(src[i+24:])
+		prevVec3 := archsimd.LoadUint32x8Slice(src[i-1:])
+		delta3 := curr3.Sub(prevVec3)
+		delta3.StoreSlice(dst[i+24:])
 		prev = src[i+lanes-1]
 	}
 	for ; i < len(src); i++ {
@@ -164,11 +191,26 @@ func BaseDeltaEncode64_avx2(src []uint64, base uint64, dst []uint64) {
 	prev := src[0]
 	var i int
 	i = 1
-	for ; i+lanes <= len(src); i += lanes {
+	for ; i+lanes*4 <= len(src); i += lanes * 4 {
 		curr := archsimd.LoadUint64x4Slice(src[i:])
 		prevVec := archsimd.LoadUint64x4Slice(src[i-1:])
 		delta := curr.Sub(prevVec)
 		delta.StoreSlice(dst[i:])
+		prev = src[i+lanes-1]
+		curr1 := archsimd.LoadUint64x4Slice(src[i+4:])
+		prevVec1 := archsimd.LoadUint64x4Slice(src[i-1:])
+		delta1 := curr1.Sub(prevVec1)
+		delta1.StoreSlice(dst[i+4:])
+		prev = src[i+lanes-1]
+		curr2 := archsimd.LoadUint64x4Slice(src[i+8:])
+		prevVec2 := archsimd.LoadUint64x4Slice(src[i-1:])
+		delta2 := curr2.Sub(prevVec2)
+		delta2.StoreSlice(dst[i+8:])
+		prev = src[i+lanes-1]
+		curr3 := archsimd.LoadUint64x4Slice(src[i+12:])
+		prevVec3 := archsimd.LoadUint64x4Slice(src[i-1:])
+		delta3 := curr3.Sub(prevVec3)
+		delta3.StoreSlice(dst[i+12:])
 		prev = src[i+lanes-1]
 	}
 	for ; i < len(src); i++ {

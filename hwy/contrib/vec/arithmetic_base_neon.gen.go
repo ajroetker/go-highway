@@ -17,11 +17,23 @@ func BaseAdd_neon_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.AddF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.AddF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.AddF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.AddF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseAdd_fallback_Float16(dst[i:n], s[i:n])
@@ -36,11 +48,23 @@ func BaseAdd_neon_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.AddBF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.AddBF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.AddBF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.AddBF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseAdd_fallback_BFloat16(dst[i:n], s[i:n])
@@ -55,11 +79,23 @@ func BaseAdd_neon(dst []float32, s []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		vs := asm.LoadFloat32x4Slice(s[i:])
 		result := vd.Add(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		vs1 := asm.LoadFloat32x4Slice(s[i+4:])
+		result1 := vd1.Add(vs1)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		vs2 := asm.LoadFloat32x4Slice(s[i+8:])
+		result2 := vd2.Add(vs2)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		vs3 := asm.LoadFloat32x4Slice(s[i+12:])
+		result3 := vd3.Add(vs3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseAdd_fallback(dst[i:n], s[i:n])
@@ -74,11 +110,23 @@ func BaseAdd_neon_Float64(dst []float64, s []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		vs := asm.LoadFloat64x2Slice(s[i:])
 		result := vd.Add(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		vs1 := asm.LoadFloat64x2Slice(s[i+2:])
+		result1 := vd1.Add(vs1)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		vs2 := asm.LoadFloat64x2Slice(s[i+4:])
+		result2 := vd2.Add(vs2)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		vs3 := asm.LoadFloat64x2Slice(s[i+6:])
+		result3 := vd3.Add(vs3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseAdd_fallback_Float64(dst[i:n], s[i:n])
@@ -93,11 +141,23 @@ func BaseAddTo_neon_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.AddF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.AddF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.AddF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.AddF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseAddTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -112,11 +172,23 @@ func BaseAddTo_neon_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.AddBF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.AddBF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.AddBF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.AddBF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseAddTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -131,11 +203,23 @@ func BaseAddTo_neon(dst []float32, a []float32, b []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat32x4Slice(a[i:])
 		vb := asm.LoadFloat32x4Slice(b[i:])
 		result := va.Add(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat32x4Slice(a[i+4:])
+		vb1 := asm.LoadFloat32x4Slice(b[i+4:])
+		result1 := va1.Add(vb1)
+		result1.StoreSlice(dst[i+4:])
+		va2 := asm.LoadFloat32x4Slice(a[i+8:])
+		vb2 := asm.LoadFloat32x4Slice(b[i+8:])
+		result2 := va2.Add(vb2)
+		result2.StoreSlice(dst[i+8:])
+		va3 := asm.LoadFloat32x4Slice(a[i+12:])
+		vb3 := asm.LoadFloat32x4Slice(b[i+12:])
+		result3 := va3.Add(vb3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseAddTo_fallback(dst[i:n], a[i:n], b[i:n])
@@ -150,11 +234,23 @@ func BaseAddTo_neon_Float64(dst []float64, a []float64, b []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat64x2Slice(a[i:])
 		vb := asm.LoadFloat64x2Slice(b[i:])
 		result := va.Add(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat64x2Slice(a[i+2:])
+		vb1 := asm.LoadFloat64x2Slice(b[i+2:])
+		result1 := va1.Add(vb1)
+		result1.StoreSlice(dst[i+2:])
+		va2 := asm.LoadFloat64x2Slice(a[i+4:])
+		vb2 := asm.LoadFloat64x2Slice(b[i+4:])
+		result2 := va2.Add(vb2)
+		result2.StoreSlice(dst[i+4:])
+		va3 := asm.LoadFloat64x2Slice(a[i+6:])
+		vb3 := asm.LoadFloat64x2Slice(b[i+6:])
+		result3 := va3.Add(vb3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseAddTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
@@ -169,11 +265,23 @@ func BaseSub_neon_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.SubF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.SubF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.SubF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.SubF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseSub_fallback_Float16(dst[i:n], s[i:n])
@@ -188,11 +296,23 @@ func BaseSub_neon_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.SubBF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.SubBF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.SubBF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.SubBF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseSub_fallback_BFloat16(dst[i:n], s[i:n])
@@ -207,11 +327,23 @@ func BaseSub_neon(dst []float32, s []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		vs := asm.LoadFloat32x4Slice(s[i:])
 		result := vd.Sub(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		vs1 := asm.LoadFloat32x4Slice(s[i+4:])
+		result1 := vd1.Sub(vs1)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		vs2 := asm.LoadFloat32x4Slice(s[i+8:])
+		result2 := vd2.Sub(vs2)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		vs3 := asm.LoadFloat32x4Slice(s[i+12:])
+		result3 := vd3.Sub(vs3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseSub_fallback(dst[i:n], s[i:n])
@@ -226,11 +358,23 @@ func BaseSub_neon_Float64(dst []float64, s []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		vs := asm.LoadFloat64x2Slice(s[i:])
 		result := vd.Sub(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		vs1 := asm.LoadFloat64x2Slice(s[i+2:])
+		result1 := vd1.Sub(vs1)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		vs2 := asm.LoadFloat64x2Slice(s[i+4:])
+		result2 := vd2.Sub(vs2)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		vs3 := asm.LoadFloat64x2Slice(s[i+6:])
+		result3 := vd3.Sub(vs3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseSub_fallback_Float64(dst[i:n], s[i:n])
@@ -245,11 +389,23 @@ func BaseSubTo_neon_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.SubF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.SubF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.SubF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.SubF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseSubTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -264,11 +420,23 @@ func BaseSubTo_neon_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.SubBF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.SubBF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.SubBF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.SubBF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseSubTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -283,11 +451,23 @@ func BaseSubTo_neon(dst []float32, a []float32, b []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat32x4Slice(a[i:])
 		vb := asm.LoadFloat32x4Slice(b[i:])
 		result := va.Sub(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat32x4Slice(a[i+4:])
+		vb1 := asm.LoadFloat32x4Slice(b[i+4:])
+		result1 := va1.Sub(vb1)
+		result1.StoreSlice(dst[i+4:])
+		va2 := asm.LoadFloat32x4Slice(a[i+8:])
+		vb2 := asm.LoadFloat32x4Slice(b[i+8:])
+		result2 := va2.Sub(vb2)
+		result2.StoreSlice(dst[i+8:])
+		va3 := asm.LoadFloat32x4Slice(a[i+12:])
+		vb3 := asm.LoadFloat32x4Slice(b[i+12:])
+		result3 := va3.Sub(vb3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseSubTo_fallback(dst[i:n], a[i:n], b[i:n])
@@ -302,11 +482,23 @@ func BaseSubTo_neon_Float64(dst []float64, a []float64, b []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat64x2Slice(a[i:])
 		vb := asm.LoadFloat64x2Slice(b[i:])
 		result := va.Sub(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat64x2Slice(a[i+2:])
+		vb1 := asm.LoadFloat64x2Slice(b[i+2:])
+		result1 := va1.Sub(vb1)
+		result1.StoreSlice(dst[i+2:])
+		va2 := asm.LoadFloat64x2Slice(a[i+4:])
+		vb2 := asm.LoadFloat64x2Slice(b[i+4:])
+		result2 := va2.Sub(vb2)
+		result2.StoreSlice(dst[i+4:])
+		va3 := asm.LoadFloat64x2Slice(a[i+6:])
+		vb3 := asm.LoadFloat64x2Slice(b[i+6:])
+		result3 := va3.Sub(vb3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseSubTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
@@ -321,11 +513,23 @@ func BaseMul_neon_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.MulF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.MulF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.MulF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.MulF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseMul_fallback_Float16(dst[i:n], s[i:n])
@@ -340,11 +544,23 @@ func BaseMul_neon_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.MulBF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.MulBF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.MulBF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.MulBF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseMul_fallback_BFloat16(dst[i:n], s[i:n])
@@ -359,11 +575,23 @@ func BaseMul_neon(dst []float32, s []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		vs := asm.LoadFloat32x4Slice(s[i:])
 		result := vd.Mul(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		vs1 := asm.LoadFloat32x4Slice(s[i+4:])
+		result1 := vd1.Mul(vs1)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		vs2 := asm.LoadFloat32x4Slice(s[i+8:])
+		result2 := vd2.Mul(vs2)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		vs3 := asm.LoadFloat32x4Slice(s[i+12:])
+		result3 := vd3.Mul(vs3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseMul_fallback(dst[i:n], s[i:n])
@@ -378,11 +606,23 @@ func BaseMul_neon_Float64(dst []float64, s []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		vs := asm.LoadFloat64x2Slice(s[i:])
 		result := vd.Mul(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		vs1 := asm.LoadFloat64x2Slice(s[i+2:])
+		result1 := vd1.Mul(vs1)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		vs2 := asm.LoadFloat64x2Slice(s[i+4:])
+		result2 := vd2.Mul(vs2)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		vs3 := asm.LoadFloat64x2Slice(s[i+6:])
+		result3 := vd3.Mul(vs3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseMul_fallback_Float64(dst[i:n], s[i:n])
@@ -397,11 +637,23 @@ func BaseMulTo_neon_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.MulF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.MulF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.MulF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.MulF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseMulTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -416,11 +668,23 @@ func BaseMulTo_neon_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.MulBF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.MulBF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.MulBF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.MulBF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseMulTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -435,11 +699,23 @@ func BaseMulTo_neon(dst []float32, a []float32, b []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat32x4Slice(a[i:])
 		vb := asm.LoadFloat32x4Slice(b[i:])
 		result := va.Mul(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat32x4Slice(a[i+4:])
+		vb1 := asm.LoadFloat32x4Slice(b[i+4:])
+		result1 := va1.Mul(vb1)
+		result1.StoreSlice(dst[i+4:])
+		va2 := asm.LoadFloat32x4Slice(a[i+8:])
+		vb2 := asm.LoadFloat32x4Slice(b[i+8:])
+		result2 := va2.Mul(vb2)
+		result2.StoreSlice(dst[i+8:])
+		va3 := asm.LoadFloat32x4Slice(a[i+12:])
+		vb3 := asm.LoadFloat32x4Slice(b[i+12:])
+		result3 := va3.Mul(vb3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseMulTo_fallback(dst[i:n], a[i:n], b[i:n])
@@ -454,11 +730,23 @@ func BaseMulTo_neon_Float64(dst []float64, a []float64, b []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat64x2Slice(a[i:])
 		vb := asm.LoadFloat64x2Slice(b[i:])
 		result := va.Mul(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat64x2Slice(a[i+2:])
+		vb1 := asm.LoadFloat64x2Slice(b[i+2:])
+		result1 := va1.Mul(vb1)
+		result1.StoreSlice(dst[i+2:])
+		va2 := asm.LoadFloat64x2Slice(a[i+4:])
+		vb2 := asm.LoadFloat64x2Slice(b[i+4:])
+		result2 := va2.Mul(vb2)
+		result2.StoreSlice(dst[i+4:])
+		va3 := asm.LoadFloat64x2Slice(a[i+6:])
+		vb3 := asm.LoadFloat64x2Slice(b[i+6:])
+		result3 := va3.Mul(vb3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseMulTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
@@ -473,11 +761,23 @@ func BaseDiv_neon_Float16(dst []hwy.Float16, s []hwy.Float16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.DivF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.DivF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.DivF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.DivF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseDiv_fallback_Float16(dst[i:n], s[i:n])
@@ -492,11 +792,23 @@ func BaseDiv_neon_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
 		result := hwy.DivBF16(vd, vs)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.DivBF16(vd1, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.DivBF16(vd2, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.DivBF16(vd3, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseDiv_fallback_BFloat16(dst[i:n], s[i:n])
@@ -511,11 +823,23 @@ func BaseDiv_neon(dst []float32, s []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		vs := asm.LoadFloat32x4Slice(s[i:])
 		result := vd.Div(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		vs1 := asm.LoadFloat32x4Slice(s[i+4:])
+		result1 := vd1.Div(vs1)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		vs2 := asm.LoadFloat32x4Slice(s[i+8:])
+		result2 := vd2.Div(vs2)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		vs3 := asm.LoadFloat32x4Slice(s[i+12:])
+		result3 := vd3.Div(vs3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseDiv_fallback(dst[i:n], s[i:n])
@@ -530,11 +854,23 @@ func BaseDiv_neon_Float64(dst []float64, s []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		vs := asm.LoadFloat64x2Slice(s[i:])
 		result := vd.Div(vs)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		vs1 := asm.LoadFloat64x2Slice(s[i+2:])
+		result1 := vd1.Div(vs1)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		vs2 := asm.LoadFloat64x2Slice(s[i+4:])
+		result2 := vd2.Div(vs2)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		vs3 := asm.LoadFloat64x2Slice(s[i+6:])
+		result3 := vd3.Div(vs3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseDiv_fallback_Float64(dst[i:n], s[i:n])
@@ -549,11 +885,23 @@ func BaseDivTo_neon_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.DivF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.DivF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.DivF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.DivF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseDivTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -568,11 +916,23 @@ func BaseDivTo_neon_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
 		result := hwy.DivBF16(va, vb)
 		hwy.Store(result, dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := hwy.DivBF16(va1, vb1)
+		hwy.Store(result1, dst[i+8:])
+		va2 := hwy.Load(a[i+16:])
+		vb2 := hwy.Load(b[i+16:])
+		result2 := hwy.DivBF16(va2, vb2)
+		hwy.Store(result2, dst[i+16:])
+		va3 := hwy.Load(a[i+24:])
+		vb3 := hwy.Load(b[i+24:])
+		result3 := hwy.DivBF16(va3, vb3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseDivTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -587,11 +947,23 @@ func BaseDivTo_neon(dst []float32, a []float32, b []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat32x4Slice(a[i:])
 		vb := asm.LoadFloat32x4Slice(b[i:])
 		result := va.Div(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat32x4Slice(a[i+4:])
+		vb1 := asm.LoadFloat32x4Slice(b[i+4:])
+		result1 := va1.Div(vb1)
+		result1.StoreSlice(dst[i+4:])
+		va2 := asm.LoadFloat32x4Slice(a[i+8:])
+		vb2 := asm.LoadFloat32x4Slice(b[i+8:])
+		result2 := va2.Div(vb2)
+		result2.StoreSlice(dst[i+8:])
+		va3 := asm.LoadFloat32x4Slice(a[i+12:])
+		vb3 := asm.LoadFloat32x4Slice(b[i+12:])
+		result3 := va3.Div(vb3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	if i < n {
 		BaseDivTo_fallback(dst[i:n], a[i:n], b[i:n])
@@ -606,11 +978,23 @@ func BaseDivTo_neon_Float64(dst []float64, a []float64, b []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		va := asm.LoadFloat64x2Slice(a[i:])
 		vb := asm.LoadFloat64x2Slice(b[i:])
 		result := va.Div(vb)
 		result.StoreSlice(dst[i:])
+		va1 := asm.LoadFloat64x2Slice(a[i+2:])
+		vb1 := asm.LoadFloat64x2Slice(b[i+2:])
+		result1 := va1.Div(vb1)
+		result1.StoreSlice(dst[i+2:])
+		va2 := asm.LoadFloat64x2Slice(a[i+4:])
+		vb2 := asm.LoadFloat64x2Slice(b[i+4:])
+		result2 := va2.Div(vb2)
+		result2.StoreSlice(dst[i+4:])
+		va3 := asm.LoadFloat64x2Slice(a[i+6:])
+		vb3 := asm.LoadFloat64x2Slice(b[i+6:])
+		result3 := va3.Div(vb3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	if i < n {
 		BaseDivTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
@@ -626,10 +1010,19 @@ func BaseScale_neon_Float16(c hwy.Float16, dst []hwy.Float16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		result := hwy.MulF16(vd, vc)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := hwy.MulF16(vd1, vc)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		result2 := hwy.MulF16(vd2, vc)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		result3 := hwy.MulF16(vd3, vc)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseScale_fallback_Float16(c, dst[i:n])
@@ -645,10 +1038,19 @@ func BaseScale_neon_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		result := hwy.MulBF16(vd, vc)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := hwy.MulBF16(vd1, vc)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		result2 := hwy.MulBF16(vd2, vc)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		result3 := hwy.MulBF16(vd3, vc)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseScale_fallback_BFloat16(c, dst[i:n])
@@ -664,10 +1066,19 @@ func BaseScale_neon(c float32, dst []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		result := vd.Mul(vc)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		result1 := vd1.Mul(vc)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		result2 := vd2.Mul(vc)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		result3 := vd3.Mul(vc)
+		result3.StoreSlice(dst[i+12:])
 	}
 	for ; i < n; i++ {
 		dst[i] *= c
@@ -683,10 +1094,19 @@ func BaseScale_neon_Float64(c float64, dst []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		result := vd.Mul(vc)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		result1 := vd1.Mul(vc)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		result2 := vd2.Mul(vc)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		result3 := vd3.Mul(vc)
+		result3.StoreSlice(dst[i+6:])
 	}
 	for ; i < n; i++ {
 		dst[i] *= c
@@ -702,10 +1122,19 @@ func BaseScaleTo_neon_Float16(dst []hwy.Float16, c hwy.Float16, s []hwy.Float16)
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vs := hwy.Load(s[i:])
 		result := hwy.MulF16(vc, vs)
 		hwy.Store(result, dst[i:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.MulF16(vc, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.MulF16(vc, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.MulF16(vc, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseScaleTo_fallback_Float16(dst[i:n], c, s[i:n])
@@ -721,10 +1150,19 @@ func BaseScaleTo_neon_BFloat16(dst []hwy.BFloat16, c hwy.BFloat16, s []hwy.BFloa
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vs := hwy.Load(s[i:])
 		result := hwy.MulBF16(vc, vs)
 		hwy.Store(result, dst[i:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := hwy.MulBF16(vc, vs1)
+		hwy.Store(result1, dst[i+8:])
+		vs2 := hwy.Load(s[i+16:])
+		result2 := hwy.MulBF16(vc, vs2)
+		hwy.Store(result2, dst[i+16:])
+		vs3 := hwy.Load(s[i+24:])
+		result3 := hwy.MulBF16(vc, vs3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseScaleTo_fallback_BFloat16(dst[i:n], c, s[i:n])
@@ -740,10 +1178,19 @@ func BaseScaleTo_neon(dst []float32, c float32, s []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vs := asm.LoadFloat32x4Slice(s[i:])
 		result := vc.Mul(vs)
 		result.StoreSlice(dst[i:])
+		vs1 := asm.LoadFloat32x4Slice(s[i+4:])
+		result1 := vc.Mul(vs1)
+		result1.StoreSlice(dst[i+4:])
+		vs2 := asm.LoadFloat32x4Slice(s[i+8:])
+		result2 := vc.Mul(vs2)
+		result2.StoreSlice(dst[i+8:])
+		vs3 := asm.LoadFloat32x4Slice(s[i+12:])
+		result3 := vc.Mul(vs3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	for ; i < n; i++ {
 		dst[i] = c * s[i]
@@ -759,10 +1206,19 @@ func BaseScaleTo_neon_Float64(dst []float64, c float64, s []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vs := asm.LoadFloat64x2Slice(s[i:])
 		result := vc.Mul(vs)
 		result.StoreSlice(dst[i:])
+		vs1 := asm.LoadFloat64x2Slice(s[i+2:])
+		result1 := vc.Mul(vs1)
+		result1.StoreSlice(dst[i+2:])
+		vs2 := asm.LoadFloat64x2Slice(s[i+4:])
+		result2 := vc.Mul(vs2)
+		result2.StoreSlice(dst[i+4:])
+		vs3 := asm.LoadFloat64x2Slice(s[i+6:])
+		result3 := vc.Mul(vs3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	for ; i < n; i++ {
 		dst[i] = c * s[i]
@@ -778,10 +1234,19 @@ func BaseAddConst_neon_Float16(c hwy.Float16, dst []hwy.Float16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		result := hwy.AddF16(vd, vc)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := hwy.AddF16(vd1, vc)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		result2 := hwy.AddF16(vd2, vc)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		result3 := hwy.AddF16(vd3, vc)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseAddConst_fallback_Float16(c, dst[i:n])
@@ -797,10 +1262,19 @@ func BaseAddConst_neon_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		result := hwy.AddBF16(vd, vc)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := hwy.AddBF16(vd1, vc)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		result2 := hwy.AddBF16(vd2, vc)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		result3 := hwy.AddBF16(vd3, vc)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseAddConst_fallback_BFloat16(c, dst[i:n])
@@ -816,10 +1290,19 @@ func BaseAddConst_neon(c float32, dst []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		result := vd.Add(vc)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		result1 := vd1.Add(vc)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		result2 := vd2.Add(vc)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		result3 := vd3.Add(vc)
+		result3.StoreSlice(dst[i+12:])
 	}
 	for ; i < n; i++ {
 		dst[i] += c
@@ -835,10 +1318,19 @@ func BaseAddConst_neon_Float64(c float64, dst []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		result := vd.Add(vc)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		result1 := vd1.Add(vc)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		result2 := vd2.Add(vc)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		result3 := vd3.Add(vc)
+		result3.StoreSlice(dst[i+6:])
 	}
 	for ; i < n; i++ {
 		dst[i] += c
@@ -854,11 +1346,23 @@ func BaseMulConstAddTo_neon_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.Fl
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vx := hwy.Load(x[i:])
 		result := hwy.FMAF16(va, vx, vd)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vx1 := hwy.Load(x[i+8:])
+		result1 := hwy.FMAF16(va, vx1, vd1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vx2 := hwy.Load(x[i+16:])
+		result2 := hwy.FMAF16(va, vx2, vd2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vx3 := hwy.Load(x[i+24:])
+		result3 := hwy.FMAF16(va, vx3, vd3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseMulConstAddTo_fallback_Float16(dst[i:n], a, x[i:n])
@@ -874,11 +1378,23 @@ func BaseMulConstAddTo_neon_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy
 	lanes := 8
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := hwy.Load(dst[i:])
 		vx := hwy.Load(x[i:])
 		result := hwy.FMABF16(va, vx, vd)
 		hwy.Store(result, dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vx1 := hwy.Load(x[i+8:])
+		result1 := hwy.FMABF16(va, vx1, vd1)
+		hwy.Store(result1, dst[i+8:])
+		vd2 := hwy.Load(dst[i+16:])
+		vx2 := hwy.Load(x[i+16:])
+		result2 := hwy.FMABF16(va, vx2, vd2)
+		hwy.Store(result2, dst[i+16:])
+		vd3 := hwy.Load(dst[i+24:])
+		vx3 := hwy.Load(x[i+24:])
+		result3 := hwy.FMABF16(va, vx3, vd3)
+		hwy.Store(result3, dst[i+24:])
 	}
 	if i < n {
 		BaseMulConstAddTo_fallback_BFloat16(dst[i:n], a, x[i:n])
@@ -894,11 +1410,23 @@ func BaseMulConstAddTo_neon(dst []float32, a float32, x []float32) {
 	lanes := 4
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat32x4Slice(dst[i:])
 		vx := asm.LoadFloat32x4Slice(x[i:])
 		result := va.MulAdd(vx, vd)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat32x4Slice(dst[i+4:])
+		vx1 := asm.LoadFloat32x4Slice(x[i+4:])
+		result1 := va.MulAdd(vx1, vd1)
+		result1.StoreSlice(dst[i+4:])
+		vd2 := asm.LoadFloat32x4Slice(dst[i+8:])
+		vx2 := asm.LoadFloat32x4Slice(x[i+8:])
+		result2 := va.MulAdd(vx2, vd2)
+		result2.StoreSlice(dst[i+8:])
+		vd3 := asm.LoadFloat32x4Slice(dst[i+12:])
+		vx3 := asm.LoadFloat32x4Slice(x[i+12:])
+		result3 := va.MulAdd(vx3, vd3)
+		result3.StoreSlice(dst[i+12:])
 	}
 	for ; i < n; i++ {
 		dst[i] += a * x[i]
@@ -914,11 +1442,23 @@ func BaseMulConstAddTo_neon_Float64(dst []float64, a float64, x []float64) {
 	lanes := 2
 	var i int
 	i = 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat64x2Slice(dst[i:])
 		vx := asm.LoadFloat64x2Slice(x[i:])
 		result := va.MulAdd(vx, vd)
 		result.StoreSlice(dst[i:])
+		vd1 := asm.LoadFloat64x2Slice(dst[i+2:])
+		vx1 := asm.LoadFloat64x2Slice(x[i+2:])
+		result1 := va.MulAdd(vx1, vd1)
+		result1.StoreSlice(dst[i+2:])
+		vd2 := asm.LoadFloat64x2Slice(dst[i+4:])
+		vx2 := asm.LoadFloat64x2Slice(x[i+4:])
+		result2 := va.MulAdd(vx2, vd2)
+		result2.StoreSlice(dst[i+4:])
+		vd3 := asm.LoadFloat64x2Slice(dst[i+6:])
+		vx3 := asm.LoadFloat64x2Slice(x[i+6:])
+		result3 := va.MulAdd(vx3, vd3)
+		result3.StoreSlice(dst[i+6:])
 	}
 	for ; i < n; i++ {
 		dst[i] += a * x[i]

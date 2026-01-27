@@ -20,6 +20,38 @@ func BaseGELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 	vOne := hwy.Const[hwy.Float16](1.0)
 	vInvSqrt2 := hwy.Const[hwy.Float16](0.7071067811865476)
 	ii := 0
+	for ; ii+64 <= size; ii += 64 {
+		remaining := size - ii
+		if remaining >= 32 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulF16(x, vInvSqrt2)
+			erfX := math.BaseErfVec_avx512_Float16(xScaled)
+			onePlusErf := hwy.AddF16(vOne, erfX)
+			halfOnePlusErf := hwy.MulF16(vHalf, onePlusErf)
+			result := hwy.MulF16(x, halfOnePlusErf)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				output[i] = hwy.Float32ToFloat16(float32(x * 0.5 * (1.0 + stdmath.Erf(x*0.7071067811865476))))
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 32 {
+			x1 := hwy.Load(input[ii+32:])
+			xScaled1 := hwy.MulF16(x1, vInvSqrt2)
+			erfX1 := math.BaseErfVec_avx512_Float16(xScaled1)
+			onePlusErf1 := hwy.AddF16(vOne, erfX1)
+			halfOnePlusErf1 := hwy.MulF16(vHalf, onePlusErf1)
+			result1 := hwy.MulF16(x1, halfOnePlusErf1)
+			hwy.Store(result1, output[ii+32:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1].Float32())
+				output[i1] = hwy.Float32ToFloat16(float32(x1 * 0.5 * (1.0 + stdmath.Erf(x1*0.7071067811865476))))
+			}
+		}
+	}
 	for ; ii+32 <= size; ii += 32 {
 		remaining := size - ii
 		if remaining >= 32 {
@@ -48,6 +80,38 @@ func BaseGELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	vOne := hwy.Const[hwy.BFloat16](1.0)
 	vInvSqrt2 := hwy.Const[hwy.BFloat16](0.7071067811865476)
 	ii := 0
+	for ; ii+64 <= size; ii += 64 {
+		remaining := size - ii
+		if remaining >= 32 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulBF16(x, vInvSqrt2)
+			erfX := math.BaseErfVec_avx512_BFloat16(xScaled)
+			onePlusErf := hwy.AddBF16(vOne, erfX)
+			halfOnePlusErf := hwy.MulBF16(vHalf, onePlusErf)
+			result := hwy.MulBF16(x, halfOnePlusErf)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				output[i] = hwy.Float32ToBFloat16(float32(x * 0.5 * (1.0 + stdmath.Erf(x*0.7071067811865476))))
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 32 {
+			x1 := hwy.Load(input[ii+32:])
+			xScaled1 := hwy.MulBF16(x1, vInvSqrt2)
+			erfX1 := math.BaseErfVec_avx512_BFloat16(xScaled1)
+			onePlusErf1 := hwy.AddBF16(vOne, erfX1)
+			halfOnePlusErf1 := hwy.MulBF16(vHalf, onePlusErf1)
+			result1 := hwy.MulBF16(x1, halfOnePlusErf1)
+			hwy.Store(result1, output[ii+32:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1].Float32())
+				output[i1] = hwy.Float32ToBFloat16(float32(x1 * 0.5 * (1.0 + stdmath.Erf(x1*0.7071067811865476))))
+			}
+		}
+	}
 	for ; ii+32 <= size; ii += 32 {
 		remaining := size - ii
 		if remaining >= 32 {
@@ -76,6 +140,38 @@ func BaseGELU_avx512(input []float32, output []float32) {
 	vOne := archsimd.BroadcastFloat32x16(1.0)
 	vInvSqrt2 := archsimd.BroadcastFloat32x16(0.7071067811865476)
 	ii := 0
+	for ; ii+32 <= size; ii += 32 {
+		remaining := size - ii
+		if remaining >= 16 {
+			x := archsimd.LoadFloat32x16Slice(input[ii:])
+			xScaled := x.Mul(vInvSqrt2)
+			erfX := math.BaseErfVec_avx512(xScaled)
+			onePlusErf := vOne.Add(erfX)
+			halfOnePlusErf := vHalf.Mul(onePlusErf)
+			result := x.Mul(halfOnePlusErf)
+			result.StoreSlice(output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i])
+				output[i] = float32(x * 0.5 * (1.0 + stdmath.Erf(x*0.7071067811865476)))
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 16 {
+			x1 := archsimd.LoadFloat32x16Slice(input[ii+16:])
+			xScaled1 := x1.Mul(vInvSqrt2)
+			erfX1 := math.BaseErfVec_avx512(xScaled1)
+			onePlusErf1 := vOne.Add(erfX1)
+			halfOnePlusErf1 := vHalf.Mul(onePlusErf1)
+			result1 := x1.Mul(halfOnePlusErf1)
+			result1.StoreSlice(output[ii+16:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1])
+				output[i1] = float32(x1 * 0.5 * (1.0 + stdmath.Erf(x1*0.7071067811865476)))
+			}
+		}
+	}
 	for ; ii+16 <= size; ii += 16 {
 		remaining := size - ii
 		if remaining >= 16 {
@@ -104,6 +200,38 @@ func BaseGELU_avx512_Float64(input []float64, output []float64) {
 	vOne := archsimd.BroadcastFloat64x8(1.0)
 	vInvSqrt2 := archsimd.BroadcastFloat64x8(0.7071067811865476)
 	ii := 0
+	for ; ii+16 <= size; ii += 16 {
+		remaining := size - ii
+		if remaining >= 8 {
+			x := archsimd.LoadFloat64x8Slice(input[ii:])
+			xScaled := x.Mul(vInvSqrt2)
+			erfX := math.BaseErfVec_avx512_Float64(xScaled)
+			onePlusErf := vOne.Add(erfX)
+			halfOnePlusErf := vHalf.Mul(onePlusErf)
+			result := x.Mul(halfOnePlusErf)
+			result.StoreSlice(output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i])
+				output[i] = float64(x * 0.5 * (1.0 + stdmath.Erf(x*0.7071067811865476)))
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 8 {
+			x1 := archsimd.LoadFloat64x8Slice(input[ii+8:])
+			xScaled1 := x1.Mul(vInvSqrt2)
+			erfX1 := math.BaseErfVec_avx512_Float64(xScaled1)
+			onePlusErf1 := vOne.Add(erfX1)
+			halfOnePlusErf1 := vHalf.Mul(onePlusErf1)
+			result1 := x1.Mul(halfOnePlusErf1)
+			result1.StoreSlice(output[ii+8:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1])
+				output[i1] = float64(x1 * 0.5 * (1.0 + stdmath.Erf(x1*0.7071067811865476)))
+			}
+		}
+	}
 	for ; ii+8 <= size; ii += 8 {
 		remaining := size - ii
 		if remaining >= 8 {
@@ -130,6 +258,36 @@ func BaseGELUApprox_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 	}
 	vCoeff := hwy.Const[hwy.Float16](1.702)
 	ii := 0
+	for ; ii+64 <= size; ii += 64 {
+		remaining := size - ii
+		if remaining >= 32 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulF16(x, vCoeff)
+			sigmoidX := math.BaseSigmoidVec_avx512_Float16(xScaled)
+			result := hwy.MulF16(x, sigmoidX)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				sigmoid := 1.0 / (1.0 + stdmath.Exp(-1.702*x))
+				output[i] = hwy.Float32ToFloat16(float32(x * sigmoid))
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 32 {
+			x1 := hwy.Load(input[ii+32:])
+			xScaled1 := hwy.MulF16(x1, vCoeff)
+			sigmoidX1 := math.BaseSigmoidVec_avx512_Float16(xScaled1)
+			result1 := hwy.MulF16(x1, sigmoidX1)
+			hwy.Store(result1, output[ii+32:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1].Float32())
+				sigmoid1 := 1.0 / (1.0 + stdmath.Exp(-1.702*x1))
+				output[i1] = hwy.Float32ToFloat16(float32(x1 * sigmoid1))
+			}
+		}
+	}
 	for ; ii+32 <= size; ii += 32 {
 		remaining := size - ii
 		if remaining >= 32 {
@@ -155,6 +313,36 @@ func BaseGELUApprox_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16)
 	}
 	vCoeff := hwy.Const[hwy.BFloat16](1.702)
 	ii := 0
+	for ; ii+64 <= size; ii += 64 {
+		remaining := size - ii
+		if remaining >= 32 {
+			x := hwy.Load(input[ii:])
+			xScaled := hwy.MulBF16(x, vCoeff)
+			sigmoidX := math.BaseSigmoidVec_avx512_BFloat16(xScaled)
+			result := hwy.MulBF16(x, sigmoidX)
+			hwy.Store(result, output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i].Float32())
+				sigmoid := 1.0 / (1.0 + stdmath.Exp(-1.702*x))
+				output[i] = hwy.Float32ToBFloat16(float32(x * sigmoid))
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 32 {
+			x1 := hwy.Load(input[ii+32:])
+			xScaled1 := hwy.MulBF16(x1, vCoeff)
+			sigmoidX1 := math.BaseSigmoidVec_avx512_BFloat16(xScaled1)
+			result1 := hwy.MulBF16(x1, sigmoidX1)
+			hwy.Store(result1, output[ii+32:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1].Float32())
+				sigmoid1 := 1.0 / (1.0 + stdmath.Exp(-1.702*x1))
+				output[i1] = hwy.Float32ToBFloat16(float32(x1 * sigmoid1))
+			}
+		}
+	}
 	for ; ii+32 <= size; ii += 32 {
 		remaining := size - ii
 		if remaining >= 32 {
@@ -180,6 +368,36 @@ func BaseGELUApprox_avx512(input []float32, output []float32) {
 	}
 	vCoeff := archsimd.BroadcastFloat32x16(1.702)
 	ii := 0
+	for ; ii+32 <= size; ii += 32 {
+		remaining := size - ii
+		if remaining >= 16 {
+			x := archsimd.LoadFloat32x16Slice(input[ii:])
+			xScaled := x.Mul(vCoeff)
+			sigmoidX := math.BaseSigmoidVec_avx512(xScaled)
+			result := x.Mul(sigmoidX)
+			result.StoreSlice(output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i])
+				sigmoid := 1.0 / (1.0 + stdmath.Exp(-1.702*x))
+				output[i] = float32(x * sigmoid)
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 16 {
+			x1 := archsimd.LoadFloat32x16Slice(input[ii+16:])
+			xScaled1 := x1.Mul(vCoeff)
+			sigmoidX1 := math.BaseSigmoidVec_avx512(xScaled1)
+			result1 := x1.Mul(sigmoidX1)
+			result1.StoreSlice(output[ii+16:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1])
+				sigmoid1 := 1.0 / (1.0 + stdmath.Exp(-1.702*x1))
+				output[i1] = float32(x1 * sigmoid1)
+			}
+		}
+	}
 	for ; ii+16 <= size; ii += 16 {
 		remaining := size - ii
 		if remaining >= 16 {
@@ -205,6 +423,36 @@ func BaseGELUApprox_avx512_Float64(input []float64, output []float64) {
 	}
 	vCoeff := archsimd.BroadcastFloat64x8(1.702)
 	ii := 0
+	for ; ii+16 <= size; ii += 16 {
+		remaining := size - ii
+		if remaining >= 8 {
+			x := archsimd.LoadFloat64x8Slice(input[ii:])
+			xScaled := x.Mul(vCoeff)
+			sigmoidX := math.BaseSigmoidVec_avx512_Float64(xScaled)
+			result := x.Mul(sigmoidX)
+			result.StoreSlice(output[ii:])
+		} else {
+			for i := ii; i < size; i++ {
+				x := float64(input[i])
+				sigmoid := 1.0 / (1.0 + stdmath.Exp(-1.702*x))
+				output[i] = float64(x * sigmoid)
+			}
+		}
+		remaining1 := size - ii
+		if remaining1 >= 8 {
+			x1 := archsimd.LoadFloat64x8Slice(input[ii+8:])
+			xScaled1 := x1.Mul(vCoeff)
+			sigmoidX1 := math.BaseSigmoidVec_avx512_Float64(xScaled1)
+			result1 := x1.Mul(sigmoidX1)
+			result1.StoreSlice(output[ii+8:])
+		} else {
+			for i1 := ii; i1 < size; i1++ {
+				x1 := float64(input[i1])
+				sigmoid1 := 1.0 / (1.0 + stdmath.Exp(-1.702*x1))
+				output[i1] = float64(x1 * sigmoid1)
+			}
+		}
+	}
 	for ; ii+8 <= size; ii += 8 {
 		remaining := size - ii
 		if remaining >= 8 {

@@ -17,12 +17,17 @@ func BasePrefixSum_avx2(data []float32) {
 	lanes := 8
 	carry := float32(0)
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadFloat32x8Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2(v)
 		prefixed = prefixed.Add(archsimd.BroadcastFloat32x8(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_F32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadFloat32x8Slice(data[i+8:])
+		prefixed1 := BasePrefixSumVec_avx2(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastFloat32x8(carry))
+		prefixed1.StoreSlice(data[i+8:])
+		carry = hwy.GetLane_AVX2_F32x8(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -38,12 +43,17 @@ func BasePrefixSum_avx2_Float64(data []float64) {
 	lanes := 4
 	carry := float64(0)
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadFloat64x4Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Float64(v)
 		prefixed = prefixed.Add(archsimd.BroadcastFloat64x4(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_F64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadFloat64x4Slice(data[i+4:])
+		prefixed1 := BasePrefixSumVec_avx2_Float64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastFloat64x4(carry))
+		prefixed1.StoreSlice(data[i+4:])
+		carry = hwy.GetLane_AVX2_F64x4(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -59,12 +69,17 @@ func BasePrefixSum_avx2_Int32(data []int32) {
 	lanes := 8
 	carry := int32(0)
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadInt32x8Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Int32(v)
 		prefixed = prefixed.Add(archsimd.BroadcastInt32x8(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_I32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadInt32x8Slice(data[i+8:])
+		prefixed1 := BasePrefixSumVec_avx2_Int32(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastInt32x8(carry))
+		prefixed1.StoreSlice(data[i+8:])
+		carry = hwy.GetLane_AVX2_I32x8(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -80,12 +95,17 @@ func BasePrefixSum_avx2_Int64(data []int64) {
 	lanes := 4
 	carry := int64(0)
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadInt64x4Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Int64(v)
 		prefixed = prefixed.Add(archsimd.BroadcastInt64x4(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_I64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadInt64x4Slice(data[i+4:])
+		prefixed1 := BasePrefixSumVec_avx2_Int64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastInt64x4(carry))
+		prefixed1.StoreSlice(data[i+4:])
+		carry = hwy.GetLane_AVX2_I64x4(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -101,12 +121,17 @@ func BasePrefixSum_avx2_Uint32(data []uint32) {
 	lanes := 8
 	carry := uint32(0)
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadUint32x8Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Uint32(v)
 		prefixed = prefixed.Add(archsimd.BroadcastUint32x8(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_Uint32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadUint32x8Slice(data[i+8:])
+		prefixed1 := BasePrefixSumVec_avx2_Uint32(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastUint32x8(carry))
+		prefixed1.StoreSlice(data[i+8:])
+		carry = hwy.GetLane_AVX2_Uint32x8(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -122,12 +147,17 @@ func BasePrefixSum_avx2_Uint64(data []uint64) {
 	lanes := 4
 	carry := uint64(0)
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadUint64x4Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Uint64(v)
 		prefixed = prefixed.Add(archsimd.BroadcastUint64x4(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_Uint64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadUint64x4Slice(data[i+4:])
+		prefixed1 := BasePrefixSumVec_avx2_Uint64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastUint64x4(carry))
+		prefixed1.StoreSlice(data[i+4:])
+		carry = hwy.GetLane_AVX2_Uint64x4(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -143,12 +173,17 @@ func BaseDeltaDecode_avx2_Int32(data []int32, base int32) {
 	lanes := 8
 	carry := base
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadInt32x8Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Int32(v)
 		prefixed = prefixed.Add(archsimd.BroadcastInt32x8(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_I32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadInt32x8Slice(data[i+8:])
+		prefixed1 := BasePrefixSumVec_avx2_Int32(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastInt32x8(carry))
+		prefixed1.StoreSlice(data[i+8:])
+		carry = hwy.GetLane_AVX2_I32x8(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -164,12 +199,17 @@ func BaseDeltaDecode_avx2_Int64(data []int64, base int64) {
 	lanes := 4
 	carry := base
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadInt64x4Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Int64(v)
 		prefixed = prefixed.Add(archsimd.BroadcastInt64x4(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_I64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadInt64x4Slice(data[i+4:])
+		prefixed1 := BasePrefixSumVec_avx2_Int64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastInt64x4(carry))
+		prefixed1.StoreSlice(data[i+4:])
+		carry = hwy.GetLane_AVX2_I64x4(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -185,12 +225,17 @@ func BaseDeltaDecode_avx2_Uint32(data []uint32, base uint32) {
 	lanes := 8
 	carry := base
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadUint32x8Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Uint32(v)
 		prefixed = prefixed.Add(archsimd.BroadcastUint32x8(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_Uint32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadUint32x8Slice(data[i+8:])
+		prefixed1 := BasePrefixSumVec_avx2_Uint32(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastUint32x8(carry))
+		prefixed1.StoreSlice(data[i+8:])
+		carry = hwy.GetLane_AVX2_Uint32x8(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]
@@ -206,12 +251,17 @@ func BaseDeltaDecode_avx2_Uint64(data []uint64, base uint64) {
 	lanes := 4
 	carry := base
 	i := 0
-	for ; i+lanes <= n; i += lanes {
+	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadUint64x4Slice(data[i:])
 		prefixed := BasePrefixSumVec_avx2_Uint64(v)
 		prefixed = prefixed.Add(archsimd.BroadcastUint64x4(carry))
 		prefixed.StoreSlice(data[i:])
 		carry = hwy.GetLane_AVX2_Uint64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadUint64x4Slice(data[i+4:])
+		prefixed1 := BasePrefixSumVec_avx2_Uint64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastUint64x4(carry))
+		prefixed1.StoreSlice(data[i+4:])
+		carry = hwy.GetLane_AVX2_Uint64x4(prefixed1, lanes-1)
 	}
 	for ; i < n; i++ {
 		carry += data[i]

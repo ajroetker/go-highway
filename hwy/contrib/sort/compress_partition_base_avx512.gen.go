@@ -165,7 +165,8 @@ func BaseCompressPartition_avx512(data []float32, pivot float32) int {
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
 	}
-	for i := 0; i+16 <= preloadSize; i += lanes {
+	i := 0
+	for ; i+48 <= preloadSize; i += lanes * 3 {
 		v := archsimd.LoadFloat32x16Slice(preloadL[i:])
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX512_F32x16(maskLess)
@@ -174,6 +175,22 @@ func BaseCompressPartition_avx512(data []float32, pivot float32) int {
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
+		v1 := archsimd.LoadFloat32x16Slice(preloadL[i+16:])
+		maskLess1 := v1.Less(pivotVec)
+		numLess1 := hwy.CountTrue_AVX512_F32x16(maskLess1)
+		compressed1, _ := hwy.Compress_AVX512_F32x16(v1, maskLess1)
+		remaining -= lanes
+		compressed1.StoreSlice(data[writeL:])
+		compressed1.StoreSlice(data[remaining+writeL:])
+		writeL += numLess1
+		v2 := archsimd.LoadFloat32x16Slice(preloadL[i+32:])
+		maskLess2 := v2.Less(pivotVec)
+		numLess2 := hwy.CountTrue_AVX512_F32x16(maskLess2)
+		compressed2, _ := hwy.Compress_AVX512_F32x16(v2, maskLess2)
+		remaining -= lanes
+		compressed2.StoreSlice(data[writeL:])
+		compressed2.StoreSlice(data[remaining+writeL:])
+		writeL += numLess2
 	}
 	for i := 0; i+16 <= preloadSize-2*lanes; i += lanes {
 		v := archsimd.LoadFloat32x16Slice(preloadR[i:])
@@ -245,7 +262,8 @@ func BaseCompressPartition_avx512_Float64(data []float64, pivot float64) int {
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
 	}
-	for i := 0; i+8 <= preloadSize; i += lanes {
+	i := 0
+	for ; i+24 <= preloadSize; i += lanes * 3 {
 		v := archsimd.LoadFloat64x8Slice(preloadL[i:])
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX512_F64x8(maskLess)
@@ -254,6 +272,22 @@ func BaseCompressPartition_avx512_Float64(data []float64, pivot float64) int {
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
+		v1 := archsimd.LoadFloat64x8Slice(preloadL[i+8:])
+		maskLess1 := v1.Less(pivotVec)
+		numLess1 := hwy.CountTrue_AVX512_F64x8(maskLess1)
+		compressed1, _ := hwy.Compress_AVX512_F64x8(v1, maskLess1)
+		remaining -= lanes
+		compressed1.StoreSlice(data[writeL:])
+		compressed1.StoreSlice(data[remaining+writeL:])
+		writeL += numLess1
+		v2 := archsimd.LoadFloat64x8Slice(preloadL[i+16:])
+		maskLess2 := v2.Less(pivotVec)
+		numLess2 := hwy.CountTrue_AVX512_F64x8(maskLess2)
+		compressed2, _ := hwy.Compress_AVX512_F64x8(v2, maskLess2)
+		remaining -= lanes
+		compressed2.StoreSlice(data[writeL:])
+		compressed2.StoreSlice(data[remaining+writeL:])
+		writeL += numLess2
 	}
 	for i := 0; i+8 <= preloadSize-2*lanes; i += lanes {
 		v := archsimd.LoadFloat64x8Slice(preloadR[i:])
@@ -325,7 +359,8 @@ func BaseCompressPartition_avx512_Int32(data []int32, pivot int32) int {
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
 	}
-	for i := 0; i+16 <= preloadSize; i += lanes {
+	i := 0
+	for ; i+48 <= preloadSize; i += lanes * 3 {
 		v := archsimd.LoadInt32x16Slice(preloadL[i:])
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX512_I32x16(maskLess)
@@ -334,6 +369,22 @@ func BaseCompressPartition_avx512_Int32(data []int32, pivot int32) int {
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
+		v1 := archsimd.LoadInt32x16Slice(preloadL[i+16:])
+		maskLess1 := v1.Less(pivotVec)
+		numLess1 := hwy.CountTrue_AVX512_I32x16(maskLess1)
+		compressed1, _ := hwy.Compress_AVX512_I32x16(v1, maskLess1)
+		remaining -= lanes
+		compressed1.StoreSlice(data[writeL:])
+		compressed1.StoreSlice(data[remaining+writeL:])
+		writeL += numLess1
+		v2 := archsimd.LoadInt32x16Slice(preloadL[i+32:])
+		maskLess2 := v2.Less(pivotVec)
+		numLess2 := hwy.CountTrue_AVX512_I32x16(maskLess2)
+		compressed2, _ := hwy.Compress_AVX512_I32x16(v2, maskLess2)
+		remaining -= lanes
+		compressed2.StoreSlice(data[writeL:])
+		compressed2.StoreSlice(data[remaining+writeL:])
+		writeL += numLess2
 	}
 	for i := 0; i+16 <= preloadSize-2*lanes; i += lanes {
 		v := archsimd.LoadInt32x16Slice(preloadR[i:])
@@ -405,7 +456,8 @@ func BaseCompressPartition_avx512_Int64(data []int64, pivot int64) int {
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
 	}
-	for i := 0; i+8 <= preloadSize; i += lanes {
+	i := 0
+	for ; i+24 <= preloadSize; i += lanes * 3 {
 		v := archsimd.LoadInt64x8Slice(preloadL[i:])
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX512_I64x8(maskLess)
@@ -414,6 +466,22 @@ func BaseCompressPartition_avx512_Int64(data []int64, pivot int64) int {
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
+		v1 := archsimd.LoadInt64x8Slice(preloadL[i+8:])
+		maskLess1 := v1.Less(pivotVec)
+		numLess1 := hwy.CountTrue_AVX512_I64x8(maskLess1)
+		compressed1, _ := hwy.Compress_AVX512_I64x8(v1, maskLess1)
+		remaining -= lanes
+		compressed1.StoreSlice(data[writeL:])
+		compressed1.StoreSlice(data[remaining+writeL:])
+		writeL += numLess1
+		v2 := archsimd.LoadInt64x8Slice(preloadL[i+16:])
+		maskLess2 := v2.Less(pivotVec)
+		numLess2 := hwy.CountTrue_AVX512_I64x8(maskLess2)
+		compressed2, _ := hwy.Compress_AVX512_I64x8(v2, maskLess2)
+		remaining -= lanes
+		compressed2.StoreSlice(data[writeL:])
+		compressed2.StoreSlice(data[remaining+writeL:])
+		writeL += numLess2
 	}
 	for i := 0; i+8 <= preloadSize-2*lanes; i += lanes {
 		v := archsimd.LoadInt64x8Slice(preloadR[i:])
@@ -485,7 +553,8 @@ func BaseCompressPartition_avx512_Uint32(data []uint32, pivot uint32) int {
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
 	}
-	for i := 0; i+16 <= preloadSize; i += lanes {
+	i := 0
+	for ; i+48 <= preloadSize; i += lanes * 3 {
 		v := archsimd.LoadUint32x16Slice(preloadL[i:])
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX512_Uint32x16(maskLess)
@@ -494,6 +563,22 @@ func BaseCompressPartition_avx512_Uint32(data []uint32, pivot uint32) int {
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
+		v1 := archsimd.LoadUint32x16Slice(preloadL[i+16:])
+		maskLess1 := v1.Less(pivotVec)
+		numLess1 := hwy.CountTrue_AVX512_Uint32x16(maskLess1)
+		compressed1, _ := hwy.Compress_AVX512_Uint32x16(v1, maskLess1)
+		remaining -= lanes
+		compressed1.StoreSlice(data[writeL:])
+		compressed1.StoreSlice(data[remaining+writeL:])
+		writeL += numLess1
+		v2 := archsimd.LoadUint32x16Slice(preloadL[i+32:])
+		maskLess2 := v2.Less(pivotVec)
+		numLess2 := hwy.CountTrue_AVX512_Uint32x16(maskLess2)
+		compressed2, _ := hwy.Compress_AVX512_Uint32x16(v2, maskLess2)
+		remaining -= lanes
+		compressed2.StoreSlice(data[writeL:])
+		compressed2.StoreSlice(data[remaining+writeL:])
+		writeL += numLess2
 	}
 	for i := 0; i+16 <= preloadSize-2*lanes; i += lanes {
 		v := archsimd.LoadUint32x16Slice(preloadR[i:])
@@ -565,7 +650,8 @@ func BaseCompressPartition_avx512_Uint64(data []uint64, pivot uint64) int {
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
 	}
-	for i := 0; i+8 <= preloadSize; i += lanes {
+	i := 0
+	for ; i+24 <= preloadSize; i += lanes * 3 {
 		v := archsimd.LoadUint64x8Slice(preloadL[i:])
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX512_Uint64x8(maskLess)
@@ -574,6 +660,22 @@ func BaseCompressPartition_avx512_Uint64(data []uint64, pivot uint64) int {
 		compressed.StoreSlice(data[writeL:])
 		compressed.StoreSlice(data[remaining+writeL:])
 		writeL += numLess
+		v1 := archsimd.LoadUint64x8Slice(preloadL[i+8:])
+		maskLess1 := v1.Less(pivotVec)
+		numLess1 := hwy.CountTrue_AVX512_Uint64x8(maskLess1)
+		compressed1, _ := hwy.Compress_AVX512_Uint64x8(v1, maskLess1)
+		remaining -= lanes
+		compressed1.StoreSlice(data[writeL:])
+		compressed1.StoreSlice(data[remaining+writeL:])
+		writeL += numLess1
+		v2 := archsimd.LoadUint64x8Slice(preloadL[i+16:])
+		maskLess2 := v2.Less(pivotVec)
+		numLess2 := hwy.CountTrue_AVX512_Uint64x8(maskLess2)
+		compressed2, _ := hwy.Compress_AVX512_Uint64x8(v2, maskLess2)
+		remaining -= lanes
+		compressed2.StoreSlice(data[writeL:])
+		compressed2.StoreSlice(data[remaining+writeL:])
+		writeL += numLess2
 	}
 	for i := 0; i+8 <= preloadSize-2*lanes; i += lanes {
 		v := archsimd.LoadUint64x8Slice(preloadR[i:])

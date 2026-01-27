@@ -16,9 +16,11 @@ func BaseSum_avx2_Float16(v []hwy.Float16) hwy.Float16 {
 	sum := hwy.Zero[hwy.Float16]()
 	lanes := 16
 	var i int
-	for i = 0; i+lanes <= len(v); i += lanes {
+	for i = 0; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := hwy.Load(v[i:])
 		sum = hwy.AddF16(sum, va)
+		va1 := hwy.Load(v[i+16:])
+		sum = hwy.AddF16(sum, va1)
 	}
 	result := hwy.ReduceSumF16(sum)
 	for ; i < len(v); i++ {
@@ -34,9 +36,11 @@ func BaseSum_avx2_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 	sum := hwy.Zero[hwy.BFloat16]()
 	lanes := 16
 	var i int
-	for i = 0; i+lanes <= len(v); i += lanes {
+	for i = 0; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := hwy.Load(v[i:])
 		sum = hwy.AddBF16(sum, va)
+		va1 := hwy.Load(v[i+16:])
+		sum = hwy.AddBF16(sum, va1)
 	}
 	result := hwy.ReduceSumBF16(sum)
 	for ; i < len(v); i++ {
@@ -52,9 +56,11 @@ func BaseSum_avx2(v []float32) float32 {
 	sum := archsimd.BroadcastFloat32x8(0)
 	lanes := 8
 	var i int
-	for i = 0; i+lanes <= len(v); i += lanes {
+	for i = 0; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat32x8Slice(v[i:])
 		sum = sum.Add(va)
+		va1 := archsimd.LoadFloat32x8Slice(v[i+8:])
+		sum = sum.Add(va1)
 	}
 	result := hwy.ReduceSum_AVX2_F32x8(sum)
 	for ; i < len(v); i++ {
@@ -70,9 +76,11 @@ func BaseSum_avx2_Float64(v []float64) float64 {
 	sum := archsimd.BroadcastFloat64x4(0)
 	lanes := 4
 	var i int
-	for i = 0; i+lanes <= len(v); i += lanes {
+	for i = 0; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat64x4Slice(v[i:])
 		sum = sum.Add(va)
+		va1 := archsimd.LoadFloat64x4Slice(v[i+4:])
+		sum = sum.Add(va1)
 	}
 	result := hwy.ReduceSum_AVX2_F64x4(sum)
 	for ; i < len(v); i++ {
@@ -97,9 +105,11 @@ func BaseMin_avx2_Float16(v []hwy.Float16) hwy.Float16 {
 	}
 	minVec := hwy.Load(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := hwy.Load(v[i:])
 		minVec = hwy.MinF16(minVec, va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = hwy.MinF16(minVec, va1)
 	}
 	result := hwy.ReduceMinF16(minVec)
 	for ; i < len(v); i++ {
@@ -126,9 +136,11 @@ func BaseMin_avx2_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 	}
 	minVec := hwy.Load(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := hwy.Load(v[i:])
 		minVec = hwy.MinBF16(minVec, va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = hwy.MinBF16(minVec, va1)
 	}
 	result := hwy.ReduceMinBF16(minVec)
 	for ; i < len(v); i++ {
@@ -155,9 +167,11 @@ func BaseMin_avx2(v []float32) float32 {
 	}
 	minVec := archsimd.LoadFloat32x8Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat32x8Slice(v[i:])
 		minVec = minVec.Min(va)
+		va1 := archsimd.LoadFloat32x8Slice(v[i+8:])
+		minVec = minVec.Min(va1)
 	}
 	result := hwy.ReduceMin_AVX2_F32x8(minVec)
 	for ; i < len(v); i++ {
@@ -184,9 +198,11 @@ func BaseMin_avx2_Float64(v []float64) float64 {
 	}
 	minVec := archsimd.LoadFloat64x4Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat64x4Slice(v[i:])
 		minVec = minVec.Min(va)
+		va1 := archsimd.LoadFloat64x4Slice(v[i+4:])
+		minVec = minVec.Min(va1)
 	}
 	result := hwy.ReduceMin_AVX2_F64x4(minVec)
 	for ; i < len(v); i++ {
@@ -213,9 +229,11 @@ func BaseMax_avx2(v []float32) float32 {
 	}
 	maxVec := archsimd.LoadFloat32x8Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat32x8Slice(v[i:])
 		maxVec = maxVec.Max(va)
+		va1 := archsimd.LoadFloat32x8Slice(v[i+8:])
+		maxVec = maxVec.Max(va1)
 	}
 	result := hwy.ReduceMax_AVX2_F32x8(maxVec)
 	for ; i < len(v); i++ {
@@ -242,9 +260,11 @@ func BaseMax_avx2_Float64(v []float64) float64 {
 	}
 	maxVec := archsimd.LoadFloat64x4Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat64x4Slice(v[i:])
 		maxVec = maxVec.Max(va)
+		va1 := archsimd.LoadFloat64x4Slice(v[i+4:])
+		maxVec = maxVec.Max(va1)
 	}
 	result := hwy.ReduceMax_AVX2_F64x4(maxVec)
 	for ; i < len(v); i++ {
@@ -271,9 +291,11 @@ func BaseMax_avx2_Int32(v []int32) int32 {
 	}
 	maxVec := archsimd.LoadInt32x8Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadInt32x8Slice(v[i:])
 		maxVec = maxVec.Max(va)
+		va1 := archsimd.LoadInt32x8Slice(v[i+8:])
+		maxVec = maxVec.Max(va1)
 	}
 	result := hwy.ReduceMax_AVX2_I32x8(maxVec)
 	for ; i < len(v); i++ {
@@ -300,9 +322,11 @@ func BaseMax_avx2_Int64(v []int64) int64 {
 	}
 	maxVec := archsimd.LoadInt64x4Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadInt64x4Slice(v[i:])
 		maxVec = hwy.Max_AVX2_Int64x4(maxVec, va)
+		va1 := archsimd.LoadInt64x4Slice(v[i+4:])
+		maxVec = hwy.Max_AVX2_Int64x4(maxVec, va1)
 	}
 	result := hwy.ReduceMax_AVX2_I64x4(maxVec)
 	for ; i < len(v); i++ {
@@ -329,9 +353,11 @@ func BaseMax_avx2_Uint32(v []uint32) uint32 {
 	}
 	maxVec := archsimd.LoadUint32x8Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadUint32x8Slice(v[i:])
 		maxVec = maxVec.Max(va)
+		va1 := archsimd.LoadUint32x8Slice(v[i+8:])
+		maxVec = maxVec.Max(va1)
 	}
 	result := hwy.ReduceMax_AVX2_Uint32x8(maxVec)
 	for ; i < len(v); i++ {
@@ -358,9 +384,11 @@ func BaseMax_avx2_Uint64(v []uint64) uint64 {
 	}
 	maxVec := archsimd.LoadUint64x4Slice(v)
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadUint64x4Slice(v[i:])
 		maxVec = hwy.Max_AVX2_Uint64x4(maxVec, va)
+		va1 := archsimd.LoadUint64x4Slice(v[i+4:])
+		maxVec = hwy.Max_AVX2_Uint64x4(maxVec, va1)
 	}
 	result := hwy.ReduceMax_AVX2_Uint64x4(maxVec)
 	for ; i < len(v); i++ {
@@ -392,10 +420,13 @@ func BaseMinMax_avx2_Float16(v []hwy.Float16) (min hwy.Float16, max hwy.Float16)
 	minVec := hwy.Load(v)
 	maxVec := minVec
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := hwy.Load(v[i:])
 		minVec = hwy.MinF16(minVec, va)
 		maxVec = hwy.MaxF16(maxVec, va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = hwy.MinF16(minVec, va1)
+		maxVec = hwy.MaxF16(maxVec, va1)
 	}
 	min = hwy.ReduceMinF16(minVec)
 	max = hwy.ReduceMaxF16(maxVec)
@@ -431,10 +462,13 @@ func BaseMinMax_avx2_BFloat16(v []hwy.BFloat16) (min hwy.BFloat16, max hwy.BFloa
 	minVec := hwy.Load(v)
 	maxVec := minVec
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := hwy.Load(v[i:])
 		minVec = hwy.MinBF16(minVec, va)
 		maxVec = hwy.MaxBF16(maxVec, va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = hwy.MinBF16(minVec, va1)
+		maxVec = hwy.MaxBF16(maxVec, va1)
 	}
 	min = hwy.ReduceMinBF16(minVec)
 	max = hwy.ReduceMaxBF16(maxVec)
@@ -470,10 +504,13 @@ func BaseMinMax_avx2(v []float32) (min float32, max float32) {
 	minVec := archsimd.LoadFloat32x8Slice(v)
 	maxVec := minVec
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat32x8Slice(v[i:])
 		minVec = minVec.Min(va)
 		maxVec = maxVec.Max(va)
+		va1 := archsimd.LoadFloat32x8Slice(v[i+8:])
+		minVec = minVec.Min(va1)
+		maxVec = maxVec.Max(va1)
 	}
 	min = hwy.ReduceMin_AVX2_F32x8(minVec)
 	max = hwy.ReduceMax_AVX2_F32x8(maxVec)
@@ -509,10 +546,13 @@ func BaseMinMax_avx2_Float64(v []float64) (min float64, max float64) {
 	minVec := archsimd.LoadFloat64x4Slice(v)
 	maxVec := minVec
 	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
+	for i = lanes; i+lanes*2 <= len(v); i += lanes * 2 {
 		va := archsimd.LoadFloat64x4Slice(v[i:])
 		minVec = minVec.Min(va)
 		maxVec = maxVec.Max(va)
+		va1 := archsimd.LoadFloat64x4Slice(v[i+4:])
+		minVec = minVec.Min(va1)
+		maxVec = maxVec.Max(va1)
 	}
 	min = hwy.ReduceMin_AVX2_F64x4(minVec)
 	max = hwy.ReduceMax_AVX2_F64x4(maxVec)
