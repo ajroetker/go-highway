@@ -16,7 +16,10 @@
 
 package hwy
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 // hasSME indicates if ARM SME (Scalable Matrix Extension) is available.
 // SME is available on Apple M4 and later processors.
@@ -31,7 +34,12 @@ func detectSME() bool {
 	return len(val) > 0 && val[0] == 1
 }
 
-// HasSME returns true if the CPU supports ARM SME instructions.
+// HasSME returns true if the CPU supports ARM SME instructions and
+// SME has not been disabled via environment variables.
+// Returns false when HWY_NO_SIMD or HWY_NO_SME is set.
 func HasSME() bool {
+	if NoSimdEnv() || os.Getenv("HWY_NO_SME") != "" {
+		return false
+	}
 	return hasSME
 }

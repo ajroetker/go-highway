@@ -47,6 +47,10 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 		return
 	}
 
+	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
+	// from corrupting ZA register state during SME streaming mode.
+	defer asm.SMEGuard()()
+
 	// Get transpose buffer from pool
 	atSize := m * k
 	atBuf := transposePool32.Get().([]float32)
@@ -55,6 +59,7 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	} else {
 		atBuf = atBuf[:atSize]
 	}
+	clear(atBuf)
 
 	// Transpose A (M×K) to AT (K×M) for contiguous column access
 	transposeMatrix(a, m, k, atBuf)
@@ -62,7 +67,8 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	// Call blocked FMOPA with transposed A
 	asm.BlockedMatMulFMOPAF32(atBuf, b, c, m, n, k)
 
-	// Return buffer to pool
+	// Clear buffer before returning to pool to avoid stale data
+	clear(atBuf)
 	transposePool32.Put(atBuf)
 }
 
@@ -82,6 +88,10 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 		return
 	}
 
+	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
+	// from corrupting ZA register state during SME streaming mode.
+	defer asm.SMEGuard()()
+
 	// Get transpose buffer from pool
 	atSize := m * k
 	atBuf := transposePool64.Get().([]float64)
@@ -90,6 +100,7 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	} else {
 		atBuf = atBuf[:atSize]
 	}
+	clear(atBuf)
 
 	// Transpose A (M×K) to AT (K×M) for contiguous column access
 	transposeMatrix(a, m, k, atBuf)
@@ -97,7 +108,8 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	// Call blocked FMOPA with transposed A
 	asm.BlockedMatMulFMOPAF64(atBuf, b, c, m, n, k)
 
-	// Return buffer to pool
+	// Clear buffer before returning to pool to avoid stale data
+	clear(atBuf)
 	transposePool64.Put(atBuf)
 }
 
