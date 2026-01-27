@@ -34,6 +34,7 @@ type ParsedFunc struct {
 	HwyCalls   []HwyCall         // Detected hwy.* and contrib.* calls
 	LoopInfo   *LoopInfo         // Main processing loop info
 	Doc        *ast.CommentGroup // Function documentation
+	Private    bool              // true if base function uses lowercase "base" prefix (generates unexported dispatch)
 }
 
 // TypeParam represents a generic type parameter.
@@ -185,15 +186,19 @@ func Parse(filename string) (*ParseResult, error) {
 			continue
 		}
 
-		// Only process functions (not methods) that start with "Base"
-		if funcDecl.Recv != nil || !strings.HasPrefix(funcDecl.Name.Name, "Base") {
+		// Only process functions (not methods) that start with "Base" or "base"
+		name := funcDecl.Name.Name
+		isExportedBase := strings.HasPrefix(name, "Base")
+		isPrivateBase := !isExportedBase && strings.HasPrefix(name, "base")
+		if funcDecl.Recv != nil || (!isExportedBase && !isPrivateBase) {
 			continue
 		}
 
 		pf := ParsedFunc{
-			Name: funcDecl.Name.Name,
-			Body: funcDecl.Body,
-			Doc:  funcDecl.Doc,
+			Name:    name,
+			Body:    funcDecl.Body,
+			Doc:     funcDecl.Doc,
+			Private: isPrivateBase,
 		}
 
 		// Extract type parameters
@@ -255,8 +260,13 @@ func Parse(filename string) (*ParseResult, error) {
 	return result, nil
 }
 
+// hasBasePrefix returns true if the name starts with "Base" or "base".
+func hasBasePrefix(name string) bool {
+	return strings.HasPrefix(name, "Base") || strings.HasPrefix(name, "base")
+}
+
 // findHwyCalls walks the AST and finds all hwy.* and contrib.* calls and references.
-// Also detects calls to Base* functions within the same package.
+// Also detects calls to Base*/base* functions within the same package.
 func findHwyCalls(node ast.Node) []HwyCall {
 	var calls []HwyCall
 	seen := make(map[string]bool) // Avoid duplicates
@@ -267,9 +277,9 @@ func findHwyCalls(node ast.Node) []HwyCall {
 
 		switch expr := n.(type) {
 		case *ast.CallExpr:
-			// Check for same-package Base* function calls
+			// Check for same-package Base*/base* function calls
 			if ident, ok := expr.Fun.(*ast.Ident); ok {
-				if strings.HasPrefix(ident.Name, "Base") {
+				if hasBasePrefix(ident.Name) {
 					key := "local." + ident.Name
 					if !seen[key] {
 						seen[key] = true
@@ -281,10 +291,10 @@ func findHwyCalls(node ast.Node) []HwyCall {
 					}
 				}
 			}
-			// Check for same-package generic Base* function calls: BaseApply[T](...)
+			// Check for same-package generic Base*/base* function calls: BaseApply[T](...) / baseApply[T](...)
 			if indexExpr, ok := expr.Fun.(*ast.IndexExpr); ok {
 				if ident, ok := indexExpr.X.(*ast.Ident); ok {
-					if strings.HasPrefix(ident.Name, "Base") {
+					if hasBasePrefix(ident.Name) {
 						key := "local." + ident.Name
 						if !seen[key] {
 							seen[key] = true
@@ -389,14 +399,10 @@ func parseUnrollDirectives(file *ast.File, fset *token.FileSet) []UnrollDirectiv
 	return directives
 }
 
-// detectLoop attempts to find the main vectorized loop pattern.
+// detectLoopWithUnroll attempts to find the main vectorized loop pattern
+// and also checks for //hwy:unroll directives.
 // Looks for: for ii := 0; ii < size; ii += stride
 // Skips auxiliary loops that only contain Store operations (like zeroing loops).
-func detectLoop(body *ast.BlockStmt) *LoopInfo {
-	return detectLoopWithUnroll(body, nil, nil)
-}
-
-// detectLoopWithUnroll is like detectLoop but also checks for //hwy:unroll directives.
 func detectLoopWithUnroll(body *ast.BlockStmt, fset *token.FileSet, unrollDirectives []UnrollDirective) *LoopInfo {
 	if body == nil {
 		return nil

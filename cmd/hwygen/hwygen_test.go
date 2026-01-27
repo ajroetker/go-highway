@@ -289,23 +289,29 @@ func TestBuildDispatchFuncName(t *testing.T) {
 		baseName  string
 		elemType  string
 		isGeneric bool
+		private   bool
 		want      string
 	}{
 		// Generic functions get type suffixes
-		{"BaseSigmoid", "float32", true, "SigmoidFloat32"},
-		{"BaseSigmoid", "float64", true, "SigmoidFloat64"},
-		{"BaseAdd", "float32", true, "AddFloat32"},
-		{"BaseAdd", "int32", true, "AddInt32"},
+		{"BaseSigmoid", "float32", true, false, "SigmoidFloat32"},
+		{"BaseSigmoid", "float64", true, false, "SigmoidFloat64"},
+		{"BaseAdd", "float32", true, false, "AddFloat32"},
+		{"BaseAdd", "int32", true, false, "AddInt32"},
 		// Non-generic functions don't get type suffixes
-		{"BaseDecodeStreamVByte32Into", "uint8", false, "DecodeStreamVByte32Into"},
-		{"BasePack32", "uint32", false, "Pack32"},
+		{"BaseDecodeStreamVByte32Into", "uint8", false, false, "DecodeStreamVByte32Into"},
+		{"BasePack32", "uint32", false, false, "Pack32"},
+		// Private (lowercase "base" prefix) functions produce unexported names
+		{"baseSigmoid", "float32", true, true, "sigmoidFloat32"},
+		{"baseSigmoid", "float64", true, true, "sigmoidFloat64"},
+		{"baseAdd", "float32", true, true, "addFloat32"},
+		{"basePack32", "uint32", false, true, "pack32"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.baseName+"_"+tt.elemType, func(t *testing.T) {
-			got := buildDispatchFuncName(tt.baseName, tt.elemType, tt.isGeneric)
+			got := buildDispatchFuncName(tt.baseName, tt.elemType, tt.isGeneric, tt.private)
 			if got != tt.want {
-				t.Errorf("buildDispatchFuncName(%q, %q, %v) = %q, want %q", tt.baseName, tt.elemType, tt.isGeneric, got, tt.want)
+				t.Errorf("buildDispatchFuncName(%q, %q, %v, %v) = %q, want %q", tt.baseName, tt.elemType, tt.isGeneric, tt.private, got, tt.want)
 			}
 		})
 	}

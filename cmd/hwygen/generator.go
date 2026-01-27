@@ -117,6 +117,11 @@ func (g *Generator) Run() error {
 					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + typeNameToSuffix(elemType)
 				}
 
+				// Make impl function names unexported for private base functions
+				if pf.Private {
+					transformResult.FuncDecl.Name.Name = makeUnexported(transformResult.FuncDecl.Name.Name)
+				}
+
 				transformed = append(transformed, transformResult.FuncDecl)
 
 				// Collect hoisted constants
