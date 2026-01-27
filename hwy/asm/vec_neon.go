@@ -53,14 +53,14 @@ func BroadcastFloat32x4(v float32) Float32x4 {
 	return *(*Float32x4)(unsafe.Pointer(&arr))
 }
 
-// LoadFloat32x4 loads 4 float32 values from a slice.
-func LoadFloat32x4(s []float32) Float32x4 {
-	return *(*Float32x4)(unsafe.Pointer(&s[0]))
+// LoadFloat32x4 loads 4 float32 values from an array pointer (no bounds check).
+func LoadFloat32x4(p *[4]float32) Float32x4 {
+	return *(*Float32x4)(unsafe.Pointer(p))
 }
 
-// LoadFloat32x4Slice is an alias for LoadFloat32x4 (matches archsimd naming).
+// LoadFloat32x4Slice loads 4 float32 values from a slice (has bounds check).
 func LoadFloat32x4Slice(s []float32) Float32x4 {
-	return LoadFloat32x4(s)
+	return *(*Float32x4)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Float32x4Slice loads 4 consecutive Float32x4 vectors (16 floats = 64 bytes)
@@ -108,7 +108,12 @@ func (v *Float32x4) Set(i int, val float32) {
 
 // ===== Float32x4 methods =====
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Float32x4) Store(p *[4]float32) {
+	*(*Float32x4)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Float32x4) StoreSlice(s []float32) {
 	*(*Float32x4)(unsafe.Pointer(&s[0])) = v
 }
@@ -173,8 +178,8 @@ func (v Float32x4) Recip() Float32x4 {
 	return Float32x4(recip_f32x4([16]byte(v)))
 }
 
-// RSqrt returns the reciprocal square root estimate (1/sqrt(x)).
-func (v Float32x4) RSqrt() Float32x4 {
+// ReciprocalSqrt returns the reciprocal square root estimate (1/sqrt(x)).
+func (v Float32x4) ReciprocalSqrt() Float32x4 {
 	return Float32x4(rsqrt_f32x4([16]byte(v)))
 }
 
@@ -410,14 +415,14 @@ func BroadcastFloat64x2(v float64) Float64x2 {
 	return *(*Float64x2)(unsafe.Pointer(&arr))
 }
 
-// LoadFloat64x2 loads 2 float64 values from a slice.
-func LoadFloat64x2(s []float64) Float64x2 {
-	return *(*Float64x2)(unsafe.Pointer(&s[0]))
+// LoadFloat64x2 loads 2 float64 values from an array pointer (no bounds check).
+func LoadFloat64x2(p *[2]float64) Float64x2 {
+	return *(*Float64x2)(unsafe.Pointer(p))
 }
 
-// LoadFloat64x2Slice is an alias for LoadFloat64x2 (matches archsimd naming).
+// LoadFloat64x2Slice loads 2 float64 values from a slice (has bounds check).
 func LoadFloat64x2Slice(s []float64) Float64x2 {
-	return LoadFloat64x2(s)
+	return *(*Float64x2)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Float64x2Slice loads 4 consecutive Float64x2 vectors (8 doubles = 64 bytes)
@@ -465,7 +470,12 @@ func (v *Float64x2) Set(i int, val float64) {
 
 // ===== Float64x2 methods =====
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Float64x2) Store(p *[2]float64) {
+	*(*Float64x2)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Float64x2) StoreSlice(s []float64) {
 	*(*Float64x2)(unsafe.Pointer(&s[0])) = v
 }
@@ -503,6 +513,12 @@ func (v Float64x2) Max(other Float64x2) Float64x2 {
 // Sqrt performs element-wise square root.
 func (v Float64x2) Sqrt() Float64x2 {
 	return Float64x2(sqrt_f64x2([16]byte(v)))
+}
+
+// ReciprocalSqrt returns the reciprocal square root estimate (1/sqrt(x)).
+// Uses NEON vrsqrteq_f64 which provides ~8-bit precision.
+func (v Float64x2) ReciprocalSqrt() Float64x2 {
+	return Float64x2(rsqrt_f64x2([16]byte(v)))
 }
 
 // Abs performs element-wise absolute value.
@@ -963,14 +979,14 @@ func BroadcastInt32x4(v int32) Int32x4 {
 	return *(*Int32x4)(unsafe.Pointer(&arr))
 }
 
-// LoadInt32x4 loads 4 int32 values from a slice.
-func LoadInt32x4(s []int32) Int32x4 {
-	return *(*Int32x4)(unsafe.Pointer(&s[0]))
+// LoadInt32x4 loads 4 int32 values from an array pointer (no bounds check).
+func LoadInt32x4(p *[4]int32) Int32x4 {
+	return *(*Int32x4)(unsafe.Pointer(p))
 }
 
-// LoadInt32x4Slice is an alias for LoadInt32x4 (matches archsimd naming).
+// LoadInt32x4Slice loads 4 int32 values from a slice (has bounds check).
 func LoadInt32x4Slice(s []int32) Int32x4 {
-	return LoadInt32x4(s)
+	return *(*Int32x4)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Int32x4Slice loads 4 consecutive Int32x4 vectors (16 int32s = 64 bytes)
@@ -1128,7 +1144,12 @@ func (v Int32x4) Merge(other Int32x4, mask Int32x4) Int32x4 {
 	return Int32x4(sel_i32x4([16]byte(mask), [16]byte(v), [16]byte(other)))
 }
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Int32x4) Store(p *[4]int32) {
+	*(*Int32x4)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Int32x4) StoreSlice(s []int32) {
 	*(*Int32x4)(unsafe.Pointer(&s[0])) = v
 }
@@ -1180,14 +1201,14 @@ func BroadcastInt64x2(v int64) Int64x2 {
 	return *(*Int64x2)(unsafe.Pointer(&arr))
 }
 
-// LoadInt64x2 loads 2 int64 values from a slice.
-func LoadInt64x2(s []int64) Int64x2 {
-	return *(*Int64x2)(unsafe.Pointer(&s[0]))
+// LoadInt64x2 loads 2 int64 values from an array pointer (no bounds check).
+func LoadInt64x2(p *[2]int64) Int64x2 {
+	return *(*Int64x2)(unsafe.Pointer(p))
 }
 
-// LoadInt64x2Slice is an alias for LoadInt64x2 (matches archsimd naming).
+// LoadInt64x2Slice loads 2 int64 values from a slice (has bounds check).
 func LoadInt64x2Slice(s []int64) Int64x2 {
-	return LoadInt64x2(s)
+	return *(*Int64x2)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Int64x2Slice loads 4 consecutive Int64x2 vectors (8 int64s = 64 bytes)
@@ -1340,7 +1361,12 @@ func (v Int64x2) ConvertToFloat64() Float64x2 {
 	return *(*Float64x2)(unsafe.Pointer(&result))
 }
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Int64x2) Store(p *[2]int64) {
+	*(*Int64x2)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Int64x2) StoreSlice(s []int64) {
 	*(*Int64x2)(unsafe.Pointer(&s[0])) = v
 }
@@ -1399,6 +1425,12 @@ func (v Int64x2) ReduceMin() int64 {
 		return a[0]
 	}
 	return a[1]
+}
+
+// ReduceSum returns the sum of all elements.
+func (v Int64x2) ReduceSum() int64 {
+	a := (*[2]int64)(unsafe.Pointer(&v))
+	return a[0] + a[1]
 }
 
 // ===== Bool mask types for conditional operations =====
@@ -2059,14 +2091,14 @@ func BroadcastUint8x16(v uint8) Uint8x16 {
 	return *(*Uint8x16)(unsafe.Pointer(&arr))
 }
 
-// LoadUint8x16 loads 16 uint8 values from a slice.
-func LoadUint8x16(s []uint8) Uint8x16 {
-	return *(*Uint8x16)(unsafe.Pointer(&s[0]))
+// LoadUint8x16 loads 16 uint8 values from an array pointer (no bounds check).
+func LoadUint8x16(p *[16]uint8) Uint8x16 {
+	return *(*Uint8x16)(unsafe.Pointer(p))
 }
 
-// LoadUint8x16Slice is an alias for LoadUint8x16 for consistency with other types.
+// LoadUint8x16Slice loads 16 uint8 values from a slice (has bounds check).
 func LoadUint8x16Slice(s []uint8) Uint8x16 {
-	return LoadUint8x16(s)
+	return *(*Uint8x16)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Uint8x16Slice loads 4 consecutive Uint8x16 vectors (64 bytes)
@@ -2092,7 +2124,12 @@ func (v *Uint8x16) Set(i int, val uint8) {
 	v[i] = val
 }
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Uint8x16) Store(p *[16]uint8) {
+	*(*Uint8x16)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Uint8x16) StoreSlice(s []uint8) {
 	*(*Uint8x16)(unsafe.Pointer(&s[0])) = v
 }
@@ -2219,8 +2256,13 @@ func BroadcastUint16x8(v uint16) Uint16x8 {
 	return *(*Uint16x8)(unsafe.Pointer(&arr))
 }
 
-// LoadUint16x8 loads 8 uint16 values from a slice.
-func LoadUint16x8(s []uint16) Uint16x8 {
+// LoadUint16x8 loads 8 uint16 values from an array pointer (no bounds check).
+func LoadUint16x8(p *[8]uint16) Uint16x8 {
+	return *(*Uint16x8)(unsafe.Pointer(p))
+}
+
+// LoadUint16x8Slice loads 8 uint16 values from a slice (has bounds check).
+func LoadUint16x8Slice(s []uint16) Uint16x8 {
 	return *(*Uint16x8)(unsafe.Pointer(&s[0]))
 }
 
@@ -2247,7 +2289,12 @@ func (v *Uint16x8) Set(i int, val uint16) {
 	(*[8]uint16)(unsafe.Pointer(v))[i] = val
 }
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Uint16x8) Store(p *[8]uint16) {
+	*(*Uint16x8)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Uint16x8) StoreSlice(s []uint16) {
 	*(*Uint16x8)(unsafe.Pointer(&s[0])) = v
 }
@@ -2352,14 +2399,14 @@ func BroadcastUint32x4(v uint32) Uint32x4 {
 	return *(*Uint32x4)(unsafe.Pointer(&arr))
 }
 
-// LoadUint32x4 loads 4 uint32 values from a slice.
-func LoadUint32x4(s []uint32) Uint32x4 {
-	return *(*Uint32x4)(unsafe.Pointer(&s[0]))
+// LoadUint32x4 loads 4 uint32 values from an array pointer (no bounds check).
+func LoadUint32x4(p *[4]uint32) Uint32x4 {
+	return *(*Uint32x4)(unsafe.Pointer(p))
 }
 
-// LoadUint32x4Slice is an alias for LoadUint32x4 (matches archsimd naming).
+// LoadUint32x4Slice loads 4 uint32 values from a slice (has bounds check).
 func LoadUint32x4Slice(s []uint32) Uint32x4 {
-	return LoadUint32x4(s)
+	return *(*Uint32x4)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Uint32x4Slice loads 4 consecutive Uint32x4 vectors (16 uint32s = 64 bytes)
@@ -2391,7 +2438,12 @@ func (v *Uint32x4) Set(i int, val uint32) {
 	(*[4]uint32)(unsafe.Pointer(v))[i] = val
 }
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Uint32x4) Store(p *[4]uint32) {
+	*(*Uint32x4)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Uint32x4) StoreSlice(s []uint32) {
 	*(*Uint32x4)(unsafe.Pointer(&s[0])) = v
 }
@@ -2540,14 +2592,14 @@ func BroadcastUint64x2(v uint64) Uint64x2 {
 	return *(*Uint64x2)(unsafe.Pointer(&arr))
 }
 
-// LoadUint64x2 loads 2 uint64 values from a slice.
-func LoadUint64x2(s []uint64) Uint64x2 {
-	return *(*Uint64x2)(unsafe.Pointer(&s[0]))
+// LoadUint64x2 loads 2 uint64 values from an array pointer (no bounds check).
+func LoadUint64x2(p *[2]uint64) Uint64x2 {
+	return *(*Uint64x2)(unsafe.Pointer(p))
 }
 
-// LoadUint64x2Slice is an alias for LoadUint64x2 (matches archsimd naming).
+// LoadUint64x2Slice loads 2 uint64 values from a slice (has bounds check).
 func LoadUint64x2Slice(s []uint64) Uint64x2 {
-	return LoadUint64x2(s)
+	return *(*Uint64x2)(unsafe.Pointer(&s[0]))
 }
 
 // Load4Uint64x2Slice loads 4 consecutive Uint64x2 vectors (8 uint64s = 64 bytes)
@@ -2579,7 +2631,12 @@ func (v *Uint64x2) Set(i int, val uint64) {
 	(*[2]uint64)(unsafe.Pointer(v))[i] = val
 }
 
-// StoreSlice stores the vector to a slice.
+// Store stores the vector to an array pointer (no bounds check).
+func (v Uint64x2) Store(p *[2]uint64) {
+	*(*Uint64x2)(unsafe.Pointer(p)) = v
+}
+
+// StoreSlice stores the vector to a slice (has bounds check).
 func (v Uint64x2) StoreSlice(s []uint64) {
 	*(*Uint64x2)(unsafe.Pointer(&s[0])) = v
 }
@@ -2701,6 +2758,12 @@ func (v Uint64x2) ReduceMax() uint64 {
 		return a[0]
 	}
 	return a[1]
+}
+
+// ReduceSum returns the sum of all elements.
+func (v Uint64x2) ReduceSum() uint64 {
+	a := (*[2]uint64)(unsafe.Pointer(&v))
+	return a[0] + a[1]
 }
 
 // GetBit returns true if the element at index i is non-zero.

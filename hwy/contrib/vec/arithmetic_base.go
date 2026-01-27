@@ -50,10 +50,10 @@ func BaseAdd[T hwy.Floats](dst, s []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
+		vd := hwy.LoadFull(dst[i:])
+		vs := hwy.LoadFull(s[i:])
 		result := hwy.Add(vd, vs)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -86,10 +86,10 @@ func BaseAddTo[T hwy.Floats](dst, a, b []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		result := hwy.Add(va, vb)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -121,10 +121,10 @@ func BaseSub[T hwy.Floats](dst, s []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
+		vd := hwy.LoadFull(dst[i:])
+		vs := hwy.LoadFull(s[i:])
 		result := hwy.Sub(vd, vs)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -157,10 +157,10 @@ func BaseSubTo[T hwy.Floats](dst, a, b []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		result := hwy.Sub(va, vb)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -192,10 +192,10 @@ func BaseMul[T hwy.Floats](dst, s []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
+		vd := hwy.LoadFull(dst[i:])
+		vs := hwy.LoadFull(s[i:])
 		result := hwy.Mul(vd, vs)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -228,10 +228,10 @@ func BaseMulTo[T hwy.Floats](dst, a, b []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		result := hwy.Mul(va, vb)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -266,10 +266,10 @@ func BaseDiv[T hwy.Floats](dst, s []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
+		vd := hwy.LoadFull(dst[i:])
+		vs := hwy.LoadFull(s[i:])
 		result := hwy.Div(vd, vs)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -305,10 +305,10 @@ func BaseDivTo[T hwy.Floats](dst, a, b []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		result := hwy.Div(va, vb)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -339,9 +339,9 @@ func BaseScale[T hwy.Floats](c T, dst []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
+		vd := hwy.LoadFull(dst[i:])
 		result := hwy.Mul(vd, vc)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -374,9 +374,9 @@ func BaseScaleTo[T hwy.Floats](dst []T, c T, s []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vs := hwy.Load(s[i:])
+		vs := hwy.LoadFull(s[i:])
 		result := hwy.Mul(vc, vs)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -407,9 +407,9 @@ func BaseAddConst[T hwy.Floats](c T, dst []T) {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
+		vd := hwy.LoadFull(dst[i:])
 		result := hwy.Add(vd, vc)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code
@@ -446,11 +446,11 @@ func BaseMulConstAddTo[T hwy.Floats](dst []T, a T, x []T) {
 	// Process full vectors using FMA
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vx := hwy.Load(x[i:])
+		vd := hwy.LoadFull(dst[i:])
+		vx := hwy.LoadFull(x[i:])
 		// MulAdd computes a*b + c, so we compute va*vx + vd
 		result := hwy.MulAdd(va, vx, vd)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements with scalar code

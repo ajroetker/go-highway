@@ -84,8 +84,8 @@ func BaseBatchL2SquaredDistance[T hwy.Floats](query, data []T, distances []T, co
 		// Process full vectors using SIMD
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			diff := hwy.Sub(vq, vd)
 			diffSq := hwy.Mul(diff, diff)
 			sum = hwy.Add(sum, diffSq)
@@ -170,8 +170,8 @@ func BaseBatchDot[T hwy.Floats](query, data []T, dots []T, count, dims int) {
 		// Process full vectors using SIMD
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			prod := hwy.Mul(vq, vd)
 			sum = hwy.Add(sum, prod)
 		}

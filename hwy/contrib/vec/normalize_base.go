@@ -60,9 +60,9 @@ func BaseNormalize[T hwy.Floats](dst []T) {
 
 	var i int
 	for i = 0; i+lanes <= len(dst); i += lanes {
-		vec := hwy.Load(dst[i:])
+		vec := hwy.LoadFull(dst[i:])
 		result := hwy.Mul(vec, scaleVec)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements
@@ -112,9 +112,9 @@ func BaseNormalizeTo[T hwy.Floats](dst, src []T) {
 
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vec := hwy.Load(src[i:])
+		vec := hwy.LoadFull(src[i:])
 		result := hwy.Mul(vec, scaleVec)
-		hwy.Store(result, dst[i:])
+		hwy.StoreFull(result, dst[i:])
 	}
 
 	// Handle tail elements

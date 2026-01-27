@@ -3023,8 +3023,8 @@ func TestUint8x16_Saturating(t *testing.T) {
 }
 
 func TestUint8x16_MinMax(t *testing.T) {
-	a := LoadUint8x16([]uint8{1, 100, 200, 50, 10, 255, 0, 128, 1, 100, 200, 50, 10, 255, 0, 128})
-	b := LoadUint8x16([]uint8{2, 50, 100, 100, 20, 100, 1, 64, 2, 50, 100, 100, 20, 100, 1, 64})
+	a := LoadUint8x16Slice([]uint8{1, 100, 200, 50, 10, 255, 0, 128, 1, 100, 200, 50, 10, 255, 0, 128})
+	b := LoadUint8x16Slice([]uint8{2, 50, 100, 100, 20, 100, 1, 64, 2, 50, 100, 100, 20, 100, 1, 64})
 
 	minResult := a.Min(b)
 	maxResult := a.Max(b)
@@ -3043,8 +3043,8 @@ func TestUint8x16_MinMax(t *testing.T) {
 }
 
 func TestUint8x16_Comparisons(t *testing.T) {
-	a := LoadUint8x16([]uint8{10, 200, 100, 0, 10, 200, 100, 0, 10, 200, 100, 0, 10, 200, 100, 0})
-	b := LoadUint8x16([]uint8{20, 100, 100, 1, 20, 100, 100, 1, 20, 100, 100, 1, 20, 100, 100, 1})
+	a := LoadUint8x16Slice([]uint8{10, 200, 100, 0, 10, 200, 100, 0, 10, 200, 100, 0, 10, 200, 100, 0})
+	b := LoadUint8x16Slice([]uint8{20, 100, 100, 1, 20, 100, 100, 1, 20, 100, 100, 1, 20, 100, 100, 1})
 
 	lt := a.LessThan(b)
 	gt := a.GreaterThan(b)
@@ -3092,8 +3092,8 @@ func TestUint32x4_Saturating(t *testing.T) {
 func TestUint32x4_MinMax(t *testing.T) {
 	// Test with values that differ in signed vs unsigned interpretation
 	// 0x80000000 is MAX_INT32+1 in unsigned, but MIN_INT32 in signed
-	a := LoadUint32x4([]uint32{100, 0x80000000, 0xFFFFFFFF, 0})
-	b := LoadUint32x4([]uint32{200, 0x7FFFFFFF, 0xFFFFFFFE, 1})
+	a := LoadUint32x4Slice([]uint32{100, 0x80000000, 0xFFFFFFFF, 0})
+	b := LoadUint32x4Slice([]uint32{200, 0x7FFFFFFF, 0xFFFFFFFE, 1})
 
 	minResult := a.Min(b)
 	maxResult := a.Max(b)
@@ -3115,8 +3115,8 @@ func TestUint32x4_MinMax(t *testing.T) {
 
 func TestUint32x4_Comparisons(t *testing.T) {
 	// Test unsigned comparisons with values that differ in signed vs unsigned
-	a := LoadUint32x4([]uint32{10, 0x80000000, 100, 0})
-	b := LoadUint32x4([]uint32{20, 0x7FFFFFFF, 100, 1})
+	a := LoadUint32x4Slice([]uint32{10, 0x80000000, 100, 0})
+	b := LoadUint32x4Slice([]uint32{20, 0x7FFFFFFF, 100, 1})
 
 	lt := a.LessThan(b)
 	gt := a.GreaterThan(b)
@@ -3166,8 +3166,8 @@ func TestUint64x2_Saturating(t *testing.T) {
 
 func TestUint64x2_MinMax(t *testing.T) {
 	// Test with values that differ in signed vs unsigned interpretation
-	a := LoadUint64x2([]uint64{0x8000000000000000, 100})
-	b := LoadUint64x2([]uint64{0x7FFFFFFFFFFFFFFF, 200})
+	a := LoadUint64x2Slice([]uint64{0x8000000000000000, 100})
+	b := LoadUint64x2Slice([]uint64{0x7FFFFFFFFFFFFFFF, 200})
 
 	minResult := a.Min(b)
 	maxResult := a.Max(b)
@@ -3191,8 +3191,8 @@ func TestUint64x2_MinMax(t *testing.T) {
 
 func TestUint64x2_Comparisons(t *testing.T) {
 	// Test unsigned comparisons
-	a := LoadUint64x2([]uint64{0x8000000000000000, 100})
-	b := LoadUint64x2([]uint64{0x7FFFFFFFFFFFFFFF, 100})
+	a := LoadUint64x2Slice([]uint64{0x8000000000000000, 100})
+	b := LoadUint64x2Slice([]uint64{0x7FFFFFFFFFFFFFFF, 100})
 
 	lt := a.LessThan(b)
 	gt := a.GreaterThan(b)
@@ -3245,8 +3245,8 @@ func TestUint16x8_Saturating(t *testing.T) {
 }
 
 func TestUint32x4_Arithmetic(t *testing.T) {
-	a := LoadUint32x4([]uint32{10, 20, 30, 40})
-	b := LoadUint32x4([]uint32{5, 10, 15, 20})
+	a := LoadUint32x4Slice([]uint32{10, 20, 30, 40})
+	b := LoadUint32x4Slice([]uint32{5, 10, 15, 20})
 
 	// Add
 	add := a.Add(b)
@@ -3274,7 +3274,7 @@ func TestUint32x4_Arithmetic(t *testing.T) {
 }
 
 func TestUint32x4_ReduceSum(t *testing.T) {
-	a := LoadUint32x4([]uint32{100, 200, 300, 400})
+	a := LoadUint32x4Slice([]uint32{100, 200, 300, 400})
 	sum := a.ReduceSum()
 	if sum != 1000 {
 		t.Errorf("ReduceSum: got %d, want 1000", sum)
@@ -3282,7 +3282,7 @@ func TestUint32x4_ReduceSum(t *testing.T) {
 }
 
 func TestUint32x4_Shifts(t *testing.T) {
-	a := LoadUint32x4([]uint32{0x80000000, 0xFF, 0x12345678, 1})
+	a := LoadUint32x4Slice([]uint32{0x80000000, 0xFF, 0x12345678, 1})
 
 	// Shift left by 1
 	left := a.ShiftAllLeft(1)

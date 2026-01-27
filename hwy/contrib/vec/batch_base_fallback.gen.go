@@ -27,8 +27,8 @@ func BaseBatchL2SquaredDistance_fallback_Float16(query []hwy.Float16, data []hwy
 		sum = hwy.Zero[hwy.Float16]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			diff := hwy.Sub(vq, vd)
 			diffSq := hwy.Mul(diff, diff)
 			sum = hwy.Add(sum, diffSq)
@@ -63,8 +63,8 @@ func BaseBatchL2SquaredDistance_fallback_BFloat16(query []hwy.BFloat16, data []h
 		sum = hwy.Zero[hwy.BFloat16]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			diff := hwy.Sub(vq, vd)
 			diffSq := hwy.Mul(diff, diff)
 			sum = hwy.Add(sum, diffSq)
@@ -99,8 +99,8 @@ func BaseBatchL2SquaredDistance_fallback(query []float32, data []float32, distan
 		sum = hwy.Zero[float32]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			diff := hwy.Sub(vq, vd)
 			diffSq := hwy.Mul(diff, diff)
 			sum = hwy.Add(sum, diffSq)
@@ -135,8 +135,8 @@ func BaseBatchL2SquaredDistance_fallback_Float64(query []float64, data []float64
 		sum = hwy.Zero[float64]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			diff := hwy.Sub(vq, vd)
 			diffSq := hwy.Mul(diff, diff)
 			sum = hwy.Add(sum, diffSq)
@@ -171,8 +171,8 @@ func BaseBatchDot_fallback_Float16(query []hwy.Float16, data []hwy.Float16, dots
 		sum = hwy.Zero[hwy.Float16]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			prod := hwy.Mul(vq, vd)
 			sum = hwy.Add(sum, prod)
 		}
@@ -205,8 +205,8 @@ func BaseBatchDot_fallback_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, d
 		sum = hwy.Zero[hwy.BFloat16]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			prod := hwy.Mul(vq, vd)
 			sum = hwy.Add(sum, prod)
 		}
@@ -239,8 +239,8 @@ func BaseBatchDot_fallback(query []float32, data []float32, dots []float32, coun
 		sum = hwy.Zero[float32]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			prod := hwy.Mul(vq, vd)
 			sum = hwy.Add(sum, prod)
 		}
@@ -273,8 +273,8 @@ func BaseBatchDot_fallback_Float64(query []float64, data []float64, dots []float
 		sum = hwy.Zero[float64]()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
+			vq := hwy.LoadFull(query[j:])
+			vd := hwy.LoadFull(dataVec[j:])
 			prod := hwy.Mul(vq, vd)
 			sum = hwy.Add(sum, prod)
 		}

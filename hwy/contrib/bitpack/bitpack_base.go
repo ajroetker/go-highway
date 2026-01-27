@@ -102,7 +102,7 @@ func BasePack32(src []uint32, bitWidth int, dst []byte) int {
 	// Process SIMD-width blocks
 	var i int
 	for i = 0; i+lanes <= len(src); i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		v = hwy.And(v, maskVec) // Ensure values fit in bitWidth
 
 		// Pack each lane - this part remains scalar for cross-lane bit packing
@@ -247,7 +247,7 @@ func BasePack64(src []uint64, bitWidth int, dst []byte) int {
 	// Process SIMD-width blocks
 	var i int
 	for i = 0; i+lanes <= len(src); i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		v = hwy.And(v, maskVec)
 
 		for lane := range lanes {
@@ -385,15 +385,15 @@ func BaseDeltaEncode32(src []uint32, base uint32, dst []uint32) {
 	var i int
 	for i = 1; i+lanes <= len(src); i += lanes {
 		// Load current block
-		curr := hwy.Load(src[i:])
+		curr := hwy.LoadFull(src[i:])
 
 		// Load previous block (shifted by 1)
 		// We need src[i-1], src[i], src[i+1], ..., src[i+lanes-2]
-		prevVec := hwy.Load(src[i-1:])
+		prevVec := hwy.LoadFull(src[i-1:])
 
 		// Compute deltas: curr - prev
 		delta := hwy.Sub(curr, prevVec)
-		hwy.Store(delta, dst[i:])
+		hwy.StoreFull(delta, dst[i:])
 
 		prev = src[i+lanes-1]
 	}
@@ -455,10 +455,10 @@ func BaseDeltaEncode64(src []uint64, base uint64, dst []uint64) {
 
 	var i int
 	for i = 1; i+lanes <= len(src); i += lanes {
-		curr := hwy.Load(src[i:])
-		prevVec := hwy.Load(src[i-1:])
+		curr := hwy.LoadFull(src[i:])
+		prevVec := hwy.LoadFull(src[i-1:])
 		delta := hwy.Sub(curr, prevVec)
-		hwy.Store(delta, dst[i:])
+		hwy.StoreFull(delta, dst[i:])
 		prev = src[i+lanes-1]
 	}
 

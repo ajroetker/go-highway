@@ -42,10 +42,10 @@ func BasePrefixSum[T hwy.Integers | hwy.FloatsNative](data []T) {
 	i := 0
 
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[T](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 
@@ -85,10 +85,10 @@ func BaseDeltaDecode[T hwy.Integers](data []T, base T) {
 	i := 0
 
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[T](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 

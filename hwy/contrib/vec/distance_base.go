@@ -74,8 +74,8 @@ func BaseL2SquaredDistance[T hwy.Floats](a, b []T) T {
 
 	// Process remaining full vectors (1 at a time)
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		diff := hwy.Sub(va, vb)
 		sum0 = hwy.MulAdd(diff, diff, sum0)
 		i += lanes

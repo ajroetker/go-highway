@@ -6,6 +6,7 @@ package sort
 
 import (
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BasePartition3Way_neon(data []float32, pivot float32) (int, int) {
@@ -25,7 +26,7 @@ func BasePartition3Way_neon(data []float32, pivot float32) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := asm.LoadFloat32x4Slice(data[i:])
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[i])))
 		maskLess := v.LessThan(pivotVec)
 		maskGreater := v.GreaterThan(pivotVec)
 		if asm.AllTrueVal(maskLess) {
@@ -35,9 +36,9 @@ func BasePartition3Way_neon(data []float32, pivot float32) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := asm.LoadFloat32x4Slice(data[lt:])
-				v.StoreSlice(data[lt:])
-				vLt.StoreSlice(data[i:])
+				vLt := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[lt])))
+				v.Store((*[4]float32)(unsafe.Pointer(&data[lt])))
+				vLt.Store((*[4]float32)(unsafe.Pointer(&data[i])))
 				lt += lanes
 				i += lanes
 				continue
@@ -46,9 +47,9 @@ func BasePartition3Way_neon(data []float32, pivot float32) (int, int) {
 		}
 		if asm.AllTrueVal(maskGreater) {
 			gt -= lanes
-			vGt := asm.LoadFloat32x4Slice(data[gt:])
-			v.StoreSlice(data[gt:])
-			vGt.StoreSlice(data[i:])
+			vGt := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[gt])))
+			v.Store((*[4]float32)(unsafe.Pointer(&data[gt])))
+			vGt.Store((*[4]float32)(unsafe.Pointer(&data[i])))
 			continue
 		}
 		if asm.AllFalseVal(maskLess) && asm.AllFalseVal(maskGreater) {
@@ -104,7 +105,7 @@ func BasePartition3Way_neon_Float64(data []float64, pivot float64) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := asm.LoadFloat64x2Slice(data[i:])
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[i])))
 		maskLess := v.LessThan(pivotVec)
 		maskGreater := v.GreaterThan(pivotVec)
 		if asm.AllTrueValFloat64(maskLess) {
@@ -114,9 +115,9 @@ func BasePartition3Way_neon_Float64(data []float64, pivot float64) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := asm.LoadFloat64x2Slice(data[lt:])
-				v.StoreSlice(data[lt:])
-				vLt.StoreSlice(data[i:])
+				vLt := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[lt])))
+				v.Store((*[2]float64)(unsafe.Pointer(&data[lt])))
+				vLt.Store((*[2]float64)(unsafe.Pointer(&data[i])))
 				lt += lanes
 				i += lanes
 				continue
@@ -125,9 +126,9 @@ func BasePartition3Way_neon_Float64(data []float64, pivot float64) (int, int) {
 		}
 		if asm.AllTrueValFloat64(maskGreater) {
 			gt -= lanes
-			vGt := asm.LoadFloat64x2Slice(data[gt:])
-			v.StoreSlice(data[gt:])
-			vGt.StoreSlice(data[i:])
+			vGt := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[gt])))
+			v.Store((*[2]float64)(unsafe.Pointer(&data[gt])))
+			vGt.Store((*[2]float64)(unsafe.Pointer(&data[i])))
 			continue
 		}
 		if asm.AllFalseValFloat64(maskLess) && asm.AllFalseValFloat64(maskGreater) {
@@ -183,7 +184,7 @@ func BasePartition3Way_neon_Int32(data []int32, pivot int32) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := asm.LoadInt32x4Slice(data[i:])
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[i])))
 		maskLess := v.LessThan(pivotVec)
 		maskGreater := v.GreaterThan(pivotVec)
 		if asm.AllTrueVal(maskLess) {
@@ -193,9 +194,9 @@ func BasePartition3Way_neon_Int32(data []int32, pivot int32) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := asm.LoadInt32x4Slice(data[lt:])
-				v.StoreSlice(data[lt:])
-				vLt.StoreSlice(data[i:])
+				vLt := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[lt])))
+				v.Store((*[4]int32)(unsafe.Pointer(&data[lt])))
+				vLt.Store((*[4]int32)(unsafe.Pointer(&data[i])))
 				lt += lanes
 				i += lanes
 				continue
@@ -204,9 +205,9 @@ func BasePartition3Way_neon_Int32(data []int32, pivot int32) (int, int) {
 		}
 		if asm.AllTrueVal(maskGreater) {
 			gt -= lanes
-			vGt := asm.LoadInt32x4Slice(data[gt:])
-			v.StoreSlice(data[gt:])
-			vGt.StoreSlice(data[i:])
+			vGt := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[gt])))
+			v.Store((*[4]int32)(unsafe.Pointer(&data[gt])))
+			vGt.Store((*[4]int32)(unsafe.Pointer(&data[i])))
 			continue
 		}
 		if asm.AllFalseVal(maskLess) && asm.AllFalseVal(maskGreater) {
@@ -262,7 +263,7 @@ func BasePartition3Way_neon_Int64(data []int64, pivot int64) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := asm.LoadInt64x2Slice(data[i:])
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[i])))
 		maskLess := v.LessThan(pivotVec)
 		maskGreater := v.GreaterThan(pivotVec)
 		if asm.AllTrueValFloat64(maskLess) {
@@ -272,9 +273,9 @@ func BasePartition3Way_neon_Int64(data []int64, pivot int64) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := asm.LoadInt64x2Slice(data[lt:])
-				v.StoreSlice(data[lt:])
-				vLt.StoreSlice(data[i:])
+				vLt := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[lt])))
+				v.Store((*[2]int64)(unsafe.Pointer(&data[lt])))
+				vLt.Store((*[2]int64)(unsafe.Pointer(&data[i])))
 				lt += lanes
 				i += lanes
 				continue
@@ -283,9 +284,9 @@ func BasePartition3Way_neon_Int64(data []int64, pivot int64) (int, int) {
 		}
 		if asm.AllTrueValFloat64(maskGreater) {
 			gt -= lanes
-			vGt := asm.LoadInt64x2Slice(data[gt:])
-			v.StoreSlice(data[gt:])
-			vGt.StoreSlice(data[i:])
+			vGt := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[gt])))
+			v.Store((*[2]int64)(unsafe.Pointer(&data[gt])))
+			vGt.Store((*[2]int64)(unsafe.Pointer(&data[i])))
 			continue
 		}
 		if asm.AllFalseValFloat64(maskLess) && asm.AllFalseValFloat64(maskGreater) {
@@ -341,7 +342,7 @@ func BasePartition3Way_neon_Uint32(data []uint32, pivot uint32) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := asm.LoadUint32x4Slice(data[i:])
+		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[i])))
 		maskLess := v.LessThan(pivotVec)
 		maskGreater := v.GreaterThan(pivotVec)
 		if asm.AllTrueValUint32(maskLess) {
@@ -351,9 +352,9 @@ func BasePartition3Way_neon_Uint32(data []uint32, pivot uint32) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := asm.LoadUint32x4Slice(data[lt:])
-				v.StoreSlice(data[lt:])
-				vLt.StoreSlice(data[i:])
+				vLt := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[lt])))
+				v.Store((*[4]uint32)(unsafe.Pointer(&data[lt])))
+				vLt.Store((*[4]uint32)(unsafe.Pointer(&data[i])))
 				lt += lanes
 				i += lanes
 				continue
@@ -362,9 +363,9 @@ func BasePartition3Way_neon_Uint32(data []uint32, pivot uint32) (int, int) {
 		}
 		if asm.AllTrueValUint32(maskGreater) {
 			gt -= lanes
-			vGt := asm.LoadUint32x4Slice(data[gt:])
-			v.StoreSlice(data[gt:])
-			vGt.StoreSlice(data[i:])
+			vGt := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[gt])))
+			v.Store((*[4]uint32)(unsafe.Pointer(&data[gt])))
+			vGt.Store((*[4]uint32)(unsafe.Pointer(&data[i])))
 			continue
 		}
 		if asm.AllFalseValUint32(maskLess) && asm.AllFalseValUint32(maskGreater) {
@@ -420,7 +421,7 @@ func BasePartition3Way_neon_Uint64(data []uint64, pivot uint64) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := asm.LoadUint64x2Slice(data[i:])
+		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[i])))
 		maskLess := v.LessThan(pivotVec)
 		maskGreater := v.GreaterThan(pivotVec)
 		if asm.AllTrueValUint64(maskLess) {
@@ -430,9 +431,9 @@ func BasePartition3Way_neon_Uint64(data []uint64, pivot uint64) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := asm.LoadUint64x2Slice(data[lt:])
-				v.StoreSlice(data[lt:])
-				vLt.StoreSlice(data[i:])
+				vLt := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[lt])))
+				v.Store((*[2]uint64)(unsafe.Pointer(&data[lt])))
+				vLt.Store((*[2]uint64)(unsafe.Pointer(&data[i])))
 				lt += lanes
 				i += lanes
 				continue
@@ -441,9 +442,9 @@ func BasePartition3Way_neon_Uint64(data []uint64, pivot uint64) (int, int) {
 		}
 		if asm.AllTrueValUint64(maskGreater) {
 			gt -= lanes
-			vGt := asm.LoadUint64x2Slice(data[gt:])
-			v.StoreSlice(data[gt:])
-			vGt.StoreSlice(data[i:])
+			vGt := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[gt])))
+			v.Store((*[2]uint64)(unsafe.Pointer(&data[gt])))
+			vGt.Store((*[2]uint64)(unsafe.Pointer(&data[i])))
 			continue
 		}
 		if asm.AllFalseValUint64(maskLess) && asm.AllFalseValUint64(maskGreater) {
@@ -498,7 +499,7 @@ func BasePartition_neon(data []float32, pivot float32) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := asm.LoadFloat32x4Slice(data[left:])
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[left])))
 		mask := v.LessEqual(pivotVec)
 		if asm.AllTrueVal(mask) {
 			left += lanes
@@ -506,9 +507,9 @@ func BasePartition_neon(data []float32, pivot float32) int {
 		}
 		if asm.AllFalseVal(mask) {
 			right -= lanes
-			vRight := asm.LoadFloat32x4Slice(data[right:])
-			v.StoreSlice(data[right:])
-			vRight.StoreSlice(data[left:])
+			vRight := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]float32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]float32)(unsafe.Pointer(&data[left])))
 			continue
 		}
 		end := min(left+lanes, right)
@@ -551,7 +552,7 @@ func BasePartition_neon_Float64(data []float64, pivot float64) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := asm.LoadFloat64x2Slice(data[left:])
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[left])))
 		mask := v.LessEqual(pivotVec)
 		if asm.AllTrueValFloat64(mask) {
 			left += lanes
@@ -559,9 +560,9 @@ func BasePartition_neon_Float64(data []float64, pivot float64) int {
 		}
 		if asm.AllFalseValFloat64(mask) {
 			right -= lanes
-			vRight := asm.LoadFloat64x2Slice(data[right:])
-			v.StoreSlice(data[right:])
-			vRight.StoreSlice(data[left:])
+			vRight := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[right])))
+			v.Store((*[2]float64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[2]float64)(unsafe.Pointer(&data[left])))
 			continue
 		}
 		end := min(left+lanes, right)
@@ -604,7 +605,7 @@ func BasePartition_neon_Int32(data []int32, pivot int32) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := asm.LoadInt32x4Slice(data[left:])
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[left])))
 		mask := v.LessEqual(pivotVec)
 		if asm.AllTrueVal(mask) {
 			left += lanes
@@ -612,9 +613,9 @@ func BasePartition_neon_Int32(data []int32, pivot int32) int {
 		}
 		if asm.AllFalseVal(mask) {
 			right -= lanes
-			vRight := asm.LoadInt32x4Slice(data[right:])
-			v.StoreSlice(data[right:])
-			vRight.StoreSlice(data[left:])
+			vRight := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]int32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]int32)(unsafe.Pointer(&data[left])))
 			continue
 		}
 		end := min(left+lanes, right)
@@ -657,7 +658,7 @@ func BasePartition_neon_Int64(data []int64, pivot int64) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := asm.LoadInt64x2Slice(data[left:])
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[left])))
 		mask := v.LessEqual(pivotVec)
 		if asm.AllTrueValFloat64(mask) {
 			left += lanes
@@ -665,9 +666,9 @@ func BasePartition_neon_Int64(data []int64, pivot int64) int {
 		}
 		if asm.AllFalseValFloat64(mask) {
 			right -= lanes
-			vRight := asm.LoadInt64x2Slice(data[right:])
-			v.StoreSlice(data[right:])
-			vRight.StoreSlice(data[left:])
+			vRight := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[right])))
+			v.Store((*[2]int64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[2]int64)(unsafe.Pointer(&data[left])))
 			continue
 		}
 		end := min(left+lanes, right)
@@ -710,7 +711,7 @@ func BasePartition_neon_Uint32(data []uint32, pivot uint32) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := asm.LoadUint32x4Slice(data[left:])
+		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[left])))
 		mask := v.LessEqual(pivotVec)
 		if asm.AllTrueValUint32(mask) {
 			left += lanes
@@ -718,9 +719,9 @@ func BasePartition_neon_Uint32(data []uint32, pivot uint32) int {
 		}
 		if asm.AllFalseValUint32(mask) {
 			right -= lanes
-			vRight := asm.LoadUint32x4Slice(data[right:])
-			v.StoreSlice(data[right:])
-			vRight.StoreSlice(data[left:])
+			vRight := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]uint32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]uint32)(unsafe.Pointer(&data[left])))
 			continue
 		}
 		end := min(left+lanes, right)
@@ -763,7 +764,7 @@ func BasePartition_neon_Uint64(data []uint64, pivot uint64) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := asm.LoadUint64x2Slice(data[left:])
+		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[left])))
 		mask := v.LessEqual(pivotVec)
 		if asm.AllTrueValUint64(mask) {
 			left += lanes
@@ -771,9 +772,9 @@ func BasePartition_neon_Uint64(data []uint64, pivot uint64) int {
 		}
 		if asm.AllFalseValUint64(mask) {
 			right -= lanes
-			vRight := asm.LoadUint64x2Slice(data[right:])
-			v.StoreSlice(data[right:])
-			vRight.StoreSlice(data[left:])
+			vRight := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[right])))
+			v.Store((*[2]uint64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[2]uint64)(unsafe.Pointer(&data[left])))
 			continue
 		}
 		end := min(left+lanes, right)

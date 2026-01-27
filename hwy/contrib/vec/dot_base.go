@@ -64,8 +64,8 @@ func BaseDot[T hwy.Floats](a, b []T) T {
 
 	// Process remaining full vectors (1 at a time)
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		sum0 = hwy.MulAdd(va, vb, sum0)
 		i += lanes
 	}

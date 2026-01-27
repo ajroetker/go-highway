@@ -6,6 +6,7 @@ package sort
 
 import (
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BaseSortSmall_neon(data []float32) {
@@ -141,11 +142,17 @@ func BaseIsSorted_neon(data []float32) bool {
 	}
 	lanes := 4
 	i := 0
-	for ; i+lanes < n; i += lanes {
-		v1 := asm.LoadFloat32x4Slice(data[i:])
-		v2 := asm.LoadFloat32x4Slice(data[i+1:])
+	for ; i+lanes+8 <= n; i += lanes * 2 {
+		v1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[i])))
+		v2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[i+1])))
 		mask := v1.GreaterThan(v2)
 		if asm.FindFirstTrue(mask) >= 0 {
+			return false
+		}
+		v11 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[i+4])))
+		v21 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[i+1+4])))
+		mask1 := v11.GreaterThan(v21)
+		if asm.FindFirstTrue(mask1) >= 0 {
 			return false
 		}
 	}
@@ -164,11 +171,17 @@ func BaseIsSorted_neon_Float64(data []float64) bool {
 	}
 	lanes := 2
 	i := 0
-	for ; i+lanes < n; i += lanes {
-		v1 := asm.LoadFloat64x2Slice(data[i:])
-		v2 := asm.LoadFloat64x2Slice(data[i+1:])
+	for ; i+lanes+4 <= n; i += lanes * 2 {
+		v1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[i])))
+		v2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[i+1])))
 		mask := v1.GreaterThan(v2)
 		if asm.FindFirstTrue(mask) >= 0 {
+			return false
+		}
+		v11 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[i+2])))
+		v21 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[i+1+2])))
+		mask1 := v11.GreaterThan(v21)
+		if asm.FindFirstTrue(mask1) >= 0 {
 			return false
 		}
 	}
@@ -187,11 +200,17 @@ func BaseIsSorted_neon_Int32(data []int32) bool {
 	}
 	lanes := 4
 	i := 0
-	for ; i+lanes < n; i += lanes {
-		v1 := asm.LoadInt32x4Slice(data[i:])
-		v2 := asm.LoadInt32x4Slice(data[i+1:])
+	for ; i+lanes+8 <= n; i += lanes * 2 {
+		v1 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[i])))
+		v2 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[i+1])))
 		mask := v1.GreaterThan(v2)
 		if asm.FindFirstTrue(mask) >= 0 {
+			return false
+		}
+		v11 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[i+4])))
+		v21 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[i+1+4])))
+		mask1 := v11.GreaterThan(v21)
+		if asm.FindFirstTrue(mask1) >= 0 {
 			return false
 		}
 	}
@@ -210,11 +229,17 @@ func BaseIsSorted_neon_Int64(data []int64) bool {
 	}
 	lanes := 2
 	i := 0
-	for ; i+lanes < n; i += lanes {
-		v1 := asm.LoadInt64x2Slice(data[i:])
-		v2 := asm.LoadInt64x2Slice(data[i+1:])
+	for ; i+lanes+4 <= n; i += lanes * 2 {
+		v1 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[i])))
+		v2 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[i+1])))
 		mask := v1.GreaterThan(v2)
 		if asm.FindFirstTrue(mask) >= 0 {
+			return false
+		}
+		v11 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[i+2])))
+		v21 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[i+1+2])))
+		mask1 := v11.GreaterThan(v21)
+		if asm.FindFirstTrue(mask1) >= 0 {
 			return false
 		}
 	}
@@ -233,11 +258,17 @@ func BaseIsSorted_neon_Uint32(data []uint32) bool {
 	}
 	lanes := 4
 	i := 0
-	for ; i+lanes < n; i += lanes {
-		v1 := asm.LoadUint32x4Slice(data[i:])
-		v2 := asm.LoadUint32x4Slice(data[i+1:])
+	for ; i+lanes+8 <= n; i += lanes * 2 {
+		v1 := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[i])))
+		v2 := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[i+1])))
 		mask := v1.GreaterThan(v2)
 		if asm.FindFirstTrue(mask) >= 0 {
+			return false
+		}
+		v11 := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[i+4])))
+		v21 := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[i+1+4])))
+		mask1 := v11.GreaterThan(v21)
+		if asm.FindFirstTrue(mask1) >= 0 {
 			return false
 		}
 	}
@@ -256,11 +287,17 @@ func BaseIsSorted_neon_Uint64(data []uint64) bool {
 	}
 	lanes := 2
 	i := 0
-	for ; i+lanes < n; i += lanes {
-		v1 := asm.LoadUint64x2Slice(data[i:])
-		v2 := asm.LoadUint64x2Slice(data[i+1:])
+	for ; i+lanes+4 <= n; i += lanes * 2 {
+		v1 := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[i])))
+		v2 := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[i+1])))
 		mask := v1.GreaterThan(v2)
 		if asm.FindFirstTrue(mask) >= 0 {
+			return false
+		}
+		v11 := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[i+2])))
+		v21 := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[i+1+2])))
+		mask1 := v11.GreaterThan(v21)
+		if asm.FindFirstTrue(mask1) >= 0 {
 			return false
 		}
 	}

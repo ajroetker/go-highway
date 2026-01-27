@@ -958,3 +958,114 @@ func BaseCopyFull[T hwy.FloatsNative](src, dst []T) {
 		t.Error("Generated code missing optimized pointer pattern &slice[i]")
 	}
 }
+
+// TestNumLanesTypeParameter verifies that hwy.NumLanes[T]() uses the explicit type parameter T
+// for lane count calculation, not the function's first slice parameter type.
+// This is a regression test for a bug where functions like:
+//
+//	func Decode(dst []float32, src []byte) { lanes := hwy.NumLanes[uint8]() ... }
+//
+// would incorrectly get lanes=8 (float32 AVX2 lanes) instead of lanes=32 (uint8 AVX2 lanes).
+func TestNumLanesTypeParameter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test input that has a first parameter type different from the Load type
+	// This triggers the bug: function signature has float32, but operations are on uint8
+	inputFile := filepath.Join(tmpDir, "numlanes_type.go")
+	content := `package testnumlanes
+
+import (
+	"unsafe"
+	"github.com/ajroetker/go-highway/hwy"
+)
+
+// BaseDecodeFloat32s has float32 as first slice parameter, but uses uint8 operations.
+// The lanes variable should be computed from uint8 (32 lanes for AVX2), not float32 (8 lanes).
+func BaseDecodeFloat32s(dst []float32, src []byte) {
+	if len(dst) == 0 {
+		return
+	}
+	totalBytes := len(dst) * 4
+	if len(src) < totalBytes {
+		return
+	}
+	dstBytes := unsafe.Slice((*byte)(unsafe.Pointer(&dst[0])), totalBytes)
+
+	// This is the key: hwy.NumLanes[uint8]() should give 32 for AVX2, not 8
+	lanes := hwy.NumLanes[uint8]()
+	i := 0
+	for ; i+lanes <= totalBytes; i += lanes {
+		v := hwy.Load[uint8](src[i:])
+		hwy.Store(v, dstBytes[i:])
+	}
+	for ; i < totalBytes; i++ {
+		dstBytes[i] = src[i]
+	}
+}
+`
+
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	// Test AVX2 target (should get lanes=32 for uint8, not lanes=8 for float32)
+	gen := &Generator{
+		InputFile: inputFile,
+		OutputDir: tmpDir,
+		Targets:   []string{"avx2"},
+	}
+
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	avx2Path := filepath.Join(tmpDir, "numlanes_type_avx2.gen.go")
+	avx2Content, err := os.ReadFile(avx2Path)
+	if err != nil {
+		t.Fatalf("Failed to read AVX2 output: %v", err)
+	}
+
+	contentStr := string(avx2Content)
+
+	// The critical check: lanes should be 32 (uint8 AVX2 = 32 bytes = 256 bits)
+	// NOT 8 (float32 AVX2 = 8 floats = 256 bits)
+	if strings.Contains(contentStr, "lanes := 8") {
+		t.Error("Bug: hwy.NumLanes[uint8]() incorrectly generated lanes=8 (float32 lanes) instead of lanes=32 (uint8 lanes)")
+	}
+	if !strings.Contains(contentStr, "lanes := 32") {
+		t.Error("Expected lanes := 32 for uint8 AVX2, but not found in generated code")
+	}
+
+	// Also verify the SIMD operations use uint8 vectors
+	if !strings.Contains(contentStr, "LoadUint8x32Slice") {
+		t.Error("Expected LoadUint8x32Slice for uint8 AVX2 operations")
+	}
+
+	// Test NEON target (should get lanes=16 for uint8, not lanes=4 for float32)
+	gen2 := &Generator{
+		InputFile: inputFile,
+		OutputDir: tmpDir,
+		Targets:   []string{"neon"},
+	}
+
+	if err := gen2.Run(); err != nil {
+		t.Fatalf("Generator.Run() for NEON failed: %v", err)
+	}
+
+	neonPath := filepath.Join(tmpDir, "numlanes_type_neon.gen.go")
+	neonContent, err := os.ReadFile(neonPath)
+	if err != nil {
+		t.Fatalf("Failed to read NEON output: %v", err)
+	}
+
+	neonStr := string(neonContent)
+
+	// For NEON: lanes should be 16 (uint8 NEON = 16 bytes = 128 bits)
+	// NOT 4 (float32 NEON = 4 floats = 128 bits)
+	if strings.Contains(neonStr, "lanes := 4") {
+		t.Error("Bug: hwy.NumLanes[uint8]() incorrectly generated lanes=4 (float32 lanes) instead of lanes=16 (uint8 lanes)")
+	}
+	if !strings.Contains(neonStr, "lanes := 16") {
+		t.Error("Expected lanes := 16 for uint8 NEON, but not found in generated code")
+	}
+}

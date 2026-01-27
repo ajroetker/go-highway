@@ -7,6 +7,7 @@ package algo
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
+	"unsafe"
 )
 
 func BaseCopyIf_avx512(src []float32, dst []float32, pred func(archsimd.Float32x16) archsimd.Mask32x16) int {
@@ -19,7 +20,7 @@ func BaseCopyIf_avx512(src []float32, dst []float32, pred func(archsimd.Float32x
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := archsimd.LoadFloat32x16Slice(src[i:])
+		v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore_AVX512_F32x16(v, mask, dst[dstIdx:]), remaining)
@@ -52,7 +53,7 @@ func BaseCopyIf_avx512_Float64(src []float64, dst []float64, pred func(archsimd.
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := archsimd.LoadFloat64x8Slice(src[i:])
+		v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore_AVX512_F64x8(v, mask, dst[dstIdx:]), remaining)
@@ -85,7 +86,7 @@ func BaseCopyIf_avx512_Int32(src []int32, dst []int32, pred func(archsimd.Int32x
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := archsimd.LoadInt32x16Slice(src[i:])
+		v := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore_AVX512_I32x16(v, mask, dst[dstIdx:]), remaining)
@@ -118,7 +119,7 @@ func BaseCopyIf_avx512_Int64(src []int64, dst []int64, pred func(archsimd.Int64x
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := archsimd.LoadInt64x8Slice(src[i:])
+		v := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore_AVX512_I64x8(v, mask, dst[dstIdx:]), remaining)
@@ -151,7 +152,7 @@ func BaseCopyIf_avx512_Uint32(src []uint32, dst []uint32, pred func(archsimd.Uin
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := archsimd.LoadUint32x16Slice(src[i:])
+		v := archsimd.LoadUint32x16((*[16]uint32)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore_AVX512_Uint32x16(v, mask, dst[dstIdx:]), remaining)
@@ -184,7 +185,7 @@ func BaseCopyIf_avx512_Uint64(src []uint64, dst []uint64, pred func(archsimd.Uin
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := archsimd.LoadUint64x8Slice(src[i:])
+		v := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore_AVX512_Uint64x8(v, mask, dst[dstIdx:]), remaining)

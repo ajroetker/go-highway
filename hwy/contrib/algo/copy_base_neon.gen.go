@@ -6,6 +6,7 @@ package algo
 
 import (
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BaseCopyIf_neon(src []float32, dst []float32, pred func(asm.Float32x4) asm.Int32x4) int {
@@ -18,7 +19,7 @@ func BaseCopyIf_neon(src []float32, dst []float32, pred func(asm.Float32x4) asm.
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := asm.LoadFloat32x4Slice(src[i:])
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(asm.CompressStore(v, mask, dst[dstIdx:]), remaining)
@@ -51,7 +52,7 @@ func BaseCopyIf_neon_Float64(src []float64, dst []float64, pred func(asm.Float64
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := asm.LoadFloat64x2Slice(src[i:])
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(asm.CompressStoreFloat64(v, mask, dst[dstIdx:]), remaining)
@@ -84,7 +85,7 @@ func BaseCopyIf_neon_Int32(src []int32, dst []int32, pred func(asm.Int32x4) asm.
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := asm.LoadInt32x4Slice(src[i:])
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(asm.CompressStoreInt32(v, mask, dst[dstIdx:]), remaining)
@@ -117,7 +118,7 @@ func BaseCopyIf_neon_Int64(src []int64, dst []int64, pred func(asm.Int64x2) asm.
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := asm.LoadInt64x2Slice(src[i:])
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(asm.CompressStoreInt64(v, mask, dst[dstIdx:]), remaining)
@@ -150,7 +151,7 @@ func BaseCopyIf_neon_Uint32(src []uint32, dst []uint32, pred func(asm.Uint32x4) 
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := asm.LoadUint32x4Slice(src[i:])
+		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(asm.CompressStoreUint32(v, mask, dst[dstIdx:]), remaining)
@@ -183,7 +184,7 @@ func BaseCopyIf_neon_Uint64(src []uint64, dst []uint64, pred func(asm.Uint64x2) 
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := asm.LoadUint64x2Slice(src[i:])
+		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&src[i])))
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(asm.CompressStoreUint64(v, mask, dst[dstIdx:]), remaining)

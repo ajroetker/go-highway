@@ -15,7 +15,7 @@ func BaseFind_fallback(slice []float32, value float32) int {
 	lanes := hwy.MaxLanes[float32]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		if idx := hwy.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
@@ -38,7 +38,7 @@ func BaseFind_fallback_Float64(slice []float64, value float64) int {
 	lanes := hwy.MaxLanes[float64]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		if idx := hwy.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
@@ -61,7 +61,7 @@ func BaseFind_fallback_Int32(slice []int32, value int32) int {
 	lanes := hwy.MaxLanes[int32]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		if idx := hwy.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
@@ -84,7 +84,7 @@ func BaseFind_fallback_Int64(slice []int64, value int64) int {
 	lanes := hwy.MaxLanes[int64]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		if idx := hwy.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
@@ -107,7 +107,7 @@ func BaseFind_fallback_Uint32(slice []uint32, value uint32) int {
 	lanes := hwy.MaxLanes[uint32]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		if idx := hwy.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
@@ -130,7 +130,7 @@ func BaseFind_fallback_Uint64(slice []uint64, value uint64) int {
 	lanes := hwy.MaxLanes[uint64]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		if idx := hwy.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
@@ -154,7 +154,7 @@ func BaseCount_fallback(slice []float32, value float32) int {
 	count := 0
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		count += hwy.CountTrue(mask)
 	}
@@ -176,7 +176,7 @@ func BaseCount_fallback_Float64(slice []float64, value float64) int {
 	count := 0
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		count += hwy.CountTrue(mask)
 	}
@@ -198,7 +198,7 @@ func BaseCount_fallback_Int32(slice []int32, value int32) int {
 	count := 0
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		count += hwy.CountTrue(mask)
 	}
@@ -220,7 +220,7 @@ func BaseCount_fallback_Int64(slice []int64, value int64) int {
 	count := 0
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		count += hwy.CountTrue(mask)
 	}
@@ -242,7 +242,7 @@ func BaseCount_fallback_Uint32(slice []uint32, value uint32) int {
 	count := 0
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		count += hwy.CountTrue(mask)
 	}
@@ -264,7 +264,7 @@ func BaseCount_fallback_Uint64(slice []uint64, value uint64) int {
 	count := 0
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(slice[i:])
+		v := hwy.LoadFull(slice[i:])
 		mask := hwy.Equal(v, target)
 		count += hwy.CountTrue(mask)
 	}

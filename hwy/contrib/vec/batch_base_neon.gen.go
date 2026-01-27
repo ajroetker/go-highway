@@ -7,6 +7,7 @@ package vec
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BaseBatchL2SquaredDistance_neon_Float16(query []hwy.Float16, data []hwy.Float16, distances []hwy.Float16, count int, dims int) {
@@ -102,8 +103,8 @@ func BaseBatchL2SquaredDistance_neon(query []float32, data []float32, distances 
 		sum = asm.ZeroFloat32x4()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat32x4Slice(query[j:])
-			vd := asm.LoadFloat32x4Slice(dataVec[j:])
+			vq := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&query[j])))
+			vd := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dataVec[j])))
 			diff := vq.Sub(vd)
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)
@@ -138,8 +139,8 @@ func BaseBatchL2SquaredDistance_neon_Float64(query []float64, data []float64, di
 		sum = asm.ZeroFloat64x2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat64x2Slice(query[j:])
-			vd := asm.LoadFloat64x2Slice(dataVec[j:])
+			vq := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&query[j])))
+			vd := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&dataVec[j])))
 			diff := vq.Sub(vd)
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)
@@ -242,8 +243,8 @@ func BaseBatchDot_neon(query []float32, data []float32, dots []float32, count in
 		sum = asm.ZeroFloat32x4()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat32x4Slice(query[j:])
-			vd := asm.LoadFloat32x4Slice(dataVec[j:])
+			vq := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&query[j])))
+			vd := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dataVec[j])))
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
@@ -276,8 +277,8 @@ func BaseBatchDot_neon_Float64(query []float64, data []float64, dots []float64, 
 		sum = asm.ZeroFloat64x2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat64x2Slice(query[j:])
-			vd := asm.LoadFloat64x2Slice(dataVec[j:])
+			vq := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&query[j])))
+			vd := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&dataVec[j])))
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}

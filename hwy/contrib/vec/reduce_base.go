@@ -40,7 +40,7 @@ func BaseSum[T hwy.Floats](v []T) T {
 	// Process full vectors
 	var i int
 	for i = 0; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
+		va := hwy.LoadFull(v[i:])
 		sum = hwy.Add(sum, va)
 	}
 
@@ -93,7 +93,7 @@ func BaseMin[T hwy.Floats](v []T) T {
 	// Process full vectors
 	var i int
 	for i = lanes; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
+		va := hwy.LoadFull(v[i:])
 		minVec = hwy.Min(minVec, va)
 	}
 
@@ -149,7 +149,7 @@ func BaseMax[T hwy.Lanes](v []T) T {
 	// Process full vectors
 	var i int
 	for i = lanes; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
+		va := hwy.LoadFull(v[i:])
 		maxVec = hwy.Max(maxVec, va)
 	}
 
@@ -212,7 +212,7 @@ func BaseMinMax[T hwy.Floats](v []T) (min, max T) {
 	// Process full vectors
 	var i int
 	for i = lanes; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
+		va := hwy.LoadFull(v[i:])
 		minVec = hwy.Min(minVec, va)
 		maxVec = hwy.Max(maxVec, va)
 	}

@@ -20,20 +20,28 @@ package asm
 
 import (
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// smeGuard locks the current goroutine to its OS thread and attempts to
-// minimize the chance of async preemption during SME streaming mode.
+// smeMutex serializes SME streaming mode calls across threads.
+// On macOS, concurrent SME calls from different threads can corrupt
+// the ZA register state. This mutex ensures only one thread uses SME at a time.
+var smeMutex sync.Mutex
+
+// smeGuard locks the current goroutine to its OS thread and acquires
+// the SME mutex to prevent concurrent SME usage across threads.
 // SME streaming mode makes ASIMD (NEON) instructions illegal, but Go's
 // runtime uses ASIMD for signal handlers and other operations.
-//
-//go:nosplit
 func smeGuard() func() {
+	smeMutex.Lock()
 	runtime.LockOSThread()
-	return runtime.UnlockOSThread
+	return func() {
+		runtime.UnlockOSThread()
+		smeMutex.Unlock()
+	}
 }
 
 // -march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16 enables SME with f32/f64/f16/bf16 support
@@ -62,6 +70,9 @@ func MatMulFMOPAF32(at, b, c []float32, m, n, k int) {
 	if len(at) < k*m || len(b) < k*n || len(c) < m*n {
 		return
 	}
+	// Lock OS thread and serialize SME calls to prevent ZA register corruption
+	defer smeGuard()()
+
 	mVal := int64(m)
 	nVal := int64(n)
 	kVal := int64(k)
@@ -94,6 +105,9 @@ func MatMulFMOPAF64(at, b, c []float64, m, n, k int) {
 	if len(at) < k*m || len(b) < k*n || len(c) < m*n {
 		return
 	}
+	// Lock OS thread and serialize SME calls to prevent ZA register corruption
+	defer smeGuard()()
+
 	mVal := int64(m)
 	nVal := int64(n)
 	kVal := int64(k)

@@ -20,7 +20,7 @@ func BasePack32_fallback(src []uint32, bitWidth int, dst []byte) int {
 	bytePos := 0
 	var i int
 	for i = 0; i+lanes <= len(src); i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		v = hwy.And(v, maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane(v, lane)
@@ -79,7 +79,7 @@ func BasePack64_fallback(src []uint64, bitWidth int, dst []byte) int {
 	bytePos := 0
 	var i int
 	for i = 0; i+lanes <= len(src); i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		v = hwy.And(v, maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane(v, lane)
@@ -136,10 +136,10 @@ func BaseDeltaEncode32_fallback(src []uint32, base uint32, dst []uint32) {
 	prev := src[0]
 	var i int
 	for i = 1; i+lanes <= len(src); i += lanes {
-		curr := hwy.Load(src[i:])
-		prevVec := hwy.Load(src[i-1:])
+		curr := hwy.LoadFull(src[i:])
+		prevVec := hwy.LoadFull(src[i-1:])
 		delta := hwy.Sub(curr, prevVec)
-		hwy.Store(delta, dst[i:])
+		hwy.StoreFull(delta, dst[i:])
 		prev = src[i+lanes-1]
 	}
 	for ; i < len(src); i++ {
@@ -160,10 +160,10 @@ func BaseDeltaEncode64_fallback(src []uint64, base uint64, dst []uint64) {
 	prev := src[0]
 	var i int
 	for i = 1; i+lanes <= len(src); i += lanes {
-		curr := hwy.Load(src[i:])
-		prevVec := hwy.Load(src[i-1:])
+		curr := hwy.LoadFull(src[i:])
+		prevVec := hwy.LoadFull(src[i-1:])
 		delta := hwy.Sub(curr, prevVec)
-		hwy.Store(delta, dst[i:])
+		hwy.StoreFull(delta, dst[i:])
 		prev = src[i+lanes-1]
 	}
 	for ; i < len(src); i++ {

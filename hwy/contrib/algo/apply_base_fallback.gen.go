@@ -11,8 +11,8 @@ func BaseApply_fallback_Float16(in []hwy.Float16, out []hwy.Float16, fn func(hwy
 	lanes := hwy.MaxLanes[hwy.Float16]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load(in[i:])
-		hwy.Store(fn(x), out[i:])
+		x := hwy.LoadFull(in[i:])
+		hwy.StoreFull(fn(x), out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := make([]hwy.Float16, lanes)
@@ -28,8 +28,8 @@ func BaseApply_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load(in[i:])
-		hwy.Store(fn(x), out[i:])
+		x := hwy.LoadFull(in[i:])
+		hwy.StoreFull(fn(x), out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := make([]hwy.BFloat16, lanes)
@@ -45,8 +45,8 @@ func BaseApply_fallback(in []float32, out []float32, fn func(hwy.Vec[float32]) h
 	lanes := hwy.MaxLanes[float32]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load(in[i:])
-		hwy.Store(fn(x), out[i:])
+		x := hwy.LoadFull(in[i:])
+		hwy.StoreFull(fn(x), out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := make([]float32, lanes)
@@ -62,8 +62,8 @@ func BaseApply_fallback_Float64(in []float64, out []float64, fn func(hwy.Vec[flo
 	lanes := hwy.MaxLanes[float64]()
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load(in[i:])
-		hwy.Store(fn(x), out[i:])
+		x := hwy.LoadFull(in[i:])
+		hwy.StoreFull(fn(x), out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := make([]float64, lanes)

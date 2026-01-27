@@ -6,6 +6,7 @@ package sort
 
 import (
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BaseRadixPass_neon_Int32(src []int32, dst []int32, shift int) {
@@ -19,7 +20,7 @@ func BaseRadixPass_neon_Int32(src []int32, dst []int32, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := asm.LoadInt32x4Slice(src[i:])
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(shift)
 		digits := shifted.And(maskVec)
 		var buf [16]int32
@@ -58,7 +59,7 @@ func BaseRadixPass_neon_Int64(src []int64, dst []int64, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := asm.LoadInt64x2Slice(src[i:])
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(shift)
 		digits := shifted.And(maskVec)
 		var buf [16]int64
@@ -203,7 +204,7 @@ func BaseRadixPassSigned_neon_Int32(src []int32, dst []int32, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := asm.LoadInt32x4Slice(src[i:])
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(shift)
 		digits := shifted.And(maskVec)
 		var buf [16]int32
@@ -247,7 +248,7 @@ func BaseRadixPassSigned_neon_Int64(src []int64, dst []int64, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := asm.LoadInt64x2Slice(src[i:])
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(shift)
 		digits := shifted.And(maskVec)
 		var buf [16]int64

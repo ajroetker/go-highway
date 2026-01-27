@@ -9,6 +9,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 	stdmath "math"
+	"unsafe"
 )
 
 func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
@@ -21,6 +22,22 @@ func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	vInvSqrt2 := hwy.Const[hwy.Float16](0.7071067811865476)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		xScaled := hwy.MulF16(x, vInvSqrt2)
+		erfX := math.BaseErfVec_neon_Float16(xScaled)
+		onePlusErf := hwy.AddF16(vOne, erfX)
+		halfOnePlusErf := hwy.MulF16(vHalf, onePlusErf)
+		result := hwy.MulF16(x, halfOnePlusErf)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		xScaled1 := hwy.MulF16(x1, vInvSqrt2)
+		erfX1 := math.BaseErfVec_neon_Float16(xScaled1)
+		onePlusErf1 := hwy.AddF16(vOne, erfX1)
+		halfOnePlusErf1 := hwy.MulF16(vHalf, onePlusErf1)
+		result1 := hwy.MulF16(x1, halfOnePlusErf1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		xScaled := hwy.MulF16(x, vInvSqrt2)
@@ -28,7 +45,7 @@ func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 		onePlusErf := hwy.AddF16(vOne, erfX)
 		halfOnePlusErf := hwy.MulF16(vHalf, onePlusErf)
 		result := hwy.MulF16(x, halfOnePlusErf)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i].Float32())
@@ -46,6 +63,22 @@ func BaseGELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	vInvSqrt2 := hwy.Const[hwy.BFloat16](0.7071067811865476)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		xScaled := hwy.MulBF16(x, vInvSqrt2)
+		erfX := math.BaseErfVec_neon_BFloat16(xScaled)
+		onePlusErf := hwy.AddBF16(vOne, erfX)
+		halfOnePlusErf := hwy.MulBF16(vHalf, onePlusErf)
+		result := hwy.MulBF16(x, halfOnePlusErf)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		xScaled1 := hwy.MulBF16(x1, vInvSqrt2)
+		erfX1 := math.BaseErfVec_neon_BFloat16(xScaled1)
+		onePlusErf1 := hwy.AddBF16(vOne, erfX1)
+		halfOnePlusErf1 := hwy.MulBF16(vHalf, onePlusErf1)
+		result1 := hwy.MulBF16(x1, halfOnePlusErf1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		xScaled := hwy.MulBF16(x, vInvSqrt2)
@@ -53,7 +86,7 @@ func BaseGELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 		onePlusErf := hwy.AddBF16(vOne, erfX)
 		halfOnePlusErf := hwy.MulBF16(vHalf, onePlusErf)
 		result := hwy.MulBF16(x, halfOnePlusErf)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i].Float32())
@@ -71,14 +104,30 @@ func BaseGELU_neon(input []float32, output []float32) {
 	vInvSqrt2 := asm.BroadcastFloat32x4(0.7071067811865476)
 	lanes := 4
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat32x4Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
 		xScaled := x.Mul(vInvSqrt2)
 		erfX := math.BaseErfVec_neon(xScaled)
 		onePlusErf := vOne.Add(erfX)
 		halfOnePlusErf := vHalf.Mul(onePlusErf)
 		result := x.Mul(halfOnePlusErf)
-		result.StoreSlice(output[ii:])
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		xScaled1 := x1.Mul(vInvSqrt2)
+		erfX1 := math.BaseErfVec_neon(xScaled1)
+		onePlusErf1 := vOne.Add(erfX1)
+		halfOnePlusErf1 := vHalf.Mul(onePlusErf1)
+		result1 := x1.Mul(halfOnePlusErf1)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		xScaled := x.Mul(vInvSqrt2)
+		erfX := math.BaseErfVec_neon(xScaled)
+		onePlusErf := vOne.Add(erfX)
+		halfOnePlusErf := vHalf.Mul(onePlusErf)
+		result := x.Mul(halfOnePlusErf)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
@@ -96,14 +145,30 @@ func BaseGELU_neon_Float64(input []float64, output []float64) {
 	vInvSqrt2 := asm.BroadcastFloat64x2(0.7071067811865476)
 	lanes := 2
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat64x2Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
 		xScaled := x.Mul(vInvSqrt2)
 		erfX := math.BaseErfVec_neon_Float64(xScaled)
 		onePlusErf := vOne.Add(erfX)
 		halfOnePlusErf := vHalf.Mul(onePlusErf)
 		result := x.Mul(halfOnePlusErf)
-		result.StoreSlice(output[ii:])
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		xScaled1 := x1.Mul(vInvSqrt2)
+		erfX1 := math.BaseErfVec_neon_Float64(xScaled1)
+		onePlusErf1 := vOne.Add(erfX1)
+		halfOnePlusErf1 := vHalf.Mul(onePlusErf1)
+		result1 := x1.Mul(halfOnePlusErf1)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		xScaled := x.Mul(vInvSqrt2)
+		erfX := math.BaseErfVec_neon_Float64(xScaled)
+		onePlusErf := vOne.Add(erfX)
+		halfOnePlusErf := vHalf.Mul(onePlusErf)
+		result := x.Mul(halfOnePlusErf)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
@@ -119,12 +184,24 @@ func BaseGELUApprox_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	vCoeff := hwy.Const[hwy.Float16](1.702)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		xScaled := hwy.MulF16(x, vCoeff)
+		sigmoidX := math.BaseSigmoidVec_neon_Float16(xScaled)
+		result := hwy.MulF16(x, sigmoidX)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		xScaled1 := hwy.MulF16(x1, vCoeff)
+		sigmoidX1 := math.BaseSigmoidVec_neon_Float16(xScaled1)
+		result1 := hwy.MulF16(x1, sigmoidX1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		xScaled := hwy.MulF16(x, vCoeff)
 		sigmoidX := math.BaseSigmoidVec_neon_Float16(xScaled)
 		result := hwy.MulF16(x, sigmoidX)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i].Float32())
@@ -141,12 +218,24 @@ func BaseGELUApprox_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	vCoeff := hwy.Const[hwy.BFloat16](1.702)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		xScaled := hwy.MulBF16(x, vCoeff)
+		sigmoidX := math.BaseSigmoidVec_neon_BFloat16(xScaled)
+		result := hwy.MulBF16(x, sigmoidX)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		xScaled1 := hwy.MulBF16(x1, vCoeff)
+		sigmoidX1 := math.BaseSigmoidVec_neon_BFloat16(xScaled1)
+		result1 := hwy.MulBF16(x1, sigmoidX1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		xScaled := hwy.MulBF16(x, vCoeff)
 		sigmoidX := math.BaseSigmoidVec_neon_BFloat16(xScaled)
 		result := hwy.MulBF16(x, sigmoidX)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i].Float32())
@@ -163,12 +252,24 @@ func BaseGELUApprox_neon(input []float32, output []float32) {
 	vCoeff := asm.BroadcastFloat32x4(1.702)
 	lanes := 4
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat32x4Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
 		xScaled := x.Mul(vCoeff)
 		sigmoidX := math.BaseSigmoidVec_neon(xScaled)
 		result := x.Mul(sigmoidX)
-		result.StoreSlice(output[ii:])
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		xScaled1 := x1.Mul(vCoeff)
+		sigmoidX1 := math.BaseSigmoidVec_neon(xScaled1)
+		result1 := x1.Mul(sigmoidX1)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		xScaled := x.Mul(vCoeff)
+		sigmoidX := math.BaseSigmoidVec_neon(xScaled)
+		result := x.Mul(sigmoidX)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
@@ -185,12 +286,24 @@ func BaseGELUApprox_neon_Float64(input []float64, output []float64) {
 	vCoeff := asm.BroadcastFloat64x2(1.702)
 	lanes := 2
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat64x2Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
 		xScaled := x.Mul(vCoeff)
 		sigmoidX := math.BaseSigmoidVec_neon_Float64(xScaled)
 		result := x.Mul(sigmoidX)
-		result.StoreSlice(output[ii:])
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		xScaled1 := x1.Mul(vCoeff)
+		sigmoidX1 := math.BaseSigmoidVec_neon_Float64(xScaled1)
+		result1 := x1.Mul(sigmoidX1)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		xScaled := x.Mul(vCoeff)
+		sigmoidX := math.BaseSigmoidVec_neon_Float64(xScaled)
+		result := x.Mul(sigmoidX)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
@@ -207,10 +320,18 @@ func BaseReLU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	vZero := hwy.Const[hwy.Float16](0.0)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		result := hwy.MaxF16(x, vZero)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		result1 := hwy.MaxF16(x1, vZero)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		result := hwy.MaxF16(x, vZero)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		if input[i].Float32() > 0 {
@@ -229,10 +350,18 @@ func BaseReLU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	vZero := hwy.Const[hwy.BFloat16](0.0)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		result := hwy.MaxBF16(x, vZero)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		result1 := hwy.MaxBF16(x1, vZero)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		result := hwy.MaxBF16(x, vZero)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		if input[i].Float32() > 0 {
@@ -251,10 +380,18 @@ func BaseReLU_neon(input []float32, output []float32) {
 	vZero := asm.BroadcastFloat32x4(0.0)
 	lanes := 4
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat32x4Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
 		result := x.Max(vZero)
-		result.StoreSlice(output[ii:])
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		result1 := x1.Max(vZero)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		result := x.Max(vZero)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		if input[i] > 0 {
@@ -273,10 +410,18 @@ func BaseReLU_neon_Float64(input []float64, output []float64) {
 	vZero := asm.BroadcastFloat64x2(0.0)
 	lanes := 2
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat64x2Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
 		result := x.Max(vZero)
-		result.StoreSlice(output[ii:])
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		result1 := x1.Max(vZero)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		result := x.Max(vZero)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		if input[i] > 0 {
@@ -294,11 +439,21 @@ func BaseSiLU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	}
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		sigmoidX := math.BaseSigmoidVec_neon_Float16(x)
+		result := hwy.MulF16(x, sigmoidX)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		sigmoidX1 := math.BaseSigmoidVec_neon_Float16(x1)
+		result1 := hwy.MulF16(x1, sigmoidX1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		sigmoidX := math.BaseSigmoidVec_neon_Float16(x)
 		result := hwy.MulF16(x, sigmoidX)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i].Float32())
@@ -314,11 +469,21 @@ func BaseSiLU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	}
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		sigmoidX := math.BaseSigmoidVec_neon_BFloat16(x)
+		result := hwy.MulBF16(x, sigmoidX)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		sigmoidX1 := math.BaseSigmoidVec_neon_BFloat16(x1)
+		result1 := hwy.MulBF16(x1, sigmoidX1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		sigmoidX := math.BaseSigmoidVec_neon_BFloat16(x)
 		result := hwy.MulBF16(x, sigmoidX)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i].Float32())
@@ -334,11 +499,21 @@ func BaseSiLU_neon(input []float32, output []float32) {
 	}
 	lanes := 4
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat32x4Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
 		sigmoidX := math.BaseSigmoidVec_neon(x)
 		result := x.Mul(sigmoidX)
-		result.StoreSlice(output[ii:])
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		sigmoidX1 := math.BaseSigmoidVec_neon(x1)
+		result1 := x1.Mul(sigmoidX1)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		sigmoidX := math.BaseSigmoidVec_neon(x)
+		result := x.Mul(sigmoidX)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
@@ -354,11 +529,21 @@ func BaseSiLU_neon_Float64(input []float64, output []float64) {
 	}
 	lanes := 2
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat64x2Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
 		sigmoidX := math.BaseSigmoidVec_neon_Float64(x)
 		result := x.Mul(sigmoidX)
-		result.StoreSlice(output[ii:])
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		sigmoidX1 := math.BaseSigmoidVec_neon_Float64(x1)
+		result1 := x1.Mul(sigmoidX1)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		sigmoidX := math.BaseSigmoidVec_neon_Float64(x)
+		result := x.Mul(sigmoidX)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
@@ -375,11 +560,21 @@ func BaseLeakyReLU_neon_Float16(input []hwy.Float16, output []hwy.Float16, alpha
 	vAlpha := hwy.Set(alpha)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		negPart := hwy.MulF16(x, vAlpha)
+		result := hwy.MaxF16(x, negPart)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		negPart1 := hwy.MulF16(x1, vAlpha)
+		result1 := hwy.MaxF16(x1, negPart1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		negPart := hwy.MulF16(x, vAlpha)
 		result := hwy.MaxF16(x, negPart)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		if input[i].Float32() > 0 {
@@ -398,11 +593,21 @@ func BaseLeakyReLU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, al
 	vAlpha := hwy.Set(alpha)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		negPart := hwy.MulBF16(x, vAlpha)
+		result := hwy.MaxBF16(x, negPart)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		negPart1 := hwy.MulBF16(x1, vAlpha)
+		result1 := hwy.MaxBF16(x1, negPart1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		negPart := hwy.MulBF16(x, vAlpha)
 		result := hwy.MaxBF16(x, negPart)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		if input[i].Float32() > 0 {
@@ -421,11 +626,21 @@ func BaseLeakyReLU_neon(input []float32, output []float32, alpha float32) {
 	vAlpha := asm.BroadcastFloat32x4(alpha)
 	lanes := 4
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat32x4Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
 		negPart := x.Mul(vAlpha)
 		result := x.Max(negPart)
-		result.StoreSlice(output[ii:])
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		negPart1 := x1.Mul(vAlpha)
+		result1 := x1.Max(negPart1)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		if input[i] > 0 {
@@ -444,11 +659,21 @@ func BaseLeakyReLU_neon_Float64(input []float64, output []float64, alpha float64
 	vAlpha := asm.BroadcastFloat64x2(alpha)
 	lanes := 2
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat64x2Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
 		negPart := x.Mul(vAlpha)
 		result := x.Max(negPart)
-		result.StoreSlice(output[ii:])
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		negPart1 := x1.Mul(vAlpha)
+		result1 := x1.Max(negPart1)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		if input[i] > 0 {
@@ -469,6 +694,22 @@ func BaseELU_neon_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.F
 	vAlpha := hwy.Set(alpha)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		expX := math.BaseExpVec_neon_Float16(x)
+		expM1 := hwy.SubF16(expX, vOne)
+		negPart := hwy.MulF16(vAlpha, expM1)
+		isPositive := hwy.GreaterThanF16(x, vZero)
+		result := hwy.IfThenElseF16(isPositive, x, negPart)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		expX1 := math.BaseExpVec_neon_Float16(x1)
+		expM11 := hwy.SubF16(expX1, vOne)
+		negPart1 := hwy.MulF16(vAlpha, expM11)
+		isPositive1 := hwy.GreaterThanF16(x1, vZero)
+		result1 := hwy.IfThenElseF16(isPositive1, x1, negPart1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		expX := math.BaseExpVec_neon_Float16(x)
@@ -476,7 +717,7 @@ func BaseELU_neon_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.F
 		negPart := hwy.MulF16(vAlpha, expM1)
 		isPositive := hwy.GreaterThanF16(x, vZero)
 		result := hwy.IfThenElseF16(isPositive, x, negPart)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		if input[i].Float32() > 0 {
@@ -498,6 +739,22 @@ func BaseELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hw
 	vAlpha := hwy.Set(alpha)
 	lanes := 8
 	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		expX := math.BaseExpVec_neon_BFloat16(x)
+		expM1 := hwy.SubBF16(expX, vOne)
+		negPart := hwy.MulBF16(vAlpha, expM1)
+		isPositive := hwy.GreaterThanBF16(x, vZero)
+		result := hwy.IfThenElseBF16(isPositive, x, negPart)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		expX1 := math.BaseExpVec_neon_BFloat16(x1)
+		expM11 := hwy.SubBF16(expX1, vOne)
+		negPart1 := hwy.MulBF16(vAlpha, expM11)
+		isPositive1 := hwy.GreaterThanBF16(x1, vZero)
+		result1 := hwy.IfThenElseBF16(isPositive1, x1, negPart1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := hwy.Load(input[ii:])
 		expX := math.BaseExpVec_neon_BFloat16(x)
@@ -505,7 +762,7 @@ func BaseELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hw
 		negPart := hwy.MulBF16(vAlpha, expM1)
 		isPositive := hwy.GreaterThanBF16(x, vZero)
 		result := hwy.IfThenElseBF16(isPositive, x, negPart)
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 	for i := ii; i < size; i++ {
 		if input[i].Float32() > 0 {
@@ -527,14 +784,30 @@ func BaseELU_neon(input []float32, output []float32, alpha float32) {
 	vAlpha := asm.BroadcastFloat32x4(alpha)
 	lanes := 4
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat32x4Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
 		expX := math.BaseExpVec_neon(x)
 		expM1 := expX.Sub(vOne)
 		negPart := vAlpha.Mul(expM1)
 		isPositive := x.Greater(vZero)
 		result := x.Merge(negPart, isPositive)
-		result.StoreSlice(output[ii:])
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		expX1 := math.BaseExpVec_neon(x1)
+		expM11 := expX1.Sub(vOne)
+		negPart1 := vAlpha.Mul(expM11)
+		isPositive1 := x1.Greater(vZero)
+		result1 := x1.Merge(negPart1, isPositive1)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		expX := math.BaseExpVec_neon(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		if input[i] > 0 {
@@ -556,14 +829,30 @@ func BaseELU_neon_Float64(input []float64, output []float64, alpha float64) {
 	vAlpha := asm.BroadcastFloat64x2(alpha)
 	lanes := 2
 	ii := 0
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat64x2Slice(input[ii:])
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
 		expX := math.BaseExpVec_neon_Float64(x)
 		expM1 := expX.Sub(vOne)
 		negPart := vAlpha.Mul(expM1)
 		isPositive := x.Greater(vZero)
 		result := x.Merge(negPart, isPositive)
-		result.StoreSlice(output[ii:])
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		expX1 := math.BaseExpVec_neon_Float64(x1)
+		expM11 := expX1.Sub(vOne)
+		negPart1 := vAlpha.Mul(expM11)
+		isPositive1 := x1.Greater(vZero)
+		result1 := x1.Merge(negPart1, isPositive1)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		expX := math.BaseExpVec_neon_Float64(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
 		if input[i] > 0 {

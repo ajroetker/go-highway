@@ -7,6 +7,7 @@ package vec
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BaseArgmax_neon_Float16(v []hwy.Float16) int {
@@ -20,12 +21,17 @@ func BaseArgmax_neon_Float16(v []hwy.Float16) int {
 	maxVals := hwy.Load(v)
 	maxIdxs := hwy.Iota[hwy.Float16]()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
 		vals := hwy.Load(v[i:])
 		curIdxs := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
 		mask := hwy.GreaterThanF16(vals, maxVals)
 		maxVals = hwy.IfThenElseF16(mask, vals, maxVals)
 		maxIdxs = hwy.IfThenElseF16(mask, curIdxs, maxIdxs)
+		vals1 := hwy.Load(v[i+8:])
+		curIdxs1 := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
+		mask1 := hwy.GreaterThanF16(vals1, maxVals)
+		maxVals = hwy.IfThenElseF16(mask1, vals1, maxVals)
+		maxIdxs = hwy.IfThenElseF16(mask1, curIdxs1, maxIdxs)
 	}
 	valsData := func() []hwy.Float16 {
 		var _simd_tmp [8]hwy.Float16
@@ -76,12 +82,17 @@ func BaseArgmax_neon_BFloat16(v []hwy.BFloat16) int {
 	maxVals := hwy.Load(v)
 	maxIdxs := hwy.Iota[hwy.BFloat16]()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
 		vals := hwy.Load(v[i:])
 		curIdxs := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
 		mask := hwy.GreaterThanBF16(vals, maxVals)
 		maxVals = hwy.IfThenElseBF16(mask, vals, maxVals)
 		maxIdxs = hwy.IfThenElseBF16(mask, curIdxs, maxIdxs)
+		vals1 := hwy.Load(v[i+8:])
+		curIdxs1 := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
+		mask1 := hwy.GreaterThanBF16(vals1, maxVals)
+		maxVals = hwy.IfThenElseBF16(mask1, vals1, maxVals)
+		maxIdxs = hwy.IfThenElseBF16(mask1, curIdxs1, maxIdxs)
 	}
 	valsData := func() []hwy.BFloat16 {
 		var _simd_tmp [8]hwy.BFloat16
@@ -132,12 +143,17 @@ func BaseArgmax_neon(v []float32) int {
 	maxVals := asm.LoadFloat32x4Slice(v)
 	maxIdxs := asm.IotaFloat32x4()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
-		vals := asm.LoadFloat32x4Slice(v[i:])
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
+		vals := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&v[i])))
 		curIdxs := asm.BroadcastFloat32x4(float32(i)).Add(asm.IotaFloat32x4())
 		mask := vals.GreaterThan(maxVals)
 		maxVals = asm.IfThenElse(mask, vals, maxVals)
 		maxIdxs = asm.IfThenElse(mask, curIdxs, maxIdxs)
+		vals1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&v[i+4])))
+		curIdxs1 := asm.BroadcastFloat32x4(float32(i)).Add(asm.IotaFloat32x4())
+		mask1 := vals1.GreaterThan(maxVals)
+		maxVals = asm.IfThenElse(mask1, vals1, maxVals)
+		maxIdxs = asm.IfThenElse(mask1, curIdxs1, maxIdxs)
 	}
 	valsData := func() []float32 {
 		var _simd_tmp [4]float32
@@ -188,12 +204,17 @@ func BaseArgmax_neon_Float64(v []float64) int {
 	maxVals := asm.LoadFloat64x2Slice(v)
 	maxIdxs := asm.IotaFloat64x2()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
-		vals := asm.LoadFloat64x2Slice(v[i:])
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
+		vals := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&v[i])))
 		curIdxs := asm.BroadcastFloat64x2(float64(i)).Add(asm.IotaFloat64x2())
 		mask := vals.GreaterThan(maxVals)
 		maxVals = asm.IfThenElseFloat64(mask, vals, maxVals)
 		maxIdxs = asm.IfThenElseFloat64(mask, curIdxs, maxIdxs)
+		vals1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&v[i+2])))
+		curIdxs1 := asm.BroadcastFloat64x2(float64(i)).Add(asm.IotaFloat64x2())
+		mask1 := vals1.GreaterThan(maxVals)
+		maxVals = asm.IfThenElseFloat64(mask1, vals1, maxVals)
+		maxIdxs = asm.IfThenElseFloat64(mask1, curIdxs1, maxIdxs)
 	}
 	valsData := func() []float64 {
 		var _simd_tmp [2]float64
@@ -244,12 +265,17 @@ func BaseArgmin_neon_Float16(v []hwy.Float16) int {
 	minVals := hwy.Load(v)
 	minIdxs := hwy.Iota[hwy.Float16]()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
 		vals := hwy.Load(v[i:])
 		curIdxs := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
 		mask := hwy.LessThanF16(vals, minVals)
 		minVals = hwy.IfThenElseF16(mask, vals, minVals)
 		minIdxs = hwy.IfThenElseF16(mask, curIdxs, minIdxs)
+		vals1 := hwy.Load(v[i+8:])
+		curIdxs1 := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
+		mask1 := hwy.LessThanF16(vals1, minVals)
+		minVals = hwy.IfThenElseF16(mask1, vals1, minVals)
+		minIdxs = hwy.IfThenElseF16(mask1, curIdxs1, minIdxs)
 	}
 	valsData := func() []hwy.Float16 {
 		var _simd_tmp [8]hwy.Float16
@@ -300,12 +326,17 @@ func BaseArgmin_neon_BFloat16(v []hwy.BFloat16) int {
 	minVals := hwy.Load(v)
 	minIdxs := hwy.Iota[hwy.BFloat16]()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
 		vals := hwy.Load(v[i:])
 		curIdxs := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
 		mask := hwy.LessThanBF16(vals, minVals)
 		minVals = hwy.IfThenElseBF16(mask, vals, minVals)
 		minIdxs = hwy.IfThenElseBF16(mask, curIdxs, minIdxs)
+		vals1 := hwy.Load(v[i+8:])
+		curIdxs1 := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
+		mask1 := hwy.LessThanBF16(vals1, minVals)
+		minVals = hwy.IfThenElseBF16(mask1, vals1, minVals)
+		minIdxs = hwy.IfThenElseBF16(mask1, curIdxs1, minIdxs)
 	}
 	valsData := func() []hwy.BFloat16 {
 		var _simd_tmp [8]hwy.BFloat16
@@ -356,12 +387,17 @@ func BaseArgmin_neon(v []float32) int {
 	minVals := asm.LoadFloat32x4Slice(v)
 	minIdxs := asm.IotaFloat32x4()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
-		vals := asm.LoadFloat32x4Slice(v[i:])
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
+		vals := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&v[i])))
 		curIdxs := asm.BroadcastFloat32x4(float32(i)).Add(asm.IotaFloat32x4())
 		mask := vals.LessThan(minVals)
 		minVals = asm.IfThenElse(mask, vals, minVals)
 		minIdxs = asm.IfThenElse(mask, curIdxs, minIdxs)
+		vals1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&v[i+4])))
+		curIdxs1 := asm.BroadcastFloat32x4(float32(i)).Add(asm.IotaFloat32x4())
+		mask1 := vals1.LessThan(minVals)
+		minVals = asm.IfThenElse(mask1, vals1, minVals)
+		minIdxs = asm.IfThenElse(mask1, curIdxs1, minIdxs)
 	}
 	valsData := func() []float32 {
 		var _simd_tmp [4]float32
@@ -412,12 +448,17 @@ func BaseArgmin_neon_Float64(v []float64) int {
 	minVals := asm.LoadFloat64x2Slice(v)
 	minIdxs := asm.IotaFloat64x2()
 	i := lanes
-	for ; i+lanes <= len(v); i += lanes {
-		vals := asm.LoadFloat64x2Slice(v[i:])
+	for ; i+lanes*2 <= len(v); i += lanes * 2 {
+		vals := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&v[i])))
 		curIdxs := asm.BroadcastFloat64x2(float64(i)).Add(asm.IotaFloat64x2())
 		mask := vals.LessThan(minVals)
 		minVals = asm.IfThenElseFloat64(mask, vals, minVals)
 		minIdxs = asm.IfThenElseFloat64(mask, curIdxs, minIdxs)
+		vals1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&v[i+2])))
+		curIdxs1 := asm.BroadcastFloat64x2(float64(i)).Add(asm.IotaFloat64x2())
+		mask1 := vals1.LessThan(minVals)
+		minVals = asm.IfThenElseFloat64(mask1, vals1, minVals)
+		minIdxs = asm.IfThenElseFloat64(mask1, curIdxs1, minIdxs)
 	}
 	valsData := func() []float64 {
 		var _simd_tmp [2]float64

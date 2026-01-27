@@ -37,7 +37,7 @@ func BaseRadixPass[T hwy.SignedInts](src, dst []T, shift int) {
 	// SIMD accelerated histogram counting
 	i := 0
 	for i+lanes <= n {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		shifted := hwy.ShiftRight(v, shift)
 		digits := hwy.And(shifted, maskVec)
 
@@ -165,7 +165,7 @@ func BaseRadixPassSigned[T hwy.SignedInts](src, dst []T, shift int) {
 	// SIMD histogram counting
 	i := 0
 	for i+lanes <= n {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		shifted := hwy.ShiftRight(v, shift)
 		digits := hwy.And(shifted, maskVec)
 

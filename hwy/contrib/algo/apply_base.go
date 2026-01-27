@@ -35,8 +35,8 @@ func BaseApply[T hwy.Floats](in, out []T, fn func(hwy.Vec[T]) hwy.Vec[T]) {
 
 	// Process full vectors
 	for ; i+lanes <= n; i += lanes {
-		x := hwy.Load(in[i:])
-		hwy.Store(fn(x), out[i:])
+		x := hwy.LoadFull(in[i:])
+		hwy.StoreFull(fn(x), out[i:])
 	}
 
 	// Buffer-based tail handling

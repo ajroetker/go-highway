@@ -6,6 +6,7 @@ package algo
 
 import (
 	"github.com/ajroetker/go-highway/hwy/asm"
+	"unsafe"
 )
 
 func BaseFind_neon(slice []float32, value float32) int {
@@ -16,11 +17,16 @@ func BaseFind_neon(slice []float32, value float32) int {
 	target := asm.BroadcastFloat32x4(value)
 	lanes := 4
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadFloat32x4Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		if idx := asm.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
+		}
+		v1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&slice[i+4])))
+		mask1 := v1.Equal(target)
+		if idx1 := asm.FindFirstTrue(mask1); idx1 >= 0 {
+			return i + idx1
 		}
 	}
 	for ; i < n; i++ {
@@ -39,11 +45,16 @@ func BaseFind_neon_Float64(slice []float64, value float64) int {
 	target := asm.BroadcastFloat64x2(value)
 	lanes := 2
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadFloat64x2Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		if idx := asm.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
+		}
+		v1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&slice[i+2])))
+		mask1 := v1.Equal(target)
+		if idx1 := asm.FindFirstTrue(mask1); idx1 >= 0 {
+			return i + idx1
 		}
 	}
 	for ; i < n; i++ {
@@ -62,11 +73,16 @@ func BaseFind_neon_Int32(slice []int32, value int32) int {
 	target := asm.BroadcastInt32x4(value)
 	lanes := 4
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadInt32x4Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		if idx := asm.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
+		}
+		v1 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&slice[i+4])))
+		mask1 := v1.Equal(target)
+		if idx1 := asm.FindFirstTrue(mask1); idx1 >= 0 {
+			return i + idx1
 		}
 	}
 	for ; i < n; i++ {
@@ -85,11 +101,16 @@ func BaseFind_neon_Int64(slice []int64, value int64) int {
 	target := asm.BroadcastInt64x2(value)
 	lanes := 2
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadInt64x2Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		if idx := asm.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
+		}
+		v1 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&slice[i+2])))
+		mask1 := v1.Equal(target)
+		if idx1 := asm.FindFirstTrue(mask1); idx1 >= 0 {
+			return i + idx1
 		}
 	}
 	for ; i < n; i++ {
@@ -108,11 +129,16 @@ func BaseFind_neon_Uint32(slice []uint32, value uint32) int {
 	target := asm.BroadcastUint32x4(value)
 	lanes := 4
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadUint32x4Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		if idx := asm.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
+		}
+		v1 := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&slice[i+4])))
+		mask1 := v1.Equal(target)
+		if idx1 := asm.FindFirstTrue(mask1); idx1 >= 0 {
+			return i + idx1
 		}
 	}
 	for ; i < n; i++ {
@@ -131,11 +157,16 @@ func BaseFind_neon_Uint64(slice []uint64, value uint64) int {
 	target := asm.BroadcastUint64x2(value)
 	lanes := 2
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadUint64x2Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		if idx := asm.FindFirstTrue(mask); idx >= 0 {
 			return i + idx
+		}
+		v1 := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&slice[i+2])))
+		mask1 := v1.Equal(target)
+		if idx1 := asm.FindFirstTrue(mask1); idx1 >= 0 {
+			return i + idx1
 		}
 	}
 	for ; i < n; i++ {
@@ -155,10 +186,13 @@ func BaseCount_neon(slice []float32, value float32) int {
 	lanes := 4
 	count := 0
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadFloat32x4Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		count += asm.CountTrue(mask)
+		v1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&slice[i+4])))
+		mask1 := v1.Equal(target)
+		count += asm.CountTrue(mask1)
 	}
 	for ; i < n; i++ {
 		if slice[i] == value {
@@ -177,10 +211,13 @@ func BaseCount_neon_Float64(slice []float64, value float64) int {
 	lanes := 2
 	count := 0
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadFloat64x2Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		count += asm.CountTrue(mask)
+		v1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&slice[i+2])))
+		mask1 := v1.Equal(target)
+		count += asm.CountTrue(mask1)
 	}
 	for ; i < n; i++ {
 		if slice[i] == value {
@@ -199,10 +236,13 @@ func BaseCount_neon_Int32(slice []int32, value int32) int {
 	lanes := 4
 	count := 0
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadInt32x4Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		count += asm.CountTrue(mask)
+		v1 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&slice[i+4])))
+		mask1 := v1.Equal(target)
+		count += asm.CountTrue(mask1)
 	}
 	for ; i < n; i++ {
 		if slice[i] == value {
@@ -221,10 +261,13 @@ func BaseCount_neon_Int64(slice []int64, value int64) int {
 	lanes := 2
 	count := 0
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadInt64x2Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		count += asm.CountTrue(mask)
+		v1 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&slice[i+2])))
+		mask1 := v1.Equal(target)
+		count += asm.CountTrue(mask1)
 	}
 	for ; i < n; i++ {
 		if slice[i] == value {
@@ -243,10 +286,13 @@ func BaseCount_neon_Uint32(slice []uint32, value uint32) int {
 	lanes := 4
 	count := 0
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadUint32x4Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		count += asm.CountTrue(mask)
+		v1 := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&slice[i+4])))
+		mask1 := v1.Equal(target)
+		count += asm.CountTrue(mask1)
 	}
 	for ; i < n; i++ {
 		if slice[i] == value {
@@ -265,10 +311,13 @@ func BaseCount_neon_Uint64(slice []uint64, value uint64) int {
 	lanes := 2
 	count := 0
 	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := asm.LoadUint64x2Slice(slice[i:])
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&slice[i])))
 		mask := v.Equal(target)
 		count += asm.CountTrue(mask)
+		v1 := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&slice[i+2])))
+		mask1 := v1.Equal(target)
+		count += asm.CountTrue(mask1)
 	}
 	for ; i < n; i++ {
 		if slice[i] == value {

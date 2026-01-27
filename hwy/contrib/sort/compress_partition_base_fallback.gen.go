@@ -149,44 +149,44 @@ func BaseCompressPartition_fallback(data []float32, pivot float32) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = hwy.Load(data[readR:])
+			v = hwy.LoadFull(data[readR:])
 		} else {
-			v = hwy.Load(data[readL:])
+			v = hwy.LoadFull(data[readL:])
 			readL += lanes
 		}
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadL[i:])
+		v := hwy.LoadFull(preloadL[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize-2*lanes; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	var buf [32]float32
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
@@ -229,44 +229,44 @@ func BaseCompressPartition_fallback_Float64(data []float64, pivot float64) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = hwy.Load(data[readR:])
+			v = hwy.LoadFull(data[readR:])
 		} else {
-			v = hwy.Load(data[readL:])
+			v = hwy.LoadFull(data[readL:])
 			readL += lanes
 		}
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadL[i:])
+		v := hwy.LoadFull(preloadL[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize-2*lanes; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	var buf [32]float64
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
@@ -309,44 +309,44 @@ func BaseCompressPartition_fallback_Int32(data []int32, pivot int32) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = hwy.Load(data[readR:])
+			v = hwy.LoadFull(data[readR:])
 		} else {
-			v = hwy.Load(data[readL:])
+			v = hwy.LoadFull(data[readL:])
 			readL += lanes
 		}
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadL[i:])
+		v := hwy.LoadFull(preloadL[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize-2*lanes; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	var buf [32]int32
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
@@ -389,44 +389,44 @@ func BaseCompressPartition_fallback_Int64(data []int64, pivot int64) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = hwy.Load(data[readR:])
+			v = hwy.LoadFull(data[readR:])
 		} else {
-			v = hwy.Load(data[readL:])
+			v = hwy.LoadFull(data[readL:])
 			readL += lanes
 		}
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadL[i:])
+		v := hwy.LoadFull(preloadL[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize-2*lanes; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	var buf [32]int64
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
@@ -469,44 +469,44 @@ func BaseCompressPartition_fallback_Uint32(data []uint32, pivot uint32) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = hwy.Load(data[readR:])
+			v = hwy.LoadFull(data[readR:])
 		} else {
-			v = hwy.Load(data[readL:])
+			v = hwy.LoadFull(data[readL:])
 			readL += lanes
 		}
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadL[i:])
+		v := hwy.LoadFull(preloadL[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize-2*lanes; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	var buf [32]uint32
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
@@ -549,44 +549,44 @@ func BaseCompressPartition_fallback_Uint64(data []uint64, pivot uint64) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = hwy.Load(data[readR:])
+			v = hwy.LoadFull(data[readR:])
 		} else {
-			v = hwy.Load(data[readL:])
+			v = hwy.LoadFull(data[readL:])
 			readL += lanes
 		}
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadL[i:])
+		v := hwy.LoadFull(preloadL[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	for i := 0; i < preloadSize-2*lanes; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)
 		remaining -= lanes
-		hwy.Store(compressed, data[writeL:])
-		hwy.Store(compressed, data[remaining+writeL:])
+		hwy.StoreFull(compressed, data[writeL:])
+		hwy.StoreFull(compressed, data[remaining+writeL:])
 		writeL += numLess
 	}
 	var buf [32]uint64
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i < preloadSize; i += lanes {
-		v := hwy.Load(preloadR[i:])
+		v := hwy.LoadFull(preloadR[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		numLess := hwy.CountTrue(maskLess)
 		compressed, _ := hwy.Compress(v, maskLess)

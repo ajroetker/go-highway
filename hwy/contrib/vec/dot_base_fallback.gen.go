@@ -27,8 +27,8 @@ func BaseDot_fallback_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
 		sum3 = hwy.MulAdd(va3, vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		sum0 = hwy.MulAdd(va, vb, sum0)
 		i += lanes
 	}
@@ -63,8 +63,8 @@ func BaseDot_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 
 		sum3 = hwy.MulAdd(va3, vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		sum0 = hwy.MulAdd(va, vb, sum0)
 		i += lanes
 	}
@@ -99,8 +99,8 @@ func BaseDot_fallback(a []float32, b []float32) float32 {
 		sum3 = hwy.MulAdd(va3, vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		sum0 = hwy.MulAdd(va, vb, sum0)
 		i += lanes
 	}
@@ -135,8 +135,8 @@ func BaseDot_fallback_Float64(a []float64, b []float64) float64 {
 		sum3 = hwy.MulAdd(va3, vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
+		va := hwy.LoadFull(a[i:])
+		vb := hwy.LoadFull(b[i:])
 		sum0 = hwy.MulAdd(va, vb, sum0)
 		i += lanes
 	}

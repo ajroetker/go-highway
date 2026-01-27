@@ -55,7 +55,7 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 	for ii := 0; ii < size; ii += vOne.NumLanes() {
 		remaining := size - ii
 		if remaining >= vOne.NumLanes() {
-			x := hwy.Load(input[ii:])
+			x := hwy.LoadFull(input[ii:])
 
 			// Compute erf(x / sqrt(2)) = erf(x * invSqrt2)
 			xScaled := hwy.Mul(x, vInvSqrt2)
@@ -68,7 +68,7 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 			// Compute x * 0.5 * (1 + erf(...))
 			result := hwy.Mul(x, halfOnePlusErf)
 
-			hwy.Store(result, output[ii:])
+			hwy.StoreFull(result, output[ii:])
 		} else {
 			// Handle tail elements with scalar math
 			for i := ii; i < size; i++ {
@@ -97,7 +97,7 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 	for ii := 0; ii < size; ii += vCoeff.NumLanes() {
 		remaining := size - ii
 		if remaining >= vCoeff.NumLanes() {
-			x := hwy.Load(input[ii:])
+			x := hwy.LoadFull(input[ii:])
 
 			// Compute sigmoid(1.702 * x)
 			xScaled := hwy.Mul(x, vCoeff)
@@ -106,7 +106,7 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 			// Compute x * sigmoid(1.702 * x)
 			result := hwy.Mul(x, sigmoidX)
 
-			hwy.Store(result, output[ii:])
+			hwy.StoreFull(result, output[ii:])
 		} else {
 			// Handle tail elements with scalar math
 			for i := ii; i < size; i++ {

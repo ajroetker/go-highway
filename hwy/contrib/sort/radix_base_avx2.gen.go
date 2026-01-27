@@ -6,6 +6,7 @@ package sort
 
 import (
 	"simd/archsimd"
+	"unsafe"
 )
 
 func BaseRadixPass_avx2_Int32(src []int32, dst []int32, shift int) {
@@ -19,7 +20,7 @@ func BaseRadixPass_avx2_Int32(src []int32, dst []int32, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadInt32x8Slice(src[i:])
+		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(uint64(shift))
 		digits := shifted.And(maskVec)
 		var buf [16]int32
@@ -58,7 +59,7 @@ func BaseRadixPass_avx2_Int64(src []int64, dst []int64, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadInt64x4Slice(src[i:])
+		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(uint64(shift))
 		digits := shifted.And(maskVec)
 		var buf [16]int64
@@ -203,7 +204,7 @@ func BaseRadixPassSigned_avx2_Int32(src []int32, dst []int32, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadInt32x8Slice(src[i:])
+		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(uint64(shift))
 		digits := shifted.And(maskVec)
 		var buf [16]int32
@@ -247,7 +248,7 @@ func BaseRadixPassSigned_avx2_Int64(src []int64, dst []int64, shift int) {
 	var count [256]int
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadInt64x4Slice(src[i:])
+		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&src[i])))
 		shifted := v.ShiftAllRight(uint64(shift))
 		digits := shifted.And(maskVec)
 		var buf [16]int64

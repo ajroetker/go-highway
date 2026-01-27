@@ -122,6 +122,9 @@ func neg_f64x2(a [16]byte) (result [16]byte)
 func sqrt_f64x2(a [16]byte) (result [16]byte)
 
 //go:noescape
+func rsqrt_f64x2(a [16]byte) (result [16]byte)
+
+//go:noescape
 func hsum_f64x2(v [16]byte) (result float64)
 
 //go:noescape

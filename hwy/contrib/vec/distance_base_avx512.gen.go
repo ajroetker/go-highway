@@ -8,6 +8,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 	stdmath "math"
 	"simd/archsimd"
+	"unsafe"
 )
 
 func BaseL2SquaredDistance_avx512_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
@@ -119,8 +120,8 @@ func BaseL2SquaredDistance_avx512(a []float32, b []float32) float32 {
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat32x16Slice(a[i:])
-		vb := archsimd.LoadFloat32x16Slice(b[i:])
+		va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes
@@ -161,8 +162,8 @@ func BaseL2SquaredDistance_avx512_Float64(a []float64, b []float64) float64 {
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat64x8Slice(a[i:])
-		vb := archsimd.LoadFloat64x8Slice(b[i:])
+		va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes

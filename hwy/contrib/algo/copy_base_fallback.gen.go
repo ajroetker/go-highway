@@ -16,7 +16,7 @@ func BaseCopyIf_fallback(src []float32, dst []float32, pred func(hwy.Vec[float32
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)
@@ -49,7 +49,7 @@ func BaseCopyIf_fallback_Float64(src []float64, dst []float64, pred func(hwy.Vec
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)
@@ -82,7 +82,7 @@ func BaseCopyIf_fallback_Int32(src []int32, dst []int32, pred func(hwy.Vec[int32
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)
@@ -115,7 +115,7 @@ func BaseCopyIf_fallback_Int64(src []int64, dst []int64, pred func(hwy.Vec[int64
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)
@@ -148,7 +148,7 @@ func BaseCopyIf_fallback_Uint32(src []uint32, dst []uint32, pred func(hwy.Vec[ui
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)
@@ -181,7 +181,7 @@ func BaseCopyIf_fallback_Uint64(src []uint64, dst []uint64, pred func(hwy.Vec[ui
 	dstIdx := 0
 	i := 0
 	for ; i+lanes <= n && dstIdx < dstLen; i += lanes {
-		v := hwy.Load(src[i:])
+		v := hwy.LoadFull(src[i:])
 		mask := pred(v)
 		remaining := dstLen - dstIdx
 		count := min(hwy.CompressStore(v, mask, dst[dstIdx:]), remaining)

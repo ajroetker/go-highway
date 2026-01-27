@@ -23,7 +23,7 @@ func BasePartition3Way_fallback(data []float32, pivot float32) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		maskGreater := hwy.GreaterThan(v, pivotVec)
 		if hwy.AllTrue(maskLess) {
@@ -33,9 +33,9 @@ func BasePartition3Way_fallback(data []float32, pivot float32) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := hwy.Load(data[lt:])
-				hwy.Store(v, data[lt:])
-				hwy.Store(vLt, data[i:])
+				vLt := hwy.LoadFull(data[lt:])
+				hwy.StoreFull(v, data[lt:])
+				hwy.StoreFull(vLt, data[i:])
 				lt += lanes
 				i += lanes
 				continue
@@ -44,9 +44,9 @@ func BasePartition3Way_fallback(data []float32, pivot float32) (int, int) {
 		}
 		if hwy.AllTrue(maskGreater) {
 			gt -= lanes
-			vGt := hwy.Load(data[gt:])
-			hwy.Store(v, data[gt:])
-			hwy.Store(vGt, data[i:])
+			vGt := hwy.LoadFull(data[gt:])
+			hwy.StoreFull(v, data[gt:])
+			hwy.StoreFull(vGt, data[i:])
 			continue
 		}
 		if hwy.AllFalse(maskLess) && hwy.AllFalse(maskGreater) {
@@ -102,7 +102,7 @@ func BasePartition3Way_fallback_Float64(data []float64, pivot float64) (int, int
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		maskGreater := hwy.GreaterThan(v, pivotVec)
 		if hwy.AllTrue(maskLess) {
@@ -112,9 +112,9 @@ func BasePartition3Way_fallback_Float64(data []float64, pivot float64) (int, int
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := hwy.Load(data[lt:])
-				hwy.Store(v, data[lt:])
-				hwy.Store(vLt, data[i:])
+				vLt := hwy.LoadFull(data[lt:])
+				hwy.StoreFull(v, data[lt:])
+				hwy.StoreFull(vLt, data[i:])
 				lt += lanes
 				i += lanes
 				continue
@@ -123,9 +123,9 @@ func BasePartition3Way_fallback_Float64(data []float64, pivot float64) (int, int
 		}
 		if hwy.AllTrue(maskGreater) {
 			gt -= lanes
-			vGt := hwy.Load(data[gt:])
-			hwy.Store(v, data[gt:])
-			hwy.Store(vGt, data[i:])
+			vGt := hwy.LoadFull(data[gt:])
+			hwy.StoreFull(v, data[gt:])
+			hwy.StoreFull(vGt, data[i:])
 			continue
 		}
 		if hwy.AllFalse(maskLess) && hwy.AllFalse(maskGreater) {
@@ -181,7 +181,7 @@ func BasePartition3Way_fallback_Int32(data []int32, pivot int32) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		maskGreater := hwy.GreaterThan(v, pivotVec)
 		if hwy.AllTrue(maskLess) {
@@ -191,9 +191,9 @@ func BasePartition3Way_fallback_Int32(data []int32, pivot int32) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := hwy.Load(data[lt:])
-				hwy.Store(v, data[lt:])
-				hwy.Store(vLt, data[i:])
+				vLt := hwy.LoadFull(data[lt:])
+				hwy.StoreFull(v, data[lt:])
+				hwy.StoreFull(vLt, data[i:])
 				lt += lanes
 				i += lanes
 				continue
@@ -202,9 +202,9 @@ func BasePartition3Way_fallback_Int32(data []int32, pivot int32) (int, int) {
 		}
 		if hwy.AllTrue(maskGreater) {
 			gt -= lanes
-			vGt := hwy.Load(data[gt:])
-			hwy.Store(v, data[gt:])
-			hwy.Store(vGt, data[i:])
+			vGt := hwy.LoadFull(data[gt:])
+			hwy.StoreFull(v, data[gt:])
+			hwy.StoreFull(vGt, data[i:])
 			continue
 		}
 		if hwy.AllFalse(maskLess) && hwy.AllFalse(maskGreater) {
@@ -260,7 +260,7 @@ func BasePartition3Way_fallback_Int64(data []int64, pivot int64) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		maskGreater := hwy.GreaterThan(v, pivotVec)
 		if hwy.AllTrue(maskLess) {
@@ -270,9 +270,9 @@ func BasePartition3Way_fallback_Int64(data []int64, pivot int64) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := hwy.Load(data[lt:])
-				hwy.Store(v, data[lt:])
-				hwy.Store(vLt, data[i:])
+				vLt := hwy.LoadFull(data[lt:])
+				hwy.StoreFull(v, data[lt:])
+				hwy.StoreFull(vLt, data[i:])
 				lt += lanes
 				i += lanes
 				continue
@@ -281,9 +281,9 @@ func BasePartition3Way_fallback_Int64(data []int64, pivot int64) (int, int) {
 		}
 		if hwy.AllTrue(maskGreater) {
 			gt -= lanes
-			vGt := hwy.Load(data[gt:])
-			hwy.Store(v, data[gt:])
-			hwy.Store(vGt, data[i:])
+			vGt := hwy.LoadFull(data[gt:])
+			hwy.StoreFull(v, data[gt:])
+			hwy.StoreFull(vGt, data[i:])
 			continue
 		}
 		if hwy.AllFalse(maskLess) && hwy.AllFalse(maskGreater) {
@@ -339,7 +339,7 @@ func BasePartition3Way_fallback_Uint32(data []uint32, pivot uint32) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		maskGreater := hwy.GreaterThan(v, pivotVec)
 		if hwy.AllTrue(maskLess) {
@@ -349,9 +349,9 @@ func BasePartition3Way_fallback_Uint32(data []uint32, pivot uint32) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := hwy.Load(data[lt:])
-				hwy.Store(v, data[lt:])
-				hwy.Store(vLt, data[i:])
+				vLt := hwy.LoadFull(data[lt:])
+				hwy.StoreFull(v, data[lt:])
+				hwy.StoreFull(vLt, data[i:])
 				lt += lanes
 				i += lanes
 				continue
@@ -360,9 +360,9 @@ func BasePartition3Way_fallback_Uint32(data []uint32, pivot uint32) (int, int) {
 		}
 		if hwy.AllTrue(maskGreater) {
 			gt -= lanes
-			vGt := hwy.Load(data[gt:])
-			hwy.Store(v, data[gt:])
-			hwy.Store(vGt, data[i:])
+			vGt := hwy.LoadFull(data[gt:])
+			hwy.StoreFull(v, data[gt:])
+			hwy.StoreFull(vGt, data[i:])
 			continue
 		}
 		if hwy.AllFalse(maskLess) && hwy.AllFalse(maskGreater) {
@@ -418,7 +418,7 @@ func BasePartition3Way_fallback_Uint64(data []uint64, pivot uint64) (int, int) {
 		if gt-lanes < i+lanes {
 			break
 		}
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		maskLess := hwy.LessThan(v, pivotVec)
 		maskGreater := hwy.GreaterThan(v, pivotVec)
 		if hwy.AllTrue(maskLess) {
@@ -428,9 +428,9 @@ func BasePartition3Way_fallback_Uint64(data []uint64, pivot uint64) (int, int) {
 				continue
 			}
 			if lt+lanes <= i {
-				vLt := hwy.Load(data[lt:])
-				hwy.Store(v, data[lt:])
-				hwy.Store(vLt, data[i:])
+				vLt := hwy.LoadFull(data[lt:])
+				hwy.StoreFull(v, data[lt:])
+				hwy.StoreFull(vLt, data[i:])
 				lt += lanes
 				i += lanes
 				continue
@@ -439,9 +439,9 @@ func BasePartition3Way_fallback_Uint64(data []uint64, pivot uint64) (int, int) {
 		}
 		if hwy.AllTrue(maskGreater) {
 			gt -= lanes
-			vGt := hwy.Load(data[gt:])
-			hwy.Store(v, data[gt:])
-			hwy.Store(vGt, data[i:])
+			vGt := hwy.LoadFull(data[gt:])
+			hwy.StoreFull(v, data[gt:])
+			hwy.StoreFull(vGt, data[i:])
 			continue
 		}
 		if hwy.AllFalse(maskLess) && hwy.AllFalse(maskGreater) {
@@ -496,7 +496,7 @@ func BasePartition_fallback(data []float32, pivot float32) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := hwy.Load(data[left:])
+		v := hwy.LoadFull(data[left:])
 		mask := hwy.LessEqual(v, pivotVec)
 		if hwy.AllTrue(mask) {
 			left += lanes
@@ -504,9 +504,9 @@ func BasePartition_fallback(data []float32, pivot float32) int {
 		}
 		if hwy.AllFalse(mask) {
 			right -= lanes
-			vRight := hwy.Load(data[right:])
-			hwy.Store(v, data[right:])
-			hwy.Store(vRight, data[left:])
+			vRight := hwy.LoadFull(data[right:])
+			hwy.StoreFull(v, data[right:])
+			hwy.StoreFull(vRight, data[left:])
 			continue
 		}
 		end := min(left+lanes, right)
@@ -549,7 +549,7 @@ func BasePartition_fallback_Float64(data []float64, pivot float64) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := hwy.Load(data[left:])
+		v := hwy.LoadFull(data[left:])
 		mask := hwy.LessEqual(v, pivotVec)
 		if hwy.AllTrue(mask) {
 			left += lanes
@@ -557,9 +557,9 @@ func BasePartition_fallback_Float64(data []float64, pivot float64) int {
 		}
 		if hwy.AllFalse(mask) {
 			right -= lanes
-			vRight := hwy.Load(data[right:])
-			hwy.Store(v, data[right:])
-			hwy.Store(vRight, data[left:])
+			vRight := hwy.LoadFull(data[right:])
+			hwy.StoreFull(v, data[right:])
+			hwy.StoreFull(vRight, data[left:])
 			continue
 		}
 		end := min(left+lanes, right)
@@ -602,7 +602,7 @@ func BasePartition_fallback_Int32(data []int32, pivot int32) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := hwy.Load(data[left:])
+		v := hwy.LoadFull(data[left:])
 		mask := hwy.LessEqual(v, pivotVec)
 		if hwy.AllTrue(mask) {
 			left += lanes
@@ -610,9 +610,9 @@ func BasePartition_fallback_Int32(data []int32, pivot int32) int {
 		}
 		if hwy.AllFalse(mask) {
 			right -= lanes
-			vRight := hwy.Load(data[right:])
-			hwy.Store(v, data[right:])
-			hwy.Store(vRight, data[left:])
+			vRight := hwy.LoadFull(data[right:])
+			hwy.StoreFull(v, data[right:])
+			hwy.StoreFull(vRight, data[left:])
 			continue
 		}
 		end := min(left+lanes, right)
@@ -655,7 +655,7 @@ func BasePartition_fallback_Int64(data []int64, pivot int64) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := hwy.Load(data[left:])
+		v := hwy.LoadFull(data[left:])
 		mask := hwy.LessEqual(v, pivotVec)
 		if hwy.AllTrue(mask) {
 			left += lanes
@@ -663,9 +663,9 @@ func BasePartition_fallback_Int64(data []int64, pivot int64) int {
 		}
 		if hwy.AllFalse(mask) {
 			right -= lanes
-			vRight := hwy.Load(data[right:])
-			hwy.Store(v, data[right:])
-			hwy.Store(vRight, data[left:])
+			vRight := hwy.LoadFull(data[right:])
+			hwy.StoreFull(v, data[right:])
+			hwy.StoreFull(vRight, data[left:])
 			continue
 		}
 		end := min(left+lanes, right)
@@ -708,7 +708,7 @@ func BasePartition_fallback_Uint32(data []uint32, pivot uint32) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := hwy.Load(data[left:])
+		v := hwy.LoadFull(data[left:])
 		mask := hwy.LessEqual(v, pivotVec)
 		if hwy.AllTrue(mask) {
 			left += lanes
@@ -716,9 +716,9 @@ func BasePartition_fallback_Uint32(data []uint32, pivot uint32) int {
 		}
 		if hwy.AllFalse(mask) {
 			right -= lanes
-			vRight := hwy.Load(data[right:])
-			hwy.Store(v, data[right:])
-			hwy.Store(vRight, data[left:])
+			vRight := hwy.LoadFull(data[right:])
+			hwy.StoreFull(v, data[right:])
+			hwy.StoreFull(vRight, data[left:])
 			continue
 		}
 		end := min(left+lanes, right)
@@ -761,7 +761,7 @@ func BasePartition_fallback_Uint64(data []uint64, pivot uint64) int {
 		if right-lanes < left+lanes {
 			break
 		}
-		v := hwy.Load(data[left:])
+		v := hwy.LoadFull(data[left:])
 		mask := hwy.LessEqual(v, pivotVec)
 		if hwy.AllTrue(mask) {
 			left += lanes
@@ -769,9 +769,9 @@ func BasePartition_fallback_Uint64(data []uint64, pivot uint64) int {
 		}
 		if hwy.AllFalse(mask) {
 			right -= lanes
-			vRight := hwy.Load(data[right:])
-			hwy.Store(v, data[right:])
-			hwy.Store(vRight, data[left:])
+			vRight := hwy.LoadFull(data[right:])
+			hwy.StoreFull(v, data[right:])
+			hwy.StoreFull(vRight, data[left:])
 			continue
 		}
 		end := min(left+lanes, right)

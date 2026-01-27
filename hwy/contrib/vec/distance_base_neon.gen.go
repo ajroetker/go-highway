@@ -8,6 +8,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 	stdmath "math"
+	"unsafe"
 )
 
 func BaseL2SquaredDistance_neon_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
@@ -119,8 +120,8 @@ func BaseL2SquaredDistance_neon(a []float32, b []float32) float32 {
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := asm.LoadFloat32x4Slice(a[i:])
-		vb := asm.LoadFloat32x4Slice(b[i:])
+		va := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[i])))
+		vb := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes
@@ -161,8 +162,8 @@ func BaseL2SquaredDistance_neon_Float64(a []float64, b []float64) float64 {
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := asm.LoadFloat64x2Slice(a[i:])
-		vb := asm.LoadFloat64x2Slice(b[i:])
+		va := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[i])))
+		vb := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes

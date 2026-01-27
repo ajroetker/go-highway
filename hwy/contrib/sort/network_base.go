@@ -63,8 +63,8 @@ func BaseIsSorted[T hwy.Lanes](data []T) bool {
 
 	// Process full vectors: compare adjacent pairs
 	for ; i+lanes < n; i += lanes {
-		v1 := hwy.Load(data[i:])
-		v2 := hwy.Load(data[i+1:])
+		v1 := hwy.LoadFull(data[i:])
+		v2 := hwy.LoadFull(data[i+1:])
 
 		// Check if any element in v1 is greater than corresponding element in v2
 		mask := hwy.GreaterThan(v1, v2)

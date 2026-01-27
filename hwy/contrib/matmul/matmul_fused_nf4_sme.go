@@ -360,6 +360,9 @@ func parallelFusedNF4MatMulSME(
 			} else {
 				tileBuf = tileBuf[:tileSize]
 			}
+			// Clear AFTER getting from pool to ensure no stale data
+			// (sync.Pool may return buffers from different threads' caches)
+			clear(tileBuf)
 			defer fusedTilePool.Put(tileBuf)
 
 			outputTile := fusedOutputTilePool.Get().([]float32)
@@ -369,6 +372,8 @@ func parallelFusedNF4MatMulSME(
 			} else {
 				outputTile = outputTile[:outputTileSize]
 			}
+			// Clear AFTER getting from pool to ensure no stale data
+			clear(outputTile)
 			defer fusedOutputTilePool.Put(outputTile)
 
 			for nTile := range work {
@@ -428,6 +433,7 @@ func parallelFusedInt4MatMulSME(
 	var wg sync.WaitGroup
 	for range numWorkers {
 		wg.Go(func() {
+			// Get thread-local buffers from pool
 			tileBuf := fusedTilePool.Get().([]float32)
 			tileSize := K * 16
 			if cap(tileBuf) < tileSize {
@@ -435,6 +441,8 @@ func parallelFusedInt4MatMulSME(
 			} else {
 				tileBuf = tileBuf[:tileSize]
 			}
+			// Clear AFTER getting from pool to ensure no stale data
+			clear(tileBuf)
 			defer fusedTilePool.Put(tileBuf)
 
 			outputTile := fusedOutputTilePool.Get().([]float32)
@@ -444,6 +452,8 @@ func parallelFusedInt4MatMulSME(
 			} else {
 				outputTile = outputTile[:outputTileSize]
 			}
+			// Clear AFTER getting from pool to ensure no stale data
+			clear(outputTile)
 			defer fusedOutputTilePool.Put(outputTile)
 
 			for nTile := range work {

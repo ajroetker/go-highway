@@ -15,10 +15,10 @@ func BasePrefixSum_fallback(data []float32) {
 	carry := float32(0)
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[float32](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -36,10 +36,10 @@ func BasePrefixSum_fallback_Float64(data []float64) {
 	carry := float64(0)
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Float64(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[float64](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -57,10 +57,10 @@ func BasePrefixSum_fallback_Int32(data []int32) {
 	carry := int32(0)
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Int32(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[int32](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -78,10 +78,10 @@ func BasePrefixSum_fallback_Int64(data []int64) {
 	carry := int64(0)
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Int64(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[int64](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -99,10 +99,10 @@ func BasePrefixSum_fallback_Uint32(data []uint32) {
 	carry := uint32(0)
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Uint32(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[uint32](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -120,10 +120,10 @@ func BasePrefixSum_fallback_Uint64(data []uint64) {
 	carry := uint64(0)
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Uint64(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[uint64](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -141,10 +141,10 @@ func BaseDeltaDecode_fallback_Int32(data []int32, base int32) {
 	carry := base
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Int32(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[int32](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -162,10 +162,10 @@ func BaseDeltaDecode_fallback_Int64(data []int64, base int64) {
 	carry := base
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Int64(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[int64](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -183,10 +183,10 @@ func BaseDeltaDecode_fallback_Uint32(data []uint32, base uint32) {
 	carry := base
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Uint32(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[uint32](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {
@@ -204,10 +204,10 @@ func BaseDeltaDecode_fallback_Uint64(data []uint64, base uint64) {
 	carry := base
 	i := 0
 	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
+		v := hwy.LoadFull(data[i:])
 		prefixed := BasePrefixSumVec_fallback_Uint64(v)
 		prefixed = hwy.Add(prefixed, hwy.Set[uint64](carry))
-		hwy.Store(prefixed, data[i:])
+		hwy.StoreFull(prefixed, data[i:])
 		carry = hwy.GetLane(prefixed, lanes-1)
 	}
 	for ; i < n; i++ {

@@ -7,6 +7,7 @@ package vec
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	"simd/archsimd"
+	"unsafe"
 )
 
 func BaseDot_avx2_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
@@ -102,8 +103,8 @@ func BaseDot_avx2(a []float32, b []float32) float32 {
 		sum3 = va3.MulAdd(vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat32x8Slice(a[i:])
-		vb := archsimd.LoadFloat32x8Slice(b[i:])
+		va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i])))
 		sum0 = va.MulAdd(vb, sum0)
 		i += lanes
 	}
@@ -138,8 +139,8 @@ func BaseDot_avx2_Float64(a []float64, b []float64) float64 {
 		sum3 = va3.MulAdd(vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat64x4Slice(a[i:])
-		vb := archsimd.LoadFloat64x4Slice(b[i:])
+		va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i])))
 		sum0 = va.MulAdd(vb, sum0)
 		i += lanes
 	}

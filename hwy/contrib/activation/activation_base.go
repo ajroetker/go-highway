@@ -45,7 +45,7 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 
 	// Process full vectors
 	for ; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
+		x := hwy.LoadFull(input[ii:])
 
 		// Compute erf(x / sqrt(2)) = erf(x * invSqrt2)
 		xScaled := hwy.Mul(x, vInvSqrt2)
@@ -58,7 +58,7 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 		// Compute x * 0.5 * (1 + erf(...))
 		result := hwy.Mul(x, halfOnePlusErf)
 
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 
 	// Handle tail elements with scalar math
@@ -87,7 +87,7 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 
 	// Process full vectors
 	for ; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
+		x := hwy.LoadFull(input[ii:])
 
 		// Compute sigmoid(1.702 * x)
 		xScaled := hwy.Mul(x, vCoeff)
@@ -96,7 +96,7 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 		// Compute x * sigmoid(1.702 * x)
 		result := hwy.Mul(x, sigmoidX)
 
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 
 	// Handle tail elements with scalar math
@@ -123,12 +123,12 @@ func BaseReLU[T hwy.Floats](input, output []T) {
 
 	// Process full vectors
 	for ; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
+		x := hwy.LoadFull(input[ii:])
 
 		// ReLU(x) = max(0, x)
 		result := hwy.Max(x, vZero)
 
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 
 	// Handle tail elements
@@ -158,7 +158,7 @@ func BaseSiLU[T hwy.Floats](input, output []T) {
 
 	// Process full vectors
 	for ; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
+		x := hwy.LoadFull(input[ii:])
 
 		// Compute sigmoid(x)
 		sigmoidX := math.BaseSigmoidVec(x)
@@ -166,7 +166,7 @@ func BaseSiLU[T hwy.Floats](input, output []T) {
 		// Compute x * sigmoid(x)
 		result := hwy.Mul(x, sigmoidX)
 
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 
 	// Handle tail elements with scalar math
@@ -194,7 +194,7 @@ func BaseLeakyReLU[T hwy.Floats](input, output []T, alpha T) {
 
 	// Process full vectors
 	for ; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
+		x := hwy.LoadFull(input[ii:])
 
 		// Compute alpha * x for the negative part
 		negPart := hwy.Mul(x, vAlpha)
@@ -202,7 +202,7 @@ func BaseLeakyReLU[T hwy.Floats](input, output []T, alpha T) {
 		// Select max(x, alpha * x), which gives x for positive, alpha*x for negative
 		result := hwy.Max(x, negPart)
 
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 
 	// Handle tail elements
@@ -234,7 +234,7 @@ func BaseELU[T hwy.Floats](input, output []T, alpha T) {
 
 	// Process full vectors
 	for ; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
+		x := hwy.LoadFull(input[ii:])
 
 		// Compute exp(x) - 1 for negative values
 		expX := math.BaseExpVec(x)
@@ -245,7 +245,7 @@ func BaseELU[T hwy.Floats](input, output []T, alpha T) {
 		isPositive := hwy.Greater(x, vZero)
 		result := hwy.Merge(x, negPart, isPositive)
 
-		hwy.Store(result, output[ii:])
+		hwy.StoreFull(result, output[ii:])
 	}
 
 	// Handle tail elements with scalar math
