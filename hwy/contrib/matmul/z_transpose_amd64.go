@@ -36,6 +36,13 @@ func transposeScalarAMD64[T any](src []T, m, k int, dst []T) {
 func init() {
 	// Override hwygen-generated dispatch with size-checked versions
 	// For small matrices, use scalar to avoid SIMD overhead and lane mismatch issues
+
+	// When HWY_NO_SIMD=1 is set, the fallback SIMD code doesn't work correctly
+	// for Float16/BFloat16 (the interleave-based transpose uses SIMD operations
+	// that don't behave correctly in pure scalar mode). Always use pure scalar
+	// for these types when SIMD is disabled.
+	noSimd := hwy.NoSimdEnv()
+
 	simdF32 := Transpose2DFloat32
 	Transpose2DFloat32 = func(src []float32, m, k int, dst []float32) {
 		if m >= minSizeForSIMDTransposeAMD64 && k >= minSizeForSIMDTransposeAMD64 {
@@ -56,6 +63,11 @@ func init() {
 
 	simdF16 := Transpose2DFloat16
 	Transpose2DFloat16 = func(src []hwy.Float16, m, k int, dst []hwy.Float16) {
+		// Float16 fallback SIMD doesn't work correctly - use pure scalar when SIMD disabled
+		if noSimd {
+			transposeScalarAMD64(src, m, k, dst)
+			return
+		}
 		if m >= minSizeForSIMDTransposeAMD64 && k >= minSizeForSIMDTransposeAMD64 {
 			simdF16(src, m, k, dst)
 		} else {
@@ -65,6 +77,11 @@ func init() {
 
 	simdBF16 := Transpose2DBFloat16
 	Transpose2DBFloat16 = func(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
+		// BFloat16 fallback SIMD doesn't work correctly - use pure scalar when SIMD disabled
+		if noSimd {
+			transposeScalarAMD64(src, m, k, dst)
+			return
+		}
 		if m >= minSizeForSIMDTransposeAMD64 && k >= minSizeForSIMDTransposeAMD64 {
 			simdBF16(src, m, k, dst)
 		} else {
