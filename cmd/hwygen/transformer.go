@@ -353,10 +353,11 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	// Post-process: scalarize fallback functions that only use simple ops.
 	// This converts hwy.Vec operations to pure scalar Go code for better performance
 	// by eliminating the allocation overhead of 1-element Vec wrappers.
-	// Skip half-precision types as they have complex conversion requirements.
-	if target.Name == "Fallback" && !isHalfPrecisionType(elemType) {
+	wasScalarized := false
+	if target.Name == "Fallback" {
 		if canScalarizeFallback(funcDecl) {
 			scalarizeFallback(funcDecl, elemType)
+			wasScalarized = true
 		}
 	}
 
@@ -376,7 +377,8 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	// This applies to all targets (Fallback, NEON, AVX2, AVX512) since scalar tail
 	// loops exist in all targets.
 	// Skip Vec-returning functions - they use hwy.Vec operations which already work.
-	if isHalfPrecisionType(elemType) && !returnsVecType(pf.Returns) {
+	// Skip scalarized fallback functions - they just copy values, no arithmetic needed.
+	if isHalfPrecisionType(elemType) && !returnsVecType(pf.Returns) && !wasScalarized {
 		transformHalfPrecisionFallback(funcDecl.Body, ctx)
 	}
 

@@ -59,6 +59,12 @@ var scalarizableHwyOps = map[string]bool{
 	// Interleave operations (identity for scalar, but with lanes=1 loops never execute)
 	"InterleaveLower": true,
 	"InterleaveUpper": true,
+
+	// Float16/BFloat16 conversion functions (pass through unchanged in scalar code)
+	"Float32ToFloat16":  true,
+	"Float32ToBFloat16": true,
+	"Float16ToFloat32":  true,
+	"BFloat16ToFloat32": true,
 }
 
 // nonScalarizableHwyOps is the set of hwy operations that prevent scalarization.
@@ -907,6 +913,15 @@ func scalarizeHwyCall(opName string, args []ast.Expr, elemType string) ast.Expr 
 		// With lanes=1, interleave upper takes from second arg
 		if len(args) >= 2 {
 			return args[1]
+		}
+	case "Float32ToFloat16", "Float32ToBFloat16", "Float16ToFloat32", "BFloat16ToFloat32":
+		// Type conversion functions - pass through unchanged
+		return &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(opName),
+			},
+			Args: args,
 		}
 	}
 
