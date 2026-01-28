@@ -56,13 +56,16 @@ const (
 func MatMulAuto[T hwy.Floats](a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
-	// For very small M, streaming is more efficient than blocked.
-	// Blocked has mr=4 micro-tiles, so M<16 means >25% of rows hit
-	// the scalar cleanup path. Streaming processes each row with
-	// full SIMD across N dimension.
-	const SmallMThreshold = 16
-	if m < SmallMThreshold && n >= 16 && k >= 16 {
-		MatMul(a, b, c, m, n, k)
+	// For small M with large N*K, we need row-parallel with 1-row strips
+	// to achieve parallelism. Standard RowsPerStrip=64 would give only 1 strip
+	// for M<64, meaning no parallelism.
+	//
+	// Benchmarks on M4 Max show 4.3x speedup for M=11, N=1024, K=1024:
+	//   - Streaming single-threaded: 2.78ms
+	//   - Row-parallel 1-row strips: 0.65ms
+	const SmallMThreshold = 64 // Use fine-grained parallelism when M < RowsPerStrip
+	if m < SmallMThreshold && totalOps >= SmallMatrixThreshold {
+		ParallelMatMulFineGrained(a, b, c, m, n, k)
 		return
 	}
 
@@ -114,10 +117,10 @@ func MatMulAutoFloat64(a, b, c []float64, m, n, k int) {
 func MatMulKLastAuto[T hwy.Floats](a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
-	// For very small M, streaming is more efficient than blocked.
-	const SmallMThreshold = 16
-	if m < SmallMThreshold && n >= 16 && k >= 16 {
-		MatMulKLast(a, b, c, m, n, k)
+	// For small M with large N*K, use fine-grained row parallelism.
+	const SmallMThreshold = 64
+	if m < SmallMThreshold && totalOps >= SmallMatrixThreshold {
+		ParallelMatMulKLastFineGrained(a, b, c, m, n, k)
 		return
 	}
 

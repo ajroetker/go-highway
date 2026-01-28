@@ -61,6 +61,48 @@ func ParallelMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 	wg.Wait()
 }
 
+// ParallelMatMulKLastFineGrained computes C = A * B^T using fine-grained parallelism.
+// Uses 1-row strips to maximize parallelism when M is small.
+func ParallelMatMulKLastFineGrained[T hwy.Floats](a, b, c []T, m, n, k int) {
+	if m*n*k < MinParallelOps {
+		MatMulKLastBlocked(a, b, c, m, n, k)
+		return
+	}
+
+	numWorkers := runtime.GOMAXPROCS(0)
+	if numWorkers > m {
+		numWorkers = m
+	}
+
+	work := make(chan int, m)
+	for row := range m {
+		work <- row
+	}
+	close(work)
+
+	var wg sync.WaitGroup
+	for range numWorkers {
+		wg.Go(func() {
+			for row := range work {
+				aRow := a[row*k : (row+1)*k]
+				cRow := c[row*n : (row+1)*n]
+				MatMulKLastBlocked(aRow, b, cRow, 1, n, k)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+// ParallelMatMulKLastFineGrainedFloat32 is the non-generic version for float32.
+func ParallelMatMulKLastFineGrainedFloat32(a, b, c []float32, m, n, k int) {
+	ParallelMatMulKLastFineGrained(a, b, c, m, n, k)
+}
+
+// ParallelMatMulKLastFineGrainedFloat64 is the non-generic version for float64.
+func ParallelMatMulKLastFineGrainedFloat64(a, b, c []float64, m, n, k int) {
+	ParallelMatMulKLastFineGrained(a, b, c, m, n, k)
+}
+
 // ParallelMatMulKLastFloat32 is the non-generic version for float32.
 func ParallelMatMulKLastFloat32(a, b, c []float32, m, n, k int) {
 	ParallelMatMulKLast(a, b, c, m, n, k)
