@@ -38,8 +38,13 @@ func init() {
 		BlockedMatMulFloat16 = BaseBlockedMatMul_fallback_Float16
 	}
 
-	// BF16 always uses fallback for now - golang.org/x/sys/cpu doesn't detect it yet
-	// TODO: Enable optimized path when BF16 detection is available
-	MatMulBFloat16 = BaseMatMul_fallback_BFloat16
-	BlockedMatMulBFloat16 = BaseBlockedMatMul_fallback_BFloat16
+	// Use optimized NEON path if CPU supports BF16
+	// BF16 detection added via sysctl on macOS (Apple M2+)
+	if hwy.HasARMBF16() {
+		MatMulBFloat16 = matmulNEONBF16
+		BlockedMatMulBFloat16 = blockedMatMulNEONBF16
+	} else {
+		MatMulBFloat16 = BaseMatMul_fallback_BFloat16
+		BlockedMatMulBFloat16 = BaseBlockedMatMul_fallback_BFloat16
+	}
 }

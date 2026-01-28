@@ -86,9 +86,8 @@ func detectARMFP16BF16Features() {
 	// ARM BF16 detection
 	// golang.org/x/sys/cpu doesn't have explicit BF16 detection yet
 	// BF16 (FEAT_BF16) was introduced in ARMv8.6-A
-	// For now, we leave this as false until x/sys/cpu adds support
-	// Note: On macOS/Apple Silicon, we could use sysctl for detection
-	hasARMBF16 = false
+	// On macOS/Apple Silicon, we detect via sysctl (see bf16_detect_darwin.go)
+	hasARMBF16 = hasBF16Darwin
 }
 
 // HasARMFP16 returns true if the CPU supports ARM FP16 extension.
