@@ -102,7 +102,12 @@ func MatMulAutoFloat64(a, b, c []float64, m, n, k int) {
 //
 // Algorithm selection based on matrix size (total ops = M * N * K):
 //   - Small (<64^3): Streaming MatMulKLast - lowest overhead
-//   - Larger: MatMulKLastBlocked - cache tiling for better locality
+//   - Medium/Large: ParallelMatMulKLast - parallel row striping + blocked
+//
+// ParallelMatMulKLast enables intra-example parallelism: a single large matrix
+// multiplication can utilize all CPU cores by processing independent row strips
+// concurrently. This is critical for patterns like multi-cross (bsi,oi->bso)
+// where batchSize=1 but M,N,K are large.
 //
 // On ARM64 with SME, the dispatch already uses FMOPA with transpose
 // for sizes >= 32 (when 16-aligned), which is 2-4x faster than NEON.
@@ -120,8 +125,8 @@ func MatMulKLastAuto[T hwy.Floats](a, b, c []T, m, n, k int) {
 		// Small matrices: streaming is faster (no blocking overhead)
 		MatMulKLast(a, b, c, m, n, k)
 	} else {
-		// Larger matrices: use blocked version for better cache locality
-		MatMulKLastBlocked(a, b, c, m, n, k)
+		// Medium/large matrices: parallel row striping + blocked
+		ParallelMatMulKLast(a, b, c, m, n, k)
 	}
 }
 

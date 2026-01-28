@@ -282,6 +282,94 @@ func TestMatMulKLastBlocked(t *testing.T) {
 	}
 }
 
+func TestParallelMatMulKLast(t *testing.T) {
+	t.Logf("Dispatch level: %s", hwy.CurrentName())
+
+	// Test sizes that should trigger parallel path (>= 64^3 ops)
+	sizes := []int{128, 256, 512}
+
+	for _, size := range sizes {
+		t.Run(sizeStr(size), func(t *testing.T) {
+			m, n, k := size, size, size
+
+			a := make([]float32, m*k)
+			b := make([]float32, n*k)
+			c := make([]float32, m*n)
+			expected := make([]float32, m*n)
+
+			for i := range a {
+				a[i] = rand.Float32()*2 - 1
+			}
+			for i := range b {
+				b[i] = rand.Float32()*2 - 1
+			}
+
+			matmulKLastReference(a, b, expected, m, n, k)
+			ParallelMatMulKLast(a, b, c, m, n, k)
+
+			var maxErr float32
+			for i := range c {
+				err := float32(math.Abs(float64(c[i] - expected[i])))
+				if err > maxErr {
+					maxErr = err
+				}
+			}
+
+			t.Logf("size %dx%d: max error %e", size, size, maxErr)
+			tolerance := float32(1e-3) * float32(k)
+			if maxErr > tolerance {
+				t.Errorf("max error %e exceeds threshold %e", maxErr, tolerance)
+			}
+		})
+	}
+}
+
+func TestParallelMatMulKLastNonSquare(t *testing.T) {
+	t.Logf("Dispatch level: %s", hwy.CurrentName())
+
+	// Test shapes common in LLM inference where batchSize=1 (multi-cross patterns)
+	testCases := []struct {
+		name    string
+		m, n, k int
+	}{
+		{"QKV", 512, 3072, 768},    // Multi-cross: bsi,oi->bso
+		{"MLP_up", 512, 3072, 768}, // MLP up projection
+		{"MLP_down", 512, 768, 3072},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := make([]float32, tc.m*tc.k)
+			b := make([]float32, tc.n*tc.k)
+			c := make([]float32, tc.m*tc.n)
+			expected := make([]float32, tc.m*tc.n)
+
+			for i := range a {
+				a[i] = rand.Float32()*2 - 1
+			}
+			for i := range b {
+				b[i] = rand.Float32()*2 - 1
+			}
+
+			matmulKLastReference(a, b, expected, tc.m, tc.n, tc.k)
+			ParallelMatMulKLast(a, b, c, tc.m, tc.n, tc.k)
+
+			var maxErr float32
+			for i := range c {
+				err := float32(math.Abs(float64(c[i] - expected[i])))
+				if err > maxErr {
+					maxErr = err
+				}
+			}
+
+			tolerance := float32(1e-3) * float32(tc.k)
+			if maxErr > tolerance {
+				t.Errorf("max error %e exceeds threshold %e", maxErr, tolerance)
+			}
+		})
+	}
+}
+
 func BenchmarkMatMulKLast(b *testing.B) {
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
 
@@ -463,6 +551,70 @@ func BenchmarkMatMulKLastNEONvsSME(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				MatMulKLastFloat32(a, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			gflops := flops * float64(b.N) / elapsed
+			b.ReportMetric(gflops, "GFLOPS")
+		})
+	}
+}
+
+// BenchmarkParallelVsBlockedKLast compares parallel vs single-threaded blocked
+func BenchmarkParallelVsBlockedKLast(b *testing.B) {
+	b.Logf("Dispatch level: %s", hwy.CurrentName())
+
+	// Test sizes that benefit from parallelization
+	sizes := []int{256, 512, 1024}
+
+	for _, size := range sizes {
+		m, n, k := size, size, size
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, n*k)
+		c := make([]float32, m*n)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
+		}
+
+		flops := float64(2*m*n*k) / 1e9
+
+		// Single-threaded blocked
+		b.Run(sizeStr(size)+"/Blocked", func(b *testing.B) {
+			b.SetBytes(int64((m*k + n*k + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				MatMulKLastBlocked(a, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			gflops := flops * float64(b.N) / elapsed
+			b.ReportMetric(gflops, "GFLOPS")
+		})
+
+		// Parallel
+		b.Run(sizeStr(size)+"/Parallel", func(b *testing.B) {
+			b.SetBytes(int64((m*k + n*k + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				ParallelMatMulKLast(a, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			gflops := flops * float64(b.N) / elapsed
+			b.ReportMetric(gflops, "GFLOPS")
+		})
+
+		// Auto (should pick parallel for these sizes)
+		b.Run(sizeStr(size)+"/Auto", func(b *testing.B) {
+			b.SetBytes(int64((m*k + n*k + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				MatMulKLastAuto(a, bMat, c, m, n, k)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()
