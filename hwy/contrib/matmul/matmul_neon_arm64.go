@@ -27,8 +27,10 @@ const minDimForNEON = 16
 // matmulNEON uses ARM NEON FMLA instructions for matrix multiplication.
 // Falls back to scalar for small matrices.
 func matmulNEON(a, b, c []float32, m, n, k int) {
-	// For small matrices, use scalar
-	if m < minDimForNEON || n < minDimForNEON || k < minDimForNEON {
+	// Streaming algorithm works for any M size - it processes one row at a time
+	// with full vectorization across N. Only need N and K large enough for
+	// SIMD benefit.
+	if n < minDimForNEON || k < minDimForNEON {
 		matmulScalar(a, b, c, m, n, k)
 		return
 	}
@@ -39,8 +41,8 @@ func matmulNEON(a, b, c []float32, m, n, k int) {
 // matmulNEONF16 uses ARM NEON for float16 matrix multiplication.
 // Uses hand-written assembly with FMLA f16 instructions.
 func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
-	// For small matrices, use generated fallback
-	if m < minDimForNEON || n < minDimForNEON || k < minDimForNEON {
+	// Streaming algorithm works for any M size
+	if n < minDimForNEON || k < minDimForNEON {
 		BaseMatMul_neon_Float16(a, b, c, m, n, k)
 		return
 	}
@@ -50,8 +52,8 @@ func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 // matmulNEONBF16 uses ARM NEON for bfloat16 matrix multiplication.
 // Uses hand-written assembly with BFDOT bf16 instructions.
 func matmulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
-	// For small matrices, use generated fallback
-	if m < minDimForNEON || n < minDimForNEON || k < minDimForNEON {
+	// Streaming algorithm works for any M size
+	if n < minDimForNEON || k < minDimForNEON {
 		BaseMatMul_neon_BFloat16(a, b, c, m, n, k)
 		return
 	}

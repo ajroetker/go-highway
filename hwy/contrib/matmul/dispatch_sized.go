@@ -56,6 +56,16 @@ const (
 func MatMulAuto[T hwy.Floats](a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
+	// For very small M, streaming is more efficient than blocked.
+	// Blocked has mr=4 micro-tiles, so M<16 means >25% of rows hit
+	// the scalar cleanup path. Streaming processes each row with
+	// full SIMD across N dimension.
+	const SmallMThreshold = 16
+	if m < SmallMThreshold && n >= 16 && k >= 16 {
+		MatMul(a, b, c, m, n, k)
+		return
+	}
+
 	if totalOps < SmallMatrixThreshold {
 		// Small matrices: streaming is faster (no blocking overhead)
 		MatMul(a, b, c, m, n, k)
