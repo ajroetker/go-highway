@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build arm64
+//go:build darwin && arm64
 
 package matmul
 
