@@ -5,6 +5,8 @@
 package matmul
 
 import (
+	"unsafe"
+
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
@@ -312,8 +314,8 @@ func BasePackRHSVec_neon_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c:][0]))
+					v.StorePtr(unsafe.Pointer(&packed[packIdx+c:][0]))
 				}
 				packIdx += nr
 			}
@@ -352,8 +354,8 @@ func BasePackRHSVec_neon_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c:][0]))
+					v.StorePtr(unsafe.Pointer(&packed[packIdx+c:][0]))
 				}
 				packIdx += nr
 			}

@@ -677,8 +677,8 @@ func NEONTarget() Target {
 			"int64":        "Int64x2",
 			"uint32":       "Uint32x4",
 			"uint64":       "Uint64x2",
-			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
-			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
+			"hwy.Float16":  "Float16x8",  // Use concrete asm type with in-place methods
+			"hwy.BFloat16": "BFloat16x8", // Use concrete asm type with in-place methods
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====

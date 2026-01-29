@@ -5,6 +5,8 @@
 package image
 
 import (
+	"unsafe"
+
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
@@ -13,8 +15,8 @@ func BaseBrightnessContrast_neon_Float16(img *Image[hwy.Float16], out *Image[hwy
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	scaleVec := hwy.Set(scale)
-	offsetVec := hwy.Set(offset)
+	scaleVec := asm.BroadcastFloat16x8(uint16(scale))
+	offsetVec := asm.BroadcastFloat16x8(uint16(offset))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -22,16 +24,16 @@ func BaseBrightnessContrast_neon_Float16(img *Image[hwy.Float16], out *Image[hwy
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.FMAF16(v, scaleVec, offsetVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.MulAdd(scaleVec, offsetVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.FMAF16(v, scaleVec, offsetVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.MulAdd(scaleVec, offsetVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -41,8 +43,8 @@ func BaseBrightnessContrast_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[h
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	scaleVec := hwy.Set(scale)
-	offsetVec := hwy.Set(offset)
+	scaleVec := asm.BroadcastBFloat16x8(uint16(scale))
+	offsetVec := asm.BroadcastBFloat16x8(uint16(offset))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -50,16 +52,16 @@ func BaseBrightnessContrast_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[h
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.FMABF16(v, scaleVec, offsetVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.MulAdd(scaleVec, offsetVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.FMABF16(v, scaleVec, offsetVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.MulAdd(scaleVec, offsetVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -125,8 +127,8 @@ func BaseClampImage_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	minVec := hwy.Set(minVal)
-	maxVec := hwy.Set(maxVal)
+	minVec := asm.BroadcastFloat16x8(uint16(minVal))
+	maxVec := asm.BroadcastFloat16x8(uint16(maxVal))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -134,16 +136,16 @@ func BaseClampImage_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.MaxF16(hwy.MinF16(v, maxVec), minVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Min(maxVec).Max(minVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.MaxF16(hwy.MinF16(v, maxVec), minVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Min(maxVec).Max(minVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -153,8 +155,8 @@ func BaseClampImage_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloa
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	minVec := hwy.Set(minVal)
-	maxVec := hwy.Set(maxVal)
+	minVec := asm.BroadcastBFloat16x8(uint16(minVal))
+	maxVec := asm.BroadcastBFloat16x8(uint16(maxVal))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -162,16 +164,16 @@ func BaseClampImage_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloa
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.MaxBF16(hwy.MinBF16(v, maxVec), minVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Min(maxVec).Max(minVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.MaxBF16(hwy.MinBF16(v, maxVec), minVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Min(maxVec).Max(minVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -237,9 +239,9 @@ func BaseThreshold_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	threshVec := hwy.Set(threshold)
-	belowVec := hwy.Set(below)
-	aboveVec := hwy.Set(above)
+	threshVec := asm.BroadcastFloat16x8(uint16(threshold))
+	belowVec := asm.BroadcastFloat16x8(uint16(below))
+	aboveVec := asm.BroadcastFloat16x8(uint16(above))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -247,18 +249,18 @@ func BaseThreshold_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			mask := hwy.GreaterThanOrEqualF16(v, threshVec)
-			result := hwy.IfThenElseF16(mask, aboveVec, belowVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			mask := v.GreaterThanOrEqual(threshVec)
+			result := asm.IfThenElseFloat16(mask, aboveVec, belowVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			mask := hwy.GreaterThanOrEqualF16(v, threshVec)
-			result := hwy.IfThenElseF16(mask, aboveVec, belowVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			mask := v.GreaterThanOrEqual(threshVec)
+			result := asm.IfThenElseFloat16(mask, aboveVec, belowVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -268,9 +270,9 @@ func BaseThreshold_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	threshVec := hwy.Set(threshold)
-	belowVec := hwy.Set(below)
-	aboveVec := hwy.Set(above)
+	threshVec := asm.BroadcastBFloat16x8(uint16(threshold))
+	belowVec := asm.BroadcastBFloat16x8(uint16(below))
+	aboveVec := asm.BroadcastBFloat16x8(uint16(above))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -278,18 +280,18 @@ func BaseThreshold_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			mask := hwy.GreaterThanOrEqualBF16(v, threshVec)
-			result := hwy.IfThenElseBF16(mask, aboveVec, belowVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			mask := v.GreaterThanOrEqual(threshVec)
+			result := asm.IfThenElseBFloat16(mask, aboveVec, belowVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			mask := hwy.GreaterThanOrEqualBF16(v, threshVec)
-			result := hwy.IfThenElseBF16(mask, aboveVec, belowVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			mask := v.GreaterThanOrEqual(threshVec)
+			result := asm.IfThenElseBFloat16(mask, aboveVec, belowVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -361,7 +363,7 @@ func BaseInvert_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], m
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	maxVec := hwy.Set(maxVal)
+	maxVec := asm.BroadcastFloat16x8(uint16(maxVal))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -369,16 +371,16 @@ func BaseInvert_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], m
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.SubF16(maxVec, v)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := maxVec.Sub(v)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.SubF16(maxVec, v)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := maxVec.Sub(v)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -388,7 +390,7 @@ func BaseInvert_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	maxVec := hwy.Set(maxVal)
+	maxVec := asm.BroadcastBFloat16x8(uint16(maxVal))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -396,16 +398,16 @@ func BaseInvert_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.SubBF16(maxVec, v)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := maxVec.Sub(v)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.SubBF16(maxVec, v)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := maxVec.Sub(v)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -476,16 +478,16 @@ func BaseAbs_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.AbsF16(v)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Abs()
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.AbsF16(v)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Abs()
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -502,16 +504,16 @@ func BaseAbs_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.AbsBF16(v)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Abs()
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.AbsBF16(v)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Abs()
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -573,7 +575,7 @@ func BaseScale_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], sc
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	scaleVec := hwy.Set(scale)
+	scaleVec := asm.BroadcastFloat16x8(uint16(scale))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -581,16 +583,16 @@ func BaseScale_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], sc
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.MulF16(v, scaleVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Mul(scaleVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.MulF16(v, scaleVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Mul(scaleVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -600,7 +602,7 @@ func BaseScale_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	scaleVec := hwy.Set(scale)
+	scaleVec := asm.BroadcastBFloat16x8(uint16(scale))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -608,16 +610,16 @@ func BaseScale_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.MulBF16(v, scaleVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Mul(scaleVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.MulBF16(v, scaleVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Mul(scaleVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -681,7 +683,7 @@ func BaseOffset_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], o
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	offsetVec := hwy.Set(offset)
+	offsetVec := asm.BroadcastFloat16x8(uint16(offset))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -689,16 +691,16 @@ func BaseOffset_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], o
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.AddF16(v, offsetVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Add(offsetVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.AddF16(v, offsetVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Add(offsetVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -708,7 +710,7 @@ func BaseOffset_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	offsetVec := hwy.Set(offset)
+	offsetVec := asm.BroadcastBFloat16x8(uint16(offset))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -716,16 +718,16 @@ func BaseOffset_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.AddBF16(v, offsetVec)
-			hwy.Store(result, outRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			result := v.Add(offsetVec)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
-			result := hwy.AddBF16(v, offsetVec)
-			hwy.Store(result, buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			result := v.Add(offsetVec)
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -789,7 +791,7 @@ func BaseGamma_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], ga
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	gammaVec := hwy.Set(gamma)
+	gammaVec := asm.BroadcastFloat16x8(uint16(gamma))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -797,16 +799,16 @@ func BaseGamma_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], ga
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, outRow[i:])
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
 			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, buf[:])
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -816,7 +818,7 @@ func BaseGamma_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	gammaVec := hwy.Set(gamma)
+	gammaVec := asm.BroadcastBFloat16x8(uint16(gamma))
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -824,16 +826,16 @@ func BaseGamma_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, outRow[i:])
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := hwy.Load(buf[:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
 			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, buf[:])
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -906,10 +908,10 @@ func BaseMinImage_neon_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := hwy.Load(aRow[i:])
-			vb := hwy.Load(bRow[i:])
-			result := hwy.MinF16(va, vb)
-			hwy.Store(result, outRow[i:])
+			va := asm.LoadFloat16x8Ptr(unsafe.Pointer(&aRow[i:][0]))
+			vb := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bRow[i:][0]))
+			result := va.Min(vb)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.Float16{}
@@ -917,10 +919,10 @@ func BaseMinImage_neon_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 			bufOut := [8]hwy.Float16{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := hwy.Load(bufA[:])
-			vb := hwy.Load(bufB[:])
-			result := hwy.MinF16(va, vb)
-			hwy.Store(result, bufOut[:])
+			va := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bufA[0]))
+			vb := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bufB[0]))
+			result := va.Min(vb)
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -939,10 +941,10 @@ func BaseMinImage_neon_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := hwy.Load(aRow[i:])
-			vb := hwy.Load(bRow[i:])
-			result := hwy.MinBF16(va, vb)
-			hwy.Store(result, outRow[i:])
+			va := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&aRow[i:][0]))
+			vb := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bRow[i:][0]))
+			result := va.Min(vb)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.BFloat16{}
@@ -950,10 +952,10 @@ func BaseMinImage_neon_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 			bufOut := [8]hwy.BFloat16{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := hwy.Load(bufA[:])
-			vb := hwy.Load(bufB[:])
-			result := hwy.MinBF16(va, vb)
-			hwy.Store(result, bufOut[:])
+			va := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bufA[0]))
+			vb := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bufB[0]))
+			result := va.Min(vb)
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -1038,10 +1040,10 @@ func BaseMaxImage_neon_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := hwy.Load(aRow[i:])
-			vb := hwy.Load(bRow[i:])
-			result := hwy.MaxF16(va, vb)
-			hwy.Store(result, outRow[i:])
+			va := asm.LoadFloat16x8Ptr(unsafe.Pointer(&aRow[i:][0]))
+			vb := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bRow[i:][0]))
+			result := va.Max(vb)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.Float16{}
@@ -1049,10 +1051,10 @@ func BaseMaxImage_neon_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 			bufOut := [8]hwy.Float16{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := hwy.Load(bufA[:])
-			vb := hwy.Load(bufB[:])
-			result := hwy.MaxF16(va, vb)
-			hwy.Store(result, bufOut[:])
+			va := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bufA[0]))
+			vb := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bufB[0]))
+			result := va.Max(vb)
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -1071,10 +1073,10 @@ func BaseMaxImage_neon_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := hwy.Load(aRow[i:])
-			vb := hwy.Load(bRow[i:])
-			result := hwy.MaxBF16(va, vb)
-			hwy.Store(result, outRow[i:])
+			va := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&aRow[i:][0]))
+			vb := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bRow[i:][0]))
+			result := va.Max(vb)
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.BFloat16{}
@@ -1082,10 +1084,10 @@ func BaseMaxImage_neon_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 			bufOut := [8]hwy.BFloat16{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := hwy.Load(bufA[:])
-			vb := hwy.Load(bufB[:])
-			result := hwy.MaxBF16(va, vb)
-			hwy.Store(result, bufOut[:])
+			va := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bufA[0]))
+			vb := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bufB[0]))
+			result := va.Max(vb)
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}

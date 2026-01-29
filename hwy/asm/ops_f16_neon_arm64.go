@@ -51,3 +51,63 @@ func store4_f16x8(ptr unsafe.Pointer, v0, v1, v2, v3 [16]byte)
 
 //go:noescape
 func sqrt_f16_neon(a, result, len unsafe.Pointer)
+
+//go:noescape
+func broadcast_f16x8(val unsafe.Pointer) (result [16]byte)
+
+//go:noescape
+func add_f16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func sub_f16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func mul_f16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func div_f16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func min_f16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func max_f16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func abs_f16x8(a [16]byte) (result [16]byte)
+
+//go:noescape
+func neg_f16x8(a [16]byte) (result [16]byte)
+
+//go:noescape
+func sqrt_f16x8(a [16]byte) (result [16]byte)
+
+//go:noescape
+func fma_f16x8(a, b, c [16]byte) (result [16]byte)
+
+//go:noescape
+func fms_f16x8(a, b, c [16]byte) (result [16]byte)
+
+//go:noescape
+func add_f16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func sub_f16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func mul_f16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func div_f16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func min_f16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func max_f16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func muladd_f16x8_acc(a, b [16]byte, acc unsafe.Pointer)
+
+//go:noescape
+func muladd_f16x8_ip(a, b, c [16]byte, result unsafe.Pointer)

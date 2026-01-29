@@ -17,36 +17,36 @@ func BaseL2SquaredDistance_neon_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Fl
 		return 0
 	}
 	n := min(len(a), len(b))
-	sum0 := hwy.Zero[hwy.Float16]()
-	sum1 := hwy.Zero[hwy.Float16]()
-	sum2 := hwy.Zero[hwy.Float16]()
-	sum3 := hwy.Zero[hwy.Float16]()
+	sum0 := asm.ZeroFloat16x8()
+	sum1 := asm.ZeroFloat16x8()
+	sum2 := asm.ZeroFloat16x8()
+	sum3 := asm.ZeroFloat16x8()
 	lanes := 8
 	var i int
 	stride := lanes * 4
 	for i = 0; i+stride <= n; i += stride {
-		va0, va1, va2, va3 := hwy.Load4_NEON_Vec(a[i:])
-		vb0, vb1, vb2, vb3 := hwy.Load4_NEON_Vec(b[i:])
-		diff0 := hwy.SubF16(va0, vb0)
-		diff1 := hwy.SubF16(va1, vb1)
-		diff2 := hwy.SubF16(va2, vb2)
-		diff3 := hwy.SubF16(va3, vb3)
-		sum0 = hwy.FMAF16(diff0, diff0, sum0)
-		sum1 = hwy.FMAF16(diff1, diff1, sum1)
-		sum2 = hwy.FMAF16(diff2, diff2, sum2)
-		sum3 = hwy.FMAF16(diff3, diff3, sum3)
+		va0, va1, va2, va3 := asm.Load4Float16x8(unsafe.Pointer(&a[i:][0]))
+		vb0, vb1, vb2, vb3 := asm.Load4Float16x8(unsafe.Pointer(&b[i:][0]))
+		diff0 := va0.Sub(vb0)
+		diff1 := va1.Sub(vb1)
+		diff2 := va2.Sub(vb2)
+		diff3 := va3.Sub(vb3)
+		diff0.MulAddAcc(diff0, &sum0)
+		diff1.MulAddAcc(diff1, &sum1)
+		diff2.MulAddAcc(diff2, &sum2)
+		diff3.MulAddAcc(diff3, &sum3)
 	}
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
-		diff := hwy.SubF16(va, vb)
-		sum0 = hwy.FMAF16(diff, diff, sum0)
+		va := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[i:][0]))
+		vb := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[i:][0]))
+		diff := va.Sub(vb)
+		diff.MulAddAcc(diff, &sum0)
 		i += lanes
 	}
-	sum0 = hwy.AddF16(sum0, sum1)
-	sum2 = hwy.AddF16(sum2, sum3)
-	sum0 = hwy.AddF16(sum0, sum2)
-	result := hwy.ReduceSumF16(sum0)
+	sum0 = sum0.Add(sum1)
+	sum2 = sum2.Add(sum3)
+	sum0 = sum0.Add(sum2)
+	result := sum0.ReduceSum()
 	for ; i < n; i++ {
 		d := a[i].Float32() - b[i].Float32()
 		result += d * d
@@ -59,36 +59,36 @@ func BaseL2SquaredDistance_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy
 		return 0
 	}
 	n := min(len(a), len(b))
-	sum0 := hwy.Zero[hwy.BFloat16]()
-	sum1 := hwy.Zero[hwy.BFloat16]()
-	sum2 := hwy.Zero[hwy.BFloat16]()
-	sum3 := hwy.Zero[hwy.BFloat16]()
+	sum0 := asm.ZeroBFloat16x8()
+	sum1 := asm.ZeroBFloat16x8()
+	sum2 := asm.ZeroBFloat16x8()
+	sum3 := asm.ZeroBFloat16x8()
 	lanes := 8
 	var i int
 	stride := lanes * 4
 	for i = 0; i+stride <= n; i += stride {
-		va0, va1, va2, va3 := hwy.Load4_NEON_Vec(a[i:])
-		vb0, vb1, vb2, vb3 := hwy.Load4_NEON_Vec(b[i:])
-		diff0 := hwy.SubBF16(va0, vb0)
-		diff1 := hwy.SubBF16(va1, vb1)
-		diff2 := hwy.SubBF16(va2, vb2)
-		diff3 := hwy.SubBF16(va3, vb3)
-		sum0 = hwy.FMABF16(diff0, diff0, sum0)
-		sum1 = hwy.FMABF16(diff1, diff1, sum1)
-		sum2 = hwy.FMABF16(diff2, diff2, sum2)
-		sum3 = hwy.FMABF16(diff3, diff3, sum3)
+		va0, va1, va2, va3 := asm.Load4BFloat16x8(unsafe.Pointer(&a[i:][0]))
+		vb0, vb1, vb2, vb3 := asm.Load4BFloat16x8(unsafe.Pointer(&b[i:][0]))
+		diff0 := va0.Sub(vb0)
+		diff1 := va1.Sub(vb1)
+		diff2 := va2.Sub(vb2)
+		diff3 := va3.Sub(vb3)
+		diff0.MulAddAcc(diff0, &sum0)
+		diff1.MulAddAcc(diff1, &sum1)
+		diff2.MulAddAcc(diff2, &sum2)
+		diff3.MulAddAcc(diff3, &sum3)
 	}
 	for i+lanes <= n {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
-		diff := hwy.SubBF16(va, vb)
-		sum0 = hwy.FMABF16(diff, diff, sum0)
+		va := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[i:][0]))
+		vb := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[i:][0]))
+		diff := va.Sub(vb)
+		diff.MulAddAcc(diff, &sum0)
 		i += lanes
 	}
-	sum0 = hwy.AddBF16(sum0, sum1)
-	sum2 = hwy.AddBF16(sum2, sum3)
-	sum0 = hwy.AddBF16(sum0, sum2)
-	result := hwy.ReduceSumBF16(sum0)
+	sum0 = sum0.Add(sum1)
+	sum2 = sum2.Add(sum3)
+	sum0 = sum0.Add(sum2)
+	result := sum0.ReduceSum()
 	for ; i < n; i++ {
 		d := a[i].Float32() - b[i].Float32()
 		result += d * d
@@ -115,16 +115,16 @@ func BaseL2SquaredDistance_neon(a []float32, b []float32) float32 {
 		diff1 := va1.Sub(vb1)
 		diff2 := va2.Sub(vb2)
 		diff3 := va3.Sub(vb3)
-		sum0 = diff0.MulAdd(diff0, sum0)
-		sum1 = diff1.MulAdd(diff1, sum1)
-		sum2 = diff2.MulAdd(diff2, sum2)
-		sum3 = diff3.MulAdd(diff3, sum3)
+		diff0.MulAddAcc(diff0, &sum0)
+		diff1.MulAddAcc(diff1, &sum1)
+		diff2.MulAddAcc(diff2, &sum2)
+		diff3.MulAddAcc(diff3, &sum3)
 	}
 	for i+lanes <= n {
 		va := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[i])))
 		vb := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
-		sum0 = diff.MulAdd(diff, sum0)
+		diff.MulAddAcc(diff, &sum0)
 		i += lanes
 	}
 	sum0 = sum0.Add(sum1)
@@ -157,16 +157,16 @@ func BaseL2SquaredDistance_neon_Float64(a []float64, b []float64) float64 {
 		diff1 := va1.Sub(vb1)
 		diff2 := va2.Sub(vb2)
 		diff3 := va3.Sub(vb3)
-		sum0 = diff0.MulAdd(diff0, sum0)
-		sum1 = diff1.MulAdd(diff1, sum1)
-		sum2 = diff2.MulAdd(diff2, sum2)
-		sum3 = diff3.MulAdd(diff3, sum3)
+		diff0.MulAddAcc(diff0, &sum0)
+		diff1.MulAddAcc(diff1, &sum1)
+		diff2.MulAddAcc(diff2, &sum2)
+		diff3.MulAddAcc(diff3, &sum3)
 	}
 	for i+lanes <= n {
 		va := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[i])))
 		vb := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
-		sum0 = diff.MulAdd(diff, sum0)
+		diff.MulAddAcc(diff, &sum0)
 		i += lanes
 	}
 	sum0 = sum0.Add(sum1)

@@ -5,6 +5,8 @@
 package matmul
 
 import (
+	"unsafe"
+
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
@@ -21,24 +23,24 @@ func BaseMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 	}
 	for i := range m {
 		cRow := c[i*n : (i+1)*n]
-		vZero := hwy.Zero[hwy.Float16]()
+		vZero := asm.ZeroFloat16x8()
 		lanes := 8
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			hwy.Store(vZero, cRow[j:])
+			vZero.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 		}
 		for ; j < n; j++ {
 			cRow[j] = hwy.Float32ToFloat16(0)
 		}
 		for p := range k {
 			aip := a[i*k+p]
-			vA := hwy.Set(aip)
+			vA := asm.BroadcastFloat16x8(uint16(aip))
 			bRow := b[p*n : (p+1)*n]
 			for j = 0; j+lanes <= n; j += lanes {
-				vB := hwy.Load(bRow[j:])
-				vC := hwy.Load(cRow[j:])
-				vC = hwy.FMAF16(vA, vB, vC)
-				hwy.Store(vC, cRow[j:])
+				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&bRow[j:][0]))
+				vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&cRow[j:][0]))
+				vA.MulAddAcc(vB, &vC)
+				vC.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 			}
 			for ; j < n; j++ {
 				cRow[j] = hwy.Float32ToFloat16(cRow[j].Float32() + aip.Float32()*bRow[j].Float32())
@@ -59,24 +61,24 @@ func BaseMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 	}
 	for i := range m {
 		cRow := c[i*n : (i+1)*n]
-		vZero := hwy.Zero[hwy.BFloat16]()
+		vZero := asm.ZeroBFloat16x8()
 		lanes := 8
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			hwy.Store(vZero, cRow[j:])
+			vZero.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 		}
 		for ; j < n; j++ {
 			cRow[j] = hwy.Float32ToBFloat16(0)
 		}
 		for p := range k {
 			aip := a[i*k+p]
-			vA := hwy.Set(aip)
+			vA := asm.BroadcastBFloat16x8(uint16(aip))
 			bRow := b[p*n : (p+1)*n]
 			for j = 0; j+lanes <= n; j += lanes {
-				vB := hwy.Load(bRow[j:])
-				vC := hwy.Load(cRow[j:])
-				vC = hwy.FMABF16(vA, vB, vC)
-				hwy.Store(vC, cRow[j:])
+				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&bRow[j:][0]))
+				vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&cRow[j:][0]))
+				vA.MulAddAcc(vB, &vC)
+				vC.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 			}
 			for ; j < n; j++ {
 				cRow[j] = hwy.Float32ToBFloat16(cRow[j].Float32() + aip.Float32()*bRow[j].Float32())
@@ -113,7 +115,7 @@ func BaseMatMul_neon(a []float32, b []float32, c []float32, m int, n int, k int)
 			for j = 0; j+lanes <= n; j += lanes {
 				vB := asm.LoadFloat32x4Slice(bRow[j:])
 				vC := asm.LoadFloat32x4Slice(cRow[j:])
-				vC = vA.MulAdd(vB, vC)
+				vA.MulAddAcc(vB, &vC)
 				vC.StoreSlice(cRow[j:])
 			}
 			for ; j < n; j++ {
@@ -151,7 +153,7 @@ func BaseMatMul_neon_Float64(a []float64, b []float64, c []float64, m int, n int
 			for j = 0; j+lanes <= n; j += lanes {
 				vB := asm.LoadFloat64x2Slice(bRow[j:])
 				vC := asm.LoadFloat64x2Slice(cRow[j:])
-				vC = vA.MulAdd(vB, vC)
+				vA.MulAddAcc(vB, &vC)
 				vC.StoreSlice(cRow[j:])
 			}
 			for ; j < n; j++ {

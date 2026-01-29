@@ -435,3 +435,216 @@ void store4_bf16x8(unsigned short *ptr,
     v.val[3] = v3;
     vst1q_bf16_x4((bfloat16_t*)ptr, v);
 }
+
+// ============================================================================
+// BFloat16x8 Single-Vector Operations (register-resident)
+// ============================================================================
+// BFloat16 does NOT have native SIMD arithmetic. These operations use the
+// promote-to-F32 -> compute -> demote-to-BF16 pattern with proper rounding.
+// For optimal performance in ML workloads, prefer using BFDOT/BFMMLA with
+// F32 accumulators instead of these general arithmetic operations.
+
+// Broadcast a scalar bfloat16 to all 8 lanes
+bfloat16x8_t broadcast_bf16x8(unsigned short *val) {
+    return vld1q_dup_bf16((bfloat16_t*)val);
+}
+
+// Helper macros for promote/demote (inlined since GOAT doesn't support static inline)
+// Promote BF16 to F32: shift left by 16 bits
+// Demote F32 to BF16: round-to-nearest-even and shift right by 16 bits
+
+bfloat16x8_t add_bf16x8(bfloat16x8_t a, bfloat16x8_t b) {
+    // Promote to F32
+    uint16x8_t ua = vreinterpretq_u16_bf16(a);
+    uint16x8_t ub = vreinterpretq_u16_bf16(b);
+    uint32x4_t a_lo_u32 = vshll_n_u16(vget_low_u16(ua), 16);
+    uint32x4_t a_hi_u32 = vshll_n_u16(vget_high_u16(ua), 16);
+    uint32x4_t b_lo_u32 = vshll_n_u16(vget_low_u16(ub), 16);
+    uint32x4_t b_hi_u32 = vshll_n_u16(vget_high_u16(ub), 16);
+    float32x4_t a_lo = vreinterpretq_f32_u32(a_lo_u32);
+    float32x4_t a_hi = vreinterpretq_f32_u32(a_hi_u32);
+    float32x4_t b_lo = vreinterpretq_f32_u32(b_lo_u32);
+    float32x4_t b_hi = vreinterpretq_f32_u32(b_hi_u32);
+
+    // Compute in F32
+    float32x4_t r_lo = vaddq_f32(a_lo, b_lo);
+    float32x4_t r_hi = vaddq_f32(a_hi, b_hi);
+
+    // Demote to BF16 with round-to-nearest-even
+    uint32x4_t u_lo = vreinterpretq_u32_f32(r_lo);
+    uint32x4_t u_hi = vreinterpretq_u32_f32(r_hi);
+    uint32x4_t round_const = vdupq_n_u32(0x7FFF);
+    uint32x4_t one = vdupq_n_u32(1);
+    uint32x4_t bias_lo = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_lo, 16), one));
+    uint32x4_t bias_hi = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_hi, 16), one));
+    uint32x4_t rr_lo = vshrq_n_u32(vaddq_u32(u_lo, bias_lo), 16);
+    uint32x4_t rr_hi = vshrq_n_u32(vaddq_u32(u_hi, bias_hi), 16);
+    uint16x4_t h_lo = vmovn_u32(rr_lo);
+    uint16x4_t h_hi = vmovn_u32(rr_hi);
+    return vreinterpretq_bf16_u16(vcombine_u16(h_lo, h_hi));
+}
+
+bfloat16x8_t sub_bf16x8(bfloat16x8_t a, bfloat16x8_t b) {
+    uint16x8_t ua = vreinterpretq_u16_bf16(a);
+    uint16x8_t ub = vreinterpretq_u16_bf16(b);
+    uint32x4_t a_lo_u32 = vshll_n_u16(vget_low_u16(ua), 16);
+    uint32x4_t a_hi_u32 = vshll_n_u16(vget_high_u16(ua), 16);
+    uint32x4_t b_lo_u32 = vshll_n_u16(vget_low_u16(ub), 16);
+    uint32x4_t b_hi_u32 = vshll_n_u16(vget_high_u16(ub), 16);
+    float32x4_t a_lo = vreinterpretq_f32_u32(a_lo_u32);
+    float32x4_t a_hi = vreinterpretq_f32_u32(a_hi_u32);
+    float32x4_t b_lo = vreinterpretq_f32_u32(b_lo_u32);
+    float32x4_t b_hi = vreinterpretq_f32_u32(b_hi_u32);
+
+    float32x4_t r_lo = vsubq_f32(a_lo, b_lo);
+    float32x4_t r_hi = vsubq_f32(a_hi, b_hi);
+
+    uint32x4_t u_lo = vreinterpretq_u32_f32(r_lo);
+    uint32x4_t u_hi = vreinterpretq_u32_f32(r_hi);
+    uint32x4_t round_const = vdupq_n_u32(0x7FFF);
+    uint32x4_t one = vdupq_n_u32(1);
+    uint32x4_t bias_lo = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_lo, 16), one));
+    uint32x4_t bias_hi = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_hi, 16), one));
+    uint32x4_t rr_lo = vshrq_n_u32(vaddq_u32(u_lo, bias_lo), 16);
+    uint32x4_t rr_hi = vshrq_n_u32(vaddq_u32(u_hi, bias_hi), 16);
+    uint16x4_t h_lo = vmovn_u32(rr_lo);
+    uint16x4_t h_hi = vmovn_u32(rr_hi);
+    return vreinterpretq_bf16_u16(vcombine_u16(h_lo, h_hi));
+}
+
+bfloat16x8_t mul_bf16x8(bfloat16x8_t a, bfloat16x8_t b) {
+    uint16x8_t ua = vreinterpretq_u16_bf16(a);
+    uint16x8_t ub = vreinterpretq_u16_bf16(b);
+    uint32x4_t a_lo_u32 = vshll_n_u16(vget_low_u16(ua), 16);
+    uint32x4_t a_hi_u32 = vshll_n_u16(vget_high_u16(ua), 16);
+    uint32x4_t b_lo_u32 = vshll_n_u16(vget_low_u16(ub), 16);
+    uint32x4_t b_hi_u32 = vshll_n_u16(vget_high_u16(ub), 16);
+    float32x4_t a_lo = vreinterpretq_f32_u32(a_lo_u32);
+    float32x4_t a_hi = vreinterpretq_f32_u32(a_hi_u32);
+    float32x4_t b_lo = vreinterpretq_f32_u32(b_lo_u32);
+    float32x4_t b_hi = vreinterpretq_f32_u32(b_hi_u32);
+
+    float32x4_t r_lo = vmulq_f32(a_lo, b_lo);
+    float32x4_t r_hi = vmulq_f32(a_hi, b_hi);
+
+    uint32x4_t u_lo = vreinterpretq_u32_f32(r_lo);
+    uint32x4_t u_hi = vreinterpretq_u32_f32(r_hi);
+    uint32x4_t round_const = vdupq_n_u32(0x7FFF);
+    uint32x4_t one = vdupq_n_u32(1);
+    uint32x4_t bias_lo = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_lo, 16), one));
+    uint32x4_t bias_hi = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_hi, 16), one));
+    uint32x4_t rr_lo = vshrq_n_u32(vaddq_u32(u_lo, bias_lo), 16);
+    uint32x4_t rr_hi = vshrq_n_u32(vaddq_u32(u_hi, bias_hi), 16);
+    uint16x4_t h_lo = vmovn_u32(rr_lo);
+    uint16x4_t h_hi = vmovn_u32(rr_hi);
+    return vreinterpretq_bf16_u16(vcombine_u16(h_lo, h_hi));
+}
+
+bfloat16x8_t div_bf16x8(bfloat16x8_t a, bfloat16x8_t b) {
+    uint16x8_t ua = vreinterpretq_u16_bf16(a);
+    uint16x8_t ub = vreinterpretq_u16_bf16(b);
+    uint32x4_t a_lo_u32 = vshll_n_u16(vget_low_u16(ua), 16);
+    uint32x4_t a_hi_u32 = vshll_n_u16(vget_high_u16(ua), 16);
+    uint32x4_t b_lo_u32 = vshll_n_u16(vget_low_u16(ub), 16);
+    uint32x4_t b_hi_u32 = vshll_n_u16(vget_high_u16(ub), 16);
+    float32x4_t a_lo = vreinterpretq_f32_u32(a_lo_u32);
+    float32x4_t a_hi = vreinterpretq_f32_u32(a_hi_u32);
+    float32x4_t b_lo = vreinterpretq_f32_u32(b_lo_u32);
+    float32x4_t b_hi = vreinterpretq_f32_u32(b_hi_u32);
+
+    float32x4_t r_lo = vdivq_f32(a_lo, b_lo);
+    float32x4_t r_hi = vdivq_f32(a_hi, b_hi);
+
+    uint32x4_t u_lo = vreinterpretq_u32_f32(r_lo);
+    uint32x4_t u_hi = vreinterpretq_u32_f32(r_hi);
+    uint32x4_t round_const = vdupq_n_u32(0x7FFF);
+    uint32x4_t one = vdupq_n_u32(1);
+    uint32x4_t bias_lo = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_lo, 16), one));
+    uint32x4_t bias_hi = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_hi, 16), one));
+    uint32x4_t rr_lo = vshrq_n_u32(vaddq_u32(u_lo, bias_lo), 16);
+    uint32x4_t rr_hi = vshrq_n_u32(vaddq_u32(u_hi, bias_hi), 16);
+    uint16x4_t h_lo = vmovn_u32(rr_lo);
+    uint16x4_t h_hi = vmovn_u32(rr_hi);
+    return vreinterpretq_bf16_u16(vcombine_u16(h_lo, h_hi));
+}
+
+// Fused multiply-add: a * b + c (using F32 FMA for precision)
+bfloat16x8_t fma_bf16x8(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t c) {
+    uint16x8_t ua = vreinterpretq_u16_bf16(a);
+    uint16x8_t ub = vreinterpretq_u16_bf16(b);
+    uint16x8_t uc = vreinterpretq_u16_bf16(c);
+    uint32x4_t a_lo_u32 = vshll_n_u16(vget_low_u16(ua), 16);
+    uint32x4_t a_hi_u32 = vshll_n_u16(vget_high_u16(ua), 16);
+    uint32x4_t b_lo_u32 = vshll_n_u16(vget_low_u16(ub), 16);
+    uint32x4_t b_hi_u32 = vshll_n_u16(vget_high_u16(ub), 16);
+    uint32x4_t c_lo_u32 = vshll_n_u16(vget_low_u16(uc), 16);
+    uint32x4_t c_hi_u32 = vshll_n_u16(vget_high_u16(uc), 16);
+    float32x4_t a_lo = vreinterpretq_f32_u32(a_lo_u32);
+    float32x4_t a_hi = vreinterpretq_f32_u32(a_hi_u32);
+    float32x4_t b_lo = vreinterpretq_f32_u32(b_lo_u32);
+    float32x4_t b_hi = vreinterpretq_f32_u32(b_hi_u32);
+    float32x4_t c_lo = vreinterpretq_f32_u32(c_lo_u32);
+    float32x4_t c_hi = vreinterpretq_f32_u32(c_hi_u32);
+
+    float32x4_t r_lo = vfmaq_f32(c_lo, a_lo, b_lo);
+    float32x4_t r_hi = vfmaq_f32(c_hi, a_hi, b_hi);
+
+    uint32x4_t u_lo = vreinterpretq_u32_f32(r_lo);
+    uint32x4_t u_hi = vreinterpretq_u32_f32(r_hi);
+    uint32x4_t round_const = vdupq_n_u32(0x7FFF);
+    uint32x4_t one = vdupq_n_u32(1);
+    uint32x4_t bias_lo = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_lo, 16), one));
+    uint32x4_t bias_hi = vaddq_u32(round_const, vandq_u32(vshrq_n_u32(u_hi, 16), one));
+    uint32x4_t rr_lo = vshrq_n_u32(vaddq_u32(u_lo, bias_lo), 16);
+    uint32x4_t rr_hi = vshrq_n_u32(vaddq_u32(u_hi, bias_hi), 16);
+    uint16x4_t h_lo = vmovn_u32(rr_lo);
+    uint16x4_t h_hi = vmovn_u32(rr_hi);
+    return vreinterpretq_bf16_u16(vcombine_u16(h_lo, h_hi));
+}
+
+// ============================================================================
+// BFloat16x8 In-Place Operations (avoid return allocation overhead)
+// ============================================================================
+
+void add_bf16x8_ip(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t *result) {
+    *result = add_bf16x8(a, b);
+}
+
+void sub_bf16x8_ip(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t *result) {
+    *result = sub_bf16x8(a, b);
+}
+
+void mul_bf16x8_ip(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t *result) {
+    *result = mul_bf16x8(a, b);
+}
+
+void div_bf16x8_ip(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t *result) {
+    *result = div_bf16x8(a, b);
+}
+
+// Fused multiply-add with BF16 accumulator: *acc = a * b + *acc
+// Note: For ML workloads, prefer BFDOT with F32 accumulator for better precision
+void muladd_bf16x8_acc(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t *acc) {
+    *acc = fma_bf16x8(a, b, *acc);
+}
+
+// Fused multiply-add to output: *result = a * b + c
+void muladd_bf16x8_ip(bfloat16x8_t a, bfloat16x8_t b, bfloat16x8_t c, bfloat16x8_t *result) {
+    *result = fma_bf16x8(a, b, c);
+}
+
+// ============================================================================
+// BFloat16 Dot Product to F32 Accumulator (single vector pair)
+// ============================================================================
+// This is the preferred pattern for ML: keep accumulators in F32, only use BF16
+// for storage. Uses BFDOT instruction for optimal performance.
+
+// Accumulates dot product of two BF16x8 vectors into F32x4 accumulator
+// Each F32 lane receives dot product of 2 BF16 pairs:
+//   acc[0] += a[0]*b[0] + a[1]*b[1]
+//   acc[1] += a[2]*b[2] + a[3]*b[3]
+//   acc[2] += a[4]*b[4] + a[5]*b[5]
+//   acc[3] += a[6]*b[6] + a[7]*b[7]
+void bfdot_bf16x8_f32x4_acc(bfloat16x8_t a, bfloat16x8_t b, float32x4_t *acc) {
+    *acc = vbfdotq_f32(*acc, a, b);
+}

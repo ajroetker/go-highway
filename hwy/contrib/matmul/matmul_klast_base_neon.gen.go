@@ -5,6 +5,8 @@
 package matmul
 
 import (
+	"unsafe"
+
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
@@ -32,26 +34,26 @@ func BaseMatMulKLast_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Floa
 		cRow3 := (i + 3) * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc0 := hwy.Zero[hwy.Float16]()
-			acc1 := hwy.Zero[hwy.Float16]()
-			acc2 := hwy.Zero[hwy.Float16]()
-			acc3 := hwy.Zero[hwy.Float16]()
+			acc0 := asm.ZeroFloat16x8()
+			acc1 := asm.ZeroFloat16x8()
+			acc2 := asm.ZeroFloat16x8()
+			acc3 := asm.ZeroFloat16x8()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
-				acc0 = hwy.FMAF16(vA0, vB, acc0)
-				acc1 = hwy.FMAF16(vA1, vB, acc1)
-				acc2 = hwy.FMAF16(vA2, vB, acc2)
-				acc3 = hwy.FMAF16(vA3, vB, acc3)
+				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				vA0 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[aRow0+p:][0]))
+				vA1 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[aRow1+p:][0]))
+				vA2 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[aRow2+p:][0]))
+				vA3 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[aRow3+p:][0]))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
-			sum0 := hwy.ReduceSumF16(acc0)
-			sum1 := hwy.ReduceSumF16(acc1)
-			sum2 := hwy.ReduceSumF16(acc2)
-			sum3 := hwy.ReduceSumF16(acc3)
+			sum0 := acc0.ReduceSum()
+			sum1 := acc1.ReduceSum()
+			sum2 := acc2.ReduceSum()
+			sum3 := acc3.ReduceSum()
 			for ; p < k; p++ {
 				sum0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
 				sum1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
@@ -69,14 +71,14 @@ func BaseMatMulKLast_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Floa
 		cRow := i * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc := hwy.Zero[hwy.Float16]()
+			acc := asm.ZeroFloat16x8()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
-				acc = hwy.FMAF16(vA, vB, acc)
+				vA := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				vA.MulAddAcc(vB, &acc)
 			}
-			sum := hwy.ReduceSumF16(acc)
+			sum := acc.ReduceSum()
 			for ; p < k; p++ {
 				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 			}
@@ -108,26 +110,26 @@ func BaseMatMulKLast_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.B
 		cRow3 := (i + 3) * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc0 := hwy.Zero[hwy.BFloat16]()
-			acc1 := hwy.Zero[hwy.BFloat16]()
-			acc2 := hwy.Zero[hwy.BFloat16]()
-			acc3 := hwy.Zero[hwy.BFloat16]()
+			acc0 := asm.ZeroBFloat16x8()
+			acc1 := asm.ZeroBFloat16x8()
+			acc2 := asm.ZeroBFloat16x8()
+			acc3 := asm.ZeroBFloat16x8()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
-				acc0 = hwy.FMABF16(vA0, vB, acc0)
-				acc1 = hwy.FMABF16(vA1, vB, acc1)
-				acc2 = hwy.FMABF16(vA2, vB, acc2)
-				acc3 = hwy.FMABF16(vA3, vB, acc3)
+				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				vA0 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[aRow0+p:][0]))
+				vA1 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[aRow1+p:][0]))
+				vA2 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[aRow2+p:][0]))
+				vA3 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[aRow3+p:][0]))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
-			sum0 := hwy.ReduceSumBF16(acc0)
-			sum1 := hwy.ReduceSumBF16(acc1)
-			sum2 := hwy.ReduceSumBF16(acc2)
-			sum3 := hwy.ReduceSumBF16(acc3)
+			sum0 := acc0.ReduceSum()
+			sum1 := acc1.ReduceSum()
+			sum2 := acc2.ReduceSum()
+			sum3 := acc3.ReduceSum()
 			for ; p < k; p++ {
 				sum0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
 				sum1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
@@ -145,14 +147,14 @@ func BaseMatMulKLast_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.B
 		cRow := i * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc := hwy.Zero[hwy.BFloat16]()
+			acc := asm.ZeroBFloat16x8()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
-				acc = hwy.FMABF16(vA, vB, acc)
+				vA := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				vA.MulAddAcc(vB, &acc)
 			}
-			sum := hwy.ReduceSumBF16(acc)
+			sum := acc.ReduceSum()
 			for ; p < k; p++ {
 				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 			}
@@ -195,10 +197,10 @@ func BaseMatMulKLast_neon(a []float32, b []float32, c []float32, m int, n int, k
 				vA1 := asm.LoadFloat32x4Slice(a[aRow1+p:])
 				vA2 := asm.LoadFloat32x4Slice(a[aRow2+p:])
 				vA3 := asm.LoadFloat32x4Slice(a[aRow3+p:])
-				acc0 = vA0.MulAdd(vB, acc0)
-				acc1 = vA1.MulAdd(vB, acc1)
-				acc2 = vA2.MulAdd(vB, acc2)
-				acc3 = vA3.MulAdd(vB, acc3)
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
 			sum0 := acc0.ReduceSum()
 			sum1 := acc1.ReduceSum()
@@ -226,7 +228,7 @@ func BaseMatMulKLast_neon(a []float32, b []float32, c []float32, m int, n int, k
 			for p = 0; p+lanes <= k; p += lanes {
 				vA := asm.LoadFloat32x4Slice(a[aRow+p:])
 				vB := asm.LoadFloat32x4Slice(b[bRow+p:])
-				acc = vA.MulAdd(vB, acc)
+				vA.MulAddAcc(vB, &acc)
 			}
 			sum := acc.ReduceSum()
 			for ; p < k; p++ {
@@ -271,10 +273,10 @@ func BaseMatMulKLast_neon_Float64(a []float64, b []float64, c []float64, m int, 
 				vA1 := asm.LoadFloat64x2Slice(a[aRow1+p:])
 				vA2 := asm.LoadFloat64x2Slice(a[aRow2+p:])
 				vA3 := asm.LoadFloat64x2Slice(a[aRow3+p:])
-				acc0 = vA0.MulAdd(vB, acc0)
-				acc1 = vA1.MulAdd(vB, acc1)
-				acc2 = vA2.MulAdd(vB, acc2)
-				acc3 = vA3.MulAdd(vB, acc3)
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
 			sum0 := acc0.ReduceSum()
 			sum1 := acc1.ReduceSum()
@@ -302,7 +304,7 @@ func BaseMatMulKLast_neon_Float64(a []float64, b []float64, c []float64, m int, 
 			for p = 0; p+lanes <= k; p += lanes {
 				vA := asm.LoadFloat64x2Slice(a[aRow+p:])
 				vB := asm.LoadFloat64x2Slice(b[bRow+p:])
-				acc = vA.MulAdd(vB, acc)
+				vA.MulAddAcc(vB, &acc)
 			}
 			sum := acc.ReduceSum()
 			for ; p < k; p++ {
@@ -341,14 +343,14 @@ func BaseMatMulKLastBlocked_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []h
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						acc := hwy.Zero[hwy.Float16]()
+						acc := asm.ZeroFloat16x8()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
-							acc = hwy.FMAF16(vA, vB, acc)
+							vA := asm.LoadFloat16x8Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+							vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+							vA.MulAddAcc(vB, &acc)
 						}
-						sum := hwy.ReduceSumF16(acc)
+						sum := acc.ReduceSum()
 						for ; p < kEnd; p++ {
 							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 						}
@@ -388,14 +390,14 @@ func BaseMatMulKLastBlocked_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c 
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						acc := hwy.Zero[hwy.BFloat16]()
+						acc := asm.ZeroBFloat16x8()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
-							acc = hwy.FMABF16(vA, vB, acc)
+							vA := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+							vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+							vA.MulAddAcc(vB, &acc)
 						}
-						sum := hwy.ReduceSumBF16(acc)
+						sum := acc.ReduceSum()
 						for ; p < kEnd; p++ {
 							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 						}
@@ -440,7 +442,7 @@ func BaseMatMulKLastBlocked_neon(a []float32, b []float32, c []float32, m int, n
 						for p = kk; p+lanes <= kEnd; p += lanes {
 							vA := asm.LoadFloat32x4Slice(a[aRow+p:])
 							vB := asm.LoadFloat32x4Slice(b[bRow+p:])
-							acc = vA.MulAdd(vB, acc)
+							vA.MulAddAcc(vB, &acc)
 						}
 						sum := acc.ReduceSum()
 						for ; p < kEnd; p++ {
@@ -487,7 +489,7 @@ func BaseMatMulKLastBlocked_neon_Float64(a []float64, b []float64, c []float64, 
 						for p = kk; p+lanes <= kEnd; p += lanes {
 							vA := asm.LoadFloat64x2Slice(a[aRow+p:])
 							vB := asm.LoadFloat64x2Slice(b[bRow+p:])
-							acc = vA.MulAdd(vB, acc)
+							vA.MulAddAcc(vB, &acc)
 						}
 						sum := acc.ReduceSum()
 						for ; p < kEnd; p++ {
