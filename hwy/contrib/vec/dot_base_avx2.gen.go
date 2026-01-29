@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseDot_avx2_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
@@ -16,31 +17,31 @@ func BaseDot_avx2_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
 		return 0
 	}
 	n := min(len(a), len(b))
-	sum0 := hwy.Zero[hwy.Float16]()
-	sum1 := hwy.Zero[hwy.Float16]()
-	sum2 := hwy.Zero[hwy.Float16]()
-	sum3 := hwy.Zero[hwy.Float16]()
-	lanes := 16
+	sum0 := asm.ZeroFloat16x8AVX2()
+	sum1 := asm.ZeroFloat16x8AVX2()
+	sum2 := asm.ZeroFloat16x8AVX2()
+	sum3 := asm.ZeroFloat16x8AVX2()
+	lanes := 8
 	var i int
 	stride := lanes * 4
 	for i = 0; i+stride <= n; i += stride {
 		va0, va1, va2, va3 := hwy.Load4_AVX2_Vec(a[i:])
 		vb0, vb1, vb2, vb3 := hwy.Load4_AVX2_Vec(b[i:])
-		sum0 = hwy.FMAF16(va0, vb0, sum0)
-		sum1 = hwy.FMAF16(va1, vb1, sum1)
-		sum2 = hwy.FMAF16(va2, vb2, sum2)
-		sum3 = hwy.FMAF16(va3, vb3, sum3)
+		sum0 = va0.MulAdd(vb0, sum0)
+		sum1 = va1.MulAdd(vb1, sum1)
+		sum2 = va2.MulAdd(vb2, sum2)
+		sum3 = va3.MulAdd(vb3, sum3)
 	}
 	for i+lanes <= n {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		sum0 = hwy.FMAF16(va, vb, sum0)
+		sum0 = va.MulAdd(vb, sum0)
 		i += lanes
 	}
-	sum0 = hwy.AddF16(sum0, sum1)
-	sum2 = hwy.AddF16(sum2, sum3)
-	sum0 = hwy.AddF16(sum0, sum2)
-	result := hwy.ReduceSumF16(sum0)
+	sum0 = sum0.Add(sum1)
+	sum2 = sum2.Add(sum3)
+	sum0 = sum0.Add(sum2)
+	result := sum0.ReduceSum()
 	for ; i < n; i++ {
 		result += a[i].Float32() * b[i].Float32()
 	}
@@ -52,31 +53,31 @@ func BaseDot_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 {
 		return 0
 	}
 	n := min(len(a), len(b))
-	sum0 := hwy.Zero[hwy.BFloat16]()
-	sum1 := hwy.Zero[hwy.BFloat16]()
-	sum2 := hwy.Zero[hwy.BFloat16]()
-	sum3 := hwy.Zero[hwy.BFloat16]()
-	lanes := 16
+	sum0 := asm.ZeroBFloat16x8AVX2()
+	sum1 := asm.ZeroBFloat16x8AVX2()
+	sum2 := asm.ZeroBFloat16x8AVX2()
+	sum3 := asm.ZeroBFloat16x8AVX2()
+	lanes := 8
 	var i int
 	stride := lanes * 4
 	for i = 0; i+stride <= n; i += stride {
 		va0, va1, va2, va3 := hwy.Load4_AVX2_Vec(a[i:])
 		vb0, vb1, vb2, vb3 := hwy.Load4_AVX2_Vec(b[i:])
-		sum0 = hwy.FMABF16(va0, vb0, sum0)
-		sum1 = hwy.FMABF16(va1, vb1, sum1)
-		sum2 = hwy.FMABF16(va2, vb2, sum2)
-		sum3 = hwy.FMABF16(va3, vb3, sum3)
+		sum0 = va0.MulAdd(vb0, sum0)
+		sum1 = va1.MulAdd(vb1, sum1)
+		sum2 = va2.MulAdd(vb2, sum2)
+		sum3 = va3.MulAdd(vb3, sum3)
 	}
 	for i+lanes <= n {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		sum0 = hwy.FMABF16(va, vb, sum0)
+		sum0 = va.MulAdd(vb, sum0)
 		i += lanes
 	}
-	sum0 = hwy.AddBF16(sum0, sum1)
-	sum2 = hwy.AddBF16(sum2, sum3)
-	sum0 = hwy.AddBF16(sum0, sum2)
-	result := hwy.ReduceSumBF16(sum0)
+	sum0 = sum0.Add(sum1)
+	sum2 = sum2.Add(sum3)
+	sum0 = sum0.Add(sum2)
+	result := sum0.ReduceSum()
 	for ; i < n; i++ {
 		result += a[i].Float32() * b[i].Float32()
 	}

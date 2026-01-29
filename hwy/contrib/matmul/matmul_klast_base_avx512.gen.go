@@ -8,6 +8,7 @@ import (
 	"simd/archsimd"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int) {
@@ -20,7 +21,7 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 	if len(c) < m*n {
 		panic("matmul: C slice too short")
 	}
-	lanes := 32
+	lanes := 16
 	var i int
 	for i = 0; i+3 < m; i += 4 {
 		aRow0 := i * k
@@ -33,26 +34,26 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		cRow3 := (i + 3) * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc0 := hwy.Zero[hwy.Float16]()
-			acc1 := hwy.Zero[hwy.Float16]()
-			acc2 := hwy.Zero[hwy.Float16]()
-			acc3 := hwy.Zero[hwy.Float16]()
+			acc0 := asm.ZeroFloat16x16AVX512()
+			acc1 := asm.ZeroFloat16x16AVX512()
+			acc2 := asm.ZeroFloat16x16AVX512()
+			acc3 := asm.ZeroFloat16x16AVX512()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
-				acc0 = hwy.FMAF16(vA0, vB, acc0)
-				acc1 = hwy.FMAF16(vA1, vB, acc1)
-				acc2 = hwy.FMAF16(vA2, vB, acc2)
-				acc3 = hwy.FMAF16(vA3, vB, acc3)
+				vB := asm.LoadFloat16x16AVX512Slice(b[bRow+p:])
+				vA0 := asm.LoadFloat16x16AVX512Slice(a[aRow0+p:])
+				vA1 := asm.LoadFloat16x16AVX512Slice(a[aRow1+p:])
+				vA2 := asm.LoadFloat16x16AVX512Slice(a[aRow2+p:])
+				vA3 := asm.LoadFloat16x16AVX512Slice(a[aRow3+p:])
+				acc0 = vA0.MulAdd(vB, acc0)
+				acc1 = vA1.MulAdd(vB, acc1)
+				acc2 = vA2.MulAdd(vB, acc2)
+				acc3 = vA3.MulAdd(vB, acc3)
 			}
-			sum0 := hwy.ReduceSumF16(acc0)
-			sum1 := hwy.ReduceSumF16(acc1)
-			sum2 := hwy.ReduceSumF16(acc2)
-			sum3 := hwy.ReduceSumF16(acc3)
+			sum0 := acc0.ReduceSum()
+			sum1 := acc1.ReduceSum()
+			sum2 := acc2.ReduceSum()
+			sum3 := acc3.ReduceSum()
 			for ; p < k; p++ {
 				sum0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
 				sum1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
@@ -70,14 +71,14 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		cRow := i * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc := hwy.Zero[hwy.Float16]()
+			acc := asm.ZeroFloat16x16AVX512()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
-				acc = hwy.FMAF16(vA, vB, acc)
+				vA := asm.LoadFloat16x16AVX512Slice(a[aRow+p:])
+				vB := asm.LoadFloat16x16AVX512Slice(b[bRow+p:])
+				acc = vA.MulAdd(vB, acc)
 			}
-			sum := hwy.ReduceSumF16(acc)
+			sum := acc.ReduceSum()
 			for ; p < k; p++ {
 				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 			}
@@ -96,7 +97,7 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 	if len(c) < m*n {
 		panic("matmul: C slice too short")
 	}
-	lanes := 32
+	lanes := 16
 	var i int
 	for i = 0; i+3 < m; i += 4 {
 		aRow0 := i * k
@@ -109,26 +110,26 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		cRow3 := (i + 3) * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc0 := hwy.Zero[hwy.BFloat16]()
-			acc1 := hwy.Zero[hwy.BFloat16]()
-			acc2 := hwy.Zero[hwy.BFloat16]()
-			acc3 := hwy.Zero[hwy.BFloat16]()
+			acc0 := asm.ZeroBFloat16x16AVX512()
+			acc1 := asm.ZeroBFloat16x16AVX512()
+			acc2 := asm.ZeroBFloat16x16AVX512()
+			acc3 := asm.ZeroBFloat16x16AVX512()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
-				acc0 = hwy.FMABF16(vA0, vB, acc0)
-				acc1 = hwy.FMABF16(vA1, vB, acc1)
-				acc2 = hwy.FMABF16(vA2, vB, acc2)
-				acc3 = hwy.FMABF16(vA3, vB, acc3)
+				vB := asm.LoadBFloat16x16AVX512Slice(b[bRow+p:])
+				vA0 := asm.LoadBFloat16x16AVX512Slice(a[aRow0+p:])
+				vA1 := asm.LoadBFloat16x16AVX512Slice(a[aRow1+p:])
+				vA2 := asm.LoadBFloat16x16AVX512Slice(a[aRow2+p:])
+				vA3 := asm.LoadBFloat16x16AVX512Slice(a[aRow3+p:])
+				acc0 = vA0.MulAdd(vB, acc0)
+				acc1 = vA1.MulAdd(vB, acc1)
+				acc2 = vA2.MulAdd(vB, acc2)
+				acc3 = vA3.MulAdd(vB, acc3)
 			}
-			sum0 := hwy.ReduceSumBF16(acc0)
-			sum1 := hwy.ReduceSumBF16(acc1)
-			sum2 := hwy.ReduceSumBF16(acc2)
-			sum3 := hwy.ReduceSumBF16(acc3)
+			sum0 := acc0.ReduceSum()
+			sum1 := acc1.ReduceSum()
+			sum2 := acc2.ReduceSum()
+			sum3 := acc3.ReduceSum()
 			for ; p < k; p++ {
 				sum0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
 				sum1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
@@ -146,14 +147,14 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		cRow := i * n
 		for j := 0; j < n; j++ {
 			bRow := j * k
-			acc := hwy.Zero[hwy.BFloat16]()
+			acc := asm.ZeroBFloat16x16AVX512()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
-				acc = hwy.FMABF16(vA, vB, acc)
+				vA := asm.LoadBFloat16x16AVX512Slice(a[aRow+p:])
+				vB := asm.LoadBFloat16x16AVX512Slice(b[bRow+p:])
+				acc = vA.MulAdd(vB, acc)
 			}
-			sum := hwy.ReduceSumBF16(acc)
+			sum := acc.ReduceSum()
 			for ; p < k; p++ {
 				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 			}
@@ -327,7 +328,7 @@ func BaseMatMulKLastBlocked_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c [
 	const blockM = 64
 	const blockN = 64
 	const blockK = 256
-	lanes := 32
+	lanes := 16
 	for i := range c[:m*n] {
 		c[i] = hwy.Float32ToFloat16(0)
 	}
@@ -342,14 +343,14 @@ func BaseMatMulKLastBlocked_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c [
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						acc := hwy.Zero[hwy.Float16]()
+						acc := asm.ZeroFloat16x16AVX512()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
-							acc = hwy.FMAF16(vA, vB, acc)
+							vA := asm.LoadFloat16x16AVX512Slice(a[aRow+p:])
+							vB := asm.LoadFloat16x16AVX512Slice(b[bRow+p:])
+							acc = vA.MulAdd(vB, acc)
 						}
-						sum := hwy.ReduceSumF16(acc)
+						sum := acc.ReduceSum()
 						for ; p < kEnd; p++ {
 							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 						}
@@ -374,7 +375,7 @@ func BaseMatMulKLastBlocked_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, 
 	const blockM = 64
 	const blockN = 64
 	const blockK = 256
-	lanes := 32
+	lanes := 16
 	for i := range c[:m*n] {
 		c[i] = hwy.Float32ToBFloat16(0)
 	}
@@ -389,14 +390,14 @@ func BaseMatMulKLastBlocked_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, 
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						acc := hwy.Zero[hwy.BFloat16]()
+						acc := asm.ZeroBFloat16x16AVX512()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
-							acc = hwy.FMABF16(vA, vB, acc)
+							vA := asm.LoadBFloat16x16AVX512Slice(a[aRow+p:])
+							vB := asm.LoadBFloat16x16AVX512Slice(b[bRow+p:])
+							acc = vA.MulAdd(vB, acc)
 						}
-						sum := hwy.ReduceSumBF16(acc)
+						sum := acc.ReduceSum()
 						for ; p < kEnd; p++ {
 							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
 						}

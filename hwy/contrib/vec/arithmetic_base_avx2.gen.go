@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseAdd_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
@@ -16,18 +17,18 @@ func BaseAdd_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.AddF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.AddF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Add(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Add(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseAdd_fallback_Float16(dst[i:n], s[i:n])
@@ -39,18 +40,18 @@ func BaseAdd_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.AddBF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.AddBF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Add(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Add(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseAdd_fallback_BFloat16(dst[i:n], s[i:n])
@@ -108,18 +109,18 @@ func BaseAddTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.AddF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.AddF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Add(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Add(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseAddTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -131,18 +132,18 @@ func BaseAddTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.AddBF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.AddBF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Add(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Add(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseAddTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -200,18 +201,18 @@ func BaseSub_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.SubF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.SubF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Sub(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Sub(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseSub_fallback_Float16(dst[i:n], s[i:n])
@@ -223,18 +224,18 @@ func BaseSub_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.SubBF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.SubBF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Sub(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Sub(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseSub_fallback_BFloat16(dst[i:n], s[i:n])
@@ -292,18 +293,18 @@ func BaseSubTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.SubF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.SubF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Sub(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Sub(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseSubTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -315,18 +316,18 @@ func BaseSubTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.SubBF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.SubBF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Sub(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Sub(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseSubTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -384,18 +385,18 @@ func BaseMul_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.MulF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.MulF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Mul(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Mul(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseMul_fallback_Float16(dst[i:n], s[i:n])
@@ -407,18 +408,18 @@ func BaseMul_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.MulBF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.MulBF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Mul(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Mul(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseMul_fallback_BFloat16(dst[i:n], s[i:n])
@@ -476,18 +477,18 @@ func BaseMulTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.MulF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.MulF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Mul(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Mul(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseMulTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -499,18 +500,18 @@ func BaseMulTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.MulBF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.MulBF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Mul(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Mul(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseMulTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -568,18 +569,18 @@ func BaseDiv_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.DivF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.DivF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Div(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Div(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseDiv_fallback_Float16(dst[i:n], s[i:n])
@@ -591,18 +592,18 @@ func BaseDiv_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
 		return
 	}
 	n := min(len(dst), len(s))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vs := hwy.Load(s[i:])
-		result := hwy.DivBF16(vd, vs)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.DivBF16(vd1, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Div(vs)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vd1.Div(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseDiv_fallback_BFloat16(dst[i:n], s[i:n])
@@ -660,18 +661,18 @@ func BaseDivTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.DivF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.DivF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Div(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Div(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseDivTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
@@ -683,18 +684,18 @@ func BaseDivTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloa
 		return
 	}
 	n := min(len(dst), min(len(a), len(b)))
-	lanes := 16
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		va := hwy.Load(a[i:])
 		vb := hwy.Load(b[i:])
-		result := hwy.DivBF16(va, vb)
-		hwy.StoreFull(result, dst[i:])
-		va1 := hwy.Load(a[i+16:])
-		vb1 := hwy.Load(b[i+16:])
-		result1 := hwy.DivBF16(va1, vb1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.Div(vb)
+		result.StoreSlice(dst[i:])
+		va1 := hwy.Load(a[i+8:])
+		vb1 := hwy.Load(b[i+8:])
+		result1 := va1.Div(vb1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseDivTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
@@ -752,17 +753,17 @@ func BaseScale_avx2_Float16(c hwy.Float16, dst []hwy.Float16) {
 		return
 	}
 	n := len(dst)
-	vc := hwy.Set(c)
-	lanes := 16
+	vc := asm.BroadcastFloat16x8AVX2(uint16(c))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
-		result := hwy.MulF16(vd, vc)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		result1 := hwy.MulF16(vd1, vc)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Mul(vc)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := vd1.Mul(vc)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseScale_fallback_Float16(c, dst[i:n])
@@ -774,17 +775,17 @@ func BaseScale_avx2_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
 		return
 	}
 	n := len(dst)
-	vc := hwy.Set(c)
-	lanes := 16
+	vc := asm.BroadcastBFloat16x8AVX2(uint16(c))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
-		result := hwy.MulBF16(vd, vc)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		result1 := hwy.MulBF16(vd1, vc)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Mul(vc)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := vd1.Mul(vc)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseScale_fallback_BFloat16(c, dst[i:n])
@@ -840,17 +841,17 @@ func BaseScaleTo_avx2_Float16(dst []hwy.Float16, c hwy.Float16, s []hwy.Float16)
 		return
 	}
 	n := min(len(dst), len(s))
-	vc := hwy.Set(c)
-	lanes := 16
+	vc := asm.BroadcastFloat16x8AVX2(uint16(c))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vs := hwy.Load(s[i:])
-		result := hwy.MulF16(vc, vs)
-		hwy.StoreFull(result, dst[i:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.MulF16(vc, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vc.Mul(vs)
+		result.StoreSlice(dst[i:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vc.Mul(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseScaleTo_fallback_Float16(dst[i:n], c, s[i:n])
@@ -862,17 +863,17 @@ func BaseScaleTo_avx2_BFloat16(dst []hwy.BFloat16, c hwy.BFloat16, s []hwy.BFloa
 		return
 	}
 	n := min(len(dst), len(s))
-	vc := hwy.Set(c)
-	lanes := 16
+	vc := asm.BroadcastBFloat16x8AVX2(uint16(c))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vs := hwy.Load(s[i:])
-		result := hwy.MulBF16(vc, vs)
-		hwy.StoreFull(result, dst[i:])
-		vs1 := hwy.Load(s[i+16:])
-		result1 := hwy.MulBF16(vc, vs1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vc.Mul(vs)
+		result.StoreSlice(dst[i:])
+		vs1 := hwy.Load(s[i+8:])
+		result1 := vc.Mul(vs1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseScaleTo_fallback_BFloat16(dst[i:n], c, s[i:n])
@@ -928,17 +929,17 @@ func BaseAddConst_avx2_Float16(c hwy.Float16, dst []hwy.Float16) {
 		return
 	}
 	n := len(dst)
-	vc := hwy.Set(c)
-	lanes := 16
+	vc := asm.BroadcastFloat16x8AVX2(uint16(c))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
-		result := hwy.AddF16(vd, vc)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		result1 := hwy.AddF16(vd1, vc)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Add(vc)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := vd1.Add(vc)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseAddConst_fallback_Float16(c, dst[i:n])
@@ -950,17 +951,17 @@ func BaseAddConst_avx2_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
 		return
 	}
 	n := len(dst)
-	vc := hwy.Set(c)
-	lanes := 16
+	vc := asm.BroadcastBFloat16x8AVX2(uint16(c))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
-		result := hwy.AddBF16(vd, vc)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		result1 := hwy.AddBF16(vd1, vc)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vd.Add(vc)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		result1 := vd1.Add(vc)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseAddConst_fallback_BFloat16(c, dst[i:n])
@@ -1016,19 +1017,19 @@ func BaseMulConstAddTo_avx2_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.Fl
 		return
 	}
 	n := min(len(dst), len(x))
-	va := hwy.Set(a)
-	lanes := 16
+	va := asm.BroadcastFloat16x8AVX2(uint16(a))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vx := hwy.Load(x[i:])
-		result := hwy.FMAF16(va, vx, vd)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vx1 := hwy.Load(x[i+16:])
-		result1 := hwy.FMAF16(va, vx1, vd1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.MulAdd(vx, vd)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vx1 := hwy.Load(x[i+8:])
+		result1 := va.MulAdd(vx1, vd1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseMulConstAddTo_fallback_Float16(dst[i:n], a, x[i:n])
@@ -1040,19 +1041,19 @@ func BaseMulConstAddTo_avx2_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy
 		return
 	}
 	n := min(len(dst), len(x))
-	va := hwy.Set(a)
-	lanes := 16
+	va := asm.BroadcastBFloat16x8AVX2(uint16(a))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vd := hwy.Load(dst[i:])
 		vx := hwy.Load(x[i:])
-		result := hwy.FMABF16(va, vx, vd)
-		hwy.StoreFull(result, dst[i:])
-		vd1 := hwy.Load(dst[i+16:])
-		vx1 := hwy.Load(x[i+16:])
-		result1 := hwy.FMABF16(va, vx1, vd1)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := va.MulAdd(vx, vd)
+		result.StoreSlice(dst[i:])
+		vd1 := hwy.Load(dst[i+8:])
+		vx1 := hwy.Load(x[i+8:])
+		result1 := va.MulAdd(vx1, vd1)
+		result1.StoreSlice(dst[i+8:])
 	}
 	if i < n {
 		BaseMulConstAddTo_fallback_BFloat16(dst[i:n], a, x[i:n])

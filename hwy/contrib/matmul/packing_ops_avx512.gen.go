@@ -8,10 +8,11 @@ import (
 	"simd/archsimd"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BasePackRHSFast_avx512_Float16(b []hwy.Float16, packed []hwy.Float16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) {
-	lanes := 32
+	lanes := 16
 	dstIdx := 0
 	for stripColIdx := 0; stripColIdx < panelCols; stripColIdx += nr {
 		validCols := min(nr, panelCols-stripColIdx)
@@ -20,8 +21,8 @@ func BasePackRHSFast_avx512_Float16(b []hwy.Float16, packed []hwy.Float16, n int
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := asm.LoadFloat16x16AVX512Slice(b[srcIdx+c:])
+					v.StoreSlice(packed[dstIdx+c:])
 				}
 				dstIdx += nr
 			}
@@ -42,7 +43,7 @@ func BasePackRHSFast_avx512_Float16(b []hwy.Float16, packed []hwy.Float16, n int
 }
 
 func BasePackRHSFast_avx512_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) {
-	lanes := 32
+	lanes := 16
 	dstIdx := 0
 	for stripColIdx := 0; stripColIdx < panelCols; stripColIdx += nr {
 		validCols := min(nr, panelCols-stripColIdx)
@@ -51,8 +52,8 @@ func BasePackRHSFast_avx512_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n 
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := asm.LoadBFloat16x16AVX512Slice(b[srcIdx+c:])
+					v.StoreSlice(packed[dstIdx+c:])
 				}
 				dstIdx += nr
 			}
@@ -135,19 +136,19 @@ func BasePackRHSFast_avx512_Float64(b []float64, packed []float64, n int, rowSta
 }
 
 func BaseApplyPackedOutput_avx512_Float16(packedOutput []hwy.Float16, output []hwy.Float16, alpha hwy.Float16, beta hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := 32
-	alphaVec := hwy.Set(alpha)
-	betaVec := hwy.Set(beta)
+	lanes := 16
+	alphaVec := asm.BroadcastFloat16x16AVX512(uint16(alpha))
+	betaVec := asm.BroadcastFloat16x16AVX512(uint16(beta))
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			scaledOutput := hwy.MulF16(outputVal, betaVec)
-			newVal := hwy.FMAF16(packedVal, alphaVec, scaledOutput)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadFloat16x16AVX512Slice(packedOutput[packedIdx+c:])
+			outputVal := asm.LoadFloat16x16AVX512Slice(output[outputIdx+c:])
+			scaledOutput := outputVal.Mul(betaVec)
+			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
+			newVal.StoreSlice(output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -157,19 +158,19 @@ func BaseApplyPackedOutput_avx512_Float16(packedOutput []hwy.Float16, output []h
 }
 
 func BaseApplyPackedOutput_avx512_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16, beta hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := 32
-	alphaVec := hwy.Set(alpha)
-	betaVec := hwy.Set(beta)
+	lanes := 16
+	alphaVec := asm.BroadcastBFloat16x16AVX512(uint16(alpha))
+	betaVec := asm.BroadcastBFloat16x16AVX512(uint16(beta))
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			scaledOutput := hwy.MulBF16(outputVal, betaVec)
-			newVal := hwy.FMABF16(packedVal, alphaVec, scaledOutput)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadBFloat16x16AVX512Slice(packedOutput[packedIdx+c:])
+			outputVal := asm.LoadBFloat16x16AVX512Slice(output[outputIdx+c:])
+			scaledOutput := outputVal.Mul(betaVec)
+			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
+			newVal.StoreSlice(output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -223,14 +224,14 @@ func BaseApplyPackedOutput_avx512_Float64(packedOutput []float64, output []float
 }
 
 func BaseApplyPackedOutputSimple_avx512_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := asm.LoadFloat16x16AVX512Slice(packedOutput[packedIdx+c:])
+			v.StoreSlice(output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(packedOutput[packedIdx+c].Float32())
@@ -239,14 +240,14 @@ func BaseApplyPackedOutputSimple_avx512_Float16(packedOutput []hwy.Float16, outp
 }
 
 func BaseApplyPackedOutputSimple_avx512_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := asm.LoadBFloat16x16AVX512Slice(packedOutput[packedIdx+c:])
+			v.StoreSlice(output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(packedOutput[packedIdx+c].Float32())
@@ -287,16 +288,16 @@ func BaseApplyPackedOutputSimple_avx512_Float64(packedOutput []float64, output [
 }
 
 func BaseApplyPackedOutputAccum_avx512_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			newVal := hwy.AddF16(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadFloat16x16AVX512Slice(packedOutput[packedIdx+c:])
+			outputVal := asm.LoadFloat16x16AVX512Slice(output[outputIdx+c:])
+			newVal := outputVal.Add(packedVal)
+			newVal.StoreSlice(output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())
@@ -305,16 +306,16 @@ func BaseApplyPackedOutputAccum_avx512_Float16(packedOutput []hwy.Float16, outpu
 }
 
 func BaseApplyPackedOutputAccum_avx512_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			newVal := hwy.AddBF16(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadBFloat16x16AVX512Slice(packedOutput[packedIdx+c:])
+			outputVal := asm.LoadBFloat16x16AVX512Slice(output[outputIdx+c:])
+			newVal := outputVal.Add(packedVal)
+			newVal.StoreSlice(output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())

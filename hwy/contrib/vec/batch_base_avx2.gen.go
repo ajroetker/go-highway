@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseBatchL2SquaredDistance_avx2_Float16(query []hwy.Float16, data []hwy.Float16, distances []hwy.Float16, count int, dims int) {
@@ -24,21 +25,21 @@ func BaseBatchL2SquaredDistance_avx2_Float16(query []hwy.Float16, data []hwy.Flo
 	if len(query) < dims {
 		return
 	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := 16
+	sum := asm.ZeroFloat16x8AVX2()
+	lanes := 8
 	for i := range count {
 		dataStart := i * dims
 		dataVec := data[dataStart : dataStart+dims]
-		sum = hwy.Zero[hwy.Float16]()
+		sum = asm.ZeroFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
 			vq := hwy.Load(query[j:])
 			vd := hwy.Load(dataVec[j:])
-			diff := hwy.SubF16(vq, vd)
-			diffSq := hwy.MulF16(diff, diff)
-			sum = hwy.AddF16(sum, diffSq)
+			diff := vq.Sub(vd)
+			diffSq := diff.Mul(diff)
+			sum = sum.Add(diffSq)
 		}
-		result := hwy.ReduceSumF16(sum)
+		result := sum.ReduceSum()
 		for ; j < dims; j++ {
 			diff := query[j].Float32() - dataVec[j].Float32()
 			result += diff * diff
@@ -60,21 +61,21 @@ func BaseBatchL2SquaredDistance_avx2_BFloat16(query []hwy.BFloat16, data []hwy.B
 	if len(query) < dims {
 		return
 	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := 16
+	sum := asm.ZeroBFloat16x8AVX2()
+	lanes := 8
 	for i := range count {
 		dataStart := i * dims
 		dataVec := data[dataStart : dataStart+dims]
-		sum = hwy.Zero[hwy.BFloat16]()
+		sum = asm.ZeroBFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
 			vq := hwy.Load(query[j:])
 			vd := hwy.Load(dataVec[j:])
-			diff := hwy.SubBF16(vq, vd)
-			diffSq := hwy.MulBF16(diff, diff)
-			sum = hwy.AddBF16(sum, diffSq)
+			diff := vq.Sub(vd)
+			diffSq := diff.Mul(diff)
+			sum = sum.Add(diffSq)
 		}
-		result := hwy.ReduceSumBF16(sum)
+		result := sum.ReduceSum()
 		for ; j < dims; j++ {
 			diff := query[j].Float32() - dataVec[j].Float32()
 			result += diff * diff
@@ -168,20 +169,20 @@ func BaseBatchDot_avx2_Float16(query []hwy.Float16, data []hwy.Float16, dots []h
 	if len(query) < dims {
 		return
 	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := 16
+	sum := asm.ZeroFloat16x8AVX2()
+	lanes := 8
 	for i := range count {
 		dataStart := i * dims
 		dataVec := data[dataStart : dataStart+dims]
-		sum = hwy.Zero[hwy.Float16]()
+		sum = asm.ZeroFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
 			vq := hwy.Load(query[j:])
 			vd := hwy.Load(dataVec[j:])
-			prod := hwy.MulF16(vq, vd)
-			sum = hwy.AddF16(sum, prod)
+			prod := vq.Mul(vd)
+			sum = sum.Add(prod)
 		}
-		result := hwy.ReduceSumF16(sum)
+		result := sum.ReduceSum()
 		for ; j < dims; j++ {
 			result += query[j].Float32() * dataVec[j].Float32()
 		}
@@ -202,20 +203,20 @@ func BaseBatchDot_avx2_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, dots 
 	if len(query) < dims {
 		return
 	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := 16
+	sum := asm.ZeroBFloat16x8AVX2()
+	lanes := 8
 	for i := range count {
 		dataStart := i * dims
 		dataVec := data[dataStart : dataStart+dims]
-		sum = hwy.Zero[hwy.BFloat16]()
+		sum = asm.ZeroBFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
 			vq := hwy.Load(query[j:])
 			vd := hwy.Load(dataVec[j:])
-			prod := hwy.MulBF16(vq, vd)
-			sum = hwy.AddBF16(sum, prod)
+			prod := vq.Mul(vd)
+			sum = sum.Add(prod)
 		}
-		result := hwy.ReduceSumBF16(sum)
+		result := sum.ReduceSum()
 		for ; j < dims; j++ {
 			result += query[j].Float32() * dataVec[j].Float32()
 		}

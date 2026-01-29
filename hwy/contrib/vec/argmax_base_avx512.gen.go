@@ -9,44 +9,45 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseArgmax_avx512_Float16(v []hwy.Float16) int {
 	if len(v) == 0 {
 		panic("vec: Argmax called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		return scalarArgmax(v)
 	}
-	maxVals := hwy.Load(v)
+	maxVals := asm.LoadFloat16x16AVX512Slice(v)
 	maxIdxs := hwy.Iota[hwy.Float16]()
 	i := lanes
 	for ; i+lanes*3 <= len(v); i += lanes * 3 {
 		vals := hwy.Load(v[i:])
-		curIdxs := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
-		mask := hwy.GreaterThanF16(vals, maxVals)
-		maxVals = hwy.IfThenElseF16(mask, vals, maxVals)
-		maxIdxs = hwy.IfThenElseF16(mask, curIdxs, maxIdxs)
-		vals1 := hwy.Load(v[i+32:])
-		curIdxs1 := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
-		mask1 := hwy.GreaterThanF16(vals1, maxVals)
-		maxVals = hwy.IfThenElseF16(mask1, vals1, maxVals)
-		maxIdxs = hwy.IfThenElseF16(mask1, curIdxs1, maxIdxs)
-		vals2 := hwy.Load(v[i+64:])
-		curIdxs2 := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
-		mask2 := hwy.GreaterThanF16(vals2, maxVals)
-		maxVals = hwy.IfThenElseF16(mask2, vals2, maxVals)
-		maxIdxs = hwy.IfThenElseF16(mask2, curIdxs2, maxIdxs)
+		curIdxs := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float16(i))).Add(hwy.Iota[hwy.Float16]())
+		mask := vals.Greater(maxVals)
+		maxVals = vals.Merge(maxVals, mask)
+		maxIdxs = curIdxs.Merge(maxIdxs, mask)
+		vals1 := hwy.Load(v[i+16:])
+		curIdxs1 := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float16(i))).Add(hwy.Iota[hwy.Float16]())
+		mask1 := vals1.Greater(maxVals)
+		maxVals = vals1.Merge(maxVals, mask1)
+		maxIdxs = curIdxs1.Merge(maxIdxs, mask1)
+		vals2 := hwy.Load(v[i+32:])
+		curIdxs2 := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float16(i))).Add(hwy.Iota[hwy.Float16]())
+		mask2 := vals2.Greater(maxVals)
+		maxVals = vals2.Merge(maxVals, mask2)
+		maxIdxs = curIdxs2.Merge(maxIdxs, mask2)
 	}
 	valsData := func() []hwy.Float16 {
-		var _simd_tmp [32]hwy.Float16
-		hwy.Store(maxVals, _simd_tmp[:])
+		var _simd_tmp [16]hwy.Float16
+		maxVals.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	idxsData := func() []hwy.Float16 {
-		var _simd_tmp [32]hwy.Float16
-		hwy.Store(maxIdxs, _simd_tmp[:])
+		var _simd_tmp [16]hwy.Float16
+		maxIdxs.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	bestIdx := 0
@@ -81,38 +82,38 @@ func BaseArgmax_avx512_BFloat16(v []hwy.BFloat16) int {
 	if len(v) == 0 {
 		panic("vec: Argmax called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		return scalarArgmax(v)
 	}
-	maxVals := hwy.Load(v)
+	maxVals := asm.LoadBFloat16x16AVX512Slice(v)
 	maxIdxs := hwy.Iota[hwy.BFloat16]()
 	i := lanes
 	for ; i+lanes*3 <= len(v); i += lanes * 3 {
 		vals := hwy.Load(v[i:])
-		curIdxs := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
-		mask := hwy.GreaterThanBF16(vals, maxVals)
-		maxVals = hwy.IfThenElseBF16(mask, vals, maxVals)
-		maxIdxs = hwy.IfThenElseBF16(mask, curIdxs, maxIdxs)
-		vals1 := hwy.Load(v[i+32:])
-		curIdxs1 := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
-		mask1 := hwy.GreaterThanBF16(vals1, maxVals)
-		maxVals = hwy.IfThenElseBF16(mask1, vals1, maxVals)
-		maxIdxs = hwy.IfThenElseBF16(mask1, curIdxs1, maxIdxs)
-		vals2 := hwy.Load(v[i+64:])
-		curIdxs2 := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
-		mask2 := hwy.GreaterThanBF16(vals2, maxVals)
-		maxVals = hwy.IfThenElseBF16(mask2, vals2, maxVals)
-		maxIdxs = hwy.IfThenElseBF16(mask2, curIdxs2, maxIdxs)
+		curIdxs := asm.BroadcastBFloat16x16AVX512(uint16(hwy.BFloat16(i))).Add(hwy.Iota[hwy.BFloat16]())
+		mask := vals.Greater(maxVals)
+		maxVals = vals.Merge(maxVals, mask)
+		maxIdxs = curIdxs.Merge(maxIdxs, mask)
+		vals1 := hwy.Load(v[i+16:])
+		curIdxs1 := asm.BroadcastBFloat16x16AVX512(uint16(hwy.BFloat16(i))).Add(hwy.Iota[hwy.BFloat16]())
+		mask1 := vals1.Greater(maxVals)
+		maxVals = vals1.Merge(maxVals, mask1)
+		maxIdxs = curIdxs1.Merge(maxIdxs, mask1)
+		vals2 := hwy.Load(v[i+32:])
+		curIdxs2 := asm.BroadcastBFloat16x16AVX512(uint16(hwy.BFloat16(i))).Add(hwy.Iota[hwy.BFloat16]())
+		mask2 := vals2.Greater(maxVals)
+		maxVals = vals2.Merge(maxVals, mask2)
+		maxIdxs = curIdxs2.Merge(maxIdxs, mask2)
 	}
 	valsData := func() []hwy.BFloat16 {
-		var _simd_tmp [32]hwy.BFloat16
-		hwy.Store(maxVals, _simd_tmp[:])
+		var _simd_tmp [16]hwy.BFloat16
+		maxVals.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	idxsData := func() []hwy.BFloat16 {
-		var _simd_tmp [32]hwy.BFloat16
-		hwy.Store(maxIdxs, _simd_tmp[:])
+		var _simd_tmp [16]hwy.BFloat16
+		maxIdxs.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	bestIdx := 0
@@ -279,38 +280,38 @@ func BaseArgmin_avx512_Float16(v []hwy.Float16) int {
 	if len(v) == 0 {
 		panic("vec: Argmin called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		return scalarArgmin(v)
 	}
-	minVals := hwy.Load(v)
+	minVals := asm.LoadFloat16x16AVX512Slice(v)
 	minIdxs := hwy.Iota[hwy.Float16]()
 	i := lanes
 	for ; i+lanes*3 <= len(v); i += lanes * 3 {
 		vals := hwy.Load(v[i:])
-		curIdxs := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
-		mask := hwy.LessThanF16(vals, minVals)
-		minVals = hwy.IfThenElseF16(mask, vals, minVals)
-		minIdxs = hwy.IfThenElseF16(mask, curIdxs, minIdxs)
-		vals1 := hwy.Load(v[i+32:])
-		curIdxs1 := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
-		mask1 := hwy.LessThanF16(vals1, minVals)
-		minVals = hwy.IfThenElseF16(mask1, vals1, minVals)
-		minIdxs = hwy.IfThenElseF16(mask1, curIdxs1, minIdxs)
-		vals2 := hwy.Load(v[i+64:])
-		curIdxs2 := hwy.AddF16(hwy.Set(hwy.Float16(i)), hwy.Iota[hwy.Float16]())
-		mask2 := hwy.LessThanF16(vals2, minVals)
-		minVals = hwy.IfThenElseF16(mask2, vals2, minVals)
-		minIdxs = hwy.IfThenElseF16(mask2, curIdxs2, minIdxs)
+		curIdxs := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float16(i))).Add(hwy.Iota[hwy.Float16]())
+		mask := vals.Less(minVals)
+		minVals = vals.Merge(minVals, mask)
+		minIdxs = curIdxs.Merge(minIdxs, mask)
+		vals1 := hwy.Load(v[i+16:])
+		curIdxs1 := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float16(i))).Add(hwy.Iota[hwy.Float16]())
+		mask1 := vals1.Less(minVals)
+		minVals = vals1.Merge(minVals, mask1)
+		minIdxs = curIdxs1.Merge(minIdxs, mask1)
+		vals2 := hwy.Load(v[i+32:])
+		curIdxs2 := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float16(i))).Add(hwy.Iota[hwy.Float16]())
+		mask2 := vals2.Less(minVals)
+		minVals = vals2.Merge(minVals, mask2)
+		minIdxs = curIdxs2.Merge(minIdxs, mask2)
 	}
 	valsData := func() []hwy.Float16 {
-		var _simd_tmp [32]hwy.Float16
-		hwy.Store(minVals, _simd_tmp[:])
+		var _simd_tmp [16]hwy.Float16
+		minVals.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	idxsData := func() []hwy.Float16 {
-		var _simd_tmp [32]hwy.Float16
-		hwy.Store(minIdxs, _simd_tmp[:])
+		var _simd_tmp [16]hwy.Float16
+		minIdxs.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	bestIdx := 0
@@ -345,38 +346,38 @@ func BaseArgmin_avx512_BFloat16(v []hwy.BFloat16) int {
 	if len(v) == 0 {
 		panic("vec: Argmin called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		return scalarArgmin(v)
 	}
-	minVals := hwy.Load(v)
+	minVals := asm.LoadBFloat16x16AVX512Slice(v)
 	minIdxs := hwy.Iota[hwy.BFloat16]()
 	i := lanes
 	for ; i+lanes*3 <= len(v); i += lanes * 3 {
 		vals := hwy.Load(v[i:])
-		curIdxs := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
-		mask := hwy.LessThanBF16(vals, minVals)
-		minVals = hwy.IfThenElseBF16(mask, vals, minVals)
-		minIdxs = hwy.IfThenElseBF16(mask, curIdxs, minIdxs)
-		vals1 := hwy.Load(v[i+32:])
-		curIdxs1 := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
-		mask1 := hwy.LessThanBF16(vals1, minVals)
-		minVals = hwy.IfThenElseBF16(mask1, vals1, minVals)
-		minIdxs = hwy.IfThenElseBF16(mask1, curIdxs1, minIdxs)
-		vals2 := hwy.Load(v[i+64:])
-		curIdxs2 := hwy.AddBF16(hwy.Set(hwy.BFloat16(i)), hwy.Iota[hwy.BFloat16]())
-		mask2 := hwy.LessThanBF16(vals2, minVals)
-		minVals = hwy.IfThenElseBF16(mask2, vals2, minVals)
-		minIdxs = hwy.IfThenElseBF16(mask2, curIdxs2, minIdxs)
+		curIdxs := asm.BroadcastBFloat16x16AVX512(uint16(hwy.BFloat16(i))).Add(hwy.Iota[hwy.BFloat16]())
+		mask := vals.Less(minVals)
+		minVals = vals.Merge(minVals, mask)
+		minIdxs = curIdxs.Merge(minIdxs, mask)
+		vals1 := hwy.Load(v[i+16:])
+		curIdxs1 := asm.BroadcastBFloat16x16AVX512(uint16(hwy.BFloat16(i))).Add(hwy.Iota[hwy.BFloat16]())
+		mask1 := vals1.Less(minVals)
+		minVals = vals1.Merge(minVals, mask1)
+		minIdxs = curIdxs1.Merge(minIdxs, mask1)
+		vals2 := hwy.Load(v[i+32:])
+		curIdxs2 := asm.BroadcastBFloat16x16AVX512(uint16(hwy.BFloat16(i))).Add(hwy.Iota[hwy.BFloat16]())
+		mask2 := vals2.Less(minVals)
+		minVals = vals2.Merge(minVals, mask2)
+		minIdxs = curIdxs2.Merge(minIdxs, mask2)
 	}
 	valsData := func() []hwy.BFloat16 {
-		var _simd_tmp [32]hwy.BFloat16
-		hwy.Store(minVals, _simd_tmp[:])
+		var _simd_tmp [16]hwy.BFloat16
+		minVals.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	idxsData := func() []hwy.BFloat16 {
-		var _simd_tmp [32]hwy.BFloat16
-		hwy.Store(minIdxs, _simd_tmp[:])
+		var _simd_tmp [16]hwy.BFloat16
+		minIdxs.StoreSlice(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	bestIdx := 0

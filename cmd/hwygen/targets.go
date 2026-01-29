@@ -55,8 +55,8 @@ func AVX2Target() Target {
 			"int64":        "Int64x4",
 			"uint32":       "Uint32x8",
 			"uint64":       "Uint64x4",
-			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
-			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
+			"hwy.Float16":  "Float16x8AVX2",
+			"hwy.BFloat16": "BFloat16x8AVX2",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -265,8 +265,8 @@ func AVX512Target() Target {
 			"int64":        "Int64x8",
 			"uint32":       "Uint32x16",
 			"uint64":       "Uint64x8",
-			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
-			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
+			"hwy.Float16":  "Float16x16AVX512",
+			"hwy.BFloat16": "BFloat16x16AVX512",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -936,7 +936,12 @@ func (t Target) LanesFor(elemType string) int {
 	case "float64", "int64", "uint64":
 		elemSize = 8
 	case "int16", "uint16", "hwy.Float16", "hwy.BFloat16", "Float16", "BFloat16":
-		elemSize = 2
+		// On AVX2/AVX512, half-precision uses promoted float32 storage
+		if t.Name == "AVX2" || t.Name == "AVX512" {
+			elemSize = 4
+		} else {
+			elemSize = 2
+		}
 	case "int8", "uint8":
 		elemSize = 1
 	default:

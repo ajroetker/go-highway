@@ -9,24 +9,25 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseSum_avx512_Float16(v []hwy.Float16) hwy.Float16 {
 	if len(v) == 0 {
 		return 0
 	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := 32
+	sum := asm.ZeroFloat16x16AVX512()
+	lanes := 16
 	var i int
 	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
 		va := hwy.Load(v[i:])
-		sum = hwy.AddF16(sum, va)
-		va1 := hwy.Load(v[i+32:])
-		sum = hwy.AddF16(sum, va1)
-		va2 := hwy.Load(v[i+64:])
-		sum = hwy.AddF16(sum, va2)
+		sum = sum.Add(va)
+		va1 := hwy.Load(v[i+16:])
+		sum = sum.Add(va1)
+		va2 := hwy.Load(v[i+32:])
+		sum = sum.Add(va2)
 	}
-	result := hwy.ReduceSumF16(sum)
+	result := sum.ReduceSum()
 	for ; i < len(v); i++ {
 		result += v[i].Float32()
 	}
@@ -37,18 +38,18 @@ func BaseSum_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 	if len(v) == 0 {
 		return 0
 	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := 32
+	sum := asm.ZeroBFloat16x16AVX512()
+	lanes := 16
 	var i int
 	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
 		va := hwy.Load(v[i:])
-		sum = hwy.AddBF16(sum, va)
-		va1 := hwy.Load(v[i+32:])
-		sum = hwy.AddBF16(sum, va1)
-		va2 := hwy.Load(v[i+64:])
-		sum = hwy.AddBF16(sum, va2)
+		sum = sum.Add(va)
+		va1 := hwy.Load(v[i+16:])
+		sum = sum.Add(va1)
+		va2 := hwy.Load(v[i+32:])
+		sum = sum.Add(va2)
 	}
-	result := hwy.ReduceSumBF16(sum)
+	result := sum.ReduceSum()
 	for ; i < len(v); i++ {
 		result += v[i].Float32()
 	}
@@ -103,7 +104,7 @@ func BaseMin_avx512_Float16(v []hwy.Float16) hwy.Float16 {
 	if len(v) == 0 {
 		panic("vec: Min called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		result := v[0]
 		for i := 1; i < len(v); i++ {
@@ -113,30 +114,30 @@ func BaseMin_avx512_Float16(v []hwy.Float16) hwy.Float16 {
 		}
 		return result
 	}
-	minVec := hwy.Load(v)
+	minVec := asm.LoadFloat16x16AVX512Slice(v)
 	var i int
 	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
 		va := hwy.Load(v[i:])
-		minVec = hwy.MinF16(minVec, va)
-		va1 := hwy.Load(v[i+32:])
-		minVec = hwy.MinF16(minVec, va1)
-		va2 := hwy.Load(v[i+64:])
-		minVec = hwy.MinF16(minVec, va2)
+		minVec = minVec.Min(va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = minVec.Min(va1)
+		va2 := hwy.Load(v[i+32:])
+		minVec = minVec.Min(va2)
 	}
-	result := hwy.ReduceMinF16(minVec)
+	result := minVec.ReduceMin()
 	for ; i < len(v); i++ {
-		if v[i].Float32() < result.Float32() {
-			result = v[i]
+		if v[i].Float32() < result {
+			result = v[i].Float32()
 		}
 	}
-	return result
+	return hwy.Float32ToFloat16(result)
 }
 
 func BaseMin_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 	if len(v) == 0 {
 		panic("vec: Min called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		result := v[0]
 		for i := 1; i < len(v); i++ {
@@ -146,23 +147,23 @@ func BaseMin_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 		}
 		return result
 	}
-	minVec := hwy.Load(v)
+	minVec := asm.LoadBFloat16x16AVX512Slice(v)
 	var i int
 	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
 		va := hwy.Load(v[i:])
-		minVec = hwy.MinBF16(minVec, va)
-		va1 := hwy.Load(v[i+32:])
-		minVec = hwy.MinBF16(minVec, va1)
-		va2 := hwy.Load(v[i+64:])
-		minVec = hwy.MinBF16(minVec, va2)
+		minVec = minVec.Min(va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = minVec.Min(va1)
+		va2 := hwy.Load(v[i+32:])
+		minVec = minVec.Min(va2)
 	}
-	result := hwy.ReduceMinBF16(minVec)
+	result := minVec.ReduceMin()
 	for ; i < len(v); i++ {
-		if v[i].Float32() < result.Float32() {
-			result = v[i]
+		if v[i].Float32() < result {
+			result = v[i].Float32()
 		}
 	}
-	return result
+	return hwy.Float32ToBFloat16(result)
 }
 
 func BaseMin_avx512(v []float32) float32 {
@@ -433,7 +434,7 @@ func BaseMinMax_avx512_Float16(v []hwy.Float16) (minVal hwy.Float16, maxVal hwy.
 	if len(v) == 0 {
 		panic("vec: MinMax called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		minVal = v[0]
 		maxVal = v[0]
@@ -447,22 +448,22 @@ func BaseMinMax_avx512_Float16(v []hwy.Float16) (minVal hwy.Float16, maxVal hwy.
 		}
 		return minVal, maxVal
 	}
-	minVec := hwy.Load(v)
+	minVec := asm.LoadFloat16x16AVX512Slice(v)
 	maxVec := minVec
 	var i int
 	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
 		va := hwy.Load(v[i:])
-		minVec = hwy.MinF16(minVec, va)
-		maxVec = hwy.MaxF16(maxVec, va)
-		va1 := hwy.Load(v[i+32:])
-		minVec = hwy.MinF16(minVec, va1)
-		maxVec = hwy.MaxF16(maxVec, va1)
-		va2 := hwy.Load(v[i+64:])
-		minVec = hwy.MinF16(minVec, va2)
-		maxVec = hwy.MaxF16(maxVec, va2)
+		minVec = minVec.Min(va)
+		maxVec = maxVec.Max(va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = minVec.Min(va1)
+		maxVec = maxVec.Max(va1)
+		va2 := hwy.Load(v[i+32:])
+		minVec = minVec.Min(va2)
+		maxVec = maxVec.Max(va2)
 	}
-	minVal = hwy.ReduceMinF16(minVec)
-	maxVal = hwy.ReduceMaxF16(maxVec)
+	minVal = hwy.Float32ToFloat16(minVec.ReduceMin())
+	maxVal = hwy.Float32ToFloat16(maxVec.ReduceMax())
 	for ; i < len(v); i++ {
 		if v[i].Float32() < minVal.Float32() {
 			minVal = v[i]
@@ -478,7 +479,7 @@ func BaseMinMax_avx512_BFloat16(v []hwy.BFloat16) (minVal hwy.BFloat16, maxVal h
 	if len(v) == 0 {
 		panic("vec: MinMax called on empty slice")
 	}
-	lanes := 32
+	lanes := 16
 	if len(v) < lanes {
 		minVal = v[0]
 		maxVal = v[0]
@@ -492,22 +493,22 @@ func BaseMinMax_avx512_BFloat16(v []hwy.BFloat16) (minVal hwy.BFloat16, maxVal h
 		}
 		return minVal, maxVal
 	}
-	minVec := hwy.Load(v)
+	minVec := asm.LoadBFloat16x16AVX512Slice(v)
 	maxVec := minVec
 	var i int
 	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
 		va := hwy.Load(v[i:])
-		minVec = hwy.MinBF16(minVec, va)
-		maxVec = hwy.MaxBF16(maxVec, va)
-		va1 := hwy.Load(v[i+32:])
-		minVec = hwy.MinBF16(minVec, va1)
-		maxVec = hwy.MaxBF16(maxVec, va1)
-		va2 := hwy.Load(v[i+64:])
-		minVec = hwy.MinBF16(minVec, va2)
-		maxVec = hwy.MaxBF16(maxVec, va2)
+		minVec = minVec.Min(va)
+		maxVec = maxVec.Max(va)
+		va1 := hwy.Load(v[i+16:])
+		minVec = minVec.Min(va1)
+		maxVec = maxVec.Max(va1)
+		va2 := hwy.Load(v[i+32:])
+		minVec = minVec.Min(va2)
+		maxVec = maxVec.Max(va2)
 	}
-	minVal = hwy.ReduceMinBF16(minVec)
-	maxVal = hwy.ReduceMaxBF16(maxVec)
+	minVal = hwy.Float32ToBFloat16(minVec.ReduceMin())
+	maxVal = hwy.Float32ToBFloat16(maxVec.ReduceMax())
 	for ; i < len(v); i++ {
 		if v[i].Float32() < minVal.Float32() {
 			minVal = v[i]

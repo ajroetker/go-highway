@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseNormalize_avx2_Float16(dst []hwy.Float16) {
@@ -22,17 +23,17 @@ func BaseNormalize_avx2_Float16(dst []hwy.Float16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := hwy.Set(hwy.Float32ToFloat16(scale))
-	lanes := 16
+	scaleVec := asm.BroadcastFloat16x8AVX2(uint16(scale))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= len(dst); i += lanes * 2 {
 		vec := hwy.Load(dst[i:])
-		result := hwy.MulF16(vec, scaleVec)
-		hwy.StoreFull(result, dst[i:])
-		vec1 := hwy.Load(dst[i+16:])
-		result1 := hwy.MulF16(vec1, scaleVec)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vec.Mul(scaleVec)
+		result.StoreSlice(dst[i:])
+		vec1 := hwy.Load(dst[i+8:])
+		result1 := vec1.Mul(scaleVec)
+		result1.StoreSlice(dst[i+8:])
 	}
 	for ; i < len(dst); i++ {
 		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() * scale)
@@ -49,17 +50,17 @@ func BaseNormalize_avx2_BFloat16(dst []hwy.BFloat16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := hwy.Set(hwy.Float32ToBFloat16(scale))
-	lanes := 16
+	scaleVec := asm.BroadcastBFloat16x8AVX2(uint16(scale))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= len(dst); i += lanes * 2 {
 		vec := hwy.Load(dst[i:])
-		result := hwy.MulBF16(vec, scaleVec)
-		hwy.StoreFull(result, dst[i:])
-		vec1 := hwy.Load(dst[i+16:])
-		result1 := hwy.MulBF16(vec1, scaleVec)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vec.Mul(scaleVec)
+		result.StoreSlice(dst[i:])
+		vec1 := hwy.Load(dst[i+8:])
+		result1 := vec1.Mul(scaleVec)
+		result1.StoreSlice(dst[i+8:])
 	}
 	for ; i < len(dst); i++ {
 		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() * scale)
@@ -132,17 +133,17 @@ func BaseNormalizeTo_avx2_Float16(dst []hwy.Float16, src []hwy.Float16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := hwy.Set(hwy.Float32ToFloat16(scale))
-	lanes := 16
+	scaleVec := asm.BroadcastFloat16x8AVX2(uint16(scale))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vec := hwy.Load(src[i:])
-		result := hwy.MulF16(vec, scaleVec)
-		hwy.StoreFull(result, dst[i:])
-		vec1 := hwy.Load(src[i+16:])
-		result1 := hwy.MulF16(vec1, scaleVec)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vec.Mul(scaleVec)
+		result.StoreSlice(dst[i:])
+		vec1 := hwy.Load(src[i+8:])
+		result1 := vec1.Mul(scaleVec)
+		result1.StoreSlice(dst[i+8:])
 	}
 	for ; i < n; i++ {
 		dst[i] = hwy.Float32ToFloat16(src[i].Float32() * scale)
@@ -161,17 +162,17 @@ func BaseNormalizeTo_avx2_BFloat16(dst []hwy.BFloat16, src []hwy.BFloat16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := hwy.Set(hwy.Float32ToBFloat16(scale))
-	lanes := 16
+	scaleVec := asm.BroadcastBFloat16x8AVX2(uint16(scale))
+	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		vec := hwy.Load(src[i:])
-		result := hwy.MulBF16(vec, scaleVec)
-		hwy.StoreFull(result, dst[i:])
-		vec1 := hwy.Load(src[i+16:])
-		result1 := hwy.MulBF16(vec1, scaleVec)
-		hwy.StoreFull(result1, dst[i+16:])
+		result := vec.Mul(scaleVec)
+		result.StoreSlice(dst[i:])
+		vec1 := hwy.Load(src[i+8:])
+		result1 := vec1.Mul(scaleVec)
+		result1.StoreSlice(dst[i+8:])
 	}
 	for ; i < n; i++ {
 		dst[i] = hwy.Float32ToBFloat16(src[i].Float32() * scale)

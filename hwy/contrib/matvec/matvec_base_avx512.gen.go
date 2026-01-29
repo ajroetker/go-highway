@@ -8,6 +8,7 @@ import (
 	"simd/archsimd"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BaseMatVec_avx512_Float16(m []hwy.Float16, rows int, cols int, v []hwy.Float16, result []hwy.Float16) {
@@ -22,16 +23,16 @@ func BaseMatVec_avx512_Float16(m []hwy.Float16, rows int, cols int, v []hwy.Floa
 	}
 	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
-		sum := hwy.Zero[hwy.Float16]()
-		lanes := 32
+		sum := asm.ZeroFloat16x16AVX512()
+		lanes := 16
 		var j int
 		for j = 0; j+lanes <= cols; j += lanes {
-			va := hwy.Load(row[j:])
-			vb := hwy.Load(v[j:])
-			prod := hwy.MulF16(va, vb)
-			sum = hwy.AddF16(sum, prod)
+			va := asm.LoadFloat16x16AVX512Slice(row[j:])
+			vb := asm.LoadFloat16x16AVX512Slice(v[j:])
+			prod := va.Mul(vb)
+			sum = sum.Add(prod)
 		}
-		acc := hwy.ReduceSumF16(sum)
+		acc := sum.ReduceSum()
 		for ; j < cols; j++ {
 			acc += row[j].Float32() * v[j].Float32()
 		}
@@ -51,16 +52,16 @@ func BaseMatVec_avx512_BFloat16(m []hwy.BFloat16, rows int, cols int, v []hwy.BF
 	}
 	for i := range rows {
 		row := m[i*cols : (i+1)*cols]
-		sum := hwy.Zero[hwy.BFloat16]()
-		lanes := 32
+		sum := asm.ZeroBFloat16x16AVX512()
+		lanes := 16
 		var j int
 		for j = 0; j+lanes <= cols; j += lanes {
-			va := hwy.Load(row[j:])
-			vb := hwy.Load(v[j:])
-			prod := hwy.MulBF16(va, vb)
-			sum = hwy.AddBF16(sum, prod)
+			va := asm.LoadBFloat16x16AVX512Slice(row[j:])
+			vb := asm.LoadBFloat16x16AVX512Slice(v[j:])
+			prod := va.Mul(vb)
+			sum = sum.Add(prod)
 		}
-		acc := hwy.ReduceSumBF16(sum)
+		acc := sum.ReduceSum()
 		for ; j < cols; j++ {
 			acc += row[j].Float32() * v[j].Float32()
 		}

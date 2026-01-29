@@ -9,50 +9,51 @@ import (
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-func BaseApply_avx2_Float16(in []hwy.Float16, out []hwy.Float16, fn func(hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16]) {
+func BaseApply_avx2_Float16(in []hwy.Float16, out []hwy.Float16, fn func(asm.Float16x8AVX2) asm.Float16x8AVX2) {
 	n := min(len(in), len(out))
-	lanes := 16
+	lanes := 8
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		x := hwy.Load(in[i:])
-		hwy.StoreFull(fn(x), out[i:])
-		x1 := hwy.Load(in[i+16:])
-		hwy.StoreFull(fn(x1), out[i+16:])
+		fn(x).StoreSlice(out[i:])
+		x1 := hwy.Load(in[i+8:])
+		fn(x1).StoreSlice(out[i+8:])
 	}
 	for ; i+lanes <= n; i += lanes {
 		x := hwy.Load(in[i:])
-		hwy.StoreFull(fn(x), out[i:])
+		fn(x).StoreSlice(out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
-		buf := [16]hwy.Float16{}
+		buf := [8]hwy.Float16{}
 		copy(buf[:], in[i:i+remaining])
-		x := hwy.Load(buf[:])
-		hwy.Store(fn(x), buf[:])
+		x := asm.LoadFloat16x8AVX2Slice(buf[:])
+		fn(x).StoreSlice(buf[:])
 		copy(out[i:i+remaining], buf[:remaining])
 	}
 }
 
-func BaseApply_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]) {
+func BaseApply_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(asm.BFloat16x8AVX2) asm.BFloat16x8AVX2) {
 	n := min(len(in), len(out))
-	lanes := 16
+	lanes := 8
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		x := hwy.Load(in[i:])
-		hwy.StoreFull(fn(x), out[i:])
-		x1 := hwy.Load(in[i+16:])
-		hwy.StoreFull(fn(x1), out[i+16:])
+		fn(x).StoreSlice(out[i:])
+		x1 := hwy.Load(in[i+8:])
+		fn(x1).StoreSlice(out[i+8:])
 	}
 	for ; i+lanes <= n; i += lanes {
 		x := hwy.Load(in[i:])
-		hwy.StoreFull(fn(x), out[i:])
+		fn(x).StoreSlice(out[i:])
 	}
 	if remaining := n - i; remaining > 0 {
-		buf := [16]hwy.BFloat16{}
+		buf := [8]hwy.BFloat16{}
 		copy(buf[:], in[i:i+remaining])
-		x := hwy.Load(buf[:])
-		hwy.Store(fn(x), buf[:])
+		x := asm.LoadBFloat16x8AVX2Slice(buf[:])
+		fn(x).StoreSlice(buf[:])
 		copy(out[i:i+remaining], buf[:remaining])
 	}
 }

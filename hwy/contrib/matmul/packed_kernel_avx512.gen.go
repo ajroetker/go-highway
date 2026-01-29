@@ -8,22 +8,23 @@ import (
 	"simd/archsimd"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
 func BasePackedMicroKernel_avx512_Float16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n int, ir int, jr int, kc int, mr int, nr int) {
-	lanes := 32
+	lanes := 16
 	if mr != 4 || nr != lanes*2 {
 		basePackedMicroKernelGeneral(packedA, packedB, c, n, ir, jr, kc, mr, nr)
 		return
 	}
-	acc00 := hwy.Zero[hwy.Float16]()
-	acc01 := hwy.Zero[hwy.Float16]()
-	acc10 := hwy.Zero[hwy.Float16]()
-	acc11 := hwy.Zero[hwy.Float16]()
-	acc20 := hwy.Zero[hwy.Float16]()
-	acc21 := hwy.Zero[hwy.Float16]()
-	acc30 := hwy.Zero[hwy.Float16]()
-	acc31 := hwy.Zero[hwy.Float16]()
+	acc00 := asm.ZeroFloat16x16AVX512()
+	acc01 := asm.ZeroFloat16x16AVX512()
+	acc10 := asm.ZeroFloat16x16AVX512()
+	acc11 := asm.ZeroFloat16x16AVX512()
+	acc20 := asm.ZeroFloat16x16AVX512()
+	acc21 := asm.ZeroFloat16x16AVX512()
+	acc30 := asm.ZeroFloat16x16AVX512()
+	acc31 := asm.ZeroFloat16x16AVX512()
 	aIdx := 0
 	bIdx := 0
 	for p := 0; p < kc; p++ {
@@ -32,66 +33,66 @@ func BasePackedMicroKernel_avx512_Float16(packedA []hwy.Float16, packedB []hwy.F
 		a2 := packedA[aIdx+2]
 		a3 := packedA[aIdx+3]
 		aIdx += 4
-		vA0 := hwy.Set(a0)
-		vA1 := hwy.Set(a1)
-		vA2 := hwy.Set(a2)
-		vA3 := hwy.Set(a3)
-		vB0 := hwy.Load(packedB[bIdx:])
-		vB1 := hwy.Load(packedB[bIdx+lanes:])
+		vA0 := asm.BroadcastFloat16x16AVX512(uint16(a0))
+		vA1 := asm.BroadcastFloat16x16AVX512(uint16(a1))
+		vA2 := asm.BroadcastFloat16x16AVX512(uint16(a2))
+		vA3 := asm.BroadcastFloat16x16AVX512(uint16(a3))
+		vB0 := asm.LoadFloat16x16AVX512Slice(packedB[bIdx:])
+		vB1 := asm.LoadFloat16x16AVX512Slice(packedB[bIdx+lanes:])
 		bIdx += nr
-		acc00 = hwy.FMAF16(vA0, vB0, acc00)
-		acc01 = hwy.FMAF16(vA0, vB1, acc01)
-		acc10 = hwy.FMAF16(vA1, vB0, acc10)
-		acc11 = hwy.FMAF16(vA1, vB1, acc11)
-		acc20 = hwy.FMAF16(vA2, vB0, acc20)
-		acc21 = hwy.FMAF16(vA2, vB1, acc21)
-		acc30 = hwy.FMAF16(vA3, vB0, acc30)
-		acc31 = hwy.FMAF16(vA3, vB1, acc31)
+		acc00 = vA0.MulAdd(vB0, acc00)
+		acc01 = vA0.MulAdd(vB1, acc01)
+		acc10 = vA1.MulAdd(vB0, acc10)
+		acc11 = vA1.MulAdd(vB1, acc11)
+		acc20 = vA2.MulAdd(vB0, acc20)
+		acc21 = vA2.MulAdd(vB1, acc21)
+		acc30 = vA3.MulAdd(vB0, acc30)
+		acc31 = vA3.MulAdd(vB1, acc31)
 	}
 	cRow0 := ir * n
 	cRow1 := (ir + 1) * n
 	cRow2 := (ir + 2) * n
 	cRow3 := (ir + 3) * n
-	vC := hwy.Load(c[cRow0+jr:])
-	vC = hwy.AddF16(vC, acc00)
-	hwy.Store(vC, c[cRow0+jr:])
-	vC = hwy.Load(c[cRow0+jr+lanes:])
-	vC = hwy.AddF16(vC, acc01)
-	hwy.Store(vC, c[cRow0+jr+lanes:])
-	vC = hwy.Load(c[cRow1+jr:])
-	vC = hwy.AddF16(vC, acc10)
-	hwy.Store(vC, c[cRow1+jr:])
-	vC = hwy.Load(c[cRow1+jr+lanes:])
-	vC = hwy.AddF16(vC, acc11)
-	hwy.Store(vC, c[cRow1+jr+lanes:])
-	vC = hwy.Load(c[cRow2+jr:])
-	vC = hwy.AddF16(vC, acc20)
-	hwy.Store(vC, c[cRow2+jr:])
-	vC = hwy.Load(c[cRow2+jr+lanes:])
-	vC = hwy.AddF16(vC, acc21)
-	hwy.Store(vC, c[cRow2+jr+lanes:])
-	vC = hwy.Load(c[cRow3+jr:])
-	vC = hwy.AddF16(vC, acc30)
-	hwy.Store(vC, c[cRow3+jr:])
-	vC = hwy.Load(c[cRow3+jr+lanes:])
-	vC = hwy.AddF16(vC, acc31)
-	hwy.Store(vC, c[cRow3+jr+lanes:])
+	vC := asm.LoadFloat16x16AVX512Slice(c[cRow0+jr:])
+	vC = vC.Add(acc00)
+	vC.StoreSlice(c[cRow0+jr:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow0+jr+lanes:])
+	vC = vC.Add(acc01)
+	vC.StoreSlice(c[cRow0+jr+lanes:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow1+jr:])
+	vC = vC.Add(acc10)
+	vC.StoreSlice(c[cRow1+jr:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow1+jr+lanes:])
+	vC = vC.Add(acc11)
+	vC.StoreSlice(c[cRow1+jr+lanes:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow2+jr:])
+	vC = vC.Add(acc20)
+	vC.StoreSlice(c[cRow2+jr:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow2+jr+lanes:])
+	vC = vC.Add(acc21)
+	vC.StoreSlice(c[cRow2+jr+lanes:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow3+jr:])
+	vC = vC.Add(acc30)
+	vC.StoreSlice(c[cRow3+jr:])
+	vC = asm.LoadFloat16x16AVX512Slice(c[cRow3+jr+lanes:])
+	vC = vC.Add(acc31)
+	vC.StoreSlice(c[cRow3+jr+lanes:])
 }
 
 func BasePackedMicroKernel_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n int, ir int, jr int, kc int, mr int, nr int) {
-	lanes := 32
+	lanes := 16
 	if mr != 4 || nr != lanes*2 {
 		basePackedMicroKernelGeneral(packedA, packedB, c, n, ir, jr, kc, mr, nr)
 		return
 	}
-	acc00 := hwy.Zero[hwy.BFloat16]()
-	acc01 := hwy.Zero[hwy.BFloat16]()
-	acc10 := hwy.Zero[hwy.BFloat16]()
-	acc11 := hwy.Zero[hwy.BFloat16]()
-	acc20 := hwy.Zero[hwy.BFloat16]()
-	acc21 := hwy.Zero[hwy.BFloat16]()
-	acc30 := hwy.Zero[hwy.BFloat16]()
-	acc31 := hwy.Zero[hwy.BFloat16]()
+	acc00 := asm.ZeroBFloat16x16AVX512()
+	acc01 := asm.ZeroBFloat16x16AVX512()
+	acc10 := asm.ZeroBFloat16x16AVX512()
+	acc11 := asm.ZeroBFloat16x16AVX512()
+	acc20 := asm.ZeroBFloat16x16AVX512()
+	acc21 := asm.ZeroBFloat16x16AVX512()
+	acc30 := asm.ZeroBFloat16x16AVX512()
+	acc31 := asm.ZeroBFloat16x16AVX512()
 	aIdx := 0
 	bIdx := 0
 	for p := 0; p < kc; p++ {
@@ -100,50 +101,50 @@ func BasePackedMicroKernel_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy
 		a2 := packedA[aIdx+2]
 		a3 := packedA[aIdx+3]
 		aIdx += 4
-		vA0 := hwy.Set(a0)
-		vA1 := hwy.Set(a1)
-		vA2 := hwy.Set(a2)
-		vA3 := hwy.Set(a3)
-		vB0 := hwy.Load(packedB[bIdx:])
-		vB1 := hwy.Load(packedB[bIdx+lanes:])
+		vA0 := asm.BroadcastBFloat16x16AVX512(uint16(a0))
+		vA1 := asm.BroadcastBFloat16x16AVX512(uint16(a1))
+		vA2 := asm.BroadcastBFloat16x16AVX512(uint16(a2))
+		vA3 := asm.BroadcastBFloat16x16AVX512(uint16(a3))
+		vB0 := asm.LoadBFloat16x16AVX512Slice(packedB[bIdx:])
+		vB1 := asm.LoadBFloat16x16AVX512Slice(packedB[bIdx+lanes:])
 		bIdx += nr
-		acc00 = hwy.FMABF16(vA0, vB0, acc00)
-		acc01 = hwy.FMABF16(vA0, vB1, acc01)
-		acc10 = hwy.FMABF16(vA1, vB0, acc10)
-		acc11 = hwy.FMABF16(vA1, vB1, acc11)
-		acc20 = hwy.FMABF16(vA2, vB0, acc20)
-		acc21 = hwy.FMABF16(vA2, vB1, acc21)
-		acc30 = hwy.FMABF16(vA3, vB0, acc30)
-		acc31 = hwy.FMABF16(vA3, vB1, acc31)
+		acc00 = vA0.MulAdd(vB0, acc00)
+		acc01 = vA0.MulAdd(vB1, acc01)
+		acc10 = vA1.MulAdd(vB0, acc10)
+		acc11 = vA1.MulAdd(vB1, acc11)
+		acc20 = vA2.MulAdd(vB0, acc20)
+		acc21 = vA2.MulAdd(vB1, acc21)
+		acc30 = vA3.MulAdd(vB0, acc30)
+		acc31 = vA3.MulAdd(vB1, acc31)
 	}
 	cRow0 := ir * n
 	cRow1 := (ir + 1) * n
 	cRow2 := (ir + 2) * n
 	cRow3 := (ir + 3) * n
-	vC := hwy.Load(c[cRow0+jr:])
-	vC = hwy.AddBF16(vC, acc00)
-	hwy.Store(vC, c[cRow0+jr:])
-	vC = hwy.Load(c[cRow0+jr+lanes:])
-	vC = hwy.AddBF16(vC, acc01)
-	hwy.Store(vC, c[cRow0+jr+lanes:])
-	vC = hwy.Load(c[cRow1+jr:])
-	vC = hwy.AddBF16(vC, acc10)
-	hwy.Store(vC, c[cRow1+jr:])
-	vC = hwy.Load(c[cRow1+jr+lanes:])
-	vC = hwy.AddBF16(vC, acc11)
-	hwy.Store(vC, c[cRow1+jr+lanes:])
-	vC = hwy.Load(c[cRow2+jr:])
-	vC = hwy.AddBF16(vC, acc20)
-	hwy.Store(vC, c[cRow2+jr:])
-	vC = hwy.Load(c[cRow2+jr+lanes:])
-	vC = hwy.AddBF16(vC, acc21)
-	hwy.Store(vC, c[cRow2+jr+lanes:])
-	vC = hwy.Load(c[cRow3+jr:])
-	vC = hwy.AddBF16(vC, acc30)
-	hwy.Store(vC, c[cRow3+jr:])
-	vC = hwy.Load(c[cRow3+jr+lanes:])
-	vC = hwy.AddBF16(vC, acc31)
-	hwy.Store(vC, c[cRow3+jr+lanes:])
+	vC := asm.LoadBFloat16x16AVX512Slice(c[cRow0+jr:])
+	vC = vC.Add(acc00)
+	vC.StoreSlice(c[cRow0+jr:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow0+jr+lanes:])
+	vC = vC.Add(acc01)
+	vC.StoreSlice(c[cRow0+jr+lanes:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow1+jr:])
+	vC = vC.Add(acc10)
+	vC.StoreSlice(c[cRow1+jr:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow1+jr+lanes:])
+	vC = vC.Add(acc11)
+	vC.StoreSlice(c[cRow1+jr+lanes:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow2+jr:])
+	vC = vC.Add(acc20)
+	vC.StoreSlice(c[cRow2+jr:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow2+jr+lanes:])
+	vC = vC.Add(acc21)
+	vC.StoreSlice(c[cRow2+jr+lanes:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow3+jr:])
+	vC = vC.Add(acc30)
+	vC.StoreSlice(c[cRow3+jr:])
+	vC = asm.LoadBFloat16x16AVX512Slice(c[cRow3+jr+lanes:])
+	vC = vC.Add(acc31)
+	vC.StoreSlice(c[cRow3+jr+lanes:])
 }
 
 func BasePackedMicroKernel_avx512(packedA []float32, packedB []float32, c []float32, n int, ir int, jr int, kc int, mr int, nr int) {
@@ -283,21 +284,21 @@ func BasePackedMicroKernel_avx512_Float64(packedA []float64, packedB []float64, 
 }
 
 func basePackedMicroKernelGeneral_avx512_Float16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n int, ir int, jr int, kc int, mr int, nr int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < mr; r++ {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= nr; col += lanes {
-			acc := hwy.Zero[hwy.Float16]()
+			acc := asm.ZeroFloat16x16AVX512()
 			for p := 0; p < kc; p++ {
 				aVal := packedA[p*mr+r]
-				vA := hwy.Set(aVal)
-				vB := hwy.Load(packedB[p*nr+col:])
-				acc = hwy.FMAF16(vA, vB, acc)
+				vA := asm.BroadcastFloat16x16AVX512(uint16(aVal))
+				vB := asm.LoadFloat16x16AVX512Slice(packedB[p*nr+col:])
+				acc = vA.MulAdd(vB, acc)
 			}
-			vC := hwy.Load(c[cRowStart+jr+col:])
-			vC = hwy.AddF16(vC, acc)
-			hwy.Store(vC, c[cRowStart+jr+col:])
+			vC := asm.LoadFloat16x16AVX512Slice(c[cRowStart+jr+col:])
+			vC = vC.Add(acc)
+			vC.StoreSlice(c[cRowStart+jr+col:])
 		}
 		for ; col < nr; col++ {
 			var sum float32
@@ -310,21 +311,21 @@ func basePackedMicroKernelGeneral_avx512_Float16(packedA []hwy.Float16, packedB 
 }
 
 func basePackedMicroKernelGeneral_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n int, ir int, jr int, kc int, mr int, nr int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < mr; r++ {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= nr; col += lanes {
-			acc := hwy.Zero[hwy.BFloat16]()
+			acc := asm.ZeroBFloat16x16AVX512()
 			for p := 0; p < kc; p++ {
 				aVal := packedA[p*mr+r]
-				vA := hwy.Set(aVal)
-				vB := hwy.Load(packedB[p*nr+col:])
-				acc = hwy.FMABF16(vA, vB, acc)
+				vA := asm.BroadcastBFloat16x16AVX512(uint16(aVal))
+				vB := asm.LoadBFloat16x16AVX512Slice(packedB[p*nr+col:])
+				acc = vA.MulAdd(vB, acc)
 			}
-			vC := hwy.Load(c[cRowStart+jr+col:])
-			vC = hwy.AddBF16(vC, acc)
-			hwy.Store(vC, c[cRowStart+jr+col:])
+			vC := asm.LoadBFloat16x16AVX512Slice(c[cRowStart+jr+col:])
+			vC = vC.Add(acc)
+			vC.StoreSlice(c[cRowStart+jr+col:])
 		}
 		for ; col < nr; col++ {
 			var sum float32
@@ -391,21 +392,21 @@ func basePackedMicroKernelGeneral_avx512_Float64(packedA []float64, packedB []fl
 }
 
 func BasePackedMicroKernelPartial_avx512_Float16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < activeRows; r++ {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= activeCols; col += lanes {
-			acc := hwy.Zero[hwy.Float16]()
+			acc := asm.ZeroFloat16x16AVX512()
 			for p := 0; p < kc; p++ {
 				aVal := packedA[p*mr+r]
-				vA := hwy.Set(aVal)
-				vB := hwy.Load(packedB[p*nr+col:])
-				acc = hwy.FMAF16(vA, vB, acc)
+				vA := asm.BroadcastFloat16x16AVX512(uint16(aVal))
+				vB := asm.LoadFloat16x16AVX512Slice(packedB[p*nr+col:])
+				acc = vA.MulAdd(vB, acc)
 			}
-			vC := hwy.Load(c[cRowStart+jr+col:])
-			vC = hwy.AddF16(vC, acc)
-			hwy.Store(vC, c[cRowStart+jr+col:])
+			vC := asm.LoadFloat16x16AVX512Slice(c[cRowStart+jr+col:])
+			vC = vC.Add(acc)
+			vC.StoreSlice(c[cRowStart+jr+col:])
 		}
 		for ; col < activeCols; col++ {
 			var sum float32
@@ -418,21 +419,21 @@ func BasePackedMicroKernelPartial_avx512_Float16(packedA []hwy.Float16, packedB 
 }
 
 func BasePackedMicroKernelPartial_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
-	lanes := 32
+	lanes := 16
 	for r := 0; r < activeRows; r++ {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= activeCols; col += lanes {
-			acc := hwy.Zero[hwy.BFloat16]()
+			acc := asm.ZeroBFloat16x16AVX512()
 			for p := 0; p < kc; p++ {
 				aVal := packedA[p*mr+r]
-				vA := hwy.Set(aVal)
-				vB := hwy.Load(packedB[p*nr+col:])
-				acc = hwy.FMABF16(vA, vB, acc)
+				vA := asm.BroadcastBFloat16x16AVX512(uint16(aVal))
+				vB := asm.LoadBFloat16x16AVX512Slice(packedB[p*nr+col:])
+				acc = vA.MulAdd(vB, acc)
 			}
-			vC := hwy.Load(c[cRowStart+jr+col:])
-			vC = hwy.AddBF16(vC, acc)
-			hwy.Store(vC, c[cRowStart+jr+col:])
+			vC := asm.LoadBFloat16x16AVX512Slice(c[cRowStart+jr+col:])
+			vC = vC.Add(acc)
+			vC.StoreSlice(c[cRowStart+jr+col:])
 		}
 		for ; col < activeCols; col++ {
 			var sum float32
