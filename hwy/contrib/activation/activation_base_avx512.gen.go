@@ -714,6 +714,110 @@ func BaseLeakyReLU_avx512_Float64(input []float64, output []float64, alpha float
 	}
 }
 
+func BaseTanh_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_Float16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+		x1 := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii+16:]))), len(input[ii+16:])))
+		result1 := math.BaseTanhVec_avx512_Float16(x1)
+		result1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii+16:]))), len(output[ii+16:])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_Float16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_BFloat16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+		x1 := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii+16:]))), len(input[ii+16:])))
+		result1 := math.BaseTanhVec_avx512_BFloat16(x1)
+		result1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii+16:]))), len(output[ii+16:])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_BFloat16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_avx512(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512(x)
+		result.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+16])))
+		result1 := math.BaseTanhVec_avx512(x1)
+		result1.Store((*[16]float32)(unsafe.Pointer(&output[ii+16])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512(x)
+		result.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float32(stdmath.Tanh(x))
+	}
+}
+
+func BaseTanh_avx512_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512_Float64(x)
+		result.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+8])))
+		result1 := math.BaseTanhVec_avx512_Float64(x1)
+		result1.Store((*[8]float64)(unsafe.Pointer(&output[ii+8])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512_Float64(x)
+		result.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float64(stdmath.Tanh(x))
+	}
+}
+
 func BaseELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -754,7 +858,7 @@ func BaseELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy
 			output[i] = hwy.Float32ToFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }
@@ -799,7 +903,7 @@ func BaseELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha 
 			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }

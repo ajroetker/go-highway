@@ -685,6 +685,110 @@ func BaseLeakyReLU_neon_Float64(input []float64, output []float64, alpha float64
 	}
 }
 
+func BaseTanh_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		result := math.BaseTanhVec_neon_Float16(x)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		result1 := math.BaseTanhVec_neon_Float16(x1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		result := math.BaseTanhVec_neon_Float16(x)
+		hwy.StoreFull(result, output[ii:])
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		result := math.BaseTanhVec_neon_BFloat16(x)
+		hwy.StoreFull(result, output[ii:])
+		x1 := hwy.Load(input[ii+8:])
+		result1 := math.BaseTanhVec_neon_BFloat16(x1)
+		hwy.StoreFull(result1, output[ii+8:])
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		result := math.BaseTanhVec_neon_BFloat16(x)
+		hwy.StoreFull(result, output[ii:])
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_neon(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 4
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_neon(x)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		result1 := math.BaseTanhVec_neon(x1)
+		result1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_neon(x)
+		result.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float32(stdmath.Tanh(x))
+	}
+}
+
+func BaseTanh_neon_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 2
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_neon_Float64(x)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		result1 := math.BaseTanhVec_neon_Float64(x1)
+		result1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_neon_Float64(x)
+		result.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float64(stdmath.Tanh(x))
+	}
+}
+
 func BaseELU_neon_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -725,7 +829,7 @@ func BaseELU_neon_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.F
 			output[i] = hwy.Float32ToFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }
@@ -770,7 +874,7 @@ func BaseELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hw
 			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }
