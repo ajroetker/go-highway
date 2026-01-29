@@ -226,6 +226,18 @@ func DotF16(a, b Vec[Float16]) float32 {
 	return sum
 }
 
+// NotEqualF16 compares two Float16 vectors for inequality.
+func NotEqualF16(a, b Vec[Float16]) Mask[Float16] {
+	n := min(len(b.data), len(a.data))
+	bits := make([]bool, n)
+	for i := range n {
+		af := Float16ToFloat32(a.data[i])
+		bf := Float16ToFloat32(b.data[i])
+		bits[i] = af != bf
+	}
+	return Mask[Float16]{bits: bits}
+}
+
 // EqualF16 compares two Float16 vectors for equality.
 func EqualF16(a, b Vec[Float16]) Mask[Float16] {
 	n := min(len(b.data), len(a.data))

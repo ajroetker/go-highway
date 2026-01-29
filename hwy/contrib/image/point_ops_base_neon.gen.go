@@ -791,7 +791,7 @@ func BaseGamma_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], ga
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	gammaVec := asm.BroadcastFloat16x8(uint16(gamma))
+	gammaVec := hwy.Set(gamma)
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -799,16 +799,16 @@ func BaseGamma_neon_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], ga
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			v := hwy.Load(inRow[i:])
 			result := hwy.Pow(v, gammaVec)
-			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
+			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			v := hwy.Load(buf[:])
 			result := hwy.Pow(v, gammaVec)
-			result.StorePtr(unsafe.Pointer(&buf[0]))
+			hwy.Store(result, buf[:])
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -818,7 +818,7 @@ func BaseGamma_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	gammaVec := asm.BroadcastBFloat16x8(uint16(gamma))
+	gammaVec := hwy.Set(gamma)
 	lanes := 8
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -826,16 +826,16 @@ func BaseGamma_neon_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&inRow[i:][0]))
+			v := hwy.Load(inRow[i:])
 			result := hwy.Pow(v, gammaVec)
-			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
+			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&buf[0]))
+			v := hwy.Load(buf[:])
 			result := hwy.Pow(v, gammaVec)
-			result.StorePtr(unsafe.Pointer(&buf[0]))
+			hwy.Store(result, buf[:])
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}

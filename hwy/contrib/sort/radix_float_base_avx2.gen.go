@@ -92,7 +92,7 @@ func BaseSortableToFloat_avx2_Float16(data []hwy.Float16) {
 	for i+lanes <= n {
 		v := hwy.Load(data[i:])
 		masked := hwy.And(v, signBitVec)
-		wasPositive := hwy.NotEqual(masked, zeroVec)
+		wasPositive := hwy.NotEqualF16(masked, zeroVec)
 		posResult := hwy.Xor(v, signBitVec)
 		negResult := hwy.Xor(v, allOnesVec)
 		result := hwy.IfThenElseF16(wasPositive, posResult, negResult)
@@ -111,7 +111,7 @@ func BaseSortableToFloat_avx2_BFloat16(data []hwy.BFloat16) {
 	for i+lanes <= n {
 		v := hwy.Load(data[i:])
 		masked := hwy.And(v, signBitVec)
-		wasPositive := hwy.NotEqual(masked, zeroVec)
+		wasPositive := hwy.NotEqualBF16(masked, zeroVec)
 		posResult := hwy.Xor(v, signBitVec)
 		negResult := hwy.Xor(v, allOnesVec)
 		result := hwy.IfThenElseBF16(wasPositive, posResult, negResult)
