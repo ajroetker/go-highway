@@ -11,6 +11,7 @@ import (
 )
 
 var DecodeGroupVarint32 func(src []byte) (values [4]uint32, consumed int)
+var DecodeGroupVarint64 func(src []byte) (values [4]uint64, consumed int)
 
 func init() {
 	if hwy.NoSimdEnv() {
@@ -30,12 +31,15 @@ func init() {
 
 func initGroupvarintAVX2() {
 	DecodeGroupVarint32 = BaseDecodeGroupVarint32_avx2
+	DecodeGroupVarint64 = BaseDecodeGroupVarint64_avx2
 }
 
 func initGroupvarintAVX512() {
 	DecodeGroupVarint32 = BaseDecodeGroupVarint32_avx512
+	DecodeGroupVarint64 = BaseDecodeGroupVarint64_avx512
 }
 
 func initGroupvarintFallback() {
 	DecodeGroupVarint32 = BaseDecodeGroupVarint32_fallback
+	DecodeGroupVarint64 = BaseDecodeGroupVarint64_fallback
 }

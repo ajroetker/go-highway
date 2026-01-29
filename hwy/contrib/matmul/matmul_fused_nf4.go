@@ -14,7 +14,7 @@
 
 package matmul
 
-//go:generate go run ../../../cmd/hwygen -input matmul_fused_nf4.go -dispatch fusednf4matmul -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input matmul_fused_nf4.go -dispatch matmul_fused_n4 -output . -targets avx2,avx512,neon,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 

@@ -23,7 +23,17 @@ func BasePackedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy
 	packedBSize := params.PackedBSize()
 	packedA := make([]hwy.Float16, packedASize)
 	packedB := make([]hwy.Float16, packedBSize)
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := hwy.Zero[hwy.Float16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[idx_1:])
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = hwy.Float32ToFloat16(0)
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -35,7 +45,35 @@ func BasePackedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -58,7 +96,17 @@ func BasePackedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []
 	packedBSize := params.PackedBSize()
 	packedA := make([]hwy.BFloat16, packedASize)
 	packedB := make([]hwy.BFloat16, packedBSize)
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := hwy.Zero[hwy.BFloat16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[idx_1:])
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = hwy.Float32ToBFloat16(0)
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -70,7 +118,35 @@ func BasePackedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -93,7 +169,17 @@ func BasePackedMatMul_fallback(a []float32, b []float32, c []float32, m int, n i
 	packedBSize := params.PackedBSize()
 	packedA := make([]float32, packedASize)
 	packedB := make([]float32, packedBSize)
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := float32(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			c[idx_1] = vZero_1
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -105,7 +191,35 @@ func BasePackedMatMul_fallback(a []float32, b []float32, c []float32, m int, n i
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -128,7 +242,17 @@ func BasePackedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m 
 	packedBSize := params.PackedBSize()
 	packedA := make([]float64, packedASize)
 	packedB := make([]float64, packedBSize)
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := float64(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			c[idx_1] = vZero_1
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -140,7 +264,35 @@ func BasePackedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m 
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -158,7 +310,17 @@ func BasePackedMatMulWithBuffers_fallback_Float16(a []hwy.Float16, b []hwy.Float
 	}
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := hwy.Zero[hwy.Float16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[idx_1:])
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = hwy.Float32ToFloat16(0)
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -170,7 +332,35 @@ func BasePackedMatMulWithBuffers_fallback_Float16(a []hwy.Float16, b []hwy.Float
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -188,7 +378,17 @@ func BasePackedMatMulWithBuffers_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFl
 	}
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := hwy.Zero[hwy.BFloat16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[idx_1:])
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = hwy.Float32ToBFloat16(0)
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -200,7 +400,35 @@ func BasePackedMatMulWithBuffers_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFl
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -218,7 +446,17 @@ func BasePackedMatMulWithBuffers_fallback(a []float32, b []float32, c []float32,
 	}
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := float32(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			c[idx_1] = vZero_1
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -230,7 +468,35 @@ func BasePackedMatMulWithBuffers_fallback(a []float32, b []float32, c []float32,
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -248,7 +514,17 @@ func BasePackedMatMulWithBuffers_fallback_Float64(a []float64, b []float64, c []
 	}
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	zeroMatrix(c, m*n)
+	{
+		vZero_1 := float64(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
+			c[idx_1] = vZero_1
+		}
+		for ; idx_1 < m*n; idx_1++ {
+			c[idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -260,7 +536,35 @@ func BasePackedMatMulWithBuffers_fallback_Float64(a []float64, b []float64, c []
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -270,7 +574,17 @@ func BasePackedMatMulStrip_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c 
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
 	stripM := rowEnd - rowStart
-	zeroMatrix(c[rowStart*n:rowEnd*n], stripM*n)
+	{
+		vZero_1 := hwy.Zero[hwy.Float16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -282,7 +596,35 @@ func BasePackedMatMulStrip_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c 
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -292,7 +634,17 @@ func BasePackedMatMulStrip_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16,
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
 	stripM := rowEnd - rowStart
-	zeroMatrix(c[rowStart*n:rowEnd*n], stripM*n)
+	{
+		vZero_1 := hwy.Zero[hwy.BFloat16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -304,7 +656,35 @@ func BasePackedMatMulStrip_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16,
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -314,7 +694,17 @@ func BasePackedMatMulStrip_fallback(a []float32, b []float32, c []float32, m int
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
 	stripM := rowEnd - rowStart
-	zeroMatrix(c[rowStart*n:rowEnd*n], stripM*n)
+	{
+		vZero_1 := float32(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			c[rowStart*n : rowEnd*n][idx_1] = vZero_1
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -326,7 +716,35 @@ func BasePackedMatMulStrip_fallback(a []float32, b []float32, c []float32, m int
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -336,7 +754,17 @@ func BasePackedMatMulStrip_fallback_Float64(a []float64, b []float64, c []float6
 	mr, nr := params.Mr, params.Nr
 	kc, mc, nc := params.Kc, params.Mc, params.Nc
 	stripM := rowEnd - rowStart
-	zeroMatrix(c[rowStart*n:rowEnd*n], stripM*n)
+	{
+		vZero_1 := float64(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			c[rowStart*n : rowEnd*n][idx_1] = vZero_1
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
 	for jc := 0; jc < n; jc += nc {
 		jcEnd := min(jc+nc, n)
 		panelCols := jcEnd - jc
@@ -348,7 +776,35 @@ func BasePackedMatMulStrip_fallback_Float64(a []float64, b []float64, c []float6
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
 			}
 		}
 	}

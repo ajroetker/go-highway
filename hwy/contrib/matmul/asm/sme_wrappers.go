@@ -12,64 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !noasm && darwin && arm64
+//go:build !noasm && arm64
 
 // SME Matrix Multiplication for ARM64 with SME extension
 // Uses FMOPA outer product accumulate with ZA tiles for efficient matrix multiply.
 package asm
 
 import (
-	"runtime"
-	"syscall"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
-)
-
-// Signal masking constants for macOS.
-const (
-	sigBlock   = 1  // SIG_BLOCK
-	sigSetmask = 3  // SIG_SETMASK
-	sigURG     = 16 // SIGURG on macOS (0x10)
 )
 
 // smeGuard protects the current goroutine for SME streaming mode execution.
 // See SMEGuard for details.
 func smeGuard() func() {
 	return SMEGuard()
-}
-
-// SMEGuard prepares the current goroutine for SME streaming mode execution.
-// It pins the goroutine to its OS thread (preventing migration) and blocks
-// SIGURG to prevent Go's async preemption from corrupting the ZA accumulator
-// registers during SME streaming mode.
-//
-// On macOS/ARM64, the kernel's signal delivery does not properly save and
-// restore ZA register state when SIGURG interrupts a thread in streaming mode.
-// This causes silent data corruption in FMOPA tile computations.
-//
-// No mutex is needed because SME state (ZA registers) is per-thread.
-// Multiple goroutines can safely execute SME on different OS threads in parallel.
-//
-// Returns a cleanup function that must be deferred:
-//
-//	defer asm.SMEGuard()()
-func SMEGuard() func() {
-	runtime.LockOSThread()
-	// Block SIGURG to prevent Go's async preemption signal from corrupting
-	// ZA register state while the thread is in SME streaming mode.
-	var oldmask, newmask uint32
-	newmask = 1 << (sigURG - 1)
-	syscall.RawSyscall(syscall.SYS_SIGPROCMASK, sigBlock,
-		uintptr(unsafe.Pointer(&newmask)),
-		uintptr(unsafe.Pointer(&oldmask)))
-	return func() {
-		// Restore original signal mask (unblocks SIGURG)
-		syscall.RawSyscall(syscall.SYS_SIGPROCMASK, sigSetmask,
-			uintptr(unsafe.Pointer(&oldmask)),
-			0)
-		runtime.UnlockOSThread()
-	}
 }
 
 // -march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16 enables SME with f32/f64/f16/bf16 support

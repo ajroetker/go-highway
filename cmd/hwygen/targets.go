@@ -36,6 +36,9 @@ type OpInfo struct {
 	SubPackage string // For contrib: "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort"
 	Name       string // Target function/method name
 	IsMethod   bool   // true if a.Add(b), false if Add(a, b)
+	IsInPlace  bool   // true for in-place ops: v.OpAcc(args, &acc) modifies acc, doesn't return
+	AccArg     int    // For in-place ops: which arg index is the accumulator (gets &)
+	InPlaceOf  string // Name of the non-in-place op this replaces (e.g., "MulAdd" for MulAddAcc)
 }
 
 // AVX2Target returns the target configuration for AVX2 (256-bit SIMD).
@@ -169,8 +172,8 @@ func AVX2Target() Target {
 			"Broadcast":          {Name: "Broadcast", IsMethod: true},
 			"GetLane":            {Package: "hwy", Name: "GetLane", IsMethod: false},
 			"InsertLane":         {Name: "InsertLane", IsMethod: false},
-			"InterleaveLower":    {Name: "InterleaveLower", IsMethod: false},
-			"InterleaveUpper":    {Name: "InterleaveUpper", IsMethod: false},
+			"InterleaveLower":    {Package: "hwy", Name: "InterleaveLower", IsMethod: false},
+			"InterleaveUpper":    {Package: "hwy", Name: "InterleaveUpper", IsMethod: false},
 			"ConcatLowerLower":   {Name: "ConcatLowerLower", IsMethod: false},
 			"ConcatUpperUpper":   {Name: "ConcatUpperUpper", IsMethod: false},
 			"ConcatLowerUpper":   {Name: "ConcatLowerUpper", IsMethod: false},
@@ -380,8 +383,8 @@ func AVX512Target() Target {
 			"Broadcast":          {Name: "Broadcast", IsMethod: true},
 			"GetLane":            {Package: "hwy", Name: "GetLane", IsMethod: false},
 			"InsertLane":         {Name: "InsertLane", IsMethod: false},
-			"InterleaveLower":    {Name: "InterleaveLower", IsMethod: false},
-			"InterleaveUpper":    {Name: "InterleaveUpper", IsMethod: false},
+			"InterleaveLower":    {Package: "hwy", Name: "InterleaveLower", IsMethod: false},
+			"InterleaveUpper":    {Package: "hwy", Name: "InterleaveUpper", IsMethod: false},
 			"ConcatLowerLower":   {Name: "ConcatLowerLower", IsMethod: false},
 			"ConcatUpperUpper":   {Name: "ConcatUpperUpper", IsMethod: false},
 			"ConcatLowerUpper":   {Name: "ConcatLowerUpper", IsMethod: false},
@@ -674,8 +677,8 @@ func NEONTarget() Target {
 			"int64":        "Int64x2",
 			"uint32":       "Uint32x4",
 			"uint64":       "Uint64x2",
-			"hwy.Float16":  "hwy.Vec[hwy.Float16]",
-			"hwy.BFloat16": "hwy.Vec[hwy.BFloat16]",
+			"hwy.Float16":  "Float16x8",  // Use concrete asm type with in-place methods
+			"hwy.BFloat16": "BFloat16x8", // Use concrete asm type with in-place methods
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -718,6 +721,18 @@ func NEONTarget() Target {
 			"FMA":                {Name: "MulAdd", IsMethod: true}, // FMA maps to MulAdd in NEON asm
 			"MulAdd":             {Name: "MulAdd", IsMethod: true}, // a.MulAdd(b, c) = a*b + c
 			"Pow":                {Name: "Pow", IsMethod: true},    // v.Pow(exp) = v^exp element-wise
+
+			// ===== In-place operations (NEON allocation-free) =====
+			// These modify the accumulator in-place instead of returning a new value.
+			// Use MulAddAcc instead of MulAdd for inner loops to avoid allocations.
+			"MulAddAcc":  {Name: "MulAddAcc", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "MulAdd"},   // v.MulAddAcc(a, &acc): acc += v * a
+			"MulAddInto": {Name: "MulAddInto", IsMethod: true, IsInPlace: true, AccArg: 2, InPlaceOf: "MulAdd"}, // v.MulAddInto(a, b, &result): result = v * a + b
+			"AddInto":    {Name: "AddInto", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "Add"},       // v.AddInto(a, &result): result = v + a
+			"SubInto":    {Name: "SubInto", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "Sub"},       // v.SubInto(a, &result): result = v - a
+			"MulInto":    {Name: "MulInto", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "Mul"},       // v.MulInto(a, &result): result = v * a
+			"DivInto":    {Name: "DivInto", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "Div"},       // v.DivInto(a, &result): result = v / a
+			"MinInto":    {Name: "MinInto", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "Min"},       // v.MinInto(a, &result): result = min(v, a)
+			"MaxInto":    {Name: "MaxInto", IsMethod: true, IsInPlace: true, AccArg: 1, InPlaceOf: "Max"},       // v.MaxInto(a, &result): result = max(v, a)
 
 			// ===== Rounding operations =====
 			"RoundToEven": {Name: "RoundToEven", IsMethod: true}, // Banker's rounding
@@ -785,8 +800,8 @@ func NEONTarget() Target {
 			"Broadcast":          {Name: "Broadcast", IsMethod: true},
 			"GetLane":            {Name: "Get", IsMethod: true},
 			"InsertLane":         {Name: "InsertLane", IsMethod: false},
-			"InterleaveLower":    {Name: "InterleaveLower", IsMethod: false},
-			"InterleaveUpper":    {Name: "InterleaveUpper", IsMethod: false},
+			"InterleaveLower":    {Package: "hwy", Name: "InterleaveLower", IsMethod: false},
+			"InterleaveUpper":    {Package: "hwy", Name: "InterleaveUpper", IsMethod: false},
 			"ConcatLowerLower":   {Name: "ConcatLowerLower", IsMethod: false},
 			"ConcatUpperUpper":   {Name: "ConcatUpperUpper", IsMethod: false},
 			"ConcatLowerUpper":   {Name: "ConcatLowerUpper", IsMethod: false},

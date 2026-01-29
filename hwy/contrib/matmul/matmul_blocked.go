@@ -14,7 +14,7 @@
 
 package matmul
 
-//go:generate go run ../../../cmd/hwygen -input matmul_blocked.go -dispatch blockedmatmul -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input matmul_blocked.go -dispatch matmul_blocked -output . -targets avx2,avx512,neon,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 
@@ -178,7 +178,47 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				}
 			}
 
-			// Handle remaining rows (less than Mr)
+			// Handle remaining rows - process pairs when possible for SIMD efficiency
+			// This avoids the per-row overhead when M % 4 != 0
+
+			// Process pairs of remaining rows with SIMD
+			for i+2 <= iEnd {
+				cRow0 := i * n
+				cRow1 := (i + 1) * n
+
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc0 := hwy.Zero[T]()
+					acc1 := hwy.Zero[T]()
+
+					for p := 0; p < k; p++ {
+						vA0 := hwy.Set(a[i*k+p])
+						vA1 := hwy.Set(a[(i+1)*k+p])
+						vB := hwy.Load(b[p*n+j:])
+						acc0 = hwy.MulAdd(vA0, vB, acc0)
+						acc1 = hwy.MulAdd(vA1, vB, acc1)
+					}
+
+					hwy.Store(acc0, c[cRow0+j:])
+					hwy.Store(acc1, c[cRow1+j:])
+				}
+
+				// Scalar tail for remaining columns
+				for ; j < jEnd; j++ {
+					var sum0, sum1 T
+					for p := 0; p < k; p++ {
+						bp := b[p*n+j]
+						sum0 += a[i*k+p] * bp
+						sum1 += a[(i+1)*k+p] * bp
+					}
+					c[cRow0+j] = sum0
+					c[cRow1+j] = sum1
+				}
+
+				i += 2
+			}
+
+			// Handle final single row if M % 2 == 1
 			for ; i < iEnd; i++ {
 				cRowStart := i * n
 

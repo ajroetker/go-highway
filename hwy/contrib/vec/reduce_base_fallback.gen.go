@@ -96,13 +96,13 @@ func BaseMin_fallback_Float16(v []hwy.Float16) hwy.Float16 {
 		va := hwy.LoadFull(v[i:])
 		minVec = hwy.Min(minVec, va)
 	}
-	result := hwy.ReduceMin(minVec)
+	result := hwy.ReduceMin(minVec).Float32()
 	for ; i < len(v); i++ {
-		if v[i].Float32() < result.Float32() {
-			result = v[i]
+		if v[i].Float32() < result {
+			result = v[i].Float32()
 		}
 	}
-	return result
+	return hwy.Float32ToFloat16(result)
 }
 
 func BaseMin_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
@@ -125,13 +125,13 @@ func BaseMin_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 		va := hwy.LoadFull(v[i:])
 		minVec = hwy.Min(minVec, va)
 	}
-	result := hwy.ReduceMin(minVec)
+	result := hwy.ReduceMin(minVec).Float32()
 	for ; i < len(v); i++ {
-		if v[i].Float32() < result.Float32() {
-			result = v[i]
+		if v[i].Float32() < result {
+			result = v[i].Float32()
 		}
 	}
-	return result
+	return hwy.Float32ToBFloat16(result)
 }
 
 func BaseMin_fallback(v []float32) float32 {
@@ -384,8 +384,8 @@ func BaseMinMax_fallback_Float16(v []hwy.Float16) (minVal hwy.Float16, maxVal hw
 		minVec = hwy.Min(minVec, va)
 		maxVec = hwy.Max(maxVec, va)
 	}
-	minVal = hwy.ReduceMin(minVec)
-	maxVal = hwy.ReduceMax(maxVec)
+	minVal = hwy.Float32ToFloat16(hwy.ReduceMin(minVec).Float32())
+	maxVal = hwy.Float32ToFloat16(hwy.ReduceMax(maxVec).Float32())
 	for ; i < len(v); i++ {
 		if v[i].Float32() < minVal.Float32() {
 			minVal = v[i]
@@ -423,8 +423,8 @@ func BaseMinMax_fallback_BFloat16(v []hwy.BFloat16) (minVal hwy.BFloat16, maxVal
 		minVec = hwy.Min(minVec, va)
 		maxVec = hwy.Max(maxVec, va)
 	}
-	minVal = hwy.ReduceMin(minVec)
-	maxVal = hwy.ReduceMax(maxVec)
+	minVal = hwy.Float32ToBFloat16(hwy.ReduceMin(minVec).Float32())
+	maxVal = hwy.Float32ToBFloat16(hwy.ReduceMax(maxVec).Float32())
 	for ; i < len(v); i++ {
 		if v[i].Float32() < minVal.Float32() {
 			minVal = v[i]

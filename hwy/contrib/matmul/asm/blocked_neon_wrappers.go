@@ -28,6 +28,8 @@ import (
 //go:generate go tool goat ../c/matmul_blocked_f16_arm64.c -O3 --target arm64 -e="-march=armv8.2-a+fp16"
 // BF16: Requires ARMv8.6-A with BF16 extension
 //go:generate go tool goat ../c/matmul_blocked_bf16_arm64.c -O3 --target arm64 -e="-march=armv8.6-a+bf16"
+// F32/F64: Uses standard NEON (ARMv8-A base)
+//go:generate go tool goat ../c/matmul_blocked_neon_f32f64_arm64.c -O3 --target arm64 -e="-march=armv8-a"
 
 // BlockedMatMulNEONF16 performs cache-tiled matrix multiplication using NEON: C = A * B
 // A is M x K (row-major), B is K x N (row-major), C is M x N (row-major).
@@ -82,6 +84,66 @@ func BlockedMatMulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	nVal := int64(n)
 	kVal := int64(k)
 	blocked_matmul_neon_bf16(
+		unsafe.Pointer(&a[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+	)
+}
+
+// BlockedMatMulNEONF32 performs cache-tiled matrix multiplication using NEON: C = A * B
+// A is M x K (row-major), B is K x N (row-major), C is M x N (row-major).
+//
+// Uses cache-efficient blocking with 48x48 tiles.
+//
+// Parameters:
+//   - a: M x K matrix (row-major)
+//   - b: K x N matrix (row-major)
+//   - c: M x N matrix (row-major, output)
+//   - m, n, k: matrix dimensions
+func BlockedMatMulNEONF32(a, b, c []float32, m, n, k int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	if len(a) < m*k || len(b) < k*n || len(c) < m*n {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	blocked_matmul_neon_f32(
+		unsafe.Pointer(&a[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+	)
+}
+
+// BlockedMatMulNEONF64 performs cache-tiled matrix multiplication using NEON: C = A * B
+// A is M x K (row-major), B is K x N (row-major), C is M x N (row-major).
+//
+// Uses cache-efficient blocking with 48x48 tiles.
+//
+// Parameters:
+//   - a: M x K matrix (row-major)
+//   - b: K x N matrix (row-major)
+//   - c: M x N matrix (row-major, output)
+//   - m, n, k: matrix dimensions
+func BlockedMatMulNEONF64(a, b, c []float64, m, n, k int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	if len(a) < m*k || len(b) < k*n || len(c) < m*n {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	blocked_matmul_neon_f64(
 		unsafe.Pointer(&a[0]),
 		unsafe.Pointer(&b[0]),
 		unsafe.Pointer(&c[0]),

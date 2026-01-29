@@ -35,3 +35,27 @@ func BaseDecodeGroupVarint32_fallback(src []byte) (values [4]uint32, consumed in
 	values[3] = decodeValue32(src, int(offsets[3]), ((int(control)>>6)&0x3)+1)
 	return values, totalLen
 }
+
+func BaseDecodeGroupVarint64_fallback(src []byte) (values [4]uint64, consumed int) {
+	if len(src) < 2 {
+		return [4]uint64{}, 0
+	}
+	control := uint16(src[0]) | (uint16(src[1]) << 8)
+	len0 := int((control>>0)&0x7) + 1
+	len1 := int((control>>3)&0x7) + 1
+	len2 := int((control>>6)&0x7) + 1
+	len3 := int((control>>9)&0x7) + 1
+	totalLen := 2 + len0 + len1 + len2 + len3
+	if len(src) < totalLen {
+		return [4]uint64{}, 0
+	}
+	offset := 2
+	values[0] = decodeValue64(src, offset, len0)
+	offset += len0
+	values[1] = decodeValue64(src, offset, len1)
+	offset += len1
+	values[2] = decodeValue64(src, offset, len2)
+	offset += len2
+	values[3] = decodeValue64(src, offset, len3)
+	return values, totalLen
+}

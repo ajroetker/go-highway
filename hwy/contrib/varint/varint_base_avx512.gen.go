@@ -47,3 +47,87 @@ func BaseFindVarintEnds_avx512(src []byte) uint32 {
 	}
 	return mask
 }
+
+func BaseDecodeUvarint64Batch_avx512(src []byte, dst []uint64, n int) (decoded int, consumed int) {
+	_varintBaseInitHoistedConstants()
+	if len(src) == 0 || n == 0 || len(dst) == 0 {
+		return 0, 0
+	}
+	maxDecode := min(n, len(dst))
+	pos := 0
+	for decoded < maxDecode && pos < len(src) {
+		val, bytesRead := decodeOneUvarint64(src[pos:])
+		if bytesRead == 0 {
+			break
+		}
+		dst[decoded] = val
+		decoded++
+		pos += bytesRead
+	}
+	return decoded, pos
+}
+
+func BaseDecode2Uvarint64_avx512(src []byte) (v1 uint64, v2 uint64, consumed int) {
+	_varintBaseInitHoistedConstants()
+	if len(src) == 0 {
+		return 0, 0, 0
+	}
+	val1, n1 := decodeOneUvarint64(src)
+	if n1 == 0 {
+		return 0, 0, 0
+	}
+	if n1 >= len(src) {
+		return 0, 0, 0
+	}
+	val2, n2 := decodeOneUvarint64(src[n1:])
+	if n2 == 0 {
+		return 0, 0, 0
+	}
+	return val1, val2, n1 + n2
+}
+
+func BaseDecode5Uvarint64_avx512(src []byte) (values [5]uint64, consumed int) {
+	_varintBaseInitHoistedConstants()
+	if len(src) == 0 {
+		return [5]uint64{}, 0
+	}
+	pos := 0
+	for i := 0; i < 5; i++ {
+		if pos >= len(src) {
+			return [5]uint64{}, 0
+		}
+		val, n := decodeOneUvarint64(src[pos:])
+		if n == 0 {
+			return [5]uint64{}, 0
+		}
+		values[i] = val
+		pos += n
+	}
+	return values, pos
+}
+
+func BaseDecodeUvarint64BatchWithMask_avx512(src []byte, dst []uint64, mask uint32, n int) (decoded int, consumed int) {
+	_varintBaseInitHoistedConstants()
+	if mask == 0 || len(src) == 0 || n == 0 || len(dst) == 0 {
+		return 0, 0
+	}
+	maxDecode := min(n, len(dst))
+	pos := 0
+	startPos := 0
+	for mask != 0 && decoded < maxDecode {
+		endPos := trailingZeros32(mask)
+		if endPos >= len(src) {
+			break
+		}
+		val, bytesRead := decodeOneUvarint64(src[startPos : endPos+1])
+		if bytesRead == 0 || startPos+bytesRead-1 != endPos {
+			break
+		}
+		dst[decoded] = val
+		decoded++
+		pos = endPos + 1
+		startPos = pos
+		mask &= mask - 1
+	}
+	return decoded, pos
+}

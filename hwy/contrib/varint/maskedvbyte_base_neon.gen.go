@@ -67,6 +67,25 @@ func BaseMaskedVByteDecodeGroup_neon(src []byte, dst []uint32) (decoded int, con
 	return int(lookup.numValues), int(lookup.bytesConsumed)
 }
 
+func baseMaskedVByteDecodeOne32_neon(src []byte) (uint32, int) {
+	var x uint32
+	var s uint
+	for i, b := range src {
+		if i >= 5 {
+			return 0, 0
+		}
+		if b < 0x80 {
+			if i == 4 && b > 0x0f {
+				return 0, 0
+			}
+			return x | uint32(b)<<s, i + 1
+		}
+		x |= uint32(b&0x7f) << s
+		s += 7
+	}
+	return 0, 0
+}
+
 func BaseMaskedVByteDecodeBatch64_neon(src []byte, dst []uint64, n int) (decoded int, consumed int) {
 	if len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
@@ -83,4 +102,23 @@ func BaseMaskedVByteDecodeBatch64_neon(src []byte, dst []uint64, n int) (decoded
 		pos += bytesRead
 	}
 	return decoded, pos
+}
+
+func baseMaskedVByteDecodeOne64_neon(src []byte) (uint64, int) {
+	var x uint64
+	var s uint
+	for i, b := range src {
+		if i >= 10 {
+			return 0, 0
+		}
+		if b < 0x80 {
+			if i == 9 && b > 1 {
+				return 0, 0
+			}
+			return x | uint64(b)<<s, i + 1
+		}
+		x |= uint64(b&0x7f) << s
+		s += 7
+	}
+	return 0, 0
 }

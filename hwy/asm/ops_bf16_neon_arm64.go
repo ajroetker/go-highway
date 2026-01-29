@@ -27,3 +27,42 @@ func load4_bf16x8(ptr, out0, out1, out2, out3 unsafe.Pointer)
 
 //go:noescape
 func store4_bf16x8(ptr unsafe.Pointer, v0, v1, v2, v3 [16]byte)
+
+//go:noescape
+func broadcast_bf16x8(val unsafe.Pointer) (result [16]byte)
+
+//go:noescape
+func add_bf16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func sub_bf16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func mul_bf16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func div_bf16x8(a, b [16]byte) (result [16]byte)
+
+//go:noescape
+func fma_bf16x8(a, b, c [16]byte) (result [16]byte)
+
+//go:noescape
+func add_bf16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func sub_bf16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func mul_bf16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func div_bf16x8_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func muladd_bf16x8_acc(a, b [16]byte, acc unsafe.Pointer)
+
+//go:noescape
+func muladd_bf16x8_ip(a, b, c [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func bfdot_bf16x8_f32x4_acc(a, b [16]byte, acc unsafe.Pointer)

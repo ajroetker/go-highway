@@ -535,3 +535,101 @@ void sqrt_f16_neon(unsigned short *a, unsigned short *result, long *len) {
         vst1_lane_f16((float16_t*)(result + i), rv, 0);
     }
 }
+
+// ============================================================================
+// Float16x8 Single-Vector Operations (register-resident)
+// ============================================================================
+// These operate on single 128-bit vectors (8 float16 values) for use in
+// tight inner loops. Both return-value and in-place variants are provided.
+
+// Broadcast a scalar float16 to all 8 lanes
+float16x8_t broadcast_f16x8(unsigned short *val) {
+    return vld1q_dup_f16((float16_t*)val);
+}
+
+// Return-value operations
+float16x8_t add_f16x8(float16x8_t a, float16x8_t b) {
+    return vaddq_f16(a, b);
+}
+
+float16x8_t sub_f16x8(float16x8_t a, float16x8_t b) {
+    return vsubq_f16(a, b);
+}
+
+float16x8_t mul_f16x8(float16x8_t a, float16x8_t b) {
+    return vmulq_f16(a, b);
+}
+
+float16x8_t div_f16x8(float16x8_t a, float16x8_t b) {
+    return vdivq_f16(a, b);
+}
+
+float16x8_t min_f16x8(float16x8_t a, float16x8_t b) {
+    return vminq_f16(a, b);
+}
+
+float16x8_t max_f16x8(float16x8_t a, float16x8_t b) {
+    return vmaxq_f16(a, b);
+}
+
+float16x8_t abs_f16x8(float16x8_t a) {
+    return vabsq_f16(a);
+}
+
+float16x8_t neg_f16x8(float16x8_t a) {
+    return vnegq_f16(a);
+}
+
+float16x8_t sqrt_f16x8(float16x8_t a) {
+    return vsqrtq_f16(a);
+}
+
+// Fused multiply-add: a * b + c
+float16x8_t fma_f16x8(float16x8_t a, float16x8_t b, float16x8_t c) {
+    return vfmaq_f16(c, a, b);
+}
+
+// Fused multiply-subtract: a * b - c
+float16x8_t fms_f16x8(float16x8_t a, float16x8_t b, float16x8_t c) {
+    return vfmsq_f16(c, a, b);
+}
+
+// ============================================================================
+// Float16x8 In-Place Operations (avoid return allocation overhead)
+// ============================================================================
+// These write results directly to an output pointer, avoiding the stack
+// allocation overhead of returning [16]byte values in Go.
+
+void add_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t *result) {
+    *result = vaddq_f16(a, b);
+}
+
+void sub_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t *result) {
+    *result = vsubq_f16(a, b);
+}
+
+void mul_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t *result) {
+    *result = vmulq_f16(a, b);
+}
+
+void div_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t *result) {
+    *result = vdivq_f16(a, b);
+}
+
+void min_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t *result) {
+    *result = vminq_f16(a, b);
+}
+
+void max_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t *result) {
+    *result = vmaxq_f16(a, b);
+}
+
+// Fused multiply-add with accumulator: *acc = a * b + *acc
+void muladd_f16x8_acc(float16x8_t a, float16x8_t b, float16x8_t *acc) {
+    *acc = vfmaq_f16(*acc, a, b);
+}
+
+// Fused multiply-add to output: *result = a * b + c
+void muladd_f16x8_ip(float16x8_t a, float16x8_t b, float16x8_t c, float16x8_t *result) {
+    *result = vfmaq_f16(c, a, b);
+}

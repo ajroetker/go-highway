@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !noasm && darwin && arm64
+//go:build !noasm && arm64
 
 // SME FMOPA Block Kernel wrappers for ARM64
 // C += A^T * B using SME FMOPA outer product for square blocks.
@@ -34,8 +34,14 @@ func BlockMulAddFMOPAF32(aT, b, c []float32, blockDim int) {
 		return
 	}
 	n := blockDim * blockDim
-	if len(aT) < n || len(b) < n || len(c) < n {
-		return
+	if len(aT) < n {
+		panic("BlockMulAddFMOPAF32: aT slice too short")
+	}
+	if len(b) < n {
+		panic("BlockMulAddFMOPAF32: b slice too short")
+	}
+	if len(c) < n {
+		panic("BlockMulAddFMOPAF32: c slice too short")
 	}
 	block_muladd_fmopa_f32(
 		unsafe.Pointer(&aT[0]),
@@ -55,8 +61,14 @@ func BlockMulAddFMOPAF64(aT, b, c []float64, blockDim int) {
 		return
 	}
 	n := blockDim * blockDim
-	if len(aT) < n || len(b) < n || len(c) < n {
-		return
+	if len(aT) < n {
+		panic("BlockMulAddFMOPAF64: aT slice too short")
+	}
+	if len(b) < n {
+		panic("BlockMulAddFMOPAF64: b slice too short")
+	}
+	if len(c) < n {
+		panic("BlockMulAddFMOPAF64: c slice too short")
 	}
 	block_muladd_fmopa_f64(
 		unsafe.Pointer(&aT[0]),

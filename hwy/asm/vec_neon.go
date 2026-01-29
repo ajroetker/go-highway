@@ -173,6 +173,50 @@ func (v Float32x4) MulSub(a, b Float32x4) Float32x4 {
 	return Float32x4(fms_f32x4([16]byte(v), [16]byte(a), [16]byte(b)))
 }
 
+// ===== Float32x4 in-place methods (allocation-free) =====
+
+// AddInto performs element-wise addition, storing result in *result.
+// This avoids return value allocation overhead.
+func (v Float32x4) AddInto(other Float32x4, result *Float32x4) {
+	add_f32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// SubInto performs element-wise subtraction, storing result in *result.
+func (v Float32x4) SubInto(other Float32x4, result *Float32x4) {
+	sub_f32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MulInto performs element-wise multiplication, storing result in *result.
+func (v Float32x4) MulInto(other Float32x4, result *Float32x4) {
+	mul_f32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// DivInto performs element-wise division, storing result in *result.
+func (v Float32x4) DivInto(other Float32x4, result *Float32x4) {
+	div_f32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MinInto performs element-wise minimum, storing result in *result.
+func (v Float32x4) MinInto(other Float32x4, result *Float32x4) {
+	min_f32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MaxInto performs element-wise maximum, storing result in *result.
+func (v Float32x4) MaxInto(other Float32x4, result *Float32x4) {
+	max_f32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MulAddAcc performs fused multiply-add accumulation: *acc = v * a + *acc.
+// This is the most efficient pattern for inner loops (no return allocation).
+func (v Float32x4) MulAddAcc(a Float32x4, acc *Float32x4) {
+	muladd_f32x4_acc([16]byte(v), [16]byte(a), unsafe.Pointer(acc))
+}
+
+// MulAddInto performs fused multiply-add: *result = v * a + b.
+func (v Float32x4) MulAddInto(a, b Float32x4, result *Float32x4) {
+	muladd_f32x4_ip([16]byte(v), [16]byte(a), [16]byte(b), unsafe.Pointer(result))
+}
+
 // Recip returns the reciprocal estimate (1/x).
 func (v Float32x4) Recip() Float32x4 {
 	return Float32x4(recip_f32x4([16]byte(v)))
@@ -534,6 +578,48 @@ func (v Float64x2) Neg() Float64x2 {
 // MulAdd performs fused multiply-add: v * a + b
 func (v Float64x2) MulAdd(a, b Float64x2) Float64x2 {
 	return Float64x2(fma_f64x2([16]byte(v), [16]byte(a), [16]byte(b)))
+}
+
+// ===== Float64x2 in-place methods (allocation-free) =====
+
+// AddInto performs element-wise addition, storing result in *result.
+func (v Float64x2) AddInto(other Float64x2, result *Float64x2) {
+	add_f64x2_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// SubInto performs element-wise subtraction, storing result in *result.
+func (v Float64x2) SubInto(other Float64x2, result *Float64x2) {
+	sub_f64x2_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MulInto performs element-wise multiplication, storing result in *result.
+func (v Float64x2) MulInto(other Float64x2, result *Float64x2) {
+	mul_f64x2_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// DivInto performs element-wise division, storing result in *result.
+func (v Float64x2) DivInto(other Float64x2, result *Float64x2) {
+	div_f64x2_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MinInto performs element-wise minimum, storing result in *result.
+func (v Float64x2) MinInto(other Float64x2, result *Float64x2) {
+	min_f64x2_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MaxInto performs element-wise maximum, storing result in *result.
+func (v Float64x2) MaxInto(other Float64x2, result *Float64x2) {
+	max_f64x2_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MulAddAcc performs fused multiply-add accumulation: *acc = v * a + *acc.
+func (v Float64x2) MulAddAcc(a Float64x2, acc *Float64x2) {
+	muladd_f64x2_acc([16]byte(v), [16]byte(a), unsafe.Pointer(acc))
+}
+
+// MulAddInto performs fused multiply-add: *result = v * a + b.
+func (v Float64x2) MulAddInto(a, b Float64x2, result *Float64x2) {
+	muladd_f64x2_ip([16]byte(v), [16]byte(a), [16]byte(b), unsafe.Pointer(result))
 }
 
 // Pow computes v^exp element-wise using SIMD math.
@@ -1030,6 +1116,33 @@ func (v Int32x4) Min(other Int32x4) Int32x4 {
 // Max performs element-wise maximum.
 func (v Int32x4) Max(other Int32x4) Int32x4 {
 	return Int32x4(max_i32x4([16]byte(v), [16]byte(other)))
+}
+
+// ===== Int32x4 in-place methods (allocation-free) =====
+
+// AddInto performs element-wise addition, storing result in *result.
+func (v Int32x4) AddInto(other Int32x4, result *Int32x4) {
+	add_i32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// SubInto performs element-wise subtraction, storing result in *result.
+func (v Int32x4) SubInto(other Int32x4, result *Int32x4) {
+	sub_i32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MulInto performs element-wise multiplication, storing result in *result.
+func (v Int32x4) MulInto(other Int32x4, result *Int32x4) {
+	mul_i32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MinInto performs element-wise minimum, storing result in *result.
+func (v Int32x4) MinInto(other Int32x4, result *Int32x4) {
+	min_i32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
+}
+
+// MaxInto performs element-wise maximum, storing result in *result.
+func (v Int32x4) MaxInto(other Int32x4, result *Int32x4) {
+	max_i32x4_ip([16]byte(v), [16]byte(other), unsafe.Pointer(result))
 }
 
 // Abs performs element-wise absolute value.

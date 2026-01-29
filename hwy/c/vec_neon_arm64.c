@@ -747,6 +747,103 @@ uint64x2_t slide_up_1_u64x2(uint64x2_t v) {
 }
 
 // ============================================================================
+// In-Place Arithmetic Operations (avoid return allocation overhead)
+// ============================================================================
+// These functions write results directly to an output pointer, avoiding the
+// stack allocation overhead of returning [16]byte values in Go.
+
+// Float32x4 in-place operations
+void add_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t *result) {
+    *result = vaddq_f32(a, b);
+}
+
+void sub_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t *result) {
+    *result = vsubq_f32(a, b);
+}
+
+void mul_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t *result) {
+    *result = vmulq_f32(a, b);
+}
+
+void div_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t *result) {
+    *result = vdivq_f32(a, b);
+}
+
+void min_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t *result) {
+    *result = vminq_f32(a, b);
+}
+
+void max_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t *result) {
+    *result = vmaxq_f32(a, b);
+}
+
+// Fused multiply-add with accumulator: *acc = a * b + *acc
+void muladd_f32x4_acc(float32x4_t a, float32x4_t b, float32x4_t *acc) {
+    *acc = vfmaq_f32(*acc, a, b);
+}
+
+// Fused multiply-add to output: *result = a * b + c
+void muladd_f32x4_ip(float32x4_t a, float32x4_t b, float32x4_t c, float32x4_t *result) {
+    *result = vfmaq_f32(c, a, b);
+}
+
+// Float64x2 in-place operations
+void add_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t *result) {
+    *result = vaddq_f64(a, b);
+}
+
+void sub_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t *result) {
+    *result = vsubq_f64(a, b);
+}
+
+void mul_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t *result) {
+    *result = vmulq_f64(a, b);
+}
+
+void div_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t *result) {
+    *result = vdivq_f64(a, b);
+}
+
+void min_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t *result) {
+    *result = vminq_f64(a, b);
+}
+
+void max_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t *result) {
+    *result = vmaxq_f64(a, b);
+}
+
+// Fused multiply-add with accumulator: *acc = a * b + *acc
+void muladd_f64x2_acc(float64x2_t a, float64x2_t b, float64x2_t *acc) {
+    *acc = vfmaq_f64(*acc, a, b);
+}
+
+// Fused multiply-add to output: *result = a * b + c
+void muladd_f64x2_ip(float64x2_t a, float64x2_t b, float64x2_t c, float64x2_t *result) {
+    *result = vfmaq_f64(c, a, b);
+}
+
+// Int32x4 in-place operations
+void add_i32x4_ip(int32x4_t a, int32x4_t b, int32x4_t *result) {
+    *result = vaddq_s32(a, b);
+}
+
+void sub_i32x4_ip(int32x4_t a, int32x4_t b, int32x4_t *result) {
+    *result = vsubq_s32(a, b);
+}
+
+void mul_i32x4_ip(int32x4_t a, int32x4_t b, int32x4_t *result) {
+    *result = vmulq_s32(a, b);
+}
+
+void min_i32x4_ip(int32x4_t a, int32x4_t b, int32x4_t *result) {
+    *result = vminq_s32(a, b);
+}
+
+void max_i32x4_ip(int32x4_t a, int32x4_t b, int32x4_t *result) {
+    *result = vmaxq_s32(a, b);
+}
+
+// ============================================================================
 // Multi-Register Load Operations (for better memory bandwidth)
 // ============================================================================
 // These use ld1 with 4 registers which loads 64 bytes in a single instruction,

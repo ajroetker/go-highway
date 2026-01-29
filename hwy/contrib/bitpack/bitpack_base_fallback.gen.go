@@ -24,12 +24,44 @@ func BasePack32_fallback(src []uint32, bitWidth int, dst []byte) int {
 		v = hwy.And(v, maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane(v, lane)
-			packValue32(val, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_1 := bitWidth
+				for remaining_1 > 0 {
+					bitsAvailable_1 := 8 - *&bitPos
+					bitsToWrite_1 := min(remaining_1, bitsAvailable_1)
+					writeMask_1 := uint32((1 << bitsToWrite_1) - 1)
+					bits_1 := val & writeMask_1
+					val >>= bitsToWrite_1
+					remaining_1 -= bitsToWrite_1
+					dst[*&bytePos] |= byte(bits_1 << *&bitPos)
+					*&bitPos += bitsToWrite_1
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 	}
 	for ; i < len(src); i++ {
 		val := src[i] & mask
-		packValue32(val, bitWidth, &bitPos, &bytePos, dst)
+		{
+			remaining_2 := bitWidth
+			for remaining_2 > 0 {
+				bitsAvailable_2 := 8 - *&bitPos
+				bitsToWrite_2 := min(remaining_2, bitsAvailable_2)
+				writeMask_2 := uint32((1 << bitsToWrite_2) - 1)
+				bits_2 := val & writeMask_2
+				val >>= bitsToWrite_2
+				remaining_2 -= bitsToWrite_2
+				dst[*&bytePos] |= byte(bits_2 << *&bitPos)
+				*&bitPos += bitsToWrite_2
+				if *&bitPos >= 8 {
+					*&bitPos = 0
+					*&bytePos++
+				}
+			}
+		}
 	}
 	if bitPos > 0 {
 		return bytePos + 1
@@ -82,12 +114,44 @@ func BasePack64_fallback(src []uint64, bitWidth int, dst []byte) int {
 		v = hwy.And(v, maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane(v, lane)
-			packValue64(val, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_1 := bitWidth
+				for remaining_1 > 0 {
+					bitsAvailable_1 := 8 - *&bitPos
+					bitsToWrite_1 := min(remaining_1, bitsAvailable_1)
+					writeMask_1 := uint64((1 << bitsToWrite_1) - 1)
+					bits_1 := val & writeMask_1
+					val >>= bitsToWrite_1
+					remaining_1 -= bitsToWrite_1
+					dst[*&bytePos] |= byte(bits_1 << *&bitPos)
+					*&bitPos += bitsToWrite_1
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 	}
 	for ; i < len(src); i++ {
 		val := src[i] & mask
-		packValue64(val, bitWidth, &bitPos, &bytePos, dst)
+		{
+			remaining_2 := bitWidth
+			for remaining_2 > 0 {
+				bitsAvailable_2 := 8 - *&bitPos
+				bitsToWrite_2 := min(remaining_2, bitsAvailable_2)
+				writeMask_2 := uint64((1 << bitsToWrite_2) - 1)
+				bits_2 := val & writeMask_2
+				val >>= bitsToWrite_2
+				remaining_2 -= bitsToWrite_2
+				dst[*&bytePos] |= byte(bits_2 << *&bitPos)
+				*&bitPos += bitsToWrite_2
+				if *&bitPos >= 8 {
+					*&bitPos = 0
+					*&bytePos++
+				}
+			}
+		}
 	}
 	if bitPos > 0 {
 		return bytePos + 1

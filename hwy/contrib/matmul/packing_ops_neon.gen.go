@@ -5,6 +5,8 @@
 package matmul
 
 import (
+	"unsafe"
+
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
@@ -19,8 +21,8 @@ func BasePackRHSFast_neon_Float16(b []hwy.Float16, packed []hwy.Float16, n int, 
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[srcIdx+c:][0]))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
 				}
 				dstIdx += nr
 			}
@@ -50,8 +52,8 @@ func BasePackRHSFast_neon_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n in
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[srcIdx+c:][0]))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
 				}
 				dstIdx += nr
 			}
@@ -135,18 +137,18 @@ func BasePackRHSFast_neon_Float64(b []float64, packed []float64, n int, rowStart
 
 func BaseApplyPackedOutput_neon_Float16(packedOutput []hwy.Float16, output []hwy.Float16, alpha hwy.Float16, beta hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	alphaVec := hwy.Set(alpha)
-	betaVec := hwy.Set(beta)
+	alphaVec := asm.BroadcastFloat16x8(uint16(alpha))
+	betaVec := asm.BroadcastFloat16x8(uint16(beta))
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			scaledOutput := hwy.MulF16(outputVal, betaVec)
-			newVal := hwy.FMAF16(packedVal, alphaVec, scaledOutput)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadFloat16x8Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
+			outputVal := asm.LoadFloat16x8Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
+			scaledOutput := outputVal.Mul(betaVec)
+			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -157,18 +159,18 @@ func BaseApplyPackedOutput_neon_Float16(packedOutput []hwy.Float16, output []hwy
 
 func BaseApplyPackedOutput_neon_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16, beta hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	alphaVec := hwy.Set(alpha)
-	betaVec := hwy.Set(beta)
+	alphaVec := asm.BroadcastBFloat16x8(uint16(alpha))
+	betaVec := asm.BroadcastBFloat16x8(uint16(beta))
 	for r := 0; r < height; r++ {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			scaledOutput := hwy.MulBF16(outputVal, betaVec)
-			newVal := hwy.FMABF16(packedVal, alphaVec, scaledOutput)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
+			outputVal := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
+			scaledOutput := outputVal.Mul(betaVec)
+			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -228,8 +230,8 @@ func BaseApplyPackedOutputSimple_neon_Float16(packedOutput []hwy.Float16, output
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
+			v.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(packedOutput[packedIdx+c].Float32())
@@ -244,8 +246,8 @@ func BaseApplyPackedOutputSimple_neon_BFloat16(packedOutput []hwy.BFloat16, outp
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
+			v.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(packedOutput[packedIdx+c].Float32())
@@ -292,10 +294,10 @@ func BaseApplyPackedOutputAccum_neon_Float16(packedOutput []hwy.Float16, output 
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			newVal := hwy.AddF16(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadFloat16x8Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
+			outputVal := asm.LoadFloat16x8Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
+			newVal := outputVal.Add(packedVal)
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())
@@ -310,10 +312,10 @@ func BaseApplyPackedOutputAccum_neon_BFloat16(packedOutput []hwy.BFloat16, outpu
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
-			newVal := hwy.AddBF16(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			packedVal := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
+			outputVal := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
+			newVal := outputVal.Add(packedVal)
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())

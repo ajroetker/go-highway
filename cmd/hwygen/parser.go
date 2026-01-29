@@ -112,6 +112,7 @@ type ConditionalBlock struct {
 // ParseResult contains all parsed information from a source file.
 type ParseResult struct {
 	Funcs              []ParsedFunc
+	AllFuncs           map[string]*ParsedFunc        // ALL functions in file, keyed by name (for inlining)
 	PackageName        string
 	TypeSpecificConsts map[string]*TypeSpecificConst // map[base_name]variants
 	ConditionalBlocks  []ConditionalBlock
@@ -129,6 +130,7 @@ func Parse(filename string) (*ParseResult, error) {
 
 	result := &ParseResult{
 		PackageName:        file.Name.Name,
+		AllFuncs:           make(map[string]*ParsedFunc),
 		TypeSpecificConsts: make(map[string]*TypeSpecificConst),
 		FileSet:            fset,
 		Imports:            make(map[string]string),
@@ -186,13 +188,14 @@ func Parse(filename string) (*ParseResult, error) {
 			continue
 		}
 
-		// Only process functions (not methods) that start with "Base" or "base"
+		// Skip methods (have a receiver)
+		if funcDecl.Recv != nil {
+			continue
+		}
+
 		name := funcDecl.Name.Name
 		isExportedBase := strings.HasPrefix(name, "Base")
 		isPrivateBase := !isExportedBase && strings.HasPrefix(name, "base")
-		if funcDecl.Recv != nil || (!isExportedBase && !isPrivateBase) {
-			continue
-		}
 
 		pf := ParsedFunc{
 			Name:    name,
@@ -249,11 +252,18 @@ func Parse(filename string) (*ParseResult, error) {
 		// Detect main vectorized loop (with unroll directive support)
 		pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
 
+		// Store ALL functions in AllFuncs for potential inlining
+		pfCopy := pf // Make a copy since pf is reused
+		result.AllFuncs[name] = &pfCopy
+
+		// Only add Base*/base* functions to Funcs for code generation
 		// Include functions that use hwy operations OR have hwy.Lanes type parameters
 		// (generic functions with hwy.Lanes need type specialization even without hwy ops)
-		hasHwyLanesTypeParam := hasHwyLanesConstraint(pf.TypeParams)
-		if len(pf.HwyCalls) > 0 || hasHwyLanesTypeParam {
-			result.Funcs = append(result.Funcs, pf)
+		if isExportedBase || isPrivateBase {
+			hasHwyLanesTypeParam := hasHwyLanesConstraint(pf.TypeParams)
+			if len(pf.HwyCalls) > 0 || hasHwyLanesTypeParam {
+				result.Funcs = append(result.Funcs, pf)
+			}
 		}
 	}
 
@@ -265,8 +275,26 @@ func hasBasePrefix(name string) bool {
 	return strings.HasPrefix(name, "Base") || strings.HasPrefix(name, "base")
 }
 
+// isBuiltinOrCommon returns true if the name is a built-in function or common identifier
+// that should not be tracked as a local helper function.
+// Uses go/ast's IsExported as a heuristic: unexported names starting with lowercase
+// that aren't in our AllFuncs map are likely local helpers we should track.
+// For the initial parsing pass, we track ALL potential local function calls and filter
+// later when we have the full AllFuncs map.
+func isBuiltinOrCommon(name string) bool {
+	// Built-in functions from Go spec (these are the only ones that need explicit listing)
+	// https://pkg.go.dev/builtin
+	builtins := map[string]bool{
+		"append": true, "cap": true, "clear": true, "close": true, "complex": true,
+		"copy": true, "delete": true, "imag": true, "len": true, "make": true,
+		"max": true, "min": true, "new": true, "panic": true, "print": true,
+		"println": true, "real": true, "recover": true,
+	}
+	return builtins[name]
+}
+
 // findHwyCalls walks the AST and finds all hwy.* and contrib.* calls and references.
-// Also detects calls to Base*/base* functions within the same package.
+// Also detects calls to Base*/base* functions and local helper functions within the same package.
 func findHwyCalls(node ast.Node) []HwyCall {
 	var calls []HwyCall
 	seen := make(map[string]bool) // Avoid duplicates
@@ -277,29 +305,38 @@ func findHwyCalls(node ast.Node) []HwyCall {
 
 		switch expr := n.(type) {
 		case *ast.CallExpr:
-			// Check for same-package Base*/base* function calls
+			// Check for same-package function calls (both Base* and non-Base* helpers)
 			if ident, ok := expr.Fun.(*ast.Ident); ok {
-				if hasBasePrefix(ident.Name) {
-					key := "local." + ident.Name
+				// Skip built-in functions and common identifiers
+				if !isBuiltinOrCommon(ident.Name) {
+					pkg := "localHelper"
+					if hasBasePrefix(ident.Name) {
+						pkg = "local" // Existing behavior for Base* functions
+					}
+					key := pkg + "." + ident.Name
 					if !seen[key] {
 						seen[key] = true
 						calls = append(calls, HwyCall{
-							Package:  "local",
+							Package:  pkg,
 							FuncName: ident.Name,
 							Position: expr.Pos(),
 						})
 					}
 				}
 			}
-			// Check for same-package generic Base*/base* function calls: BaseApply[T](...) / baseApply[T](...)
+			// Check for same-package generic function calls: func[T](...)
 			if indexExpr, ok := expr.Fun.(*ast.IndexExpr); ok {
 				if ident, ok := indexExpr.X.(*ast.Ident); ok {
-					if hasBasePrefix(ident.Name) {
-						key := "local." + ident.Name
+					if !isBuiltinOrCommon(ident.Name) {
+						pkg := "localHelper"
+						if hasBasePrefix(ident.Name) {
+							pkg = "local"
+						}
+						key := pkg + "." + ident.Name
 						if !seen[key] {
 							seen[key] = true
 							calls = append(calls, HwyCall{
-								Package:  "local",
+								Package:  pkg,
 								FuncName: ident.Name,
 								Position: expr.Pos(),
 							})

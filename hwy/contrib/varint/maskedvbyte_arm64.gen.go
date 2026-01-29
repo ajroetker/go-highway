@@ -10,7 +10,9 @@ import (
 
 var MaskedVByteDecodeBatch32 func(src []byte, dst []uint32, n int) (decoded int, consumed int)
 var MaskedVByteDecodeGroup func(src []byte, dst []uint32) (decoded int, consumed int)
+var maskedVByteDecodeOne32 func(src []byte) (uint32, int)
 var MaskedVByteDecodeBatch64 func(src []byte, dst []uint64, n int) (decoded int, consumed int)
+var maskedVByteDecodeOne64 func(src []byte) (uint64, int)
 
 func init() {
 	if hwy.NoSimdEnv() {
@@ -24,11 +26,15 @@ func init() {
 func initMaskedvbyteNEON() {
 	MaskedVByteDecodeBatch32 = BaseMaskedVByteDecodeBatch32_neon
 	MaskedVByteDecodeGroup = BaseMaskedVByteDecodeGroup_neon
+	maskedVByteDecodeOne32 = baseMaskedVByteDecodeOne32_neon
 	MaskedVByteDecodeBatch64 = BaseMaskedVByteDecodeBatch64_neon
+	maskedVByteDecodeOne64 = baseMaskedVByteDecodeOne64_neon
 }
 
 func initMaskedvbyteFallback() {
 	MaskedVByteDecodeBatch32 = BaseMaskedVByteDecodeBatch32_fallback
 	MaskedVByteDecodeGroup = BaseMaskedVByteDecodeGroup_fallback
+	maskedVByteDecodeOne32 = baseMaskedVByteDecodeOne32_fallback
 	MaskedVByteDecodeBatch64 = BaseMaskedVByteDecodeBatch64_fallback
+	maskedVByteDecodeOne64 = baseMaskedVByteDecodeOne64_fallback
 }

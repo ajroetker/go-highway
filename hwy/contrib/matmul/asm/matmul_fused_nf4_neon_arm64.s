@@ -23,9 +23,9 @@ TEXT ·fused_nf4_matmul_neon(SB), $80-72
 	WORD $0xf94000c9           // ldr	x9, [x6]
 	WORD $0xf100053f           // cmp	x9, #1
 	BLT  BB0_14
-	WORD $0xf8000ffb           // str	x27, [sp, #-80]! [transformed]
+	WORD $0xf8000ffd           // str	x29, [sp, #-80]! [transformed]
 	WORD $0xf94000aa           // ldr	x10, [x5]
-	WORD $0xa90167fa           // stp	x26, x25, [sp, #16]
+	WORD $0xa90167fe           // stp	x30, x25, [sp, #16]
 	WORD $0xa9025ff8           // stp	x24, x23, [sp, #32]
 	WORD $0xf100015f           // cmp	x10, #0
 	WORD $0xa90357f6           // stp	x22, x21, [sp, #48]
@@ -72,19 +72,19 @@ BB0_6:
 	WORD $0x8b0902b5 // add	x21, x21, x9
 	WORD $0x38796839 // ldrb	w25, [x1, x25]
 	WORD $0x38786838 // ldrb	w24, [x1, x24]
-	WORD $0xd344ff3a // lsr	x26, x25, #4
+	WORD $0xd344ff3d // lsr	x29, x25, #4
 	WORD $0x92400f39 // and	x25, x25, #0xf
-	WORD $0xd344ff1b // lsr	x27, x24, #4
+	WORD $0xd344ff1e // lsr	x30, x24, #4
 	WORD $0x92400f18 // and	x24, x24, #0xf
 	WORD $0xbc7979e3 // ldr	s3, [x15, x25, lsl #2]
-	WORD $0xbc7a79e4 // ldr	s4, [x15, x26, lsl #2]
-	WORD $0x8b130ada // add	x26, x22, x19, lsl #2
+	WORD $0xbc7d79e4 // ldr	s4, [x15, x29, lsl #2]
+	WORD $0x8b130add // add	x29, x22, x19, lsl #2
 	WORD $0xbc7879e5 // ldr	s5, [x15, x24, lsl #2]
-	WORD $0x8b1b09f9 // add	x25, x15, x27, lsl #2
+	WORD $0x8b1e09f9 // add	x25, x15, x30, lsl #2
 	WORD $0x1e210861 // fmul	s1, s3, s1
 	WORD $0x8b0d02d6 // add	x22, x22, x13
 	WORD $0x1e220882 // fmul	s2, s4, s2
-	WORD $0x0d409346 // ld1	{ v6.s }[1], [x26]
+	WORD $0x0d4093a6 // ld1	{ v6.s }[1], [x29]
 	WORD $0x0d409325 // ld1	{ v5.s }[1], [x25]
 	WORD $0x2e26dca3 // fmul	v3.2s, v5.2s, v6.2s
 	WORD $0x6e0c0441 // mov	v1.s[1], v2.s[0]
@@ -126,8 +126,8 @@ BB0_13:
 	WORD $0xa9444ff4 // ldp	x20, x19, [sp, #64]
 	WORD $0xa94357f6 // ldp	x22, x21, [sp, #48]
 	WORD $0xa9425ff8 // ldp	x24, x23, [sp, #32]
-	WORD $0xa94167fa // ldp	x26, x25, [sp, #16]
-	WORD $0xf94007fb // ldr	x27, [sp], #80 [transformed]
+	WORD $0xa94167fe // ldp	x30, x25, [sp, #16]
+	WORD $0xf94007fd // ldr	x29, [sp], #80 [transformed]
 
 BB0_14:
 	RET

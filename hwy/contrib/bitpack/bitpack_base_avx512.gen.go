@@ -29,24 +29,88 @@ func BasePack32_avx512(src []uint32, bitWidth int, dst []byte) int {
 		v = v.And(maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane_AVX512_Uint32x16(v, lane)
-			packValue32(val, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_1 := bitWidth
+				for remaining_1 > 0 {
+					bitsAvailable_1 := 8 - *&bitPos
+					bitsToWrite_1 := min(remaining_1, bitsAvailable_1)
+					writeMask_1 := uint32((1 << bitsToWrite_1) - 1)
+					bits_1 := val & writeMask_1
+					val >>= bitsToWrite_1
+					remaining_1 -= bitsToWrite_1
+					dst[*&bytePos] |= byte(bits_1 << *&bitPos)
+					*&bitPos += bitsToWrite_1
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 		v1 := archsimd.LoadUint32x16((*[16]uint32)(unsafe.Pointer(&src[i+16])))
 		v1 = v1.And(maskVec)
 		for lane := range lanes {
 			val1 := hwy.GetLane_AVX512_Uint32x16(v1, lane)
-			packValue32(val1, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_11 := bitWidth
+				for remaining_11 > 0 {
+					bitsAvailable_11 := 8 - *&bitPos
+					bitsToWrite_11 := min(remaining_11, bitsAvailable_11)
+					writeMask_11 := uint32((1 << bitsToWrite_11) - 1)
+					bits_11 := val1 & writeMask_11
+					val1 >>= bitsToWrite_11
+					remaining_11 -= bitsToWrite_11
+					dst[*&bytePos] |= byte(bits_11 << *&bitPos)
+					*&bitPos += bitsToWrite_11
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 		v2 := archsimd.LoadUint32x16((*[16]uint32)(unsafe.Pointer(&src[i+32])))
 		v2 = v2.And(maskVec)
 		for lane := range lanes {
 			val2 := hwy.GetLane_AVX512_Uint32x16(v2, lane)
-			packValue32(val2, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_12 := bitWidth
+				for remaining_12 > 0 {
+					bitsAvailable_12 := 8 - *&bitPos
+					bitsToWrite_12 := min(remaining_12, bitsAvailable_12)
+					writeMask_12 := uint32((1 << bitsToWrite_12) - 1)
+					bits_12 := val2 & writeMask_12
+					val2 >>= bitsToWrite_12
+					remaining_12 -= bitsToWrite_12
+					dst[*&bytePos] |= byte(bits_12 << *&bitPos)
+					*&bitPos += bitsToWrite_12
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 	}
 	for ; i < len(src); i++ {
 		val := src[i] & mask
-		packValue32(val, bitWidth, &bitPos, &bytePos, dst)
+		{
+			remaining_2 := bitWidth
+			for remaining_2 > 0 {
+				bitsAvailable_2 := 8 - *&bitPos
+				bitsToWrite_2 := min(remaining_2, bitsAvailable_2)
+				writeMask_2 := uint32((1 << bitsToWrite_2) - 1)
+				bits_2 := val & writeMask_2
+				val >>= bitsToWrite_2
+				remaining_2 -= bitsToWrite_2
+				dst[*&bytePos] |= byte(bits_2 << *&bitPos)
+				*&bitPos += bitsToWrite_2
+				if *&bitPos >= 8 {
+					*&bitPos = 0
+					*&bytePos++
+				}
+			}
+		}
 	}
 	if bitPos > 0 {
 		return bytePos + 1
@@ -100,24 +164,88 @@ func BasePack64_avx512(src []uint64, bitWidth int, dst []byte) int {
 		v = v.And(maskVec)
 		for lane := range lanes {
 			val := hwy.GetLane_AVX512_Uint64x8(v, lane)
-			packValue64(val, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_1 := bitWidth
+				for remaining_1 > 0 {
+					bitsAvailable_1 := 8 - *&bitPos
+					bitsToWrite_1 := min(remaining_1, bitsAvailable_1)
+					writeMask_1 := uint64((1 << bitsToWrite_1) - 1)
+					bits_1 := val & writeMask_1
+					val >>= bitsToWrite_1
+					remaining_1 -= bitsToWrite_1
+					dst[*&bytePos] |= byte(bits_1 << *&bitPos)
+					*&bitPos += bitsToWrite_1
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 		v1 := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&src[i+8])))
 		v1 = v1.And(maskVec)
 		for lane := range lanes {
 			val1 := hwy.GetLane_AVX512_Uint64x8(v1, lane)
-			packValue64(val1, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_11 := bitWidth
+				for remaining_11 > 0 {
+					bitsAvailable_11 := 8 - *&bitPos
+					bitsToWrite_11 := min(remaining_11, bitsAvailable_11)
+					writeMask_11 := uint64((1 << bitsToWrite_11) - 1)
+					bits_11 := val1 & writeMask_11
+					val1 >>= bitsToWrite_11
+					remaining_11 -= bitsToWrite_11
+					dst[*&bytePos] |= byte(bits_11 << *&bitPos)
+					*&bitPos += bitsToWrite_11
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 		v2 := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&src[i+16])))
 		v2 = v2.And(maskVec)
 		for lane := range lanes {
 			val2 := hwy.GetLane_AVX512_Uint64x8(v2, lane)
-			packValue64(val2, bitWidth, &bitPos, &bytePos, dst)
+			{
+				remaining_12 := bitWidth
+				for remaining_12 > 0 {
+					bitsAvailable_12 := 8 - *&bitPos
+					bitsToWrite_12 := min(remaining_12, bitsAvailable_12)
+					writeMask_12 := uint64((1 << bitsToWrite_12) - 1)
+					bits_12 := val2 & writeMask_12
+					val2 >>= bitsToWrite_12
+					remaining_12 -= bitsToWrite_12
+					dst[*&bytePos] |= byte(bits_12 << *&bitPos)
+					*&bitPos += bitsToWrite_12
+					if *&bitPos >= 8 {
+						*&bitPos = 0
+						*&bytePos++
+					}
+				}
+			}
 		}
 	}
 	for ; i < len(src); i++ {
 		val := src[i] & mask
-		packValue64(val, bitWidth, &bitPos, &bytePos, dst)
+		{
+			remaining_2 := bitWidth
+			for remaining_2 > 0 {
+				bitsAvailable_2 := 8 - *&bitPos
+				bitsToWrite_2 := min(remaining_2, bitsAvailable_2)
+				writeMask_2 := uint64((1 << bitsToWrite_2) - 1)
+				bits_2 := val & writeMask_2
+				val >>= bitsToWrite_2
+				remaining_2 -= bitsToWrite_2
+				dst[*&bytePos] |= byte(bits_2 << *&bitPos)
+				*&bitPos += bitsToWrite_2
+				if *&bitPos >= 8 {
+					*&bitPos = 0
+					*&bytePos++
+				}
+			}
+		}
 	}
 	if bitPos > 0 {
 		return bytePos + 1

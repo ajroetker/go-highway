@@ -20,10 +20,12 @@ import (
 	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
-// TestBlockMulAddFMOPA tests the SME FMOPA assembly version.
-func TestBlockMulAddFMOPA(t *testing.T) {
+// TestBlockMulAddFMOPAF32 tests the SME FMOPA assembly version.
+func TestBlockMulAddFMOPAF32(t *testing.T) {
 	// FMOPA works on 16x16 tiles, so blockDim must be multiple of 16
 	blockSizes := []int{16, 32, 48, 64}
 
@@ -49,7 +51,7 @@ func TestBlockMulAddFMOPA(t *testing.T) {
 
 			aT := transposeBlock(a, blockDim)
 			referenceBlockMulAdd(aT, b, expected, blockDim)
-			BlockMulAddFMOPA(aT, b, c, blockDim)
+			asm.BlockMulAddFMOPAF32(aT, b, c, blockDim)
 
 			var maxErr float32
 			for i := range c {
@@ -61,7 +63,7 @@ func TestBlockMulAddFMOPA(t *testing.T) {
 
 			tolerance := float32(1e-4) * float32(blockDim)
 			if maxErr > tolerance {
-				t.Errorf("BlockMulAddFMOPA: max error %e exceeds tolerance %e", maxErr, tolerance)
+				t.Errorf("BlockMulAddFMOPAF32: max error %e exceeds tolerance %e", maxErr, tolerance)
 			} else {
 				t.Logf("blockDim=%d: max error %e", blockDim, maxErr)
 			}
@@ -69,8 +71,8 @@ func TestBlockMulAddFMOPA(t *testing.T) {
 	}
 }
 
-// TestBlockMulAddFMOPAFloat64 tests the float64 SME FMOPA assembly version.
-func TestBlockMulAddFMOPAFloat64(t *testing.T) {
+// TestBlockMulAddFMOPAF64 tests the float64 SME FMOPA assembly version.
+func TestBlockMulAddFMOPAF64(t *testing.T) {
 	// FMOPA f64 works on 8x8 tiles, so blockDim must be multiple of 8
 	blockSizes := []int{8, 16, 32, 48, 64}
 
@@ -96,7 +98,7 @@ func TestBlockMulAddFMOPAFloat64(t *testing.T) {
 
 			aT := transposeBlockFloat64(a, blockDim)
 			referenceBlockMulAddFloat64(aT, b, expected, blockDim)
-			BlockMulAddFMOPAFloat64(aT, b, c, blockDim)
+			asm.BlockMulAddFMOPAF64(aT, b, c, blockDim)
 
 			var maxErr float64
 			for i := range c {
@@ -108,7 +110,7 @@ func TestBlockMulAddFMOPAFloat64(t *testing.T) {
 
 			tolerance := 1e-10 * float64(blockDim)
 			if maxErr > tolerance {
-				t.Errorf("BlockMulAddFMOPAFloat64: max error %e exceeds tolerance %e", maxErr, tolerance)
+				t.Errorf("BlockMulAddFMOPAF64: max error %e exceeds tolerance %e", maxErr, tolerance)
 			} else {
 				t.Logf("blockDim=%d: max error %e", blockDim, maxErr)
 			}
@@ -116,8 +118,8 @@ func TestBlockMulAddFMOPAFloat64(t *testing.T) {
 	}
 }
 
-// TestBlockMulAddFMOPADebug tests with simple known values.
-func TestBlockMulAddFMOPADebug(t *testing.T) {
+// TestBlockMulAddFMOPAF32Debug tests with simple known values.
+func TestBlockMulAddFMOPAF32Debug(t *testing.T) {
 	blockDim := 16
 	size := blockDim * blockDim
 
@@ -153,7 +155,7 @@ func TestBlockMulAddFMOPADebug(t *testing.T) {
 	t.Logf("expected after reference: %v", expected[0:4])
 
 	// Run FMOPA version
-	BlockMulAddFMOPA(aT, b, c, blockDim)
+	asm.BlockMulAddFMOPAF32(aT, b, c, blockDim)
 
 	// Print first few values
 	t.Logf("Got C after FMOPA: %v", c[0:4])
@@ -167,8 +169,8 @@ func TestBlockMulAddFMOPADebug(t *testing.T) {
 	}
 }
 
-// TestBlockMulAddFMOPADebugIdentity tests with identity matrix to verify row selection.
-func TestBlockMulAddFMOPADebugIdentity(t *testing.T) {
+// TestBlockMulAddFMOPAF32DebugIdentity tests with identity matrix to verify row selection.
+func TestBlockMulAddFMOPAF32DebugIdentity(t *testing.T) {
 	blockDim := 16
 	size := blockDim * blockDim
 
@@ -200,7 +202,7 @@ func TestBlockMulAddFMOPADebugIdentity(t *testing.T) {
 	t.Logf("expected[0:4] = %v", expected[0:4])
 	t.Logf("expected[16:20] = %v (row 1)", expected[16:20])
 
-	BlockMulAddFMOPA(aT, b, c, blockDim)
+	asm.BlockMulAddFMOPAF32(aT, b, c, blockDim)
 
 	t.Logf("got C[0:4] = %v", c[0:4])
 	t.Logf("got C[16:20] = %v (row 1)", c[16:20])
@@ -230,8 +232,8 @@ func TestBlockMulAddFMOPADebugIdentity(t *testing.T) {
 	}
 }
 
-// BenchmarkBlockMulAddFMOPA benchmarks the SME FMOPA assembly.
-func BenchmarkBlockMulAddFMOPA(b *testing.B) {
+// BenchmarkBlockMulAddFMOPAF32 benchmarks the SME FMOPA assembly.
+func BenchmarkBlockMulAddFMOPAF32(b *testing.B) {
 	blockSizes := []int{32, 48, 64}
 
 	for _, blockDim := range blockSizes {
@@ -255,7 +257,7 @@ func BenchmarkBlockMulAddFMOPA(b *testing.B) {
 			b.Run(sizeStr(blockDim)+"/FMOPA", func(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					BlockMulAddFMOPA(aT, bMat, c, blockDim)
+					asm.BlockMulAddFMOPAF32(aT, bMat, c, blockDim)
 				}
 				b.StopTimer()
 				elapsed := b.Elapsed().Seconds()

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !noasm && darwin && arm64
+//go:build !noasm && arm64
 
 // Blocked/Cache-Tiled SME FMOPA Matrix Multiplication wrappers for ARM64
 package asm

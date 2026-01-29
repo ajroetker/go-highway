@@ -32,8 +32,14 @@ func BlockMulAddNEONF32(aT, b, c []float32, blockDim int) {
 		return
 	}
 	n := blockDim * blockDim
-	if len(aT) < n || len(b) < n || len(c) < n {
-		return
+	if len(aT) < n {
+		panic("BlockMulAddNEONF32: aT slice too short")
+	}
+	if len(b) < n {
+		panic("BlockMulAddNEONF32: b slice too short")
+	}
+	if len(c) < n {
+		panic("BlockMulAddNEONF32: c slice too short")
 	}
 	blockDimVal := int64(blockDim)
 	block_muladd_neon_f32(
@@ -53,8 +59,14 @@ func BlockMulAddNEONF64(aT, b, c []float64, blockDim int) {
 		return
 	}
 	n := blockDim * blockDim
-	if len(aT) < n || len(b) < n || len(c) < n {
-		return
+	if len(aT) < n {
+		panic("BlockMulAddNEONF64: aT slice too short")
+	}
+	if len(b) < n {
+		panic("BlockMulAddNEONF64: b slice too short")
+	}
+	if len(c) < n {
+		panic("BlockMulAddNEONF64: c slice too short")
 	}
 	blockDimVal := int64(blockDim)
 	block_muladd_neon_f64(

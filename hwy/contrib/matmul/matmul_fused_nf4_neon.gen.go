@@ -40,7 +40,7 @@ func BaseFusedNF4MatMul_neon(input []float32, packed []uint8, scales []float32, 
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := asm.LoadFloat32x4Slice(dequantBuf[:])
-				acc = inputVal.MulAdd(weights, acc)
+				inputVal.MulAddAcc(weights, &acc)
 			}
 			acc.StoreSlice(outputRow[n:])
 		}
@@ -97,7 +97,7 @@ func BaseFusedInt4MatMul_neon(input []float32, packed []uint8, scales []float32,
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := asm.LoadFloat32x4Slice(dequantBuf[:])
-				acc = inputVal.MulAdd(weights, acc)
+				inputVal.MulAddAcc(weights, &acc)
 			}
 			acc.StoreSlice(outputRow[n:])
 		}

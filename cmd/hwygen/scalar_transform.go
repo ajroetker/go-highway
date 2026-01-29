@@ -55,6 +55,16 @@ var scalarizableHwyOps = map[string]bool{
 	// Lane count (becomes 1)
 	"NumLanes": true,
 	"MaxLanes": true,
+
+	// Interleave operations (identity for scalar, but with lanes=1 loops never execute)
+	"InterleaveLower": true,
+	"InterleaveUpper": true,
+
+	// Float16/BFloat16 conversion functions (pass through unchanged in scalar code)
+	"Float32ToFloat16":  true,
+	"Float32ToBFloat16": true,
+	"Float16ToFloat32":  true,
+	"BFloat16ToFloat32": true,
 }
 
 // nonScalarizableHwyOps is the set of hwy operations that prevent scalarization.
@@ -778,6 +788,18 @@ func scalarizeCallExpr(call *ast.CallExpr, elemType string) ast.Expr {
 		call.Args[i] = scalarizeExpr(arg, elemType)
 	}
 
+	// Check for make([]hwy.Vec[T], ...) calls - transform to make([]T, ...)
+	if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "make" {
+		if len(call.Args) >= 1 {
+			if arrayType, ok := call.Args[0].(*ast.ArrayType); ok {
+				if scalarizedElem := scalarizeVecType(arrayType.Elt, elemType); scalarizedElem != nil {
+					arrayType.Elt = scalarizedElem
+				}
+			}
+		}
+		return call
+	}
+
 	// Check for hwy.Op(...) calls
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
@@ -868,8 +890,28 @@ func scalarizeHwyCall(opName string, args []ast.Expr, elemType string) ast.Expr 
 		return makeTypedZero(elemType)
 	case "Set", "Const":
 		// Set(val) or Const(val) -> T(val)
-		// Wrap with type conversion to ensure correct type inference
+		// For half-precision types, use conversion functions since T(val) won't compile
 		if len(args) >= 1 {
+			if elemType == "hwy.Float16" {
+				// hwy.Float32ToFloat16(float32(val))
+				return &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("hwy"),
+						Sel: ast.NewIdent("Float32ToFloat16"),
+					},
+					Args: []ast.Expr{args[0]},
+				}
+			} else if elemType == "hwy.BFloat16" {
+				// hwy.Float32ToBFloat16(float32(val))
+				return &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   ast.NewIdent("hwy"),
+						Sel: ast.NewIdent("Float32ToBFloat16"),
+					},
+					Args: []ast.Expr{args[0]},
+				}
+			}
+			// For native types, use type conversion
 			return &ast.CallExpr{
 				Fun:  parseTypeExpr(elemType),
 				Args: []ast.Expr{args[0]},
@@ -882,6 +924,25 @@ func scalarizeHwyCall(opName string, args []ast.Expr, elemType string) ast.Expr 
 		}
 	case "NumLanes", "MaxLanes":
 		return &ast.BasicLit{Kind: token.INT, Value: "1"}
+	case "InterleaveLower":
+		// With lanes=1, interleave lower is identity (take first element)
+		if len(args) >= 1 {
+			return args[0]
+		}
+	case "InterleaveUpper":
+		// With lanes=1, interleave upper takes from second arg
+		if len(args) >= 2 {
+			return args[1]
+		}
+	case "Float32ToFloat16", "Float32ToBFloat16", "Float16ToFloat32", "BFloat16ToFloat32":
+		// Type conversion functions - pass through unchanged
+		return &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent(opName),
+			},
+			Args: args,
+		}
 	}
 
 	// If we don't know how to scalarize, return as-is (shouldn't happen if canScalarize worked)
@@ -1016,14 +1077,51 @@ func extractIndexFromSlice(expr ast.Expr) ast.Expr {
 	}
 }
 
+// scalarizeVecType transforms hwy.Vec[T] to T (the scalar element type).
+// Returns nil if the type is not hwy.Vec[T].
+func scalarizeVecType(typeExpr ast.Expr, elemType string) ast.Expr {
+	// Check for hwy.Vec[T] - IndexExpr where X is hwy.Vec selector
+	if idx, ok := typeExpr.(*ast.IndexExpr); ok {
+		if sel, ok := idx.X.(*ast.SelectorExpr); ok {
+			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" && sel.Sel.Name == "Vec" {
+				// Return the type parameter (T)
+				return idx.Index
+			}
+		}
+	}
+	return nil
+}
+
 // makeTypedZero creates a zero value for the given element type.
 // Always uses explicit type conversion to ensure correct type inference.
 func makeTypedZero(elemType string) ast.Expr {
-	// Always use explicit type conversion: T(0)
-	// This is necessary because untyped literals would default to
-	// int or float64, causing type mismatches in short variable declarations.
-	return &ast.CallExpr{
-		Fun:  parseTypeExpr(elemType),
-		Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+	// For half-precision types, use conversion functions
+	switch elemType {
+	case "hwy.Float16":
+		// hwy.Float32ToFloat16(0)
+		return &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("Float32ToFloat16"),
+			},
+			Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+		}
+	case "hwy.BFloat16":
+		// hwy.Float32ToBFloat16(0)
+		return &ast.CallExpr{
+			Fun: &ast.SelectorExpr{
+				X:   ast.NewIdent("hwy"),
+				Sel: ast.NewIdent("Float32ToBFloat16"),
+			},
+			Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+		}
+	default:
+		// Always use explicit type conversion: T(0)
+		// This is necessary because untyped literals would default to
+		// int or float64, causing type mismatches in short variable declarations.
+		return &ast.CallExpr{
+			Fun:  parseTypeExpr(elemType),
+			Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+		}
 	}
 }

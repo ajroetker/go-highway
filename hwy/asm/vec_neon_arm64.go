@@ -461,6 +461,69 @@ func slide_up_2_u32x4(v [16]byte) (result [16]byte)
 func slide_up_1_u64x2(v [16]byte) (result [16]byte)
 
 //go:noescape
+func add_f32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func sub_f32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func mul_f32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func div_f32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func min_f32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func max_f32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func muladd_f32x4_acc(a, b [16]byte, acc unsafe.Pointer)
+
+//go:noescape
+func muladd_f32x4_ip(a, b, c [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func add_f64x2_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func sub_f64x2_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func mul_f64x2_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func div_f64x2_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func min_f64x2_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func max_f64x2_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func muladd_f64x2_acc(a, b [16]byte, acc unsafe.Pointer)
+
+//go:noescape
+func muladd_f64x2_ip(a, b, c [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func add_i32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func sub_i32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func mul_i32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func min_i32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
+func max_i32x4_ip(a, b [16]byte, result unsafe.Pointer)
+
+//go:noescape
 func load4_f32x4(ptr, out0, out1, out2, out3 unsafe.Pointer)
 
 //go:noescape

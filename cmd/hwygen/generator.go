@@ -84,6 +84,7 @@ func (g *Generator) Run() error {
 		ConditionalBlocks:  result.ConditionalBlocks,
 		FileSet:            result.FileSet,
 		Imports:            result.Imports,
+		AllFuncs:           result.AllFuncs,
 	}
 
 	for _, target := range targets {

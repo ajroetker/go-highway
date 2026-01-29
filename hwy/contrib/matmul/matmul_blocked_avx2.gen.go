@@ -123,6 +123,35 @@ func BaseBlockedMatMul_avx2_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 					}
 				}
 			}
+			for i+2 <= iEnd {
+				cRow0 := i * n
+				cRow1 := (i + 1) * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc0 := hwy.Zero[hwy.Float16]()
+					acc1 := hwy.Zero[hwy.Float16]()
+					for p := 0; p < k; p++ {
+						vA0 := hwy.Set(a[i*k+p])
+						vA1 := hwy.Set(a[(i+1)*k+p])
+						vB := hwy.Load(b[p*n+j:])
+						acc0 = hwy.FMAF16(vA0, vB, acc0)
+						acc1 = hwy.FMAF16(vA1, vB, acc1)
+					}
+					hwy.Store(acc0, c[cRow0+j:])
+					hwy.Store(acc1, c[cRow1+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum0, sum1 float32
+					for p := 0; p < k; p++ {
+						bp := b[p*n+j]
+						sum0 += a[i*k+p].Float32() * bp.Float32()
+						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
+					}
+					c[cRow0+j] = hwy.Float32ToFloat16(sum0)
+					c[cRow1+j] = hwy.Float32ToFloat16(sum1)
+				}
+				i += 2
+			}
 			for ; i < iEnd; i++ {
 				cRowStart := i * n
 				var j int
@@ -259,6 +288,35 @@ func BaseBlockedMatMul_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 						break
 					}
 				}
+			}
+			for i+2 <= iEnd {
+				cRow0 := i * n
+				cRow1 := (i + 1) * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc0 := hwy.Zero[hwy.BFloat16]()
+					acc1 := hwy.Zero[hwy.BFloat16]()
+					for p := 0; p < k; p++ {
+						vA0 := hwy.Set(a[i*k+p])
+						vA1 := hwy.Set(a[(i+1)*k+p])
+						vB := hwy.Load(b[p*n+j:])
+						acc0 = hwy.FMABF16(vA0, vB, acc0)
+						acc1 = hwy.FMABF16(vA1, vB, acc1)
+					}
+					hwy.Store(acc0, c[cRow0+j:])
+					hwy.Store(acc1, c[cRow1+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum0, sum1 float32
+					for p := 0; p < k; p++ {
+						bp := b[p*n+j]
+						sum0 += a[i*k+p].Float32() * bp.Float32()
+						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
+					}
+					c[cRow0+j] = hwy.Float32ToBFloat16(sum0)
+					c[cRow1+j] = hwy.Float32ToBFloat16(sum1)
+				}
+				i += 2
 			}
 			for ; i < iEnd; i++ {
 				cRowStart := i * n
@@ -397,6 +455,35 @@ func BaseBlockedMatMul_avx2(a []float32, b []float32, c []float32, m int, n int,
 					}
 				}
 			}
+			for i+2 <= iEnd {
+				cRow0 := i * n
+				cRow1 := (i + 1) * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc0 := archsimd.BroadcastFloat32x8(0)
+					acc1 := archsimd.BroadcastFloat32x8(0)
+					for p := 0; p < k; p++ {
+						vA0 := archsimd.BroadcastFloat32x8(a[i*k+p])
+						vA1 := archsimd.BroadcastFloat32x8(a[(i+1)*k+p])
+						vB := archsimd.LoadFloat32x8Slice(b[p*n+j:])
+						acc0 = vA0.MulAdd(vB, acc0)
+						acc1 = vA1.MulAdd(vB, acc1)
+					}
+					acc0.StoreSlice(c[cRow0+j:])
+					acc1.StoreSlice(c[cRow1+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum0, sum1 float32
+					for p := 0; p < k; p++ {
+						bp := b[p*n+j]
+						sum0 += a[i*k+p] * bp
+						sum1 += a[(i+1)*k+p] * bp
+					}
+					c[cRow0+j] = sum0
+					c[cRow1+j] = sum1
+				}
+				i += 2
+			}
 			for ; i < iEnd; i++ {
 				cRowStart := i * n
 				var j int
@@ -533,6 +620,35 @@ func BaseBlockedMatMul_avx2_Float64(a []float64, b []float64, c []float64, m int
 						break
 					}
 				}
+			}
+			for i+2 <= iEnd {
+				cRow0 := i * n
+				cRow1 := (i + 1) * n
+				var j int
+				for j = j0; j+lanes <= jEnd; j += lanes {
+					acc0 := archsimd.BroadcastFloat64x4(0)
+					acc1 := archsimd.BroadcastFloat64x4(0)
+					for p := 0; p < k; p++ {
+						vA0 := archsimd.BroadcastFloat64x4(a[i*k+p])
+						vA1 := archsimd.BroadcastFloat64x4(a[(i+1)*k+p])
+						vB := archsimd.LoadFloat64x4Slice(b[p*n+j:])
+						acc0 = vA0.MulAdd(vB, acc0)
+						acc1 = vA1.MulAdd(vB, acc1)
+					}
+					acc0.StoreSlice(c[cRow0+j:])
+					acc1.StoreSlice(c[cRow1+j:])
+				}
+				for ; j < jEnd; j++ {
+					var sum0, sum1 float64
+					for p := 0; p < k; p++ {
+						bp := b[p*n+j]
+						sum0 += a[i*k+p] * bp
+						sum1 += a[(i+1)*k+p] * bp
+					}
+					c[cRow0+j] = sum0
+					c[cRow1+j] = sum1
+				}
+				i += 2
 			}
 			for ; i < iEnd; i++ {
 				cRowStart := i * n

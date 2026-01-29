@@ -14,7 +14,7 @@
 
 package matmul
 
-//go:generate go run ../../../cmd/hwygen -input packing_ops.go -dispatch packingops -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input packing_ops.go -dispatch packing_ops -output . -targets avx2,avx512,neon,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 
