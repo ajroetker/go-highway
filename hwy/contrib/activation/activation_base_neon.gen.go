@@ -13,6 +13,24 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+// Hoisted constants - pre-broadcasted at package init time
+var (
+	BaseELU_NEON_vOne_f32          = asm.BroadcastFloat32x4(1.0)
+	BaseELU_NEON_vOne_f64          = asm.BroadcastFloat64x2(1.0)
+	BaseELU_NEON_vZero_f32         = asm.BroadcastFloat32x4(0.0)
+	BaseELU_NEON_vZero_f64         = asm.BroadcastFloat64x2(0.0)
+	BaseGELUApprox_NEON_vCoeff_f32 = asm.BroadcastFloat32x4(1.702)
+	BaseGELUApprox_NEON_vCoeff_f64 = asm.BroadcastFloat64x2(1.702)
+	BaseGELU_NEON_vHalf_f32        = asm.BroadcastFloat32x4(0.5)
+	BaseGELU_NEON_vHalf_f64        = asm.BroadcastFloat64x2(0.5)
+	BaseGELU_NEON_vInvSqrt2_f32    = asm.BroadcastFloat32x4(0.7071067811865476)
+	BaseGELU_NEON_vInvSqrt2_f64    = asm.BroadcastFloat64x2(0.7071067811865476)
+	BaseGELU_NEON_vOne_f32         = asm.BroadcastFloat32x4(1.0)
+	BaseGELU_NEON_vOne_f64         = asm.BroadcastFloat64x2(1.0)
+	BaseReLU_NEON_vZero_f32        = asm.BroadcastFloat32x4(0.0)
+	BaseReLU_NEON_vZero_f64        = asm.BroadcastFloat64x2(0.0)
+)
+
 func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -100,9 +118,9 @@ func BaseGELU_neon(input []float32, output []float32) {
 	if size == 0 {
 		return
 	}
-	vHalf := asm.BroadcastFloat32x4(0.5)
-	vOne := asm.BroadcastFloat32x4(1.0)
-	vInvSqrt2 := asm.BroadcastFloat32x4(0.7071067811865476)
+	vHalf := BaseGELU_NEON_vHalf_f32
+	vOne := BaseGELU_NEON_vOne_f32
+	vInvSqrt2 := BaseGELU_NEON_vInvSqrt2_f32
 	lanes := 4
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -141,9 +159,9 @@ func BaseGELU_neon_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vHalf := asm.BroadcastFloat64x2(0.5)
-	vOne := asm.BroadcastFloat64x2(1.0)
-	vInvSqrt2 := asm.BroadcastFloat64x2(0.7071067811865476)
+	vHalf := BaseGELU_NEON_vHalf_f64
+	vOne := BaseGELU_NEON_vOne_f64
+	vInvSqrt2 := BaseGELU_NEON_vInvSqrt2_f64
 	lanes := 2
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -250,7 +268,7 @@ func BaseGELUApprox_neon(input []float32, output []float32) {
 	if size == 0 {
 		return
 	}
-	vCoeff := asm.BroadcastFloat32x4(1.702)
+	vCoeff := BaseGELUApprox_NEON_vCoeff_f32
 	lanes := 4
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -284,7 +302,7 @@ func BaseGELUApprox_neon_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vCoeff := asm.BroadcastFloat64x2(1.702)
+	vCoeff := BaseGELUApprox_NEON_vCoeff_f64
 	lanes := 2
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -378,7 +396,7 @@ func BaseReLU_neon(input []float32, output []float32) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat32x4(0.0)
+	vZero := BaseReLU_NEON_vZero_f32
 	lanes := 4
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -408,7 +426,7 @@ func BaseReLU_neon_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat64x2(0.0)
+	vZero := BaseReLU_NEON_vZero_f64
 	lanes := 2
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -884,8 +902,8 @@ func BaseELU_neon(input []float32, output []float32, alpha float32) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat32x4(0.0)
-	vOne := asm.BroadcastFloat32x4(1.0)
+	vZero := BaseELU_NEON_vZero_f32
+	vOne := BaseELU_NEON_vOne_f32
 	vAlpha := asm.BroadcastFloat32x4(alpha)
 	lanes := 4
 	ii := 0
@@ -929,8 +947,8 @@ func BaseELU_neon_Float64(input []float64, output []float64, alpha float64) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat64x2(0.0)
-	vOne := asm.BroadcastFloat64x2(1.0)
+	vZero := BaseELU_NEON_vZero_f64
+	vOne := BaseELU_NEON_vOne_f64
 	vAlpha := asm.BroadcastFloat64x2(alpha)
 	lanes := 2
 	ii := 0

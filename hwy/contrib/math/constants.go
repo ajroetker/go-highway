@@ -30,6 +30,7 @@ var (
 
 	expOverflow_f16  hwy.Float16 = hwy.Float32ToFloat16(11.0)
 	expUnderflow_f16 hwy.Float16 = hwy.Float32ToFloat16(-9.7)
+	expInf_f16       hwy.Float16 = hwy.Float32ToFloat16(11.0 * 2)
 
 	expC1_f16 hwy.Float16 = hwy.Float32ToFloat16(1.0)
 	expC2_f16 hwy.Float16 = hwy.Float32ToFloat16(0.5)
@@ -51,6 +52,7 @@ var (
 
 	expOverflow_bf16  hwy.BFloat16 = hwy.Float32ToBFloat16(88.72283905206835)
 	expUnderflow_bf16 hwy.BFloat16 = hwy.Float32ToBFloat16(-87.33654475055310)
+	expInf_bf16       hwy.BFloat16 = hwy.Float32ToBFloat16(88.72283905206835 * 2)
 
 	expC1_bf16 hwy.BFloat16 = hwy.Float32ToBFloat16(1.0)
 	expC2_bf16 hwy.BFloat16 = hwy.Float32ToBFloat16(0.5)
@@ -71,6 +73,7 @@ var (
 
 	expOverflow_f32  float32 = 88.72283905206835
 	expUnderflow_f32 float32 = -87.33654475055310
+	expInf_f32       float32 = 88.72283905206835 * 2
 
 	expC1_f32 float32 = 1.0
 	expC2_f32 float32 = 0.5
@@ -91,6 +94,7 @@ var (
 
 	expOverflow_f64  float64 = 709.782712893384
 	expUnderflow_f64 float64 = -708.3964185322641
+	expInf_f64       float64 = 709.782712893384 * 2
 
 	expC1_f64  float64 = 1.0
 	expC2_f64  float64 = 0.5

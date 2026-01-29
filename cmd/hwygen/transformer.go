@@ -5117,19 +5117,19 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 		return ""
 	}
 
-	// Verify it's hwy.Set
+	// Verify it's hwy.Set or hwy.Const
 	ident, ok := selExpr.X.(*ast.Ident)
 	if !ok || ident.Name != "hwy" {
 		return ""
 	}
-	if selExpr.Sel.Name != "Set" {
+	isConst := selExpr.Sel.Name == "Const"
+	if selExpr.Sel.Name != "Set" && !isConst {
 		return ""
 	}
 
-	// Determine the actual element type for this Set call
-	// If the type parameter is explicitly "int32", use that instead of ctx.elemType
+	// Determine the actual element type for this call
 	actualElemType := ctx.elemType
-	if typeParam == "int32" {
+	if !isConst && typeParam == "int32" {
 		actualElemType = "int32"
 		// For non-AVX-promoted half-precision types, don't hoist int32 constants to native SIMD types
 		// because hwy.ConvertToInt32 returns hwy.Vec[int32], not native SIMD types.
@@ -5139,6 +5139,9 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 		if isHalfPrecisionType(ctx.elemType) && !isAVXPromotedHalfPrec(ctx.target, ctx.elemType) {
 			return ""
 		}
+	}
+	if isConst && isHalfPrecisionType(ctx.elemType) && !isAVXPromotedHalfPrec(ctx.target, ctx.elemType) {
+		return ""
 	}
 
 	// Check if the argument is a constant (literal or type conversion of constant)
