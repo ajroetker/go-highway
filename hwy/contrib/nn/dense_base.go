@@ -16,9 +16,9 @@ package nn
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input linear_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input dense_base.go -output . -targets avx2,avx512,neon,fallback
 
-// BaseLinear computes a linear (fully-connected) layer: output = x @ weight^T + bias.
+// BaseDense computes a dense (fully-connected) layer: output = x @ weight^T + bias.
 //
 //   - x is [batchSize, inFeatures] (row-major)
 //   - weight is [outFeatures, inFeatures] (row-major, PyTorch format)
@@ -27,18 +27,18 @@ import "github.com/ajroetker/go-highway/hwy"
 //
 // This uses SIMD dot-product accumulation along inFeatures with 4-row unrolling,
 // matching the BaseMatMulKLast pattern, plus an optional SIMD bias add.
-func BaseLinear[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
+func BaseDense[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
 	if len(x) < batchSize*inFeatures {
-		panic("linear: x slice too short")
+		panic("dense: x slice too short")
 	}
 	if len(weight) < outFeatures*inFeatures {
-		panic("linear: weight slice too short")
+		panic("dense: weight slice too short")
 	}
 	if len(output) < batchSize*outFeatures {
-		panic("linear: output slice too short")
+		panic("dense: output slice too short")
 	}
 	if bias != nil && len(bias) < outFeatures {
-		panic("linear: bias slice too short")
+		panic("dense: bias slice too short")
 	}
 
 	lanes := hwy.Zero[T]().NumLanes()

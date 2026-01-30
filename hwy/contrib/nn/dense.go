@@ -20,7 +20,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul"
 )
 
-// LinearAuto computes a linear (fully-connected) layer using the best available
+// DenseAuto computes a dense (fully-connected) layer using the best available
 // matmul implementation: output = x @ weight^T + bias.
 //
 //   - x is [batchSize, inFeatures] (row-major)
@@ -30,7 +30,7 @@ import (
 //
 // This delegates to MatMulKLastAuto (which dispatches to SME/NEON/AVX as
 // appropriate) and then adds bias with SIMD.
-func LinearAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
+func DenseAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
 	// Matmul: output = x @ weight^T
 	matmul.MatMulKLastAuto(x, weight, output, batchSize, outFeatures, inFeatures)
 
@@ -40,16 +40,16 @@ func LinearAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures
 	}
 }
 
-// LinearActivationAuto computes a linear layer followed by an activation function.
+// DenseActivationAuto computes a dense layer followed by an activation function.
 //
 // This is equivalent to:
 //
-//	LinearAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures)
+//	DenseAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures)
 //	applyActivation(output, act, batchSize*outFeatures)
 //
-// The activation is applied in-place on the output after the linear computation.
-func LinearActivationAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int, act ActivationType) {
-	LinearAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures)
+// The activation is applied in-place on the output after the dense computation.
+func DenseActivationAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int, act ActivationType) {
+	DenseAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures)
 
 	if act != ActivationNone {
 		applyActivationInPlace(output[:batchSize*outFeatures], act)
@@ -88,8 +88,8 @@ func applyActivationInPlace[T hwy.Floats](data []T, act ActivationType) {
 	}
 }
 
-// LinearScalar is a scalar reference implementation for comparison and testing.
-func LinearScalar[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
+// DenseScalar is a scalar reference implementation for comparison and testing.
+func DenseScalar[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
 	for i := range batchSize {
 		xOff := i * inFeatures
 		oOff := i * outFeatures
