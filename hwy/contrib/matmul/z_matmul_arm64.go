@@ -428,7 +428,7 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 
 	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
 	// from corrupting ZA register state during SME streaming mode.
-	defer asm.SMEGuard()()
+	defer hwy.SMEGuard()()
 
 	// Get transpose buffer from pool
 	atSize := m * k
@@ -470,7 +470,7 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 
 	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
 	// from corrupting ZA register state during SME streaming mode.
-	defer asm.SMEGuard()()
+	defer hwy.SMEGuard()()
 
 	// Get transpose buffer from pool
 	atSize := m * k

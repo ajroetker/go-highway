@@ -24,12 +24,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// smeGuard protects the current goroutine for SME streaming mode execution.
-// See SMEGuard for details.
-func smeGuard() func() {
-	return SMEGuard()
-}
-
 // -march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16 enables SME with f32/f64/f16/bf16 support
 //go:generate go tool goat ../c/matmul_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16"
 
@@ -57,7 +51,7 @@ func MatMulFMOPAF32(at, b, c []float32, m, n, k int) {
 		return
 	}
 	// Lock OS thread and serialize SME calls to prevent ZA register corruption
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal := int64(m)
 	nVal := int64(n)
@@ -92,7 +86,7 @@ func MatMulFMOPAF64(at, b, c []float64, m, n, k int) {
 		return
 	}
 	// Lock OS thread and serialize SME calls to prevent ZA register corruption
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal := int64(m)
 	nVal := int64(n)
@@ -128,7 +122,7 @@ func MatMulFMOPAF16(at, b, c []hwy.Float16, m, n, k int) {
 		return
 	}
 	// Lock OS thread to prevent goroutine migration during SME streaming mode
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal := int64(m)
 	nVal := int64(n)
@@ -167,7 +161,7 @@ func MatMulBFMOPABF16(at, b, c []hwy.BFloat16, m, n, k int) {
 		return
 	}
 	// Lock OS thread to prevent goroutine migration during SME streaming mode
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal := int64(m)
 	nVal := int64(n)

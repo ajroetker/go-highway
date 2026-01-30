@@ -21,6 +21,8 @@ package asm
 import (
 	"fmt"
 	"unsafe"
+
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 // BitProductSME computes the RaBitQ bit product using SME (Apple M4+).
@@ -44,6 +46,7 @@ func BitProductSME(code, query1, query2, query3, query4 []uint64) uint32 {
 		panic(fmt.Errorf("BitProductSME: nil slice data pointer detected"))
 	}
 
+	defer hwy.SMEGuard()()
 	l := int64(len(code))
 
 	var sum uint64

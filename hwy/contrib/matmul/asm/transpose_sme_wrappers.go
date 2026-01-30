@@ -24,6 +24,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+
 //go:generate go tool goat ../c/transpose_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64+sme-f16f16"
 
 // TransposeSMEF32 transposes M×K float32 matrix to K×M using SME.
@@ -36,7 +37,7 @@ func TransposeSMEF32(src []float32, m, k int, dst []float32) {
 		return
 	}
 	// Lock OS thread and block SIGURG to prevent ZA register corruption
-	defer SMEGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal, kVal := int64(m), int64(k)
 	transpose_sme_f32(
@@ -56,7 +57,7 @@ func TransposeSMEF64(src []float64, m, k int, dst []float64) {
 	if len(src) < m*k || len(dst) < k*m {
 		return
 	}
-	defer SMEGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal, kVal := int64(m), int64(k)
 	transpose_sme_f64(
@@ -76,7 +77,7 @@ func TransposeSMEF16(src []hwy.Float16, m, k int, dst []hwy.Float16) {
 	if len(src) < m*k || len(dst) < k*m {
 		return
 	}
-	defer SMEGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal, kVal := int64(m), int64(k)
 	transpose_sme_f16(
@@ -96,7 +97,7 @@ func TransposeSMEBF16(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
 	if len(src) < m*k || len(dst) < k*m {
 		return
 	}
-	defer SMEGuard()()
+	defer hwy.SMEGuard()()
 
 	mVal, kVal := int64(m), int64(k)
 	transpose_sme_bf16(

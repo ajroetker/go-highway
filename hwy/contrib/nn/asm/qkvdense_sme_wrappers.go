@@ -18,12 +18,11 @@
 // Uses GOAT-transpiled SME FMOPA assembly for fused QKV projection.
 package asm
 
-import "unsafe"
+import (
+	"unsafe"
 
-// smeGuard protects the current goroutine for SME streaming mode execution.
-func smeGuard() func() {
-	return SMEGuard()
-}
+	"github.com/ajroetker/go-highway/hwy"
+)
 
 // Generate SME assembly from C source
 //go:generate go tool goat ../c/qkvdense_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64"
@@ -38,7 +37,7 @@ func QKVDenseFMOPAF32(xt, wqkv, biasq, biask, biasv, q, k, v []float32,
 	if batchSize <= 0 || inFeatures <= 0 {
 		return
 	}
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	var biasqPtr, biaskPtr, biasvPtr unsafe.Pointer
 	if biasq != nil {
@@ -82,7 +81,7 @@ func QKVDenseFMOPAF64(xt, wqkv, biasq, biask, biasv, q, k, v []float64,
 	if batchSize <= 0 || inFeatures <= 0 {
 		return
 	}
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	var biasqPtr, biaskPtr, biasvPtr unsafe.Pointer
 	if biasq != nil {

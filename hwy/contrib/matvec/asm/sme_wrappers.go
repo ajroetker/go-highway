@@ -49,6 +49,7 @@ func MatVecSMEF32(mt []float32, v []float32, result []float32, rows, cols int) {
 	if len(mt) < cols*rows || len(v) < cols || len(result) < rows {
 		return
 	}
+	defer hwy.SMEGuard()()
 	rowsVal := int64(rows)
 	colsVal := int64(cols)
 	matvec_sme_f32(
@@ -78,6 +79,7 @@ func MatVecSMEF64(mt []float64, v []float64, result []float64, rows, cols int) {
 	if len(mt) < cols*rows || len(v) < cols || len(result) < rows {
 		return
 	}
+	defer hwy.SMEGuard()()
 	rowsVal := int64(rows)
 	colsVal := int64(cols)
 	matvec_sme_f64(
@@ -108,6 +110,7 @@ func MatVecSMEF16(mt []hwy.Float16, v []hwy.Float16, result []hwy.Float16, rows,
 	if len(mt) < cols*rows || len(v) < cols || len(result) < rows {
 		return
 	}
+	defer hwy.SMEGuard()()
 	rowsVal := int64(rows)
 	colsVal := int64(cols)
 	// Scratch buffer for f32->f16 conversion (avoids SVE-dependent stack allocation in SME code)
@@ -141,6 +144,7 @@ func MatVecSMEBF16(mt []hwy.BFloat16, v []hwy.BFloat16, result []hwy.BFloat16, r
 	if len(mt) < cols*rows || len(v) < cols || len(result) < rows {
 		return
 	}
+	defer hwy.SMEGuard()()
 	rowsVal := int64(rows)
 	colsVal := int64(cols)
 	// Scratch buffer for f32->bf16 conversion (avoids SVE-dependent stack allocation in SME code)

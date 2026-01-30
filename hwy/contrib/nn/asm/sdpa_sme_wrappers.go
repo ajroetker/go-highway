@@ -18,7 +18,11 @@
 // Uses GOAT-transpiled SME FMOPA assembly for Flash Attention with online softmax.
 package asm
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/ajroetker/go-highway/hwy"
+)
 
 // Generate SME assembly from C source
 //go:generate go tool goat ../c/sdpa_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64"
@@ -35,7 +39,7 @@ func SDPAFMOPAF32(q []float32, kt []float32, v, mask, output []float32,
 	if seqLen <= 0 || kvLen <= 0 || headDim <= 0 {
 		return
 	}
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	var maskPtr unsafe.Pointer
 	if mask != nil {
@@ -64,7 +68,7 @@ func SDPAFMOPAF64(q []float64, kt []float64, v, mask, output []float64,
 	if seqLen <= 0 || kvLen <= 0 || headDim <= 0 {
 		return
 	}
-	defer smeGuard()()
+	defer hwy.SMEGuard()()
 
 	var maskPtr unsafe.Pointer
 	if mask != nil {

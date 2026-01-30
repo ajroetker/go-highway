@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !noasm && darwin && arm64
+//go:build linux && arm64
 
-package asm
+package hwy
 
 import (
 	"runtime"
@@ -22,11 +22,11 @@ import (
 	"unsafe"
 )
 
-// Signal masking constants for macOS.
+// Signal masking constants for Linux.
 const (
-	sigBlock   = 1  // SIG_BLOCK
-	sigSetmask = 3  // SIG_SETMASK
-	sigURG     = 16 // SIGURG on macOS (0x10)
+	sigBlock   = 0  // SIG_BLOCK
+	sigSetmask = 2  // SIG_SETMASK
+	sigURG     = 23 // SIGURG on Linux
 )
 
 // SMEGuard prepares the current goroutine for SME streaming mode execution.
@@ -34,8 +34,8 @@ const (
 // SIGURG to prevent Go's async preemption from corrupting the ZA accumulator
 // registers during SME streaming mode.
 //
-// On macOS/ARM64, the kernel's signal delivery does not properly save and
-// restore ZA register state when SIGURG interrupts a thread in streaming mode.
+// On Linux/ARM64, the kernel may not properly save and restore ZA register
+// state when SIGURG interrupts a thread in streaming mode.
 // This causes silent data corruption in FMOPA tile computations.
 //
 // No mutex is needed because SME state (ZA registers) is per-thread.
@@ -43,21 +43,23 @@ const (
 //
 // Returns a cleanup function that must be deferred:
 //
-//	defer asm.SMEGuard()()
+//	defer hwy.SMEGuard()()
 func SMEGuard() func() {
 	runtime.LockOSThread()
 	// Block SIGURG to prevent Go's async preemption signal from corrupting
 	// ZA register state while the thread is in SME streaming mode.
-	var oldmask, newmask uint32
+	var oldmask, newmask uint64
 	newmask = 1 << (sigURG - 1)
-	syscall.RawSyscall(syscall.SYS_SIGPROCMASK, sigBlock,
+	// Linux uses rt_sigprocmask with 8-byte signal sets
+	syscall.RawSyscall6(syscall.SYS_RT_SIGPROCMASK, sigBlock,
 		uintptr(unsafe.Pointer(&newmask)),
-		uintptr(unsafe.Pointer(&oldmask)))
+		uintptr(unsafe.Pointer(&oldmask)),
+		8, 0, 0)
 	return func() {
 		// Restore original signal mask (unblocks SIGURG)
-		syscall.RawSyscall(syscall.SYS_SIGPROCMASK, sigSetmask,
+		syscall.RawSyscall6(syscall.SYS_RT_SIGPROCMASK, sigSetmask,
 			uintptr(unsafe.Pointer(&oldmask)),
-			0)
+			0, 8, 0, 0)
 		runtime.UnlockOSThread()
 	}
 }
