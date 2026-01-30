@@ -12,20 +12,20 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-func BaseLinear_avx512_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy.Float16, output []hwy.Float16, batchSize int, inFeatures int, outFeatures int) {
+func BaseDense_avx2_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy.Float16, output []hwy.Float16, batchSize int, inFeatures int, outFeatures int) {
 	if len(x) < batchSize*inFeatures {
-		panic("linear: x slice too short")
+		panic("dense: x slice too short")
 	}
 	if len(weight) < outFeatures*inFeatures {
-		panic("linear: weight slice too short")
+		panic("dense: weight slice too short")
 	}
 	if len(output) < batchSize*outFeatures {
-		panic("linear: output slice too short")
+		panic("dense: output slice too short")
 	}
 	if bias != nil && len(bias) < outFeatures {
-		panic("linear: bias slice too short")
+		panic("dense: bias slice too short")
 	}
-	lanes := 16
+	lanes := 8
 	var i int
 	for i = 0; i+3 < batchSize; i += 4 {
 		xRow0 := i * inFeatures
@@ -38,17 +38,17 @@ func BaseLinear_avx512_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy
 		oRow3 := (i + 3) * outFeatures
 		for j := 0; j < outFeatures; j++ {
 			wRow := j * inFeatures
-			acc0 := asm.ZeroFloat16x16AVX512()
-			acc1 := asm.ZeroFloat16x16AVX512()
-			acc2 := asm.ZeroFloat16x16AVX512()
-			acc3 := asm.ZeroFloat16x16AVX512()
+			acc0 := asm.ZeroFloat16x8AVX2()
+			acc1 := asm.ZeroFloat16x8AVX2()
+			acc2 := asm.ZeroFloat16x8AVX2()
+			acc3 := asm.ZeroFloat16x8AVX2()
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
-				vX0 := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow0+p:]))), len(x[xRow0+p:])))
-				vX1 := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow1+p:]))), len(x[xRow1+p:])))
-				vX2 := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow2+p:]))), len(x[xRow2+p:])))
-				vX3 := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow3+p:]))), len(x[xRow3+p:])))
+				vW := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
+				vX0 := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow0+p:]))), len(x[xRow0+p:])))
+				vX1 := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow1+p:]))), len(x[xRow1+p:])))
+				vX2 := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow2+p:]))), len(x[xRow2+p:])))
+				vX3 := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow3+p:]))), len(x[xRow3+p:])))
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
@@ -82,11 +82,11 @@ func BaseLinear_avx512_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy
 		oRow := i * outFeatures
 		for j := 0; j < outFeatures; j++ {
 			wRow := j * inFeatures
-			acc := asm.ZeroFloat16x16AVX512()
+			acc := asm.ZeroFloat16x8AVX2()
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow+p:]))), len(x[xRow+p:])))
-				vW := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
+				vX := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow+p:]))), len(x[xRow+p:])))
+				vW := asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
 				acc = vX.MulAdd(vW, acc)
 			}
 			sum := acc.ReduceSum()
@@ -101,20 +101,20 @@ func BaseLinear_avx512_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy
 	}
 }
 
-func BaseLinear_avx512_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []hwy.BFloat16, output []hwy.BFloat16, batchSize int, inFeatures int, outFeatures int) {
+func BaseDense_avx2_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []hwy.BFloat16, output []hwy.BFloat16, batchSize int, inFeatures int, outFeatures int) {
 	if len(x) < batchSize*inFeatures {
-		panic("linear: x slice too short")
+		panic("dense: x slice too short")
 	}
 	if len(weight) < outFeatures*inFeatures {
-		panic("linear: weight slice too short")
+		panic("dense: weight slice too short")
 	}
 	if len(output) < batchSize*outFeatures {
-		panic("linear: output slice too short")
+		panic("dense: output slice too short")
 	}
 	if bias != nil && len(bias) < outFeatures {
-		panic("linear: bias slice too short")
+		panic("dense: bias slice too short")
 	}
-	lanes := 16
+	lanes := 8
 	var i int
 	for i = 0; i+3 < batchSize; i += 4 {
 		xRow0 := i * inFeatures
@@ -127,17 +127,17 @@ func BaseLinear_avx512_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []
 		oRow3 := (i + 3) * outFeatures
 		for j := 0; j < outFeatures; j++ {
 			wRow := j * inFeatures
-			acc0 := asm.ZeroBFloat16x16AVX512()
-			acc1 := asm.ZeroBFloat16x16AVX512()
-			acc2 := asm.ZeroBFloat16x16AVX512()
-			acc3 := asm.ZeroBFloat16x16AVX512()
+			acc0 := asm.ZeroBFloat16x8AVX2()
+			acc1 := asm.ZeroBFloat16x8AVX2()
+			acc2 := asm.ZeroBFloat16x8AVX2()
+			acc3 := asm.ZeroBFloat16x8AVX2()
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
-				vX0 := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow0+p:]))), len(x[xRow0+p:])))
-				vX1 := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow1+p:]))), len(x[xRow1+p:])))
-				vX2 := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow2+p:]))), len(x[xRow2+p:])))
-				vX3 := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow3+p:]))), len(x[xRow3+p:])))
+				vW := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
+				vX0 := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow0+p:]))), len(x[xRow0+p:])))
+				vX1 := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow1+p:]))), len(x[xRow1+p:])))
+				vX2 := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow2+p:]))), len(x[xRow2+p:])))
+				vX3 := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow3+p:]))), len(x[xRow3+p:])))
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
@@ -171,11 +171,11 @@ func BaseLinear_avx512_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []
 		oRow := i * outFeatures
 		for j := 0; j < outFeatures; j++ {
 			wRow := j * inFeatures
-			acc := asm.ZeroBFloat16x16AVX512()
+			acc := asm.ZeroBFloat16x8AVX2()
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow+p:]))), len(x[xRow+p:])))
-				vW := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
+				vX := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(x[xRow+p:]))), len(x[xRow+p:])))
+				vW := asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(weight[wRow+p:]))), len(weight[wRow+p:])))
 				acc = vX.MulAdd(vW, acc)
 			}
 			sum := acc.ReduceSum()
@@ -190,107 +190,18 @@ func BaseLinear_avx512_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []
 	}
 }
 
-func BaseLinear_avx512(x []float32, weight []float32, bias []float32, output []float32, batchSize int, inFeatures int, outFeatures int) {
+func BaseDense_avx2(x []float32, weight []float32, bias []float32, output []float32, batchSize int, inFeatures int, outFeatures int) {
 	if len(x) < batchSize*inFeatures {
-		panic("linear: x slice too short")
+		panic("dense: x slice too short")
 	}
 	if len(weight) < outFeatures*inFeatures {
-		panic("linear: weight slice too short")
+		panic("dense: weight slice too short")
 	}
 	if len(output) < batchSize*outFeatures {
-		panic("linear: output slice too short")
+		panic("dense: output slice too short")
 	}
 	if bias != nil && len(bias) < outFeatures {
-		panic("linear: bias slice too short")
-	}
-	lanes := 16
-	var i int
-	for i = 0; i+3 < batchSize; i += 4 {
-		xRow0 := i * inFeatures
-		xRow1 := (i + 1) * inFeatures
-		xRow2 := (i + 2) * inFeatures
-		xRow3 := (i + 3) * inFeatures
-		oRow0 := i * outFeatures
-		oRow1 := (i + 1) * outFeatures
-		oRow2 := (i + 2) * outFeatures
-		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
-			wRow := j * inFeatures
-			acc0 := archsimd.BroadcastFloat32x16(0)
-			acc1 := archsimd.BroadcastFloat32x16(0)
-			acc2 := archsimd.BroadcastFloat32x16(0)
-			acc3 := archsimd.BroadcastFloat32x16(0)
-			var p int
-			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := archsimd.LoadFloat32x16Slice(weight[wRow+p:])
-				vX0 := archsimd.LoadFloat32x16Slice(x[xRow0+p:])
-				vX1 := archsimd.LoadFloat32x16Slice(x[xRow1+p:])
-				vX2 := archsimd.LoadFloat32x16Slice(x[xRow2+p:])
-				vX3 := archsimd.LoadFloat32x16Slice(x[xRow3+p:])
-				acc0 = vX0.MulAdd(vW, acc0)
-				acc1 = vX1.MulAdd(vW, acc1)
-				acc2 = vX2.MulAdd(vW, acc2)
-				acc3 = vX3.MulAdd(vW, acc3)
-			}
-			sum0 := hwy.ReduceSum_AVX512_F32x16(acc0)
-			sum1 := hwy.ReduceSum_AVX512_F32x16(acc1)
-			sum2 := hwy.ReduceSum_AVX512_F32x16(acc2)
-			sum3 := hwy.ReduceSum_AVX512_F32x16(acc3)
-			for ; p < inFeatures; p++ {
-				sum0 += x[xRow0+p] * weight[wRow+p]
-				sum1 += x[xRow1+p] * weight[wRow+p]
-				sum2 += x[xRow2+p] * weight[wRow+p]
-				sum3 += x[xRow3+p] * weight[wRow+p]
-			}
-			if bias != nil {
-				b := bias[j]
-				sum0 += b
-				sum1 += b
-				sum2 += b
-				sum3 += b
-			}
-			output[oRow0+j] = sum0
-			output[oRow1+j] = sum1
-			output[oRow2+j] = sum2
-			output[oRow3+j] = sum3
-		}
-	}
-	for ; i < batchSize; i++ {
-		xRow := i * inFeatures
-		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
-			wRow := j * inFeatures
-			acc := archsimd.BroadcastFloat32x16(0)
-			var p int
-			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := archsimd.LoadFloat32x16Slice(x[xRow+p:])
-				vW := archsimd.LoadFloat32x16Slice(weight[wRow+p:])
-				acc = vX.MulAdd(vW, acc)
-			}
-			sum := hwy.ReduceSum_AVX512_F32x16(acc)
-			for ; p < inFeatures; p++ {
-				sum += x[xRow+p] * weight[wRow+p]
-			}
-			if bias != nil {
-				sum += bias[j]
-			}
-			output[oRow+j] = sum
-		}
-	}
-}
-
-func BaseLinear_avx512_Float64(x []float64, weight []float64, bias []float64, output []float64, batchSize int, inFeatures int, outFeatures int) {
-	if len(x) < batchSize*inFeatures {
-		panic("linear: x slice too short")
-	}
-	if len(weight) < outFeatures*inFeatures {
-		panic("linear: weight slice too short")
-	}
-	if len(output) < batchSize*outFeatures {
-		panic("linear: output slice too short")
-	}
-	if bias != nil && len(bias) < outFeatures {
-		panic("linear: bias slice too short")
+		panic("dense: bias slice too short")
 	}
 	lanes := 8
 	var i int
@@ -305,26 +216,26 @@ func BaseLinear_avx512_Float64(x []float64, weight []float64, bias []float64, ou
 		oRow3 := (i + 3) * outFeatures
 		for j := 0; j < outFeatures; j++ {
 			wRow := j * inFeatures
-			acc0 := archsimd.BroadcastFloat64x8(0)
-			acc1 := archsimd.BroadcastFloat64x8(0)
-			acc2 := archsimd.BroadcastFloat64x8(0)
-			acc3 := archsimd.BroadcastFloat64x8(0)
+			acc0 := archsimd.BroadcastFloat32x8(0)
+			acc1 := archsimd.BroadcastFloat32x8(0)
+			acc2 := archsimd.BroadcastFloat32x8(0)
+			acc3 := archsimd.BroadcastFloat32x8(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := archsimd.LoadFloat64x8Slice(weight[wRow+p:])
-				vX0 := archsimd.LoadFloat64x8Slice(x[xRow0+p:])
-				vX1 := archsimd.LoadFloat64x8Slice(x[xRow1+p:])
-				vX2 := archsimd.LoadFloat64x8Slice(x[xRow2+p:])
-				vX3 := archsimd.LoadFloat64x8Slice(x[xRow3+p:])
+				vW := archsimd.LoadFloat32x8Slice(weight[wRow+p:])
+				vX0 := archsimd.LoadFloat32x8Slice(x[xRow0+p:])
+				vX1 := archsimd.LoadFloat32x8Slice(x[xRow1+p:])
+				vX2 := archsimd.LoadFloat32x8Slice(x[xRow2+p:])
+				vX3 := archsimd.LoadFloat32x8Slice(x[xRow3+p:])
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
 				acc3 = vX3.MulAdd(vW, acc3)
 			}
-			sum0 := hwy.ReduceSum_AVX512_F64x8(acc0)
-			sum1 := hwy.ReduceSum_AVX512_F64x8(acc1)
-			sum2 := hwy.ReduceSum_AVX512_F64x8(acc2)
-			sum3 := hwy.ReduceSum_AVX512_F64x8(acc3)
+			sum0 := hwy.ReduceSum_AVX2_F32x8(acc0)
+			sum1 := hwy.ReduceSum_AVX2_F32x8(acc1)
+			sum2 := hwy.ReduceSum_AVX2_F32x8(acc2)
+			sum3 := hwy.ReduceSum_AVX2_F32x8(acc3)
 			for ; p < inFeatures; p++ {
 				sum0 += x[xRow0+p] * weight[wRow+p]
 				sum1 += x[xRow1+p] * weight[wRow+p]
@@ -349,14 +260,103 @@ func BaseLinear_avx512_Float64(x []float64, weight []float64, bias []float64, ou
 		oRow := i * outFeatures
 		for j := 0; j < outFeatures; j++ {
 			wRow := j * inFeatures
-			acc := archsimd.BroadcastFloat64x8(0)
+			acc := archsimd.BroadcastFloat32x8(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := archsimd.LoadFloat64x8Slice(x[xRow+p:])
-				vW := archsimd.LoadFloat64x8Slice(weight[wRow+p:])
+				vX := archsimd.LoadFloat32x8Slice(x[xRow+p:])
+				vW := archsimd.LoadFloat32x8Slice(weight[wRow+p:])
 				acc = vX.MulAdd(vW, acc)
 			}
-			sum := hwy.ReduceSum_AVX512_F64x8(acc)
+			sum := hwy.ReduceSum_AVX2_F32x8(acc)
+			for ; p < inFeatures; p++ {
+				sum += x[xRow+p] * weight[wRow+p]
+			}
+			if bias != nil {
+				sum += bias[j]
+			}
+			output[oRow+j] = sum
+		}
+	}
+}
+
+func BaseDense_avx2_Float64(x []float64, weight []float64, bias []float64, output []float64, batchSize int, inFeatures int, outFeatures int) {
+	if len(x) < batchSize*inFeatures {
+		panic("dense: x slice too short")
+	}
+	if len(weight) < outFeatures*inFeatures {
+		panic("dense: weight slice too short")
+	}
+	if len(output) < batchSize*outFeatures {
+		panic("dense: output slice too short")
+	}
+	if bias != nil && len(bias) < outFeatures {
+		panic("dense: bias slice too short")
+	}
+	lanes := 4
+	var i int
+	for i = 0; i+3 < batchSize; i += 4 {
+		xRow0 := i * inFeatures
+		xRow1 := (i + 1) * inFeatures
+		xRow2 := (i + 2) * inFeatures
+		xRow3 := (i + 3) * inFeatures
+		oRow0 := i * outFeatures
+		oRow1 := (i + 1) * outFeatures
+		oRow2 := (i + 2) * outFeatures
+		oRow3 := (i + 3) * outFeatures
+		for j := 0; j < outFeatures; j++ {
+			wRow := j * inFeatures
+			acc0 := archsimd.BroadcastFloat64x4(0)
+			acc1 := archsimd.BroadcastFloat64x4(0)
+			acc2 := archsimd.BroadcastFloat64x4(0)
+			acc3 := archsimd.BroadcastFloat64x4(0)
+			var p int
+			for p = 0; p+lanes <= inFeatures; p += lanes {
+				vW := archsimd.LoadFloat64x4Slice(weight[wRow+p:])
+				vX0 := archsimd.LoadFloat64x4Slice(x[xRow0+p:])
+				vX1 := archsimd.LoadFloat64x4Slice(x[xRow1+p:])
+				vX2 := archsimd.LoadFloat64x4Slice(x[xRow2+p:])
+				vX3 := archsimd.LoadFloat64x4Slice(x[xRow3+p:])
+				acc0 = vX0.MulAdd(vW, acc0)
+				acc1 = vX1.MulAdd(vW, acc1)
+				acc2 = vX2.MulAdd(vW, acc2)
+				acc3 = vX3.MulAdd(vW, acc3)
+			}
+			sum0 := hwy.ReduceSum_AVX2_F64x4(acc0)
+			sum1 := hwy.ReduceSum_AVX2_F64x4(acc1)
+			sum2 := hwy.ReduceSum_AVX2_F64x4(acc2)
+			sum3 := hwy.ReduceSum_AVX2_F64x4(acc3)
+			for ; p < inFeatures; p++ {
+				sum0 += x[xRow0+p] * weight[wRow+p]
+				sum1 += x[xRow1+p] * weight[wRow+p]
+				sum2 += x[xRow2+p] * weight[wRow+p]
+				sum3 += x[xRow3+p] * weight[wRow+p]
+			}
+			if bias != nil {
+				b := bias[j]
+				sum0 += b
+				sum1 += b
+				sum2 += b
+				sum3 += b
+			}
+			output[oRow0+j] = sum0
+			output[oRow1+j] = sum1
+			output[oRow2+j] = sum2
+			output[oRow3+j] = sum3
+		}
+	}
+	for ; i < batchSize; i++ {
+		xRow := i * inFeatures
+		oRow := i * outFeatures
+		for j := 0; j < outFeatures; j++ {
+			wRow := j * inFeatures
+			acc := archsimd.BroadcastFloat64x4(0)
+			var p int
+			for p = 0; p+lanes <= inFeatures; p += lanes {
+				vX := archsimd.LoadFloat64x4Slice(x[xRow+p:])
+				vW := archsimd.LoadFloat64x4Slice(weight[wRow+p:])
+				acc = vX.MulAdd(vW, acc)
+			}
+			sum := hwy.ReduceSum_AVX2_F64x4(acc)
 			for ; p < inFeatures; p++ {
 				sum += x[xRow+p] * weight[wRow+p]
 			}

@@ -22,10 +22,20 @@
 //   - LogSoftmax - Log of softmax (more numerically stable for NLL loss)
 //   - LayerNorm - Layer normalization with optional affine transform
 //
-// Linear (fully-connected) layer operations:
-//   - Linear - SIMD dot-product based linear layer (hwygen dispatch)
-//   - LinearAuto - Composition-based linear using best available matmul
-//   - LinearActivationAuto - Linear + fused activation (GELU, ReLU, SiLU, Tanh)
+// Dense (fully-connected) layer operations:
+//   - Dense - SIMD dot-product based dense layer (hwygen dispatch)
+//   - DenseAuto - Composition-based dense using best available matmul
+//   - DenseActivationAuto - Dense + fused activation (GELU, ReLU, SiLU, Tanh)
+//
+// Fused projection operations:
+//   - QKVLinear - Fused QKV projection: x @ wQKV^T -> q, k, v with bias
+//   - QKVLinearAuto - Composition-based QKV using MatMulKLastAuto + scatter + bias
+//
+// Attention operations:
+//   - SDPA - Scaled Dot-Product Attention: softmax(Q@K^T * scale + mask) @ V
+//   - SDPACausal - Causal variant with lower-triangular mask
+//   - SDPAAuto / SDPACausalAuto - Auto-dispatched with internal scratch buffer
+//   - MultiHeadSDPAAuto - Multi-head attention with GQA (grouped-query) support
 //
 // Future operations (planned):
 //   - BatchNorm - Batch normalization
@@ -43,9 +53,16 @@
 //
 //	func TransformerFFN(x, w1, b1, w2, b2 []float32, batch, dim, ffnDim int) []float32 {
 //	    hidden := make([]float32, batch*ffnDim)
-//	    nn.LinearActivationAuto(x, w1, b1, hidden, batch, dim, ffnDim, nn.ActivationGelu)
+//	    nn.DenseActivationAuto(x, w1, b1, hidden, batch, dim, ffnDim, nn.ActivationGelu)
 //	    output := make([]float32, batch*dim)
-//	    nn.LinearAuto(hidden, w2, b2, output, batch, ffnDim, dim)
+//	    nn.DenseAuto(hidden, w2, b2, output, batch, ffnDim, dim)
+//	    return output
+//	}
+//
+//	func SelfAttention(q, k, v []float32, seqLen, headDim int) []float32 {
+//	    scale := float32(1.0 / math.Sqrt(float64(headDim)))
+//	    output := make([]float32, seqLen*headDim)
+//	    nn.SDPACausalAuto(q, k, v, output, seqLen, seqLen, headDim, scale)
 //	    return output
 //	}
 //

@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestLinearAuto(t *testing.T) {
+func TestDenseAuto(t *testing.T) {
 	tests := []struct {
 		name        string
 		batchSize   int
@@ -59,8 +59,8 @@ func TestLinearAuto(t *testing.T) {
 			autoOutput := make([]float32, tt.batchSize*tt.outFeatures)
 			scalarOutput := make([]float32, tt.batchSize*tt.outFeatures)
 
-			LinearAuto(x, weight, bias, autoOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
-			LinearScalar(x, weight, bias, scalarOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
+			DenseAuto(x, weight, bias, autoOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
+			DenseScalar(x, weight, bias, scalarOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
 
 			for i := range autoOutput {
 				diff := stdmath.Abs(float64(autoOutput[i] - scalarOutput[i]))
@@ -73,7 +73,7 @@ func TestLinearAuto(t *testing.T) {
 	}
 }
 
-func TestLinearAuto64(t *testing.T) {
+func TestDenseAuto64(t *testing.T) {
 	batchSize, inFeatures, outFeatures := 2, 16, 8
 
 	x := make([]float64, batchSize*inFeatures)
@@ -93,8 +93,8 @@ func TestLinearAuto64(t *testing.T) {
 	autoOutput := make([]float64, batchSize*outFeatures)
 	scalarOutput := make([]float64, batchSize*outFeatures)
 
-	LinearAuto(x, weight, bias, autoOutput, batchSize, inFeatures, outFeatures)
-	LinearScalar(x, weight, bias, scalarOutput, batchSize, inFeatures, outFeatures)
+	DenseAuto(x, weight, bias, autoOutput, batchSize, inFeatures, outFeatures)
+	DenseScalar(x, weight, bias, scalarOutput, batchSize, inFeatures, outFeatures)
 
 	for i := range autoOutput {
 		if stdmath.Abs(autoOutput[i]-scalarOutput[i]) > 1e-10 {
@@ -103,7 +103,7 @@ func TestLinearAuto64(t *testing.T) {
 	}
 }
 
-func TestBaseLinearScalarMatch(t *testing.T) {
+func TestBaseDenseScalarMatch(t *testing.T) {
 	batchSize, inFeatures, outFeatures := 4, 32, 16
 
 	x := make([]float32, batchSize*inFeatures)
@@ -123,8 +123,8 @@ func TestBaseLinearScalarMatch(t *testing.T) {
 	baseOutput := make([]float32, batchSize*outFeatures)
 	scalarOutput := make([]float32, batchSize*outFeatures)
 
-	Linear(x, weight, bias, baseOutput, batchSize, inFeatures, outFeatures)
-	LinearScalar(x, weight, bias, scalarOutput, batchSize, inFeatures, outFeatures)
+	Dense(x, weight, bias, baseOutput, batchSize, inFeatures, outFeatures)
+	DenseScalar(x, weight, bias, scalarOutput, batchSize, inFeatures, outFeatures)
 
 	for i := range baseOutput {
 		diff := stdmath.Abs(float64(baseOutput[i] - scalarOutput[i]))
@@ -135,7 +135,7 @@ func TestBaseLinearScalarMatch(t *testing.T) {
 	}
 }
 
-func TestLinearActivationAuto(t *testing.T) {
+func TestDenseActivationAuto(t *testing.T) {
 	batchSize, inFeatures, outFeatures := 2, 16, 8
 
 	x := make([]float32, batchSize*inFeatures)
@@ -166,7 +166,7 @@ func TestLinearActivationAuto(t *testing.T) {
 	for _, at := range activations {
 		t.Run(at.name, func(t *testing.T) {
 			output := make([]float32, batchSize*outFeatures)
-			LinearActivationAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures, at.act)
+			DenseActivationAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures, at.act)
 
 			// Basic sanity: no NaN or Inf
 			for i, v := range output {
@@ -175,10 +175,10 @@ func TestLinearActivationAuto(t *testing.T) {
 				}
 			}
 
-			// ActivationNone should match LinearAuto exactly
+			// ActivationNone should match DenseAuto exactly
 			if at.act == ActivationNone {
 				expected := make([]float32, batchSize*outFeatures)
-				LinearAuto(x, weight, bias, expected, batchSize, inFeatures, outFeatures)
+				DenseAuto(x, weight, bias, expected, batchSize, inFeatures, outFeatures)
 				for i := range output {
 					if output[i] != expected[i] {
 						t.Errorf("output[%d] = %v, want %v", i, output[i], expected[i])
@@ -207,7 +207,7 @@ func TestLinearActivationAuto(t *testing.T) {
 	}
 }
 
-func BenchmarkLinear(b *testing.B) {
+func BenchmarkDense(b *testing.B) {
 	configs := []struct {
 		batch, in, out int
 	}{
@@ -238,19 +238,19 @@ func BenchmarkLinear(b *testing.B) {
 
 		b.Run("Auto/"+label, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				LinearAuto(x, weight, bias, output, c.batch, c.in, c.out)
+				DenseAuto(x, weight, bias, output, c.batch, c.in, c.out)
 			}
 		})
 
 		b.Run("Base/"+label, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				Linear(x, weight, bias, output, c.batch, c.in, c.out)
+				Dense(x, weight, bias, output, c.batch, c.in, c.out)
 			}
 		})
 
 		b.Run("Scalar/"+label, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				LinearScalar(x, weight, bias, output, c.batch, c.in, c.out)
+				DenseScalar(x, weight, bias, output, c.batch, c.in, c.out)
 			}
 		})
 	}
