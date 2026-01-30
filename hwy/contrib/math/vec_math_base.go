@@ -52,7 +52,7 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	underflow := hwy.Const[T](expUnderflow_f32)
 	one := hwy.Const[T](expOne_f32)
 	zero := hwy.Const[T](expZero_f32)
-	inf := hwy.Const[T](expOverflow_f32 * 2)
+	inf := hwy.Const[T](expInf_f32)
 	invLn2 := hwy.Const[T](expInvLn2_f32)
 	ln2Hi := hwy.Const[T](expLn2Hi_f32)
 	ln2Lo := hwy.Const[T](expLn2Lo_f32)
@@ -107,7 +107,7 @@ func BaseSigmoidVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	clampedX := hwy.Max(hwy.Min(x, satHi), satLo)
 
 	// Compute exp(-x) using BaseExpVec - register-to-register, no allocation
-	negX := hwy.Neg(clampedX)
+	negX := hwy.Sub(zero, clampedX)
 	expNegX := BaseExpVec[T](negX)
 
 	// sigmoid(x) = 1 / (1 + exp(-x))
@@ -168,8 +168,10 @@ func BaseLogVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	m := hwy.GetMantissa(x)
 
 	// Adjust for m > sqrt(2)
-	mLarge := hwy.Greater(m, hwy.Const[T](logSqrt2_f32))
-	mAdjusted := hwy.Merge(hwy.Mul(m, hwy.Const[T](logHalf_f32)), m, mLarge)
+	sqrt2Vec := hwy.Const[T](logSqrt2_f32)
+	halfVec := hwy.Const[T](logHalf_f32)
+	mLarge := hwy.Greater(m, sqrt2Vec)
+	mAdjusted := hwy.Merge(hwy.Mul(m, halfVec), m, mLarge)
 
 	// Convert exponent to float
 	eFloat := hwy.ConvertExponentToFloat[T](e)
@@ -365,7 +367,7 @@ func BaseErfVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 
 	// Compute exp(-x²) using BaseExpVec
 	x2 := hwy.Mul(absX, absX)
-	negX2 := hwy.Neg(x2)
+	negX2 := hwy.Sub(zero, x2)
 	expNegX2 := BaseExpVec[T](negX2)
 
 	// erf(|x|) = 1 - poly * exp(-x²)
@@ -375,7 +377,7 @@ func BaseErfVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	erfAbs = hwy.Max(hwy.Min(erfAbs, one), zero)
 
 	// Apply sign
-	negErfAbs := hwy.Neg(erfAbs)
+	negErfAbs := hwy.Sub(zero, erfAbs)
 	result := hwy.Merge(negErfAbs, erfAbs, signMask)
 
 	return result

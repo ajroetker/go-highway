@@ -22,7 +22,7 @@ func BaseNormalize_neon_Float16(dst []hwy.Float16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := asm.BroadcastFloat16x8(uint16(scale))
+	scaleVec := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(scale)))
 	lanes := 8
 	var i int
 	i = 0
@@ -49,7 +49,7 @@ func BaseNormalize_neon_BFloat16(dst []hwy.BFloat16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := asm.BroadcastBFloat16x8(uint16(scale))
+	scaleVec := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(scale)))
 	lanes := 8
 	var i int
 	i = 0
@@ -132,7 +132,7 @@ func BaseNormalizeTo_neon_Float16(dst []hwy.Float16, src []hwy.Float16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := asm.BroadcastFloat16x8(uint16(scale))
+	scaleVec := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(scale)))
 	lanes := 8
 	var i int
 	i = 0
@@ -161,7 +161,7 @@ func BaseNormalizeTo_neon_BFloat16(dst []hwy.BFloat16, src []hwy.BFloat16) {
 	}
 	norm := float32(stdmath.Sqrt(float64(squaredNorm)))
 	scale := float32(1) / norm
-	scaleVec := asm.BroadcastBFloat16x8(uint16(scale))
+	scaleVec := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(scale)))
 	lanes := 8
 	var i int
 	i = 0

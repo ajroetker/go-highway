@@ -20,9 +20,14 @@
 // Normalization operations:
 //   - Softmax - Softmax normalization over a slice
 //   - LogSoftmax - Log of softmax (more numerically stable for NLL loss)
+//   - LayerNorm - Layer normalization with optional affine transform
+//
+// Linear (fully-connected) layer operations:
+//   - Linear - SIMD dot-product based linear layer (hwygen dispatch)
+//   - LinearAuto - Composition-based linear using best available matmul
+//   - LinearActivationAuto - Linear + fused activation (GELU, ReLU, SiLU, Tanh)
 //
 // Future operations (planned):
-//   - LayerNorm - Layer normalization
 //   - BatchNorm - Batch normalization
 //   - RMSNorm - Root mean square normalization
 //
@@ -34,6 +39,14 @@
 //	    probs := make([]float32, len(logits))
 //	    nn.Softmax(logits, probs)
 //	    return probs
+//	}
+//
+//	func TransformerFFN(x, w1, b1, w2, b2 []float32, batch, dim, ffnDim int) []float32 {
+//	    hidden := make([]float32, batch*ffnDim)
+//	    nn.LinearActivationAuto(x, w1, b1, hidden, batch, dim, ffnDim, nn.ActivationGelu)
+//	    output := make([]float32, batch*dim)
+//	    nn.LinearAuto(hidden, w2, b2, output, batch, ffnDim, dim)
+//	    return output
 //	}
 //
 // # Build Requirements

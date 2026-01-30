@@ -5117,19 +5117,19 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 		return ""
 	}
 
-	// Verify it's hwy.Set
+	// Verify it's hwy.Set or hwy.Const
 	ident, ok := selExpr.X.(*ast.Ident)
 	if !ok || ident.Name != "hwy" {
 		return ""
 	}
-	if selExpr.Sel.Name != "Set" {
+	isConst := selExpr.Sel.Name == "Const"
+	if selExpr.Sel.Name != "Set" && !isConst {
 		return ""
 	}
 
-	// Determine the actual element type for this Set call
-	// If the type parameter is explicitly "int32", use that instead of ctx.elemType
+	// Determine the actual element type for this call
 	actualElemType := ctx.elemType
-	if typeParam == "int32" {
+	if !isConst && typeParam == "int32" {
 		actualElemType = "int32"
 		// For non-AVX-promoted half-precision types, don't hoist int32 constants to native SIMD types
 		// because hwy.ConvertToInt32 returns hwy.Vec[int32], not native SIMD types.
@@ -5139,6 +5139,13 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 		if isHalfPrecisionType(ctx.elemType) && !isAVXPromotedHalfPrec(ctx.target, ctx.elemType) {
 			return ""
 		}
+	}
+	// For all half-precision types (NEON, AVX promoted, Fallback), skip hoisting float constants.
+	// NEON and Fallback: constants stay as inline hwy.Set/Const calls.
+	// AVX promoted: the inline Set→asm.Broadcast transformation produces the correct promoted type.
+	// Int32 constants for AVX promoted are handled above (line 5139) and are fine to hoist.
+	if isHalfPrecisionType(ctx.elemType) && actualElemType != "int32" {
+		return ""
 	}
 
 	// Check if the argument is a constant (literal or type conversion of constant)
@@ -7817,11 +7824,34 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 					if len(node.Args) == 1 {
 						// Only wrap identifiers that were computed from half-precision type conversions
 						if argIdent, argOk := node.Args[0].(*ast.Ident); argOk {
-							if float32ComputedVars[argIdent.Name] {
-								// Wrap: hwy.Set(x) → hwy.Set(hwy.Float32ToFloat16(x))
+							if float32ComputedVars[argIdent.Name] || reduceSumVars[argIdent.Name] {
+								// Wrap: hwy.Set(x) -> hwy.Set(hwy.Float32ToFloat16(x))
 								node.Args[0] = &ast.CallExpr{
 									Fun:  parseTypeExpr(fromFloat32Func),
 									Args: []ast.Expr{argIdent},
+								}
+							}
+						}
+					}
+				}
+			}
+			// Handle AVX promoted asm.Broadcast*(uint16(X)) where X is float32
+			if sel != nil {
+				if ident, identOk := sel.X.(*ast.Ident); identOk && ident.Name == "asm" {
+					funcName := sel.Sel.Name
+					if strings.HasPrefix(funcName, "Broadcast") && len(node.Args) == 1 {
+						if innerCall, innerOk := node.Args[0].(*ast.CallExpr); innerOk {
+							if innerIdent, iOk := innerCall.Fun.(*ast.Ident); iOk && innerIdent.Name == "uint16" {
+								if len(innerCall.Args) == 1 {
+									if argIdent, argOk := innerCall.Args[0].(*ast.Ident); argOk {
+										if float32ComputedVars[argIdent.Name] || reduceSumVars[argIdent.Name] {
+											// Wrap: uint16(x) -> uint16(hwy.Float32ToFloat16(x))
+											innerCall.Args[0] = &ast.CallExpr{
+												Fun:  parseTypeExpr(fromFloat32Func),
+												Args: []ast.Expr{argIdent},
+											}
+										}
+									}
 								}
 							}
 						}
@@ -7980,8 +8010,12 @@ func wrapHalfPrecisionExpr(expr ast.Expr, ctx *transformContext, toFloat32Method
 				if pkgIdent.Name == "hwy" {
 					// Check for type conversion
 					if funcName == "Float16" || funcName == "BFloat16" {
-						// Transform: hwy.Float16(1.0) → float32(1.0)
+						// Transform: hwy.Float16(1.0) to float32(1.0)
 						e.Fun = ast.NewIdent("float32")
+						// Recurse into arguments to wrap any half-precision scalars
+						for i, arg := range e.Args {
+							e.Args[i] = wrapHalfPrecisionExpr(arg, ctx, toFloat32Method)
+						}
 						return e
 					}
 					// Skip wrapping arguments for vector operations
@@ -8004,6 +8038,10 @@ func wrapHalfPrecisionExpr(expr ast.Expr, ctx *transformContext, toFloat32Method
 		if ident, ok := e.Fun.(*ast.Ident); ok {
 			if ident.Name == ctx.elemType || ident.Name == "hwy.Float16" || ident.Name == "hwy.BFloat16" {
 				e.Fun = ast.NewIdent("float32")
+				// Recurse into arguments to wrap any half-precision scalars
+				for i, arg := range e.Args {
+					e.Args[i] = wrapHalfPrecisionExpr(arg, ctx, toFloat32Method)
+				}
 				return e
 			}
 			// Skip recursion for uint16 type conversions - these preserve the bit pattern

@@ -13,6 +13,18 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+// Hoisted constants - pre-broadcasted at package init time
+var (
+	BaseGELUApprox_NEON_vCoeff_f32 = asm.BroadcastFloat32x4(1.702)
+	BaseGELUApprox_NEON_vCoeff_f64 = asm.BroadcastFloat64x2(1.702)
+	BaseGELU_NEON_vHalf_f32        = asm.BroadcastFloat32x4(0.5)
+	BaseGELU_NEON_vHalf_f64        = asm.BroadcastFloat64x2(0.5)
+	BaseGELU_NEON_vInvSqrt2_f32    = asm.BroadcastFloat32x4(0.7071067811865476)
+	BaseGELU_NEON_vInvSqrt2_f64    = asm.BroadcastFloat64x2(0.7071067811865476)
+	BaseGELU_NEON_vOne_f32         = asm.BroadcastFloat32x4(1.0)
+	BaseGELU_NEON_vOne_f64         = asm.BroadcastFloat64x2(1.0)
+)
+
 func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -138,9 +150,9 @@ func BaseGELU_neon(input []float32, output []float32) {
 	if size == 0 {
 		return
 	}
-	vHalf := asm.BroadcastFloat32x4(0.5)
-	vOne := asm.BroadcastFloat32x4(1.0)
-	vInvSqrt2 := asm.BroadcastFloat32x4(0.7071067811865476)
+	vHalf := BaseGELU_NEON_vHalf_f32
+	vOne := BaseGELU_NEON_vOne_f32
+	vInvSqrt2 := BaseGELU_NEON_vInvSqrt2_f32
 	ii := 0
 	for ; ii+8 <= size; ii += 8 {
 		remaining := size - ii
@@ -198,9 +210,9 @@ func BaseGELU_neon_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vHalf := asm.BroadcastFloat64x2(0.5)
-	vOne := asm.BroadcastFloat64x2(1.0)
-	vInvSqrt2 := asm.BroadcastFloat64x2(0.7071067811865476)
+	vHalf := BaseGELU_NEON_vHalf_f64
+	vOne := BaseGELU_NEON_vOne_f64
+	vInvSqrt2 := BaseGELU_NEON_vInvSqrt2_f64
 	ii := 0
 	for ; ii+4 <= size; ii += 4 {
 		remaining := size - ii
@@ -368,7 +380,7 @@ func BaseGELUApprox_neon(input []float32, output []float32) {
 	if size == 0 {
 		return
 	}
-	vCoeff := asm.BroadcastFloat32x4(1.702)
+	vCoeff := BaseGELUApprox_NEON_vCoeff_f32
 	ii := 0
 	for ; ii+8 <= size; ii += 8 {
 		remaining := size - ii
@@ -423,7 +435,7 @@ func BaseGELUApprox_neon_Float64(input []float64, output []float64) {
 	if size == 0 {
 		return
 	}
-	vCoeff := asm.BroadcastFloat64x2(1.702)
+	vCoeff := BaseGELUApprox_NEON_vCoeff_f64
 	ii := 0
 	for ; ii+4 <= size; ii += 4 {
 		remaining := size - ii

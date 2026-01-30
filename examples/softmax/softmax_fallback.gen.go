@@ -127,7 +127,7 @@ func BaseSoftmaxScalar_fallback_Float16(input []hwy.Float16, output []hwy.Float1
 	}
 	var expSum float32
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[i] - maxVal))))
+		output[i] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[i].Float32() - maxVal.Float32()))))
 		expSum += output[i].Float32()
 	}
 	invSum := float32(1.0) / expSum
@@ -149,7 +149,7 @@ func BaseSoftmaxScalar_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFlo
 	}
 	var expSum float32
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[i] - maxVal))))
+		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[i].Float32() - maxVal.Float32()))))
 		expSum += output[i].Float32()
 	}
 	invSum := float32(1.0) / expSum

@@ -215,6 +215,38 @@ func BaseLeakyReLU[T hwy.Floats](input, output []T, alpha T) {
 	}
 }
 
+// BaseTanh computes the hyperbolic tangent activation function.
+//
+// Tanh(x) = 2 * sigmoid(2x) - 1
+//
+// Tanh squashes values to the range [-1, 1] and is commonly used in
+// recurrent neural networks and as an activation for hidden layers.
+func BaseTanh[T hwy.Floats](input, output []T) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+
+	lanes := hwy.MaxLanes[T]()
+	ii := 0
+
+	// Process full vectors
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.LoadFull(input[ii:])
+
+		// Compute tanh(x) using BaseTanhVec
+		result := math.BaseTanhVec(x)
+
+		hwy.StoreFull(result, output[ii:])
+	}
+
+	// Handle tail elements with scalar math
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = T(stdmath.Tanh(x))
+	}
+}
+
 // BaseELU computes the Exponential Linear Unit activation.
 //
 // ELU(x) = x if x > 0, else alpha * (exp(x) - 1)

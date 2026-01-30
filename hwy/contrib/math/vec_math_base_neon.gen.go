@@ -11,18 +11,192 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
+	BaseAcoshVec_NEON_one_f32        = asm.BroadcastFloat32x4(1.0)
+	BaseAcoshVec_NEON_one_f64        = asm.BroadcastFloat64x2(1.0)
+	BaseAcoshVec_NEON_zero_f32       = asm.BroadcastFloat32x4(0.0)
+	BaseAcoshVec_NEON_zero_f64       = asm.BroadcastFloat64x2(0.0)
+	BaseAsinhVec_NEON_one_f32        = asm.BroadcastFloat32x4(1.0)
+	BaseAsinhVec_NEON_one_f64        = asm.BroadcastFloat64x2(1.0)
+	BaseAtanhVec_NEON_half_f32       = asm.BroadcastFloat32x4(0.5)
+	BaseAtanhVec_NEON_half_f64       = asm.BroadcastFloat64x2(0.5)
+	BaseAtanhVec_NEON_one_f32        = asm.BroadcastFloat32x4(1.0)
+	BaseAtanhVec_NEON_one_f64        = asm.BroadcastFloat64x2(1.0)
+	BaseAtanhVec_NEON_zero_f32       = asm.BroadcastFloat32x4(0.0)
+	BaseAtanhVec_NEON_zero_f64       = asm.BroadcastFloat64x2(0.0)
+	BaseCosVec_NEON_c1_f32           = asm.BroadcastFloat32x4(float32(trigC1_f32))
+	BaseCosVec_NEON_c1_f64           = asm.BroadcastFloat64x2(float64(trigC1_f64))
+	BaseCosVec_NEON_c2_f32           = asm.BroadcastFloat32x4(float32(trigC2_f32))
+	BaseCosVec_NEON_c2_f64           = asm.BroadcastFloat64x2(float64(trigC2_f64))
+	BaseCosVec_NEON_c3_f32           = asm.BroadcastFloat32x4(float32(trigC3_f32))
+	BaseCosVec_NEON_c3_f64           = asm.BroadcastFloat64x2(float64(trigC3_f64))
+	BaseCosVec_NEON_c4_f32           = asm.BroadcastFloat32x4(float32(trigC4_f32))
+	BaseCosVec_NEON_c4_f64           = asm.BroadcastFloat64x2(float64(trigC4_f64))
 	BaseCosVec_NEON_intOne_i32_f32   = asm.BroadcastInt32x4(1)
 	BaseCosVec_NEON_intOne_i32_f64   = asm.BroadcastInt32x2(1)
 	BaseCosVec_NEON_intThree_i32_f32 = asm.BroadcastInt32x4(3)
 	BaseCosVec_NEON_intThree_i32_f64 = asm.BroadcastInt32x2(3)
 	BaseCosVec_NEON_intTwo_i32_f32   = asm.BroadcastInt32x4(2)
 	BaseCosVec_NEON_intTwo_i32_f64   = asm.BroadcastInt32x2(2)
+	BaseCosVec_NEON_one_f32          = asm.BroadcastFloat32x4(float32(trigOne_f32))
+	BaseCosVec_NEON_one_f64          = asm.BroadcastFloat64x2(float64(trigOne_f64))
+	BaseCosVec_NEON_piOver2Hi_f32    = asm.BroadcastFloat32x4(float32(trigPiOver2Hi_f32))
+	BaseCosVec_NEON_piOver2Hi_f64    = asm.BroadcastFloat64x2(float64(trigPiOver2Hi_f64))
+	BaseCosVec_NEON_piOver2Lo_f32    = asm.BroadcastFloat32x4(float32(trigPiOver2Lo_f32))
+	BaseCosVec_NEON_piOver2Lo_f64    = asm.BroadcastFloat64x2(float64(trigPiOver2Lo_f64))
+	BaseCosVec_NEON_s1_f32           = asm.BroadcastFloat32x4(float32(trigS1_f32))
+	BaseCosVec_NEON_s1_f64           = asm.BroadcastFloat64x2(float64(trigS1_f64))
+	BaseCosVec_NEON_s2_f32           = asm.BroadcastFloat32x4(float32(trigS2_f32))
+	BaseCosVec_NEON_s2_f64           = asm.BroadcastFloat64x2(float64(trigS2_f64))
+	BaseCosVec_NEON_s3_f32           = asm.BroadcastFloat32x4(float32(trigS3_f32))
+	BaseCosVec_NEON_s3_f64           = asm.BroadcastFloat64x2(float64(trigS3_f64))
+	BaseCosVec_NEON_s4_f32           = asm.BroadcastFloat32x4(float32(trigS4_f32))
+	BaseCosVec_NEON_s4_f64           = asm.BroadcastFloat64x2(float64(trigS4_f64))
+	BaseCosVec_NEON_twoOverPi_f32    = asm.BroadcastFloat32x4(float32(trig2OverPi_f32))
+	BaseCosVec_NEON_twoOverPi_f64    = asm.BroadcastFloat64x2(float64(trig2OverPi_f64))
+	BaseCoshVec_NEON_c2_f32          = asm.BroadcastFloat32x4(0.5)
+	BaseCoshVec_NEON_c2_f64          = asm.BroadcastFloat64x2(0.5)
+	BaseCoshVec_NEON_c4_f32          = asm.BroadcastFloat32x4(0.041666666666666664)
+	BaseCoshVec_NEON_c4_f64          = asm.BroadcastFloat64x2(0.041666666666666664)
+	BaseCoshVec_NEON_c6_f32          = asm.BroadcastFloat32x4(0.001388888888888889)
+	BaseCoshVec_NEON_c6_f64          = asm.BroadcastFloat64x2(0.001388888888888889)
+	BaseCoshVec_NEON_one_f32         = asm.BroadcastFloat32x4(1.0)
+	BaseCoshVec_NEON_one_f64         = asm.BroadcastFloat64x2(1.0)
+	BaseErfVec_NEON_a1_f32           = asm.BroadcastFloat32x4(float32(erfA1_f32))
+	BaseErfVec_NEON_a1_f64           = asm.BroadcastFloat64x2(float64(erfA1_f64))
+	BaseErfVec_NEON_a2_f32           = asm.BroadcastFloat32x4(float32(erfA2_f32))
+	BaseErfVec_NEON_a2_f64           = asm.BroadcastFloat64x2(float64(erfA2_f64))
+	BaseErfVec_NEON_a3_f32           = asm.BroadcastFloat32x4(float32(erfA3_f32))
+	BaseErfVec_NEON_a3_f64           = asm.BroadcastFloat64x2(float64(erfA3_f64))
+	BaseErfVec_NEON_a4_f32           = asm.BroadcastFloat32x4(float32(erfA4_f32))
+	BaseErfVec_NEON_a4_f64           = asm.BroadcastFloat64x2(float64(erfA4_f64))
+	BaseErfVec_NEON_a5_f32           = asm.BroadcastFloat32x4(float32(erfA5_f32))
+	BaseErfVec_NEON_a5_f64           = asm.BroadcastFloat64x2(float64(erfA5_f64))
+	BaseErfVec_NEON_one_f32          = asm.BroadcastFloat32x4(float32(erfOne_f32))
+	BaseErfVec_NEON_one_f64          = asm.BroadcastFloat64x2(float64(erfOne_f64))
+	BaseErfVec_NEON_p_f32            = asm.BroadcastFloat32x4(float32(erfP_f32))
+	BaseErfVec_NEON_p_f64            = asm.BroadcastFloat64x2(float64(erfP_f64))
+	BaseErfVec_NEON_zero_f32         = asm.BroadcastFloat32x4(float32(erfZero_f32))
+	BaseErfVec_NEON_zero_f64         = asm.BroadcastFloat64x2(float64(erfZero_f64))
+	BaseExp2Vec_NEON_ln2_f32         = asm.BroadcastFloat32x4(float32(ln2_f32))
+	BaseExp2Vec_NEON_ln2_f64         = asm.BroadcastFloat64x2(float64(ln2_f64))
+	BaseExpVec_NEON_c1_f32           = asm.BroadcastFloat32x4(float32(expC1_f32))
+	BaseExpVec_NEON_c1_f64           = asm.BroadcastFloat64x2(float64(expC1_f64))
+	BaseExpVec_NEON_c2_f32           = asm.BroadcastFloat32x4(float32(expC2_f32))
+	BaseExpVec_NEON_c2_f64           = asm.BroadcastFloat64x2(float64(expC2_f64))
+	BaseExpVec_NEON_c3_f32           = asm.BroadcastFloat32x4(float32(expC3_f32))
+	BaseExpVec_NEON_c3_f64           = asm.BroadcastFloat64x2(float64(expC3_f64))
+	BaseExpVec_NEON_c4_f32           = asm.BroadcastFloat32x4(float32(expC4_f32))
+	BaseExpVec_NEON_c4_f64           = asm.BroadcastFloat64x2(float64(expC4_f64))
+	BaseExpVec_NEON_c5_f32           = asm.BroadcastFloat32x4(float32(expC5_f32))
+	BaseExpVec_NEON_c5_f64           = asm.BroadcastFloat64x2(float64(expC5_f64))
+	BaseExpVec_NEON_c6_f32           = asm.BroadcastFloat32x4(float32(expC6_f32))
+	BaseExpVec_NEON_c6_f64           = asm.BroadcastFloat64x2(float64(expC6_f64))
+	BaseExpVec_NEON_inf_f32          = asm.BroadcastFloat32x4(float32(expInf_f32))
+	BaseExpVec_NEON_inf_f64          = asm.BroadcastFloat64x2(float64(expInf_f64))
+	BaseExpVec_NEON_invLn2_f32       = asm.BroadcastFloat32x4(float32(expInvLn2_f32))
+	BaseExpVec_NEON_invLn2_f64       = asm.BroadcastFloat64x2(float64(expInvLn2_f64))
+	BaseExpVec_NEON_ln2Hi_f32        = asm.BroadcastFloat32x4(float32(expLn2Hi_f32))
+	BaseExpVec_NEON_ln2Hi_f64        = asm.BroadcastFloat64x2(float64(expLn2Hi_f64))
+	BaseExpVec_NEON_ln2Lo_f32        = asm.BroadcastFloat32x4(float32(expLn2Lo_f32))
+	BaseExpVec_NEON_ln2Lo_f64        = asm.BroadcastFloat64x2(float64(expLn2Lo_f64))
+	BaseExpVec_NEON_one_f32          = asm.BroadcastFloat32x4(float32(expOne_f32))
+	BaseExpVec_NEON_one_f64          = asm.BroadcastFloat64x2(float64(expOne_f64))
+	BaseExpVec_NEON_overflow_f32     = asm.BroadcastFloat32x4(float32(expOverflow_f32))
+	BaseExpVec_NEON_overflow_f64     = asm.BroadcastFloat64x2(float64(expOverflow_f64))
+	BaseExpVec_NEON_underflow_f32    = asm.BroadcastFloat32x4(float32(expUnderflow_f32))
+	BaseExpVec_NEON_underflow_f64    = asm.BroadcastFloat64x2(float64(expUnderflow_f64))
+	BaseExpVec_NEON_zero_f32         = asm.BroadcastFloat32x4(float32(expZero_f32))
+	BaseExpVec_NEON_zero_f64         = asm.BroadcastFloat64x2(float64(expZero_f64))
+	BaseLog10Vec_NEON_log10E_f32     = asm.BroadcastFloat32x4(float32(log10E_f32))
+	BaseLog10Vec_NEON_log10E_f64     = asm.BroadcastFloat64x2(float64(log10E_f64))
+	BaseLog2Vec_NEON_log2E_f32       = asm.BroadcastFloat32x4(float32(log2E_f32))
+	BaseLog2Vec_NEON_log2E_f64       = asm.BroadcastFloat64x2(float64(log2E_f64))
+	BaseLogVec_NEON_c1_f32           = asm.BroadcastFloat32x4(float32(logC1_f32))
+	BaseLogVec_NEON_c1_f64           = asm.BroadcastFloat64x2(float64(logC1_f64))
+	BaseLogVec_NEON_c2_f32           = asm.BroadcastFloat32x4(float32(logC2_f32))
+	BaseLogVec_NEON_c2_f64           = asm.BroadcastFloat64x2(float64(logC2_f64))
+	BaseLogVec_NEON_c3_f32           = asm.BroadcastFloat32x4(float32(logC3_f32))
+	BaseLogVec_NEON_c3_f64           = asm.BroadcastFloat64x2(float64(logC3_f64))
+	BaseLogVec_NEON_c4_f32           = asm.BroadcastFloat32x4(float32(logC4_f32))
+	BaseLogVec_NEON_c4_f64           = asm.BroadcastFloat64x2(float64(logC4_f64))
+	BaseLogVec_NEON_c5_f32           = asm.BroadcastFloat32x4(float32(logC5_f32))
+	BaseLogVec_NEON_c5_f64           = asm.BroadcastFloat64x2(float64(logC5_f64))
+	BaseLogVec_NEON_halfVec_f32      = asm.BroadcastFloat32x4(float32(logHalf_f32))
+	BaseLogVec_NEON_halfVec_f64      = asm.BroadcastFloat64x2(float64(logHalf_f64))
+	BaseLogVec_NEON_ln2Hi_f32        = asm.BroadcastFloat32x4(float32(logLn2Hi_f32))
+	BaseLogVec_NEON_ln2Hi_f64        = asm.BroadcastFloat64x2(float64(logLn2Hi_f64))
+	BaseLogVec_NEON_ln2Lo_f32        = asm.BroadcastFloat32x4(float32(logLn2Lo_f32))
+	BaseLogVec_NEON_ln2Lo_f64        = asm.BroadcastFloat64x2(float64(logLn2Lo_f64))
+	BaseLogVec_NEON_nan_f32          = asm.BroadcastFloat32x4(0.0)
+	BaseLogVec_NEON_nan_f64          = asm.BroadcastFloat64x2(0.0)
+	BaseLogVec_NEON_negInf_f32       = asm.BroadcastFloat32x4(float32(logNegInf_f32))
+	BaseLogVec_NEON_negInf_f64       = asm.BroadcastFloat64x2(float64(logNegInf_f64))
+	BaseLogVec_NEON_one_f32          = asm.BroadcastFloat32x4(float32(logOne_f32))
+	BaseLogVec_NEON_one_f64          = asm.BroadcastFloat64x2(float64(logOne_f64))
+	BaseLogVec_NEON_sqrt2Vec_f32     = asm.BroadcastFloat32x4(float32(logSqrt2_f32))
+	BaseLogVec_NEON_sqrt2Vec_f64     = asm.BroadcastFloat64x2(float64(logSqrt2_f64))
+	BaseLogVec_NEON_two_f32          = asm.BroadcastFloat32x4(float32(logTwo_f32))
+	BaseLogVec_NEON_two_f64          = asm.BroadcastFloat64x2(float64(logTwo_f64))
+	BaseLogVec_NEON_zero_f32         = asm.BroadcastFloat32x4(0.0)
+	BaseLogVec_NEON_zero_f64         = asm.BroadcastFloat64x2(0.0)
+	BasePowVec_NEON_one_f32          = asm.BroadcastFloat32x4(1.0)
+	BasePowVec_NEON_one_f64          = asm.BroadcastFloat64x2(1.0)
+	BasePowVec_NEON_zero_f32         = asm.BroadcastFloat32x4(0.0)
+	BasePowVec_NEON_zero_f64         = asm.BroadcastFloat64x2(0.0)
+	BaseSigmoidVec_NEON_one_f32      = asm.BroadcastFloat32x4(float32(sigmoidOne_f32))
+	BaseSigmoidVec_NEON_one_f64      = asm.BroadcastFloat64x2(float64(sigmoidOne_f64))
+	BaseSigmoidVec_NEON_satHi_f32    = asm.BroadcastFloat32x4(float32(sigmoidSatHi_f32))
+	BaseSigmoidVec_NEON_satHi_f64    = asm.BroadcastFloat64x2(float64(sigmoidSatHi_f64))
+	BaseSigmoidVec_NEON_satLo_f32    = asm.BroadcastFloat32x4(float32(sigmoidSatLo_f32))
+	BaseSigmoidVec_NEON_satLo_f64    = asm.BroadcastFloat64x2(float64(sigmoidSatLo_f64))
+	BaseSigmoidVec_NEON_zero_f32     = asm.BroadcastFloat32x4(float32(sigmoidZero_f32))
+	BaseSigmoidVec_NEON_zero_f64     = asm.BroadcastFloat64x2(float64(sigmoidZero_f64))
+	BaseSinVec_NEON_c1_f32           = asm.BroadcastFloat32x4(float32(trigC1_f32))
+	BaseSinVec_NEON_c1_f64           = asm.BroadcastFloat64x2(float64(trigC1_f64))
+	BaseSinVec_NEON_c2_f32           = asm.BroadcastFloat32x4(float32(trigC2_f32))
+	BaseSinVec_NEON_c2_f64           = asm.BroadcastFloat64x2(float64(trigC2_f64))
+	BaseSinVec_NEON_c3_f32           = asm.BroadcastFloat32x4(float32(trigC3_f32))
+	BaseSinVec_NEON_c3_f64           = asm.BroadcastFloat64x2(float64(trigC3_f64))
+	BaseSinVec_NEON_c4_f32           = asm.BroadcastFloat32x4(float32(trigC4_f32))
+	BaseSinVec_NEON_c4_f64           = asm.BroadcastFloat64x2(float64(trigC4_f64))
 	BaseSinVec_NEON_intOne_i32_f32   = asm.BroadcastInt32x4(1)
 	BaseSinVec_NEON_intOne_i32_f64   = asm.BroadcastInt32x2(1)
 	BaseSinVec_NEON_intThree_i32_f32 = asm.BroadcastInt32x4(3)
 	BaseSinVec_NEON_intThree_i32_f64 = asm.BroadcastInt32x2(3)
 	BaseSinVec_NEON_intTwo_i32_f32   = asm.BroadcastInt32x4(2)
 	BaseSinVec_NEON_intTwo_i32_f64   = asm.BroadcastInt32x2(2)
+	BaseSinVec_NEON_one_f32          = asm.BroadcastFloat32x4(float32(trigOne_f32))
+	BaseSinVec_NEON_one_f64          = asm.BroadcastFloat64x2(float64(trigOne_f64))
+	BaseSinVec_NEON_piOver2Hi_f32    = asm.BroadcastFloat32x4(float32(trigPiOver2Hi_f32))
+	BaseSinVec_NEON_piOver2Hi_f64    = asm.BroadcastFloat64x2(float64(trigPiOver2Hi_f64))
+	BaseSinVec_NEON_piOver2Lo_f32    = asm.BroadcastFloat32x4(float32(trigPiOver2Lo_f32))
+	BaseSinVec_NEON_piOver2Lo_f64    = asm.BroadcastFloat64x2(float64(trigPiOver2Lo_f64))
+	BaseSinVec_NEON_s1_f32           = asm.BroadcastFloat32x4(float32(trigS1_f32))
+	BaseSinVec_NEON_s1_f64           = asm.BroadcastFloat64x2(float64(trigS1_f64))
+	BaseSinVec_NEON_s2_f32           = asm.BroadcastFloat32x4(float32(trigS2_f32))
+	BaseSinVec_NEON_s2_f64           = asm.BroadcastFloat64x2(float64(trigS2_f64))
+	BaseSinVec_NEON_s3_f32           = asm.BroadcastFloat32x4(float32(trigS3_f32))
+	BaseSinVec_NEON_s3_f64           = asm.BroadcastFloat64x2(float64(trigS3_f64))
+	BaseSinVec_NEON_s4_f32           = asm.BroadcastFloat32x4(float32(trigS4_f32))
+	BaseSinVec_NEON_s4_f64           = asm.BroadcastFloat64x2(float64(trigS4_f64))
+	BaseSinVec_NEON_twoOverPi_f32    = asm.BroadcastFloat32x4(float32(trig2OverPi_f32))
+	BaseSinVec_NEON_twoOverPi_f64    = asm.BroadcastFloat64x2(float64(trig2OverPi_f64))
+	BaseSinhVec_NEON_c3_f32          = asm.BroadcastFloat32x4(float32(sinhC3_f32))
+	BaseSinhVec_NEON_c3_f64          = asm.BroadcastFloat64x2(float64(sinhC3_f64))
+	BaseSinhVec_NEON_c5_f32          = asm.BroadcastFloat32x4(float32(sinhC5_f32))
+	BaseSinhVec_NEON_c5_f64          = asm.BroadcastFloat64x2(float64(sinhC5_f64))
+	BaseSinhVec_NEON_c7_f32          = asm.BroadcastFloat32x4(float32(sinhC7_f32))
+	BaseSinhVec_NEON_c7_f64          = asm.BroadcastFloat64x2(float64(sinhC7_f64))
+	BaseSinhVec_NEON_one_f32         = asm.BroadcastFloat32x4(float32(sinhOne_f32))
+	BaseSinhVec_NEON_one_f64         = asm.BroadcastFloat64x2(float64(sinhOne_f64))
+	BaseTanhVec_NEON_negOne_f32      = asm.BroadcastFloat32x4(float32(tanhNegOne_f32))
+	BaseTanhVec_NEON_negOne_f64      = asm.BroadcastFloat64x2(float64(tanhNegOne_f64))
+	BaseTanhVec_NEON_one_f32         = asm.BroadcastFloat32x4(float32(tanhOne_f32))
+	BaseTanhVec_NEON_one_f64         = asm.BroadcastFloat64x2(float64(tanhOne_f64))
+	BaseTanhVec_NEON_threshold_f32   = asm.BroadcastFloat32x4(float32(tanhClamp_f32))
+	BaseTanhVec_NEON_threshold_f64   = asm.BroadcastFloat64x2(float64(tanhClamp_f64))
+	BaseTanhVec_NEON_two_f32         = asm.BroadcastFloat32x4(2.0)
+	BaseTanhVec_NEON_two_f64         = asm.BroadcastFloat64x2(2.0)
 )
 
 func BaseExpVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
@@ -30,7 +204,7 @@ func BaseExpVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 	underflow := hwy.Set[hwy.Float16](expUnderflow_f16)
 	one := hwy.Set[hwy.Float16](expOne_f16)
 	zero := hwy.Set[hwy.Float16](expZero_f16)
-	inf := hwy.Set[hwy.Float16](expOverflow_f16 * 2)
+	inf := hwy.Set[hwy.Float16](expInf_f16)
 	invLn2 := hwy.Set[hwy.Float16](expInvLn2_f16)
 	ln2Hi := hwy.Set[hwy.Float16](expLn2Hi_f16)
 	ln2Lo := hwy.Set[hwy.Float16](expLn2Lo_f16)
@@ -64,7 +238,7 @@ func BaseExpVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 	underflow := hwy.Set[hwy.BFloat16](expUnderflow_bf16)
 	one := hwy.Set[hwy.BFloat16](expOne_bf16)
 	zero := hwy.Set[hwy.BFloat16](expZero_bf16)
-	inf := hwy.Set[hwy.BFloat16](expOverflow_bf16 * 2)
+	inf := hwy.Set[hwy.BFloat16](expInf_bf16)
 	invLn2 := hwy.Set[hwy.BFloat16](expInvLn2_bf16)
 	ln2Hi := hwy.Set[hwy.BFloat16](expLn2Hi_bf16)
 	ln2Lo := hwy.Set[hwy.BFloat16](expLn2Lo_bf16)
@@ -94,20 +268,20 @@ func BaseExpVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseExpVec_neon(x asm.Float32x4) asm.Float32x4 {
-	overflow := asm.BroadcastFloat32x4(expOverflow_f32)
-	underflow := asm.BroadcastFloat32x4(expUnderflow_f32)
-	one := asm.BroadcastFloat32x4(expOne_f32)
-	zero := asm.BroadcastFloat32x4(expZero_f32)
-	inf := asm.BroadcastFloat32x4(expOverflow_f32 * 2)
-	invLn2 := asm.BroadcastFloat32x4(expInvLn2_f32)
-	ln2Hi := asm.BroadcastFloat32x4(expLn2Hi_f32)
-	ln2Lo := asm.BroadcastFloat32x4(expLn2Lo_f32)
-	c1 := asm.BroadcastFloat32x4(expC1_f32)
-	c2 := asm.BroadcastFloat32x4(expC2_f32)
-	c3 := asm.BroadcastFloat32x4(expC3_f32)
-	c4 := asm.BroadcastFloat32x4(expC4_f32)
-	c5 := asm.BroadcastFloat32x4(expC5_f32)
-	c6 := asm.BroadcastFloat32x4(expC6_f32)
+	overflow := BaseExpVec_NEON_overflow_f32
+	underflow := BaseExpVec_NEON_underflow_f32
+	one := BaseExpVec_NEON_one_f32
+	zero := BaseExpVec_NEON_zero_f32
+	inf := BaseExpVec_NEON_inf_f32
+	invLn2 := BaseExpVec_NEON_invLn2_f32
+	ln2Hi := BaseExpVec_NEON_ln2Hi_f32
+	ln2Lo := BaseExpVec_NEON_ln2Lo_f32
+	c1 := BaseExpVec_NEON_c1_f32
+	c2 := BaseExpVec_NEON_c2_f32
+	c3 := BaseExpVec_NEON_c3_f32
+	c4 := BaseExpVec_NEON_c4_f32
+	c5 := BaseExpVec_NEON_c5_f32
+	c6 := BaseExpVec_NEON_c6_f32
 	overflowMask := x.Greater(overflow)
 	underflowMask := x.Less(underflow)
 	kFloat := x.Mul(invLn2).RoundToEven()
@@ -128,20 +302,20 @@ func BaseExpVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseExpVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	overflow := asm.BroadcastFloat64x2(expOverflow_f64)
-	underflow := asm.BroadcastFloat64x2(expUnderflow_f64)
-	one := asm.BroadcastFloat64x2(expOne_f64)
-	zero := asm.BroadcastFloat64x2(expZero_f64)
-	inf := asm.BroadcastFloat64x2(expOverflow_f64 * 2)
-	invLn2 := asm.BroadcastFloat64x2(expInvLn2_f64)
-	ln2Hi := asm.BroadcastFloat64x2(expLn2Hi_f64)
-	ln2Lo := asm.BroadcastFloat64x2(expLn2Lo_f64)
-	c1 := asm.BroadcastFloat64x2(expC1_f64)
-	c2 := asm.BroadcastFloat64x2(expC2_f64)
-	c3 := asm.BroadcastFloat64x2(expC3_f64)
-	c4 := asm.BroadcastFloat64x2(expC4_f64)
-	c5 := asm.BroadcastFloat64x2(expC5_f64)
-	c6 := asm.BroadcastFloat64x2(expC6_f64)
+	overflow := BaseExpVec_NEON_overflow_f64
+	underflow := BaseExpVec_NEON_underflow_f64
+	one := BaseExpVec_NEON_one_f64
+	zero := BaseExpVec_NEON_zero_f64
+	inf := BaseExpVec_NEON_inf_f64
+	invLn2 := BaseExpVec_NEON_invLn2_f64
+	ln2Hi := BaseExpVec_NEON_ln2Hi_f64
+	ln2Lo := BaseExpVec_NEON_ln2Lo_f64
+	c1 := BaseExpVec_NEON_c1_f64
+	c2 := BaseExpVec_NEON_c2_f64
+	c3 := BaseExpVec_NEON_c3_f64
+	c4 := BaseExpVec_NEON_c4_f64
+	c5 := BaseExpVec_NEON_c5_f64
+	c6 := BaseExpVec_NEON_c6_f64
 	overflowMask := x.Greater(overflow)
 	underflowMask := x.Less(underflow)
 	kFloat := x.Mul(invLn2).RoundToEven()
@@ -167,7 +341,7 @@ func BaseSigmoidVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 	satHi := hwy.Set[hwy.Float16](sigmoidSatHi_f16)
 	satLo := hwy.Set[hwy.Float16](sigmoidSatLo_f16)
 	clampedX := hwy.MaxF16(hwy.MinF16(x, satHi), satLo)
-	negX := hwy.NegF16(clampedX)
+	negX := hwy.SubF16(zero, clampedX)
 	expNegX := BaseExpVec_neon_Float16(negX)
 	result := hwy.DivF16(one, hwy.AddF16(one, expNegX))
 	result = hwy.IfThenElseF16(hwy.GreaterThanF16(x, satHi), one, result)
@@ -181,7 +355,7 @@ func BaseSigmoidVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]
 	satHi := hwy.Set[hwy.BFloat16](sigmoidSatHi_bf16)
 	satLo := hwy.Set[hwy.BFloat16](sigmoidSatLo_bf16)
 	clampedX := hwy.MaxBF16(hwy.MinBF16(x, satHi), satLo)
-	negX := hwy.NegBF16(clampedX)
+	negX := hwy.SubBF16(zero, clampedX)
 	expNegX := BaseExpVec_neon_BFloat16(negX)
 	result := hwy.DivBF16(one, hwy.AddBF16(one, expNegX))
 	result = hwy.IfThenElseBF16(hwy.GreaterThanBF16(x, satHi), one, result)
@@ -190,12 +364,12 @@ func BaseSigmoidVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16]
 }
 
 func BaseSigmoidVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(sigmoidOne_f32)
-	zero := asm.BroadcastFloat32x4(sigmoidZero_f32)
-	satHi := asm.BroadcastFloat32x4(sigmoidSatHi_f32)
-	satLo := asm.BroadcastFloat32x4(sigmoidSatLo_f32)
+	one := BaseSigmoidVec_NEON_one_f32
+	zero := BaseSigmoidVec_NEON_zero_f32
+	satHi := BaseSigmoidVec_NEON_satHi_f32
+	satLo := BaseSigmoidVec_NEON_satLo_f32
 	clampedX := x.Min(satHi).Max(satLo)
-	negX := asm.BroadcastFloat32x4(0).Sub(clampedX)
+	negX := zero.Sub(clampedX)
 	expNegX := BaseExpVec_neon(negX)
 	result := one.Div(one.Add(expNegX))
 	result = one.Merge(result, x.Greater(satHi))
@@ -204,12 +378,12 @@ func BaseSigmoidVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseSigmoidVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(sigmoidOne_f64)
-	zero := asm.BroadcastFloat64x2(sigmoidZero_f64)
-	satHi := asm.BroadcastFloat64x2(sigmoidSatHi_f64)
-	satLo := asm.BroadcastFloat64x2(sigmoidSatLo_f64)
+	one := BaseSigmoidVec_NEON_one_f64
+	zero := BaseSigmoidVec_NEON_zero_f64
+	satHi := BaseSigmoidVec_NEON_satHi_f64
+	satLo := BaseSigmoidVec_NEON_satLo_f64
 	clampedX := x.Min(satHi).Max(satLo)
-	negX := asm.BroadcastFloat64x2(0).Sub(clampedX)
+	negX := zero.Sub(clampedX)
 	expNegX := BaseExpVec_neon_Float64(negX)
 	result := one.Div(one.Add(expNegX))
 	result = one.Merge(result, x.Greater(satHi))
@@ -246,10 +420,10 @@ func BaseTanhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseTanhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	two := asm.BroadcastFloat32x4(2.0)
-	one := asm.BroadcastFloat32x4(tanhOne_f32)
-	negOne := asm.BroadcastFloat32x4(tanhNegOne_f32)
-	threshold := asm.BroadcastFloat32x4(tanhClamp_f32)
+	two := BaseTanhVec_NEON_two_f32
+	one := BaseTanhVec_NEON_one_f32
+	negOne := BaseTanhVec_NEON_negOne_f32
+	threshold := BaseTanhVec_NEON_threshold_f32
 	negThreshold := asm.BroadcastFloat32x4(0).Sub(threshold)
 	twoX := two.Mul(x)
 	sigTwoX := BaseSigmoidVec_neon(twoX)
@@ -260,10 +434,10 @@ func BaseTanhVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseTanhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	two := asm.BroadcastFloat64x2(2.0)
-	one := asm.BroadcastFloat64x2(tanhOne_f64)
-	negOne := asm.BroadcastFloat64x2(tanhNegOne_f64)
-	threshold := asm.BroadcastFloat64x2(tanhClamp_f64)
+	two := BaseTanhVec_NEON_two_f64
+	one := BaseTanhVec_NEON_one_f64
+	negOne := BaseTanhVec_NEON_negOne_f64
+	threshold := BaseTanhVec_NEON_threshold_f64
 	negThreshold := asm.BroadcastFloat64x2(0).Sub(threshold)
 	twoX := two.Mul(x)
 	sigTwoX := BaseSigmoidVec_neon_Float64(twoX)
@@ -291,8 +465,10 @@ func BaseLogVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 	oneMask := hwy.EqualF16(x, one)
 	e := hwy.GetExponent(x)
 	m := hwy.GetMantissa(x)
-	mLarge := hwy.GreaterThanF16(m, hwy.Set[hwy.Float16](logSqrt2_f16))
-	mAdjusted := hwy.IfThenElseF16(mLarge, hwy.MulF16(m, hwy.Set[hwy.Float16](logHalf_f16)), m)
+	sqrt2Vec := hwy.Set[hwy.Float16](logSqrt2_f16)
+	halfVec := hwy.Set[hwy.Float16](logHalf_f16)
+	mLarge := hwy.GreaterThanF16(m, sqrt2Vec)
+	mAdjusted := hwy.IfThenElseF16(mLarge, hwy.MulF16(m, halfVec), m)
 	eFloat := hwy.ConvertToF16(e)
 	eAdjusted := hwy.IfThenElseF16(mLarge, hwy.AddF16(eFloat, one), eFloat)
 	mMinus1 := hwy.SubF16(mAdjusted, one)
@@ -329,8 +505,10 @@ func BaseLogVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 	oneMask := hwy.EqualBF16(x, one)
 	e := hwy.GetExponent(x)
 	m := hwy.GetMantissa(x)
-	mLarge := hwy.GreaterThanBF16(m, hwy.Set[hwy.BFloat16](logSqrt2_bf16))
-	mAdjusted := hwy.IfThenElseBF16(mLarge, hwy.MulBF16(m, hwy.Set[hwy.BFloat16](logHalf_bf16)), m)
+	sqrt2Vec := hwy.Set[hwy.BFloat16](logSqrt2_bf16)
+	halfVec := hwy.Set[hwy.BFloat16](logHalf_bf16)
+	mLarge := hwy.GreaterThanBF16(m, sqrt2Vec)
+	mAdjusted := hwy.IfThenElseBF16(mLarge, hwy.MulBF16(m, halfVec), m)
 	eFloat := hwy.ConvertToBF16(e)
 	eAdjusted := hwy.IfThenElseBF16(mLarge, hwy.AddBF16(eFloat, one), eFloat)
 	mMinus1 := hwy.SubBF16(mAdjusted, one)
@@ -350,25 +528,27 @@ func BaseLogVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseLogVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(logOne_f32)
-	two := asm.BroadcastFloat32x4(logTwo_f32)
-	zero := asm.BroadcastFloat32x4(0.0)
-	ln2Hi := asm.BroadcastFloat32x4(logLn2Hi_f32)
-	ln2Lo := asm.BroadcastFloat32x4(logLn2Lo_f32)
-	negInf := asm.BroadcastFloat32x4(logNegInf_f32)
-	nan := asm.BroadcastFloat32x4(0.0)
-	c1 := asm.BroadcastFloat32x4(logC1_f32)
-	c2 := asm.BroadcastFloat32x4(logC2_f32)
-	c3 := asm.BroadcastFloat32x4(logC3_f32)
-	c4 := asm.BroadcastFloat32x4(logC4_f32)
-	c5 := asm.BroadcastFloat32x4(logC5_f32)
+	one := BaseLogVec_NEON_one_f32
+	two := BaseLogVec_NEON_two_f32
+	zero := BaseLogVec_NEON_zero_f32
+	ln2Hi := BaseLogVec_NEON_ln2Hi_f32
+	ln2Lo := BaseLogVec_NEON_ln2Lo_f32
+	negInf := BaseLogVec_NEON_negInf_f32
+	nan := BaseLogVec_NEON_nan_f32
+	c1 := BaseLogVec_NEON_c1_f32
+	c2 := BaseLogVec_NEON_c2_f32
+	c3 := BaseLogVec_NEON_c3_f32
+	c4 := BaseLogVec_NEON_c4_f32
+	c5 := BaseLogVec_NEON_c5_f32
 	zeroMask := x.Equal(zero)
 	negMask := x.Less(zero)
 	oneMask := x.Equal(one)
 	e := x.AsInt32x4().ShiftAllRight(23).And(asm.BroadcastInt32x4(255)).Sub(asm.BroadcastInt32x4(127))
 	m := x.AsInt32x4().And(asm.BroadcastInt32x4(8388607)).Or(asm.BroadcastInt32x4(1065353216)).AsFloat32x4()
-	mLarge := m.Greater(asm.BroadcastFloat32x4(logSqrt2_f32))
-	mAdjusted := m.Mul(asm.BroadcastFloat32x4(logHalf_f32)).Merge(m, mLarge)
+	sqrt2Vec := BaseLogVec_NEON_sqrt2Vec_f32
+	halfVec := BaseLogVec_NEON_halfVec_f32
+	mLarge := m.Greater(sqrt2Vec)
+	mAdjusted := m.Mul(halfVec).Merge(m, mLarge)
 	eFloat := e.ConvertToFloat32()
 	eAdjusted := eFloat.Add(one).Merge(eFloat, mLarge)
 	mMinus1 := mAdjusted.Sub(one)
@@ -388,25 +568,27 @@ func BaseLogVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseLogVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(logOne_f64)
-	two := asm.BroadcastFloat64x2(logTwo_f64)
-	zero := asm.BroadcastFloat64x2(0.0)
-	ln2Hi := asm.BroadcastFloat64x2(logLn2Hi_f64)
-	ln2Lo := asm.BroadcastFloat64x2(logLn2Lo_f64)
-	negInf := asm.BroadcastFloat64x2(logNegInf_f64)
-	nan := asm.BroadcastFloat64x2(0.0)
-	c1 := asm.BroadcastFloat64x2(logC1_f64)
-	c2 := asm.BroadcastFloat64x2(logC2_f64)
-	c3 := asm.BroadcastFloat64x2(logC3_f64)
-	c4 := asm.BroadcastFloat64x2(logC4_f64)
-	c5 := asm.BroadcastFloat64x2(logC5_f64)
+	one := BaseLogVec_NEON_one_f64
+	two := BaseLogVec_NEON_two_f64
+	zero := BaseLogVec_NEON_zero_f64
+	ln2Hi := BaseLogVec_NEON_ln2Hi_f64
+	ln2Lo := BaseLogVec_NEON_ln2Lo_f64
+	negInf := BaseLogVec_NEON_negInf_f64
+	nan := BaseLogVec_NEON_nan_f64
+	c1 := BaseLogVec_NEON_c1_f64
+	c2 := BaseLogVec_NEON_c2_f64
+	c3 := BaseLogVec_NEON_c3_f64
+	c4 := BaseLogVec_NEON_c4_f64
+	c5 := BaseLogVec_NEON_c5_f64
 	zeroMask := x.Equal(zero)
 	negMask := x.Less(zero)
 	oneMask := x.Equal(one)
 	e := x.AsInt64x2().ShiftAllRight(52).And(asm.BroadcastInt64x2(2047)).Sub(asm.BroadcastInt64x2(1023))
 	m := x.AsInt64x2().And(asm.BroadcastInt64x2(4503599627370495)).Or(asm.BroadcastInt64x2(4607182418800017408)).AsFloat64x2()
-	mLarge := m.Greater(asm.BroadcastFloat64x2(logSqrt2_f64))
-	mAdjusted := m.Mul(asm.BroadcastFloat64x2(logHalf_f64)).Merge(m, mLarge)
+	sqrt2Vec := BaseLogVec_NEON_sqrt2Vec_f64
+	halfVec := BaseLogVec_NEON_halfVec_f64
+	mLarge := m.Greater(sqrt2Vec)
+	mAdjusted := m.Mul(halfVec).Merge(m, mLarge)
 	eFloat := e.ConvertToFloat64()
 	eAdjusted := eFloat.Add(one).Merge(eFloat, mLarge)
 	mMinus1 := mAdjusted.Sub(one)
@@ -558,18 +740,18 @@ func BaseSinVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseSinVec_neon(x asm.Float32x4) asm.Float32x4 {
-	twoOverPi := asm.BroadcastFloat32x4(trig2OverPi_f32)
-	piOver2Hi := asm.BroadcastFloat32x4(trigPiOver2Hi_f32)
-	piOver2Lo := asm.BroadcastFloat32x4(trigPiOver2Lo_f32)
-	one := asm.BroadcastFloat32x4(trigOne_f32)
-	s1 := asm.BroadcastFloat32x4(trigS1_f32)
-	s2 := asm.BroadcastFloat32x4(trigS2_f32)
-	s3 := asm.BroadcastFloat32x4(trigS3_f32)
-	s4 := asm.BroadcastFloat32x4(trigS4_f32)
-	c1 := asm.BroadcastFloat32x4(trigC1_f32)
-	c2 := asm.BroadcastFloat32x4(trigC2_f32)
-	c3 := asm.BroadcastFloat32x4(trigC3_f32)
-	c4 := asm.BroadcastFloat32x4(trigC4_f32)
+	twoOverPi := BaseSinVec_NEON_twoOverPi_f32
+	piOver2Hi := BaseSinVec_NEON_piOver2Hi_f32
+	piOver2Lo := BaseSinVec_NEON_piOver2Lo_f32
+	one := BaseSinVec_NEON_one_f32
+	s1 := BaseSinVec_NEON_s1_f32
+	s2 := BaseSinVec_NEON_s2_f32
+	s3 := BaseSinVec_NEON_s3_f32
+	s4 := BaseSinVec_NEON_s4_f32
+	c1 := BaseSinVec_NEON_c1_f32
+	c2 := BaseSinVec_NEON_c2_f32
+	c3 := BaseSinVec_NEON_c3_f32
+	c4 := BaseSinVec_NEON_c4_f32
 	intOne := BaseSinVec_NEON_intOne_i32_f32
 	intTwo := BaseSinVec_NEON_intTwo_i32_f32
 	intThree := BaseSinVec_NEON_intThree_i32_f32
@@ -638,18 +820,18 @@ func BaseSinVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseSinVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	twoOverPi := asm.BroadcastFloat64x2(trig2OverPi_f64)
-	piOver2Hi := asm.BroadcastFloat64x2(trigPiOver2Hi_f64)
-	piOver2Lo := asm.BroadcastFloat64x2(trigPiOver2Lo_f64)
-	one := asm.BroadcastFloat64x2(trigOne_f64)
-	s1 := asm.BroadcastFloat64x2(trigS1_f64)
-	s2 := asm.BroadcastFloat64x2(trigS2_f64)
-	s3 := asm.BroadcastFloat64x2(trigS3_f64)
-	s4 := asm.BroadcastFloat64x2(trigS4_f64)
-	c1 := asm.BroadcastFloat64x2(trigC1_f64)
-	c2 := asm.BroadcastFloat64x2(trigC2_f64)
-	c3 := asm.BroadcastFloat64x2(trigC3_f64)
-	c4 := asm.BroadcastFloat64x2(trigC4_f64)
+	twoOverPi := BaseSinVec_NEON_twoOverPi_f64
+	piOver2Hi := BaseSinVec_NEON_piOver2Hi_f64
+	piOver2Lo := BaseSinVec_NEON_piOver2Lo_f64
+	one := BaseSinVec_NEON_one_f64
+	s1 := BaseSinVec_NEON_s1_f64
+	s2 := BaseSinVec_NEON_s2_f64
+	s3 := BaseSinVec_NEON_s3_f64
+	s4 := BaseSinVec_NEON_s4_f64
+	c1 := BaseSinVec_NEON_c1_f64
+	c2 := BaseSinVec_NEON_c2_f64
+	c3 := BaseSinVec_NEON_c3_f64
+	c4 := BaseSinVec_NEON_c4_f64
 	intOne := BaseSinVec_NEON_intOne_i32_f64
 	intTwo := BaseSinVec_NEON_intTwo_i32_f64
 	intThree := BaseSinVec_NEON_intThree_i32_f64
@@ -850,18 +1032,18 @@ func BaseCosVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseCosVec_neon(x asm.Float32x4) asm.Float32x4 {
-	twoOverPi := asm.BroadcastFloat32x4(trig2OverPi_f32)
-	piOver2Hi := asm.BroadcastFloat32x4(trigPiOver2Hi_f32)
-	piOver2Lo := asm.BroadcastFloat32x4(trigPiOver2Lo_f32)
-	one := asm.BroadcastFloat32x4(trigOne_f32)
-	s1 := asm.BroadcastFloat32x4(trigS1_f32)
-	s2 := asm.BroadcastFloat32x4(trigS2_f32)
-	s3 := asm.BroadcastFloat32x4(trigS3_f32)
-	s4 := asm.BroadcastFloat32x4(trigS4_f32)
-	c1 := asm.BroadcastFloat32x4(trigC1_f32)
-	c2 := asm.BroadcastFloat32x4(trigC2_f32)
-	c3 := asm.BroadcastFloat32x4(trigC3_f32)
-	c4 := asm.BroadcastFloat32x4(trigC4_f32)
+	twoOverPi := BaseCosVec_NEON_twoOverPi_f32
+	piOver2Hi := BaseCosVec_NEON_piOver2Hi_f32
+	piOver2Lo := BaseCosVec_NEON_piOver2Lo_f32
+	one := BaseCosVec_NEON_one_f32
+	s1 := BaseCosVec_NEON_s1_f32
+	s2 := BaseCosVec_NEON_s2_f32
+	s3 := BaseCosVec_NEON_s3_f32
+	s4 := BaseCosVec_NEON_s4_f32
+	c1 := BaseCosVec_NEON_c1_f32
+	c2 := BaseCosVec_NEON_c2_f32
+	c3 := BaseCosVec_NEON_c3_f32
+	c4 := BaseCosVec_NEON_c4_f32
 	intOne := BaseCosVec_NEON_intOne_i32_f32
 	intTwo := BaseCosVec_NEON_intTwo_i32_f32
 	intThree := BaseCosVec_NEON_intThree_i32_f32
@@ -930,18 +1112,18 @@ func BaseCosVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseCosVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	twoOverPi := asm.BroadcastFloat64x2(trig2OverPi_f64)
-	piOver2Hi := asm.BroadcastFloat64x2(trigPiOver2Hi_f64)
-	piOver2Lo := asm.BroadcastFloat64x2(trigPiOver2Lo_f64)
-	one := asm.BroadcastFloat64x2(trigOne_f64)
-	s1 := asm.BroadcastFloat64x2(trigS1_f64)
-	s2 := asm.BroadcastFloat64x2(trigS2_f64)
-	s3 := asm.BroadcastFloat64x2(trigS3_f64)
-	s4 := asm.BroadcastFloat64x2(trigS4_f64)
-	c1 := asm.BroadcastFloat64x2(trigC1_f64)
-	c2 := asm.BroadcastFloat64x2(trigC2_f64)
-	c3 := asm.BroadcastFloat64x2(trigC3_f64)
-	c4 := asm.BroadcastFloat64x2(trigC4_f64)
+	twoOverPi := BaseCosVec_NEON_twoOverPi_f64
+	piOver2Hi := BaseCosVec_NEON_piOver2Hi_f64
+	piOver2Lo := BaseCosVec_NEON_piOver2Lo_f64
+	one := BaseCosVec_NEON_one_f64
+	s1 := BaseCosVec_NEON_s1_f64
+	s2 := BaseCosVec_NEON_s2_f64
+	s3 := BaseCosVec_NEON_s3_f64
+	s4 := BaseCosVec_NEON_s4_f64
+	c1 := BaseCosVec_NEON_c1_f64
+	c2 := BaseCosVec_NEON_c2_f64
+	c3 := BaseCosVec_NEON_c3_f64
+	c4 := BaseCosVec_NEON_c4_f64
 	intOne := BaseCosVec_NEON_intOne_i32_f64
 	intTwo := BaseCosVec_NEON_intTwo_i32_f64
 	intThree := BaseCosVec_NEON_intThree_i32_f64
@@ -1027,11 +1209,11 @@ func BaseErfVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 	poly = hwy.FMAF16(poly, t, a1)
 	poly = hwy.MulF16(poly, t)
 	x2 := hwy.MulF16(absX, absX)
-	negX2 := hwy.NegF16(x2)
+	negX2 := hwy.SubF16(zero, x2)
 	expNegX2 := BaseExpVec_neon_Float16(negX2)
 	erfAbs := hwy.SubF16(one, hwy.MulF16(poly, expNegX2))
 	erfAbs = hwy.MaxF16(hwy.MinF16(erfAbs, one), zero)
-	negErfAbs := hwy.NegF16(erfAbs)
+	negErfAbs := hwy.SubF16(zero, erfAbs)
 	result := hwy.IfThenElseF16(signMask, negErfAbs, erfAbs)
 	return result
 }
@@ -1054,24 +1236,24 @@ func BaseErfVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 	poly = hwy.FMABF16(poly, t, a1)
 	poly = hwy.MulBF16(poly, t)
 	x2 := hwy.MulBF16(absX, absX)
-	negX2 := hwy.NegBF16(x2)
+	negX2 := hwy.SubBF16(zero, x2)
 	expNegX2 := BaseExpVec_neon_BFloat16(negX2)
 	erfAbs := hwy.SubBF16(one, hwy.MulBF16(poly, expNegX2))
 	erfAbs = hwy.MaxBF16(hwy.MinBF16(erfAbs, one), zero)
-	negErfAbs := hwy.NegBF16(erfAbs)
+	negErfAbs := hwy.SubBF16(zero, erfAbs)
 	result := hwy.IfThenElseBF16(signMask, negErfAbs, erfAbs)
 	return result
 }
 
 func BaseErfVec_neon(x asm.Float32x4) asm.Float32x4 {
-	a1 := asm.BroadcastFloat32x4(erfA1_f32)
-	a2 := asm.BroadcastFloat32x4(erfA2_f32)
-	a3 := asm.BroadcastFloat32x4(erfA3_f32)
-	a4 := asm.BroadcastFloat32x4(erfA4_f32)
-	a5 := asm.BroadcastFloat32x4(erfA5_f32)
-	p := asm.BroadcastFloat32x4(erfP_f32)
-	one := asm.BroadcastFloat32x4(erfOne_f32)
-	zero := asm.BroadcastFloat32x4(erfZero_f32)
+	a1 := BaseErfVec_NEON_a1_f32
+	a2 := BaseErfVec_NEON_a2_f32
+	a3 := BaseErfVec_NEON_a3_f32
+	a4 := BaseErfVec_NEON_a4_f32
+	a5 := BaseErfVec_NEON_a5_f32
+	p := BaseErfVec_NEON_p_f32
+	one := BaseErfVec_NEON_one_f32
+	zero := BaseErfVec_NEON_zero_f32
 	absX := x.Abs()
 	signMask := x.Less(zero)
 	t := one.Div(one.Add(p.Mul(absX)))
@@ -1081,24 +1263,24 @@ func BaseErfVec_neon(x asm.Float32x4) asm.Float32x4 {
 	poly = poly.MulAdd(t, a1)
 	poly = poly.Mul(t)
 	x2 := absX.Mul(absX)
-	negX2 := asm.BroadcastFloat32x4(0).Sub(x2)
+	negX2 := zero.Sub(x2)
 	expNegX2 := BaseExpVec_neon(negX2)
 	erfAbs := one.Sub(poly.Mul(expNegX2))
 	erfAbs = erfAbs.Min(one).Max(zero)
-	negErfAbs := asm.BroadcastFloat32x4(0).Sub(erfAbs)
+	negErfAbs := zero.Sub(erfAbs)
 	result := negErfAbs.Merge(erfAbs, signMask)
 	return result
 }
 
 func BaseErfVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	a1 := asm.BroadcastFloat64x2(erfA1_f64)
-	a2 := asm.BroadcastFloat64x2(erfA2_f64)
-	a3 := asm.BroadcastFloat64x2(erfA3_f64)
-	a4 := asm.BroadcastFloat64x2(erfA4_f64)
-	a5 := asm.BroadcastFloat64x2(erfA5_f64)
-	p := asm.BroadcastFloat64x2(erfP_f64)
-	one := asm.BroadcastFloat64x2(erfOne_f64)
-	zero := asm.BroadcastFloat64x2(erfZero_f64)
+	a1 := BaseErfVec_NEON_a1_f64
+	a2 := BaseErfVec_NEON_a2_f64
+	a3 := BaseErfVec_NEON_a3_f64
+	a4 := BaseErfVec_NEON_a4_f64
+	a5 := BaseErfVec_NEON_a5_f64
+	p := BaseErfVec_NEON_p_f64
+	one := BaseErfVec_NEON_one_f64
+	zero := BaseErfVec_NEON_zero_f64
 	absX := x.Abs()
 	signMask := x.Less(zero)
 	t := one.Div(one.Add(p.Mul(absX)))
@@ -1108,11 +1290,11 @@ func BaseErfVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
 	poly = poly.MulAdd(t, a1)
 	poly = poly.Mul(t)
 	x2 := absX.Mul(absX)
-	negX2 := asm.BroadcastFloat64x2(0).Sub(x2)
+	negX2 := zero.Sub(x2)
 	expNegX2 := BaseExpVec_neon_Float64(negX2)
 	erfAbs := one.Sub(poly.Mul(expNegX2))
 	erfAbs = erfAbs.Min(one).Max(zero)
-	negErfAbs := asm.BroadcastFloat64x2(0).Sub(erfAbs)
+	negErfAbs := zero.Sub(erfAbs)
 	result := negErfAbs.Merge(erfAbs, signMask)
 	return result
 }
@@ -1130,13 +1312,13 @@ func BaseLog2Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseLog2Vec_neon(x asm.Float32x4) asm.Float32x4 {
-	log2E := asm.BroadcastFloat32x4(log2E_f32)
+	log2E := BaseLog2Vec_NEON_log2E_f32
 	lnX := BaseLogVec_neon(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLog2Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	log2E := asm.BroadcastFloat64x2(log2E_f64)
+	log2E := BaseLog2Vec_NEON_log2E_f64
 	lnX := BaseLogVec_neon_Float64(x)
 	return lnX.Mul(log2E)
 }
@@ -1154,13 +1336,13 @@ func BaseLog10Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseLog10Vec_neon(x asm.Float32x4) asm.Float32x4 {
-	log10E := asm.BroadcastFloat32x4(log10E_f32)
+	log10E := BaseLog10Vec_NEON_log10E_f32
 	lnX := BaseLogVec_neon(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseLog10Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	log10E := asm.BroadcastFloat64x2(log10E_f64)
+	log10E := BaseLog10Vec_NEON_log10E_f64
 	lnX := BaseLogVec_neon_Float64(x)
 	return lnX.Mul(log10E)
 }
@@ -1178,13 +1360,13 @@ func BaseExp2Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseExp2Vec_neon(x asm.Float32x4) asm.Float32x4 {
-	ln2 := asm.BroadcastFloat32x4(ln2_f32)
+	ln2 := BaseExp2Vec_NEON_ln2_f32
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_neon(xLn2)
 }
 
 func BaseExp2Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	ln2 := asm.BroadcastFloat64x2(ln2_f64)
+	ln2 := BaseExp2Vec_NEON_ln2_f64
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_neon_Float64(xLn2)
 }
@@ -1214,10 +1396,10 @@ func BaseSinhVec_neon_BFloat16(x asm.BFloat16x8) asm.BFloat16x8 {
 }
 
 func BaseSinhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(sinhOne_f32)
-	c3 := asm.BroadcastFloat32x4(sinhC3_f32)
-	c5 := asm.BroadcastFloat32x4(sinhC5_f32)
-	c7 := asm.BroadcastFloat32x4(sinhC7_f32)
+	one := BaseSinhVec_NEON_one_f32
+	c3 := BaseSinhVec_NEON_c3_f32
+	c5 := BaseSinhVec_NEON_c5_f32
+	c7 := BaseSinhVec_NEON_c7_f32
 	x2 := x.Mul(x)
 	poly := c7.MulAdd(x2, c5)
 	poly = poly.MulAdd(x2, c3)
@@ -1226,10 +1408,10 @@ func BaseSinhVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseSinhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(sinhOne_f64)
-	c3 := asm.BroadcastFloat64x2(sinhC3_f64)
-	c5 := asm.BroadcastFloat64x2(sinhC5_f64)
-	c7 := asm.BroadcastFloat64x2(sinhC7_f64)
+	one := BaseSinhVec_NEON_one_f64
+	c3 := BaseSinhVec_NEON_c3_f64
+	c5 := BaseSinhVec_NEON_c5_f64
+	c7 := BaseSinhVec_NEON_c7_f64
 	x2 := x.Mul(x)
 	poly := c7.MulAdd(x2, c5)
 	poly = poly.MulAdd(x2, c3)
@@ -1260,10 +1442,10 @@ func BaseCoshVec_neon_BFloat16(x asm.BFloat16x8) asm.BFloat16x8 {
 }
 
 func BaseCoshVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(1.0)
-	c2 := asm.BroadcastFloat32x4(0.5)
-	c4 := asm.BroadcastFloat32x4(0.041666666666666664)
-	c6 := asm.BroadcastFloat32x4(0.001388888888888889)
+	one := BaseCoshVec_NEON_one_f32
+	c2 := BaseCoshVec_NEON_c2_f32
+	c4 := BaseCoshVec_NEON_c4_f32
+	c6 := BaseCoshVec_NEON_c6_f32
 	x2 := x.Mul(x)
 	poly := c6.MulAdd(x2, c4)
 	poly = poly.MulAdd(x2, c2)
@@ -1271,10 +1453,10 @@ func BaseCoshVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseCoshVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(1.0)
-	c2 := asm.BroadcastFloat64x2(0.5)
-	c4 := asm.BroadcastFloat64x2(0.041666666666666664)
-	c6 := asm.BroadcastFloat64x2(0.001388888888888889)
+	one := BaseCoshVec_NEON_one_f64
+	c2 := BaseCoshVec_NEON_c2_f64
+	c4 := BaseCoshVec_NEON_c4_f64
+	c6 := BaseCoshVec_NEON_c6_f64
 	x2 := x.Mul(x)
 	poly := c6.MulAdd(x2, c4)
 	poly = poly.MulAdd(x2, c2)
@@ -1300,7 +1482,7 @@ func BaseAsinhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseAsinhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(1.0)
+	one := BaseAsinhVec_NEON_one_f32
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
 	sqrtPart := x2Plus1.Sqrt()
@@ -1309,7 +1491,7 @@ func BaseAsinhVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseAsinhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(1.0)
+	one := BaseAsinhVec_NEON_one_f64
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
 	sqrtPart := x2Plus1.Sqrt()
@@ -1344,8 +1526,8 @@ func BaseAcoshVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseAcoshVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(1.0)
-	zero := asm.BroadcastFloat32x4(0.0)
+	one := BaseAcoshVec_NEON_one_f32
+	zero := BaseAcoshVec_NEON_zero_f32
 	x2 := x.Mul(x)
 	x2Minus1 := x2.Sub(one)
 	sqrtPart := x2Minus1.Sqrt()
@@ -1357,8 +1539,8 @@ func BaseAcoshVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseAcoshVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(1.0)
-	zero := asm.BroadcastFloat64x2(0.0)
+	one := BaseAcoshVec_NEON_one_f64
+	zero := BaseAcoshVec_NEON_zero_f64
 	x2 := x.Mul(x)
 	x2Minus1 := x2.Sub(one)
 	sqrtPart := x2Minus1.Sqrt()
@@ -1398,9 +1580,9 @@ func BaseAtanhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
 }
 
 func BaseAtanhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(1.0)
-	half := asm.BroadcastFloat32x4(0.5)
-	zero := asm.BroadcastFloat32x4(0.0)
+	one := BaseAtanhVec_NEON_one_f32
+	half := BaseAtanhVec_NEON_half_f32
+	zero := BaseAtanhVec_NEON_zero_f32
 	onePlusX := one.Add(x)
 	oneMinusX := one.Sub(x)
 	ratio := onePlusX.Div(oneMinusX)
@@ -1412,9 +1594,9 @@ func BaseAtanhVec_neon(x asm.Float32x4) asm.Float32x4 {
 }
 
 func BaseAtanhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(1.0)
-	half := asm.BroadcastFloat64x2(0.5)
-	zero := asm.BroadcastFloat64x2(0.0)
+	one := BaseAtanhVec_NEON_one_f64
+	half := BaseAtanhVec_NEON_half_f64
+	zero := BaseAtanhVec_NEON_zero_f64
 	onePlusX := one.Add(x)
 	oneMinusX := one.Sub(x)
 	ratio := onePlusX.Div(oneMinusX)
@@ -1460,8 +1642,8 @@ func BasePowVec_neon_BFloat16(base hwy.Vec[hwy.BFloat16], exp hwy.Vec[hwy.BFloat
 }
 
 func BasePowVec_neon(base asm.Float32x4, exp asm.Float32x4) asm.Float32x4 {
-	one := asm.BroadcastFloat32x4(1.0)
-	zero := asm.BroadcastFloat32x4(0.0)
+	one := BasePowVec_NEON_one_f32
+	zero := BasePowVec_NEON_zero_f32
 	logBase := BaseLogVec_neon(base)
 	expTimesLog := exp.Mul(logBase)
 	result := BaseExpVec_neon(expTimesLog)
@@ -1477,8 +1659,8 @@ func BasePowVec_neon(base asm.Float32x4, exp asm.Float32x4) asm.Float32x4 {
 }
 
 func BasePowVec_neon_Float64(base asm.Float64x2, exp asm.Float64x2) asm.Float64x2 {
-	one := asm.BroadcastFloat64x2(1.0)
-	zero := asm.BroadcastFloat64x2(0.0)
+	one := BasePowVec_NEON_one_f64
+	zero := BasePowVec_NEON_zero_f64
 	logBase := BaseLogVec_neon_Float64(base)
 	expTimesLog := exp.Mul(logBase)
 	result := BaseExpVec_neon_Float64(expTimesLog)

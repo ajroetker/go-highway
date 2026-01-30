@@ -451,6 +451,76 @@ func BaseLeakyReLU_fallback_Float64(input []float64, output []float64, alpha flo
 	}
 }
 
+func BaseTanh_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	ii := 0
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.LoadFull(input[ii:])
+		result := math.BaseTanhVec_fallback_Float16(x)
+		hwy.StoreFull(result, output[ii:])
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	ii := 0
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.LoadFull(input[ii:])
+		result := math.BaseTanhVec_fallback_BFloat16(x)
+		hwy.StoreFull(result, output[ii:])
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_fallback(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	ii := 0
+	for ; ii < size; ii++ {
+		x := input[ii]
+		result := float32(stdmath.Tanh(float64(x)))
+		output[ii] = result
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float32(stdmath.Tanh(x))
+	}
+}
+
+func BaseTanh_fallback_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	ii := 0
+	for ; ii < size; ii++ {
+		x := input[ii]
+		result := float64(stdmath.Tanh(float64(x)))
+		output[ii] = result
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float64(stdmath.Tanh(x))
+	}
+}
+
 func BaseELU_fallback_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -475,7 +545,7 @@ func BaseELU_fallback_Float16(input []hwy.Float16, output []hwy.Float16, alpha h
 			output[i] = hwy.Float32ToFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }
@@ -504,7 +574,7 @@ func BaseELU_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alph
 			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }

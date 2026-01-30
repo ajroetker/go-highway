@@ -7,6 +7,7 @@ package activation
 import (
 	stdmath "math"
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
@@ -14,7 +15,46 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
+var (
+	BaseELU_AVX512_vOne_f32          archsimd.Float32x16
+	BaseELU_AVX512_vOne_f64          archsimd.Float64x8
+	BaseELU_AVX512_vZero_f32         archsimd.Float32x16
+	BaseELU_AVX512_vZero_f64         archsimd.Float64x8
+	BaseGELUApprox_AVX512_vCoeff_f32 archsimd.Float32x16
+	BaseGELUApprox_AVX512_vCoeff_f64 archsimd.Float64x8
+	BaseGELU_AVX512_vHalf_f32        archsimd.Float32x16
+	BaseGELU_AVX512_vHalf_f64        archsimd.Float64x8
+	BaseGELU_AVX512_vInvSqrt2_f32    archsimd.Float32x16
+	BaseGELU_AVX512_vInvSqrt2_f64    archsimd.Float64x8
+	BaseGELU_AVX512_vOne_f32         archsimd.Float32x16
+	BaseGELU_AVX512_vOne_f64         archsimd.Float64x8
+	BaseReLU_AVX512_vZero_f32        archsimd.Float32x16
+	BaseReLU_AVX512_vZero_f64        archsimd.Float64x8
+	_activationBaseHoistOnce         sync.Once
+)
+
+func _activationBaseInitHoistedConstants() {
+	_activationBaseHoistOnce.Do(func() {
+		BaseELU_AVX512_vOne_f32 = archsimd.BroadcastFloat32x16(1.0)
+		BaseELU_AVX512_vOne_f64 = archsimd.BroadcastFloat64x8(1.0)
+		BaseELU_AVX512_vZero_f32 = archsimd.BroadcastFloat32x16(0.0)
+		BaseELU_AVX512_vZero_f64 = archsimd.BroadcastFloat64x8(0.0)
+		BaseGELUApprox_AVX512_vCoeff_f32 = archsimd.BroadcastFloat32x16(1.702)
+		BaseGELUApprox_AVX512_vCoeff_f64 = archsimd.BroadcastFloat64x8(1.702)
+		BaseGELU_AVX512_vHalf_f32 = archsimd.BroadcastFloat32x16(0.5)
+		BaseGELU_AVX512_vHalf_f64 = archsimd.BroadcastFloat64x8(0.5)
+		BaseGELU_AVX512_vInvSqrt2_f32 = archsimd.BroadcastFloat32x16(0.7071067811865476)
+		BaseGELU_AVX512_vInvSqrt2_f64 = archsimd.BroadcastFloat64x8(0.7071067811865476)
+		BaseGELU_AVX512_vOne_f32 = archsimd.BroadcastFloat32x16(1.0)
+		BaseGELU_AVX512_vOne_f64 = archsimd.BroadcastFloat64x8(1.0)
+		BaseReLU_AVX512_vZero_f32 = archsimd.BroadcastFloat32x16(0.0)
+		BaseReLU_AVX512_vZero_f64 = archsimd.BroadcastFloat64x8(0.0)
+	})
+}
+
 func BaseGELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -56,6 +96,7 @@ func BaseGELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseGELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -97,13 +138,14 @@ func BaseGELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseGELU_avx512(input []float32, output []float32) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vHalf := archsimd.BroadcastFloat32x16(0.5)
-	vOne := archsimd.BroadcastFloat32x16(1.0)
-	vInvSqrt2 := archsimd.BroadcastFloat32x16(0.7071067811865476)
+	vHalf := BaseGELU_AVX512_vHalf_f32
+	vOne := BaseGELU_AVX512_vOne_f32
+	vInvSqrt2 := BaseGELU_AVX512_vInvSqrt2_f32
 	lanes := 16
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -138,13 +180,14 @@ func BaseGELU_avx512(input []float32, output []float32) {
 }
 
 func BaseGELU_avx512_Float64(input []float64, output []float64) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vHalf := archsimd.BroadcastFloat64x8(0.5)
-	vOne := archsimd.BroadcastFloat64x8(1.0)
-	vInvSqrt2 := archsimd.BroadcastFloat64x8(0.7071067811865476)
+	vHalf := BaseGELU_AVX512_vHalf_f64
+	vOne := BaseGELU_AVX512_vOne_f64
+	vInvSqrt2 := BaseGELU_AVX512_vInvSqrt2_f64
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -179,6 +222,7 @@ func BaseGELU_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseGELUApprox_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -213,6 +257,7 @@ func BaseGELUApprox_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseGELUApprox_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -247,11 +292,12 @@ func BaseGELUApprox_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16)
 }
 
 func BaseGELUApprox_avx512(input []float32, output []float32) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vCoeff := archsimd.BroadcastFloat32x16(1.702)
+	vCoeff := BaseGELUApprox_AVX512_vCoeff_f32
 	lanes := 16
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -281,11 +327,12 @@ func BaseGELUApprox_avx512(input []float32, output []float32) {
 }
 
 func BaseGELUApprox_avx512_Float64(input []float64, output []float64) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vCoeff := archsimd.BroadcastFloat64x8(1.702)
+	vCoeff := BaseGELUApprox_AVX512_vCoeff_f64
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -315,6 +362,7 @@ func BaseGELUApprox_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -348,6 +396,7 @@ func BaseReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -381,11 +430,12 @@ func BaseReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseReLU_avx512(input []float32, output []float32) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vZero := archsimd.BroadcastFloat32x16(0.0)
+	vZero := BaseReLU_AVX512_vZero_f32
 	lanes := 16
 	ii := 0
 	for ; ii+lanes*3 <= size; ii += lanes * 3 {
@@ -414,11 +464,12 @@ func BaseReLU_avx512(input []float32, output []float32) {
 }
 
 func BaseReLU_avx512_Float64(input []float64, output []float64) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vZero := archsimd.BroadcastFloat64x8(0.0)
+	vZero := BaseReLU_AVX512_vZero_f64
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*3 <= size; ii += lanes * 3 {
@@ -447,6 +498,7 @@ func BaseReLU_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseSiLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -477,6 +529,7 @@ func BaseSiLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseSiLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -507,6 +560,7 @@ func BaseSiLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseSiLU_avx512(input []float32, output []float32) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -537,6 +591,7 @@ func BaseSiLU_avx512(input []float32, output []float32) {
 }
 
 func BaseSiLU_avx512_Float64(input []float64, output []float64) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -567,6 +622,7 @@ func BaseSiLU_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseLeakyReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -604,6 +660,7 @@ func BaseLeakyReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alp
 }
 
 func BaseLeakyReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -641,6 +698,7 @@ func BaseLeakyReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 }
 
 func BaseLeakyReLU_avx512(input []float32, output []float32, alpha float32) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -678,6 +736,7 @@ func BaseLeakyReLU_avx512(input []float32, output []float32, alpha float32) {
 }
 
 func BaseLeakyReLU_avx512_Float64(input []float64, output []float64, alpha float64) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -714,7 +773,116 @@ func BaseLeakyReLU_avx512_Float64(input []float64, output []float64, alpha float
 	}
 }
 
+func BaseTanh_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_Float16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+		x1 := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii+16:]))), len(input[ii+16:])))
+		result1 := math.BaseTanhVec_avx512_Float16(x1)
+		result1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii+16:]))), len(output[ii+16:])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_Float16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_BFloat16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+		x1 := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii+16:]))), len(input[ii+16:])))
+		result1 := math.BaseTanhVec_avx512_BFloat16(x1)
+		result1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii+16:]))), len(output[ii+16:])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(input[ii:]))), len(input[ii:])))
+		result := math.BaseTanhVec_avx512_BFloat16(x)
+		result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[ii:]))), len(output[ii:])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Tanh(x)))
+	}
+}
+
+func BaseTanh_avx512(input []float32, output []float32) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512(x)
+		result.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+16])))
+		result1 := math.BaseTanhVec_avx512(x1)
+		result1.Store((*[16]float32)(unsafe.Pointer(&output[ii+16])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512(x)
+		result.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float32(stdmath.Tanh(x))
+	}
+}
+
+func BaseTanh_avx512_Float64(input []float64, output []float64) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512_Float64(x)
+		result.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+8])))
+		result1 := math.BaseTanhVec_avx512_Float64(x1)
+		result1.Store((*[8]float64)(unsafe.Pointer(&output[ii+8])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		result := math.BaseTanhVec_avx512_Float64(x)
+		result.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		output[i] = float64(stdmath.Tanh(x))
+	}
+}
+
 func BaseELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -754,12 +922,13 @@ func BaseELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy
 			output[i] = hwy.Float32ToFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }
 
 func BaseELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -799,18 +968,19 @@ func BaseELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha 
 			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
 		} else {
 			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha) * (stdmath.Exp(x) - 1.0)))
+			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
 		}
 	}
 }
 
 func BaseELU_avx512(input []float32, output []float32, alpha float32) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vZero := archsimd.BroadcastFloat32x16(0.0)
-	vOne := archsimd.BroadcastFloat32x16(1.0)
+	vZero := BaseELU_AVX512_vZero_f32
+	vOne := BaseELU_AVX512_vOne_f32
 	vAlpha := archsimd.BroadcastFloat32x16(alpha)
 	lanes := 16
 	ii := 0
@@ -850,12 +1020,13 @@ func BaseELU_avx512(input []float32, output []float32, alpha float32) {
 }
 
 func BaseELU_avx512_Float64(input []float64, output []float64, alpha float64) {
+	_activationBaseInitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vZero := archsimd.BroadcastFloat64x8(0.0)
-	vOne := archsimd.BroadcastFloat64x8(1.0)
+	vZero := BaseELU_AVX512_vZero_f64
+	vOne := BaseELU_AVX512_vOne_f64
 	vAlpha := archsimd.BroadcastFloat64x8(alpha)
 	lanes := 8
 	ii := 0

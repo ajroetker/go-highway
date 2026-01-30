@@ -21,3 +21,7 @@ hwy/contrib/varint/c/*.o
 hwy/contrib/varint/c/*.s
 hwy/contrib/rabitq/c/*.o
 hwy/contrib/rabitq/c/*.s
+hwy/contrib/nn/c/*.o
+hwy/contrib/nn/c/*.s
+hwy/contrib/activation/c/*.o
+hwy/contrib/activation/c/*.s
