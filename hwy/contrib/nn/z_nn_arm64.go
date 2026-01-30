@@ -71,6 +71,35 @@ func layerNormNEONF64(input, output []float64, normSize int, gamma, beta []float
 	}
 }
 
+// Minimum size to use NEON softmax vectorization.
+const minSizeForNEONSoftmax = 8
+
+// softmaxNEONF32 uses GOAT-generated NEON assembly for f32 softmax.
+func softmaxNEONF32(input, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	if size < minSizeForNEONSoftmax {
+		BaseSoftmax(input, output)
+		return
+	}
+	asm.SoftmaxNeonF32(input, output, size)
+}
+
+// softmaxNEONF64 uses GOAT-generated NEON assembly for f64 softmax.
+func softmaxNEONF64(input, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	if size < minSizeForNEONSoftmax {
+		BaseSoftmax(input, output)
+		return
+	}
+	asm.SoftmaxNeonF64(input, output, size)
+}
+
 func init() {
 	if hwy.NoSimdEnv() {
 		return
@@ -79,6 +108,10 @@ func init() {
 	// Override LayerNorm dispatch with GOAT NEON implementations
 	LayerNormFloat32 = layerNormNEONF32
 	LayerNormFloat64 = layerNormNEONF64
+
+	// Override Softmax dispatch with GOAT NEON implementations
+	SoftmaxFloat32 = softmaxNEONF32
+	SoftmaxFloat64 = softmaxNEONF64
 
 	// Float16/BFloat16 use the hwygen-generated promoted implementations
 	// (promote to f32, compute, demote) which are already efficient enough

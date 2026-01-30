@@ -5140,7 +5140,11 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 			return ""
 		}
 	}
-	if isConst && isHalfPrecisionType(ctx.elemType) && !isAVXPromotedHalfPrec(ctx.target, ctx.elemType) {
+	// For all half-precision types (NEON, AVX promoted, Fallback), skip hoisting float constants.
+	// NEON and Fallback: constants stay as inline hwy.Set/Const calls.
+	// AVX promoted: the inline Set→asm.Broadcast transformation produces the correct promoted type.
+	// Int32 constants for AVX promoted are handled above (line 5139) and are fine to hoist.
+	if isHalfPrecisionType(ctx.elemType) && actualElemType != "int32" {
 		return ""
 	}
 
