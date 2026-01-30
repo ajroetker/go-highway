@@ -100,6 +100,56 @@ func softmaxNEONF64(input, output []float64) {
 	asm.SoftmaxNeonF64(input, output, size)
 }
 
+// Minimum dimensions for NEON/SME SDPA acceleration.
+const minDimForSDPANEON = 8
+const minDimForSDPASME = 32
+
+// sdpaNEONF32 uses GOAT-generated NEON assembly for f32 SDPA.
+func sdpaNEONF32(q, k, v, mask, scores, output []float32, seqLen, kvLen, headDim int, scale float32) {
+	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
+		BaseSDPA(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+		return
+	}
+	asm.SDPANeonF32(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+}
+
+// sdpaNEONF64 uses GOAT-generated NEON assembly for f64 SDPA.
+func sdpaNEONF64(q, k, v, mask, scores, output []float64, seqLen, kvLen, headDim int, scale float64) {
+	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
+		BaseSDPA(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+		return
+	}
+	asm.SDPANeonF64(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+}
+
+// sdpaCausalNEONF32 uses GOAT-generated NEON assembly for f32 causal SDPA.
+func sdpaCausalNEONF32(q, k, v, scores, output []float32, seqLen, kvLen, headDim int, scale float32) {
+	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
+		BaseSDPACausal(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
+		return
+	}
+	asm.SDPACausalNeonF32(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
+}
+
+// sdpaCausalNEONF64 uses GOAT-generated NEON assembly for f64 causal SDPA.
+func sdpaCausalNEONF64(q, k, v, scores, output []float64, seqLen, kvLen, headDim int, scale float64) {
+	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
+		BaseSDPACausal(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
+		return
+	}
+	asm.SDPACausalNeonF64(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
+}
+
+// qkvlinearNEONF32 uses GOAT-generated NEON assembly for f32 QKV projection.
+func qkvlinearNEONF32(x, wQKV, biasQ, biasK, biasV, q, k, v []float32, batchSize, inFeatures, qDim, kvDim int) {
+	asm.QKVLinearNEONF32(x, wQKV, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
+}
+
+// qkvlinearNEONF64 uses GOAT-generated NEON assembly for f64 QKV projection.
+func qkvlinearNEONF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize, inFeatures, qDim, kvDim int) {
+	asm.QKVLinearNEONF64(x, wQKV, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
+}
+
 func init() {
 	if hwy.NoSimdEnv() {
 		return
@@ -112,6 +162,16 @@ func init() {
 	// Override Softmax dispatch with GOAT NEON implementations
 	SoftmaxFloat32 = softmaxNEONF32
 	SoftmaxFloat64 = softmaxNEONF64
+
+	// Override SDPA dispatch with GOAT NEON implementations
+	SDPAFloat32 = sdpaNEONF32
+	SDPAFloat64 = sdpaNEONF64
+	SDPACausalFloat32 = sdpaCausalNEONF32
+	SDPACausalFloat64 = sdpaCausalNEONF64
+
+	// Override QKVLinear dispatch with GOAT NEON implementations
+	QKVLinearFloat32 = qkvlinearNEONF32
+	QKVLinearFloat64 = qkvlinearNEONF64
 
 	// Float16/BFloat16 use the hwygen-generated promoted implementations
 	// (promote to f32, compute, demote) which are already efficient enough

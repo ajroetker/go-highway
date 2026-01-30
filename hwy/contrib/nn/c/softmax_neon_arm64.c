@@ -62,9 +62,6 @@ void softmax_neon_f32(float *input, float *output, long *psize) {
     //   exp(r) via Horner: 1 + r*(1 + r*(0.5 + r*(1/6 + r*(1/24 + r*(1/120 + r/720)))))
     //   result = exp(r) * 2^k  (via IEEE bit manipulation)
     //
-    // No overflow/underflow clamping needed: softmax inputs are shifted by max,
-    // so values are in (-inf, 0], meaning exp output is in (0, 1].
-
     float32x4_t invLn2 = vdupq_n_f32(1.44269504088896341f);
     float32x4_t ln2Hi  = vdupq_n_f32(0.693359375f);
     float32x4_t ln2Lo  = vdupq_n_f32(-2.12194440e-4f);
@@ -75,6 +72,7 @@ void softmax_neon_f32(float *input, float *output, long *psize) {
     float32x4_t c5 = vdupq_n_f32(0.008333333333333333f);
     float32x4_t c6 = vdupq_n_f32(0.001388888888888889f);
     int32x4_t bias = vdupq_n_s32(127);
+    float32x4_t expMin = vdupq_n_f32(-87.3365f);
 
     float32x4_t maxBroadcast = vdupq_n_f32(maxVal);
     float32x4_t sumVec = vdupq_n_f32(0.0f);
@@ -84,8 +82,8 @@ void softmax_neon_f32(float *input, float *output, long *psize) {
     for (; p + 4 <= size; p += 4) {
         // Subtract max
         float32x4_t x = vsubq_f32(vld1q_f32(input + p), maxBroadcast);
+        x = vmaxq_f32(x, expMin);
 
-        // Inline exp(x) - no clamping needed (x <= 0 after max subtraction)
         float32x4_t kf = vrndnq_f32(vmulq_f32(x, invLn2));
         // Range reduction using separate mul+sub (matches Go hwy.Sub/hwy.Mul)
         float32x4_t r = vsubq_f32(x, vmulq_f32(kf, ln2Hi));
@@ -111,6 +109,7 @@ void softmax_neon_f32(float *input, float *output, long *psize) {
     // Scalar tail
     for (; p < size; p++) {
         float x = input[p] - maxVal;
+        if (x < -87.3365f) x = -87.3365f;
 
         // Scalar exp using NEON for single element
         float32x4_t xv = vdupq_n_f32(x);
@@ -182,6 +181,7 @@ void softmax_neon_f64(double *input, double *output, long *psize) {
     float64x2_t ln2Hi_f64 = vdupq_n_f64(0.6931471803691238);
     float64x2_t ln2Lo_f64 = vdupq_n_f64(1.9082149292705877e-10);
     float64x2_t v_inv_ln2 = vdupq_n_f64(1.4426950408889634);
+    float64x2_t expMin_f64 = vdupq_n_f64(-708.396);
 
     float64x2_t maxBroadcast = vdupq_n_f64(maxVal);
     float64x2_t sumVec = vdupq_n_f64(0.0);
@@ -190,6 +190,7 @@ void softmax_neon_f64(double *input, double *output, long *psize) {
     for (; p + 2 <= size; p += 2) {
         // Subtract max
         float64x2_t x = vsubq_f64(vld1q_f64(input + p), maxBroadcast);
+        x = vmaxq_f64(x, expMin_f64);
 
         // Inline exp(x) for f64
         float64x2_t k = vrndnq_f64(vmulq_f64(x, v_inv_ln2));
@@ -221,6 +222,7 @@ void softmax_neon_f64(double *input, double *output, long *psize) {
     // Scalar tail
     for (; p < size; p++) {
         double x = input[p] - maxVal;
+        if (x < -708.396) x = -708.396;
 
         // Scalar exp using NEON for single element
         float64x2_t xv = vdupq_n_f64(x);
