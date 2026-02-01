@@ -24,8 +24,6 @@
 package nn
 
 import (
-	"sync"
-
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul"
 	"github.com/ajroetker/go-highway/hwy/contrib/nn/asm"
@@ -157,15 +155,6 @@ func qkvdenseNEONF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize,
 // SME SDPA adapter functions
 // =============================================================================
 
-// Transpose buffer pools for SME adapters
-var smeTransposePool32 = sync.Pool{
-	New: func() any { return make([]float32, 0, 256*256) },
-}
-
-var smeTransposePool64 = sync.Pool{
-	New: func() any { return make([]float64, 0, 256*256) },
-}
-
 // sdpaSMEF32 decomposes SDPA into multi-tile FMOPA matmul + Go softmax.
 // Step 1: scores = Q @ K^T (via MatMulKLast, which uses multi-tile FMOPA)
 // Step 2: scale scores, add mask, row-wise softmax (in Go)
@@ -219,75 +208,53 @@ func scaleMaskSoftmax[T hwy.Floats](scores, mask []T, seqLen, kvLen int, scale T
 // SME QKVDense adapter functions
 // =============================================================================
 
-// qkvdenseSMEF32 adapts the dispatch QKVDense signature for SME assembly which
-// expects pre-transposed x and wQKV inputs.
+// qkvdenseSMEF32 decomposes QKV projection into 3 separate MatMulKLast calls,
+// one per projection (Q, K, V). Each call handles its own incremental transpose,
+// eliminating the O(inFeatures * totalOut) wQKV transpose buffer.
 func qkvdenseSMEF32(x, wQKV, biasQ, biasK, biasV, q, k, v []float32, batchSize, inFeatures, qDim, kvDim int) {
-	totalOut := qDim + 2*kvDim
-	// Check alignment (batchSize and totalOut multiples of 16) and minimum size
-	if batchSize%16 != 0 || totalOut%16 != 0 || inFeatures%16 != 0 ||
-		batchSize < minDimForSDPASME || totalOut < minDimForSDPASME {
-		qkvdenseNEONF32(x, wQKV, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
-		return
+	// wQKV is [totalOut, inFeatures] laid out as [wQ; wK; wV] row-major.
+	// MatMulKLast(a, b, c, m, n, k) computes C = A @ B^T.
+	// Q: x[batchSize, inFeatures] @ wQ[qDim, inFeatures]^T → q[batchSize, qDim]
+	wQ := wQKV[:qDim*inFeatures]
+	matmul.MatMulKLastFloat32(x, wQ, q, batchSize, qDim, inFeatures)
+	if biasQ != nil {
+		addBias(q, biasQ, batchSize, qDim)
 	}
 
-	// Transpose x [batchSize, inFeatures] → xt [inFeatures, batchSize]
-	xtSize := inFeatures * batchSize
-	xtBuf := smeTransposePool32.Get().([]float32)
-	if cap(xtBuf) < xtSize {
-		xtBuf = make([]float32, xtSize)
-	} else {
-		xtBuf = xtBuf[:xtSize]
+	// K: x @ wK^T → k[batchSize, kvDim]
+	wK := wQKV[qDim*inFeatures : (qDim+kvDim)*inFeatures]
+	matmul.MatMulKLastFloat32(x, wK, k, batchSize, kvDim, inFeatures)
+	if biasK != nil {
+		addBias(k, biasK, batchSize, kvDim)
 	}
-	matmul.Transpose2D(x, batchSize, inFeatures, xtBuf)
 
-	// Transpose wQKV [totalOut, inFeatures] → wqkv [inFeatures, totalOut]
-	wSize := inFeatures * totalOut
-	wBuf := smeTransposePool32.Get().([]float32)
-	if cap(wBuf) < wSize {
-		wBuf = make([]float32, wSize)
-	} else {
-		wBuf = wBuf[:wSize]
+	// V: x @ wV^T → v[batchSize, kvDim]
+	wV := wQKV[(qDim+kvDim)*inFeatures:]
+	matmul.MatMulKLastFloat32(x, wV, v, batchSize, kvDim, inFeatures)
+	if biasV != nil {
+		addBias(v, biasV, batchSize, kvDim)
 	}
-	matmul.Transpose2D(wQKV, totalOut, inFeatures, wBuf)
-
-	asm.QKVDenseFMOPAF32(xtBuf, wBuf, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
-
-	smeTransposePool32.Put(xtBuf)
-	smeTransposePool32.Put(wBuf)
 }
 
-// qkvdenseSMEF64 adapts the dispatch QKVDense signature for float64 SME assembly.
+// qkvdenseSMEF64 decomposes QKV projection into 3 separate MatMulKLast calls (float64).
 func qkvdenseSMEF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize, inFeatures, qDim, kvDim int) {
-	totalOut := qDim + 2*kvDim
-	// f64 uses 8-wide tiles
-	if batchSize%8 != 0 || totalOut%8 != 0 || inFeatures%8 != 0 ||
-		batchSize < minDimForSDPASME || totalOut < minDimForSDPASME {
-		qkvdenseNEONF64(x, wQKV, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
-		return
+	wQ := wQKV[:qDim*inFeatures]
+	matmul.MatMulKLastFloat64(x, wQ, q, batchSize, qDim, inFeatures)
+	if biasQ != nil {
+		addBias(q, biasQ, batchSize, qDim)
 	}
 
-	xtSize := inFeatures * batchSize
-	xtBuf := smeTransposePool64.Get().([]float64)
-	if cap(xtBuf) < xtSize {
-		xtBuf = make([]float64, xtSize)
-	} else {
-		xtBuf = xtBuf[:xtSize]
+	wK := wQKV[qDim*inFeatures : (qDim+kvDim)*inFeatures]
+	matmul.MatMulKLastFloat64(x, wK, k, batchSize, kvDim, inFeatures)
+	if biasK != nil {
+		addBias(k, biasK, batchSize, kvDim)
 	}
-	matmul.Transpose2D(x, batchSize, inFeatures, xtBuf)
 
-	wSize := inFeatures * totalOut
-	wBuf := smeTransposePool64.Get().([]float64)
-	if cap(wBuf) < wSize {
-		wBuf = make([]float64, wSize)
-	} else {
-		wBuf = wBuf[:wSize]
+	wV := wQKV[(qDim+kvDim)*inFeatures:]
+	matmul.MatMulKLastFloat64(x, wV, v, batchSize, kvDim, inFeatures)
+	if biasV != nil {
+		addBias(v, biasV, batchSize, kvDim)
 	}
-	matmul.Transpose2D(wQKV, totalOut, inFeatures, wBuf)
-
-	asm.QKVDenseFMOPAF64(xtBuf, wBuf, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
-
-	smeTransposePool64.Put(xtBuf)
-	smeTransposePool64.Put(wBuf)
 }
 
 func init() {
