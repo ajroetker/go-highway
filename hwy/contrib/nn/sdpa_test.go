@@ -241,8 +241,8 @@ func TestMultiHeadSDPA(t *testing.T) {
 		v[i] = float32(i)*0.006 - 0.3
 	}
 
-	MultiHeadSDPAAuto(q, k, v, nil, output, batchSize, numHeads, numKVHeads,
-		seqLen, kvLen, headDim, scale, false)
+	MultiHeadSDPAAuto(nil, q, k, v, nil, output, batchSize, numHeads, numKVHeads,
+		seqLen, kvLen, headDim, 0, 0, scale, false)
 
 	// Basic sanity: no NaN or Inf
 	for i, val := range output {
@@ -296,8 +296,8 @@ func TestMultiHeadSDPACausal(t *testing.T) {
 		v[i] = float32(i)*0.006 - 0.3
 	}
 
-	MultiHeadSDPAAuto(q, k, v, nil, output, batchSize, numHeads, numKVHeads,
-		seqLen, kvLen, headDim, scale, true)
+	MultiHeadSDPAAuto(nil, q, k, v, nil, output, batchSize, numHeads, numKVHeads,
+		seqLen, kvLen, headDim, 0, 0, scale, true)
 
 	for i, val := range output {
 		if stdmath.IsNaN(float64(val)) || stdmath.IsInf(float64(val), 0) {

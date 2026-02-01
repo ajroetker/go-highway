@@ -16,6 +16,7 @@ package nn
 
 import (
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // SDPAAuto computes single-head scaled dot-product attention using the best
@@ -56,17 +57,26 @@ func SDPACausalAuto[T hwy.Floats](
 // MultiHeadSDPAAuto computes multi-head scaled dot-product attention with
 // optional grouped-query attention (GQA) support.
 //
+//   - pool:   worker pool for parallelizing across batch×head (nil = sequential)
 //   - q:      [batchSize, numHeads, seqLen, headDim] (queries, contiguous)
 //   - k:      [batchSize, numKVHeads, kvLen, headDim] (keys, contiguous)
 //   - v:      [batchSize, numKVHeads, kvLen, headDim] (values, contiguous)
-//   - mask:   [seqLen, kvLen] (additive mask shared across heads, nil for no mask)
+//   - mask:   additive mask, nil for no mask. May be [seqLen, kvLen] (shared),
+//     [batch, 1, seqLen, kvLen], or [batch, numHeads, seqLen, kvLen].
+//     Use maskBatchStride/maskHeadStride to control broadcasting (0 = broadcast).
 //   - output: [batchSize, numHeads, seqLen, headDim] (result, contiguous)
+//
+// maskBatchStride is the number of elements to advance per batch in the mask
+// (0 means the same mask is shared across batches). maskHeadStride is the
+// number of elements to advance per head (0 means shared across heads).
 //
 // When numKVHeads < numHeads, grouped-query attention is used: each KV head
 // serves numHeads/numKVHeads query heads.
 func MultiHeadSDPAAuto[T hwy.Floats](
+	pool *workerpool.Pool,
 	q, k, v, mask, output []T,
 	batchSize, numHeads, numKVHeads, seqLen, kvLen, headDim int,
+	maskBatchStride, maskHeadStride int,
 	scale T, causal bool,
 ) {
 	if batchSize == 0 || numHeads == 0 || seqLen == 0 || kvLen == 0 || headDim == 0 {
@@ -76,33 +86,43 @@ func MultiHeadSDPAAuto[T hwy.Floats](
 	headsPerKVHead := numHeads / numKVHeads
 	qHeadStride := seqLen * headDim
 	kvHeadStride := kvLen * headDim
+	maskSliceLen := seqLen * kvLen
+	totalHeads := batchSize * numHeads
 
-	for b := range batchSize {
-		qBatchOff := b * numHeads * qHeadStride
-		kBatchOff := b * numKVHeads * kvHeadStride
-		vBatchOff := b * numKVHeads * kvHeadStride
-		oBatchOff := b * numHeads * qHeadStride
+	doHead := func(idx int) {
+		b := idx / numHeads
+		h := idx % numHeads
+		kvHead := h / headsPerKVHead
 
-		for h := range numHeads {
-			kvHead := h / headsPerKVHead
+		qOff := (b*numHeads + h) * qHeadStride
+		kOff := (b*numKVHeads + kvHead) * kvHeadStride
+		vOff := kOff
+		oOff := qOff
 
-			qOff := qBatchOff + h*qHeadStride
-			kOff := kBatchOff + kvHead*kvHeadStride
-			vOff := vBatchOff + kvHead*kvHeadStride
-			oOff := oBatchOff + h*qHeadStride
+		qSlice := q[qOff : qOff+qHeadStride]
+		kSlice := k[kOff : kOff+kvHeadStride]
+		vSlice := v[vOff : vOff+kvHeadStride]
+		oSlice := output[oOff : oOff+qHeadStride]
 
-			qSlice := q[qOff : qOff+qHeadStride]
-			kSlice := k[kOff : kOff+kvHeadStride]
-			vSlice := v[vOff : vOff+kvHeadStride]
-			oSlice := output[oOff : oOff+qHeadStride]
-
-			if causal {
-				SDPACausalAuto(qSlice, kSlice, vSlice, oSlice,
-					seqLen, kvLen, headDim, scale)
-			} else {
-				SDPAAuto(qSlice, kSlice, vSlice, mask, oSlice,
-					seqLen, kvLen, headDim, scale)
+		if causal {
+			SDPACausalAuto(qSlice, kSlice, vSlice, oSlice,
+				seqLen, kvLen, headDim, scale)
+		} else {
+			var maskSlice []T
+			if mask != nil {
+				maskOff := b*maskBatchStride + h*maskHeadStride
+				maskSlice = mask[maskOff : maskOff+maskSliceLen]
 			}
+			SDPAAuto(qSlice, kSlice, vSlice, maskSlice, oSlice,
+				seqLen, kvLen, headDim, scale)
+		}
+	}
+
+	if pool != nil {
+		pool.ParallelForAtomic(totalHeads, doHead)
+	} else {
+		for i := range totalHeads {
+			doHead(i)
 		}
 	}
 }
