@@ -927,22 +927,22 @@ func matmulKLastNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 // SME FMOPA MatMulKLast implementations
 // =============================================================================
 
-// matmulKLastFMOPA uses ARM SME FMOPA for MatMulKLast.
+// klastStripN is the strip width for incremental B transpose in MatMulKLast.
+// Must be a multiple of 16 (f32 tile width). Chosen to balance cache pressure
+// against streaming mode enter/exit overhead per strip.
+const klastStripN = 48
+
+// matmulKLastFMOPA uses ARM SME FMOPA for MatMulKLast with incremental B transpose.
 //
 // MatMulKLast computes C = A @ B^T where:
 //   - A is M x K (row-major)
 //   - B is N x K (row-major)
 //   - C is M x N (row-major)
 //
-// The existing FMOPA kernel expects:
-//   - AT: K x M (transposed A)
-//   - B:  K x N (normal B)
-//   - Computes: (AT)^T @ B = A @ B
-//
-// For MatMulKLast (C = A @ B^T):
-//   - Transpose A to get AT [K, M]
-//   - Transpose B to get BT [K, N]
-//   - Call FMOPA(AT, BT) which computes (AT)^T @ BT = A @ B^T ✓
+// Instead of transposing all of B upfront (O(K*N) buffer), B is transposed
+// in strips of klastStripN columns. The strided FMOPA kernel writes each
+// strip's output directly into the correct columns of C, avoiding any
+// scatter copy.
 func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
 	// For non-aligned N or K, fall back to NEON dot-product assembly
 	if n%16 != 0 || k%16 != 0 {
@@ -959,11 +959,14 @@ func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
 		return
 	}
 
+	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
+	// from corrupting ZA register state during SME streaming mode.
+	defer hwy.SMEGuard()()
+
 	needsPadding := paddedM != m
 
 	fmopaA := a
 	fmopaM := m
-	var paddedC []float32
 
 	if needsPadding {
 		fmopaM = paddedM
@@ -978,57 +981,67 @@ func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
 		copy(paBuf[:m*k], a)
 		clear(paBuf[m*k:])
 		fmopaA = paBuf
-
-		pcSize := paddedM * n
-		paddedC = paddedCPool32.Get().([]float32)
-		if cap(paddedC) < pcSize {
-			paddedC = make([]float32, pcSize)
-		} else {
-			paddedC = paddedC[:pcSize]
-		}
-		clear(paddedC)
+		defer paddedAPool32.Put(paBuf)
 	}
 
-	// Get transpose buffers from pool
+	// Transpose A upfront (reused across all strips)
 	atSize := k * fmopaM
-	btSize := k * n
-
 	atBuf := klastTransposePoolA32.Get().([]float32)
 	if cap(atBuf) < atSize {
 		atBuf = make([]float32, atSize)
 	} else {
 		atBuf = atBuf[:atSize]
 	}
-
-	btBuf := klastTransposePoolB32.Get().([]float32)
-	if cap(btBuf) < btSize {
-		btBuf = make([]float32, btSize)
-	} else {
-		btBuf = btBuf[:btSize]
-	}
-
-	// Transpose A (paddedM×K) to AT (K×paddedM)
 	transposeMatrix(fmopaA, fmopaM, k, atBuf)
+	defer klastTransposePoolA32.Put(atBuf)
 
-	// Transpose B (N×K) to BT (K×N)
-	transposeMatrix(b, n, k, btBuf)
-
-	// Call multi-tile FMOPA: (AT)^T @ BT = A @ B^T
-	if needsPadding {
-		asm.MultiTileMatMulFMOPAF32(atBuf, btBuf, paddedC, fmopaM, n, k)
-		copy(c[:m*n], paddedC[:m*n])
-		paddedAPool32.Put(fmopaA)
-		paddedCPool32.Put(paddedC)
+	// B strip transpose buffer: O(K * stripN) instead of O(K * N)
+	stripN := min(klastStripN, n)
+	btStripSize := k * stripN
+	btStrip := klastTransposePoolB32.Get().([]float32)
+	if cap(btStrip) < btStripSize {
+		btStrip = make([]float32, btStripSize)
 	} else {
-		asm.MultiTileMatMulFMOPAF32(atBuf, btBuf, c, fmopaM, n, k)
+		btStrip = btStrip[:btStripSize]
+	}
+	defer klastTransposePoolB32.Put(btStrip)
+
+	// For padded M, we need a padded C to receive the kernel output,
+	// then copy the valid rows. Use strided kernel writing to paddedC
+	// with ldc=n so rows are spaced correctly.
+	var outputC []float32
+	ldc := n
+	if needsPadding {
+		pcSize := fmopaM * n
+		paddedC := paddedCPool32.Get().([]float32)
+		if cap(paddedC) < pcSize {
+			paddedC = make([]float32, pcSize)
+		} else {
+			paddedC = paddedC[:pcSize]
+		}
+		clear(paddedC)
+		outputC = paddedC
+		defer func() {
+			copy(c[:m*n], paddedC[:m*n])
+			paddedCPool32.Put(paddedC)
+		}()
+	} else {
+		outputC = c
 	}
 
-	// Return buffers to pool
-	klastTransposePoolA32.Put(atBuf)
-	klastTransposePoolB32.Put(btBuf)
+	// Process B in strips — strided kernel writes directly into outputC columns
+	for j := 0; j < n; j += stripN {
+		sn := min(stripN, n-j)
+
+		// Transpose strip of B rows [j, j+sn) from B[N,K] → btStrip[K, sn]
+		Transpose2D(b[j*k:(j+sn)*k], sn, k, btStrip[:k*sn])
+
+		// Strided FMOPA: writes to outputC with stride ldc at column offset j
+		asm.MultiTileMatMulFMOPAF32Strided(atBuf, btStrip[:k*sn], outputC, fmopaM, sn, k, ldc, j)
+	}
 }
 
-// matmulKLastFMOPA64 uses ARM SME FMOPA for float64 MatMulKLast.
+// matmulKLastFMOPA64 uses ARM SME FMOPA for float64 MatMulKLast with incremental B transpose.
 func matmulKLastFMOPA64(a, b, c []float64, m, n, k int) {
 	// For non-aligned N or K (8×8 tiles for float64), fall back to NEON assembly
 	if n%8 != 0 || k%8 != 0 {
@@ -1045,11 +1058,14 @@ func matmulKLastFMOPA64(a, b, c []float64, m, n, k int) {
 		return
 	}
 
+	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
+	// from corrupting ZA register state during SME streaming mode.
+	defer hwy.SMEGuard()()
+
 	needsPadding := paddedM != m
 
 	fmopaA := a
 	fmopaM := m
-	var paddedC []float64
 
 	if needsPadding {
 		fmopaM = paddedM
@@ -1064,54 +1080,64 @@ func matmulKLastFMOPA64(a, b, c []float64, m, n, k int) {
 		copy(paBuf[:m*k], a)
 		clear(paBuf[m*k:])
 		fmopaA = paBuf
-
-		pcSize := paddedM * n
-		paddedC = paddedCPool64.Get().([]float64)
-		if cap(paddedC) < pcSize {
-			paddedC = make([]float64, pcSize)
-		} else {
-			paddedC = paddedC[:pcSize]
-		}
-		clear(paddedC)
+		defer paddedAPool64.Put(paBuf)
 	}
 
-	// Get transpose buffers from pool
+	// Transpose A upfront (reused across all strips)
 	atSize := k * fmopaM
-	btSize := k * n
-
 	atBuf := klastTransposePoolA64.Get().([]float64)
 	if cap(atBuf) < atSize {
 		atBuf = make([]float64, atSize)
 	} else {
 		atBuf = atBuf[:atSize]
 	}
-
-	btBuf := klastTransposePoolB64.Get().([]float64)
-	if cap(btBuf) < btSize {
-		btBuf = make([]float64, btSize)
-	} else {
-		btBuf = btBuf[:btSize]
-	}
-
-	// Transpose A (paddedM×K) to AT (K×paddedM)
 	transposeMatrix(fmopaA, fmopaM, k, atBuf)
+	defer klastTransposePoolA64.Put(atBuf)
 
-	// Transpose B (N×K) to BT (K×N)
-	transposeMatrix(b, n, k, btBuf)
-
-	// Call multi-tile FMOPA: (AT)^T @ BT = A @ B^T
-	if needsPadding {
-		asm.MultiTileMatMulFMOPAF64(atBuf, btBuf, paddedC, fmopaM, n, k)
-		copy(c[:m*n], paddedC[:m*n])
-		paddedAPool64.Put(fmopaA)
-		paddedCPool64.Put(paddedC)
+	// B strip transpose buffer: O(K * stripN) instead of O(K * N)
+	stripN := min(klastStripN, n)
+	btStripSize := k * stripN
+	btStrip := klastTransposePoolB64.Get().([]float64)
+	if cap(btStrip) < btStripSize {
+		btStrip = make([]float64, btStripSize)
 	} else {
-		asm.MultiTileMatMulFMOPAF64(atBuf, btBuf, c, fmopaM, n, k)
+		btStrip = btStrip[:btStripSize]
+	}
+	defer klastTransposePoolB64.Put(btStrip)
+
+	// For padded M, we need a padded C to receive the kernel output,
+	// then copy the valid rows. Use strided kernel writing to paddedC
+	// with ldc=n so rows are spaced correctly.
+	var outputC []float64
+	ldc := n
+	if needsPadding {
+		pcSize := fmopaM * n
+		paddedC := paddedCPool64.Get().([]float64)
+		if cap(paddedC) < pcSize {
+			paddedC = make([]float64, pcSize)
+		} else {
+			paddedC = paddedC[:pcSize]
+		}
+		clear(paddedC)
+		outputC = paddedC
+		defer func() {
+			copy(c[:m*n], paddedC[:m*n])
+			paddedCPool64.Put(paddedC)
+		}()
+	} else {
+		outputC = c
 	}
 
-	// Return buffers to pool
-	klastTransposePoolA64.Put(atBuf)
-	klastTransposePoolB64.Put(btBuf)
+	// Process B in strips — strided kernel writes directly into outputC columns
+	for j := 0; j < n; j += stripN {
+		sn := min(stripN, n-j)
+
+		// Transpose strip of B rows [j, j+sn) from B[N,K] → btStrip[K, sn]
+		Transpose2D(b[j*k:(j+sn)*k], sn, k, btStrip[:k*sn])
+
+		// Strided FMOPA: writes to outputC with stride ldc at column offset j
+		asm.MultiTileMatMulFMOPAF64Strided(atBuf, btStrip[:k*sn], outputC, fmopaM, sn, k, ldc, j)
+	}
 }
 
 // matmulKLastFMOPAF16 uses ARM SME FMOPA for float16 MatMulKLast.
@@ -1679,6 +1705,9 @@ func parallelFusedNF4MatMulSME(
 	var wg sync.WaitGroup
 	for range numWorkers {
 		wg.Go(func() {
+			// Pin goroutine to OS thread for SME streaming mode safety
+			defer hwy.SMEGuard()()
+
 			// Get thread-local buffers from pool
 			tileBuf := fusedTilePool.Get().([]float32)
 			tileSize := K * 16
@@ -1760,6 +1789,9 @@ func parallelFusedInt4MatMulSME(
 	var wg sync.WaitGroup
 	for range numWorkers {
 		wg.Go(func() {
+			// Pin goroutine to OS thread for SME streaming mode safety
+			defer hwy.SMEGuard()()
+
 			// Get thread-local buffers from pool
 			tileBuf := fusedTilePool.Get().([]float32)
 			tileSize := K * 16

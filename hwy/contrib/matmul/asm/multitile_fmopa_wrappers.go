@@ -35,6 +35,56 @@ func MultiTileMatMulFMOPAF32(at, b, c []float32, m, n, k int) {
 	)
 }
 
+// MultiTileMatMulFMOPAF32Strided performs multi-tile FMOPA matmul writing to C
+// with leading dimension ldc at column offset coff. B has leading dimension n.
+// C[i, coff+j] = sum_p AT^T[i,p] * B[p,j] for i in [0,m), j in [0,n).
+//
+// This enables incremental B transpose: transpose a strip of B, call this
+// function to write directly into the correct columns of the full output.
+func MultiTileMatMulFMOPAF32Strided(at []float32, b []float32, c []float32, m, n, k, ldc, coff int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	ldcVal := int64(ldc)
+	coffVal := int64(coff)
+	multitile_fmopa_at_f32_strided(
+		unsafe.Pointer(&at[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldcVal),
+		unsafe.Pointer(&coffVal),
+	)
+}
+
+// MultiTileMatMulFMOPAF64Strided performs multi-tile FMOPA matmul (float64)
+// writing to C with leading dimension ldc at column offset coff.
+func MultiTileMatMulFMOPAF64Strided(at []float64, b []float64, c []float64, m, n, k, ldc, coff int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	ldcVal := int64(ldc)
+	coffVal := int64(coff)
+	multitile_fmopa_at_f64_strided(
+		unsafe.Pointer(&at[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldcVal),
+		unsafe.Pointer(&coffVal),
+	)
+}
+
 // MultiTileMatMulFMOPAF64 performs multi-tile matrix multiplication using SME FMOPA: C = AT^T * B
 // Uses all 4 ZA tiles in a 2x2 arrangement for 16x16 output blocks (8x8 per tile),
 // with single-tile fallback for 8-row/8-col remainders.

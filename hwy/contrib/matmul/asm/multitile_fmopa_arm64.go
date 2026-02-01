@@ -14,4 +14,10 @@ import "unsafe"
 func multitile_fmopa_at_f32(at, b, c, pm, pn, pk unsafe.Pointer)
 
 //go:noescape
+func multitile_fmopa_at_f32_strided(at, b, c, pm, pn, pk, pldc, pcoff unsafe.Pointer)
+
+//go:noescape
+func multitile_fmopa_at_f64_strided(at, b, c, pm, pn, pk, pldc, pcoff unsafe.Pointer)
+
+//go:noescape
 func multitile_fmopa_at_f64(at, b, c, pm, pn, pk unsafe.Pointer)
