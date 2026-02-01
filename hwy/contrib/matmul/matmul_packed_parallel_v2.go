@@ -18,6 +18,7 @@ import (
 	"runtime"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // getCacheParamsV2 returns V2-optimized cache parameters for the current architecture.
@@ -61,19 +62,20 @@ func getCacheParamsV2[T hwy.Floats]() CacheParams {
 // algorithm inspired by gomlx's packgemm-simd-large-opt.
 //
 // Key optimizations over V1:
-//   - WorkersPool with Saturate for efficient worker management
-//   - feedWorkItems for intelligent work distribution
+//   - Persistent worker pool for efficient worker management
+//   - Intelligent work distribution via generateWorkItems
 //   - Packed output buffer for faster micro-kernel writes
 //   - SIMD-optimized output application
 //
 // For small matrices, falls back to single-threaded PackedMatMul.
 //
 // Parameters:
+//   - pool: Persistent worker pool for parallel execution
 //   - a: Input matrix A in row-major order (M × K)
 //   - b: Input matrix B in row-major order (K × N)
 //   - c: Output matrix C in row-major order (M × N), will be zeroed
 //   - m, n, k: Matrix dimensions
-func ParallelPackedMatMulV2[T hwy.Floats](a, b, c []T, m, n, k int) {
+func ParallelPackedMatMulV2[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
 	// For small matrices, use single-threaded version
@@ -82,9 +84,8 @@ func ParallelPackedMatMulV2[T hwy.Floats](a, b, c []T, m, n, k int) {
 		return
 	}
 
-	pool := NewWorkersPool()
 	params := getCacheParamsV2[T]()
-	maxWorkers := pool.AdjustedMaxParallelism()
+	maxWorkers := pool.NumWorkers()
 
 	// Zero the output matrix once (shared across all workers)
 	zeroMatrix(c, m*n)
@@ -98,27 +99,22 @@ func ParallelPackedMatMulV2[T hwy.Floats](a, b, c []T, m, n, k int) {
 		return
 	}
 
-	// Create work channel and feed work items
-	// Use batchSize=1 since we're treating the whole matrix as one batch
-	workChan := make(chan workItem, max(2*maxWorkers, 100))
-	go feedWorkItems(1, m, n, params, maxWorkers, workChan)
+	// Pre-compute work items
+	items := generateWorkItems(1, m, n, params, maxWorkers)
 
-	// Saturate workers to consume work items
-	pool.Saturate(func() {
-		// Each worker has its own buffers
+	// Use ParallelForAtomic to process work items with work stealing
+	pool.ParallelForAtomic(len(items), func(idx int) {
+		item := items[idx]
+		// Each invocation gets its own buffers
 		packedA := make([]T, params.PackedASize())
 		packedB := make([]T, params.PackedBSize())
 		packedOut := make([]T, params.PackedOutputSize())
-
-		for item := range workChan {
-			// Process this work item's slice of the output
-			processGEMMSliceV2(
-				a, b, c, m, n, k,
-				item.lhsRowStart, item.lhsRowEnd,
-				item.rhsColStart, item.rhsColEnd,
-				packedA, packedB, packedOut, params,
-			)
-		}
+		processGEMMSliceV2(
+			a, b, c, m, n, k,
+			item.lhsRowStart, item.lhsRowEnd,
+			item.rhsColStart, item.rhsColEnd,
+			packedA, packedB, packedOut, params,
+		)
 	})
 }
 
@@ -314,24 +310,25 @@ func getLanesFloat32() int { return lanesFloat32 }
 func getLanesFloat64() int { return lanesFloat64 }
 
 // ParallelPackedMatMulV2Float32 is the non-generic version for float32.
-func ParallelPackedMatMulV2Float32(a, b, c []float32, m, n, k int) {
-	ParallelPackedMatMulV2(a, b, c, m, n, k)
+func ParallelPackedMatMulV2Float32(pool *workerpool.Pool, a, b, c []float32, m, n, k int) {
+	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 }
 
 // ParallelPackedMatMulV2Float64 is the non-generic version for float64.
-func ParallelPackedMatMulV2Float64(a, b, c []float64, m, n, k int) {
-	ParallelPackedMatMulV2(a, b, c, m, n, k)
+func ParallelPackedMatMulV2Float64(pool *workerpool.Pool, a, b, c []float64, m, n, k int) {
+	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 }
 
 // BatchParallelPackedMatMulV2 computes batched C = A * B using the optimized
 // parallel algorithm.
 //
 // Parameters:
+//   - pool: Persistent worker pool for parallel execution
 //   - a: Batched input matrix A [batchSize, M, K] in row-major order
 //   - b: Batched input matrix B [batchSize, K, N] in row-major order
 //   - c: Batched output matrix C [batchSize, M, N] in row-major order
 //   - batchSize, m, n, k: Dimensions
-func BatchParallelPackedMatMulV2[T hwy.Floats](a, b, c []T, batchSize, m, n, k int) {
+func BatchParallelPackedMatMulV2[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, batchSize, m, n, k int) {
 	totalOps := batchSize * m * n * k
 
 	// For small total work, use single-threaded version
@@ -350,9 +347,8 @@ func BatchParallelPackedMatMulV2[T hwy.Floats](a, b, c []T, batchSize, m, n, k i
 		return
 	}
 
-	pool := NewWorkersPool()
 	params := getCacheParamsV2[T]()
-	maxWorkers := pool.AdjustedMaxParallelism()
+	maxWorkers := pool.NumWorkers()
 
 	lhsStride := m * k
 	rhsStride := k * n
@@ -361,31 +357,130 @@ func BatchParallelPackedMatMulV2[T hwy.Floats](a, b, c []T, batchSize, m, n, k i
 	// Zero all output matrices
 	zeroMatrix(c, batchSize*m*n)
 
-	// Create work channel with intelligent work distribution
-	workChan := make(chan workItem, max(2*maxWorkers, 100))
-	go feedWorkItems(batchSize, m, n, params, maxWorkers, workChan)
+	// Pre-compute work items
+	items := generateWorkItems(batchSize, m, n, params, maxWorkers)
 
-	// Saturate workers
-	pool.Saturate(func() {
-		// Each worker has its own buffers
+	// Use ParallelForAtomic to process work items with work stealing
+	pool.ParallelForAtomic(len(items), func(idx int) {
+		item := items[idx]
 		packedA := make([]T, params.PackedASize())
 		packedB := make([]T, params.PackedBSize())
 		packedOut := make([]T, params.PackedOutputSize())
 
-		for item := range workChan {
-			// Process each batch in this work item
-			for batch := item.batchStart; batch < item.batchEnd; batch++ {
-				batchA := a[batch*lhsStride : (batch+1)*lhsStride]
-				batchB := b[batch*rhsStride : (batch+1)*rhsStride]
-				batchC := c[batch*outStride : (batch+1)*outStride]
+		for batch := item.batchStart; batch < item.batchEnd; batch++ {
+			batchA := a[batch*lhsStride : (batch+1)*lhsStride]
+			batchB := b[batch*rhsStride : (batch+1)*rhsStride]
+			batchC := c[batch*outStride : (batch+1)*outStride]
 
-				processGEMMSliceV2(
-					batchA, batchB, batchC, m, n, k,
-					item.lhsRowStart, item.lhsRowEnd,
-					item.rhsColStart, item.rhsColEnd,
-					packedA, packedB, packedOut, params,
-				)
-			}
+			processGEMMSliceV2(
+				batchA, batchB, batchC, m, n, k,
+				item.lhsRowStart, item.lhsRowEnd,
+				item.rhsColStart, item.rhsColEnd,
+				packedA, packedB, packedOut, params,
+			)
 		}
 	})
+}
+
+// workItem represents a chunk of work for parallel GEMM.
+type workItem struct {
+	batchStart, batchEnd   int
+	lhsRowStart, lhsRowEnd int
+	rhsColStart, rhsColEnd int
+}
+
+// generateWorkItems creates work items for parallel GEMM, distributing work
+// intelligently across workers. It prioritizes batch splitting, then splits
+// on LHS or RHS dimension.
+//
+// This implements the intelligent work splitting from gomlx's packgemm-simd-large-opt.
+func generateWorkItems(
+	batchSize, lhsCrossSize, rhsCrossSize int,
+	params CacheParams,
+	maxWorkers int,
+) []workItem {
+	if maxWorkers <= 0 {
+		maxWorkers = 1
+	}
+
+	var items []workItem
+
+	// If batch size is large enough, split only on batch dimension
+	if batchSize >= 2*maxWorkers {
+		batchStep := batchSize / maxWorkers
+		for batchIdx := 0; batchIdx < batchSize; batchIdx += batchStep {
+			items = append(items, workItem{
+				batchStart:  batchIdx,
+				batchEnd:    batchIdx + min(batchStep, batchSize-batchIdx),
+				lhsRowStart: 0,
+				lhsRowEnd:   lhsCrossSize,
+				rhsColStart: 0,
+				rhsColEnd:   rhsCrossSize,
+			})
+		}
+		return items
+	}
+
+	// First handle batches one at a time up to maxWorkers
+	batchIdx := 0
+	if batchSize >= maxWorkers {
+		for ; batchIdx < maxWorkers; batchIdx++ {
+			items = append(items, workItem{
+				batchStart:  batchIdx,
+				batchEnd:    batchIdx + 1,
+				lhsRowStart: 0,
+				lhsRowEnd:   lhsCrossSize,
+				rhsColStart: 0,
+				rhsColEnd:   rhsCrossSize,
+			})
+		}
+	}
+
+	// Split remaining work on LHS or RHS dimension
+	batchCountRemaining := batchSize - batchIdx
+	if batchCountRemaining == 0 {
+		return items
+	}
+
+	splitFactor := (maxWorkers + batchCountRemaining - 1) / batchCountRemaining
+
+	if lhsCrossSize > rhsCrossSize {
+		// Split on LHS dimension (aligned to Mc)
+		lhsSplitSize := (lhsCrossSize + splitFactor - 1) / splitFactor
+		lhsSplitSize = max(1, lhsSplitSize/params.Mc) * params.Mc
+
+		batchStart := batchIdx
+		for lhsRowIdx := 0; lhsRowIdx < lhsCrossSize; lhsRowIdx += lhsSplitSize {
+			for bi := batchStart; bi < batchSize; bi++ {
+				items = append(items, workItem{
+					batchStart:  bi,
+					batchEnd:    bi + 1,
+					lhsRowStart: lhsRowIdx,
+					lhsRowEnd:   lhsRowIdx + min(lhsSplitSize, lhsCrossSize-lhsRowIdx),
+					rhsColStart: 0,
+					rhsColEnd:   rhsCrossSize,
+				})
+			}
+		}
+	} else {
+		// Split on RHS dimension (aligned to Nc)
+		rhsSplitSize := (rhsCrossSize + splitFactor - 1) / splitFactor
+		rhsSplitSize = max(1, rhsSplitSize/params.Nc) * params.Nc
+
+		batchStart := batchIdx
+		for rhsColIdx := 0; rhsColIdx < rhsCrossSize; rhsColIdx += rhsSplitSize {
+			for bi := batchStart; bi < batchSize; bi++ {
+				items = append(items, workItem{
+					batchStart:  bi,
+					batchEnd:    bi + 1,
+					lhsRowStart: 0,
+					lhsRowEnd:   lhsCrossSize,
+					rhsColStart: rhsColIdx,
+					rhsColEnd:   rhsColIdx + min(rhsSplitSize, rhsCrossSize-rhsColIdx),
+				})
+			}
+		}
+	}
+
+	return items
 }

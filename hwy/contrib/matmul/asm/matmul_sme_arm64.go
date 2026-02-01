@@ -21,3 +21,9 @@ func matmul_fmopa_at_f16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)
 
 //go:noescape
 func matmul_bfmopa_at_bf16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)
+
+//go:noescape
+func matmul_fmopa_at_f16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer)
+
+//go:noescape
+func matmul_bfmopa_at_bf16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer)

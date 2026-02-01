@@ -18,6 +18,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/activation"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // DenseAuto computes a dense (fully-connected) layer using the best available
@@ -30,9 +31,9 @@ import (
 //
 // This delegates to MatMulKLastAuto (which dispatches to SME/NEON/AVX as
 // appropriate) and then adds bias with SIMD.
-func DenseAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
+func DenseAuto[T hwy.Floats](pool *workerpool.Pool, x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
 	// Matmul: output = x @ weight^T
-	matmul.MatMulKLastAuto(x, weight, output, batchSize, outFeatures, inFeatures)
+	matmul.MatMulKLastAuto(pool, x, weight, output, batchSize, outFeatures, inFeatures)
 
 	// Bias add
 	if bias != nil {
@@ -48,8 +49,8 @@ func DenseAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures,
 //	applyActivation(output, act, batchSize*outFeatures)
 //
 // The activation is applied in-place on the output after the dense computation.
-func DenseActivationAuto[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures, outFeatures int, act ActivationType) {
-	DenseAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures)
+func DenseActivationAuto[T hwy.Floats](pool *workerpool.Pool, x, weight, bias, output []T, batchSize, inFeatures, outFeatures int, act ActivationType) {
+	DenseAuto(pool, x, weight, bias, output, batchSize, inFeatures, outFeatures)
 
 	if act != ActivationNone {
 		applyActivationInPlace(output[:batchSize*outFeatures], act)

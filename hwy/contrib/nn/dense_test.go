@@ -18,9 +18,14 @@ import (
 	"fmt"
 	stdmath "math"
 	"testing"
+
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 func TestDenseAuto(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	tests := []struct {
 		name        string
 		batchSize   int
@@ -59,7 +64,7 @@ func TestDenseAuto(t *testing.T) {
 			autoOutput := make([]float32, tt.batchSize*tt.outFeatures)
 			scalarOutput := make([]float32, tt.batchSize*tt.outFeatures)
 
-			DenseAuto(x, weight, bias, autoOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
+			DenseAuto(pool, x, weight, bias, autoOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
 			DenseScalar(x, weight, bias, scalarOutput, tt.batchSize, tt.inFeatures, tt.outFeatures)
 
 			for i := range autoOutput {
@@ -74,6 +79,9 @@ func TestDenseAuto(t *testing.T) {
 }
 
 func TestDenseAuto64(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	batchSize, inFeatures, outFeatures := 2, 16, 8
 
 	x := make([]float64, batchSize*inFeatures)
@@ -93,7 +101,7 @@ func TestDenseAuto64(t *testing.T) {
 	autoOutput := make([]float64, batchSize*outFeatures)
 	scalarOutput := make([]float64, batchSize*outFeatures)
 
-	DenseAuto(x, weight, bias, autoOutput, batchSize, inFeatures, outFeatures)
+	DenseAuto(pool, x, weight, bias, autoOutput, batchSize, inFeatures, outFeatures)
 	DenseScalar(x, weight, bias, scalarOutput, batchSize, inFeatures, outFeatures)
 
 	for i := range autoOutput {
@@ -136,6 +144,9 @@ func TestBaseDenseScalarMatch(t *testing.T) {
 }
 
 func TestDenseActivationAuto(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	batchSize, inFeatures, outFeatures := 2, 16, 8
 
 	x := make([]float32, batchSize*inFeatures)
@@ -166,7 +177,7 @@ func TestDenseActivationAuto(t *testing.T) {
 	for _, at := range activations {
 		t.Run(at.name, func(t *testing.T) {
 			output := make([]float32, batchSize*outFeatures)
-			DenseActivationAuto(x, weight, bias, output, batchSize, inFeatures, outFeatures, at.act)
+			DenseActivationAuto(pool, x, weight, bias, output, batchSize, inFeatures, outFeatures, at.act)
 
 			// Basic sanity: no NaN or Inf
 			for i, v := range output {
@@ -178,7 +189,7 @@ func TestDenseActivationAuto(t *testing.T) {
 			// ActivationNone should match DenseAuto exactly
 			if at.act == ActivationNone {
 				expected := make([]float32, batchSize*outFeatures)
-				DenseAuto(x, weight, bias, expected, batchSize, inFeatures, outFeatures)
+				DenseAuto(pool, x, weight, bias, expected, batchSize, inFeatures, outFeatures)
 				for i := range output {
 					if output[i] != expected[i] {
 						t.Errorf("output[%d] = %v, want %v", i, output[i], expected[i])
@@ -208,6 +219,9 @@ func TestDenseActivationAuto(t *testing.T) {
 }
 
 func BenchmarkDense(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	configs := []struct {
 		batch, in, out int
 	}{
@@ -238,7 +252,7 @@ func BenchmarkDense(b *testing.B) {
 
 		b.Run("Auto/"+label, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				DenseAuto(x, weight, bias, output, c.batch, c.in, c.out)
+				DenseAuto(pool, x, weight, bias, output, c.batch, c.in, c.out)
 			}
 		})
 

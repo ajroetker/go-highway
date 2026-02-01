@@ -18,9 +18,14 @@ import (
 	"fmt"
 	stdmath "math"
 	"testing"
+
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 func TestQKVDenseAuto(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	tests := []struct {
 		name       string
 		batchSize  int
@@ -75,7 +80,7 @@ func TestQKVDenseAuto(t *testing.T) {
 			scalarK := make([]float32, tt.batchSize*tt.kvDim)
 			scalarV := make([]float32, tt.batchSize*tt.kvDim)
 
-			QKVDenseAuto(x, wQKV, biasQ, biasK, biasV, autoQ, autoK, autoV,
+			QKVDenseAuto(pool, x, wQKV, biasQ, biasK, biasV, autoQ, autoK, autoV,
 				tt.batchSize, tt.inFeatures, tt.qDim, tt.kvDim)
 			QKVDenseScalar(x, wQKV, biasQ, biasK, biasV, scalarQ, scalarK, scalarV,
 				tt.batchSize, tt.inFeatures, tt.qDim, tt.kvDim)
@@ -131,6 +136,9 @@ func TestQKVDenseBase(t *testing.T) {
 }
 
 func TestQKVDenseEquivalence(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Verify fused QKV == 3 separate DenseAuto calls
 	batchSize, inFeatures, qDim, kvDim := 2, 64, 32, 32
 	totalOut := qDim + 2*kvDim
@@ -161,7 +169,7 @@ func TestQKVDenseEquivalence(t *testing.T) {
 	fusedQ := make([]float32, batchSize*qDim)
 	fusedK := make([]float32, batchSize*kvDim)
 	fusedV := make([]float32, batchSize*kvDim)
-	QKVDenseAuto(x, wQKV, biasQ, biasK, biasV, fusedQ, fusedK, fusedV,
+	QKVDenseAuto(pool, x, wQKV, biasQ, biasK, biasV, fusedQ, fusedK, fusedV,
 		batchSize, inFeatures, qDim, kvDim)
 
 	// 3 separate DenseAuto calls
@@ -173,9 +181,9 @@ func TestQKVDenseEquivalence(t *testing.T) {
 	sepK := make([]float32, batchSize*kvDim)
 	sepV := make([]float32, batchSize*kvDim)
 
-	DenseAuto(x, wQ, biasQ, sepQ, batchSize, inFeatures, qDim)
-	DenseAuto(x, wK, biasK, sepK, batchSize, inFeatures, kvDim)
-	DenseAuto(x, wV, biasV, sepV, batchSize, inFeatures, kvDim)
+	DenseAuto(pool, x, wQ, biasQ, sepQ, batchSize, inFeatures, qDim)
+	DenseAuto(pool, x, wK, biasK, sepK, batchSize, inFeatures, kvDim)
+	DenseAuto(pool, x, wV, biasV, sepV, batchSize, inFeatures, kvDim)
 
 	compareSlices(t, "Q", fusedQ, sepQ)
 	compareSlices(t, "K", fusedK, sepK)
@@ -183,6 +191,9 @@ func TestQKVDenseEquivalence(t *testing.T) {
 }
 
 func TestQKVDenseAuto64(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	batchSize, inFeatures, qDim, kvDim := 2, 16, 8, 8
 
 	x := make([]float64, batchSize*inFeatures)
@@ -215,7 +226,7 @@ func TestQKVDenseAuto64(t *testing.T) {
 	scalarK := make([]float64, batchSize*kvDim)
 	scalarV := make([]float64, batchSize*kvDim)
 
-	QKVDenseAuto(x, wQKV, biasQ, biasK, biasV, autoQ, autoK, autoV,
+	QKVDenseAuto(pool, x, wQKV, biasQ, biasK, biasV, autoQ, autoK, autoV,
 		batchSize, inFeatures, qDim, kvDim)
 	QKVDenseScalar(x, wQKV, biasQ, biasK, biasV, scalarQ, scalarK, scalarV,
 		batchSize, inFeatures, qDim, kvDim)
@@ -238,6 +249,9 @@ func TestQKVDenseAuto64(t *testing.T) {
 }
 
 func BenchmarkQKVDense(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	configs := []struct {
 		batch, in, qDim, kvDim int
 	}{
@@ -269,7 +283,7 @@ func BenchmarkQKVDense(b *testing.B) {
 
 		b.Run("Auto/"+label, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				QKVDenseAuto(x, wQKV, biasQ, biasK, biasV, q, k, v,
+				QKVDenseAuto(pool, x, wQKV, biasQ, biasK, biasV, q, k, v,
 					c.batch, c.in, c.qDim, c.kvDim)
 			}
 		})
@@ -288,9 +302,9 @@ func BenchmarkQKVDense(b *testing.B) {
 
 		b.Run("Separate/"+label, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				DenseAuto(x, wQ, biasQ, q, c.batch, c.in, c.qDim)
-				DenseAuto(x, wK, biasK, k, c.batch, c.in, c.kvDim)
-				DenseAuto(x, wV, biasV, v, c.batch, c.in, c.kvDim)
+				DenseAuto(pool, x, wQ, biasQ, q, c.batch, c.in, c.qDim)
+				DenseAuto(pool, x, wK, biasK, k, c.batch, c.in, c.kvDim)
+				DenseAuto(pool, x, wV, biasV, v, c.batch, c.in, c.kvDim)
 			}
 		})
 	}

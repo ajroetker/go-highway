@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // TestF16DispatchPath tests the exact dispatch path used by BenchmarkMatMulFloat16
@@ -29,6 +30,9 @@ func TestF16DispatchPath(t *testing.T) {
 	if !hwy.HasARMFP16() {
 		t.Skip("CPU does not support ARM FP16")
 	}
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	n := 64
 
@@ -43,7 +47,7 @@ func TestF16DispatchPath(t *testing.T) {
 
 	// This is exactly what the benchmark calls
 	t.Log("Calling MatMulAuto (same as benchmark)...")
-	MatMulAuto(a, b, c, n, n, n)
+	MatMulAuto(pool, a, b, c, n, n, n)
 	t.Log("MatMulAuto completed successfully")
 }
 
@@ -76,6 +80,9 @@ func TestF16ParallelMatMul(t *testing.T) {
 		t.Skip("CPU does not support ARM FP16")
 	}
 
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	n := 64
 
 	a := make([]hwy.Float16, n*n)
@@ -89,7 +96,7 @@ func TestF16ParallelMatMul(t *testing.T) {
 
 	// This is what MatMulAuto calls for 64x64
 	t.Log("Calling ParallelMatMul (64x64 goes here because 64^3 >= MinParallelOps)...")
-	ParallelMatMul(a, b, c, n, n, n)
+	ParallelMatMul(pool, a, b, c, n, n, n)
 	t.Log("ParallelMatMul completed successfully")
 }
 
@@ -98,6 +105,9 @@ func TestF16MatMulMultipleIterations(t *testing.T) {
 	if !hwy.HasARMFP16() {
 		t.Skip("CPU does not support ARM FP16")
 	}
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	n := 64
 
@@ -115,7 +125,7 @@ func TestF16MatMulMultipleIterations(t *testing.T) {
 	iterations := 1000
 	t.Logf("Running %d iterations of MatMulAuto...", iterations)
 	for i := 0; i < iterations; i++ {
-		MatMulAuto(a, b, c, n, n, n)
+		MatMulAuto(pool, a, b, c, n, n, n)
 		if i > 0 && i%100 == 0 {
 			t.Logf("Completed %d iterations", i)
 		}
@@ -128,6 +138,9 @@ func TestF16MatMulManyIterationsInGoroutine(t *testing.T) {
 	if !hwy.HasARMFP16() {
 		t.Skip("CPU does not support ARM FP16")
 	}
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	n := 64
 
@@ -147,7 +160,7 @@ func TestF16MatMulManyIterationsInGoroutine(t *testing.T) {
 	go func() {
 		defer close(done)
 		for i := 0; i < iterations; i++ {
-			MatMulAuto(a, b, c, n, n, n)
+			MatMulAuto(pool, a, b, c, n, n, n)
 		}
 	}()
 	<-done
@@ -160,6 +173,9 @@ func TestF16WithLockOSThread(t *testing.T) {
 	if !hwy.HasARMFP16() {
 		t.Skip("CPU does not support ARM FP16")
 	}
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -178,7 +194,7 @@ func TestF16WithLockOSThread(t *testing.T) {
 	iterations := 1000
 	t.Logf("Running %d iterations with LockOSThread...", iterations)
 	for i := 0; i < iterations; i++ {
-		MatMulAuto(a, b, c, n, n, n)
+		MatMulAuto(pool, a, b, c, n, n, n)
 	}
 	t.Logf("All %d iterations completed successfully", iterations)
 }

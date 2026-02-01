@@ -210,6 +210,9 @@ func BenchmarkTransposeFloat16(b *testing.B) {
 }
 
 func TestParallelTranspose2D(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	sizes := []struct{ m, k int }{
 		{64, 64}, {128, 128}, {256, 256}, {512, 512},
 		{100, 200}, {200, 100}, // Non-square
@@ -232,7 +235,7 @@ func TestParallelTranspose2D(t *testing.T) {
 				}
 			}
 
-			ParallelTranspose2DFloat32(src, size.m, size.k, got)
+			ParallelTranspose2DFloat32(pool, src, size.m, size.k, got)
 
 			if !slices.Equal(got, want) {
 				t.Errorf("mismatch at size %dx%d", size.m, size.k)
@@ -247,7 +250,7 @@ func TestParallelTranspose2D(t *testing.T) {
 	}
 }
 
-func TestParallelTranspose2DWithPool(t *testing.T) {
+func TestParallelTranspose2DPool(t *testing.T) {
 	pool := workerpool.New(0)
 	defer pool.Close()
 
@@ -271,7 +274,7 @@ func TestParallelTranspose2DWithPool(t *testing.T) {
 				}
 			}
 
-			ParallelTranspose2DWithPoolFloat32(pool, src, size.m, size.k, got)
+			ParallelTranspose2DFloat32(pool, src, size.m, size.k, got)
 
 			if !slices.Equal(got, want) {
 				t.Errorf("mismatch at size %dx%d", size.m, size.k)
@@ -337,6 +340,9 @@ func TestTranspose2DStrided(t *testing.T) {
 }
 
 func BenchmarkParallelTranspose(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	for _, size := range []int{256, 512, 1024, 2048} {
 		src := make([]float32, size*size)
 		dst := make([]float32, size*size)
@@ -354,17 +360,7 @@ func BenchmarkParallelTranspose(b *testing.B) {
 		b.Run(fmt.Sprintf("Parallel_%dx%d", size, size), func(b *testing.B) {
 			b.SetBytes(int64(size * size * 4 * 2))
 			for i := 0; i < b.N; i++ {
-				ParallelTranspose2DFloat32(src, size, size, dst)
-			}
-		})
-
-		b.Run(fmt.Sprintf("Pool_%dx%d", size, size), func(b *testing.B) {
-			pool := workerpool.New(0)
-			defer pool.Close()
-			b.SetBytes(int64(size * size * 4 * 2))
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				ParallelTranspose2DWithPoolFloat32(pool, src, size, size, dst)
+				ParallelTranspose2DFloat32(pool, src, size, size, dst)
 			}
 		})
 	}

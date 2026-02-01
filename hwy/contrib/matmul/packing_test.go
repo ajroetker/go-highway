@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // TestKernelDirect tests the micro-kernel directly with known inputs.
@@ -474,6 +475,9 @@ func BenchmarkParallelPackedMatMul(b *testing.B) {
 
 // BenchmarkPackedVsBlocked compares packed and blocked matmul side-by-side.
 func BenchmarkPackedVsBlocked(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
 
 	sizes := []int{256, 512, 1024}
@@ -527,7 +531,7 @@ func BenchmarkPackedVsBlocked(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				ParallelMatMul(a, bMat, c, m, n, k)
+				ParallelMatMul(pool, a, bMat, c, m, n, k)
 			}
 
 			b.StopTimer()
@@ -554,6 +558,9 @@ func BenchmarkPackedVsBlocked(b *testing.B) {
 
 // BenchmarkAllAlgorithms compares all matmul algorithms.
 func BenchmarkAllAlgorithms(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
 
 	sizes := []int{64, 128, 256, 512, 1024}
@@ -621,7 +628,7 @@ func BenchmarkAllAlgorithms(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				MatMulAuto(a, bMat, c, m, n, k)
+				MatMulAuto(pool, a, bMat, c, m, n, k)
 			}
 
 			b.StopTimer()

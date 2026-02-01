@@ -192,3 +192,13 @@ func MatmulFmopaAtF16(at, b, c, pm, pn, pk, scratch unsafe.Pointer) {
 func MatmulBfmopaAtBF16(at, b, c, pm, pn, pk, scratch unsafe.Pointer) {
 	matmul_bfmopa_at_bf16(at, b, c, pm, pn, pk, scratch)
 }
+
+// MatmulFmopaAtF16Strided is the strided variant for incremental B transpose.
+func MatmulFmopaAtF16Strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer) {
+	matmul_fmopa_at_f16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch)
+}
+
+// MatmulBfmopaAtBF16Strided is the strided variant for incremental B transpose.
+func MatmulBfmopaAtBF16Strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer) {
+	matmul_bfmopa_at_bf16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch)
+}

@@ -17,9 +17,14 @@ package matmul
 import (
 	"math"
 	"testing"
+
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 func TestParallelPackedMatMulV2_Small(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Small matrix test: 4x4
 	m, n, k := 4, 4, 4
 
@@ -40,7 +45,7 @@ func TestParallelPackedMatMulV2_Small(t *testing.T) {
 	naiveMatMul(a, b, expected, m, n, k)
 
 	// Compute with V2 parallel implementation
-	ParallelPackedMatMulV2(a, b, c, m, n, k)
+	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 
 	// Verify
 	for i := range expected {
@@ -51,6 +56,9 @@ func TestParallelPackedMatMulV2_Small(t *testing.T) {
 }
 
 func TestParallelPackedMatMulV2_Medium(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Medium matrix to trigger parallel execution
 	m, n, k := 128, 128, 128
 
@@ -71,7 +79,7 @@ func TestParallelPackedMatMulV2_Medium(t *testing.T) {
 	naiveMatMul(a, b, expected, m, n, k)
 
 	// Compute with V2
-	ParallelPackedMatMulV2(a, b, c, m, n, k)
+	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 
 	// Verify
 	maxDiff := float32(0)
@@ -87,6 +95,9 @@ func TestParallelPackedMatMulV2_Medium(t *testing.T) {
 }
 
 func TestParallelPackedMatMulV2_Large(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Large matrix to really exercise parallel code
 	m, n, k := 256, 256, 256
 
@@ -107,7 +118,7 @@ func TestParallelPackedMatMulV2_Large(t *testing.T) {
 	naiveMatMul(a, b, expected, m, n, k)
 
 	// Compute with V2
-	ParallelPackedMatMulV2(a, b, c, m, n, k)
+	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 
 	// Verify
 	maxDiff := float32(0)
@@ -123,6 +134,9 @@ func TestParallelPackedMatMulV2_Large(t *testing.T) {
 }
 
 func TestParallelPackedMatMulV2_NonSquare(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Non-square matrix
 	m, n, k := 128, 256, 64
 
@@ -139,7 +153,7 @@ func TestParallelPackedMatMulV2_NonSquare(t *testing.T) {
 	}
 
 	naiveMatMul(a, b, expected, m, n, k)
-	ParallelPackedMatMulV2(a, b, c, m, n, k)
+	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 
 	maxDiff := float32(0)
 	for i := range expected {
@@ -154,6 +168,9 @@ func TestParallelPackedMatMulV2_NonSquare(t *testing.T) {
 }
 
 func TestBatchParallelPackedMatMulV2(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	batchSize := 4
 	m, n, k := 64, 64, 64
 
@@ -184,7 +201,7 @@ func TestBatchParallelPackedMatMulV2(t *testing.T) {
 	}
 
 	// Compute with batched V2
-	BatchParallelPackedMatMulV2(a, b, c, batchSize, m, n, k)
+	BatchParallelPackedMatMulV2(pool, a, b, c, batchSize, m, n, k)
 
 	// Verify
 	maxDiff := float32(0)
@@ -214,6 +231,9 @@ func naiveMatMul(a, b, c []float32, m, n, k int) {
 
 // Benchmarks comparing V1 and V2
 func BenchmarkParallelPackedMatMulV1vsV2(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	sizes := []int{256, 512, 1024, 2048}
 
 	for _, size := range sizes {
@@ -238,7 +258,7 @@ func BenchmarkParallelPackedMatMulV1vsV2(b *testing.B) {
 
 		b.Run("V2/"+sizeStrV2(size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				ParallelPackedMatMulV2(a, bMat, c, m, n, k)
+				ParallelPackedMatMulV2(pool, a, bMat, c, m, n, k)
 			}
 		})
 	}
@@ -260,6 +280,9 @@ func sizeStrV2(size int) string {
 }
 
 func BenchmarkBatchParallelPackedMatMulV2(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	batchSize := 8
 	m, n, k := 128, 128, 128
 
@@ -276,7 +299,7 @@ func BenchmarkBatchParallelPackedMatMulV2(b *testing.B) {
 
 	b.Run("BatchV2", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			BatchParallelPackedMatMulV2(a, bMat, c, batchSize, m, n, k)
+			BatchParallelPackedMatMulV2(pool, a, bMat, c, batchSize, m, n, k)
 		}
 	})
 }

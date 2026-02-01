@@ -11,6 +11,9 @@ import (
 
 // TestParallelMatMulFineGrained tests the fine-grained parallel matmul for small M.
 func TestParallelMatMulFineGrained(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	testCases := []struct {
 		name    string
 		m, n, k int
@@ -39,7 +42,7 @@ func TestParallelMatMulFineGrained(t *testing.T) {
 			}
 
 			matmulScalar(a, b, cRef, m, n, k)
-			ParallelMatMulFineGrained(a, b, cParallel, m, n, k)
+			ParallelMatMulFineGrained(pool, a, b, cParallel, m, n, k)
 
 			var maxErr float32
 			for i := range cRef {
@@ -59,6 +62,9 @@ func TestParallelMatMulFineGrained(t *testing.T) {
 
 // TestParallelMatMulKLastFineGrained tests the fine-grained parallel K-last matmul.
 func TestParallelMatMulKLastFineGrained(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	testCases := []struct {
 		name    string
 		m, n, k int
@@ -97,7 +103,7 @@ func TestParallelMatMulKLastFineGrained(t *testing.T) {
 				}
 			}
 
-			ParallelMatMulKLastFineGrained(a, b, cParallel, m, n, k)
+			ParallelMatMulKLastFineGrained(pool, a, b, cParallel, m, n, k)
 
 			var maxErr float32
 			for i := range cRef {
@@ -117,6 +123,9 @@ func TestParallelMatMulKLastFineGrained(t *testing.T) {
 
 // BenchmarkSmallMParallel benchmarks matmul approaches for small M with large N*K.
 func BenchmarkSmallMParallel(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	m, n, k := 11, 1024, 1024
 
 	a := make([]float32, m*k)
@@ -144,25 +153,28 @@ func BenchmarkSmallMParallel(b *testing.B) {
 
 	b.Run("ParallelMatMul_64strip", func(b *testing.B) {
 		for range b.N {
-			ParallelMatMul(a, bmat, c, m, n, k)
+			ParallelMatMul(pool, a, bmat, c, m, n, k)
 		}
 	})
 
 	b.Run("ParallelMatMulFineGrained", func(b *testing.B) {
 		for range b.N {
-			ParallelMatMulFineGrained(a, bmat, c, m, n, k)
+			ParallelMatMulFineGrained(pool, a, bmat, c, m, n, k)
 		}
 	})
 
 	b.Run("MatMulAuto", func(b *testing.B) {
 		for range b.N {
-			MatMulAuto(a, bmat, c, m, n, k)
+			MatMulAuto(pool, a, bmat, c, m, n, k)
 		}
 	})
 }
 
 // TestMatMulAutoSmallM verifies that MatMulAuto uses fine-grained parallelism for small M.
 func TestMatMulAutoSmallM(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	m, n, k := 11, 1024, 1024
 
 	a := make([]float32, m*k)
@@ -178,7 +190,7 @@ func TestMatMulAutoSmallM(t *testing.T) {
 	}
 
 	matmulScalar(a, b, cRef, m, n, k)
-	MatMulAuto(a, b, cAuto, m, n, k)
+	MatMulAuto(pool, a, b, cAuto, m, n, k)
 
 	var maxErr float32
 	for i := range cRef {
@@ -194,8 +206,8 @@ func TestMatMulAutoSmallM(t *testing.T) {
 	}
 }
 
-// TestParallelMatMulWithPool tests the pool-based parallel matmul.
-func TestParallelMatMulWithPool(t *testing.T) {
+// TestParallelMatMulPool tests the pool-based parallel matmul.
+func TestParallelMatMulPool(t *testing.T) {
 	pool := workerpool.New(0)
 	defer pool.Close()
 
@@ -225,7 +237,7 @@ func TestParallelMatMulWithPool(t *testing.T) {
 			}
 
 			matmulScalar(a, b, cRef, m, n, k)
-			ParallelMatMulWithPool(pool, a, b, cPool, m, n, k)
+			ParallelMatMul(pool, a, b, cPool, m, n, k)
 
 			var maxErr float32
 			for i := range cRef {
@@ -243,55 +255,11 @@ func TestParallelMatMulWithPool(t *testing.T) {
 	}
 }
 
-// BenchmarkPoolVsNoPool compares the overhead of pool-based vs per-call parallelism.
-// This simulates transformer inference with repeated matmul calls.
-func BenchmarkPoolVsNoPool(b *testing.B) {
-	m, n, k := 11, 1024, 1024
-
-	a := make([]float32, m*k)
-	bmat := make([]float32, k*n)
-	c := make([]float32, m*n)
-
-	for i := range a {
-		a[i] = float32(i%7 - 3)
-	}
-	for i := range bmat {
-		bmat[i] = float32(i%5 - 2)
-	}
-
-	b.Run("NoPool_FineGrained", func(b *testing.B) {
-		for range b.N {
-			ParallelMatMulFineGrained(a, bmat, c, m, n, k)
-		}
-	})
-
-	b.Run("Pool_FineGrained", func(b *testing.B) {
-		pool := workerpool.New(0)
-		defer pool.Close()
-		b.ResetTimer()
-		for range b.N {
-			ParallelMatMulFineGrainedWithPool(pool, a, bmat, c, m, n, k)
-		}
-	})
-
-	b.Run("NoPool_Strip64", func(b *testing.B) {
-		for range b.N {
-			ParallelMatMul(a, bmat, c, m, n, k)
-		}
-	})
-
-	b.Run("Pool_Strip64", func(b *testing.B) {
-		pool := workerpool.New(0)
-		defer pool.Close()
-		b.ResetTimer()
-		for range b.N {
-			ParallelMatMulWithPool(pool, a, bmat, c, m, n, k)
-		}
-	})
-}
-
 // BenchmarkPoolReuse simulates transformer inference with 50 matmul ops per "forward pass".
 func BenchmarkPoolReuse(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	m, n, k := 11, 1024, 1024
 
 	a := make([]float32, m*k)
@@ -307,21 +275,10 @@ func BenchmarkPoolReuse(b *testing.B) {
 
 	const opsPerForwardPass = 50
 
-	b.Run("NoPool_50ops", func(b *testing.B) {
+	b.Run("FineGrained_50ops", func(b *testing.B) {
 		for range b.N {
 			for range opsPerForwardPass {
-				ParallelMatMulFineGrained(a, bmat, c, m, n, k)
-			}
-		}
-	})
-
-	b.Run("Pool_50ops", func(b *testing.B) {
-		pool := workerpool.New(0)
-		defer pool.Close()
-		b.ResetTimer()
-		for range b.N {
-			for range opsPerForwardPass {
-				ParallelMatMulFineGrainedWithPool(pool, a, bmat, c, m, n, k)
+				ParallelMatMulFineGrained(pool, a, bmat, c, m, n, k)
 			}
 		}
 	})
@@ -329,6 +286,9 @@ func BenchmarkPoolReuse(b *testing.B) {
 
 // BenchmarkPoolKLast benchmarks K-last matmul with pool.
 func BenchmarkPoolKLast(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	m, n, k := 11, 1024, 1024
 
 	a := make([]float32, m*k)
@@ -342,18 +302,9 @@ func BenchmarkPoolKLast(b *testing.B) {
 		bmat[i] = float32(i%5 - 2)
 	}
 
-	b.Run("NoPool_KLast", func(b *testing.B) {
+	b.Run("KLast_FineGrained", func(b *testing.B) {
 		for range b.N {
-			ParallelMatMulKLastFineGrained(a, bmat, c, m, n, k)
-		}
-	})
-
-	b.Run("Pool_KLast", func(b *testing.B) {
-		pool := workerpool.New(0)
-		defer pool.Close()
-		b.ResetTimer()
-		for range b.N {
-			ParallelMatMulKLastFineGrainedWithPool(pool, a, bmat, c, m, n, k)
+			ParallelMatMulKLastFineGrained(pool, a, bmat, c, m, n, k)
 		}
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // skipF16BenchmarkOnLinuxARM64 skips F16 benchmarks on Linux ARM64 due to a
@@ -21,6 +22,9 @@ func skipF16BenchmarkOnLinuxARM64(b *testing.B) {
 }
 
 func BenchmarkMatMulFloat16(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	skipF16BenchmarkOnLinuxARM64(b)
 	b.Logf("Dispatch level: %s, HasSME: %v", hwy.CurrentName(), hwy.HasSME())
 	sizes := []int{64, 128, 256, 512}
@@ -36,7 +40,7 @@ func BenchmarkMatMulFloat16(b *testing.B) {
 			flops := float64(2*n*n*n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				MatMulAuto(a, bb, c, n, n, n)
+				MatMulAuto(pool, a, bb, c, n, n, n)
 			}
 			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})
@@ -44,6 +48,9 @@ func BenchmarkMatMulFloat16(b *testing.B) {
 }
 
 func BenchmarkMatMulBFloat16(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	b.Logf("Dispatch level: %s, HasSME: %v", hwy.CurrentName(), hwy.HasSME())
 	sizes := []int{64, 128, 256, 512}
 	for _, n := range sizes {
@@ -58,7 +65,7 @@ func BenchmarkMatMulBFloat16(b *testing.B) {
 			flops := float64(2*n*n*n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				MatMulAuto(a, bb, c, n, n, n)
+				MatMulAuto(pool, a, bb, c, n, n, n)
 			}
 			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})
@@ -66,6 +73,9 @@ func BenchmarkMatMulBFloat16(b *testing.B) {
 }
 
 func BenchmarkParallelMatMulFloat16(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	skipF16BenchmarkOnLinuxARM64(b)
 	b.Logf("Dispatch level: %s, HasSME: %v", hwy.CurrentName(), hwy.HasSME())
 	sizes := []int{256, 512, 1024}
@@ -81,7 +91,7 @@ func BenchmarkParallelMatMulFloat16(b *testing.B) {
 			flops := float64(2*n*n*n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelMatMul(a, bb, c, n, n, n)
+				ParallelMatMul(pool, a, bb, c, n, n, n)
 			}
 			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})
@@ -89,6 +99,9 @@ func BenchmarkParallelMatMulFloat16(b *testing.B) {
 }
 
 func BenchmarkParallelMatMulBFloat16(b *testing.B) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	b.Logf("Dispatch level: %s, HasSME: %v", hwy.CurrentName(), hwy.HasSME())
 	sizes := []int{256, 512, 1024}
 	for _, n := range sizes {
@@ -103,7 +116,7 @@ func BenchmarkParallelMatMulBFloat16(b *testing.B) {
 			flops := float64(2*n*n*n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelMatMul(a, bb, c, n, n, n)
+				ParallelMatMul(pool, a, bb, c, n, n, n)
 			}
 			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})

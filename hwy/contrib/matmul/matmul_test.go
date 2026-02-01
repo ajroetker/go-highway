@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // matmulReference computes C = A * B using naive triple loop.
@@ -417,6 +418,9 @@ func BenchmarkBlockedMatMul(b *testing.B) {
 func BenchmarkStreamingVsBlocked(b *testing.B) {
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
 
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	sizes := []int{32, 64, 128, 256, 512, 1024}
 
 	for _, size := range sizes {
@@ -468,7 +472,7 @@ func BenchmarkStreamingVsBlocked(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				MatMulAuto(a, bMat, c, m, n, k)
+				MatMulAuto(pool, a, bMat, c, m, n, k)
 			}
 
 			b.StopTimer()
@@ -520,6 +524,9 @@ func TestBlockedMatMul(t *testing.T) {
 
 // TestParallelMatMul verifies the parallel matmul produces correct results.
 func TestParallelMatMul(t *testing.T) {
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	sizes := []int{128, 256, 512}
 
 	for _, size := range sizes {
@@ -539,7 +546,7 @@ func TestParallelMatMul(t *testing.T) {
 			}
 
 			matmulReference(a, b, expected, m, n, k)
-			ParallelMatMul(a, b, c, m, n, k)
+			ParallelMatMul(pool, a, b, c, m, n, k)
 
 			var maxErr float32
 			for i := range c {
@@ -561,6 +568,9 @@ func TestParallelMatMul(t *testing.T) {
 // BenchmarkParallelMatMul benchmarks the parallel matmul.
 func BenchmarkParallelMatMul(b *testing.B) {
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	sizes := []int{256, 512, 1024}
 
@@ -585,7 +595,7 @@ func BenchmarkParallelMatMul(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				ParallelMatMul(a, bMat, c, m, n, k)
+				ParallelMatMul(pool, a, bMat, c, m, n, k)
 			}
 
 			b.StopTimer()
@@ -599,6 +609,9 @@ func BenchmarkParallelMatMul(b *testing.B) {
 // BenchmarkParallelVsBlocked compares parallel and blocked (single-threaded) matmul.
 func BenchmarkParallelVsBlocked(b *testing.B) {
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	sizes := []int{256, 512, 1024}
 
@@ -637,7 +650,7 @@ func BenchmarkParallelVsBlocked(b *testing.B) {
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				ParallelMatMul(a, bMat, c, m, n, k)
+				ParallelMatMul(pool, a, bMat, c, m, n, k)
 			}
 
 			b.StopTimer()

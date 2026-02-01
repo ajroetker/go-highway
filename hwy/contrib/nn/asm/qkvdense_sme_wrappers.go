@@ -24,8 +24,16 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// Generate SME assembly from C source
-//go:generate go tool goat ../c/qkvdense_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64"
+// Generate SME assembly from C source.
+//
+// -fno-builtin prevents clang from optimizing zeroing loops into memset calls,
+// and -fno-stack-protector removes stack canary checks. Without these flags,
+// the generated SME assembly contains calls to external functions (_memset_pattern16,
+// ___arm_sc_memset, ___stack_chk_fail), which forces clang to emit a dynamic
+// SVL^2-byte ZA save area (via rdsvl+msub+mov sp) for the TPIDR2_EL0 lazy save
+// mechanism. This dynamic stack adjustment is incompatible with Go's fixed-frame
+// stack model and causes crashes at runtime.
+//go:generate go tool goat ../c/qkvdense_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64" -e="-fno-builtin" -e="-fno-stack-protector"
 
 // QKVDenseFMOPAF32 computes fused QKV projection using SME FMOPA for float32.
 //

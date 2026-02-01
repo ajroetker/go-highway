@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // matmulKLastReference computes C = A * B^T using naive triple loop.
@@ -284,6 +285,9 @@ func TestMatMulKLastBlocked(t *testing.T) {
 func TestParallelMatMulKLast(t *testing.T) {
 	t.Logf("Dispatch level: %s", hwy.CurrentName())
 
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Test sizes that should trigger parallel path (>= 64^3 ops)
 	sizes := []int{128, 256, 512}
 
@@ -304,7 +308,7 @@ func TestParallelMatMulKLast(t *testing.T) {
 			}
 
 			matmulKLastReference(a, b, expected, m, n, k)
-			ParallelMatMulKLast(a, b, c, m, n, k)
+			ParallelMatMulKLast(pool, a, b, c, m, n, k)
 
 			var maxErr float32
 			for i := range c {
@@ -325,6 +329,9 @@ func TestParallelMatMulKLast(t *testing.T) {
 
 func TestParallelMatMulKLastNonSquare(t *testing.T) {
 	t.Logf("Dispatch level: %s", hwy.CurrentName())
+
+	pool := workerpool.New(0)
+	defer pool.Close()
 
 	// Test shapes common in LLM inference where batchSize=1 (multi-cross patterns)
 	testCases := []struct {
@@ -351,7 +358,7 @@ func TestParallelMatMulKLastNonSquare(t *testing.T) {
 			}
 
 			matmulKLastReference(a, b, expected, tc.m, tc.n, tc.k)
-			ParallelMatMulKLast(a, b, c, tc.m, tc.n, tc.k)
+			ParallelMatMulKLast(pool, a, b, c, tc.m, tc.n, tc.k)
 
 			var maxErr float32
 			for i := range c {
@@ -492,6 +499,9 @@ func BenchmarkMatMulKLastVsStandard(b *testing.B) {
 func BenchmarkParallelVsBlockedKLast(b *testing.B) {
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
 
+	pool := workerpool.New(0)
+	defer pool.Close()
+
 	// Test sizes that benefit from parallelization
 	sizes := []int{256, 512, 1024}
 
@@ -529,7 +539,7 @@ func BenchmarkParallelVsBlockedKLast(b *testing.B) {
 			b.SetBytes(int64((m*k + n*k + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelMatMulKLast(a, bMat, c, m, n, k)
+				ParallelMatMulKLast(pool, a, bMat, c, m, n, k)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()
@@ -542,7 +552,7 @@ func BenchmarkParallelVsBlockedKLast(b *testing.B) {
 			b.SetBytes(int64((m*k + n*k + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				MatMulKLastAuto(a, bMat, c, m, n, k)
+				MatMulKLastAuto(pool, a, bMat, c, m, n, k)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()

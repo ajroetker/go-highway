@@ -25,6 +25,7 @@ package nn
 
 import (
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/matmul"
 	"github.com/ajroetker/go-highway/hwy/contrib/nn/asm"
 )
 
@@ -150,6 +151,112 @@ func qkvdenseNEONF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize,
 	asm.QKVDenseNEONF64(x, wQKV, biasQ, biasK, biasV, q, k, v, batchSize, inFeatures, qDim, kvDim)
 }
 
+// =============================================================================
+// SME SDPA adapter functions
+// =============================================================================
+
+// sdpaSMEF32 decomposes SDPA into multi-tile FMOPA matmul + Go softmax.
+// Step 1: scores = Q @ K^T (via MatMulKLast, which uses multi-tile FMOPA)
+// Step 2: scale scores, add mask, row-wise softmax (in Go)
+// Step 3: output = scores @ V (via BlockedMatMul, which uses multi-tile FMOPA)
+func sdpaSMEF32(q, k, v, mask, scores, output []float32, seqLen, kvLen, headDim int, scale float32) {
+	if seqLen%16 != 0 || kvLen%16 != 0 || headDim%16 != 0 ||
+		seqLen < minDimForSDPASME || kvLen < minDimForSDPASME || headDim < minDimForSDPASME {
+		sdpaNEONF32(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+		return
+	}
+
+	matmul.MatMulKLastFloat32(q, k, scores, seqLen, kvLen, headDim)
+	scaleMaskSoftmax(scores, mask, seqLen, kvLen, scale)
+	matmul.BlockedMatMulFloat32(scores, v, output, seqLen, headDim, kvLen)
+}
+
+// sdpaSMEF64 decomposes SDPA into multi-tile FMOPA matmul + Go softmax (float64).
+func sdpaSMEF64(q, k, v, mask, scores, output []float64, seqLen, kvLen, headDim int, scale float64) {
+	if seqLen%8 != 0 || kvLen%8 != 0 || headDim%8 != 0 ||
+		seqLen < minDimForSDPASME || kvLen < minDimForSDPASME || headDim < minDimForSDPASME {
+		sdpaNEONF64(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+		return
+	}
+
+	matmul.MatMulKLastFloat64(q, k, scores, seqLen, kvLen, headDim)
+	scaleMaskSoftmax(scores, mask, seqLen, kvLen, scale)
+	matmul.BlockedMatMulFloat64(scores, v, output, seqLen, headDim, kvLen)
+}
+
+// scaleMaskSoftmax scales scores, adds mask, and applies row-wise softmax in-place.
+func scaleMaskSoftmax[T hwy.Floats](scores, mask []T, seqLen, kvLen int, scale T) {
+	for i := 0; i < seqLen; i++ {
+		row := scores[i*kvLen : (i+1)*kvLen]
+
+		if mask != nil {
+			mRow := mask[i*kvLen : (i+1)*kvLen]
+			for j := range row {
+				row[j] = row[j]*scale + mRow[j]
+			}
+		} else {
+			for j := range row {
+				row[j] *= scale
+			}
+		}
+
+		SoftmaxInPlace(row)
+	}
+}
+
+// =============================================================================
+// SME QKVDense adapter functions
+// =============================================================================
+
+// qkvdenseSMEF32 decomposes QKV projection into 3 separate MatMulKLast calls,
+// one per projection (Q, K, V). Each call handles its own incremental transpose,
+// eliminating the O(inFeatures * totalOut) wQKV transpose buffer.
+func qkvdenseSMEF32(x, wQKV, biasQ, biasK, biasV, q, k, v []float32, batchSize, inFeatures, qDim, kvDim int) {
+	// wQKV is [totalOut, inFeatures] laid out as [wQ; wK; wV] row-major.
+	// MatMulKLast(a, b, c, m, n, k) computes C = A @ B^T.
+	// Q: x[batchSize, inFeatures] @ wQ[qDim, inFeatures]^T → q[batchSize, qDim]
+	wQ := wQKV[:qDim*inFeatures]
+	matmul.MatMulKLastFloat32(x, wQ, q, batchSize, qDim, inFeatures)
+	if biasQ != nil {
+		addBias(q, biasQ, batchSize, qDim)
+	}
+
+	// K: x @ wK^T → k[batchSize, kvDim]
+	wK := wQKV[qDim*inFeatures : (qDim+kvDim)*inFeatures]
+	matmul.MatMulKLastFloat32(x, wK, k, batchSize, kvDim, inFeatures)
+	if biasK != nil {
+		addBias(k, biasK, batchSize, kvDim)
+	}
+
+	// V: x @ wV^T → v[batchSize, kvDim]
+	wV := wQKV[(qDim+kvDim)*inFeatures:]
+	matmul.MatMulKLastFloat32(x, wV, v, batchSize, kvDim, inFeatures)
+	if biasV != nil {
+		addBias(v, biasV, batchSize, kvDim)
+	}
+}
+
+// qkvdenseSMEF64 decomposes QKV projection into 3 separate MatMulKLast calls (float64).
+func qkvdenseSMEF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize, inFeatures, qDim, kvDim int) {
+	wQ := wQKV[:qDim*inFeatures]
+	matmul.MatMulKLastFloat64(x, wQ, q, batchSize, qDim, inFeatures)
+	if biasQ != nil {
+		addBias(q, biasQ, batchSize, qDim)
+	}
+
+	wK := wQKV[qDim*inFeatures : (qDim+kvDim)*inFeatures]
+	matmul.MatMulKLastFloat64(x, wK, k, batchSize, kvDim, inFeatures)
+	if biasK != nil {
+		addBias(k, biasK, batchSize, kvDim)
+	}
+
+	wV := wQKV[(qDim+kvDim)*inFeatures:]
+	matmul.MatMulKLastFloat64(x, wV, v, batchSize, kvDim, inFeatures)
+	if biasV != nil {
+		addBias(v, biasV, batchSize, kvDim)
+	}
+}
+
 func init() {
 	if hwy.NoSimdEnv() {
 		return
@@ -163,15 +270,24 @@ func init() {
 	SoftmaxFloat32 = softmaxNEONF32
 	SoftmaxFloat64 = softmaxNEONF64
 
-	// Override SDPA dispatch with GOAT NEON implementations
-	SDPAFloat32 = sdpaNEONF32
-	SDPAFloat64 = sdpaNEONF64
+	// Override SDPA and QKVDense dispatch
+	if hwy.HasSME() {
+		// SME FMOPA provides higher throughput for aligned dimensions.
+		// The SME adapters check alignment and fall back to NEON internally.
+		SDPAFloat32 = sdpaSMEF32
+		SDPAFloat64 = sdpaSMEF64
+		QKVDenseFloat32 = qkvdenseSMEF32
+		QKVDenseFloat64 = qkvdenseSMEF64
+	} else {
+		SDPAFloat32 = sdpaNEONF32
+		SDPAFloat64 = sdpaNEONF64
+		QKVDenseFloat32 = qkvdenseNEONF32
+		QKVDenseFloat64 = qkvdenseNEONF64
+	}
+
+	// Causal SDPA stays on NEON (no SME causal kernel exists)
 	SDPACausalFloat32 = sdpaCausalNEONF32
 	SDPACausalFloat64 = sdpaCausalNEONF64
-
-	// Override QKVDense dispatch with GOAT NEON implementations
-	QKVDenseFloat32 = qkvdenseNEONF32
-	QKVDenseFloat64 = qkvdenseNEONF64
 
 	// Float16/BFloat16 use the hwygen-generated promoted implementations
 	// (promote to f32, compute, demote) which are already efficient enough

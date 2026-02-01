@@ -270,3 +270,115 @@ void matmul_bfmopa_at_bf16(__bf16 *at, __bf16 *b, __bf16 *c,
         }
     }
 }
+
+// =============================================================================
+// matmul_fmopa_at_f16_strided: Strided F16 FMOPA matmul
+// =============================================================================
+// Same as matmul_fmopa_at_f16 but writes to C with leading dimension ldc
+// at column offset coff. Enables incremental B transpose: transpose a strip
+// of B, call this function to write directly into the correct columns of
+// the full output.
+//
+// func matmul_fmopa_at_f16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer)
+void matmul_fmopa_at_f16_strided(__fp16 *at, __fp16 *b, __fp16 *c,
+                                  long *pm, long *pn, long *pk,
+                                  long *pldc, long *pcoff,
+                                  float *scratch) __arm_streaming __arm_out("za") {
+    (void)scratch;
+    long m = *pm;
+    long n = *pn;
+    long k = *pk;
+    long ldc = *pldc;
+    long coff = *pcoff;
+
+    svbool_t pg32 = svptrue_b32();
+    svbool_t pg16 = svptrue_pat_b16(SV_VL16);
+    svuint32_t exp_adjust = svdup_n_u32(112 << 23);
+
+    for (long ti = 0; ti < m; ti += 16) {
+        for (long tj = 0; tj < n; tj += 16) {
+            svzero_za();
+
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                svuint32_t a_u32 = svunpklo_u32(a_u16);
+                a_u32 = svlsl_n_u32_x(pg32, a_u32, 13);
+                a_u32 = svadd_u32_x(pg32, a_u32, exp_adjust);
+                svfloat32_t za_col = svreinterpret_f32_u32(a_u32);
+
+                svuint16_t b_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b_u32 = svunpklo_u32(b_u16);
+                b_u32 = svlsl_n_u32_x(pg32, b_u32, 13);
+                b_u32 = svadd_u32_x(pg32, b_u32, exp_adjust);
+                svfloat32_t zb_row = svreinterpret_f32_u32(b_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, za_col, zb_row);
+            }
+
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                bits = svsub_u32_x(pg32, bits, exp_adjust);
+                svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+            }
+        }
+    }
+}
+
+// =============================================================================
+// matmul_bfmopa_at_bf16_strided: Strided BF16 BFMOPA matmul
+// =============================================================================
+// Same as matmul_bfmopa_at_bf16 but writes to C with leading dimension ldc
+// at column offset coff.
+//
+// func matmul_bfmopa_at_bf16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer)
+void matmul_bfmopa_at_bf16_strided(__bf16 *at, __bf16 *b, __bf16 *c,
+                                    long *pm, long *pn, long *pk,
+                                    long *pldc, long *pcoff,
+                                    float *scratch) __arm_streaming __arm_out("za") {
+    (void)scratch;
+    long m = *pm;
+    long n = *pn;
+    long k = *pk;
+    long ldc = *pldc;
+    long coff = *pcoff;
+
+    svbool_t pg32 = svptrue_b32();
+    svbool_t pg16 = svptrue_pat_b16(SV_VL16);
+
+    for (long ti = 0; ti < m; ti += 16) {
+        for (long tj = 0; tj < n; tj += 16) {
+            svzero_za();
+
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                svuint32_t a_u32 = svunpklo_u32(a_u16);
+                a_u32 = svlsl_n_u32_x(pg32, a_u32, 16);
+                svfloat32_t za_col = svreinterpret_f32_u32(a_u32);
+
+                svuint16_t b_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b_u32 = svunpklo_u32(b_u16);
+                b_u32 = svlsl_n_u32_x(pg32, b_u32, 16);
+                svfloat32_t zb_row = svreinterpret_f32_u32(b_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, za_col, zb_row);
+            }
+
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                bit16 = svand_n_u32_x(pg32, bit16, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+            }
+        }
+    }
+}

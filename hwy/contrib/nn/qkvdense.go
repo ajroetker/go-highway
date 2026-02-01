@@ -19,6 +19,7 @@ import (
 
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // QKVDenseAuto computes a fused QKV projection using the best available
@@ -35,18 +36,41 @@ import (
 //
 // This delegates to MatMulKLastAuto for the fused matmul, then scatters
 // the results into separate Q, K, V buffers and adds biases.
+//
+// For asymmetric dims (GQA-style where kvDim << qDim), it automatically
+// falls back to 3× separate DenseAuto calls when the problem is small enough,
+// as this gives better cache utilization.
+
+// SmallFusedThreshold is the total element count (batchSize * totalOut * inFeatures)
+// below which asymmetric QKV dims (qDim != kvDim) use 3× separate DenseAuto calls
+// instead of the fused matmul path.
+const SmallFusedThreshold = 768 * (256 + 2*64)
+
 func QKVDenseAuto[T hwy.Floats](
+	pool *workerpool.Pool,
 	x, wQKV, biasQ, biasK, biasV, q, k, v []T,
 	batchSize, inFeatures, qDim, kvDim int,
 ) {
 	totalOut := qDim + 2*kvDim
+
+	// For asymmetric dims (GQA-style where kvDim << qDim), three separate
+	// DenseAuto calls are faster because each fits cache better.
+	if qDim != kvDim && batchSize*totalOut*inFeatures < SmallFusedThreshold {
+		wQ := wQKV[:qDim*inFeatures]
+		wK := wQKV[qDim*inFeatures : (qDim+kvDim)*inFeatures]
+		wV := wQKV[(qDim+kvDim)*inFeatures:]
+		DenseAuto(pool, x, wQ, biasQ, q, batchSize, inFeatures, qDim)
+		DenseAuto(pool, x, wK, biasK, k, batchSize, inFeatures, kvDim)
+		DenseAuto(pool, x, wV, biasV, v, batchSize, inFeatures, kvDim)
+		return
+	}
 
 	// Get temp buffer from pool
 	temp := getTempSlice[T](batchSize * totalOut)
 	defer putTempSlice(temp)
 
 	// Fused matmul: temp = x @ wQKV^T
-	matmul.MatMulKLastAuto(x, wQKV, temp, batchSize, totalOut, inFeatures)
+	matmul.MatMulKLastAuto(pool, x, wQKV, temp, batchSize, totalOut, inFeatures)
 
 	// Scatter + bias add
 	lanes := hwy.MaxLanes[T]()
