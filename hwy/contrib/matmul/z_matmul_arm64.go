@@ -43,10 +43,17 @@ const minDimForNEON = 16
 // Only use NEON for very small matrices where streaming mode overhead dominates.
 const minDimForSME = 32
 
-// Minimum dimensions to use SME blocked FMOPA.
-// SME with transpose is 160x+ faster than hwygen-generated NEON blocked even at 32×32.
-// Benchmarks on Apple M4: 32×32: SME 323 GFLOPS vs NEON 2 GFLOPS.
-const minDimForBlockedSME = 32
+// minOpsForBlockedSME is the minimum padded total ops (paddedM*paddedN*paddedK)
+// before SME FMOPA with padding/transpose is faster than NEON streaming.
+// SME overhead is ~2µs (SMEGuard + pad + transpose + extract). NEON throughput
+// is ~2 GFLOPS for blocked matmul. Crossover is around 64K ops.
+// Benchmarks on Apple M4 Max:
+//   1x32x32   (32K ops padded): SME 22x slower (overhead dominates)
+//   4x128x128 (64K ops padded): SME 1.6x faster
+//   1x512x512 (512K ops padded): SME 1.5x faster
+//   16x64x64  (64K ops padded): SME 4x faster
+//   8x512x512 (4M ops padded): SME 12.8x faster
+const minOpsForBlockedSME = 64 * 1024
 
 // Minimum dimensions to use NEON KLast vectorization
 const minDimForNEONKLast = 16
@@ -694,8 +701,10 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	paddedN := AlignUp(n, tileSize)
 	paddedK := AlignUp(k, tileSize)
 
-	// For small matrices, use streaming NEON (SME streaming mode has overhead)
-	if paddedM < minDimForBlockedSME || paddedN < minDimForBlockedSME || paddedK < minDimForBlockedSME {
+	// For small matrices, use streaming NEON (SME streaming mode has overhead).
+	// Check total padded ops rather than individual dimensions — SME with padding
+	// is faster than NEON even at M=1 when N*K is large enough (e.g. 512x512).
+	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
 		asm.MatMulNEONF32(a, b, c, m, n, k)
 		return
 	}
@@ -785,8 +794,9 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	paddedN := AlignUp(n, tileSize)
 	paddedK := AlignUp(k, tileSize)
 
-	// For small matrices, use streaming NEON (SME streaming mode has overhead)
-	if paddedM < minDimForBlockedSME || paddedN < minDimForBlockedSME || paddedK < minDimForBlockedSME {
+	// For small matrices, use streaming NEON (SME streaming mode has overhead).
+	// See minOpsForBlockedSME comment in blockedMatMulFMOPA.
+	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
 		asm.MatMulNEONF64(a, b, c, m, n, k)
 		return
 	}

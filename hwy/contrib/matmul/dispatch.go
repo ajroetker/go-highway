@@ -35,24 +35,34 @@ const (
 
 	// When K/N ratio exceeds this, blocking helps reduce C traffic
 	DeepKRatio = 4
+
+	// MinParallelStrips is the minimum number of RowsPerStrip-sized strips
+	// required for coarse-grained parallelism to overcome dispatch overhead.
+	// Benchmarks on M4 Max (ARM64 SME) show:
+	//   2 strips (96x96x96, 128x128x128): Parallel 14-33% SLOWER than Blocked
+	//   3 strips (192x192x192): Parallel 28% faster
+	//   4+ strips: Parallel consistently faster (up to 2.6x at 16 strips)
+	MinParallelStrips = 3
 )
 
 // MatMulAuto automatically selects the best algorithm based on matrix dimensions.
 // Requires a persistent worker pool for parallel execution.
 //
-// Algorithm selection based on matrix size (total ops = M * N * K):
-//   - Small (<64^3): Streaming MatMul - lowest overhead, fits in cache
-//   - Medium/Large: Parallel BlockedMatMul - cache tiling + parallelism
+// Algorithm selection:
 //
-// On AMD64, large matrices (>=256^3) use ParallelPackedMatMulV2 with K-blocking.
-// The V2 algorithm uses:
-//   - Small packed output buffer (Mc=4) for better cache locality
-//   - 4x K-loop unrolling with BCE hints for better ILP
-//   - SIMD-optimized output application
+//  1. Small matrices (M*N*K < 64^3): Streaming MatMul — lowest overhead
+//  2. Small M on AMD64 (M < RowsPerStrip): Fine-grained row parallelism —
+//     each row dispatched via atomic work stealing.
+//  3. Few strips (M/RowsPerStrip < 3): Sequential BlockedMatMul — parallel
+//     dispatch overhead exceeds benefit with <3 strips.
+//  4. Large (AMD64 only, M*N*K >= 1024^3): ParallelPackedMatMulV2 with K-blocking.
+//  5. Default: ParallelMatMul with 64-row strips.
 //
-// On ARM64, SME FMOPA outer product instructions are 100-1000x faster than
-// any pure-Go SIMD implementation, so we use ParallelMatMul which leverages
-// the hardware-accelerated blocked implementation.
+// On ARM64 with SME, BlockedMatMul uses FMOPA outer products with padding for
+// any size where total padded ops >= 64K (including M=1). SME with padding is
+// 1.5-92x faster than NEON even at small M. Fine-grained per-row dispatch is
+// not used on ARM64 because splitting rows forces each sub-call through NEON
+// (individual rows can't reach the SME ops threshold).
 //
 // Usage:
 //
@@ -65,32 +75,45 @@ const (
 func MatMulAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
-	// For small M with large N*K, we need row-parallel with 1-row strips
-	// to achieve parallelism. Standard RowsPerStrip=64 would give only 1 strip
-	// for M<64, meaning no parallelism.
+	// Very small matrices: streaming is fastest (fits in cache, no overhead).
+	if totalOps < SmallMatrixThreshold {
+		MatMul(a, b, c, m, n, k)
+		return
+	}
+
+	// For small M with large N*K on AMD64, use fine-grained row parallelism.
+	// Each row is dispatched independently via atomic work stealing.
 	//
-	// Benchmarks on M4 Max show 4.3x speedup for M=11, N=1024, K=1024:
-	//   - Streaming single-threaded: 2.78ms
-	//   - Row-parallel 1-row strips: 0.65ms
-	const SmallMThreshold = 64 // Use fine-grained parallelism when M < RowsPerStrip
-	if m < SmallMThreshold && totalOps >= SmallMatrixThreshold {
+	// On ARM64, this path is skipped. BlockedMatMul now uses SME FMOPA with
+	// padding even for M=1 (total ops guard instead of per-dimension guard),
+	// so sequential BlockedMatMul is already fast. Per-row FineGrained dispatch
+	// would force each row through NEON since M=1 per-row calls can't reach
+	// the SME ops threshold. Benchmarks on M4 Max (SME with padding):
+	//   BlockedMatMul(1, 1024, 1024):  ~93µs  (SME, padded to 16×1024×1024)
+	//   BlockedMatMul(16, 1024, 1024): ~88µs  (SME, padded to 16×1024×1024)
+	//   BlockedMatMul(32, 1024, 1024): ~101µs (SME, no padding needed)
+	if runtime.GOARCH != "arm64" && m < RowsPerStrip {
 		ParallelMatMulFineGrained(pool, a, b, c, m, n, k)
 		return
 	}
 
-	if totalOps < SmallMatrixThreshold {
-		MatMul(a, b, c, m, n, k)
-	} else if totalOps < LargeMatrixThreshold {
-		ParallelMatMul(pool, a, b, c, m, n, k)
+	// Coarse parallelism requires enough strips for load balancing.
+	// With <3 strips, dispatch overhead exceeds the parallelism benefit.
+	// Benchmarks on M4 Max:
+	//   96x96x96  (2 strips): Parallel 33% slower than Blocked
+	//   128x128x128 (2 strips): Parallel 14% slower
+	//   192x192x192 (3 strips): Parallel 28% faster
+	numStrips := (m + RowsPerStrip - 1) / RowsPerStrip
+	if numStrips < MinParallelStrips {
+		BlockedMatMul(a, b, c, m, n, k)
+		return
+	}
+
+	if totalOps >= LargeMatrixThreshold && runtime.GOARCH != "arm64" {
+		// Use optimized V2 packed GEBP with K-blocking on AMD64.
+		ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 	} else {
-		if runtime.GOARCH == "arm64" {
-			// Use SME FMOPA / NEON blocked - hardware outer product is 100-1000x faster
-			ParallelMatMul(pool, a, b, c, m, n, k)
-		} else {
-			// Use optimized V2 packed GEBP with K-blocking on AMD64
-			// V2 uses smaller panels (Mc=4, Nc=512) for better cache locality
-			ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
-		}
+		ParallelMatMul(pool, a, b, c, m, n, k)
 	}
 }
 
@@ -110,34 +133,37 @@ func MatMulAutoFloat64(pool *workerpool.Pool, a, b, c []float64, m, n, k int) {
 // K-last layout: A is [M,K], B is [N,K] (both with K as last dimension).
 // Computes C = A @ B^T where C is [M,N].
 //
-// Algorithm selection based on matrix size (total ops = M * N * K):
-//   - Small (<64^3): Streaming MatMulKLast - lowest overhead
-//   - Medium/Large: ParallelMatMulKLast - parallel row striping + blocked
+// Algorithm selection mirrors MatMulAuto:
+//  1. Small matrices (M*N*K < 64^3): Streaming MatMulKLast
+//  2. Small M on AMD64 (M < RowsPerStrip): Fine-grained row parallelism
+//  3. Few strips (< 3): Sequential MatMulKLastBlocked
+//  4. Default: ParallelMatMulKLast with coarse row striping
 //
-// ParallelMatMulKLast enables intra-example parallelism: a single large matrix
-// multiplication can utilize all CPU cores by processing independent row strips
-// concurrently. This is critical for patterns like multi-cross (bsi,oi->bso)
-// where batchSize=1 but M,N,K are large.
-//
-// On ARM64 with SME, the dispatch already uses FMOPA with transpose
-// for sizes >= 32 (when 16-aligned), which is 2-4x faster than NEON.
+// On ARM64 with SME, FMOPA with padding handles small M directly.
 func MatMulKLastAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
-	// For small M with large N*K, use fine-grained row parallelism.
-	const SmallMThreshold = 64
-	if m < SmallMThreshold && totalOps >= SmallMatrixThreshold {
+	if totalOps < SmallMatrixThreshold {
+		MatMulKLast(a, b, c, m, n, k)
+		return
+	}
+
+	// Fine-grained row parallelism for small M on AMD64.
+	// On ARM64, BlockedMatMul handles small M via SME with padding.
+	// See MatMulAuto comments for full rationale.
+	if runtime.GOARCH != "arm64" && m < RowsPerStrip {
 		ParallelMatMulKLastFineGrained(pool, a, b, c, m, n, k)
 		return
 	}
 
-	if totalOps < SmallMatrixThreshold {
-		// Small matrices: streaming is faster (no blocking overhead)
-		MatMulKLast(a, b, c, m, n, k)
-	} else {
-		// Medium/large matrices: parallel row striping + blocked
-		ParallelMatMulKLast(pool, a, b, c, m, n, k)
+	// Need enough strips for coarse parallelism to overcome overhead.
+	numStrips := (m + RowsPerStrip - 1) / RowsPerStrip
+	if numStrips < MinParallelStrips {
+		MatMulKLastBlocked(a, b, c, m, n, k)
+		return
 	}
+
+	ParallelMatMulKLast(pool, a, b, c, m, n, k)
 }
 
 // MatMulKLastAutoFloat32 is the non-generic version for float32.
