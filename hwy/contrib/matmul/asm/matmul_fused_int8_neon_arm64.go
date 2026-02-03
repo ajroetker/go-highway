@@ -3,12 +3,12 @@
 // versions:
 // 	clang   17.0.0 (clang-1700.0.13.5)
 // 	objdump 17.0.0
-// flags: -march=armv8.2-a+fp16 -O3
-// source: ../c/matmul_blocked_f16_arm64.c
+// flags: -O3
+// source: ../c/matmul_fused_int8_neon_arm64.c
 
 package asm
 
 import "unsafe"
 
 //go:noescape
-func blocked_matmul_neon_f16(a, b, c, pm, pn, pk unsafe.Pointer)
+func fused_int8_matmul_neon(input, weights, scales, output, pM, pK, pN, pGroupSize, pNumGroups unsafe.Pointer)

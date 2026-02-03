@@ -154,6 +154,14 @@ var fusedTilePool = sync.Pool{
 	},
 }
 
+// fusedOutputTilePool is for output tile buffers in fused Int8 matmul (M * 16 floats)
+var fusedOutputTilePool = sync.Pool{
+	New: func() any {
+		// Max output tile size: M * 16 floats for SME tile width (M up to 4096)
+		return make([]float32, 0, 4096*16)
+	},
+}
+
 // =============================================================================
 // M-padding buffer pools for SME FMOPA
 // =============================================================================
@@ -1864,6 +1872,63 @@ func parallelFusedInt4MatMulSME(
 }
 
 // =============================================================================
+// NEON Fused NF4/Int4 + Activation Wrappers
+// =============================================================================
+// These wrappers use NEON when N is aligned (N % 4 == 0), otherwise fall back
+// to base implementation. This ensures correctness for all input sizes.
+
+func fusedNF4MatMulSiLUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	if N%4 == 0 {
+		asm.FusedNF4SiLUMatMulNEON(input, packed, scales, output, M, K, N, groupSize)
+	} else {
+		BaseFusedNF4MatMulSiLU(input, packed, scales, output, M, K, N, groupSize)
+	}
+}
+
+func fusedNF4MatMulGELUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	if N%4 == 0 {
+		asm.FusedNF4GELUMatMulNEON(input, packed, scales, output, M, K, N, groupSize)
+	} else {
+		BaseFusedNF4MatMulGELU(input, packed, scales, output, M, K, N, groupSize)
+	}
+}
+
+func fusedInt4MatMulSiLUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	if N%4 == 0 {
+		asm.FusedInt4SiLUMatMulNEON(input, packed, scales, output, M, K, N, groupSize)
+	} else {
+		BaseFusedInt4MatMulSiLU(input, packed, scales, output, M, K, N, groupSize)
+	}
+}
+
+func fusedInt4MatMulGELUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	if N%4 == 0 {
+		asm.FusedInt4GELUMatMulNEON(input, packed, scales, output, M, K, N, groupSize)
+	} else {
+		BaseFusedInt4MatMulGELU(input, packed, scales, output, M, K, N, groupSize)
+	}
+}
+
+// Parallel NEON variants use worker pool for large matrices
+func parallelFusedNF4MatMulSiLUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	// For non-SME, just use serial NEON - parallelization overhead not worth it
+	// without SME's streaming mode efficiency
+	fusedNF4MatMulSiLUNEON(input, packed, scales, output, M, K, N, groupSize)
+}
+
+func parallelFusedNF4MatMulGELUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	fusedNF4MatMulGELUNEON(input, packed, scales, output, M, K, N, groupSize)
+}
+
+func parallelFusedInt4MatMulSiLUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	fusedInt4MatMulSiLUNEON(input, packed, scales, output, M, K, N, groupSize)
+}
+
+func parallelFusedInt4MatMulGELUNEON(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+	fusedInt4MatMulGELUNEON(input, packed, scales, output, M, K, N, groupSize)
+}
+
+// =============================================================================
 // init() - Dispatch setup
 // =============================================================================
 
@@ -1893,6 +1958,16 @@ func init() {
 	} else {
 		// Use hand-written NEON implementation on arm64
 		MatMulFloat32 = matmulNEON
+
+		// Fused NF4/Int4 + activation NEON implementations
+		FusedNF4MatMulSiLU = fusedNF4MatMulSiLUNEON
+		FusedNF4MatMulGELU = fusedNF4MatMulGELUNEON
+		FusedInt4MatMulSiLU = fusedInt4MatMulSiLUNEON
+		FusedInt4MatMulGELU = fusedInt4MatMulGELUNEON
+		ParallelFusedNF4MatMulSiLU = parallelFusedNF4MatMulSiLUNEON
+		ParallelFusedNF4MatMulGELU = parallelFusedNF4MatMulGELUNEON
+		ParallelFusedInt4MatMulSiLU = parallelFusedInt4MatMulSiLUNEON
+		ParallelFusedInt4MatMulGELU = parallelFusedInt4MatMulGELUNEON
 	}
 
 	// ==========================================================================
