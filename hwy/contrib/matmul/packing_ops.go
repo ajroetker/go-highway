@@ -52,8 +52,8 @@ func BasePackRHSFast[T hwy.Floats](b, packed []T, n, rowStart, colStart, panelK,
 
 				// SIMD copy: process nr elements using nr/lanes vectors
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := hwy.LoadFull(b[srcIdx+c:])
+					hwy.StoreFull(v, packed[dstIdx+c:])
 				}
 				dstIdx += nr
 			}
@@ -120,15 +120,15 @@ func BaseApplyPackedOutput[T hwy.Floats](
 		c := 0
 		// Vectorized loop: process lanes elements at a time
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
+			packedVal := hwy.LoadFull(packedOutput[packedIdx+c:])
+			outputVal := hwy.LoadFull(output[outputIdx+c:])
 
 			// output = alpha * packed + beta * output
 			// Using MulAdd: result = packedVal * alphaVec + (outputVal * betaVec)
 			scaledOutput := hwy.Mul(outputVal, betaVec)
 			newVal := hwy.MulAdd(packedVal, alphaVec, scaledOutput)
 
-			hwy.Store(newVal, output[outputIdx+c:])
+			hwy.StoreFull(newVal, output[outputIdx+c:])
 		}
 
 		// Scalar tail
@@ -159,8 +159,8 @@ func BaseApplyPackedOutputSimple[T hwy.Floats](
 		c := 0
 		// Vectorized copy
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := hwy.LoadFull(packedOutput[packedIdx+c:])
+			hwy.StoreFull(v, output[outputIdx+c:])
 		}
 
 		// Scalar tail
@@ -190,10 +190,10 @@ func BaseApplyPackedOutputAccum[T hwy.Floats](
 		c := 0
 		// Vectorized accumulation
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
+			packedVal := hwy.LoadFull(packedOutput[packedIdx+c:])
+			outputVal := hwy.LoadFull(output[outputIdx+c:])
 			newVal := hwy.Add(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			hwy.StoreFull(newVal, output[outputIdx+c:])
 		}
 
 		// Scalar tail

@@ -191,7 +191,7 @@ func zeroMatrix[T hwy.Floats](c []T, total int) {
 
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		hwy.Store(vZero, c[idx:])
+		hwy.StoreFull(vZero, c[idx:])
 	}
 	for ; idx < total; idx++ {
 		c[idx] = 0

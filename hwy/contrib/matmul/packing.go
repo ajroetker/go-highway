@@ -186,8 +186,8 @@ func BasePackRHSVec[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panel
 				bRowStart := (rowStart + kk) * n
 				// SIMD copy of nr elements (nr/lanes vectors)
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := hwy.LoadFull(b[bRowStart+baseCol+c:])
+					hwy.StoreFull(v, packed[packIdx+c:])
 				}
 				packIdx += nr
 			}

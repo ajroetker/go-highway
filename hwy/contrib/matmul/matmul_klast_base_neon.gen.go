@@ -192,11 +192,11 @@ func BaseMatMulKLast_neon(a []float32, b []float32, c []float32, m int, n int, k
 			acc3 := asm.ZeroFloat32x4()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := asm.LoadFloat32x4Slice(b[bRow+p:])
-				vA0 := asm.LoadFloat32x4Slice(a[aRow0+p:])
-				vA1 := asm.LoadFloat32x4Slice(a[aRow1+p:])
-				vA2 := asm.LoadFloat32x4Slice(a[aRow2+p:])
-				vA3 := asm.LoadFloat32x4Slice(a[aRow3+p:])
+				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRow+p])))
+				vA0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[aRow0+p])))
+				vA1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[aRow1+p])))
+				vA2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[aRow2+p])))
+				vA3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[aRow3+p])))
 				vA0.MulAddAcc(vB, &acc0)
 				vA1.MulAddAcc(vB, &acc1)
 				vA2.MulAddAcc(vB, &acc2)
@@ -226,8 +226,8 @@ func BaseMatMulKLast_neon(a []float32, b []float32, c []float32, m int, n int, k
 			acc := asm.ZeroFloat32x4()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := asm.LoadFloat32x4Slice(a[aRow+p:])
-				vB := asm.LoadFloat32x4Slice(b[bRow+p:])
+				vA := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[aRow+p])))
+				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRow+p])))
 				vA.MulAddAcc(vB, &acc)
 			}
 			sum := acc.ReduceSum()
@@ -268,11 +268,11 @@ func BaseMatMulKLast_neon_Float64(a []float64, b []float64, c []float64, m int, 
 			acc3 := asm.ZeroFloat64x2()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := asm.LoadFloat64x2Slice(b[bRow+p:])
-				vA0 := asm.LoadFloat64x2Slice(a[aRow0+p:])
-				vA1 := asm.LoadFloat64x2Slice(a[aRow1+p:])
-				vA2 := asm.LoadFloat64x2Slice(a[aRow2+p:])
-				vA3 := asm.LoadFloat64x2Slice(a[aRow3+p:])
+				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRow+p])))
+				vA0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[aRow0+p])))
+				vA1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[aRow1+p])))
+				vA2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[aRow2+p])))
+				vA3 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[aRow3+p])))
 				vA0.MulAddAcc(vB, &acc0)
 				vA1.MulAddAcc(vB, &acc1)
 				vA2.MulAddAcc(vB, &acc2)
@@ -302,8 +302,8 @@ func BaseMatMulKLast_neon_Float64(a []float64, b []float64, c []float64, m int, 
 			acc := asm.ZeroFloat64x2()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := asm.LoadFloat64x2Slice(a[aRow+p:])
-				vB := asm.LoadFloat64x2Slice(b[bRow+p:])
+				vA := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[aRow+p])))
+				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRow+p])))
 				vA.MulAddAcc(vB, &acc)
 			}
 			sum := acc.ReduceSum()
@@ -440,8 +440,8 @@ func BaseMatMulKLastBlocked_neon(a []float32, b []float32, c []float32, m int, n
 						acc := asm.ZeroFloat32x4()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := asm.LoadFloat32x4Slice(a[aRow+p:])
-							vB := asm.LoadFloat32x4Slice(b[bRow+p:])
+							vA := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&a[aRow+p])))
+							vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRow+p])))
 							vA.MulAddAcc(vB, &acc)
 						}
 						sum := acc.ReduceSum()
@@ -487,8 +487,8 @@ func BaseMatMulKLastBlocked_neon_Float64(a []float64, b []float64, c []float64, 
 						acc := asm.ZeroFloat64x2()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := asm.LoadFloat64x2Slice(a[aRow+p:])
-							vB := asm.LoadFloat64x2Slice(b[bRow+p:])
+							vA := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&a[aRow+p])))
+							vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRow+p])))
 							vA.MulAddAcc(vB, &acc)
 						}
 						sum := acc.ReduceSum()

@@ -103,7 +103,7 @@ func BaseMatMul_neon(a []float32, b []float32, c []float32, m int, n int, k int)
 		lanes := 4
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			vZero.StoreSlice(cRow[j:])
+			vZero.Store((*[4]float32)(unsafe.Pointer(&cRow[j])))
 		}
 		for ; j < n; j++ {
 			cRow[j] = 0
@@ -113,10 +113,10 @@ func BaseMatMul_neon(a []float32, b []float32, c []float32, m int, n int, k int)
 			vA := asm.BroadcastFloat32x4(aip)
 			bRow := b[p*n : (p+1)*n]
 			for j = 0; j+lanes <= n; j += lanes {
-				vB := asm.LoadFloat32x4Slice(bRow[j:])
-				vC := asm.LoadFloat32x4Slice(cRow[j:])
+				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&bRow[j])))
+				vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&cRow[j])))
 				vA.MulAddAcc(vB, &vC)
-				vC.StoreSlice(cRow[j:])
+				vC.Store((*[4]float32)(unsafe.Pointer(&cRow[j])))
 			}
 			for ; j < n; j++ {
 				cRow[j] += aip * bRow[j]
@@ -141,7 +141,7 @@ func BaseMatMul_neon_Float64(a []float64, b []float64, c []float64, m int, n int
 		lanes := 2
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			vZero.StoreSlice(cRow[j:])
+			vZero.Store((*[2]float64)(unsafe.Pointer(&cRow[j])))
 		}
 		for ; j < n; j++ {
 			cRow[j] = 0
@@ -151,10 +151,10 @@ func BaseMatMul_neon_Float64(a []float64, b []float64, c []float64, m int, n int
 			vA := asm.BroadcastFloat64x2(aip)
 			bRow := b[p*n : (p+1)*n]
 			for j = 0; j+lanes <= n; j += lanes {
-				vB := asm.LoadFloat64x2Slice(bRow[j:])
-				vC := asm.LoadFloat64x2Slice(cRow[j:])
+				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&bRow[j])))
+				vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&cRow[j])))
 				vA.MulAddAcc(vB, &vC)
-				vC.StoreSlice(cRow[j:])
+				vC.Store((*[2]float64)(unsafe.Pointer(&cRow[j])))
 			}
 			for ; j < n; j++ {
 				cRow[j] += aip * bRow[j]

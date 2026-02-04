@@ -315,8 +315,8 @@ func BasePackRHSVec_avx512_Float16(b []hwy.Float16, packed []hwy.Float16, k int,
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(b[bRowStart+baseCol+c:]))), len(b[bRowStart+baseCol+c:])))
-					v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(packed[packIdx+c:]))), len(packed[packIdx+c:])))
+					v := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c]))
+					v.StorePtr(unsafe.Pointer(&packed[packIdx+c]))
 				}
 				packIdx += nr
 			}
@@ -355,8 +355,8 @@ func BasePackRHSVec_avx512_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k i
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(b[bRowStart+baseCol+c:]))), len(b[bRowStart+baseCol+c:])))
-					v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(packed[packIdx+c:]))), len(packed[packIdx+c:])))
+					v := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c]))
+					v.StorePtr(unsafe.Pointer(&packed[packIdx+c]))
 				}
 				packIdx += nr
 			}
@@ -395,8 +395,8 @@ func BasePackRHSVec_avx512(b []float32, packed []float32, k int, n int, rowStart
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := archsimd.LoadFloat32x16Slice(b[bRowStart+baseCol+c:])
-					v.StoreSlice(packed[packIdx+c:])
+					v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
+					v.Store((*[16]float32)(unsafe.Pointer(&packed[packIdx+c])))
 				}
 				packIdx += nr
 			}
@@ -435,8 +435,8 @@ func BasePackRHSVec_avx512_Float64(b []float64, packed []float64, k int, n int, 
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := archsimd.LoadFloat64x8Slice(b[bRowStart+baseCol+c:])
-					v.StoreSlice(packed[packIdx+c:])
+					v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
+					v.Store((*[8]float64)(unsafe.Pointer(&packed[packIdx+c])))
 				}
 				packIdx += nr
 			}

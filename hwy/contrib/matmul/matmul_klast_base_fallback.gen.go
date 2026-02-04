@@ -35,11 +35,11 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 			acc3 := hwy.Zero[hwy.Float16]()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
+				vB := hwy.LoadFull(b[bRow+p:])
+				vA0 := hwy.LoadFull(a[aRow0+p:])
+				vA1 := hwy.LoadFull(a[aRow1+p:])
+				vA2 := hwy.LoadFull(a[aRow2+p:])
+				vA3 := hwy.LoadFull(a[aRow3+p:])
 				acc0 = hwy.MulAdd(vA0, vB, acc0)
 				acc1 = hwy.MulAdd(vA1, vB, acc1)
 				acc2 = hwy.MulAdd(vA2, vB, acc2)
@@ -69,8 +69,8 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 			acc := hwy.Zero[hwy.Float16]()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
+				vA := hwy.LoadFull(a[aRow+p:])
+				vB := hwy.LoadFull(b[bRow+p:])
 				acc = hwy.MulAdd(vA, vB, acc)
 			}
 			sum := hwy.ReduceSum(acc).Float32()
@@ -111,11 +111,11 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 			acc3 := hwy.Zero[hwy.BFloat16]()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
+				vB := hwy.LoadFull(b[bRow+p:])
+				vA0 := hwy.LoadFull(a[aRow0+p:])
+				vA1 := hwy.LoadFull(a[aRow1+p:])
+				vA2 := hwy.LoadFull(a[aRow2+p:])
+				vA3 := hwy.LoadFull(a[aRow3+p:])
 				acc0 = hwy.MulAdd(vA0, vB, acc0)
 				acc1 = hwy.MulAdd(vA1, vB, acc1)
 				acc2 = hwy.MulAdd(vA2, vB, acc2)
@@ -145,8 +145,8 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 			acc := hwy.Zero[hwy.BFloat16]()
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
+				vA := hwy.LoadFull(a[aRow+p:])
+				vB := hwy.LoadFull(b[bRow+p:])
 				acc = hwy.MulAdd(vA, vB, acc)
 			}
 			sum := hwy.ReduceSum(acc).Float32()
@@ -339,8 +339,8 @@ func BaseMatMulKLastBlocked_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c
 						acc := hwy.Zero[hwy.Float16]()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
+							vA := hwy.LoadFull(a[aRow+p:])
+							vB := hwy.LoadFull(b[bRow+p:])
 							acc = hwy.MulAdd(vA, vB, acc)
 						}
 						sum := hwy.ReduceSum(acc).Float32()
@@ -386,8 +386,8 @@ func BaseMatMulKLastBlocked_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16
 						acc := hwy.Zero[hwy.BFloat16]()
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
+							vA := hwy.LoadFull(a[aRow+p:])
+							vB := hwy.LoadFull(b[bRow+p:])
 							acc = hwy.MulAdd(vA, vB, acc)
 						}
 						sum := hwy.ReduceSum(acc).Float32()

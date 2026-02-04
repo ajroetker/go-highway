@@ -51,7 +51,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		hwy.Store(vZero, c[idx:])
+		hwy.StoreFull(vZero, c[idx:])
 	}
 	for ; idx < total; idx++ {
 		c[idx] = 0
@@ -100,8 +100,8 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 						// Load B values (2 vector widths)
 						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						vB0 := hwy.LoadFull(b[bRowStart+j:])
+						vB1 := hwy.LoadFull(b[bRowStart+j+lanes:])
 
 						// Accumulate: 8 FMA operations
 						acc00 = hwy.MulAdd(vA0, vB0, acc00)
@@ -120,14 +120,14 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
 
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.StoreFull(acc00, c[cRow0+j:])
+					hwy.StoreFull(acc01, c[cRow0+j+lanes:])
+					hwy.StoreFull(acc10, c[cRow1+j:])
+					hwy.StoreFull(acc11, c[cRow1+j+lanes:])
+					hwy.StoreFull(acc20, c[cRow2+j:])
+					hwy.StoreFull(acc21, c[cRow2+j+lanes:])
+					hwy.StoreFull(acc30, c[cRow3+j:])
+					hwy.StoreFull(acc31, c[cRow3+j+lanes:])
 				}
 
 				// Handle remaining columns (less than Nr)
@@ -146,17 +146,17 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 							vA2 := hwy.Set(a[(i+2)*k+p])
 							vA3 := hwy.Set(a[(i+3)*k+p])
 
-							vB := hwy.Load(b[p*n+j:])
+							vB := hwy.LoadFull(b[p*n+j:])
 							acc0 = hwy.MulAdd(vA0, vB, acc0)
 							acc1 = hwy.MulAdd(vA1, vB, acc1)
 							acc2 = hwy.MulAdd(vA2, vB, acc2)
 							acc3 = hwy.MulAdd(vA3, vB, acc3)
 						}
 
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.StoreFull(acc0, c[i*n+j:])
+						hwy.StoreFull(acc1, c[(i+1)*n+j:])
+						hwy.StoreFull(acc2, c[(i+2)*n+j:])
+						hwy.StoreFull(acc3, c[(i+3)*n+j:])
 					} else {
 						// Scalar tail
 						for jj := j; jj < jEnd; jj++ {
@@ -194,13 +194,13 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 					for p := 0; p < k; p++ {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc0 = hwy.MulAdd(vA0, vB, acc0)
 						acc1 = hwy.MulAdd(vA1, vB, acc1)
 					}
 
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.StoreFull(acc0, c[cRow0+j:])
+					hwy.StoreFull(acc1, c[cRow1+j:])
 				}
 
 				// Scalar tail for remaining columns
@@ -227,10 +227,10 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 					acc := hwy.Zero[T]()
 					for p := 0; p < k; p++ {
 						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.StoreFull(acc, c[cRowStart+j:])
 				}
 
 				// Scalar tail for remaining columns

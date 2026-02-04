@@ -28,7 +28,7 @@ func BasePackedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy
 		lanes_1 := vZero_1.NumLanes()
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[idx_1:])
+			hwy.StoreFull(vZero_1, c[idx_1:])
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToFloat16(0)
@@ -101,7 +101,7 @@ func BasePackedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []
 		lanes_1 := vZero_1.NumLanes()
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[idx_1:])
+			hwy.StoreFull(vZero_1, c[idx_1:])
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToBFloat16(0)
@@ -315,7 +315,7 @@ func BasePackedMatMulWithBuffers_fallback_Float16(a []hwy.Float16, b []hwy.Float
 		lanes_1 := vZero_1.NumLanes()
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[idx_1:])
+			hwy.StoreFull(vZero_1, c[idx_1:])
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToFloat16(0)
@@ -383,7 +383,7 @@ func BasePackedMatMulWithBuffers_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFl
 		lanes_1 := vZero_1.NumLanes()
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[idx_1:])
+			hwy.StoreFull(vZero_1, c[idx_1:])
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToBFloat16(0)
@@ -579,7 +579,7 @@ func BasePackedMatMulStrip_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c 
 		lanes_1 := vZero_1.NumLanes()
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
+			hwy.StoreFull(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0
@@ -639,7 +639,7 @@ func BasePackedMatMulStrip_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16,
 		lanes_1 := vZero_1.NumLanes()
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
+			hwy.StoreFull(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0

@@ -77,12 +77,12 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 			// Vectorized dot product along K
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := hwy.Load(b[bRow+p:])
+				vB := hwy.LoadFull(b[bRow+p:])
 
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
+				vA0 := hwy.LoadFull(a[aRow0+p:])
+				vA1 := hwy.LoadFull(a[aRow1+p:])
+				vA2 := hwy.LoadFull(a[aRow2+p:])
+				vA3 := hwy.LoadFull(a[aRow3+p:])
 
 				acc0 = hwy.MulAdd(vA0, vB, acc0)
 				acc1 = hwy.MulAdd(vA1, vB, acc1)
@@ -121,8 +121,8 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := hwy.Load(a[aRow+p:])
-				vB := hwy.Load(b[bRow+p:])
+				vA := hwy.LoadFull(a[aRow+p:])
+				vB := hwy.LoadFull(b[bRow+p:])
 				acc = hwy.MulAdd(vA, vB, acc)
 			}
 
@@ -189,8 +189,8 @@ func BaseMatMulKLastBlocked[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := hwy.Load(a[aRow+p:])
-							vB := hwy.Load(b[bRow+p:])
+							vA := hwy.LoadFull(a[aRow+p:])
+							vB := hwy.LoadFull(b[bRow+p:])
 							acc = hwy.MulAdd(vA, vB, acc)
 						}
 

@@ -179,7 +179,7 @@ func BasePackedMatMul_neon(a []float32, b []float32, c []float32, m int, n int, 
 		lanes_1 := 4
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(c[idx_1:])
+			vZero_1.Store((*[4]float32)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -252,7 +252,7 @@ func BasePackedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int,
 		lanes_1 := 2
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(c[idx_1:])
+			vZero_1.Store((*[2]float64)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -456,7 +456,7 @@ func BasePackedMatMulWithBuffers_neon(a []float32, b []float32, c []float32, m i
 		lanes_1 := 4
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(c[idx_1:])
+			vZero_1.Store((*[4]float32)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -524,7 +524,7 @@ func BasePackedMatMulWithBuffers_neon_Float64(a []float64, b []float64, c []floa
 		lanes_1 := 2
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(c[idx_1:])
+			vZero_1.Store((*[2]float64)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -704,7 +704,7 @@ func BasePackedMatMulStrip_neon(a []float32, b []float32, c []float32, m int, n 
 		lanes_1 := 4
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(c[rowStart*n : rowEnd*n][idx_1:])
+			vZero_1.Store((*[4]float32)(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1])))
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0
@@ -764,7 +764,7 @@ func BasePackedMatMulStrip_neon_Float64(a []float64, b []float64, c []float64, m
 		lanes_1 := 2
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(c[rowStart*n : rowEnd*n][idx_1:])
+			vZero_1.Store((*[2]float64)(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1])))
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0

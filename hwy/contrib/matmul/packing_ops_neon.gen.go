@@ -83,8 +83,8 @@ func BasePackRHSFast_neon(b []float32, packed []float32, n int, rowStart int, co
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat32x4Slice(b[srcIdx+c:])
-					v.StoreSlice(packed[dstIdx+c:])
+					v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[srcIdx+c])))
+					v.Store((*[4]float32)(unsafe.Pointer(&packed[dstIdx+c])))
 				}
 				dstIdx += nr
 			}
@@ -114,8 +114,8 @@ func BasePackRHSFast_neon_Float64(b []float64, packed []float64, n int, rowStart
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat64x2Slice(b[srcIdx+c:])
-					v.StoreSlice(packed[dstIdx+c:])
+					v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[srcIdx+c])))
+					v.Store((*[2]float64)(unsafe.Pointer(&packed[dstIdx+c])))
 				}
 				dstIdx += nr
 			}
@@ -188,11 +188,11 @@ func BaseApplyPackedOutput_neon(packedOutput []float32, output []float32, alpha 
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := asm.LoadFloat32x4Slice(packedOutput[packedIdx+c:])
-			outputVal := asm.LoadFloat32x4Slice(output[outputIdx+c:])
+			packedVal := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&output[outputIdx+c])))
 			scaledOutput := outputVal.Mul(betaVec)
 			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
-			newVal.StoreSlice(output[outputIdx+c:])
+			newVal.Store((*[4]float32)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -210,11 +210,11 @@ func BaseApplyPackedOutput_neon_Float64(packedOutput []float64, output []float64
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := asm.LoadFloat64x2Slice(packedOutput[packedIdx+c:])
-			outputVal := asm.LoadFloat64x2Slice(output[outputIdx+c:])
+			packedVal := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&output[outputIdx+c])))
 			scaledOutput := outputVal.Mul(betaVec)
 			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
-			newVal.StoreSlice(output[outputIdx+c:])
+			newVal.Store((*[2]float64)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -262,8 +262,8 @@ func BaseApplyPackedOutputSimple_neon(packedOutput []float32, output []float32, 
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := asm.LoadFloat32x4Slice(packedOutput[packedIdx+c:])
-			v.StoreSlice(output[outputIdx+c:])
+			v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			v.Store((*[4]float32)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = packedOutput[packedIdx+c]
@@ -278,8 +278,8 @@ func BaseApplyPackedOutputSimple_neon_Float64(packedOutput []float64, output []f
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := asm.LoadFloat64x2Slice(packedOutput[packedIdx+c:])
-			v.StoreSlice(output[outputIdx+c:])
+			v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			v.Store((*[2]float64)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = packedOutput[packedIdx+c]
@@ -330,10 +330,10 @@ func BaseApplyPackedOutputAccum_neon(packedOutput []float32, output []float32, p
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := asm.LoadFloat32x4Slice(packedOutput[packedIdx+c:])
-			outputVal := asm.LoadFloat32x4Slice(output[outputIdx+c:])
+			packedVal := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&output[outputIdx+c])))
 			newVal := outputVal.Add(packedVal)
-			newVal.StoreSlice(output[outputIdx+c:])
+			newVal.Store((*[4]float32)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] += packedOutput[packedIdx+c]
@@ -348,10 +348,10 @@ func BaseApplyPackedOutputAccum_neon_Float64(packedOutput []float64, output []fl
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := asm.LoadFloat64x2Slice(packedOutput[packedIdx+c:])
-			outputVal := asm.LoadFloat64x2Slice(output[outputIdx+c:])
+			packedVal := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&output[outputIdx+c])))
 			newVal := outputVal.Add(packedVal)
-			newVal.StoreSlice(output[outputIdx+c:])
+			newVal.Store((*[2]float64)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] += packedOutput[packedIdx+c]

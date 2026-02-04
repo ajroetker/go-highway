@@ -5,6 +5,8 @@
 package matmul
 
 import (
+	"unsafe"
+
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
@@ -39,10 +41,10 @@ func BaseFusedNF4MatMul_neon(input []float32, packed []uint8, scales []float32, 
 					scale := scales[scaleBase+groupIdx]
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
-				weights := asm.LoadFloat32x4Slice(dequantBuf[:])
+				weights := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[0])))
 				inputVal.MulAddAcc(weights, &acc)
 			}
-			acc.StoreSlice(outputRow[n:])
+			acc.Store((*[4]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
 			groupIdx := n / groupSize
@@ -96,10 +98,10 @@ func BaseFusedInt4MatMul_neon(input []float32, packed []uint8, scales []float32,
 					scale := scales[scaleBase+groupIdx]
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
-				weights := asm.LoadFloat32x4Slice(dequantBuf[:])
+				weights := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[0])))
 				inputVal.MulAddAcc(weights, &acc)
 			}
-			acc.StoreSlice(outputRow[n:])
+			acc.Store((*[4]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
 			groupIdx := n / groupSize

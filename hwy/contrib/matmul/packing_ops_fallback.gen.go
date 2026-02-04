@@ -16,8 +16,8 @@ func BasePackRHSFast_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, n i
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := hwy.LoadFull(b[srcIdx+c:])
+					hwy.StoreFull(v, packed[dstIdx+c:])
 				}
 				dstIdx += nr
 			}
@@ -47,8 +47,8 @@ func BasePackRHSFast_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, 
 			for kk := 0; kk < panelK; kk++ {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
+					v := hwy.LoadFull(b[srcIdx+c:])
+					hwy.StoreFull(v, packed[dstIdx+c:])
 				}
 				dstIdx += nr
 			}
@@ -137,11 +137,11 @@ func BaseApplyPackedOutput_fallback_Float16(packedOutput []hwy.Float16, output [
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
+			packedVal := hwy.LoadFull(packedOutput[packedIdx+c:])
+			outputVal := hwy.LoadFull(output[outputIdx+c:])
 			scaledOutput := hwy.Mul(outputVal, betaVec)
 			newVal := hwy.MulAdd(packedVal, alphaVec, scaledOutput)
-			hwy.Store(newVal, output[outputIdx+c:])
+			hwy.StoreFull(newVal, output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -159,11 +159,11 @@ func BaseApplyPackedOutput_fallback_BFloat16(packedOutput []hwy.BFloat16, output
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
+			packedVal := hwy.LoadFull(packedOutput[packedIdx+c:])
+			outputVal := hwy.LoadFull(output[outputIdx+c:])
 			scaledOutput := hwy.Mul(outputVal, betaVec)
 			newVal := hwy.MulAdd(packedVal, alphaVec, scaledOutput)
-			hwy.Store(newVal, output[outputIdx+c:])
+			hwy.StoreFull(newVal, output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -221,8 +221,8 @@ func BaseApplyPackedOutputSimple_fallback_Float16(packedOutput []hwy.Float16, ou
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := hwy.LoadFull(packedOutput[packedIdx+c:])
+			hwy.StoreFull(v, output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(packedOutput[packedIdx+c].Float32())
@@ -237,8 +237,8 @@ func BaseApplyPackedOutputSimple_fallback_BFloat16(packedOutput []hwy.BFloat16, 
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
+			v := hwy.LoadFull(packedOutput[packedIdx+c:])
+			hwy.StoreFull(v, output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(packedOutput[packedIdx+c].Float32())
@@ -283,10 +283,10 @@ func BaseApplyPackedOutputAccum_fallback_Float16(packedOutput []hwy.Float16, out
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
+			packedVal := hwy.LoadFull(packedOutput[packedIdx+c:])
+			outputVal := hwy.LoadFull(output[outputIdx+c:])
 			newVal := hwy.Add(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			hwy.StoreFull(newVal, output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())
@@ -301,10 +301,10 @@ func BaseApplyPackedOutputAccum_fallback_BFloat16(packedOutput []hwy.BFloat16, o
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := hwy.Load(packedOutput[packedIdx+c:])
-			outputVal := hwy.Load(output[outputIdx+c:])
+			packedVal := hwy.LoadFull(packedOutput[packedIdx+c:])
+			outputVal := hwy.LoadFull(output[outputIdx+c:])
 			newVal := hwy.Add(outputVal, packedVal)
-			hwy.Store(newVal, output[outputIdx+c:])
+			hwy.StoreFull(newVal, output[outputIdx+c:])
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())

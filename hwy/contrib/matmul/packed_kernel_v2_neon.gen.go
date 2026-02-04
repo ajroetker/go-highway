@@ -244,8 +244,8 @@ func BasePackedMicroKernel4x2_neon(packedA []float32, packedB []float32, output 
 	_ = packedB[panelK*nr-1]
 	p := 0
 	for ; p+3 < panelK; p += 4 {
-		bVec0_0 := asm.LoadFloat32x4Slice(packedB[bIdx:])
-		bVec1_0 := asm.LoadFloat32x4Slice(packedB[bIdx+lanes:])
+		bVec0_0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1_0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		a0_0 := asm.BroadcastFloat32x4(packedA[aIdx])
 		a1_0 := asm.BroadcastFloat32x4(packedA[aIdx+1])
 		a2_0 := asm.BroadcastFloat32x4(packedA[aIdx+2])
@@ -258,8 +258,8 @@ func BasePackedMicroKernel4x2_neon(packedA []float32, packedB []float32, output 
 		a2_0.MulAddAcc(bVec1_0, &acc21)
 		a3_0.MulAddAcc(bVec0_0, &acc30)
 		a3_0.MulAddAcc(bVec1_0, &acc31)
-		bVec0_1 := asm.LoadFloat32x4Slice(packedB[bIdx+nr:])
-		bVec1_1 := asm.LoadFloat32x4Slice(packedB[bIdx+nr+lanes:])
+		bVec0_1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+nr])))
+		bVec1_1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+nr+lanes])))
 		a0_1 := asm.BroadcastFloat32x4(packedA[aIdx+mr])
 		a1_1 := asm.BroadcastFloat32x4(packedA[aIdx+mr+1])
 		a2_1 := asm.BroadcastFloat32x4(packedA[aIdx+mr+2])
@@ -272,8 +272,8 @@ func BasePackedMicroKernel4x2_neon(packedA []float32, packedB []float32, output 
 		a2_1.MulAddAcc(bVec1_1, &acc21)
 		a3_1.MulAddAcc(bVec0_1, &acc30)
 		a3_1.MulAddAcc(bVec1_1, &acc31)
-		bVec0_2 := asm.LoadFloat32x4Slice(packedB[bIdx+2*nr:])
-		bVec1_2 := asm.LoadFloat32x4Slice(packedB[bIdx+2*nr+lanes:])
+		bVec0_2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+2*nr])))
+		bVec1_2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+2*nr+lanes])))
 		a0_2 := asm.BroadcastFloat32x4(packedA[aIdx+2*mr])
 		a1_2 := asm.BroadcastFloat32x4(packedA[aIdx+2*mr+1])
 		a2_2 := asm.BroadcastFloat32x4(packedA[aIdx+2*mr+2])
@@ -286,8 +286,8 @@ func BasePackedMicroKernel4x2_neon(packedA []float32, packedB []float32, output 
 		a2_2.MulAddAcc(bVec1_2, &acc21)
 		a3_2.MulAddAcc(bVec0_2, &acc30)
 		a3_2.MulAddAcc(bVec1_2, &acc31)
-		bVec0_3 := asm.LoadFloat32x4Slice(packedB[bIdx+3*nr:])
-		bVec1_3 := asm.LoadFloat32x4Slice(packedB[bIdx+3*nr+lanes:])
+		bVec0_3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+3*nr])))
+		bVec1_3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+3*nr+lanes])))
 		a0_3 := asm.BroadcastFloat32x4(packedA[aIdx+3*mr])
 		a1_3 := asm.BroadcastFloat32x4(packedA[aIdx+3*mr+1])
 		a2_3 := asm.BroadcastFloat32x4(packedA[aIdx+3*mr+2])
@@ -304,8 +304,8 @@ func BasePackedMicroKernel4x2_neon(packedA []float32, packedB []float32, output 
 		bIdx += 4 * nr
 	}
 	for ; p < panelK; p++ {
-		bVec0 := asm.LoadFloat32x4Slice(packedB[bIdx:])
-		bVec1 := asm.LoadFloat32x4Slice(packedB[bIdx+lanes:])
+		bVec0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		bIdx += nr
 		a0 := asm.BroadcastFloat32x4(packedA[aIdx])
 		a1 := asm.BroadcastFloat32x4(packedA[aIdx+1])
@@ -325,14 +325,14 @@ func BasePackedMicroKernel4x2_neon(packedA []float32, packedB []float32, output 
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.StoreSlice(output[outIdx0:])
-	acc01.StoreSlice(output[outIdx0+lanes:])
-	acc10.StoreSlice(output[outIdx1:])
-	acc11.StoreSlice(output[outIdx1+lanes:])
-	acc20.StoreSlice(output[outIdx2:])
-	acc21.StoreSlice(output[outIdx2+lanes:])
-	acc30.StoreSlice(output[outIdx3:])
-	acc31.StoreSlice(output[outIdx3+lanes:])
+	acc00.Store((*[4]float32)(unsafe.Pointer(&output[outIdx0])))
+	acc01.Store((*[4]float32)(unsafe.Pointer(&output[outIdx0+lanes])))
+	acc10.Store((*[4]float32)(unsafe.Pointer(&output[outIdx1])))
+	acc11.Store((*[4]float32)(unsafe.Pointer(&output[outIdx1+lanes])))
+	acc20.Store((*[4]float32)(unsafe.Pointer(&output[outIdx2])))
+	acc21.Store((*[4]float32)(unsafe.Pointer(&output[outIdx2+lanes])))
+	acc30.Store((*[4]float32)(unsafe.Pointer(&output[outIdx3])))
+	acc31.Store((*[4]float32)(unsafe.Pointer(&output[outIdx3+lanes])))
 }
 
 func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64, output []float64, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
@@ -352,8 +352,8 @@ func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64,
 	_ = packedB[panelK*nr-1]
 	p := 0
 	for ; p+3 < panelK; p += 4 {
-		bVec0_0 := asm.LoadFloat64x2Slice(packedB[bIdx:])
-		bVec1_0 := asm.LoadFloat64x2Slice(packedB[bIdx+lanes:])
+		bVec0_0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1_0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		a0_0 := asm.BroadcastFloat64x2(packedA[aIdx])
 		a1_0 := asm.BroadcastFloat64x2(packedA[aIdx+1])
 		a2_0 := asm.BroadcastFloat64x2(packedA[aIdx+2])
@@ -366,8 +366,8 @@ func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64,
 		a2_0.MulAddAcc(bVec1_0, &acc21)
 		a3_0.MulAddAcc(bVec0_0, &acc30)
 		a3_0.MulAddAcc(bVec1_0, &acc31)
-		bVec0_1 := asm.LoadFloat64x2Slice(packedB[bIdx+nr:])
-		bVec1_1 := asm.LoadFloat64x2Slice(packedB[bIdx+nr+lanes:])
+		bVec0_1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+nr])))
+		bVec1_1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+nr+lanes])))
 		a0_1 := asm.BroadcastFloat64x2(packedA[aIdx+mr])
 		a1_1 := asm.BroadcastFloat64x2(packedA[aIdx+mr+1])
 		a2_1 := asm.BroadcastFloat64x2(packedA[aIdx+mr+2])
@@ -380,8 +380,8 @@ func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64,
 		a2_1.MulAddAcc(bVec1_1, &acc21)
 		a3_1.MulAddAcc(bVec0_1, &acc30)
 		a3_1.MulAddAcc(bVec1_1, &acc31)
-		bVec0_2 := asm.LoadFloat64x2Slice(packedB[bIdx+2*nr:])
-		bVec1_2 := asm.LoadFloat64x2Slice(packedB[bIdx+2*nr+lanes:])
+		bVec0_2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+2*nr])))
+		bVec1_2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+2*nr+lanes])))
 		a0_2 := asm.BroadcastFloat64x2(packedA[aIdx+2*mr])
 		a1_2 := asm.BroadcastFloat64x2(packedA[aIdx+2*mr+1])
 		a2_2 := asm.BroadcastFloat64x2(packedA[aIdx+2*mr+2])
@@ -394,8 +394,8 @@ func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64,
 		a2_2.MulAddAcc(bVec1_2, &acc21)
 		a3_2.MulAddAcc(bVec0_2, &acc30)
 		a3_2.MulAddAcc(bVec1_2, &acc31)
-		bVec0_3 := asm.LoadFloat64x2Slice(packedB[bIdx+3*nr:])
-		bVec1_3 := asm.LoadFloat64x2Slice(packedB[bIdx+3*nr+lanes:])
+		bVec0_3 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+3*nr])))
+		bVec1_3 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+3*nr+lanes])))
 		a0_3 := asm.BroadcastFloat64x2(packedA[aIdx+3*mr])
 		a1_3 := asm.BroadcastFloat64x2(packedA[aIdx+3*mr+1])
 		a2_3 := asm.BroadcastFloat64x2(packedA[aIdx+3*mr+2])
@@ -412,8 +412,8 @@ func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64,
 		bIdx += 4 * nr
 	}
 	for ; p < panelK; p++ {
-		bVec0 := asm.LoadFloat64x2Slice(packedB[bIdx:])
-		bVec1 := asm.LoadFloat64x2Slice(packedB[bIdx+lanes:])
+		bVec0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		bIdx += nr
 		a0 := asm.BroadcastFloat64x2(packedA[aIdx])
 		a1 := asm.BroadcastFloat64x2(packedA[aIdx+1])
@@ -433,25 +433,27 @@ func BasePackedMicroKernel4x2_neon_Float64(packedA []float64, packedB []float64,
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.StoreSlice(output[outIdx0:])
-	acc01.StoreSlice(output[outIdx0+lanes:])
-	acc10.StoreSlice(output[outIdx1:])
-	acc11.StoreSlice(output[outIdx1+lanes:])
-	acc20.StoreSlice(output[outIdx2:])
-	acc21.StoreSlice(output[outIdx2+lanes:])
-	acc30.StoreSlice(output[outIdx3:])
-	acc31.StoreSlice(output[outIdx3+lanes:])
+	acc00.Store((*[2]float64)(unsafe.Pointer(&output[outIdx0])))
+	acc01.Store((*[2]float64)(unsafe.Pointer(&output[outIdx0+lanes])))
+	acc10.Store((*[2]float64)(unsafe.Pointer(&output[outIdx1])))
+	acc11.Store((*[2]float64)(unsafe.Pointer(&output[outIdx1+lanes])))
+	acc20.Store((*[2]float64)(unsafe.Pointer(&output[outIdx2])))
+	acc21.Store((*[2]float64)(unsafe.Pointer(&output[outIdx2+lanes])))
+	acc30.Store((*[2]float64)(unsafe.Pointer(&output[outIdx3])))
+	acc31.Store((*[2]float64)(unsafe.Pointer(&output[outIdx3+lanes])))
 }
 
 func BaseZeroSlice_neon_Float16(s []hwy.Float16, n int) {
 	vZero := asm.ZeroFloat16x8()
 	lanes := 8
 	var idx int
-	for idx = 0; idx+lanes <= n; idx += lanes {
+	idx = 0
+	for ; idx+lanes*2 <= n; idx += lanes * 2 {
 		vZero.StorePtr(unsafe.Pointer(&s[idx:][0]))
+		vZero.StorePtr(unsafe.Pointer(&s[idx+8:][0]))
 	}
-	for ; idx < n; idx++ {
-		s[idx] = hwy.Float32ToFloat16(0)
+	if idx < n {
+		BaseZeroSlice_fallback_Float16(s[idx:n], n)
 	}
 }
 
@@ -459,11 +461,13 @@ func BaseZeroSlice_neon_BFloat16(s []hwy.BFloat16, n int) {
 	vZero := asm.ZeroBFloat16x8()
 	lanes := 8
 	var idx int
-	for idx = 0; idx+lanes <= n; idx += lanes {
+	idx = 0
+	for ; idx+lanes*2 <= n; idx += lanes * 2 {
 		vZero.StorePtr(unsafe.Pointer(&s[idx:][0]))
+		vZero.StorePtr(unsafe.Pointer(&s[idx+8:][0]))
 	}
-	for ; idx < n; idx++ {
-		s[idx] = hwy.Float32ToBFloat16(0)
+	if idx < n {
+		BaseZeroSlice_fallback_BFloat16(s[idx:n], n)
 	}
 }
 
@@ -471,11 +475,13 @@ func BaseZeroSlice_neon(s []float32, n int) {
 	vZero := asm.ZeroFloat32x4()
 	lanes := 4
 	var idx int
-	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.StoreSlice(s[idx:])
+	idx = 0
+	for ; idx+lanes*2 <= n; idx += lanes * 2 {
+		vZero.Store((*[4]float32)(unsafe.Pointer(&s[idx])))
+		vZero.Store((*[4]float32)(unsafe.Pointer(&s[idx+4])))
 	}
-	for ; idx < n; idx++ {
-		s[idx] = 0
+	if idx < n {
+		BaseZeroSlice_fallback(s[idx:n], n)
 	}
 }
 
@@ -483,10 +489,12 @@ func BaseZeroSlice_neon_Float64(s []float64, n int) {
 	vZero := asm.ZeroFloat64x2()
 	lanes := 2
 	var idx int
-	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.StoreSlice(s[idx:])
+	idx = 0
+	for ; idx+lanes*2 <= n; idx += lanes * 2 {
+		vZero.Store((*[2]float64)(unsafe.Pointer(&s[idx])))
+		vZero.Store((*[2]float64)(unsafe.Pointer(&s[idx+2])))
 	}
-	for ; idx < n; idx++ {
-		s[idx] = 0
+	if idx < n {
+		BaseZeroSlice_fallback_Float64(s[idx:n], n)
 	}
 }

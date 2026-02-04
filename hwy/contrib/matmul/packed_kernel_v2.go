@@ -65,11 +65,12 @@ func BasePackedMicroKernel4x2[T hwy.Floats](
 	_ = packedB[panelK*nr-1]
 
 	// Main loop: 4x unrolled for better ILP
+	// Use LoadFull for pointer-based access without bounds checking
 	p := 0
 	for ; p+3 < panelK; p += 4 {
 		// --- Step 0 ---
-		bVec0_0 := hwy.Load(packedB[bIdx:])
-		bVec1_0 := hwy.Load(packedB[bIdx+lanes:])
+		bVec0_0 := hwy.LoadFull(packedB[bIdx:])
+		bVec1_0 := hwy.LoadFull(packedB[bIdx+lanes:])
 		a0_0 := hwy.Set(packedA[aIdx])
 		a1_0 := hwy.Set(packedA[aIdx+1])
 		a2_0 := hwy.Set(packedA[aIdx+2])
@@ -85,8 +86,8 @@ func BasePackedMicroKernel4x2[T hwy.Floats](
 		acc31 = hwy.MulAdd(a3_0, bVec1_0, acc31)
 
 		// --- Step 1 ---
-		bVec0_1 := hwy.Load(packedB[bIdx+nr:])
-		bVec1_1 := hwy.Load(packedB[bIdx+nr+lanes:])
+		bVec0_1 := hwy.LoadFull(packedB[bIdx+nr:])
+		bVec1_1 := hwy.LoadFull(packedB[bIdx+nr+lanes:])
 		a0_1 := hwy.Set(packedA[aIdx+mr])
 		a1_1 := hwy.Set(packedA[aIdx+mr+1])
 		a2_1 := hwy.Set(packedA[aIdx+mr+2])
@@ -102,8 +103,8 @@ func BasePackedMicroKernel4x2[T hwy.Floats](
 		acc31 = hwy.MulAdd(a3_1, bVec1_1, acc31)
 
 		// --- Step 2 ---
-		bVec0_2 := hwy.Load(packedB[bIdx+2*nr:])
-		bVec1_2 := hwy.Load(packedB[bIdx+2*nr+lanes:])
+		bVec0_2 := hwy.LoadFull(packedB[bIdx+2*nr:])
+		bVec1_2 := hwy.LoadFull(packedB[bIdx+2*nr+lanes:])
 		a0_2 := hwy.Set(packedA[aIdx+2*mr])
 		a1_2 := hwy.Set(packedA[aIdx+2*mr+1])
 		a2_2 := hwy.Set(packedA[aIdx+2*mr+2])
@@ -119,8 +120,8 @@ func BasePackedMicroKernel4x2[T hwy.Floats](
 		acc31 = hwy.MulAdd(a3_2, bVec1_2, acc31)
 
 		// --- Step 3 ---
-		bVec0_3 := hwy.Load(packedB[bIdx+3*nr:])
-		bVec1_3 := hwy.Load(packedB[bIdx+3*nr+lanes:])
+		bVec0_3 := hwy.LoadFull(packedB[bIdx+3*nr:])
+		bVec1_3 := hwy.LoadFull(packedB[bIdx+3*nr+lanes:])
 		a0_3 := hwy.Set(packedA[aIdx+3*mr])
 		a1_3 := hwy.Set(packedA[aIdx+3*mr+1])
 		a2_3 := hwy.Set(packedA[aIdx+3*mr+2])
@@ -141,8 +142,8 @@ func BasePackedMicroKernel4x2[T hwy.Floats](
 
 	// Handle remaining iterations (0-3)
 	for ; p < panelK; p++ {
-		bVec0 := hwy.Load(packedB[bIdx:])
-		bVec1 := hwy.Load(packedB[bIdx+lanes:])
+		bVec0 := hwy.LoadFull(packedB[bIdx:])
+		bVec1 := hwy.LoadFull(packedB[bIdx+lanes:])
 		bIdx += nr
 
 		a0 := hwy.Set(packedA[aIdx])
@@ -162,19 +163,20 @@ func BasePackedMicroKernel4x2[T hwy.Floats](
 	}
 
 	// Write accumulators to output
+	// Use StoreFull for pointer-based access without bounds checking
 	outIdx0 := outRowStart*outputStride + outColStart
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
 
-	hwy.Store(acc00, output[outIdx0:])
-	hwy.Store(acc01, output[outIdx0+lanes:])
-	hwy.Store(acc10, output[outIdx1:])
-	hwy.Store(acc11, output[outIdx1+lanes:])
-	hwy.Store(acc20, output[outIdx2:])
-	hwy.Store(acc21, output[outIdx2+lanes:])
-	hwy.Store(acc30, output[outIdx3:])
-	hwy.Store(acc31, output[outIdx3+lanes:])
+	hwy.StoreFull(acc00, output[outIdx0:])
+	hwy.StoreFull(acc01, output[outIdx0+lanes:])
+	hwy.StoreFull(acc10, output[outIdx1:])
+	hwy.StoreFull(acc11, output[outIdx1+lanes:])
+	hwy.StoreFull(acc20, output[outIdx2:])
+	hwy.StoreFull(acc21, output[outIdx2+lanes:])
+	hwy.StoreFull(acc30, output[outIdx3:])
+	hwy.StoreFull(acc31, output[outIdx3+lanes:])
 }
 
 // BaseZeroSlice zeros a slice using SIMD.
@@ -187,7 +189,7 @@ func BaseZeroSlice[T hwy.Floats](s []T, n int) {
 
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		hwy.Store(vZero, s[idx:])
+		hwy.StoreFull(vZero, s[idx:])
 	}
 	for ; idx < n; idx++ {
 		s[idx] = 0

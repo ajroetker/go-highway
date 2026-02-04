@@ -88,7 +88,7 @@ func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 		lanes := vZero.NumLanes()
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			hwy.Store(vZero, cRow[j:])
+			hwy.StoreFull(vZero, cRow[j:])
 		}
 		// Scalar tail for zeroing
 		for ; j < n; j++ {
@@ -104,10 +104,10 @@ func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 			// Vectorized multiply-add: C[i,j:j+lanes] += A[i,p] * B[p,j:j+lanes]
 			for j = 0; j+lanes <= n; j += lanes {
-				vB := hwy.Load(bRow[j:])
-				vC := hwy.Load(cRow[j:])
+				vB := hwy.LoadFull(bRow[j:])
+				vC := hwy.LoadFull(cRow[j:])
 				vC = hwy.MulAdd(vA, vB, vC) // C += A * B
-				hwy.Store(vC, cRow[j:])
+				hwy.StoreFull(vC, cRow[j:])
 			}
 			// Scalar tail
 			for ; j < n; j++ {

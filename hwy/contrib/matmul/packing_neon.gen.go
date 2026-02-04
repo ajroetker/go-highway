@@ -394,8 +394,8 @@ func BasePackRHSVec_neon(b []float32, packed []float32, k int, n int, rowStart i
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat32x4Slice(b[bRowStart+baseCol+c:])
-					v.StoreSlice(packed[packIdx+c:])
+					v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
+					v.Store((*[4]float32)(unsafe.Pointer(&packed[packIdx+c])))
 				}
 				packIdx += nr
 			}
@@ -434,8 +434,8 @@ func BasePackRHSVec_neon_Float64(b []float64, packed []float64, k int, n int, ro
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat64x2Slice(b[bRowStart+baseCol+c:])
-					v.StoreSlice(packed[packIdx+c:])
+					v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
+					v.Store((*[2]float64)(unsafe.Pointer(&packed[packIdx+c])))
 				}
 				packIdx += nr
 			}

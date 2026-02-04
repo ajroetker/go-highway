@@ -54,10 +54,10 @@ func BaseBlockMulAdd[T hwy.Floats](aT, b, c []T, blockDim int) {
 			// Vectorized accumulation: C[i,j] += A[i,k] * B[k,j]
 			var j int
 			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
+				vB := hwy.LoadFull(b[bRowStart+j:])
+				vC := hwy.LoadFull(c[cRowStart+j:])
 				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+				hwy.StoreFull(vC, c[cRowStart+j:])
 			}
 
 			// Scalar tail
@@ -103,15 +103,15 @@ func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 			var j int
 			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
+				vB := hwy.LoadFull(b[bRowStart+j:])
 
-				vC0 := hwy.Load(c[cRow0Start+j:])
+				vC0 := hwy.LoadFull(c[cRow0Start+j:])
 				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0Start+j:])
+				hwy.StoreFull(vC0, c[cRow0Start+j:])
 
-				vC1 := hwy.Load(c[cRow1Start+j:])
+				vC1 := hwy.LoadFull(c[cRow1Start+j:])
 				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1Start+j:])
+				hwy.StoreFull(vC1, c[cRow1Start+j:])
 			}
 
 			for ; j < blockDim; j++ {
@@ -131,10 +131,10 @@ func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 			var j int
 			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
+				vB := hwy.LoadFull(b[bRowStart+j:])
+				vC := hwy.LoadFull(c[cRowStart+j:])
 				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+				hwy.StoreFull(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
 				c[cRowStart+j] += aik * b[bRowStart+j]
@@ -208,8 +208,8 @@ func BaseBlockMulAddRegBlocked[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 				// Load B values (2 vector widths)
 				bRowStart := k * blockDim
-				vB0 := hwy.Load(b[bRowStart+j:])
-				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB0 := hwy.LoadFull(b[bRowStart+j:])
+				vB1 := hwy.LoadFull(b[bRowStart+j+lanes:])
 
 				// Accumulate: 8 FMA operations
 				acc00 = hwy.MulAdd(vA0, vB0, acc00)
@@ -223,37 +223,37 @@ func BaseBlockMulAddRegBlocked[T hwy.Floats](aT, b, c []T, blockDim int) {
 			}
 
 			// Write back: Load C, add accumulator, store
-			vC := hwy.Load(c[cRow0+j:])
+			vC := hwy.LoadFull(c[cRow0+j:])
 			vC = hwy.Add(vC, acc00)
-			hwy.Store(vC, c[cRow0+j:])
+			hwy.StoreFull(vC, c[cRow0+j:])
 
-			vC = hwy.Load(c[cRow0+j+lanes:])
+			vC = hwy.LoadFull(c[cRow0+j+lanes:])
 			vC = hwy.Add(vC, acc01)
-			hwy.Store(vC, c[cRow0+j+lanes:])
+			hwy.StoreFull(vC, c[cRow0+j+lanes:])
 
-			vC = hwy.Load(c[cRow1+j:])
+			vC = hwy.LoadFull(c[cRow1+j:])
 			vC = hwy.Add(vC, acc10)
-			hwy.Store(vC, c[cRow1+j:])
+			hwy.StoreFull(vC, c[cRow1+j:])
 
-			vC = hwy.Load(c[cRow1+j+lanes:])
+			vC = hwy.LoadFull(c[cRow1+j+lanes:])
 			vC = hwy.Add(vC, acc11)
-			hwy.Store(vC, c[cRow1+j+lanes:])
+			hwy.StoreFull(vC, c[cRow1+j+lanes:])
 
-			vC = hwy.Load(c[cRow2+j:])
+			vC = hwy.LoadFull(c[cRow2+j:])
 			vC = hwy.Add(vC, acc20)
-			hwy.Store(vC, c[cRow2+j:])
+			hwy.StoreFull(vC, c[cRow2+j:])
 
-			vC = hwy.Load(c[cRow2+j+lanes:])
+			vC = hwy.LoadFull(c[cRow2+j+lanes:])
 			vC = hwy.Add(vC, acc21)
-			hwy.Store(vC, c[cRow2+j+lanes:])
+			hwy.StoreFull(vC, c[cRow2+j+lanes:])
 
-			vC = hwy.Load(c[cRow3+j:])
+			vC = hwy.LoadFull(c[cRow3+j:])
 			vC = hwy.Add(vC, acc30)
-			hwy.Store(vC, c[cRow3+j:])
+			hwy.StoreFull(vC, c[cRow3+j:])
 
-			vC = hwy.Load(c[cRow3+j+lanes:])
+			vC = hwy.LoadFull(c[cRow3+j+lanes:])
 			vC = hwy.Add(vC, acc31)
-			hwy.Store(vC, c[cRow3+j+lanes:])
+			hwy.StoreFull(vC, c[cRow3+j+lanes:])
 		}
 
 		// Handle remaining columns (less than Nr)
@@ -274,28 +274,28 @@ func BaseBlockMulAddRegBlocked[T hwy.Floats](aT, b, c []T, blockDim int) {
 					vA2 := hwy.Set(aT[aTRowK+i+2])
 					vA3 := hwy.Set(aT[aTRowK+i+3])
 
-					vB := hwy.Load(b[k*blockDim+j:])
+					vB := hwy.LoadFull(b[k*blockDim+j:])
 					acc0 = hwy.MulAdd(vA0, vB, acc0)
 					acc1 = hwy.MulAdd(vA1, vB, acc1)
 					acc2 = hwy.MulAdd(vA2, vB, acc2)
 					acc3 = hwy.MulAdd(vA3, vB, acc3)
 				}
 
-				vC := hwy.Load(c[cRow0+j:])
+				vC := hwy.LoadFull(c[cRow0+j:])
 				vC = hwy.Add(vC, acc0)
-				hwy.Store(vC, c[cRow0+j:])
+				hwy.StoreFull(vC, c[cRow0+j:])
 
-				vC = hwy.Load(c[cRow1+j:])
+				vC = hwy.LoadFull(c[cRow1+j:])
 				vC = hwy.Add(vC, acc1)
-				hwy.Store(vC, c[cRow1+j:])
+				hwy.StoreFull(vC, c[cRow1+j:])
 
-				vC = hwy.Load(c[cRow2+j:])
+				vC = hwy.LoadFull(c[cRow2+j:])
 				vC = hwy.Add(vC, acc2)
-				hwy.Store(vC, c[cRow2+j:])
+				hwy.StoreFull(vC, c[cRow2+j:])
 
-				vC = hwy.Load(c[cRow3+j:])
+				vC = hwy.LoadFull(c[cRow3+j:])
 				vC = hwy.Add(vC, acc3)
-				hwy.Store(vC, c[cRow3+j:])
+				hwy.StoreFull(vC, c[cRow3+j:])
 			} else {
 				// Scalar tail
 				for jj := j; jj < blockDim; jj++ {
@@ -323,10 +323,10 @@ func BaseBlockMulAddRegBlocked[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 			var j int
 			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
+				vB := hwy.LoadFull(b[bRowStart+j:])
+				vC := hwy.LoadFull(c[cRowStart+j:])
 				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+				hwy.StoreFull(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
 				c[cRowStart+j] += aik * b[bRowStart+j]
@@ -381,23 +381,23 @@ func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 			var j int
 			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
+				vB := hwy.LoadFull(b[bRowStart+j:])
 
-				vC0 := hwy.Load(c[cRow0+j:])
+				vC0 := hwy.LoadFull(c[cRow0+j:])
 				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0+j:])
+				hwy.StoreFull(vC0, c[cRow0+j:])
 
-				vC1 := hwy.Load(c[cRow1+j:])
+				vC1 := hwy.LoadFull(c[cRow1+j:])
 				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1+j:])
+				hwy.StoreFull(vC1, c[cRow1+j:])
 
-				vC2 := hwy.Load(c[cRow2+j:])
+				vC2 := hwy.LoadFull(c[cRow2+j:])
 				vC2 = hwy.MulAdd(vA2, vB, vC2)
-				hwy.Store(vC2, c[cRow2+j:])
+				hwy.StoreFull(vC2, c[cRow2+j:])
 
-				vC3 := hwy.Load(c[cRow3+j:])
+				vC3 := hwy.LoadFull(c[cRow3+j:])
 				vC3 = hwy.MulAdd(vA3, vB, vC3)
-				hwy.Store(vC3, c[cRow3+j:])
+				hwy.StoreFull(vC3, c[cRow3+j:])
 			}
 
 			for ; j < blockDim; j++ {
@@ -419,10 +419,10 @@ func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 			var j int
 			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
+				vB := hwy.LoadFull(b[bRowStart+j:])
+				vC := hwy.LoadFull(c[cRowStart+j:])
 				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+				hwy.StoreFull(vC, c[cRowStart+j:])
 			}
 			for ; j < blockDim; j++ {
 				c[cRowStart+j] += aik * b[bRowStart+j]

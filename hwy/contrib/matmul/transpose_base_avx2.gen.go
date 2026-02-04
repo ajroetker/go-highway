@@ -24,7 +24,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 			{
 				rows_1 := [8]asm.Float16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -38,7 +38,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*dstM+i:]))), len(dst[(j+c_1)*dstM+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
@@ -46,7 +46,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 			{
 				rows_11 := [8]asm.Float16x8AVX2{}
 				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_11)*k+j1:]))), len(src[(i+r_11)*k+j1:])))
+					rows_11[r_11] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
@@ -60,7 +60,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 					rows_11 = newRows_11
 				}
 				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j1+c_11)*dstM+i:]))), len(dst[(j1+c_11)*dstM+i:])))
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*dstM+i]))
 				}
 			}
 		}
@@ -70,7 +70,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 			{
 				rows_1 := [8]asm.Float16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -84,7 +84,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*dstM+i:]))), len(dst[(j+c_1)*dstM+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
@@ -124,7 +124,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 			{
 				rows_1 := [8]asm.BFloat16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -138,7 +138,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*dstM+i:]))), len(dst[(j+c_1)*dstM+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
@@ -146,7 +146,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 			{
 				rows_11 := [8]asm.BFloat16x8AVX2{}
 				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_11)*k+j1:]))), len(src[(i+r_11)*k+j1:])))
+					rows_11[r_11] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
@@ -160,7 +160,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 					rows_11 = newRows_11
 				}
 				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j1+c_11)*dstM+i:]))), len(dst[(j1+c_11)*dstM+i:])))
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*dstM+i]))
 				}
 			}
 		}
@@ -170,7 +170,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 			{
 				rows_1 := [8]asm.BFloat16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -184,7 +184,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*dstM+i:]))), len(dst[(j+c_1)*dstM+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
@@ -423,7 +423,7 @@ func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 			{
 				rows_1 := [8]asm.Float16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -437,7 +437,7 @@ func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*m+i:]))), len(dst[(j+c_1)*m+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
 				}
 			}
 		}
@@ -445,7 +445,7 @@ func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 			{
 				rows_11 := [8]asm.Float16x8AVX2{}
 				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_11)*k+j1:]))), len(src[(i+r_11)*k+j1:])))
+					rows_11[r_11] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
@@ -459,7 +459,7 @@ func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 					rows_11 = newRows_11
 				}
 				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j1+c_11)*m+i:]))), len(dst[(j1+c_11)*m+i:])))
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*m+i]))
 				}
 			}
 		}
@@ -469,7 +469,7 @@ func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 			{
 				rows_1 := [8]asm.Float16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -483,7 +483,7 @@ func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*m+i:]))), len(dst[(j+c_1)*m+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
 				}
 			}
 		}
@@ -515,7 +515,7 @@ func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 			{
 				rows_1 := [8]asm.BFloat16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -529,7 +529,7 @@ func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*m+i:]))), len(dst[(j+c_1)*m+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
 				}
 			}
 		}
@@ -537,7 +537,7 @@ func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 			{
 				rows_11 := [8]asm.BFloat16x8AVX2{}
 				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_11)*k+j1:]))), len(src[(i+r_11)*k+j1:])))
+					rows_11[r_11] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
@@ -551,7 +551,7 @@ func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 					rows_11 = newRows_11
 				}
 				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j1+c_11)*m+i:]))), len(dst[(j1+c_11)*m+i:])))
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*m+i]))
 				}
 			}
 		}
@@ -561,7 +561,7 @@ func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 			{
 				rows_1 := [8]asm.BFloat16x8AVX2{}
 				for r_1 := 0; r_1 < lanes; r_1++ {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(src[(i+r_1)*k+j:]))), len(src[(i+r_1)*k+j:])))
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
@@ -575,7 +575,7 @@ func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 					rows_1 = newRows_1
 				}
 				for c_1 := 0; c_1 < lanes; c_1++ {
-					rows_1[c_1].StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(dst[(j+c_1)*m+i:]))), len(dst[(j+c_1)*m+i:])))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
 				}
 			}
 		}

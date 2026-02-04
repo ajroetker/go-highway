@@ -309,8 +309,8 @@ func BasePackRHSVec_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k in
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := hwy.LoadFull(b[bRowStart+baseCol+c:])
+					hwy.StoreFull(v, packed[packIdx+c:])
 				}
 				packIdx += nr
 			}
@@ -349,8 +349,8 @@ func BasePackRHSVec_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k
 			for kk := 0; kk < panelK; kk++ {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := hwy.LoadFull(b[bRowStart+baseCol+c:])
+					hwy.StoreFull(v, packed[packIdx+c:])
 				}
 				packIdx += nr
 			}

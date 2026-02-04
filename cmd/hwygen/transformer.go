@@ -2655,15 +2655,26 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			}
 			return
 		}
-		// For AVX promoted half-precision: hwy.StoreFull(v, dst) -> v.StoreSlice(cast(dst))
+		// For AVX promoted half-precision: hwy.StoreFull(v, dst) -> v.StorePtr(unsafe.Pointer(&dst[0]))
 		if isAVXPromotedHalfPrec(ctx.target, ctx.elemType) {
 			if len(call.Args) >= 2 {
+				vecArg := call.Args[0]
+				sliceArg := call.Args[1]
 				call.Fun = &ast.SelectorExpr{
-					X:   call.Args[0],
-					Sel: ast.NewIdent("StoreSlice"),
+					X:   vecArg,
+					Sel: ast.NewIdent("StorePtr"),
 				}
-				// Cast []hwy.Float16/[]hwy.BFloat16 -> []uint16
-				call.Args = []ast.Expr{halfPrecSliceToUint16(call.Args[1])}
+				// unsafe.Pointer(&dst[0])
+				addrExpr := optimizeSliceToPointer(sliceArg)
+				call.Args = []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("unsafe"),
+							Sel: ast.NewIdent("Pointer"),
+						},
+						Args: []ast.Expr{addrExpr},
+					},
+				}
 			}
 			return
 		}
@@ -4198,15 +4209,25 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 				}
 				return
 			}
-			// AVX2/AVX512: use asm load functions
+			// AVX2/AVX512: use asm load functions with pointer-based access (no bounds check)
 			if isAVXPromotedHalfPrec(ctx.target, effectiveElemType) && len(call.Args) >= 1 {
-				loadFuncName := "Load" + ctx.target.TypeMap[effectiveElemType] + "Slice"
+				loadFuncName := "Load" + ctx.target.TypeMap[effectiveElemType] + "Ptr"
+				sliceArg := call.Args[0]
 				call.Fun = &ast.SelectorExpr{
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(loadFuncName),
 				}
-				// Cast []hwy.Float16/[]hwy.BFloat16 -> []uint16
-				call.Args[0] = halfPrecSliceToUint16(call.Args[0])
+				// unsafe.Pointer(&slice[0])
+				addrExpr := optimizeSliceToPointer(sliceArg)
+				call.Args = []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("unsafe"),
+							Sel: ast.NewIdent("Pointer"),
+						},
+						Args: []ast.Expr{addrExpr},
+					},
+				}
 				return
 			}
 			// Fallback: use hwy.Load()

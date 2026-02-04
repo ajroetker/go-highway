@@ -21,7 +21,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		hwy.Store(vZero, c[idx:])
+		hwy.StoreFull(vZero, c[idx:])
 	}
 	for ; idx < total; idx++ {
 		c[idx] = hwy.Float32ToFloat16(0)
@@ -54,8 +54,8 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 						vA2 := hwy.Set(a2p)
 						vA3 := hwy.Set(a3p)
 						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						vB0 := hwy.LoadFull(b[bRowStart+j:])
+						vB1 := hwy.LoadFull(b[bRowStart+j+lanes:])
 						acc00 = hwy.MulAdd(vA0, vB0, acc00)
 						acc01 = hwy.MulAdd(vA0, vB1, acc01)
 						acc10 = hwy.MulAdd(vA1, vB0, acc10)
@@ -69,14 +69,14 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.StoreFull(acc00, c[cRow0+j:])
+					hwy.StoreFull(acc01, c[cRow0+j+lanes:])
+					hwy.StoreFull(acc10, c[cRow1+j:])
+					hwy.StoreFull(acc11, c[cRow1+j+lanes:])
+					hwy.StoreFull(acc20, c[cRow2+j:])
+					hwy.StoreFull(acc21, c[cRow2+j+lanes:])
+					hwy.StoreFull(acc30, c[cRow3+j:])
+					hwy.StoreFull(acc31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
@@ -90,16 +90,16 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
 							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
+							vB := hwy.LoadFull(b[p*n+j:])
 							acc0 = hwy.MulAdd(vA0, vB, acc0)
 							acc1 = hwy.MulAdd(vA1, vB, acc1)
 							acc2 = hwy.MulAdd(vA2, vB, acc2)
 							acc3 = hwy.MulAdd(vA3, vB, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.StoreFull(acc0, c[i*n+j:])
+						hwy.StoreFull(acc1, c[(i+1)*n+j:])
+						hwy.StoreFull(acc2, c[(i+2)*n+j:])
+						hwy.StoreFull(acc3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
@@ -129,12 +129,12 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 					for p := 0; p < k; p++ {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc0 = hwy.MulAdd(vA0, vB, acc0)
 						acc1 = hwy.MulAdd(vA1, vB, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.StoreFull(acc0, c[cRow0+j:])
+					hwy.StoreFull(acc1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
@@ -155,10 +155,10 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 					acc := hwy.Zero[hwy.Float16]()
 					for p := 0; p < k; p++ {
 						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.StoreFull(acc, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
@@ -187,7 +187,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		hwy.Store(vZero, c[idx:])
+		hwy.StoreFull(vZero, c[idx:])
 	}
 	for ; idx < total; idx++ {
 		c[idx] = hwy.Float32ToBFloat16(0)
@@ -220,8 +220,8 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 						vA2 := hwy.Set(a2p)
 						vA3 := hwy.Set(a3p)
 						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						vB0 := hwy.LoadFull(b[bRowStart+j:])
+						vB1 := hwy.LoadFull(b[bRowStart+j+lanes:])
 						acc00 = hwy.MulAdd(vA0, vB0, acc00)
 						acc01 = hwy.MulAdd(vA0, vB1, acc01)
 						acc10 = hwy.MulAdd(vA1, vB0, acc10)
@@ -235,14 +235,14 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.StoreFull(acc00, c[cRow0+j:])
+					hwy.StoreFull(acc01, c[cRow0+j+lanes:])
+					hwy.StoreFull(acc10, c[cRow1+j:])
+					hwy.StoreFull(acc11, c[cRow1+j+lanes:])
+					hwy.StoreFull(acc20, c[cRow2+j:])
+					hwy.StoreFull(acc21, c[cRow2+j+lanes:])
+					hwy.StoreFull(acc30, c[cRow3+j:])
+					hwy.StoreFull(acc31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
@@ -256,16 +256,16 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
 							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
+							vB := hwy.LoadFull(b[p*n+j:])
 							acc0 = hwy.MulAdd(vA0, vB, acc0)
 							acc1 = hwy.MulAdd(vA1, vB, acc1)
 							acc2 = hwy.MulAdd(vA2, vB, acc2)
 							acc3 = hwy.MulAdd(vA3, vB, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.StoreFull(acc0, c[i*n+j:])
+						hwy.StoreFull(acc1, c[(i+1)*n+j:])
+						hwy.StoreFull(acc2, c[(i+2)*n+j:])
+						hwy.StoreFull(acc3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
@@ -295,12 +295,12 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 					for p := 0; p < k; p++ {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc0 = hwy.MulAdd(vA0, vB, acc0)
 						acc1 = hwy.MulAdd(vA1, vB, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.StoreFull(acc0, c[cRow0+j:])
+					hwy.StoreFull(acc1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
@@ -321,10 +321,10 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 					acc := hwy.Zero[hwy.BFloat16]()
 					for p := 0; p < k; p++ {
 						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.StoreFull(acc, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
@@ -353,7 +353,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		hwy.Store(vZero, c[idx:])
+		hwy.StoreFull(vZero, c[idx:])
 	}
 	for ; idx < total; idx++ {
 		c[idx] = 0
@@ -386,8 +386,8 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 						vA2 := hwy.Set(a2p)
 						vA3 := hwy.Set(a3p)
 						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						vB0 := hwy.LoadFull(b[bRowStart+j:])
+						vB1 := hwy.LoadFull(b[bRowStart+j+lanes:])
 						acc00 = hwy.MulAdd(vA0, vB0, acc00)
 						acc01 = hwy.MulAdd(vA0, vB1, acc01)
 						acc10 = hwy.MulAdd(vA1, vB0, acc10)
@@ -401,14 +401,14 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.StoreFull(acc00, c[cRow0+j:])
+					hwy.StoreFull(acc01, c[cRow0+j+lanes:])
+					hwy.StoreFull(acc10, c[cRow1+j:])
+					hwy.StoreFull(acc11, c[cRow1+j+lanes:])
+					hwy.StoreFull(acc20, c[cRow2+j:])
+					hwy.StoreFull(acc21, c[cRow2+j+lanes:])
+					hwy.StoreFull(acc30, c[cRow3+j:])
+					hwy.StoreFull(acc31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
@@ -422,16 +422,16 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
 							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
+							vB := hwy.LoadFull(b[p*n+j:])
 							acc0 = hwy.MulAdd(vA0, vB, acc0)
 							acc1 = hwy.MulAdd(vA1, vB, acc1)
 							acc2 = hwy.MulAdd(vA2, vB, acc2)
 							acc3 = hwy.MulAdd(vA3, vB, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.StoreFull(acc0, c[i*n+j:])
+						hwy.StoreFull(acc1, c[(i+1)*n+j:])
+						hwy.StoreFull(acc2, c[(i+2)*n+j:])
+						hwy.StoreFull(acc3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
@@ -461,12 +461,12 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 					for p := 0; p < k; p++ {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc0 = hwy.MulAdd(vA0, vB, acc0)
 						acc1 = hwy.MulAdd(vA1, vB, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.StoreFull(acc0, c[cRow0+j:])
+					hwy.StoreFull(acc1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
@@ -487,10 +487,10 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 					acc := hwy.Zero[float32]()
 					for p := 0; p < k; p++ {
 						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.StoreFull(acc, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
@@ -519,7 +519,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		hwy.Store(vZero, c[idx:])
+		hwy.StoreFull(vZero, c[idx:])
 	}
 	for ; idx < total; idx++ {
 		c[idx] = 0
@@ -552,8 +552,8 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 						vA2 := hwy.Set(a2p)
 						vA3 := hwy.Set(a3p)
 						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+						vB0 := hwy.LoadFull(b[bRowStart+j:])
+						vB1 := hwy.LoadFull(b[bRowStart+j+lanes:])
 						acc00 = hwy.MulAdd(vA0, vB0, acc00)
 						acc01 = hwy.MulAdd(vA0, vB1, acc01)
 						acc10 = hwy.MulAdd(vA1, vB0, acc10)
@@ -567,14 +567,14 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.StoreFull(acc00, c[cRow0+j:])
+					hwy.StoreFull(acc01, c[cRow0+j+lanes:])
+					hwy.StoreFull(acc10, c[cRow1+j:])
+					hwy.StoreFull(acc11, c[cRow1+j+lanes:])
+					hwy.StoreFull(acc20, c[cRow2+j:])
+					hwy.StoreFull(acc21, c[cRow2+j+lanes:])
+					hwy.StoreFull(acc30, c[cRow3+j:])
+					hwy.StoreFull(acc31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
@@ -588,16 +588,16 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
 							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
+							vB := hwy.LoadFull(b[p*n+j:])
 							acc0 = hwy.MulAdd(vA0, vB, acc0)
 							acc1 = hwy.MulAdd(vA1, vB, acc1)
 							acc2 = hwy.MulAdd(vA2, vB, acc2)
 							acc3 = hwy.MulAdd(vA3, vB, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.StoreFull(acc0, c[i*n+j:])
+						hwy.StoreFull(acc1, c[(i+1)*n+j:])
+						hwy.StoreFull(acc2, c[(i+2)*n+j:])
+						hwy.StoreFull(acc3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float64
@@ -627,12 +627,12 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 					for p := 0; p < k; p++ {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc0 = hwy.MulAdd(vA0, vB, acc0)
 						acc1 = hwy.MulAdd(vA1, vB, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.StoreFull(acc0, c[cRow0+j:])
+					hwy.StoreFull(acc1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float64
@@ -653,10 +653,10 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 					acc := hwy.Zero[float64]()
 					for p := 0; p < k; p++ {
 						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
+						vB := hwy.LoadFull(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.StoreFull(acc, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
 					var sum float64
