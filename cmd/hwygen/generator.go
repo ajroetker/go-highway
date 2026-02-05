@@ -45,6 +45,8 @@ type Generator struct {
 	DispatchPrefix string   // Dispatch file prefix (defaults to function name)
 	CMode          bool     // Generate C code (with or without GOAT compilation)
 	AsmMode        bool     // Compile C to Go assembly via GOAT
+	FusionMode     bool     // Enable IR-based fusion optimization
+	Verbose        bool     // Verbose output for debugging
 }
 
 // Run executes the code generation pipeline.

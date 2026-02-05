@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/ajroetker/go-highway/cmd/hwygen/ir"
 )
 
 // runCMode generates C code for requested targets, compiles with GOAT,
@@ -57,6 +59,16 @@ func (g *Generator) runCMode(result *ParseResult) error {
 	}
 	for _, pf := range sliceFuncs {
 		fmt.Printf("  - %s (Slice→Slice)\n", pf.Name)
+	}
+
+	// If fusion mode is enabled, use IR-based generation for slice functions
+	if g.FusionMode && len(sliceFuncs) > 0 {
+		fmt.Println("\nUsing IR-based fusion optimization...")
+		if err := g.runFusionCMode(result, sliceFuncs, targets); err != nil {
+			return fmt.Errorf("fusion mode: %w", err)
+		}
+		// Continue with non-slice functions using standard path
+		sliceFuncs = nil
 	}
 	for _, pf := range astFuncs {
 		fmt.Printf("  - %s (AST→C)\n", pf.Name)
@@ -163,6 +175,265 @@ func (g *Generator) runCMode(result *ParseResult) error {
 	}
 
 	return nil
+}
+
+// runFusionCMode generates C code with IR-based fusion optimization.
+// This path is used when -fusion flag is enabled.
+func (g *Generator) runFusionCMode(result *ParseResult, sliceFuncs []ParsedFunc, targets []Target) error {
+	// Find module root for cross-package resolution
+	moduleRoot, moduleName, err := FindModuleRoot(g.OutputDir)
+	if err != nil {
+		fmt.Printf("Warning: could not find module root: %v\n", err)
+		// Fall back to direct translation without cross-package resolution
+		moduleRoot = g.OutputDir
+		moduleName = "go-highway"
+	}
+
+	// Create function registry for cross-package resolution
+	registry := NewFunctionRegistry(moduleRoot, moduleName)
+
+	for _, target := range targets {
+		fmt.Printf("\nGenerating C for target: %s (with fusion)\n", target.Name)
+
+		var cFiles []string
+
+		for _, pf := range sliceFuncs {
+			elemTypes := getCElemTypes(&pf)
+			for _, elemType := range elemTypes {
+				profile := GetCProfile(target.Name, elemType)
+				if profile == nil {
+					continue
+				}
+
+				// Skip types that require promoted math and don't have native arithmetic
+				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+					continue
+				}
+
+				// Build IR from the parsed function
+				builder := ir.NewBuilder(
+					ir.WithImports(result.Imports),
+					ir.WithElemType(elemType),
+					ir.WithResolver(registry),
+				)
+
+				irPF := &ir.ParsedFunc{
+					Name: pf.Name,
+					Body: pf.Body,
+				}
+				for _, tp := range pf.TypeParams {
+					irPF.TypeParams = append(irPF.TypeParams, ir.TypeParamInput{
+						Name:       tp.Name,
+						Constraint: tp.Constraint,
+					})
+				}
+				for _, p := range pf.Params {
+					irPF.Params = append(irPF.Params, ir.ParamInput{
+						Name: p.Name,
+						Type: p.Type,
+					})
+				}
+				for _, r := range pf.Returns {
+					irPF.Returns = append(irPF.Returns, ir.ParamInput{
+						Name: r.Name,
+						Type: r.Type,
+					})
+				}
+
+				irFunc, err := builder.Build(irPF)
+				if err != nil {
+					return fmt.Errorf("build IR for %s: %w", pf.Name, err)
+				}
+
+				// Run data flow analysis
+				ir.Analyze(irFunc)
+
+				// Apply fusion rules
+				ir.ApplyFusionRules(irFunc)
+
+				// Print fusion statistics if verbose
+				if g.Verbose {
+					stats := ir.ComputeFusionStats(irFunc)
+					fmt.Printf("  %s: %d→%d passes, %d allocs eliminated, %d fusion groups\n",
+						pf.Name, stats.OriginalPasses, stats.FusedPasses,
+						stats.EliminatedAllocs, stats.FusionGroups)
+				}
+
+				// Create profile adapter for IR emitter
+				profileAdapter := newCProfileAdapter(profile)
+
+				// Emit C code from IR
+				emitter := ir.NewEmitter(profileAdapter)
+				cCode := emitter.EmitFunction(irFunc)
+
+				// Write C file
+				cFileName := fmt.Sprintf("%s_%s_%s.c",
+					strings.ToLower(pf.Name),
+					elemType,
+					strings.ToLower(target.Name))
+				cFilePath := filepath.Join(g.OutputDir, cFileName)
+
+				if err := os.WriteFile(cFilePath, []byte(cCode), 0o644); err != nil {
+					return fmt.Errorf("write C file: %w", err)
+				}
+
+				cFiles = append(cFiles, cFilePath)
+				fmt.Printf("  Generated: %s\n", cFileName)
+			}
+		}
+
+		if len(cFiles) == 0 {
+			continue
+		}
+
+		if g.AsmMode {
+			fmt.Printf("Compiling %d C files with GOAT...\n", len(cFiles))
+			for _, cFile := range cFiles {
+				profile := getCProfileForFile(cFile, target)
+				if err := runGOAT(cFile, profile); err != nil {
+					return fmt.Errorf("GOAT compile %s: %w", cFile, err)
+				}
+				fmt.Printf("  Compiled: %s\n", filepath.Base(cFile))
+			}
+
+			// Clean up C and object files
+			for _, cFile := range cFiles {
+				os.Remove(cFile)
+				os.Remove(strings.TrimSuffix(cFile, ".c") + ".o")
+			}
+
+			// Generate wrappers
+			if err := g.emitCWrappers(sliceFuncs, target); err != nil {
+				return fmt.Errorf("emit wrappers for %s: %w", target.Name, err)
+			}
+		} else {
+			fmt.Printf("Generated %d C files with fusion (use -asm to compile)\n", len(cFiles))
+		}
+	}
+
+	return nil
+}
+
+// cProfileAdapter adapts CIntrinsicProfile to ir.CProfile interface.
+type cProfileAdapter struct {
+	p *CIntrinsicProfile
+}
+
+func newCProfileAdapter(p *CIntrinsicProfile) *cProfileAdapter {
+	return &cProfileAdapter{p: p}
+}
+
+func (a *cProfileAdapter) GetTier() string {
+	for _, t := range a.p.Tiers {
+		if !t.IsScalar {
+			return t.Name
+		}
+	}
+	return "q"
+}
+
+func (a *cProfileAdapter) GetLanes() int {
+	for _, t := range a.p.Tiers {
+		if !t.IsScalar {
+			return t.Lanes
+		}
+	}
+	return 4
+}
+
+func (a *cProfileAdapter) GetVecType(tier string) string {
+	if vt, ok := a.p.VecTypes[tier]; ok {
+		return vt
+	}
+	return "float32x4_t"
+}
+
+func (a *cProfileAdapter) GetScalarType() string {
+	if a.p.ScalarArithType != "" {
+		return a.p.ScalarArithType
+	}
+	return a.p.CType
+}
+
+func (a *cProfileAdapter) GetLoadFn(tier string) string {
+	if fn, ok := a.p.LoadFn[tier]; ok {
+		return fn
+	}
+	return "vld1q_f32"
+}
+
+func (a *cProfileAdapter) GetStoreFn(tier string) string {
+	if fn, ok := a.p.StoreFn[tier]; ok {
+		return fn
+	}
+	return "vst1q_f32"
+}
+
+func (a *cProfileAdapter) GetIntrinsic(op, tier string) string {
+	var fnMap map[string]string
+	switch op {
+	case "Add":
+		fnMap = a.p.AddFn
+	case "Sub":
+		fnMap = a.p.SubFn
+	case "Mul":
+		fnMap = a.p.MulFn
+	case "Div":
+		fnMap = a.p.DivFn
+	case "MulAdd":
+		fnMap = a.p.FmaFn
+	case "Neg":
+		fnMap = a.p.NegFn
+	case "Abs":
+		fnMap = a.p.AbsFn
+	case "Sqrt":
+		fnMap = a.p.SqrtFn
+	case "Min":
+		fnMap = a.p.MinFn
+	case "Max":
+		fnMap = a.p.MaxFn
+	case "ReduceSum":
+		fnMap = a.p.ReduceSumFn
+	case "ReduceMin":
+		fnMap = a.p.ReduceMinFn
+	case "ReduceMax":
+		fnMap = a.p.ReduceMaxFn
+	case "Set", "Const":
+		fnMap = a.p.DupFn
+	default:
+		return ""
+	}
+	if fn, ok := fnMap[tier]; ok {
+		return fn
+	}
+	return ""
+}
+
+func (a *cProfileAdapter) GetFmaArgOrder() string {
+	if a.p.FmaArgOrder != "" {
+		return a.p.FmaArgOrder
+	}
+	return "acc_last"
+}
+
+func (a *cProfileAdapter) GetInlineHelpers() string {
+	return strings.Join(a.p.InlineHelpers, "\n")
+}
+
+func (a *cProfileAdapter) RequiresCast() bool {
+	return a.p.CastExpr != ""
+}
+
+func (a *cProfileAdapter) GetCastExpr() string {
+	return a.p.CastExpr
+}
+
+func (a *cProfileAdapter) GetZeroInit(tier string) string {
+	// Create a zero vector
+	if dupFn, ok := a.p.DupFn[tier]; ok {
+		return dupFn + "(0)"
+	}
+	return "{0}"
 }
 
 // getCElemTypes returns the concrete element types for C code generation.

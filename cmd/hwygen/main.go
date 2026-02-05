@@ -47,8 +47,10 @@ var (
 	targets        = flag.String("targets", "avx2,fallback", "Comma-separated targets ("+strings.Join(AvailableTargets(), ",")+") or 'all'")
 	packageOut     = flag.String("pkg", "", "Output package name (default: same as input)")
 	dispatchPrefix = flag.String("dispatch", "", "Dispatch file prefix (default: derived from function name)")
-	cMode   = flag.Bool("c", false, "Generate C code only (supports neon, avx2, avx512 targets)")
-	asmMode = flag.Bool("asm", false, "Generate C code and compile to Go assembly via GOAT (supports neon, avx2, avx512 targets)")
+	cMode          = flag.Bool("c", false, "Generate C code only (supports neon, avx2, avx512 targets)")
+	asmMode        = flag.Bool("asm", false, "Generate C code and compile to Go assembly via GOAT (supports neon, avx2, avx512 targets)")
+	fusionMode     = flag.Bool("fusion", false, "Enable IR-based fusion optimization for cross-package function inlining and loop fusion")
+	verboseMode    = flag.Bool("v", false, "Verbose output (show fusion statistics, IR dumps, etc.)")
 )
 
 func main() {
@@ -77,6 +79,8 @@ func main() {
 		DispatchPrefix: *dispatchPrefix,
 		CMode:          *cMode || *asmMode,
 		AsmMode:        *asmMode,
+		FusionMode:     *fusionMode,
+		Verbose:        *verboseMode,
 	}
 
 	if err := gen.Run(); err != nil {
