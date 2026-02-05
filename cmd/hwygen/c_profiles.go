@@ -37,6 +37,10 @@ type CIntrinsicProfile struct {
 	Load4Fn   map[string]string // Multi-load: vld1q_u64_x4; nil for AVX (falls back to 4× LoadFn)
 	VecX4Type map[string]string // Multi-load struct type: "uint64x2x4_t"; nil for AVX
 
+	// SlideUp: maps tier to the vext intrinsic for lane shifting (NEON only).
+	// For AVX targets, this is nil and the translator emits a fallback comment.
+	SlideUpExtFn map[string]string // "q": "vextq_f32"
+
 	// Reduction
 	ReduceSumFn map[string]string // vaddvq_f32, _mm256_reduce_add_ps
 
@@ -224,6 +228,7 @@ func neonF32Profile() *CIntrinsicProfile {
 		Load4Fn:   map[string]string{"q": "vld1q_f32_x4"},
 		VecX4Type: map[string]string{"q": "float32x4x4_t"},
 
+		SlideUpExtFn:      map[string]string{"q": "vextq_f32"},
 		ReduceSumFn:       map[string]string{"q": "vaddvq_f32"},
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_f32"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_f32"},
@@ -291,6 +296,7 @@ func neonF64Profile() *CIntrinsicProfile {
 		Load4Fn:   map[string]string{"q": "vld1q_f64_x4"},
 		VecX4Type: map[string]string{"q": "float64x2x4_t"},
 
+		SlideUpExtFn:      map[string]string{"q": "vextq_f64"},
 		ReduceSumFn:       map[string]string{"q": "vaddvq_f64"},
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_f64"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_f64"},
@@ -396,6 +402,7 @@ func neonF16Profile() *CIntrinsicProfile {
 			"scalar": "vst1_lane_f16",
 		},
 
+		SlideUpExtFn:      map[string]string{"q": "vextq_f16"},
 		ReduceSumFn:       map[string]string{"q": "vaddvq_f16", "d": "vaddv_f16"},
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_f16", "d": "vzip1_f16"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_f16", "d": "vzip2_f16"},
@@ -760,10 +767,11 @@ func neonUint64Profile() *CIntrinsicProfile {
 		Load4Fn:   map[string]string{"q": "vld1q_u64_x4"},
 		VecX4Type: map[string]string{"q": "uint64x2x4_t"},
 
-		AndFn:      map[string]string{"q": "vandq_u64"},
-		OrFn:       map[string]string{"q": "vorrq_u64"},
-		XorFn:      map[string]string{"q": "veorq_u64"},
-		PopCountFn: map[string]string{"q": "neon_popcnt_u64"},
+		SlideUpExtFn: map[string]string{"q": "vextq_u64"},
+		AndFn:        map[string]string{"q": "vandq_u64"},
+		OrFn:         map[string]string{"q": "vorrq_u64"},
+		XorFn:        map[string]string{"q": "veorq_u64"},
+		PopCountFn:   map[string]string{"q": "neon_popcnt_u64"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_u64"},
 
@@ -821,6 +829,7 @@ func neonUint8Profile() *CIntrinsicProfile {
 		Load4Fn:   map[string]string{"q": "vld1q_u8_x4"},
 		VecX4Type: map[string]string{"q": "uint8x16x4_t"},
 
+		SlideUpExtFn:       map[string]string{"q": "vextq_u8"},
 		LessThanFn:         map[string]string{"q": "vcltq_u8"},
 		BitsFromMaskFn:     map[string]string{"q": "neon_bits_from_mask_u8"},
 		TableLookupBytesFn: map[string]string{"q": "vqtbl1q_u8"},
@@ -872,9 +881,10 @@ func neonUint32Profile() *CIntrinsicProfile {
 		Load4Fn:   map[string]string{"q": "vld1q_u32_x4"},
 		VecX4Type: map[string]string{"q": "uint32x4x4_t"},
 
-		AndFn: map[string]string{"q": "vandq_u32"},
-		OrFn:  map[string]string{"q": "vorrq_u32"},
-		XorFn: map[string]string{"q": "veorq_u32"},
+		SlideUpExtFn: map[string]string{"q": "vextq_u32"},
+		AndFn:        map[string]string{"q": "vandq_u32"},
+		OrFn:         map[string]string{"q": "vorrq_u32"},
+		XorFn:        map[string]string{"q": "veorq_u32"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_u32"},
 		LessThanFn:  map[string]string{"q": "vcltq_u32"},

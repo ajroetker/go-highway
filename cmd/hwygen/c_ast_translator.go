@@ -572,6 +572,20 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 			}
 		}
 
+		// Handle make([]T, size) → C99 VLA for scalar slices
+		if strings.HasPrefix(rhsStr, "/* SCALAR_ARRAY:") {
+			inner := strings.TrimPrefix(rhsStr, "/* SCALAR_ARRAY:")
+			inner = strings.TrimSuffix(inner, " */")
+			parts := strings.SplitN(inner, ":", 2)
+			if len(parts) == 2 {
+				cType := parts[0]
+				arrLen := parts[1]
+				t.vars[lhsName] = cVarInfo{cType: cType + " *", isPtr: true}
+				t.writef("%s %s[%s];\n", cType, lhsName, arrLen)
+				return
+			}
+		}
+
 		t.vars[lhsName] = varInfo
 		t.writef("%s = %s;\n", cDeclVar(varInfo.cType, lhsName), rhsStr)
 
@@ -1374,6 +1388,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		// as an expression, treat it like a single load (the multi-value handling
 		// is in translateAssignStmt).
 		return t.emitHwyLoad(args)
+	case "SlideUpLanes":
+		return t.emitHwySlideUpLanes(args)
 	case "LoadSlice":
 		return t.emitHwyLoad(args) // same semantics as Load for C
 	case "StoreSlice":
@@ -1553,6 +1569,44 @@ func (t *CASTTranslator) emitHwyGetLane(args []ast.Expr) string {
 	return fmt.Sprintf("%s(%s, %s)", fn, v, idx)
 }
 
+// emitHwySlideUpLanes: hwy.SlideUpLanes(v, offset) → vextq_f32(zero, v, NumLanes-offset)
+// NEON semantics: vextq extracts elements from two vectors. Using (zero, v, N-offset)
+// effectively shifts lanes up by offset, filling low lanes with zeros.
+// The third argument must be a compile-time constant.
+func (t *CASTTranslator) emitHwySlideUpLanes(args []ast.Expr) string {
+	if len(args) < 2 {
+		return "/* SlideUpLanes: missing args */"
+	}
+	vec := t.translateExpr(args[0])
+	offsetExpr := args[1]
+
+	extFn := ""
+	if t.profile.SlideUpExtFn != nil {
+		extFn = t.profile.SlideUpExtFn[t.tier]
+	}
+
+	// NEON path: literal offset → direct vextq
+	if extFn != "" {
+		if lit, ok := offsetExpr.(*ast.BasicLit); ok && lit.Kind == token.INT {
+			offsetInt := 0
+			fmt.Sscanf(lit.Value, "%d", &offsetInt)
+			if offsetInt <= 0 {
+				return vec
+			}
+			if offsetInt >= t.lanes {
+				return t.emitHwyZero()
+			}
+			complement := t.lanes - offsetInt
+			zero := t.emitHwyZero()
+			return fmt.Sprintf("%s(%s, %s, %d)", extFn, zero, vec, complement)
+		}
+	}
+
+	// Fallback placeholder for AVX / non-literal offsets
+	offset := t.translateExpr(offsetExpr)
+	return fmt.Sprintf("/* SlideUpLanes: fallback for offset=%s */", offset)
+}
+
 // translateLoad4Assign handles: a, b, c, d := hwy.Load4(slice[off:])
 // On NEON (VecX4Type populated): emits vld1q_u64_x4 + .val[i] destructuring.
 // On AVX (VecX4Type nil): emits 4 individual loads with ptr + i*lanes offsets.
@@ -1653,6 +1707,13 @@ func (t *CASTTranslator) translateMakeExpr(e *ast.CallExpr) string {
 		// is a make call and handle it specially via inferType.
 		// Return a special token that the assignment handler uses.
 		return fmt.Sprintf("/* VEC_ARRAY:%s:%s */", t.profile.VecTypes[t.tier], length)
+	}
+
+	// Scalar slice types: []float32, []T, etc.
+	if strings.HasPrefix(typeStr, "[]") {
+		elemGoType := strings.TrimPrefix(typeStr, "[]")
+		cType := t.goTypeToCType(elemGoType)
+		return fmt.Sprintf("/* SCALAR_ARRAY:%s:%s */", cType, length)
 	}
 
 	return fmt.Sprintf("/* make: unsupported type %s */", typeStr)
@@ -1784,7 +1845,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 				"Min", "Max", "Neg", "Abs", "Sqrt",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount", "TableLookupBytes",
-				"IfThenElse":
+				"IfThenElse", "SlideUpLanes":
 				return cVarInfo{cType: vecType, isVector: true}
 			case "ReduceMin", "ReduceMax":
 				// ReduceMin/Max return a scalar
@@ -1859,6 +1920,18 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 		// getSignBit() → unsigned int
 		if ident.Name == "getSignBit" {
 			return cVarInfo{cType: "unsigned int"}
+		}
+		// make() → infer from the type argument
+		if ident.Name == "make" && len(e.Args) >= 1 {
+			typeStr := exprToString(e.Args[0])
+			if strings.Contains(typeStr, "hwy.Vec") || strings.Contains(typeStr, "Vec[") {
+				return cVarInfo{cType: t.profile.VecTypes[t.tier], isVector: true, isPtr: true}
+			}
+			if strings.HasPrefix(typeStr, "[]") {
+				elemGoType := strings.TrimPrefix(typeStr, "[]")
+				cType := t.goTypeToCType(elemGoType)
+				return cVarInfo{cType: cType + " *", isPtr: true}
+			}
 		}
 		// Type conversions: uint32(x) → unsigned int, etc.
 		if cType := t.goTypeConvToCType(ident.Name); cType != "" {

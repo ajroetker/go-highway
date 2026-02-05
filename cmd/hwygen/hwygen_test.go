@@ -4345,3 +4345,198 @@ func BaseMathOps(data []float32, n int) {
 		t.Error("Go 'stdmath.' package prefix should not appear in C output")
 	}
 }
+
+func TestASTTranslatorScalarMake(t *testing.T) {
+	profile := GetCProfile("NEON", "float32")
+	if profile == nil {
+		t.Fatal("NEON float32 profile not found")
+	}
+
+	fset := token.NewFileSet()
+	src := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseScalarMake(data []float32, n int) {
+	shifted := make([]float32, n)
+	for i := 0; i < n; i++ {
+		v := hwy.Load(data[i:])
+		hwy.Store(v, shifted[i:])
+	}
+	_ = shifted[0]
+}
+`
+	file, err := parser.ParseFile(fset, "test.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	var funcDecl *ast.FuncDecl
+	for _, decl := range file.Decls {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Name.Name == "BaseScalarMake" {
+			funcDecl = fd
+			break
+		}
+	}
+	if funcDecl == nil {
+		t.Fatal("no function found")
+	}
+
+	pf := &ParsedFunc{
+		Name: "BaseScalarMake",
+		Params: []Param{
+			{Name: "data", Type: "[]float32"},
+			{Name: "n", Type: "int"},
+		},
+		Body:     funcDecl.Body,
+		HwyCalls: []HwyCall{{Package: "hwy", FuncName: "Load"}},
+	}
+
+	translator := NewCASTTranslator(profile, "float32")
+	cCode, err := translator.TranslateToC(pf)
+	if err != nil {
+		t.Fatalf("TranslateToC failed: %v", err)
+	}
+
+	t.Logf("Generated C code:\n%s", cCode)
+
+	// Verify C99 VLA declaration: float shifted[n];
+	if !strings.Contains(cCode, "float shifted[n];") {
+		t.Error("missing 'float shifted[n];' for make([]float32, n)")
+	}
+
+	// Verify indexing into the scalar array works
+	if !strings.Contains(cCode, "shifted[") {
+		t.Error("missing indexing into shifted array")
+	}
+
+	// Should NOT contain the unsupported make comment
+	if strings.Contains(cCode, "make: unsupported type") {
+		t.Error("scalar make should not produce 'unsupported type' comment")
+	}
+}
+
+func TestASTTranslatorSlideUpLanes(t *testing.T) {
+	profile := GetCProfile("NEON", "float32")
+	if profile == nil {
+		t.Fatal("NEON float32 profile not found")
+	}
+
+	fset := token.NewFileSet()
+	src := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseSlideUp(data []float32, n int) {
+	for i := 0; i < n; i += 4 {
+		v := hwy.Load(data[i:])
+		s1 := hwy.SlideUpLanes(v, 1)
+		s2 := hwy.SlideUpLanes(v, 2)
+		_ = s1
+		_ = s2
+	}
+}
+`
+	file, err := parser.ParseFile(fset, "test.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	var funcDecl *ast.FuncDecl
+	for _, decl := range file.Decls {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Name.Name == "BaseSlideUp" {
+			funcDecl = fd
+			break
+		}
+	}
+	if funcDecl == nil {
+		t.Fatal("no function found")
+	}
+
+	pf := &ParsedFunc{
+		Name: "BaseSlideUp",
+		Params: []Param{
+			{Name: "data", Type: "[]float32"},
+			{Name: "n", Type: "int"},
+		},
+		Body:     funcDecl.Body,
+		HwyCalls: []HwyCall{{Package: "hwy", FuncName: "Load"}, {Package: "hwy", FuncName: "SlideUpLanes"}},
+	}
+
+	translator := NewCASTTranslator(profile, "float32")
+	cCode, err := translator.TranslateToC(pf)
+	if err != nil {
+		t.Fatalf("TranslateToC failed: %v", err)
+	}
+
+	t.Logf("Generated C code:\n%s", cCode)
+
+	// NEON f32: 4 lanes. SlideUpLanes(v, 1) → vextq_f32(zero, v, 3)
+	if !strings.Contains(cCode, "vextq_f32(vdupq_n_f32(0.0f), v, 3)") {
+		t.Error("missing vextq_f32(vdupq_n_f32(0.0f), v, 3) for SlideUpLanes(v, 1)")
+	}
+
+	// SlideUpLanes(v, 2) → vextq_f32(zero, v, 2)
+	if !strings.Contains(cCode, "vextq_f32(vdupq_n_f32(0.0f), v, 2)") {
+		t.Error("missing vextq_f32(vdupq_n_f32(0.0f), v, 2) for SlideUpLanes(v, 2)")
+	}
+}
+
+func TestASTTranslatorSlideUpLanesF64(t *testing.T) {
+	profile := GetCProfile("NEON", "float64")
+	if profile == nil {
+		t.Fatal("NEON float64 profile not found")
+	}
+
+	fset := token.NewFileSet()
+	src := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseSlideUpF64(data []float64, n int) {
+	for i := 0; i < n; i += 2 {
+		v := hwy.Load(data[i:])
+		s1 := hwy.SlideUpLanes(v, 1)
+		_ = s1
+	}
+}
+`
+	file, err := parser.ParseFile(fset, "test.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	var funcDecl *ast.FuncDecl
+	for _, decl := range file.Decls {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Name.Name == "BaseSlideUpF64" {
+			funcDecl = fd
+			break
+		}
+	}
+	if funcDecl == nil {
+		t.Fatal("no function found")
+	}
+
+	pf := &ParsedFunc{
+		Name: "BaseSlideUpF64",
+		Params: []Param{
+			{Name: "data", Type: "[]float64"},
+			{Name: "n", Type: "int"},
+		},
+		Body:     funcDecl.Body,
+		HwyCalls: []HwyCall{{Package: "hwy", FuncName: "Load"}, {Package: "hwy", FuncName: "SlideUpLanes"}},
+	}
+
+	translator := NewCASTTranslator(profile, "float64")
+	cCode, err := translator.TranslateToC(pf)
+	if err != nil {
+		t.Fatalf("TranslateToC failed: %v", err)
+	}
+
+	t.Logf("Generated C code:\n%s", cCode)
+
+	// NEON f64: 2 lanes. SlideUpLanes(v, 1) → vextq_f64(zero, v, 1)
+	if !strings.Contains(cCode, "vextq_f64(vdupq_n_f64(0.0), v, 1)") {
+		t.Error("missing vextq_f64(vdupq_n_f64(0.0), v, 1) for SlideUpLanes(v, 1)")
+	}
+}
