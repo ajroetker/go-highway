@@ -3088,6 +3088,108 @@ func BaseTestPopCount(a, b []uint64) uint64 {
 	}
 }
 
+// TestTranslateRaBitQQuantizeVectors verifies that rabitq_base.go's BaseQuantizeVectors
+// translates correctly to NEON C using the float32 profile with mixed-type params.
+func TestTranslateRaBitQQuantizeVectors(t *testing.T) {
+	rabitqPath := filepath.Join("..", "..", "hwy", "contrib", "rabitq", "rabitq_base.go")
+	if _, err := os.Stat(rabitqPath); err != nil {
+		t.Skipf("rabitq_base.go not found: %v", err)
+	}
+
+	result, err := Parse(rabitqPath)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	var fn *ParsedFunc
+	for i, pf := range result.Funcs {
+		if pf.Name == "BaseQuantizeVectors" {
+			fn = &result.Funcs[i]
+			break
+		}
+	}
+	if fn == nil {
+		t.Fatal("BaseQuantizeVectors not found")
+	}
+
+	if !IsASTCEligible(fn) {
+		t.Fatal("BaseQuantizeVectors should be AST-C-eligible")
+	}
+
+	profile := GetCProfile("NEON", "float32")
+	if profile == nil {
+		t.Fatal("NEON float32 profile not found")
+	}
+
+	translator := NewCASTTranslator(profile, "float32")
+	cCode, err := translator.TranslateToC(fn)
+	if err != nil {
+		t.Fatalf("TranslateToC failed: %v", err)
+	}
+
+	t.Logf("Generated C code:\n%s", cCode)
+
+	// Verify function signature with mixed-type params
+	if !strings.Contains(cCode, "void quantizevectors_c_f32_neon(") {
+		t.Error("missing function name")
+	}
+	if !strings.Contains(cCode, "float *unitVectors") {
+		t.Error("missing float *unitVectors param")
+	}
+	if !strings.Contains(cCode, "unsigned long *codes") {
+		t.Error("missing unsigned long *codes param")
+	}
+	if !strings.Contains(cCode, "unsigned int *codeCounts") {
+		t.Error("missing unsigned int *codeCounts param")
+	}
+
+	// Verify mixed-type slice reslicing: codes → unsigned long *, not float *
+	if !strings.Contains(cCode, "unsigned long *code = codes") {
+		t.Error("code slice should be typed as unsigned long *, not float *")
+	}
+	if !strings.Contains(cCode, "float *vec = unitVectors") {
+		t.Error("vec slice should be typed as float *")
+	}
+
+	// Verify GetLane with variable index uses store-to-stack pattern
+	if !strings.Contains(cCode, "volatile float _getlane_buf") {
+		t.Error("missing volatile store-to-stack buffer for variable-index GetLane")
+	}
+	if !strings.Contains(cCode, "_getlane_buf[j]") {
+		t.Error("missing variable-index access to _getlane_buf")
+	}
+
+	// Verify getSignBit is inlined as float_to_bits >> 31
+	if !strings.Contains(cCode, "float_to_bits(") {
+		t.Error("missing float_to_bits for getSignBit inlining")
+	}
+	if !strings.Contains(cCode, ">> 31") {
+		t.Error("missing >> 31 for sign bit extraction")
+	}
+
+	// Verify NEON SIMD intrinsics for the vectorized path
+	if !strings.Contains(cCode, "vld1q_f32(") {
+		t.Error("missing vld1q_f32 for float32 SIMD load")
+	}
+	if !strings.Contains(cCode, "vcltq_f32(") {
+		t.Error("missing vcltq_f32 for LessThan")
+	}
+	if !strings.Contains(cCode, "vbslq_f32(") {
+		t.Error("missing vbslq_f32 for IfThenElse")
+	}
+	if !strings.Contains(cCode, "vmulq_f32(") {
+		t.Error("missing vmulq_f32 for Mul")
+	}
+	if !strings.Contains(cCode, "vaddvq_f32(") {
+		t.Error("missing vaddvq_f32 for ReduceSum")
+	}
+
+	// Verify scalar popcount for bit counting
+	if !strings.Contains(cCode, "__builtin_popcountll(") {
+		t.Error("missing __builtin_popcountll for bits.OnesCount64")
+	}
+}
+
 // TestTranslateVarintFindEnds verifies that varint_base.go's BaseFindVarintEnds
 // translates correctly to NEON C using the uint8 profile.
 func TestTranslateVarintFindEnds(t *testing.T) {

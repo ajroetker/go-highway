@@ -1637,9 +1637,19 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 	case *ast.CallExpr:
 		return t.inferCallType(e)
 	case *ast.SliceExpr:
+		// Infer pointer type from the base expression (e.g., codes[i*w:(i+1)*w]
+		// where codes is unsigned long * should yield unsigned long *, not float *).
+		if baseType := t.inferPtrType(e.X); baseType != "" {
+			return cVarInfo{cType: baseType, isPtr: true}
+		}
 		return cVarInfo{cType: t.profile.CType + " *", isPtr: true}
 	case *ast.IndexExpr:
-		// Array element access → scalar type
+		// Infer element type from the base expression (e.g., codes[i]
+		// where codes is unsigned long * should yield unsigned long).
+		if baseType := t.inferPtrType(e.X); baseType != "" {
+			elemType := strings.TrimSuffix(strings.TrimSpace(baseType), "*")
+			return cVarInfo{cType: strings.TrimSpace(elemType)}
+		}
 		return cVarInfo{cType: t.profile.CType}
 	case *ast.BinaryExpr:
 		// Infer from left operand to propagate type through expressions
@@ -1657,7 +1667,7 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		}
 		if info, ok := t.params[e.Name]; ok {
 			if info.isSlice {
-				return cVarInfo{cType: t.profile.CType + " *", isPtr: true}
+				return cVarInfo{cType: info.cType, isPtr: true}
 			}
 			return cVarInfo{cType: t.profile.CType}
 		}
@@ -1665,6 +1675,25 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 	default:
 		return cVarInfo{cType: t.profile.CType}
 	}
+}
+
+// inferPtrType returns the C pointer type for an expression that represents
+// a slice or pointer, or "" if the type cannot be determined from context.
+// This is used to correctly type slice expressions and index expressions
+// when the base has a different element type than the profile's CType
+// (e.g., []uint64 param in a float32 profile).
+func (t *CASTTranslator) inferPtrType(expr ast.Expr) string {
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return ""
+	}
+	if info, ok := t.vars[ident.Name]; ok && info.isPtr {
+		return info.cType
+	}
+	if info, ok := t.params[ident.Name]; ok && info.isSlice {
+		return info.cType
+	}
+	return ""
 }
 
 // inferCallType infers the return type of a function call.
