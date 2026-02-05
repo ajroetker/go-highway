@@ -174,7 +174,7 @@ func processStripWithSharedB[T hwy.Floats](a, sharedPackedB, c []T, m, n, k, row
 	numBPanels := (n + nr - 1) / nr
 
 	// Process all B micro-panels
-	for jPanel := 0; jPanel < numBPanels; jPanel++ {
+	for jPanel := range numBPanels {
 		jr := jPanel * nr
 		bPanelOffset := jPanel * k * nr
 
@@ -191,7 +191,7 @@ func processStripWithSharedB[T hwy.Floats](a, sharedPackedB, c []T, m, n, k, row
 
 			// Process micro-tiles
 			numMicroPanelsA := (panelRows + mr - 1) / mr
-			for iPanel := 0; iPanel < numMicroPanelsA; iPanel++ {
+			for iPanel := range numMicroPanelsA {
 				ir := ic + iPanel*mr
 				aPanelOffset := iPanel * k * mr
 

@@ -68,7 +68,7 @@ func BasePackedMicroKernel[T hwy.Floats](packedA, packedB []T, c []T, n, ir, jr,
 	// packedB layout: [Kc, Nr] - consecutive Nr values for each k
 	aIdx := 0
 	bIdx := 0
-	for p := 0; p < kc; p++ {
+	for range kc {
 		// Load Mr values from packed A (contiguous)
 		a0 := packedA[aIdx]
 		a1 := packedA[aIdx+1]
@@ -145,7 +145,7 @@ func basePackedMicroKernelGeneral[T hwy.Floats](packedA, packedB []T, c []T, n, 
 	lanes := hwy.Zero[T]().NumLanes()
 
 	// Process rows one at a time
-	for r := 0; r < mr; r++ {
+	for r := range mr {
 		cRowStart := (ir + r) * n
 
 		// Process columns in vector-width chunks
@@ -154,7 +154,7 @@ func basePackedMicroKernelGeneral[T hwy.Floats](packedA, packedB []T, c []T, n, 
 			acc := hwy.Zero[T]()
 
 			// K-loop
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := hwy.Set(aVal)
 				vB := hwy.Load(packedB[p*nr+col:])
@@ -170,7 +170,7 @@ func basePackedMicroKernelGeneral[T hwy.Floats](packedA, packedB []T, c []T, n, 
 		// Scalar tail for remaining columns
 		for ; col < nr; col++ {
 			var sum T
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r] * packedB[p*nr+col]
 			}
 			c[cRowStart+jr+col] += sum
@@ -191,7 +191,7 @@ func BasePackedMicroKernelPartial[T hwy.Floats](packedA, packedB []T, c []T, n, 
 	lanes := hwy.Zero[T]().NumLanes()
 
 	// For each active row
-	for r := 0; r < activeRows; r++ {
+	for r := range activeRows {
 		cRowStart := (ir + r) * n
 
 		// Process columns in vector-width chunks
@@ -200,7 +200,7 @@ func BasePackedMicroKernelPartial[T hwy.Floats](packedA, packedB []T, c []T, n, 
 			acc := hwy.Zero[T]()
 
 			// K-loop
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := hwy.Set(aVal)
 				vB := hwy.Load(packedB[p*nr+col:])
@@ -216,7 +216,7 @@ func BasePackedMicroKernelPartial[T hwy.Floats](packedA, packedB []T, c []T, n, 
 		// Scalar tail for remaining columns
 		for ; col < activeCols; col++ {
 			var sum T
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r] * packedB[p*nr+col]
 			}
 			c[cRowStart+jr+col] += sum

@@ -88,7 +88,7 @@ func BaseFindVarintEnds(src []byte) uint32 {
 
 	// Scalar fallback for partial buffers
 	var mask uint32
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if src[i] < 0x80 {
 			mask |= 1 << uint(i)
 		}
@@ -202,7 +202,7 @@ func BaseDecode5Uvarint64(src []byte) (values [5]uint64, consumed int) {
 	}
 
 	pos := 0
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if pos >= len(src) {
 			return [5]uint64{}, 0
 		}

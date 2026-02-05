@@ -32,7 +32,7 @@ import (
 var streamVByte32DataLen [256]uint8
 
 func init() {
-	for control := 0; control < 256; control++ {
+	for control := range 256 {
 		len0 := ((control >> 0) & 0x3) + 1
 		len1 := ((control >> 2) & 0x3) + 1
 		len2 := ((control >> 4) & 0x3) + 1
@@ -47,7 +47,7 @@ func init() {
 var streamVByte32ShuffleMasks [256][16]uint8
 
 func init() {
-	for ctrl := 0; ctrl < 256; ctrl++ {
+	for ctrl := range 256 {
 		len0 := ((ctrl >> 0) & 0x3) + 1
 		len1 := ((ctrl >> 2) & 0x3) + 1
 		len2 := ((ctrl >> 4) & 0x3) + 1
@@ -60,7 +60,7 @@ func init() {
 
 		var mask [16]uint8
 		// Value 0 at output positions 0-3
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len0 {
 				mask[i] = uint8(off0 + i)
 			} else {
@@ -68,7 +68,7 @@ func init() {
 			}
 		}
 		// Value 1 at output positions 4-7
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len1 {
 				mask[4+i] = uint8(off1 + i)
 			} else {
@@ -76,7 +76,7 @@ func init() {
 			}
 		}
 		// Value 2 at output positions 8-11
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len2 {
 				mask[8+i] = uint8(off2 + i)
 			} else {
@@ -84,7 +84,7 @@ func init() {
 			}
 		}
 		// Value 3 at output positions 12-15
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len3 {
 				mask[12+i] = uint8(off3 + i)
 			} else {
@@ -215,7 +215,7 @@ func BaseDecodeStreamVByte32GroupSIMD(ctrl byte, data []uint8, dst []uint32) int
 // decodeGroupScalarInto is a scalar fallback for small buffers.
 func decodeGroupScalarInto(ctrl byte, data []uint8, dst []uint32) int {
 	pos := 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := int(((ctrl >> (i * 2)) & 0x3) + 1)
 		if pos+length > len(data) {
 			return 0
@@ -248,7 +248,7 @@ func decodeGroupScalarInto(ctrl byte, data []uint8, dst []uint32) int {
 var streamVByte32EncodeShuffleMasks [256][16]uint8
 
 func init() {
-	for ctrl := 0; ctrl < 256; ctrl++ {
+	for ctrl := range 256 {
 		len0 := ((ctrl >> 0) & 0x3) + 1
 		len1 := ((ctrl >> 2) & 0x3) + 1
 		len2 := ((ctrl >> 4) & 0x3) + 1
@@ -258,22 +258,22 @@ func init() {
 		outPos := 0
 
 		// Value 0: bytes at positions 0-3 in input
-		for i := 0; i < len0; i++ {
+		for i := range len0 {
 			mask[outPos] = uint8(i)
 			outPos++
 		}
 		// Value 1: bytes at positions 4-7 in input
-		for i := 0; i < len1; i++ {
+		for i := range len1 {
 			mask[outPos] = uint8(4 + i)
 			outPos++
 		}
 		// Value 2: bytes at positions 8-11 in input
-		for i := 0; i < len2; i++ {
+		for i := range len2 {
 			mask[outPos] = uint8(8 + i)
 			outPos++
 		}
 		// Value 3: bytes at positions 12-15 in input
-		for i := 0; i < len3; i++ {
+		for i := range len3 {
 			mask[outPos] = uint8(12 + i)
 			outPos++
 		}
@@ -297,7 +297,7 @@ func BaseEncodeStreamVByte32(values []uint32) (control, data []byte) {
 	control = make([]byte, numGroups)
 	data = make([]byte, 0, len(values)*4)
 
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 
@@ -343,7 +343,7 @@ func BaseEncodeStreamVByte32Into(values []uint32, controlBuf, dataBuf []byte) (c
 	}
 
 	dataPos := 0
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 
@@ -375,7 +375,7 @@ func BaseEncodeStreamVByte32GroupSIMD(values []uint32) (ctrl byte, data []byte) 
 
 	// Compute control byte using scalar operations (fast for 4 values)
 	ctrl = 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := encodedLengthU32(values[i])
 		ctrl |= byte(length-1) << (i * 2)
 	}
@@ -422,7 +422,7 @@ func BaseEncodeStreamVByte32GroupSIMDInto(values []uint32, dst []uint8) (ctrl by
 
 	// Compute control byte using scalar operations
 	ctrl = 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := encodedLengthU32(values[i])
 		ctrl |= byte(length-1) << (i * 2)
 	}
@@ -448,7 +448,7 @@ func BaseEncodeStreamVByte32GroupSIMDInto(values []uint32, dst []uint8) (ctrl by
 func encodeGroupScalar(values []uint32) (ctrl byte, data []byte) {
 	data = make([]byte, 0, 16)
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		var v uint32
 		if i < len(values) {
 			v = values[i]
@@ -475,7 +475,7 @@ func encodeGroupScalar(values []uint32) (ctrl byte, data []byte) {
 // encodeGroupScalarInto is scalar fallback for encoding directly into a buffer.
 func encodeGroupScalarInto(values []uint32, dst []byte) (ctrl byte, n int) {
 	pos := 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		var v uint32
 		if i < len(values) {
 			v = values[i]

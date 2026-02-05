@@ -46,7 +46,7 @@ var maskedVByte12ShuffleMasks [4096][16]uint8
 
 func init() {
 	// Build lookup tables for all 4096 possible 12-bit terminator patterns
-	for pattern := 0; pattern < 4096; pattern++ {
+	for pattern := range 4096 {
 		var lookup maskedVByte12Lookup
 		var mask [16]uint8
 

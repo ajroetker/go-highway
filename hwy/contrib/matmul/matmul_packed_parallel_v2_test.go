@@ -191,7 +191,7 @@ func TestBatchParallelPackedMatMulV2(t *testing.T) {
 	lhsStride := m * k
 	rhsStride := k * n
 	outStride := m * n
-	for batch := 0; batch < batchSize; batch++ {
+	for batch := range batchSize {
 		naiveMatMul(
 			a[batch*lhsStride:(batch+1)*lhsStride],
 			b[batch*rhsStride:(batch+1)*rhsStride],
@@ -218,10 +218,10 @@ func TestBatchParallelPackedMatMulV2(t *testing.T) {
 
 // naiveMatMul computes C = A * B using triple loop
 func naiveMatMul(a, b, c []float32, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p] * b[p*n+j]
 			}
 			c[i*n+j] = sum

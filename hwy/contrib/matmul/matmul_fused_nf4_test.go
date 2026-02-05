@@ -47,7 +47,7 @@ func TestFusedNF4FallbackCorrectness(t *testing.T) {
 				input[i] = rng.Float32()*2 - 1
 			}
 
-			packedSize := (tc.K * tc.N + 1) / 2
+			packedSize := (tc.K*tc.N + 1) / 2
 			packed := make([]uint8, packedSize)
 			for i := range packed {
 				packed[i] = uint8(rng.Intn(256))
@@ -90,7 +90,7 @@ func TestFusedInt4FallbackCorrectness(t *testing.T) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -186,7 +186,7 @@ func TestFusedNF4PackingConsistency(t *testing.T) {
 	maxPossible := float32(K) * 1.0  // max table value
 	minPossible := float32(K) * -1.0 // min table value
 
-	for i := 0; i < N; i++ {
+	for i := range N {
 		if output[i] > maxPossible || output[i] < minPossible {
 			t.Errorf("Output[%d] = %v out of expected range [%v, %v]", i, output[i], minPossible, maxPossible)
 		}
@@ -239,7 +239,7 @@ func BenchmarkFusedNF4Scalar(b *testing.B) {
 			input[i] = rng.Float32()*2 - 1
 		}
 
-		packedSize := (sz.K * sz.N + 1) / 2
+		packedSize := (sz.K*sz.N + 1) / 2
 		packed := make([]uint8, packedSize)
 		for i := range packed {
 			packed[i] = uint8(rng.Intn(256))
@@ -278,7 +278,7 @@ func BenchmarkFusedInt4Scalar(b *testing.B) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (sz.K * sz.N + 1) / 2
+	packedSize := (sz.K*sz.N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))

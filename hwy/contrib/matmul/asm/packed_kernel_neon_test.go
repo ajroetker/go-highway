@@ -96,10 +96,10 @@ func TestPackedMicroKernelNEONF32_Correctness(t *testing.T) {
 	// PackedB layout: [kc][nr] - packedB[k*nr + col]
 	// C[row][col] += sum over k of packedA[k*mr + row] * packedB[k*nr + col]
 	expected := make([]float32, mr*n)
-	for row := 0; row < mr; row++ {
-		for col := 0; col < nr; col++ {
+	for row := range mr {
+		for col := range nr {
 			var sum float32
-			for k := 0; k < kc; k++ {
+			for k := range kc {
 				a := packedA[k*mr+row]
 				b := packedB[k*nr+col]
 				sum += a * b
@@ -112,8 +112,8 @@ func TestPackedMicroKernelNEONF32_Correctness(t *testing.T) {
 	t.Logf("Got      c[0:8] = %v", c[0:8])
 
 	// Compare
-	for row := 0; row < mr; row++ {
-		for col := 0; col < nr; col++ {
+	for row := range mr {
+		for col := range nr {
 			idx := row*n + col
 			if c[idx] != expected[idx] {
 				t.Errorf("Mismatch at [%d][%d]: got %f, want %f", row, col, c[idx], expected[idx])

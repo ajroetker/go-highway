@@ -70,7 +70,7 @@ func BaseArgmax[T hwy.Floats](v []T) int {
 	bestIdx := 0
 	var maxVal T
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val != val {
 			continue
@@ -148,7 +148,7 @@ func BaseArgmin[T hwy.Floats](v []T) int {
 	bestIdx := 0
 	var minVal T
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val != val {
 			continue
@@ -182,7 +182,7 @@ func scalarArgmax[T hwy.Floats](v []T) int {
 	bestIdx := 0
 	var maxVal T
 	foundValid := false
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		if v[i] != v[i] {
 			continue // skip NaN
 		}
@@ -201,7 +201,7 @@ func scalarArgmin[T hwy.Floats](v []T) int {
 	bestIdx := 0
 	var minVal T
 	foundValid := false
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		if v[i] != v[i] {
 			continue // skip NaN
 		}

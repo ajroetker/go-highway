@@ -56,7 +56,7 @@ func BaseDense[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures,
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
 
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 
 			acc0 := hwy.Zero[T]()
@@ -111,7 +111,7 @@ func BaseDense[T hwy.Floats](x, weight, bias, output []T, batchSize, inFeatures,
 		xRow := i * inFeatures
 		oRow := i * outFeatures
 
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := hwy.Zero[T]()
 

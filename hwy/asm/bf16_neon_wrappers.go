@@ -192,7 +192,7 @@ func (v BFloat16x8) Neg() BFloat16x8 {
 	var result BFloat16x8
 	u := (*[8]uint16)(unsafe.Pointer(&v))
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		r[i] = u[i] ^ 0x8000
 	}
 	return result
@@ -203,7 +203,7 @@ func (v BFloat16x8) Abs() BFloat16x8 {
 	var result BFloat16x8
 	u := (*[8]uint16)(unsafe.Pointer(&v))
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		r[i] = u[i] & 0x7FFF
 	}
 	return result
@@ -212,7 +212,7 @@ func (v BFloat16x8) Abs() BFloat16x8 {
 // Not performs bitwise NOT on the vector bytes.
 func (v BFloat16x8) Not() BFloat16x8 {
 	var result BFloat16x8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		result[i] = ^v[i]
 	}
 	return result
@@ -221,7 +221,7 @@ func (v BFloat16x8) Not() BFloat16x8 {
 // Xor performs bitwise XOR with another vector.
 func (v BFloat16x8) Xor(other BFloat16x8) BFloat16x8 {
 	var result BFloat16x8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		result[i] = v[i] ^ other[i]
 	}
 	return result
@@ -230,7 +230,7 @@ func (v BFloat16x8) Xor(other BFloat16x8) BFloat16x8 {
 // And performs bitwise AND with another vector.
 func (v BFloat16x8) And(other BFloat16x8) BFloat16x8 {
 	var result BFloat16x8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		result[i] = v[i] & other[i]
 	}
 	return result
@@ -270,7 +270,7 @@ func (v BFloat16x8) Min(other BFloat16x8) BFloat16x8 {
 	bu := unsafe.Slice((*uint16)(unsafe.Pointer(&other)), 8)
 	PromoteBF16ToF32NEON(au, af[:])
 	PromoteBF16ToF32NEON(bu, bf[:])
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if af[i] < bf[i] {
 			rf[i] = af[i]
 		} else {
@@ -290,7 +290,7 @@ func (v BFloat16x8) Max(other BFloat16x8) BFloat16x8 {
 	bu := unsafe.Slice((*uint16)(unsafe.Pointer(&other)), 8)
 	PromoteBF16ToF32NEON(au, af[:])
 	PromoteBF16ToF32NEON(bu, bf[:])
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if af[i] > bf[i] {
 			rf[i] = af[i]
 		} else {
@@ -397,7 +397,7 @@ func (v BFloat16x8) GreaterThan(other BFloat16x8) Uint16x8 {
 	PromoteBF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] > f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -414,7 +414,7 @@ func (v BFloat16x8) LessThan(other BFloat16x8) Uint16x8 {
 	PromoteBF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] < f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -431,7 +431,7 @@ func (v BFloat16x8) GreaterThanOrEqual(other BFloat16x8) Uint16x8 {
 	PromoteBF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] >= f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -448,7 +448,7 @@ func (v BFloat16x8) LessThanOrEqual(other BFloat16x8) Uint16x8 {
 	PromoteBF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] <= f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -465,7 +465,7 @@ func (v BFloat16x8) NotEqual(other BFloat16x8) Uint16x8 {
 	PromoteBF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] != f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -478,7 +478,7 @@ func (v BFloat16x8) NotEqual(other BFloat16x8) Uint16x8 {
 // IotaBFloat16x8 returns a vector with lane indices [0, 1, 2, ..., 7] as bfloat16.
 func IotaBFloat16x8() BFloat16x8 {
 	var f32 [8]float32
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		f32[i] = float32(i)
 	}
 	var u16 [8]uint16
@@ -494,7 +494,7 @@ func IfThenElseBFloat16(mask Uint16x8, yes, no BFloat16x8) BFloat16x8 {
 	n := (*[8]uint16)(unsafe.Pointer(&no))
 	var result BFloat16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if m[i] != 0 {
 			r[i] = y[i]
 		} else {

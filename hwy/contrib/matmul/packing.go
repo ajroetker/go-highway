@@ -58,8 +58,8 @@ func BasePackLHS[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRow
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -69,9 +69,9 @@ func BasePackLHS[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRow
 	// Pack partial last micro-panel (if any)
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			// Pack active rows
-			for r := 0; r < activeRowsLast; r++ {
+			for r := range activeRowsLast {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -126,9 +126,9 @@ func BasePackRHS[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panelK, 
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -138,10 +138,10 @@ func BasePackRHS[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panelK, 
 	// Pack partial last micro-panel (if any)
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
 			// Pack active columns
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -182,7 +182,7 @@ func BasePackRHSVec[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panel
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				// SIMD copy of nr elements (nr/lanes vectors)
 				for c := 0; c < nr; c += lanes {
@@ -196,9 +196,9 @@ func BasePackRHSVec[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panel
 		// Handle partial panel with scalar code
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = b[bRowStart+baseCol+c]
 					packIdx++
 				}

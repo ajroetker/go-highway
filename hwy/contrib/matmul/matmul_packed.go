@@ -110,7 +110,7 @@ func gebp[T hwy.Floats](packedA, packedB []T, c []T, n, ic, jc, panelRows, panel
 	}
 
 	// Loop 2: micro-tile columns (jr)
-	for jPanel := 0; jPanel < numMicroPanelsB; jPanel++ {
+	for jPanel := range numMicroPanelsB {
 		jr := jc + jPanel*nr
 		bPanelOffset := jPanel * panelK * nr
 
@@ -121,7 +121,7 @@ func gebp[T hwy.Floats](packedA, packedB []T, c []T, n, ic, jc, panelRows, panel
 		}
 
 		// Loop 1: micro-tile rows (ir)
-		for iPanel := 0; iPanel < numMicroPanelsA; iPanel++ {
+		for iPanel := range numMicroPanelsA {
 			ir := ic + iPanel*mr
 			aPanelOffset := iPanel * panelK * mr
 

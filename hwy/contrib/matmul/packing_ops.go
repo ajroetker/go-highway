@@ -47,7 +47,7 @@ func BasePackRHSFast[T hwy.Floats](b, packed []T, n, rowStart, colStart, panelK,
 
 		// Fast path: full strip with SIMD (nr must be multiple of lanes)
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 
 				// SIMD copy: process nr elements using nr/lanes vectors
@@ -61,11 +61,11 @@ func BasePackRHSFast[T hwy.Floats](b, packed []T, n, rowStart, colStart, panelK,
 		}
 
 		// Fallback: partial strip with scalar copy + zero padding
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
 
 			// Copy valid columns
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -113,7 +113,7 @@ func BaseApplyPackedOutput[T hwy.Floats](
 	alphaVec := hwy.Set(alpha)
 	betaVec := hwy.Set(beta)
 
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 
@@ -152,7 +152,7 @@ func BaseApplyPackedOutputSimple[T hwy.Floats](
 ) {
 	lanes := hwy.Zero[T]().NumLanes()
 
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 
@@ -183,7 +183,7 @@ func BaseApplyPackedOutputAccum[T hwy.Floats](
 ) {
 	lanes := hwy.Zero[T]().NumLanes()
 
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 

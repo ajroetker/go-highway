@@ -65,7 +65,7 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 	dequantBuf := make([]float32, lanes)
 
 	// Process each output row
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
@@ -76,7 +76,7 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 			acc := hwy.Zero[float32]()
 
 			// Accumulate over K dimension
-			for k := 0; k < K; k++ {
+			for k := range K {
 				// Broadcast input[m, k]
 				inputVal := hwy.Set(inputRow[k])
 
@@ -84,7 +84,7 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 				baseIdx := k * N
 				scaleBase := k * numGroups
 
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -116,7 +116,7 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 		for ; n < N; n++ {
 			groupIdx := n / groupSize
 			sum := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				weightIdx := k*N + n
 				packedIdx := weightIdx / 2
 
@@ -160,7 +160,7 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 	dequantBuf := make([]float32, lanes)
 
 	// Process each output row
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
@@ -171,7 +171,7 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 			acc := hwy.Zero[float32]()
 
 			// Accumulate over K dimension
-			for k := 0; k < K; k++ {
+			for k := range K {
 				// Broadcast input[m, k]
 				inputVal := hwy.Set(inputRow[k])
 
@@ -179,7 +179,7 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 				baseIdx := k * N
 				scaleBase := k * numGroups
 
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -212,7 +212,7 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 		for ; n < N; n++ {
 			groupIdx := n / groupSize
 			sum := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				weightIdx := k*N + n
 				packedIdx := weightIdx / 2
 

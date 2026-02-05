@@ -27,10 +27,10 @@ import (
 
 // matmulReferenceF16Simple is a simple reference implementation for testing
 func matmulReferenceF16Simple(a, b, c []hwy.Float16, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 			}
 			c[i*n+j] = hwy.NewFloat16(sum)
@@ -109,8 +109,8 @@ func TestMatMulNEONF16Small(t *testing.T) {
 	expected := make([]hwy.Float16, m*n)
 
 	// Simple identity-ish test: A = identity-like, B = simple values
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			if i == j {
 				a[i*k+j] = hwy.NewFloat16(1.0)
 			} else {

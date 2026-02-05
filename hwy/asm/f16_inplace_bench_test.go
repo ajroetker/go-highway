@@ -12,8 +12,7 @@ func BenchmarkFloat16x8MulAddReturn(b *testing.B) {
 	vB := ZeroFloat16x8()
 	acc := ZeroFloat16x8()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		acc = vA.MulAdd(vB, acc)
 	}
 	b.StopTimer()
@@ -28,8 +27,7 @@ func BenchmarkFloat16x8MulAddInPlace(b *testing.B) {
 	vB := ZeroFloat16x8()
 	acc := ZeroFloat16x8()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		vA.MulAddAcc(vB, &acc)
 	}
 	b.StopTimer()
@@ -44,8 +42,7 @@ func BenchmarkFloat16x8AddReturn(b *testing.B) {
 	vB := ZeroFloat16x8()
 	var result Float16x8
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result = vA.Add(vB)
 	}
 	b.StopTimer()
@@ -59,8 +56,7 @@ func BenchmarkFloat16x8AddInPlace(b *testing.B) {
 	vB := ZeroFloat16x8()
 	var result Float16x8
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		vA.AddInto(vB, &result)
 	}
 	b.StopTimer()
@@ -74,8 +70,7 @@ func BenchmarkBFloat16x8MulAddReturn(b *testing.B) {
 	vB := ZeroBFloat16x8()
 	acc := ZeroBFloat16x8()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		acc = vA.MulAdd(vB, acc)
 	}
 	b.StopTimer()
@@ -89,8 +84,7 @@ func BenchmarkBFloat16x8MulAddInPlace(b *testing.B) {
 	vB := ZeroBFloat16x8()
 	acc := ZeroBFloat16x8()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		vA.MulAddAcc(vB, &acc)
 	}
 	b.StopTimer()
@@ -105,8 +99,7 @@ func BenchmarkBFloat16x8BFDot(b *testing.B) {
 	vB := ZeroBFloat16x8()
 	acc := ZeroFloat32x4()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		vA.BFDotF32Acc(vB, &acc)
 	}
 	b.StopTimer()

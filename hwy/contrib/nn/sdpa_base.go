@@ -42,14 +42,14 @@ func BaseSDPA[T hwy.Floats](
 	}
 
 	// Step 1: Q @ K^T -> scores [seqLen, kvLen], scaled
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p]) * float64(k[kOff+p])
 			}
 			scores[sOff+j] = T(sum * float64(scale))
@@ -58,7 +58,7 @@ func BaseSDPA[T hwy.Floats](
 		// Add mask if provided
 		if mask != nil {
 			mOff := i * kvLen
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				scores[sOff+j] += mask[mOff+j]
 			}
 		}
@@ -85,13 +85,13 @@ func BaseSDPA[T hwy.Floats](
 	}
 
 	// Step 2: scores @ V -> output [seqLen, headDim]
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
 
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
 			}
 			output[oOff+d] = T(sum)
@@ -116,12 +116,12 @@ func BaseSDPACausal[T hwy.Floats](
 	offset := kvLen - seqLen
 
 	// Step 1: Q @ K^T -> scores [seqLen, kvLen], scaled, with causal mask
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1 // attend to positions [0, causalEnd)
 
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			if j >= causalEnd {
 				scores[sOff+j] = negInf
 				continue
@@ -129,7 +129,7 @@ func BaseSDPACausal[T hwy.Floats](
 
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p]) * float64(k[kOff+p])
 			}
 			scores[sOff+j] = T(sum * float64(scale))
@@ -157,13 +157,13 @@ func BaseSDPACausal[T hwy.Floats](
 	}
 
 	// Step 2: scores @ V -> output [seqLen, headDim]
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
 
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
 			}
 			output[oOff+d] = T(sum)

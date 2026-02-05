@@ -178,10 +178,7 @@ func DecodeStreamVByte32Into(control, data []byte, dst []uint32) (decoded, dataC
 	)
 	// Calculate how many values were decoded based on data consumed
 	numGroups := int64(len(control))
-	maxVals := numGroups * 4
-	if maxVals > n {
-		maxVals = n
-	}
+	maxVals := min(numGroups*4, n)
 	return int(maxVals), int(dataConsumedOut)
 }
 

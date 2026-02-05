@@ -41,8 +41,8 @@ const (
 
 // transposeScalar is a simple scalar transpose for small matrices
 func transposeScalar[T any](src []T, m, k int, dst []T) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < k; j++ {
+	for i := range m {
+		for j := range k {
 			dst[j*m+i] = src[i*k+j]
 		}
 	}
@@ -51,7 +51,7 @@ func transposeScalar[T any](src []T, m, k int, dst []T) {
 // transposeStridedScalar is a simple scalar strided transpose for small matrices
 func transposeStridedScalar[T any](src []T, rowStart, rowEnd, k, dstM int, dst []T) {
 	for i := rowStart; i < rowEnd; i++ {
-		for j := 0; j < k; j++ {
+		for j := range k {
 			dst[j*dstM+i] = src[i*k+j]
 		}
 	}

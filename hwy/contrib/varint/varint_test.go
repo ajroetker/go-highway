@@ -124,9 +124,9 @@ func TestBaseFindVarintEnds_LongBuffer(t *testing.T) {
 
 func TestBaseDecodeUvarint64Batch_SingleByteValues(t *testing.T) {
 	tests := []struct {
-		name     string
-		value    uint64
-		encoded  []byte
+		name    string
+		value   uint64
+		encoded []byte
 	}{
 		{"zero", 0, []byte{0x00}},
 		{"one", 1, []byte{0x01}},
@@ -149,9 +149,9 @@ func TestBaseDecodeUvarint64Batch_SingleByteValues(t *testing.T) {
 
 func TestBaseDecodeUvarint64Batch_MultiByteValues(t *testing.T) {
 	tests := []struct {
-		name     string
-		value    uint64
-		encoded  []byte
+		name    string
+		value   uint64
+		encoded []byte
 	}{
 		{"128", 128, []byte{0x80, 0x01}},
 		{"300", 300, []byte{0xAC, 0x02}},
@@ -219,7 +219,7 @@ func TestBaseDecodeUvarint64Batch_EdgeCases(t *testing.T) {
 		if decoded != 3 {
 			t.Errorf("decoded=%d, want 3", decoded)
 		}
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if dst[i] != uint64(i+1) {
 				t.Errorf("dst[%d] = %d, want %d", i, dst[i], i+1)
 			}
@@ -426,7 +426,7 @@ func TestBaseDecodeGroupVarint32_KnownEncoding(t *testing.T) {
 		t.Errorf("encoded length = %d, want %d", n, len(expected))
 	}
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if dst[i] != expected[i] {
 			t.Errorf("byte %d: got 0x%02X, want 0x%02X", i, dst[i], expected[i])
 		}
@@ -546,10 +546,10 @@ func TestGroupVarint32Len(t *testing.T) {
 		values [4]uint32
 		want   int
 	}{
-		{"all 1-byte", [4]uint32{1, 2, 3, 4}, 5},           // 1 + 4*1
+		{"all 1-byte", [4]uint32{1, 2, 3, 4}, 5},                          // 1 + 4*1
 		{"all 4-byte", [4]uint32{1 << 24, 1 << 24, 1 << 24, 1 << 24}, 17}, // 1 + 4*4
-		{"mixed", [4]uint32{300, 5, 1000, 2}, 7},           // 1 + 2 + 1 + 2 + 1
-		{"boundary", [4]uint32{255, 256, 65535, 65536}, 9}, // 1 + 1 + 2 + 2 + 3 (65536 needs 3 bytes)
+		{"mixed", [4]uint32{300, 5, 1000, 2}, 7},                          // 1 + 2 + 1 + 2 + 1
+		{"boundary", [4]uint32{255, 256, 65535, 65536}, 9},                // 1 + 1 + 2 + 2 + 3 (65536 needs 3 bytes)
 	}
 
 	for _, tt := range tests {
@@ -575,9 +575,9 @@ func TestGroupVarint64Len(t *testing.T) {
 		values [4]uint64
 		want   int
 	}{
-		{"all 1-byte", [4]uint64{1, 2, 3, 4}, 6},            // 2 + 4*1
+		{"all 1-byte", [4]uint64{1, 2, 3, 4}, 6},                          // 2 + 4*1
 		{"all 8-byte", [4]uint64{1 << 56, 1 << 56, 1 << 56, 1 << 56}, 34}, // 2 + 4*8
-		{"mixed", [4]uint64{300, 5, 1000, 2}, 8},            // 2 + 2 + 1 + 2 + 1
+		{"mixed", [4]uint64{300, 5, 1000, 2}, 8},                          // 2 + 2 + 1 + 2 + 1
 	}
 
 	for _, tt := range tests {
@@ -687,9 +687,8 @@ func BenchmarkBaseFindVarintEnds(b *testing.B) {
 		data = append(data, 0x01)
 	}
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = BaseFindVarintEnds(data)
 	}
 }
@@ -698,16 +697,15 @@ func BenchmarkBaseDecodeUvarint64Batch(b *testing.B) {
 	// Pre-encode N varints with mixed sizes
 	n := 100
 	values := make([]uint64, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		values[i] = uint64(i * 100) // mix of single and multi-byte
 	}
 	encoded := encodeMultipleUvarints(values...)
 
 	dst := make([]uint64, n)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		BaseDecodeUvarint64Batch(encoded, dst, n)
 	}
 }
@@ -716,9 +714,8 @@ func BenchmarkBaseDecode2Uvarint64(b *testing.B) {
 	// Typical freq/norm pair
 	encoded := encodeMultipleUvarints(1000, 128)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = BaseDecode2Uvarint64(encoded)
 	}
 }
@@ -727,9 +724,8 @@ func BenchmarkBaseDecode5Uvarint64(b *testing.B) {
 	// Typical location fields
 	encoded := encodeMultipleUvarints(10, 1000, 5000, 5050, 3)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = BaseDecode5Uvarint64(encoded)
 	}
 }
@@ -740,9 +736,8 @@ func BenchmarkBaseDecodeGroupVarint32(b *testing.B) {
 	n := EncodeGroupVarint32(values, dst)
 	encoded := dst[:n]
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = BaseDecodeGroupVarint32(encoded)
 	}
 }
@@ -753,9 +748,8 @@ func BenchmarkBaseDecodeGroupVarint64(b *testing.B) {
 	n := EncodeGroupVarint64(values, dst)
 	encoded := dst[:n]
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = BaseDecodeGroupVarint64(encoded)
 	}
 }
@@ -764,9 +758,8 @@ func BenchmarkEncodeGroupVarint32(b *testing.B) {
 	values := [4]uint32{300, 5, 1000, 2}
 	dst := make([]byte, 17)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = EncodeGroupVarint32(values, dst)
 	}
 }
@@ -775,9 +768,8 @@ func BenchmarkEncodeGroupVarint64(b *testing.B) {
 	values := [4]uint64{300, 5, 1000, 2}
 	dst := make([]byte, 34)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = EncodeGroupVarint64(values, dst)
 	}
 }
@@ -963,8 +955,7 @@ func BenchmarkEncodeStreamVByte32(b *testing.B) {
 		values[i] = uint32(i * 100)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		control, data := EncodeStreamVByte32(values)
 		_ = control
 		_ = data
@@ -980,8 +971,7 @@ func BenchmarkEncodeStreamVByte32Into(b *testing.B) {
 	controlBuf := make([]byte, (len(values)+3)/4)
 	dataBuf := make([]byte, len(values)*4)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		control, data := EncodeStreamVByte32Into(values, controlBuf, dataBuf)
 		_ = control
 		_ = data
@@ -996,8 +986,7 @@ func BenchmarkBaseDecodeStreamVByte32Into(b *testing.B) {
 	control, data := EncodeStreamVByte32(values)
 	dst := make([]uint32, 100)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		BaseDecodeStreamVByte32Into(control, data, dst)
 	}
 }
@@ -1011,8 +1000,7 @@ func BenchmarkDecodeStreamVByte32Into_Dispatch(b *testing.B) {
 	control, data := EncodeStreamVByte32(values)
 	dst := make([]uint32, 100)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		DecodeStreamVByte32Into(control, data, dst)
 	}
 }
@@ -1038,7 +1026,7 @@ func BenchmarkCompareGroupVarintVsStreamVByte(b *testing.B) {
 	b.Run("GroupVarint_100values", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			offset := 0
-			for j := 0; j < 25; j++ {
+			for range 25 {
 				_, consumed := BaseDecodeGroupVarint32(groupData[offset:])
 				offset += consumed
 			}
@@ -1123,7 +1111,7 @@ func TestDispatchDecodeUvarint64Batch(t *testing.T) {
 				t.Errorf("DecodeUvarint64Batch: got (%d, %d), want (%d, %d)",
 					gotDecoded, gotConsumed, wantDecoded, wantConsumed)
 			}
-			for i := 0; i < gotDecoded; i++ {
+			for i := range gotDecoded {
 				if gotDst[i] != wantDst[i] {
 					t.Errorf("value %d: got %d, want %d", i, gotDst[i], wantDst[i])
 				}
@@ -1280,7 +1268,7 @@ func TestDispatchDecodeStreamVByte32Into(t *testing.T) {
 			if gotConsumed != wantConsumed {
 				t.Errorf("DecodeStreamVByte32Into consumed: got %d, want %d", gotConsumed, wantConsumed)
 			}
-			for i := 0; i < gotDecoded; i++ {
+			for i := range gotDecoded {
 				if gotDst[i] != wantDst[i] {
 					t.Errorf("value %d: got %d, want %d", i, gotDst[i], wantDst[i])
 				}
@@ -1347,7 +1335,7 @@ func makeRandomLike32(n int) []uint32 {
 func makeLargePartialGroup() []uint32 {
 	// 31 values where the last 3 are large (requiring 2+ bytes)
 	values := make([]uint32, 31)
-	for i := 0; i < 28; i++ {
+	for i := range 28 {
 		values[i] = uint32(i)
 	}
 	values[28] = 5000
@@ -1508,9 +1496,8 @@ func BenchmarkMaskedVByteEncode32(b *testing.B) {
 	values := makeSequential32(100)
 	dst := make([]byte, MaskedVByteMaxLen32(100))
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		MaskedVByteEncodeBatch32(dst, values)
 	}
 }
@@ -1522,9 +1509,8 @@ func BenchmarkMaskedVByteDecode32(b *testing.B) {
 	encoded = encoded[:n]
 	dst := make([]uint32, 100)
 
-	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		BaseMaskedVByteDecodeBatch32(encoded, dst, 100)
 	}
 }

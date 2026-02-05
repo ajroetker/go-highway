@@ -48,11 +48,12 @@ const minDimForSME = 32
 // SME overhead is ~2µs (SMEGuard + pad + transpose + extract). NEON throughput
 // is ~2 GFLOPS for blocked matmul. Crossover is around 64K ops.
 // Benchmarks on Apple M4 Max:
-//   1x32x32   (32K ops padded): SME 22x slower (overhead dominates)
-//   4x128x128 (64K ops padded): SME 1.6x faster
-//   1x512x512 (512K ops padded): SME 1.5x faster
-//   16x64x64  (64K ops padded): SME 4x faster
-//   8x512x512 (4M ops padded): SME 12.8x faster
+//
+//	1x32x32   (32K ops padded): SME 22x slower (overhead dominates)
+//	4x128x128 (64K ops padded): SME 1.6x faster
+//	1x512x512 (512K ops padded): SME 1.5x faster
+//	16x64x64  (64K ops padded): SME 4x faster
+//	8x512x512 (4M ops padded): SME 12.8x faster
 const minOpsForBlockedSME = 64 * 1024
 
 // Minimum dimensions to use NEON KLast vectorization
@@ -1569,8 +1570,8 @@ func dequantizeNF4Tile(
 	tile []float32,
 	nTile, K, N, tileN, numGroups, groupSize int,
 ) {
-	for k := 0; k < K; k++ {
-		for j := 0; j < tileN; j++ {
+	for k := range K {
+		for j := range tileN {
 			n := nTile + j
 			weightIdx := k*N + n
 			packedIdx := weightIdx / 2
@@ -1651,8 +1652,8 @@ func dequantizeInt4Tile(
 	tile []float32,
 	nTile, K, N, tileN, numGroups, groupSize int,
 ) {
-	for k := 0; k < K; k++ {
-		for j := 0; j < tileN; j++ {
+	for k := range K {
+		for j := range tileN {
 			n := nTile + j
 			weightIdx := k*N + n
 			packedIdx := weightIdx / 2

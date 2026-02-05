@@ -111,7 +111,7 @@ func TestLayerNorm64(t *testing.T) {
 		off := g * normSize
 
 		var mean float64
-		for i := 0; i < normSize; i++ {
+		for i := range normSize {
 			mean += output[off+i]
 		}
 		mean /= float64(normSize)
@@ -121,7 +121,7 @@ func TestLayerNorm64(t *testing.T) {
 		}
 
 		var variance float64
-		for i := 0; i < normSize; i++ {
+		for i := range normSize {
 			diff := output[off+i] - mean
 			variance += diff * diff
 		}
