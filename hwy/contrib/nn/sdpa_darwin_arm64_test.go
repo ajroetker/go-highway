@@ -17,6 +17,7 @@
 package nn
 
 import (
+	"fmt"
 	stdmath "math"
 	"testing"
 
@@ -241,6 +242,54 @@ func TestSDPACausalSME(t *testing.T) {
 				}
 			}
 			t.Logf("max diff: %e", maxDiff)
+		})
+	}
+}
+
+// BenchmarkSDPAHandwrittenVsGenerated compares the handwritten C/assembly SDPA
+// against the hwygen-generated Go SIMD version.
+func BenchmarkSDPAHandwrittenVsGenerated(b *testing.B) {
+	configs := []struct {
+		seqLen, kvLen, headDim int
+	}{
+		{16, 16, 64},
+		{64, 64, 64},
+		{128, 128, 64},
+		{256, 256, 64},
+	}
+
+	for _, c := range configs {
+		scale := float32(1.0 / stdmath.Sqrt(float64(c.headDim)))
+		q := make([]float32, c.seqLen*c.headDim)
+		k := make([]float32, c.kvLen*c.headDim)
+		v := make([]float32, c.kvLen*c.headDim)
+		scores := make([]float32, c.seqLen*c.kvLen)
+		output := make([]float32, c.seqLen*c.headDim)
+
+		for i := range q {
+			q[i] = float32(i) * 0.001
+		}
+		for i := range k {
+			k[i] = float32(i) * 0.001
+		}
+		for i := range v {
+			v[i] = float32(i) * 0.001
+		}
+
+		label := fmt.Sprintf("s%d_kv%d_d%d", c.seqLen, c.kvLen, c.headDim)
+
+		// hwygen-generated SIMD
+		b.Run("Generated/"+label, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				SDPAAuto(q, k, v, nil, output, c.seqLen, c.kvLen, c.headDim, scale)
+			}
+		})
+
+		// Handwritten C/assembly (via GOAT)
+		b.Run("Handwritten/"+label, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				asm.SDPANeonF32(q, k, v, nil, scores, output, c.seqLen, c.kvLen, c.headDim, scale)
+			}
 		})
 	}
 }
