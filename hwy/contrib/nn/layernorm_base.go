@@ -41,7 +41,7 @@ func BaseLayerNorm[T hwy.Floats](input, output []T, normSize int, gamma, beta []
 	invN := T(1.0) / T(normSize)
 	lanes := hwy.MaxLanes[T]()
 
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 
 		// Pass 1: Compute mean using SIMD accumulation
@@ -123,4 +123,3 @@ func BaseLayerNorm[T hwy.Floats](input, output []T, normSize int, gamma, beta []
 		}
 	}
 }
-

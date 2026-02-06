@@ -285,3 +285,4 @@ func BenchmarkLogSoftmax(b *testing.B) {
 		})
 	}
 }
+

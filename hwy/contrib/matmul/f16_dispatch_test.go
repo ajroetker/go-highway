@@ -124,7 +124,7 @@ func TestF16MatMulMultipleIterations(t *testing.T) {
 	// The crash might only occur after many iterations
 	iterations := 1000
 	t.Logf("Running %d iterations of MatMulAuto...", iterations)
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		MatMulAuto(pool, a, b, c, n, n, n)
 		if i > 0 && i%100 == 0 {
 			t.Logf("Completed %d iterations", i)
@@ -159,7 +159,7 @@ func TestF16MatMulManyIterationsInGoroutine(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := 0; i < iterations; i++ {
+		for range iterations {
 			MatMulAuto(pool, a, b, c, n, n, n)
 		}
 	}()
@@ -193,7 +193,7 @@ func TestF16WithLockOSThread(t *testing.T) {
 
 	iterations := 1000
 	t.Logf("Running %d iterations with LockOSThread...", iterations)
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		MatMulAuto(pool, a, b, c, n, n, n)
 	}
 	t.Logf("All %d iterations completed successfully", iterations)

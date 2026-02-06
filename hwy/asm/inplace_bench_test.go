@@ -13,8 +13,7 @@ func BenchmarkMulAddReturn(b *testing.B) {
 	vB := BroadcastFloat32x4(2.0)
 	acc := ZeroFloat32x4()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// Traditional approach: returns a value, causes stack allocation
 		acc = vA.MulAdd(vB, acc)
 	}
@@ -33,8 +32,7 @@ func BenchmarkMulAddInPlace(b *testing.B) {
 	vB := BroadcastFloat32x4(2.0)
 	acc := ZeroFloat32x4()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// New approach: modifies acc in-place, no return allocation
 		vA.MulAddAcc(vB, &acc)
 	}
@@ -52,8 +50,7 @@ func BenchmarkAddReturn(b *testing.B) {
 	vB := BroadcastFloat32x4(2.0)
 	var result Float32x4
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result = vA.Add(vB)
 	}
 	b.StopTimer()
@@ -69,8 +66,7 @@ func BenchmarkAddInPlace(b *testing.B) {
 	vB := BroadcastFloat32x4(2.0)
 	var result Float32x4
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		vA.AddInto(vB, &result)
 	}
 	b.StopTimer()
@@ -95,8 +91,7 @@ func BenchmarkMulAddChainReturn(b *testing.B) {
 	acc2 := ZeroFloat32x4()
 	acc3 := ZeroFloat32x4()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// 4x unrolled MulAdd - typical matmul inner loop
 		acc0 = v0.MulAdd(a0, acc0)
 		acc1 = v1.MulAdd(a1, acc1)
@@ -125,8 +120,7 @@ func BenchmarkMulAddChainInPlace(b *testing.B) {
 	acc2 := ZeroFloat32x4()
 	acc3 := ZeroFloat32x4()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// 4x unrolled MulAdd with in-place - no return allocations
 		v0.MulAddAcc(a0, &acc0)
 		v1.MulAddAcc(a1, &acc1)
@@ -146,8 +140,7 @@ func BenchmarkFloat64MulAddReturn(b *testing.B) {
 	vB := BroadcastFloat64x2(2.0)
 	acc := ZeroFloat64x2()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		acc = vA.MulAdd(vB, acc)
 	}
 	b.StopTimer()
@@ -163,8 +156,7 @@ func BenchmarkFloat64MulAddInPlace(b *testing.B) {
 	vB := BroadcastFloat64x2(2.0)
 	acc := ZeroFloat64x2()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		vA.MulAddAcc(vB, &acc)
 	}
 	b.StopTimer()

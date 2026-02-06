@@ -55,7 +55,7 @@ func (e *StreamVByteEncoder) AddBatch(values []uint32) {
 // flushPending encodes the 4 pending values.
 func (e *StreamVByteEncoder) flushPending() {
 	var ctrl byte
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		v := e.pending[i]
 		length := encodedLength(v)
 		ctrl |= byte(length-1) << (i * 2)

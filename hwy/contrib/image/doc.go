@@ -35,6 +35,20 @@
 //	out := image.NewImage[float32](1920, 1080)
 //	image.BrightnessContrast(img, out, 1.5, 0.1)
 //
+// # Color Transforms
+//
+// JPEG 2000 color space transformations for RGB ↔ YCbCr conversion:
+//
+// Reversible Color Transform (RCT) - lossless integer arithmetic:
+//
+//	ForwardRCT(r, g, b, outY, outCb, outCr) // RGB → YCbCr
+//	InverseRCT(y, cb, cr, outR, outG, outB) // YCbCr → RGB
+//
+// Irreversible Color Transform (ICT) - floating-point with ITU-T T.800 coefficients:
+//
+//	ForwardICT(r, g, b, outY, outCb, outCr) // RGB → YCbCr
+//	InverseICT(y, cb, cr, outR, outG, outB) // YCbCr → RGB
+//
 // # Edge Handling
 //
 // Coordinate helper functions for handling out-of-bounds pixel access:

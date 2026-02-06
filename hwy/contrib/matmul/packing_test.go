@@ -43,7 +43,7 @@ func TestKernelDirect(t *testing.T) {
 	PackedMicroKernelPartial(packedA, packedB, c, n, 0, 0, 2, 4, 8, 2, 2)
 
 	expected := []float32{19, 22, 43, 50, 0, 0, 0, 0}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if c[i] != expected[i] {
 			t.Errorf("c[%d] = %f, want %f", i, c[i], expected[i])
 		}

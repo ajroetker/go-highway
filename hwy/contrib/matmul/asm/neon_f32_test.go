@@ -23,10 +23,10 @@ import (
 
 // matmulReferenceF32 is a simple reference implementation for testing
 func matmulReferenceF32(a, b, c []float32, m, n, k int) {
-	for i := 0; i < m; i++ {
-		for j := 0; j < n; j++ {
+	for i := range m {
+		for j := range n {
 			var sum float32
-			for p := 0; p < k; p++ {
+			for p := range k {
 				sum += a[i*k+p] * b[p*n+j]
 			}
 			c[i*n+j] = sum

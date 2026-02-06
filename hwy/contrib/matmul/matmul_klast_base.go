@@ -65,7 +65,7 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 		cRow3 := (i + 3) * n
 
 		// For each output column (B row)
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 
 			// Initialize 4 accumulators
@@ -115,7 +115,7 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 		aRow := i * k
 		cRow := i * n
 
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := hwy.Zero[T]()
 

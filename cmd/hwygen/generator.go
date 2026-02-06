@@ -43,7 +43,10 @@ type Generator struct {
 	Targets        []string // Target architectures (e.g., ["avx2", "fallback"])
 	PackageOut     string   // Output package name (defaults to input package)
 	DispatchPrefix string   // Dispatch file prefix (defaults to function name)
-	BulkMode       bool     // Generate bulk C code for NEON (for GOAT compilation)
+	CMode          bool     // Generate C code (with or without GOAT compilation)
+	AsmMode        bool     // Compile C to Go assembly via GOAT
+	FusionMode     bool     // Enable IR-based fusion optimization
+	Verbose        bool     // Verbose output for debugging
 }
 
 // Run executes the code generation pipeline.
@@ -63,9 +66,9 @@ func (g *Generator) Run() error {
 		g.PackageOut = result.PackageName
 	}
 
-	// Handle bulk mode for NEON C code generation
-	if g.BulkMode {
-		return g.runBulkMode(result)
+	// Handle C mode for GOAT C code generation
+	if g.CMode {
+		return g.runCMode(result)
 	}
 
 	// 2. Parse target configurations

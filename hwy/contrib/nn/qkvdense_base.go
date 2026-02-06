@@ -66,7 +66,7 @@ func BaseQKVDense[T hwy.Floats](
 		xRow3 := (i + 3) * inFeatures
 
 		// Compute dot products for all output columns, writing directly to q/k/v
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 
 			acc0 := hwy.Zero[T]()
@@ -151,7 +151,7 @@ func BaseQKVDense[T hwy.Floats](
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := hwy.Zero[T]()
 

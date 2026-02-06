@@ -58,7 +58,7 @@ var (
 
 func init() {
 	// Build lookup tables for uint32 group varint decoding
-	for control := 0; control < 256; control++ {
+	for control := range 256 {
 		len0 := ((control >> 0) & 0x3) + 1
 		len1 := ((control >> 2) & 0x3) + 1
 		len2 := ((control >> 4) & 0x3) + 1
@@ -80,7 +80,7 @@ func init() {
 
 		var mask [16]uint8
 		// Value 0 at output positions 0-3
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len0 {
 				mask[i] = uint8(off0 + i)
 			} else {
@@ -88,7 +88,7 @@ func init() {
 			}
 		}
 		// Value 1 at output positions 4-7
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len1 {
 				mask[4+i] = uint8(off1 + i)
 			} else {
@@ -96,7 +96,7 @@ func init() {
 			}
 		}
 		// Value 2 at output positions 8-11
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len2 {
 				mask[8+i] = uint8(off2 + i)
 			} else {
@@ -104,7 +104,7 @@ func init() {
 			}
 		}
 		// Value 3 at output positions 12-15
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if i < len3 {
 				mask[12+i] = uint8(off3 + i)
 			} else {
@@ -218,7 +218,7 @@ func BaseDecodeGroupVarint32(src []byte) (values [4]uint32, consumed int) {
 // decodeValue32 reads a little-endian uint32 of the specified byte length.
 func decodeValue32(src []byte, offset, length int) uint32 {
 	var v uint32
-	for i := 0; i < length; i++ {
+	for i := range length {
 		v |= uint32(src[offset+i]) << (8 * i)
 	}
 	return v
@@ -274,7 +274,7 @@ func BaseDecodeGroupVarint64(src []byte) (values [4]uint64, consumed int) {
 // decodeValue64 reads a little-endian uint64 of the specified byte length.
 func decodeValue64(src []byte, offset, length int) uint64 {
 	var v uint64
-	for i := 0; i < length; i++ {
+	for i := range length {
 		v |= uint64(src[offset+i]) << (8 * i)
 	}
 	return v
@@ -283,7 +283,7 @@ func decodeValue64(src []byte, offset, length int) uint64 {
 // encodeValue32 writes a uint32 in little-endian format using the specified byte length.
 // Returns the number of bytes written.
 func encodeValue32(v uint32, dst []byte, length int) int {
-	for i := 0; i < length; i++ {
+	for i := range length {
 		dst[i] = byte(v >> (8 * i))
 	}
 	return length
@@ -292,7 +292,7 @@ func encodeValue32(v uint32, dst []byte, length int) int {
 // encodeValue64 writes a uint64 in little-endian format using the specified byte length.
 // Returns the number of bytes written.
 func encodeValue64(v uint64, dst []byte, length int) int {
-	for i := 0; i < length; i++ {
+	for i := range length {
 		dst[i] = byte(v >> (8 * i))
 	}
 	return length

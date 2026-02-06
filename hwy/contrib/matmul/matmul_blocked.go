@@ -86,7 +86,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 					acc31 := hwy.Zero[T]()
 
 					// K-loop: accumulate in registers (full K dimension)
-					for p := 0; p < k; p++ {
+					for p := range k {
 						// Load A values for 4 rows
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
@@ -140,7 +140,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 						acc2 := hwy.Zero[T]()
 						acc3 := hwy.Zero[T]()
 
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := hwy.Set(a[i*k+p])
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
@@ -161,7 +161,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 						// Scalar tail
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 T
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p] * bpj
 								sum1 += a[(i+1)*k+p] * bpj
@@ -191,7 +191,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 					acc0 := hwy.Zero[T]()
 					acc1 := hwy.Zero[T]()
 
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
 						vB := hwy.Load(b[p*n+j:])
@@ -206,7 +206,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				// Scalar tail for remaining columns
 				for ; j < jEnd; j++ {
 					var sum0, sum1 T
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p] * bp
 						sum1 += a[(i+1)*k+p] * bp
@@ -225,7 +225,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := hwy.Zero[T]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := hwy.Set(a[i*k+p])
 						vB := hwy.Load(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
@@ -236,7 +236,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				// Scalar tail for remaining columns
 				for ; j < jEnd; j++ {
 					var sum T
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p] * b[p*n+j]
 					}
 					c[cRowStart+j] = sum

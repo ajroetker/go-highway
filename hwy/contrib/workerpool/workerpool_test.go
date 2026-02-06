@@ -39,7 +39,7 @@ func TestParallelFor(t *testing.T) {
 		}
 	})
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if results[i] != i*2 {
 			t.Errorf("results[%d] = %d, want %d", i, results[i], i*2)
 		}
@@ -57,7 +57,7 @@ func TestParallelForAtomic(t *testing.T) {
 		results[i] = i * 2
 	})
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if results[i] != i*2 {
 			t.Errorf("results[%d] = %d, want %d", i, results[i], i*2)
 		}
@@ -77,7 +77,7 @@ func TestParallelForAtomicBatched(t *testing.T) {
 		}
 	})
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if results[i] != i*2 {
 			t.Errorf("results[%d] = %d, want %d", i, results[i], i*2)
 		}
@@ -135,7 +135,7 @@ func TestClosedPoolFallback(t *testing.T) {
 		}
 	})
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if results[i] != i*2 {
 			t.Errorf("results[%d] = %d, want %d", i, results[i], i*2)
 		}
@@ -148,8 +148,7 @@ func BenchmarkParallelFor(b *testing.B) {
 
 	n := 1000
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		pool.ParallelFor(n, func(start, end int) {
 			// Simulate work
 			for j := start; j < end; j++ {
@@ -165,8 +164,7 @@ func BenchmarkParallelForAtomic(b *testing.B) {
 
 	n := 1000
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		pool.ParallelForAtomic(n, func(i int) {
 			_ = i * i
 		})
@@ -179,8 +177,7 @@ func BenchmarkParallelForAtomicBatched(b *testing.B) {
 
 	n := 1000
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		pool.ParallelForAtomicBatched(n, 10, func(start, end int) {
 			for j := start; j < end; j++ {
 				_ = j * j

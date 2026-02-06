@@ -202,11 +202,11 @@ func gebpWithPackedOutput[T hwy.Floats](
 	ZeroSlice(packedOut, panelRows*ncStride)
 
 	// Loop 2: micro-tile columns (jr)
-	for jPanel := 0; jPanel < numMicroPanelsB; jPanel++ {
+	for jPanel := range numMicroPanelsB {
 		bPanelOffset := jPanel * panelK * nr
 
 		// Loop 1: micro-tile rows (ir)
-		for iPanel := 0; iPanel < numMicroPanelsA; iPanel++ {
+		for iPanel := range numMicroPanelsA {
 			aPanelOffset := iPanel * panelK * mr
 
 			// Compute output position in packed buffer
@@ -336,7 +336,7 @@ func BatchParallelPackedMatMulV2[T hwy.Floats](pool *workerpool.Pool, a, b, c []
 		lhsStride := m * k
 		rhsStride := k * n
 		outStride := m * n
-		for batch := 0; batch < batchSize; batch++ {
+		for batch := range batchSize {
 			PackedMatMul(
 				a[batch*lhsStride:(batch+1)*lhsStride],
 				b[batch*rhsStride:(batch+1)*rhsStride],

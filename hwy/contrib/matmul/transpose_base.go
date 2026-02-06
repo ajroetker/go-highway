@@ -50,7 +50,7 @@ func BaseTranspose2DStrided[T hwy.Floats](src []T, rowStart, rowEnd, k, dstM int
 func transposeBlockSIMDStrided[T hwy.Floats](src, dst []T, startI, startJ, k, dstM, lanes int) {
 	// Load `lanes` rows from source
 	rows := make([]hwy.Vec[T], lanes)
-	for r := 0; r < lanes; r++ {
+	for r := range lanes {
 		rows[r] = hwy.Load(src[(startI+r)*k+startJ:])
 	}
 
@@ -59,7 +59,7 @@ func transposeBlockSIMDStrided[T hwy.Floats](src, dst []T, startI, startJ, k, ds
 		stride := 1 << level
 		newRows := make([]hwy.Vec[T], lanes)
 		for i := 0; i < lanes; i += 2 * stride {
-			for j := 0; j < stride; j++ {
+			for j := range stride {
 				newRows[i+j] = hwy.InterleaveLower(rows[i+j], rows[i+j+stride])
 				newRows[i+j+stride] = hwy.InterleaveUpper(rows[i+j], rows[i+j+stride])
 			}
@@ -68,7 +68,7 @@ func transposeBlockSIMDStrided[T hwy.Floats](src, dst []T, startI, startJ, k, ds
 	}
 
 	// Store transposed with dstM stride
-	for c := 0; c < lanes; c++ {
+	for c := range lanes {
 		hwy.Store(rows[c], dst[(startJ+c)*dstM+startI:])
 	}
 }
@@ -88,14 +88,14 @@ func transposeEdgesScalarStrided[T hwy.Floats](src []T, rowStart, rowEnd, k, dst
 
 	// Top edge: rows [rowStart, blockRowStart) that weren't covered by SIMD blocks
 	for i := rowStart; i < min(blockRowStart, rowEnd); i++ {
-		for j := 0; j < blockK; j++ {
+		for j := range blockK {
 			dst[j*dstM+i] = src[i*k+j]
 		}
 	}
 
 	// Bottom edge: rows [blockRowEnd, rowEnd) that weren't covered by SIMD blocks
 	for i := max(blockRowEnd, rowStart); i < rowEnd; i++ {
-		for j := 0; j < blockK; j++ {
+		for j := range blockK {
 			dst[j*dstM+i] = src[i*k+j]
 		}
 	}
@@ -125,7 +125,7 @@ func BaseTranspose2D[T hwy.Floats](src []T, m, k int, dst []T) {
 func transposeBlockSIMD[T hwy.Floats](src, dst []T, startI, startJ, m, k, lanes int) {
 	// Load `lanes` rows
 	rows := make([]hwy.Vec[T], lanes)
-	for r := 0; r < lanes; r++ {
+	for r := range lanes {
 		rows[r] = hwy.Load(src[(startI+r)*k+startJ:])
 	}
 
@@ -136,7 +136,7 @@ func transposeBlockSIMD[T hwy.Floats](src, dst []T, startI, startJ, m, k, lanes 
 		stride := 1 << level
 		newRows := make([]hwy.Vec[T], lanes)
 		for i := 0; i < lanes; i += 2 * stride {
-			for j := 0; j < stride; j++ {
+			for j := range stride {
 				newRows[i+j] = hwy.InterleaveLower(rows[i+j], rows[i+j+stride])
 				newRows[i+j+stride] = hwy.InterleaveUpper(rows[i+j], rows[i+j+stride])
 			}
@@ -145,7 +145,7 @@ func transposeBlockSIMD[T hwy.Floats](src, dst []T, startI, startJ, m, k, lanes 
 	}
 
 	// Store transposed: column c of input -> row c of output
-	for c := 0; c < lanes; c++ {
+	for c := range lanes {
 		hwy.Store(rows[c], dst[(startJ+c)*m+startI:])
 	}
 }
@@ -156,7 +156,7 @@ func transposeEdgesScalar[T hwy.Floats](src []T, m, k int, dst []T, lanes int) {
 	blockK := (k / lanes) * lanes
 
 	// Right edge: columns [blockK, k)
-	for i := 0; i < m; i++ {
+	for i := range m {
 		for j := blockK; j < k; j++ {
 			dst[j*m+i] = src[i*k+j]
 		}
@@ -164,7 +164,7 @@ func transposeEdgesScalar[T hwy.Floats](src []T, m, k int, dst []T, lanes int) {
 
 	// Bottom edge: rows [blockM, m), columns [0, blockK)
 	for i := blockM; i < m; i++ {
-		for j := 0; j < blockK; j++ {
+		for j := range blockK {
 			dst[j*m+i] = src[i*k+j]
 		}
 	}

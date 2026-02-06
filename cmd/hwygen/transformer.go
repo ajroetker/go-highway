@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -276,10 +278,10 @@ type HoistedConst struct {
 type TransformOptions struct {
 	TypeSpecificConsts map[string]*TypeSpecificConst
 	ConditionalBlocks  []ConditionalBlock
-	FileSet            *token.FileSet               // For resolving line numbers in conditional blocks
-	Imports            map[string]string            // map[local_name]import_path for resolving package references
-	AllFuncs           map[string]*ParsedFunc       // All functions in file for inlining helpers
-	SkipHalfPrecNEON   bool                         // Skip NEON asm specialization for this half-precision function
+	FileSet            *token.FileSet         // For resolving line numbers in conditional blocks
+	Imports            map[string]string      // map[local_name]import_path for resolving package references
+	AllFuncs           map[string]*ParsedFunc // All functions in file for inlining helpers
+	SkipHalfPrecNEON   bool                   // Skip NEON asm specialization for this half-precision function
 }
 
 // Transform transforms a parsed function for a specific target and element type.
@@ -736,7 +738,7 @@ func unrollLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo, unrollFactor int, lane
 	// Build the unrolled body
 	var unrolledBody []ast.Stmt
 
-	for u := 0; u < unrollFactor; u++ {
+	for u := range unrollFactor {
 		for _, stmt := range origBody {
 			// Clone the statement
 			cloned := cloneStmt(stmt)
@@ -5985,16 +5987,16 @@ func replaceTypeParam(typeStr, paramName, elemType string) string {
 // complexHalfPrecOps lists hwy.* operations that cannot be converted to asm.Float16x8/BFloat16x8
 // method calls. Functions using these must stay on the generic hwy.Vec[T] path for half-precision NEON.
 var complexHalfPrecOps = map[string]bool{
-	"RoundToEven":             true,
-	"ConvertToInt32":          true,
-	"ConvertToFloat32":        true,
-	"Pow2":                    true,
-	"GetExponent":             true,
-	"GetMantissa":             true,
-	"ConvertExponentToFloat":  true,
-	"Equal":                   true,
-	"MaskAnd":                 true,
-	"Pow":                     true,
+	"RoundToEven":            true,
+	"ConvertToInt32":         true,
+	"ConvertToFloat32":       true,
+	"Pow2":                   true,
+	"GetExponent":            true,
+	"GetMantissa":            true,
+	"ConvertExponentToFloat": true,
+	"Equal":                  true,
+	"MaskAnd":                true,
+	"Pow":                    true,
 }
 
 // externalGenericHalfPrecPkgs lists package names whose Base*Vec functions use the
@@ -8293,12 +8295,7 @@ var reduceBaseFunctions = []string{
 // so for Float16/BFloat16, the result is a half-precision scalar.
 // Does NOT match F16/BF16 suffixed versions which already return float32.
 func isBaseReduceFunction(funcName string) bool {
-	for _, base := range reduceBaseFunctions {
-		if funcName == base {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(reduceBaseFunctions, funcName)
 }
 
 // isHalfPrecisionSliceExpr checks if an index expression is accessing a half-precision slice.
@@ -8467,9 +8464,7 @@ func inlineHelper(helper *ParsedFunc, call *ast.CallExpr, ctx *transformContext)
 	}
 
 	// Copy relevant tracking from parent context
-	for k, v := range ctx.halfPrecisionSlices {
-		helperCtx.halfPrecisionSlices[k] = v
-	}
+	maps.Copy(helperCtx.halfPrecisionSlices, ctx.halfPrecisionSlices)
 
 	// Transform the helper body - same transformations as the main function
 	transformIdentifiers(clonedBody, helperCtx)

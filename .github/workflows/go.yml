@@ -58,6 +58,10 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-go-1.26rc2-
 
+      - name: Install ARM64 cross-compilation headers
+        if: runner.arch == 'X64'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
       - name: Run go vet
         run: go vet ./...
 

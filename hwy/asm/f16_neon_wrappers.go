@@ -285,7 +285,7 @@ func (v Float16x8) MulSub(a, b Float16x8) Float16x8 {
 // Not performs bitwise NOT on the vector bytes.
 func (v Float16x8) Not() Float16x8 {
 	var result Float16x8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		result[i] = ^v[i]
 	}
 	return result
@@ -294,7 +294,7 @@ func (v Float16x8) Not() Float16x8 {
 // Xor performs bitwise XOR with another vector.
 func (v Float16x8) Xor(other Float16x8) Float16x8 {
 	var result Float16x8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		result[i] = v[i] ^ other[i]
 	}
 	return result
@@ -303,7 +303,7 @@ func (v Float16x8) Xor(other Float16x8) Float16x8 {
 // And performs bitwise AND with another vector.
 func (v Float16x8) And(other Float16x8) Float16x8 {
 	var result Float16x8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		result[i] = v[i] & other[i]
 	}
 	return result
@@ -413,7 +413,7 @@ func (v Float16x8) GreaterThan(other Float16x8) Uint16x8 {
 	PromoteF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] > f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -430,7 +430,7 @@ func (v Float16x8) LessThan(other Float16x8) Uint16x8 {
 	PromoteF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] < f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -447,7 +447,7 @@ func (v Float16x8) GreaterThanOrEqual(other Float16x8) Uint16x8 {
 	PromoteF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] >= f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -464,7 +464,7 @@ func (v Float16x8) LessThanOrEqual(other Float16x8) Uint16x8 {
 	PromoteF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] <= f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -481,7 +481,7 @@ func (v Float16x8) NotEqual(other Float16x8) Uint16x8 {
 	PromoteF16ToF32NEON(u16b, f32b[:])
 	var result Uint16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if f32a[i] != f32b[i] {
 			r[i] = 0xFFFF
 		}
@@ -495,7 +495,7 @@ func (v Float16x8) NotEqual(other Float16x8) Uint16x8 {
 func IotaFloat16x8() Float16x8 {
 	// Convert integer indices to float16 via float32
 	var f32 [8]float32
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		f32[i] = float32(i)
 	}
 	var u16 [8]uint16
@@ -511,7 +511,7 @@ func IfThenElseFloat16(mask Uint16x8, yes, no Float16x8) Float16x8 {
 	n := (*[8]uint16)(unsafe.Pointer(&no))
 	var result Float16x8
 	r := (*[8]uint16)(unsafe.Pointer(&result))
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if m[i] != 0 {
 			r[i] = y[i]
 		} else {

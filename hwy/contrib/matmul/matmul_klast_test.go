@@ -167,11 +167,11 @@ func TestMatMulKLastUnalignedSME(t *testing.T) {
 		{50, 50, 50},
 		{100, 100, 100},
 		{33, 50, 37},
-		{64, 33, 48},     // M aligned, N not
-		{33, 64, 100},    // M not, N aligned, K not
-		{48, 48, 33},     // M,N aligned, K not
-		{1, 100, 200},    // single row, large non-aligned N,K
-		{4, 200, 300},    // small M, large non-aligned N,K
+		{64, 33, 48},  // M aligned, N not
+		{33, 64, 100}, // M not, N aligned, K not
+		{48, 48, 33},  // M,N aligned, K not
+		{1, 100, 200}, // single row, large non-aligned N,K
+		{4, 200, 300}, // small M, large non-aligned N,K
 	}
 
 	for _, tc := range testCases {
@@ -539,8 +539,8 @@ func BenchmarkMatMulKLastVsStandard(b *testing.B) {
 			bKLast[i] = rand.Float32()
 		}
 		// Transpose bKLast to get bStd
-		for j := 0; j < n; j++ {
-			for p := 0; p < k; p++ {
+		for j := range n {
+			for p := range k {
 				bStd[p*n+j] = bKLast[j*k+p]
 			}
 		}
