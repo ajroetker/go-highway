@@ -2734,6 +2734,9 @@ func TestTranslateInlineHelpers(t *testing.T) {
 // register, stores C once). The AST-translated version faithfully mirrors
 // BaseMatMul's k-outer/j-inner loop (loads/stores C every k iteration).
 func TestBenchmarkASTvsHandwritten(t *testing.T) {
+	if runtime.GOARCH != "arm64" {
+		t.Skip("benchmark test requires arm64 to execute generated NEON assembly")
+	}
 	matmulPath := filepath.Join("..", "..", "hwy", "contrib", "matmul", "matmul_base.go")
 	if _, err := os.Stat(matmulPath); err != nil {
 		t.Skipf("matmul_base.go not found: %v", err)
