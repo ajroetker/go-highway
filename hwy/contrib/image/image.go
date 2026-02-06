@@ -110,6 +110,15 @@ func (img *Image[T]) Row(y int) []T {
 	return img.data[start : start+img.stride]
 }
 
+// dataPtr returns an unsafe pointer to the first element of the image data.
+// Used internally for passing to assembly functions.
+func (img *Image[T]) dataPtr() unsafe.Pointer {
+	if img.data == nil || len(img.data) == 0 {
+		return nil
+	}
+	return unsafe.Pointer(&img.data[0])
+}
+
 // ConstRow returns a read-only slice for the specified row.
 // In Go, this is the same as Row since const references don't exist.
 func (img *Image[T]) ConstRow(y int) []T {

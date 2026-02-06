@@ -29,14 +29,14 @@ func BaseBrightnessContrast_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -57,14 +57,14 @@ func BaseBrightnessContrast_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[h
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -141,14 +141,14 @@ func BaseClampImage_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Min(maxVec).Max(minVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Min(maxVec).Max(minVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -169,14 +169,14 @@ func BaseClampImage_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloa
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Min(maxVec).Max(minVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Min(maxVec).Max(minVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -255,7 +255,7 @@ func BaseThreshold_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			mask := v.GreaterEqual(threshVec)
 			result := aboveVec.Merge(belowVec, mask)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
@@ -263,7 +263,7 @@ func BaseThreshold_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			mask := v.GreaterEqual(threshVec)
 			result := aboveVec.Merge(belowVec, mask)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -286,7 +286,7 @@ func BaseThreshold_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			mask := v.GreaterEqual(threshVec)
 			result := aboveVec.Merge(belowVec, mask)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
@@ -294,7 +294,7 @@ func BaseThreshold_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			mask := v.GreaterEqual(threshVec)
 			result := aboveVec.Merge(belowVec, mask)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -376,14 +376,14 @@ func BaseInvert_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], m
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := maxVec.Sub(v)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := maxVec.Sub(v)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -403,14 +403,14 @@ func BaseInvert_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := maxVec.Sub(v)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := maxVec.Sub(v)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -483,14 +483,14 @@ func BaseAbs_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Abs()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Abs()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -509,14 +509,14 @@ func BaseAbs_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Abs()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Abs()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -588,14 +588,14 @@ func BaseScale_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], sc
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Mul(scaleVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Mul(scaleVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -615,14 +615,14 @@ func BaseScale_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Mul(scaleVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Mul(scaleVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -696,14 +696,14 @@ func BaseOffset_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], o
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Add(offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Add(offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -723,14 +723,14 @@ func BaseOffset_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]
 		for ; i+lanes <= width; i += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&inRow[i:][0]))
 			result := v.Add(offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
 			copy(buf[:], inRow[i:i+remaining])
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&buf[0]))
 			result := v.Add(offsetVec)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -812,7 +812,7 @@ func BaseGamma_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], ga
 				}
 				return asm.Float16x8AVX2FromFloat32x8(archsimd.LoadFloat32x8Slice(_powBase[:]))
 			}()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.Float16{}
@@ -827,7 +827,7 @@ func BaseGamma_avx2_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], ga
 				}
 				return asm.Float16x8AVX2FromFloat32x8(archsimd.LoadFloat32x8Slice(_powBase[:]))
 			}()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -855,7 +855,7 @@ func BaseGamma_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 				}
 				return asm.BFloat16x8AVX2FromFloat32x8(archsimd.LoadFloat32x8Slice(_powBase[:]))
 			}()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]hwy.BFloat16{}
@@ -870,7 +870,7 @@ func BaseGamma_avx2_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16],
 				}
 				return asm.BFloat16x8AVX2FromFloat32x8(archsimd.LoadFloat32x8Slice(_powBase[:]))
 			}()
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(buf[:]))), len(buf[:])))
+			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -946,7 +946,7 @@ func BaseMinImage_avx2_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 			va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&aRow[i:][0]))
 			vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i:][0]))
 			result := va.Min(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.Float16{}
@@ -957,7 +957,7 @@ func BaseMinImage_avx2_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 			va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bufA[0]))
 			vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bufB[0]))
 			result := va.Min(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(bufOut[:]))), len(bufOut[:])))
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -979,7 +979,7 @@ func BaseMinImage_avx2_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 			va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&aRow[i:][0]))
 			vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i:][0]))
 			result := va.Min(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.BFloat16{}
@@ -990,7 +990,7 @@ func BaseMinImage_avx2_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 			va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bufA[0]))
 			vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bufB[0]))
 			result := va.Min(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(bufOut[:]))), len(bufOut[:])))
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -1078,7 +1078,7 @@ func BaseMaxImage_avx2_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 			va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&aRow[i:][0]))
 			vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i:][0]))
 			result := va.Max(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.Float16{}
@@ -1089,7 +1089,7 @@ func BaseMaxImage_avx2_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out
 			va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bufA[0]))
 			vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bufB[0]))
 			result := va.Max(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(bufOut[:]))), len(bufOut[:])))
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -1111,7 +1111,7 @@ func BaseMaxImage_avx2_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 			va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&aRow[i:][0]))
 			vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i:][0]))
 			result := va.Max(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(outRow[i:]))), len(outRow[i:])))
+			result.StorePtr(unsafe.Pointer(&outRow[i:][0]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]hwy.BFloat16{}
@@ -1122,7 +1122,7 @@ func BaseMaxImage_avx2_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], 
 			va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bufA[0]))
 			vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bufB[0]))
 			result := va.Max(vb)
-			result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(bufOut[:]))), len(bufOut[:])))
+			result.StorePtr(unsafe.Pointer(&bufOut[0]))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}

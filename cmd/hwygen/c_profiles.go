@@ -164,6 +164,8 @@ func init() {
 		neonUint64Profile(),
 		neonUint8Profile(),
 		neonUint32Profile(),
+		neonInt32Profile(),
+		neonInt64Profile(),
 	} {
 		// Primary key: "TargetName:ElemType"
 		key := p.TargetName + ":" + p.ElemType
@@ -893,5 +895,86 @@ func neonUint32Profile() *CIntrinsicProfile {
 		MathStrategy:   "native",
 		GoatTarget:     "arm64",
 		GoatExtraFlags: []string{"-march=armv8-a+simd+fp"},
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NEON int32 (for RCT color transforms and other signed integer SIMD)
+// ---------------------------------------------------------------------------
+
+func neonInt32Profile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "int32",
+		TargetName: "NEON",
+		Include:    "#include <arm_neon.h>",
+		CType:      "int",
+		VecTypes: map[string]string{
+			"q": "int32x4_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "q", Lanes: 4, Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:  map[string]string{"q": "vld1q_s32"},
+		StoreFn: map[string]string{"q": "vst1q_s32"},
+		AddFn:   map[string]string{"q": "vaddq_s32"},
+		SubFn:   map[string]string{"q": "vsubq_s32"},
+		MulFn:   map[string]string{"q": "vmulq_s32"},
+		NegFn:   map[string]string{"q": "vnegq_s32"},
+		AbsFn:   map[string]string{"q": "vabsq_s32"},
+		MinFn:   map[string]string{"q": "vminq_s32"},
+		MaxFn:   map[string]string{"q": "vmaxq_s32"},
+		DupFn:   map[string]string{"q": "vdupq_n_s32"},
+
+		AndFn: map[string]string{"q": "vandq_s32"},
+		OrFn:  map[string]string{"q": "vorrq_s32"},
+		XorFn: map[string]string{"q": "veorq_s32"},
+
+		ReduceSumFn: map[string]string{"q": "vaddvq_s32"},
+		ReduceMinFn: map[string]string{"q": "vminvq_s32"},
+		ReduceMaxFn: map[string]string{"q": "vmaxvq_s32"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv8-a+simd+fp"},
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NEON int64 (for RCT color transforms with 64-bit signed integers)
+// ---------------------------------------------------------------------------
+
+func neonInt64Profile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "int64",
+		TargetName: "NEON",
+		Include:    "#include <arm_neon.h>",
+		CType:      "long",
+		VecTypes: map[string]string{
+			"q": "int64x2_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "q", Lanes: 2, Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:  map[string]string{"q": "vld1q_s64"},
+		StoreFn: map[string]string{"q": "vst1q_s64"},
+		AddFn:   map[string]string{"q": "vaddq_s64"},
+		SubFn:   map[string]string{"q": "vsubq_s64"},
+		NegFn:   map[string]string{"q": "vnegq_s64"},
+		AbsFn:   map[string]string{"q": "vabsq_s64"},
+		DupFn:   map[string]string{"q": "vdupq_n_s64"},
+
+		AndFn: map[string]string{"q": "vandq_s64"},
+		OrFn:  map[string]string{"q": "vorrq_s64"},
+		XorFn: map[string]string{"q": "veorq_s64"},
+
+		ReduceSumFn: map[string]string{"q": "vaddvq_s64"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv8-a+simd+fp"},
 	}
 }

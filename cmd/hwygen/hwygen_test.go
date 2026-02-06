@@ -1819,12 +1819,12 @@ func TestASTCWrapperGeneration(t *testing.T) {
 	gen2 := &Generator{
 		OutputDir: tmpDir,
 	}
-	if err := gen2.emitCWrappers(astFuncs, neonTarget); err != nil {
+	if err := gen2.emitCWrappers(astFuncs, neonTarget, tmpDir); err != nil {
 		t.Fatalf("emitCWrappers: %v", err)
 	}
 
 	// Read the generated wrapper file
-	wrapperPath := filepath.Join(tmpDir, "c_wrappers_neon_arm64.go")
+	wrapperPath := filepath.Join(tmpDir, "c_wrappers_neon_arm64.gen.go")
 	wrapperContent, err := os.ReadFile(wrapperPath)
 	if err != nil {
 		t.Fatalf("read wrapper file: %v", err)
@@ -1919,10 +1919,11 @@ func TestCModeAsmPipeline(t *testing.T) {
 		t.Fatalf("Generator.Run() with -asm failed: %v", err)
 	}
 
-	// Verify assembly files were generated
-	entries, err := os.ReadDir(tmpDir)
+	// Verify assembly files were generated in asm/ subdirectory
+	asmDir := filepath.Join(tmpDir, "asm")
+	entries, err := os.ReadDir(asmDir)
 	if err != nil {
-		t.Fatalf("ReadDir: %v", err)
+		t.Fatalf("ReadDir(asm/): %v", err)
 	}
 
 	var sFiles, goFiles, wrapperFiles []string
@@ -1931,9 +1932,9 @@ func TestCModeAsmPipeline(t *testing.T) {
 		switch {
 		case strings.HasSuffix(name, ".s"):
 			sFiles = append(sFiles, name)
-		case strings.HasSuffix(name, ".go") && strings.Contains(name, "c_wrappers"):
+		case (strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".gen.go")) && strings.Contains(name, "c_wrappers"):
 			wrapperFiles = append(wrapperFiles, name)
-		case strings.HasSuffix(name, ".go"):
+		case strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".gen.go"):
 			goFiles = append(goFiles, name)
 		}
 	}
@@ -1952,7 +1953,7 @@ func TestCModeAsmPipeline(t *testing.T) {
 
 	// Verify wrapper file content
 	if len(wrapperFiles) > 0 {
-		content, err := os.ReadFile(filepath.Join(tmpDir, wrapperFiles[0]))
+		content, err := os.ReadFile(filepath.Join(asmDir, wrapperFiles[0]))
 		if err != nil {
 			t.Fatalf("read wrapper: %v", err)
 		}
@@ -2008,12 +2009,19 @@ func TestCModeAsmCorrectnessF32(t *testing.T) {
 	}
 
 	// List generated files for debugging
+	asmDir := filepath.Join(tmpDir, "asm")
 	entries, _ := os.ReadDir(tmpDir)
-	var files []string
+	var rootFiles []string
 	for _, e := range entries {
-		files = append(files, e.Name())
+		rootFiles = append(rootFiles, e.Name())
 	}
-	t.Logf("Generated files: %v", files)
+	asmEntries, _ := os.ReadDir(asmDir)
+	var asmFiles []string
+	for _, e := range asmEntries {
+		asmFiles = append(asmFiles, e.Name())
+	}
+	t.Logf("Root files: %v", rootFiles)
+	t.Logf("Asm files: %v", asmFiles)
 
 	// Step 4: Write go.mod for the temp package
 	// Get the absolute path to go-highway for the replace directive
@@ -2033,8 +2041,9 @@ replace github.com/ajroetker/go-highway => %s
 		t.Fatalf("write go.mod: %v", err)
 	}
 
-	// Step 5: Write a correctness test file
-	testContent := `package matmulgen
+	// Step 5: Write a correctness test file in the asm/ subpackage
+	// (since the generator now puts assembly + wrappers in asm/)
+	testContent := `package asm
 
 import (
 	"fmt"
@@ -2094,7 +2103,7 @@ func TestMatMulCF32Correctness(t *testing.T) {
 	}
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "matmul_test.go"), []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(asmDir, "matmul_test.go"), []byte(testContent), 0644); err != nil {
 		t.Fatalf("write test file: %v", err)
 	}
 
@@ -2107,8 +2116,8 @@ func TestMatMulCF32Correctness(t *testing.T) {
 		t.Fatalf("go mod tidy failed: %v\n%s", err, string(tidyOutput))
 	}
 
-	// Step 7: Run go test in the temp package
-	cmd := exec.Command(goBin, "test", "-v", "-count=1", "./...")
+	// Step 7: Run go test in the asm/ subpackage
+	cmd := exec.Command(goBin, "test", "-v", "-count=1", "./asm/...")
 	cmd.Dir = tmpDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	output, err := cmd.CombinedOutput()
@@ -2748,27 +2757,25 @@ func TestBenchmarkASTvsHandwritten(t *testing.T) {
 		t.Fatalf("AST generation failed: %v", err)
 	}
 
-	// Step 2: Copy the pre-compiled hand-written NEON assembly from asm/ directory.
+	// Step 2: Copy the pre-compiled hand-written NEON assembly into the asm/
+	// subdirectory alongside the AST-generated files.
 	// matmul_neon_f16_arm64.{s,go} contains matmul_neon_f32 alongside f16/f64.
-	asmDir := filepath.Join("..", "..", "hwy", "contrib", "matmul", "asm")
+	genAsmDir := filepath.Join(tmpDir, "asm")
+	srcAsmDir := filepath.Join("..", "..", "hwy", "contrib", "matmul", "asm")
 	for _, suffix := range []string{".s", ".go"} {
-		src := filepath.Join(asmDir, "matmul_neon_f16_arm64"+suffix)
-		dst := filepath.Join(tmpDir, "matmul_neon_f16_arm64"+suffix)
+		src := filepath.Join(srcAsmDir, "matmul_neon_f16_arm64"+suffix)
+		dst := filepath.Join(genAsmDir, "matmul_neon_f16_arm64"+suffix)
 		data, err := os.ReadFile(src)
 		if err != nil {
 			t.Fatalf("read %s: %v", src, err)
-		}
-		// Fix the package name to match the temp dir
-		if suffix == ".go" {
-			data = []byte(strings.Replace(string(data), "package asm", "package matmulbench", 1))
 		}
 		if err := os.WriteFile(dst, data, 0644); err != nil {
 			t.Fatalf("write %s: %v", dst, err)
 		}
 	}
 
-	// Step 3: Write a wrapper for the hand-written asm function
-	handwrittenWrapper := `package matmulbench
+	// Step 3: Write a wrapper for the hand-written asm function in the asm/ subdir
+	handwrittenWrapper := `package asm
 
 import "unsafe"
 
@@ -2790,7 +2797,7 @@ func MatMulHandwrittenF32(a, b, c []float32, m, n, k int) {
 	)
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "handwritten_wrapper.go"), []byte(handwrittenWrapper), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(genAsmDir, "handwritten_wrapper.go"), []byte(handwrittenWrapper), 0644); err != nil {
 		t.Fatalf("write handwritten wrapper: %v", err)
 	}
 
@@ -2812,8 +2819,8 @@ replace github.com/ajroetker/go-highway => %s
 		t.Fatalf("write go.mod: %v", err)
 	}
 
-	// Step 5: Write the benchmark test
-	benchContent := `package matmulbench
+	// Step 5: Write the benchmark test in the asm/ subpackage
+	benchContent := `package asm
 
 import (
 	"fmt"
@@ -2891,17 +2898,23 @@ func matmulScalar(a, b, c []float32, m, n, k int) {
 	}
 }
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "bench_test.go"), []byte(benchContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(genAsmDir, "bench_test.go"), []byte(benchContent), 0644); err != nil {
 		t.Fatalf("write bench test: %v", err)
 	}
 
 	// List all files for debugging
 	entries, _ := os.ReadDir(tmpDir)
-	var files []string
+	var rootFiles []string
 	for _, e := range entries {
-		files = append(files, e.Name())
+		rootFiles = append(rootFiles, e.Name())
 	}
-	t.Logf("Package files: %v", files)
+	asmEntries, _ := os.ReadDir(genAsmDir)
+	var asmFiles []string
+	for _, e := range asmEntries {
+		asmFiles = append(asmFiles, e.Name())
+	}
+	t.Logf("Root files: %v", rootFiles)
+	t.Logf("Asm files: %v", asmFiles)
 
 	// Step 6a: Run go mod tidy to generate go.sum
 	goBin := filepath.Join(goRoot(), "bin", "go")
@@ -2912,8 +2925,8 @@ func matmulScalar(a, b, c []float32, m, n, k int) {
 		t.Fatalf("go mod tidy failed: %v\n%s", err, string(tidyOut))
 	}
 
-	// Step 6b: Run the benchmark
-	cmd := exec.Command(goBin, "test", "-bench=BenchmarkMatMulF32", "-benchmem", "-count=1", "./...")
+	// Step 6b: Run the benchmark in asm/ subpackage
+	cmd := exec.Command(goBin, "test", "-bench=BenchmarkMatMulF32", "-benchmem", "-count=1", "./asm/...")
 	cmd.Dir = tmpDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	output, err := cmd.CombinedOutput()

@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/ajroetker/go-highway/cmd/hwygen/ir"
@@ -78,6 +80,15 @@ func (g *Generator) runCMode(result *ParseResult) error {
 	for _, target := range targets {
 		fmt.Printf("\nGenerating C for target: %s\n", target.Name)
 
+		// In asm mode, C/assembly files go to asm/ subdirectory
+		cOutputDir := g.OutputDir
+		if g.AsmMode {
+			cOutputDir = filepath.Join(g.OutputDir, "asm")
+			if err := os.MkdirAll(cOutputDir, 0o755); err != nil {
+				return fmt.Errorf("create asm directory: %w", err)
+			}
+		}
+
 		// Track generated C files for GOAT compilation
 		var cFiles []string
 
@@ -91,7 +102,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				}
 				emitter := NewCEmitter(g.PackageOut, elemType, target)
 				emitter.profile = profile
-				cFile, err := emitter.EmitC(&pf, g.OutputDir)
+				cFile, err := emitter.EmitC(&pf, cOutputDir)
 				if err != nil {
 					return fmt.Errorf("emit C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
 				}
@@ -109,7 +120,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				}
 				emitter := NewCEmitter(g.PackageOut, elemType, target)
 				emitter.profile = profile
-				cFile, err := emitter.EmitCompositeC(&pf, g.OutputDir)
+				cFile, err := emitter.EmitCompositeC(&pf, cOutputDir)
 				if err != nil {
 					return fmt.Errorf("emit composite C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
 				}
@@ -132,7 +143,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				}
 				emitter := NewCEmitter(g.PackageOut, elemType, target)
 				emitter.profile = profile
-				cFile, err := emitter.EmitASTTranslatedC(&pf, g.OutputDir)
+				cFile, err := emitter.EmitASTTranslatedC(&pf, cOutputDir)
 				if err != nil {
 					return fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
 				}
@@ -161,13 +172,38 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				os.Remove(strings.TrimSuffix(cFile, ".c") + ".o")
 			}
 
-			// Generate unified wrapper file for this target
+			// Separate struct-ptr and non-struct functions
 			allFuncs := make([]ParsedFunc, 0, len(vecFuncs)+len(sliceFuncs)+len(astFuncs))
 			allFuncs = append(allFuncs, vecFuncs...)
 			allFuncs = append(allFuncs, sliceFuncs...)
 			allFuncs = append(allFuncs, astFuncs...)
-			if err := g.emitCWrappers(allFuncs, target); err != nil {
-				return fmt.Errorf("emit wrappers for %s: %w", target.Name, err)
+
+			var structFuncs, nonStructFuncs []ParsedFunc
+			for _, f := range allFuncs {
+				if hasStructPtrParams(&f) {
+					structFuncs = append(structFuncs, f)
+				} else {
+					nonStructFuncs = append(nonStructFuncs, f)
+				}
+			}
+
+			// Non-struct wrappers go to asm/ subdirectory
+			if len(nonStructFuncs) > 0 {
+				if err := g.emitCWrappers(nonStructFuncs, target, cOutputDir); err != nil {
+					return fmt.Errorf("emit asm wrappers for %s: %w", target.Name, err)
+				}
+			}
+
+			// Struct-ptr functions need:
+			// 1. Thin exported passthrough wrappers in asm/
+			// 2. z_c_ dispatch file in parent with Image→CStruct adapters
+			if len(structFuncs) > 0 {
+				if err := g.emitStructAsmPassthrough(structFuncs, target, cOutputDir); err != nil {
+					return fmt.Errorf("emit asm passthrough for %s: %w", target.Name, err)
+				}
+				if err := g.emitZCDispatch(structFuncs, target); err != nil {
+					return fmt.Errorf("emit z_c dispatch for %s: %w", target.Name, err)
+				}
 			}
 		} else {
 			fmt.Printf("Generated %d C files (use -asm to compile to Go assembly)\n", len(cFiles))
@@ -302,8 +338,8 @@ func (g *Generator) runFusionCMode(result *ParseResult, sliceFuncs []ParsedFunc,
 				os.Remove(strings.TrimSuffix(cFile, ".c") + ".o")
 			}
 
-			// Generate wrappers
-			if err := g.emitCWrappers(sliceFuncs, target); err != nil {
+			// Generate wrappers (fusion mode outputs to same dir)
+			if err := g.emitCWrappers(sliceFuncs, target, g.OutputDir); err != nil {
 				return fmt.Errorf("emit wrappers for %s: %w", target.Name, err)
 			}
 		} else {
@@ -544,6 +580,81 @@ func runGOAT(cFile string, profile *CIntrinsicProfile) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, string(output))
 	}
+
+	// Rename GoAT-generated .go file to .gen.go
+	// GoAT generates filename_arch.go from filename.c
+	cBase := strings.TrimSuffix(filepath.Base(cFile), ".c")
+	cDir := filepath.Dir(absCFile)
+	goatGoFile := filepath.Join(cDir, cBase+".go")
+	genGoFile := filepath.Join(cDir, cBase+".gen.go")
+	if _, err := os.Stat(goatGoFile); err == nil {
+		if err := os.Rename(goatGoFile, genGoFile); err != nil {
+			return fmt.Errorf("rename %s to .gen.go: %w", goatGoFile, err)
+		}
+	}
+
+	// Fix reserved register names in generated assembly.
+	// Go's plan9 assembler reserves "g" for the goroutine pointer, so
+	// parameter names like "g+8(FP)" are misinterpreted as register+offset.
+	// Rename conflicting parameter names in both .gen.go and .s files.
+	sFile := filepath.Join(cDir, cBase+".s")
+	if err := fixReservedAsmNames(genGoFile); err != nil {
+		return fmt.Errorf("fix reserved names in %s: %w", genGoFile, err)
+	}
+	if err := fixReservedAsmNames(sFile); err != nil {
+		return fmt.Errorf("fix reserved names in %s: %w", sFile, err)
+	}
+
+	return nil
+}
+
+// reservedAsmNames maps Go plan9 assembler reserved names to safe replacements.
+// In ARM64 plan9 assembly, "g" is the goroutine register and cannot be used
+// as a parameter name in frame references like "g+8(FP)".
+var reservedAsmNames = map[string]string{
+	"g": "gv",
+}
+
+// fixReservedAsmNames renames reserved parameter names in GoAT-generated files.
+// It replaces patterns like "g+" (parameter references) and "g " (in func decls)
+// with safe alternatives.
+func fixReservedAsmNames(filename string) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	content := string(data)
+	modified := false
+	for reserved, replacement := range reservedAsmNames {
+		// Replace parameter references in .s files: "g+8(FP)" → "gv+8(FP)"
+		old := reserved + "+"
+		new := replacement + "+"
+		if strings.Contains(content, old) {
+			content = strings.ReplaceAll(content, old, new)
+			modified = true
+		}
+		// Replace parameter names in .go func declarations: ", g " or ", g," → ", gv " or ", gv,"
+		old = ", " + reserved + " "
+		new = ", " + replacement + " "
+		if strings.Contains(content, old) {
+			content = strings.ReplaceAll(content, old, new)
+			modified = true
+		}
+		old = ", " + reserved + ","
+		new = ", " + replacement + ","
+		if strings.Contains(content, old) {
+			content = strings.ReplaceAll(content, old, new)
+			modified = true
+		}
+	}
+
+	if modified {
+		return os.WriteFile(filename, []byte(content), 0o644)
+	}
 	return nil
 }
 
@@ -582,11 +693,12 @@ func goatPackageName(dir string) string {
 }
 
 // emitCWrappers generates a Go file with wrapper functions that call the assembly.
-func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target) error {
+// outputDir specifies where to write the wrapper file (e.g., asm/ subdirectory).
+func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir string) error {
 	var buf bytes.Buffer
 
 	// GOAT derives package name from output directory, so we must match that
-	pkgName := goatPackageName(g.OutputDir)
+	pkgName := goatPackageName(outputDir)
 
 	// Determine build tag and file suffix based on target
 	buildTag := target.BuildTag
@@ -659,13 +771,302 @@ func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target) error {
 	}
 
 	// Format and write
-	filename := filepath.Join(g.OutputDir, fmt.Sprintf("c_wrappers_%s_%s.go", targetSuffix, archSuffix))
+	filename := filepath.Join(outputDir, fmt.Sprintf("c_wrappers_%s_%s.gen.go", targetSuffix, archSuffix))
 	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("write wrappers: %w", err)
 	}
 
 	fmt.Printf("Generated: %s\n", filename)
 	return nil
+}
+
+// emitStructAsmPassthrough generates thin exported wrapper functions in the asm/
+// subdirectory that re-export the unexported GoAT assembly functions. These take
+// unsafe.Pointer params to avoid importing the parent package's types.
+func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, asmDir string) error {
+	var buf bytes.Buffer
+
+	pkgName := goatPackageName(asmDir)
+
+	buildTag := target.BuildTag
+	if buildTag == "" {
+		buildTag = "!noasm"
+	} else {
+		buildTag = "!noasm && " + buildTag
+	}
+	archSuffix := target.Arch()
+	targetSuffix := strings.ToLower(target.Name)
+
+	// File header
+	fmt.Fprintf(&buf, "//go:build %s\n", buildTag)
+	fmt.Fprintf(&buf, "// Code generated by hwygen -c. DO NOT EDIT.\n\n")
+	fmt.Fprintf(&buf, "package %s\n\n", pkgName)
+	fmt.Fprintf(&buf, "import \"unsafe\"\n\n")
+
+	for _, pf := range funcs {
+		elemTypes := getCElemTypes(&pf)
+		for _, elemType := range elemTypes {
+			profile := GetCProfile(target.Name, elemType)
+			if profile == nil {
+				continue
+			}
+			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+				continue
+			}
+
+			// Exported name: ForwardICT_F32
+			exportedName := structAsmExportedName(pf.Name, elemType)
+			// Assembly name: forwardict_c_f32_neon
+			asmName := cAsmFuncName(pf.Name, elemType, targetSuffix)
+
+			// Build param list: one unsafe.Pointer per struct param
+			var paramNames []string
+			for _, p := range pf.Params {
+				if isGenericStructPtr(p.Type) {
+					paramNames = append(paramNames, p.Name)
+				}
+			}
+
+			fmt.Fprintf(&buf, "// %s calls the %s SIMD assembly implementation.\n",
+				exportedName, strings.ToUpper(target.Name))
+			fmt.Fprintf(&buf, "func %s(%s unsafe.Pointer) {\n",
+				exportedName, strings.Join(paramNames, ", "))
+			fmt.Fprintf(&buf, "\t%s(%s)\n", asmName, strings.Join(paramNames, ", "))
+			fmt.Fprintf(&buf, "}\n\n")
+		}
+	}
+
+	filename := filepath.Join(asmDir, fmt.Sprintf("c_struct_wrappers_%s_%s.gen.go", targetSuffix, archSuffix))
+	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("write struct asm passthrough: %w", err)
+	}
+	fmt.Printf("Generated: %s\n", filename)
+	return nil
+}
+
+// emitZCDispatch generates a z_c_*.gen.go file in the parent package that
+// overrides dispatch variables with assembly implementations. It creates adapter
+// functions that convert generic struct pointers (e.g., *Image[T]) to C-compatible
+// struct layouts and call the exported asm/ wrapper functions.
+func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
+	var buf bytes.Buffer
+
+	buildTag := target.BuildTag
+	if buildTag == "" {
+		buildTag = "!noasm"
+	} else {
+		buildTag = "!noasm && " + buildTag
+	}
+	archSuffix := target.Arch()
+	targetSuffix := strings.ToLower(target.Name)
+
+	// Determine the asm subpackage import path
+	asmImport, err := g.resolveAsmImportPath()
+	if err != nil {
+		return fmt.Errorf("resolve asm import path: %w", err)
+	}
+
+	// Check if we need the hwy import for half-precision types
+	needsHwy := false
+	for _, pf := range funcs {
+		for _, et := range getCElemTypes(&pf) {
+			if isHalfPrecisionType(et) {
+				profile := GetCProfile(target.Name, et)
+				if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					needsHwy = true
+					break
+				}
+			}
+		}
+		if needsHwy {
+			break
+		}
+	}
+
+	// File header
+	fmt.Fprintf(&buf, "//go:build %s\n", buildTag)
+	fmt.Fprintf(&buf, "// Code generated by hwygen -c. DO NOT EDIT.\n\n")
+	fmt.Fprintf(&buf, "package %s\n\n", g.PackageOut)
+	fmt.Fprintf(&buf, "import (\n")
+	fmt.Fprintf(&buf, "\t\"unsafe\"\n\n")
+	if needsHwy {
+		fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy\"\n")
+	}
+	fmt.Fprintf(&buf, "\t\"%s\"\n", asmImport)
+	fmt.Fprintf(&buf, ")\n\n")
+
+	// init() to override dispatch variables
+	fmt.Fprintf(&buf, "func init() {\n")
+	for _, pf := range funcs {
+		for _, elemType := range getCElemTypes(&pf) {
+			profile := GetCProfile(target.Name, elemType)
+			if profile == nil {
+				continue
+			}
+			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+				continue
+			}
+			dispatchVar := buildDispatchVarName(pf.Name, elemType)
+			adapterName := buildAdapterFuncName(pf.Name, elemType)
+			fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
+		}
+	}
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// Adapter functions: Image[T] → C struct → asm call
+	for _, pf := range funcs {
+		for _, elemType := range getCElemTypes(&pf) {
+			profile := GetCProfile(target.Name, elemType)
+			if profile == nil {
+				continue
+			}
+			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+				continue
+			}
+			emitZCAdapterFunc(&buf, &pf, elemType, target)
+		}
+	}
+
+	filename := filepath.Join(g.OutputDir, fmt.Sprintf("z_c_%s_%s.gen.go", targetSuffix, archSuffix))
+	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
+		return fmt.Errorf("write z_c dispatch: %w", err)
+	}
+	fmt.Printf("Generated: %s\n", filename)
+	return nil
+}
+
+// resolveAsmImportPath computes the Go import path for the asm/ subdirectory.
+func (g *Generator) resolveAsmImportPath() (string, error) {
+	absOutputDir, err := filepath.Abs(g.OutputDir)
+	if err != nil {
+		return "", fmt.Errorf("abs output dir: %w", err)
+	}
+	moduleRoot, moduleName, err := FindModuleRoot(absOutputDir)
+	if err != nil {
+		return "", fmt.Errorf("find module root: %w", err)
+	}
+	asmAbsDir := filepath.Join(absOutputDir, "asm")
+	relPath, err := filepath.Rel(moduleRoot, asmAbsDir)
+	if err != nil {
+		return "", fmt.Errorf("rel path: %w", err)
+	}
+	return moduleName + "/" + relPath, nil
+}
+
+// structAsmExportedName builds the exported function name for asm/ passthrough.
+// E.g., BaseForwardICT + float32 → ForwardICT_F32
+func structAsmExportedName(baseName, elemType string) string {
+	name := strings.TrimPrefix(baseName, "Base")
+	return name + "_" + cTypePublicSuffix(elemType)
+}
+
+// buildDispatchVarName builds the dispatch variable name from a base function name.
+// E.g., BaseForwardICT + float32 → ForwardICTFloat32
+func buildDispatchVarName(baseName, elemType string) string {
+	name := strings.TrimPrefix(baseName, "Base")
+	return name + typeNameToDispatchSuffix(elemType)
+}
+
+// buildAdapterFuncName builds the unexported adapter function name.
+// E.g., BaseForwardICT + float32 → forwardICTAsmF32
+func buildAdapterFuncName(baseName, elemType string) string {
+	name := strings.TrimPrefix(baseName, "Base")
+	// Lowercase first letter
+	if len(name) > 0 {
+		name = strings.ToLower(name[:1]) + name[1:]
+	}
+	return name + "Asm" + cTypePublicSuffix(elemType)
+}
+
+// typeNameToDispatchSuffix returns the suffix used in dispatch variable names.
+func typeNameToDispatchSuffix(elemType string) string {
+	switch elemType {
+	case "float32":
+		return "Float32"
+	case "float64":
+		return "Float64"
+	case "float16", "hwy.Float16":
+		return "Float16"
+	case "bfloat16", "hwy.BFloat16":
+		return "BFloat16"
+	case "int32":
+		return "Int32"
+	case "int64":
+		return "Int64"
+	case "uint32":
+		return "Uint32"
+	case "uint64":
+		return "Uint64"
+	default:
+		return "Float32"
+	}
+}
+
+// emitZCAdapterFunc generates an adapter function that converts *Image[T] params
+// to C-compatible structs and calls the asm/ exported wrapper.
+func emitZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string, target Target) {
+	adapterName := buildAdapterFuncName(pf.Name, elemType)
+
+	// Build parameter list with specialized types
+	var params []string
+	for _, p := range pf.Params {
+		paramType := specializeStructPtrType(p.Type, elemType)
+		params = append(params, p.Name+" "+paramType)
+	}
+	paramList := strings.Join(params, ", ")
+
+	// Discover unified struct layout from all parameters
+	elemCType := goElemTypeToCType(elemType)
+	unifiedFields := DiscoverUnifiedStructFields(pf, elemCType)
+
+	fmt.Fprintf(buf, "func %s(%s) {\n", adapterName, paramList)
+
+	// Nil checks
+	var nilChecks []string
+	for _, p := range pf.Params {
+		if isGenericStructPtr(p.Type) {
+			nilChecks = append(nilChecks, p.Name+" == nil")
+		}
+	}
+	if len(nilChecks) > 0 {
+		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(nilChecks, " || "))
+		fmt.Fprintf(buf, "\t\treturn\n")
+		fmt.Fprintf(buf, "\t}\n")
+	}
+
+	// Create C-compatible struct instances for each struct pointer param
+	for _, p := range pf.Params {
+		if !isGenericStructPtr(p.Type) {
+			continue
+		}
+		if len(unifiedFields) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "\tc%s := struct {\n", p.Name)
+		for _, field := range unifiedFields {
+			fmt.Fprintf(buf, "\t\t%s %s\n", field.Name, field.GoType)
+		}
+		fmt.Fprintf(buf, "\t}{\n")
+		for _, field := range unifiedFields {
+			if field.IsPtr {
+				fmt.Fprintf(buf, "\t\t%s: unsafe.Pointer(&%s.Row(0)[0]),\n", field.Name, p.Name)
+			} else {
+				fmt.Fprintf(buf, "\t\t%s: %s(%s%s),\n", field.Name, field.GoType, p.Name, field.GoGetter)
+			}
+		}
+		fmt.Fprintf(buf, "\t}\n")
+	}
+
+	// Call the asm/ exported function
+	asmExportedName := structAsmExportedName(pf.Name, elemType)
+	fmt.Fprintf(buf, "\tasm.%s(\n", asmExportedName)
+	for _, p := range pf.Params {
+		if isGenericStructPtr(p.Type) {
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&c%s),\n", p.Name)
+		}
+	}
+	fmt.Fprintf(buf, "\t)\n")
+	fmt.Fprintf(buf, "}\n\n")
 }
 
 // emitCWrapperFunc generates a single wrapper function.
@@ -746,6 +1147,10 @@ func cTypeSuffix(elemType string) string {
 		return "f16"
 	case "bfloat16", "hwy.BFloat16":
 		return "bf16"
+	case "int32":
+		return "s32"
+	case "int64":
+		return "s64"
 	case "uint64":
 		return "u64"
 	case "uint32":
@@ -768,6 +1173,10 @@ func cTypePublicSuffix(elemType string) string {
 		return "F16"
 	case "bfloat16", "hwy.BFloat16":
 		return "BF16"
+	case "int32":
+		return "S32"
+	case "int64":
+		return "S64"
 	case "uint64":
 		return "U64"
 	case "uint32":
@@ -1073,105 +1482,172 @@ type StructField struct {
 	IsData   bool   // Whether this is the data pointer field (for Row-like accessors)
 }
 
-// DiscoveredStructInfo contains struct layout information discovered from analyzing
-// method calls in the function body. This is fully generic - no hardcoded struct names.
-type DiscoveredStructInfo struct {
-	Fields      []StructField // Fields discovered from method calls
-	DataField   string        // Name of the data pointer field (from Row-like accessor)
-	StrideField string        // Name of the stride field (from Row-like accessor)
-	GoType      string        // Original Go type, e.g., "*Image[T]"
-	ElemCType   string        // C element type, e.g., "float", "double"
-}
-
-// DiscoverStructFields analyzes method calls in the function body to discover
-// struct layout. This is fully generic - works with any struct type.
-//
-// Convention-based discovery:
-//   - Methods with 0 args (e.g., Width(), Height()) → scalar fields (long)
-//   - Methods with 1 arg that are indexed (e.g., Row(y)[i]) → data + stride pattern
-func DiscoverStructFields(pf *ParsedFunc, paramName string, elemCType string) *DiscoveredStructInfo {
-	info := &DiscoveredStructInfo{
-		ElemCType: elemCType,
+// DiscoverUnifiedStructFields discovers a unified struct layout from ALL struct
+// parameters in the function. This ensures all parameters use the same C struct
+// layout, which is required since C uses a single typedef.
+func DiscoverUnifiedStructFields(pf *ParsedFunc, elemCType string) []StructField {
+	if pf.Body == nil {
+		return nil
 	}
 
-	// Find the param's Go type
+	// Collect all struct param names
+	var structParamNames []string
 	for _, p := range pf.Params {
-		if p.Name == paramName {
-			info.GoType = p.Type
-			break
+		if isGenericStructPtr(p.Type) {
+			structParamNames = append(structParamNames, p.Name)
 		}
 	}
 
-	// Track discovered methods to avoid duplicates
-	discovered := make(map[string]bool)
+	if len(structParamNames) == 0 {
+		return nil
+	}
 
-	// Walk the function body looking for method calls on this param
-	walkMethodCalls(pf.Body, paramName, func(methodName string, argCount int, isIndexed bool) {
-		if discovered[methodName] {
-			return
-		}
-		discovered[methodName] = true
+	// Track discovered fields (unified across all params)
+	discovered := make(map[string]StructField)
+	// Track method names to avoid treating them as fields
+	methodNames := make(map[string]bool)
 
-		fieldName := strings.ToLower(methodName)
-
-		if argCount == 0 {
-			// Simple getter: Width() → width field of type long
-			info.Fields = append(info.Fields, StructField{
-				Name:     fieldName,
-				GoType:   "int64",
-				CType:    "long",
-				GoGetter: "." + methodName + "()",
-				IsPtr:    false,
-			})
-		} else if argCount == 1 && isIndexed {
-			// Row-like accessor: Row(y)[i] → data pointer + stride
-			// We assume stride field exists (will be discovered separately)
-			info.DataField = "data"
-			info.StrideField = "stride"
-			info.Fields = append(info.Fields, StructField{
-				Name:     "data",
-				GoType:   "unsafe.Pointer",
-				CType:    elemCType + " *",
-				GoGetter: "." + methodName + "(0)[0]",
-				IsPtr:    true,
-				IsData:   true,
-			})
-		}
-	})
-
-	// Ensure stride field is present if we have a data accessor
-	if info.DataField != "" && info.StrideField != "" {
-		hasStride := false
-		for _, f := range info.Fields {
-			if f.Name == info.StrideField {
-				hasStride = true
-				break
+	// First pass: find all method calls to identify method names
+	ast.Inspect(pf.Body, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if ident, ok := sel.X.(*ast.Ident); ok {
+					for _, paramName := range structParamNames {
+						if ident.Name == paramName {
+							methodNames[sel.Sel.Name] = true
+							break
+						}
+					}
+				}
 			}
 		}
-		if !hasStride {
-			// Add stride field - assume it's a getter method with matching name
-			info.Fields = append(info.Fields, StructField{
-				Name:     info.StrideField,
-				GoType:   "int64",
-				CType:    "long",
-				GoGetter: ".Stride()",
-				IsPtr:    false,
-			})
+		return true
+	})
+
+	// Second pass: discover fields from method calls and field accesses
+	ast.Inspect(pf.Body, func(n ast.Node) bool {
+		// Handle method calls: param.Method(...)
+		if call, ok := n.(*ast.CallExpr); ok {
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if ident, ok := sel.X.(*ast.Ident); ok {
+					isStructParam := false
+					for _, paramName := range structParamNames {
+						if ident.Name == paramName {
+							isStructParam = true
+							break
+						}
+					}
+					if !isStructParam {
+						return true
+					}
+
+					methodName := sel.Sel.Name
+					fieldName := strings.ToLower(methodName)
+					argCount := len(call.Args)
+
+					if argCount == 0 {
+						// Simple getter: Width() → width field of type long
+						if _, exists := discovered[fieldName]; !exists {
+							discovered[fieldName] = StructField{
+								Name:     fieldName,
+								GoType:   "int64",
+								CType:    "long",
+								GoGetter: "." + methodName + "()",
+								IsPtr:    false,
+							}
+						}
+					} else if argCount == 1 {
+						// Row-like accessor: Row(y) → data pointer field
+						if _, exists := discovered["data"]; !exists {
+							discovered["data"] = StructField{
+								Name:     "data",
+								GoType:   "unsafe.Pointer",
+								CType:    elemCType + " *",
+								GoGetter: ".Row(0)[0]",
+								IsPtr:    true,
+								IsData:   true,
+							}
+						}
+						// Add stride if not already present
+						if _, exists := discovered["stride"]; !exists {
+							discovered["stride"] = StructField{
+								Name:     "stride",
+								GoType:   "int64",
+								CType:    "long",
+								GoGetter: ".Stride()",
+								IsPtr:    false,
+							}
+						}
+					}
+				}
+			}
 		}
+
+		// Handle direct field accesses: param.field
+		if sel, ok := n.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.X.(*ast.Ident); ok {
+				isStructParam := false
+				for _, paramName := range structParamNames {
+					if ident.Name == paramName {
+						isStructParam = true
+						break
+					}
+				}
+				if !isStructParam {
+					return true
+				}
+
+				fieldName := sel.Sel.Name
+
+				// Skip method names - they're not fields
+				if methodNames[fieldName] {
+					return true
+				}
+
+				if _, exists := discovered[fieldName]; !exists {
+					if fieldName == "data" {
+						discovered[fieldName] = StructField{
+							Name:     fieldName,
+							GoType:   "unsafe.Pointer",
+							CType:    elemCType + " *",
+							GoGetter: ".data",
+							IsPtr:    true,
+							IsData:   true,
+						}
+					} else {
+						discovered[fieldName] = StructField{
+							Name:     fieldName,
+							GoType:   "int64",
+							CType:    "long",
+							GoGetter: "." + fieldName,
+							IsPtr:    false,
+						}
+					}
+				}
+			}
+		}
+
+		return true
+	})
+
+	// Convert map to slice in deterministic order
+	var fields []StructField
+	// Data field first (if present)
+	if f, ok := discovered["data"]; ok {
+		fields = append(fields, f)
+		delete(discovered, "data")
+	}
+	// Then other fields in sorted order
+	var names []string
+	for name := range discovered {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fields = append(fields, discovered[name])
 	}
 
-	return info
-}
-
-// walkMethodCalls walks an AST node looking for method calls on the specified receiver.
-// The callback receives the method name, argument count, and whether the call is indexed.
-func walkMethodCalls(node interface{}, receiverName string, callback func(methodName string, argCount int, isIndexed bool)) {
-	if node == nil {
-		return
-	}
-
-	// This is a simplified walker - the full implementation is in c_ast_translator.go
-	// For now, we rely on the C translator's discovery which happens during translation
+	return fields
 }
 
 // extractStructBaseName extracts the base name from a struct type.
@@ -1233,31 +1709,33 @@ func emitStructPtrAsmWrapper(buf *bytes.Buffer, pf *ParsedFunc, elemType string,
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
+	// Discover unified struct layout from ALL parameters
+	// The C code uses a single typedef, so all parameters must use the same layout
+	elemCType := goElemTypeToCType(elemType)
+	unifiedFields := DiscoverUnifiedStructFields(pf, elemCType)
+
 	// Create C-compatible struct instances for each struct pointer param
-	// The struct layout is discovered from method calls in the function body
 	for _, p := range pf.Params {
 		if !isGenericStructPtr(p.Type) {
 			continue
 		}
 
-		// Discover struct layout by analyzing the function body
-		elemCType := goElemTypeToCType(elemType)
-		structInfo := DiscoverStructFields(pf, p.Name, elemCType)
-		if structInfo == nil || len(structInfo.Fields) == 0 {
+		if len(unifiedFields) == 0 {
 			continue
 		}
 
-		// Emit struct definition
+		// Emit struct definition using unified layout
 		fmt.Fprintf(buf, "\tc%s := struct {\n", p.Name)
-		for _, field := range structInfo.Fields {
+		for _, field := range unifiedFields {
 			fmt.Fprintf(buf, "\t\t%s %s\n", field.Name, field.GoType)
 		}
 		fmt.Fprintf(buf, "\t}{\n")
 
 		// Emit field initializers
-		for _, field := range structInfo.Fields {
+		for _, field := range unifiedFields {
 			if field.IsPtr {
-				fmt.Fprintf(buf, "\t\t%s: unsafe.Pointer(&%s%s),\n", field.Name, p.Name, field.GoGetter)
+				// For data pointer, get pointer to first element via Row(0)[0]
+				fmt.Fprintf(buf, "\t\t%s: unsafe.Pointer(&%s.Row(0)[0]),\n", field.Name, p.Name)
 			} else {
 				fmt.Fprintf(buf, "\t\t%s: %s(%s%s),\n", field.Name, field.GoType, p.Name, field.GoGetter)
 			}
