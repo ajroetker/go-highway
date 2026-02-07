@@ -18,8 +18,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-//go:generate go run ../../../cmd/hwygen -input lifting_base.go -output . -targets avx2,avx512,neon,fallback -dispatch lifting
-//go:generate go run ../../../cmd/hwygen -input lifting_base.go -output . -targets neon -asm
+//go:generate go run ../../../cmd/hwygen -input lifting_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch lifting
 
 // BaseLiftUpdate53 applies the 5/3 update step: target[i] -= (neighbor[i+off1] + neighbor[i+off2] + 2) >> 2
 // This is used for the update step in 5/3 synthesis and the predict step in analysis.

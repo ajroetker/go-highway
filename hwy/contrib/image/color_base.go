@@ -18,8 +18,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-//go:generate go run ../../../cmd/hwygen -input color_base.go -output . -targets avx2,avx512,neon,fallback -dispatch color
-//go:generate go run ../../../cmd/hwygen -input color_base.go -output . -targets neon -asm
+//go:generate go run ../../../cmd/hwygen -input color_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch color
 
 // BaseForwardRCT applies the Reversible Color Transform (RCT) from JPEG 2000.
 // This transforms RGB to YCbCr using integer arithmetic:

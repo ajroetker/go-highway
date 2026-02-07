@@ -62,9 +62,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Parse target list
-	targetList := parseTargets(*targets)
-	if len(targetList) == 0 {
+	// Parse target list with per-target mode suffixes
+	targetSpecs, err := parseTargets(*targets, *cMode, *asmMode)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	if len(targetSpecs) == 0 {
 		fmt.Fprintf(os.Stderr, "Error: no valid targets specified\n")
 		os.Exit(1)
 	}
@@ -74,11 +78,9 @@ func main() {
 		InputFile:      *inputFile,
 		OutputDir:      *outputDir,
 		OutputPrefix:   *outputPrefix,
-		Targets:        targetList,
+		TargetSpecs:    targetSpecs,
 		PackageOut:     *packageOut,
 		DispatchPrefix: *dispatchPrefix,
-		CMode:          *cMode || *asmMode,
-		AsmMode:        *asmMode,
 		FusionMode:     *fusionMode,
 		Verbose:        *verboseMode,
 	}
@@ -88,26 +90,59 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *asmMode {
-		fmt.Printf("Successfully generated Go assembly for targets: %s\n", strings.Join(targetList, ", "))
-	} else if *cMode {
-		fmt.Printf("Successfully generated C code for targets: %s\n", strings.Join(targetList, ", "))
-	} else {
-		fmt.Printf("Successfully generated code for targets: %s\n", strings.Join(targetList, ", "))
+	// Build display string
+	var names []string
+	for _, ts := range targetSpecs {
+		name := strings.ToLower(ts.Target.Name)
+		switch ts.Mode {
+		case TargetModeAsm:
+			name += ":asm"
+		case TargetModeC:
+			name += ":c"
+		}
+		names = append(names, name)
 	}
+	fmt.Printf("Successfully generated code for targets: %s\n", strings.Join(names, ", "))
 }
 
-func parseTargets(s string) []string {
+// globalMode returns the TargetMode implied by the global -c and -asm flags.
+func globalMode(globalC, globalAsm bool) TargetMode {
+	if globalAsm {
+		return TargetModeAsm
+	}
+	if globalC {
+		return TargetModeC
+	}
+	return TargetModeGoSimd
+}
+
+// parseTargets parses the comma-separated target string into TargetSpecs.
+// Per-target mode suffixes (e.g., "neon:asm") override the global flags.
+func parseTargets(s string, globalC, globalAsm bool) ([]TargetSpec, error) {
 	parts := strings.Split(s, ",")
-	var result []string
+	var result []TargetSpec
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
+		if p == "" {
+			continue
 		}
+		if p == "all" {
+			for _, name := range AvailableTargets() {
+				t, _ := GetTarget(name)
+				result = append(result, TargetSpec{Target: t, Mode: globalMode(globalC, globalAsm)})
+			}
+			return result, nil
+		}
+		name, mode := parseTargetSpec(p)
+		// Global flags apply when no per-target mode and target isn't fallback
+		if mode == TargetModeGoSimd && name != "fallback" {
+			mode = globalMode(globalC, globalAsm)
+		}
+		t, err := GetTarget(name)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, TargetSpec{Target: t, Mode: mode})
 	}
-	if len(result) == 1 && result[0] == "all" {
-		return AvailableTargets()
-	}
-	return result
+	return result, nil
 }

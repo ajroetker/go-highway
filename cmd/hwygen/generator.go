@@ -35,18 +35,54 @@ func typeNameToSuffix(elemType string) string {
 	return elemType
 }
 
+// AsmAdapterInfo describes one dispatch variable → ASM adapter mapping,
+// collected during ASM code generation for use in unified dispatch emission.
+type AsmAdapterInfo struct {
+	TargetName  string // "NEON", "AVX2", etc.
+	Arch        string // "arm64", "amd64"
+	DispatchVar string // "LiftUpdate53Int32"
+	AdapterFunc string // "liftUpdate53AsmS32"
+}
+
 // Generator orchestrates the code generation process.
 type Generator struct {
-	InputFile      string   // Input Go source file
-	OutputDir      string   // Output directory
-	OutputPrefix   string   // Output file prefix (defaults to input file name without .go)
-	Targets        []string // Target architectures (e.g., ["avx2", "fallback"])
-	PackageOut     string   // Output package name (defaults to input package)
-	DispatchPrefix string   // Dispatch file prefix (defaults to function name)
-	CMode          bool     // Generate C code (with or without GOAT compilation)
-	AsmMode        bool     // Compile C to Go assembly via GOAT
-	FusionMode     bool     // Enable IR-based fusion optimization
-	Verbose        bool     // Verbose output for debugging
+	InputFile      string       // Input Go source file
+	OutputDir      string       // Output directory
+	OutputPrefix   string       // Output file prefix (defaults to input file name without .go)
+	TargetSpecs    []TargetSpec // Target architectures with generation modes
+	PackageOut     string       // Output package name (defaults to input package)
+	DispatchPrefix string       // Dispatch file prefix (defaults to function name)
+	FusionMode     bool         // Enable IR-based fusion optimization
+	Verbose        bool         // Verbose output for debugging
+}
+
+// Targets returns the list of target name strings (for backward compatibility).
+func (g *Generator) Targets() []string {
+	var names []string
+	for _, ts := range g.TargetSpecs {
+		names = append(names, strings.ToLower(ts.Target.Name))
+	}
+	return names
+}
+
+// CMode returns true if any target uses C or ASM mode.
+func (g *Generator) CMode() bool {
+	for _, ts := range g.TargetSpecs {
+		if ts.Mode == TargetModeAsm || ts.Mode == TargetModeC {
+			return true
+		}
+	}
+	return false
+}
+
+// AsmMode returns true if any target uses ASM mode.
+func (g *Generator) AsmMode() bool {
+	for _, ts := range g.TargetSpecs {
+		if ts.Mode == TargetModeAsm {
+			return true
+		}
+	}
+	return false
 }
 
 // Run executes the code generation pipeline.
@@ -66,22 +102,47 @@ func (g *Generator) Run() error {
 		g.PackageOut = result.PackageName
 	}
 
-	// Handle C mode for GOAT C code generation
-	if g.CMode {
+	// Handle legacy C-only mode (all targets are C or ASM, no Go SIMD targets)
+	hasGoSimd := false
+	for _, ts := range g.TargetSpecs {
+		if ts.Mode == TargetModeGoSimd {
+			hasGoSimd = true
+			break
+		}
+	}
+	if !hasGoSimd {
 		return g.runCMode(result)
 	}
 
-	// 2. Parse target configurations
-	targets, err := g.parseTargets()
-	if err != nil {
-		return err
+	// Partition target specs by mode.
+	// ASM targets also get Go SIMD generation because not all functions
+	// may be ASM-eligible (e.g., Interleave, BFloat16 variants). The ASM
+	// adapter init() selectively overrides the ASM-eligible dispatch vars.
+	var goSimdSpecs []TargetSpec
+	var asmSpecs []TargetSpec
+	var cOnlySpecs []TargetSpec
+	for _, ts := range g.TargetSpecs {
+		switch ts.Mode {
+		case TargetModeGoSimd:
+			goSimdSpecs = append(goSimdSpecs, ts)
+		case TargetModeAsm:
+			asmSpecs = append(asmSpecs, ts)
+			// Also generate Go SIMD for this target
+			goSimdSpecs = append(goSimdSpecs, TargetSpec{Target: ts.Target, Mode: TargetModeGoSimd})
+		case TargetModeC:
+			cOnlySpecs = append(cOnlySpecs, ts)
+		}
 	}
 
-	// 3. Transform functions for each target
+	// 2. Go SIMD path: transform + emit for each Go SIMD target
+	var goSimdTargets []Target
+	for _, ts := range goSimdSpecs {
+		goSimdTargets = append(goSimdTargets, ts.Target)
+	}
+
 	targetFuncs := make(map[string][]*ast.FuncDecl)
 	targetHoisted := make(map[string][]HoistedConst)
 
-	// Prepare transform options with type-specific constants
 	transformOpts := &TransformOptions{
 		TypeSpecificConsts: result.TypeSpecificConsts,
 		ConditionalBlocks:  result.ConditionalBlocks,
@@ -90,40 +151,28 @@ func (g *Generator) Run() error {
 		AllFuncs:           result.AllFuncs,
 	}
 
-	for _, target := range targets {
+	for _, target := range goSimdTargets {
 		var transformed []*ast.FuncDecl
-		hoistedMap := make(map[string]HoistedConst) // Dedupe by var name
+		hoistedMap := make(map[string]HoistedConst)
 
-		// Pre-compute which functions need the generic half-precision path
-		// (i.e., skip NEON asm specialization) because they use complex ops
-		// like RoundToEven, ConvertToInt32, Pow2, etc. that have no asm equivalent.
 		var genericHalfPrecFuncs map[string]bool
 		if target.Name == "NEON" {
 			genericHalfPrecFuncs = ComputeGenericHalfPrecFuncs(result.Funcs)
 		}
 
 		for _, pf := range result.Funcs {
-			// Skip SIMD generation for functions with interface type parameters
-			// (like Predicate[T]). These functions can only use the fallback path
-			// because the interface signature uses hwy.Vec[T] which is incompatible
-			// with SIMD-specific vector types.
 			if hasInterfaceTypeParams(pf.TypeParams) && target.Name != "Fallback" {
 				continue
 			}
 
-			// Determine concrete types to generate
 			var concreteTypes []string
 			if len(pf.TypeParams) > 0 {
 				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
 			} else {
-				// Non-generic function, infer type from parameters
 				concreteTypes = inferTypesFromParams(pf.Params)
 			}
 
-			// Transform for each concrete type
 			for _, elemType := range concreteTypes {
-				// For NEON half-precision types, check if this function needs
-				// the generic path (uses complex ops with no asm equivalent).
 				if target.Name == "NEON" &&
 					(elemType == "hwy.Float16" || elemType == "hwy.BFloat16") &&
 					genericHalfPrecFuncs[pf.Name] {
@@ -134,19 +183,16 @@ func (g *Generator) Run() error {
 
 				transformResult := TransformWithOptions(&pf, target, elemType, transformOpts)
 
-				// Add type suffix to function name if not float32
 				if elemType != "float32" && len(pf.TypeParams) > 0 {
 					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + typeNameToSuffix(elemType)
 				}
 
-				// Make impl function names unexported for private base functions
 				if pf.Private {
 					transformResult.FuncDecl.Name.Name = makeUnexported(transformResult.FuncDecl.Name.Name)
 				}
 
 				transformed = append(transformed, transformResult.FuncDecl)
 
-				// Collect hoisted constants
 				for _, hc := range transformResult.HoistedConsts {
 					hoistedMap[hc.VarName] = hc
 				}
@@ -155,7 +201,6 @@ func (g *Generator) Run() error {
 
 		targetFuncs[target.Name] = transformed
 
-		// Convert map to slice in deterministic order
 		var hoistedSlice []HoistedConst
 		hoistedKeys := make([]string, 0, len(hoistedMap))
 		for k := range hoistedMap {
@@ -168,24 +213,57 @@ func (g *Generator) Run() error {
 		targetHoisted[target.Name] = hoistedSlice
 	}
 
-	// 4. Emit the dispatcher file
-	if err := EmitDispatcher(result.Funcs, targets, g.PackageOut, g.OutputDir, g.DispatchPrefix); err != nil {
+	// 3. ASM path: generate C, compile via GOAT, collect adapter info
+	var asmAdapters []AsmAdapterInfo
+	if len(asmSpecs) > 0 {
+		adapters, err := g.runAsmMode(result, asmSpecs)
+		if err != nil {
+			return fmt.Errorf("asm mode: %w", err)
+		}
+		asmAdapters = adapters
+	}
+
+	// 4. C-only path
+	if len(cOnlySpecs) > 0 {
+		if err := g.runCOnlyMode(result, cOnlySpecs); err != nil {
+			return fmt.Errorf("c mode: %w", err)
+		}
+	}
+
+	// 5. Build the full list of targets for dispatch (Go SIMD + ASM targets)
+	allTargets := make([]Target, len(goSimdTargets))
+	copy(allTargets, goSimdTargets)
+	for _, ts := range asmSpecs {
+		// Only add if not already present as a Go SIMD target
+		found := false
+		for _, t := range allTargets {
+			if t.Name == ts.Target.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			allTargets = append(allTargets, ts.Target)
+		}
+	}
+
+	// 6. Emit the dispatcher file with ASM adapter info
+	if err := EmitDispatcher(result.Funcs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters); err != nil {
 		return fmt.Errorf("emit dispatcher: %w", err)
 	}
 
-	// 5. Emit target-specific files
+	// 7. Emit target-specific files (Go SIMD only — ASM targets don't get Go SIMD impl files)
 	baseFilename := g.OutputPrefix
 	if baseFilename == "" {
 		baseFilename = getBaseFilename(g.InputFile)
 	}
 
-	for _, target := range targets {
+	for _, target := range goSimdTargets {
 		funcDecls := targetFuncs[target.Name]
 		if len(funcDecls) == 0 {
 			continue
 		}
 
-		// Detect which contrib subpackages are needed for this specific target
 		contribPkgs := detectContribPackagesForTarget(result.Funcs, target)
 		hoistedConsts := targetHoisted[target.Name]
 		if err := EmitTarget(funcDecls, target, g.PackageOut, baseFilename, g.OutputDir, contribPkgs, hoistedConsts, result.Imports); err != nil {
@@ -194,25 +272,6 @@ func (g *Generator) Run() error {
 	}
 
 	return nil
-}
-
-// parseTargets converts target name strings to Target configurations.
-func (g *Generator) parseTargets() ([]Target, error) {
-	var targets []Target
-
-	for _, name := range g.Targets {
-		target, err := GetTarget(name)
-		if err != nil {
-			return nil, err
-		}
-		targets = append(targets, target)
-	}
-
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("no valid targets specified")
-	}
-
-	return targets, nil
 }
 
 // inferTypesFromParams examines function parameters to infer the element type.
