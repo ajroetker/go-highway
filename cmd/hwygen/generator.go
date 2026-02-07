@@ -118,6 +118,9 @@ func (g *Generator) Run() error {
 	// ASM targets also get Go SIMD generation because not all functions
 	// may be ASM-eligible (e.g., Interleave, BFloat16 variants). The ASM
 	// adapter init() selectively overrides the ASM-eligible dispatch vars.
+	// SVE targets are excluded from Go SIMD generation because they have no
+	// OpMap — their dispatch is handled entirely by the z_c_*.gen.go files
+	// generated during ASM mode.
 	var goSimdSpecs []TargetSpec
 	var asmSpecs []TargetSpec
 	var cOnlySpecs []TargetSpec
@@ -127,8 +130,11 @@ func (g *Generator) Run() error {
 			goSimdSpecs = append(goSimdSpecs, ts)
 		case TargetModeAsm:
 			asmSpecs = append(asmSpecs, ts)
-			// Also generate Go SIMD for this target
-			goSimdSpecs = append(goSimdSpecs, TargetSpec{Target: ts.Target, Mode: TargetModeGoSimd})
+			// Also generate Go SIMD for this target, unless it's an SVE target
+			// (SVE has no Go SIMD OpMap; dispatch is handled by C/ASM init files)
+			if !isSVETarget(ts.Target) {
+				goSimdSpecs = append(goSimdSpecs, TargetSpec{Target: ts.Target, Mode: TargetModeGoSimd})
+			}
 		case TargetModeC:
 			cOnlySpecs = append(cOnlySpecs, ts)
 		}

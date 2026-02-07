@@ -4450,12 +4450,14 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			// Fallback: keep generic hwy.Load
 			selExpr.X = ast.NewIdent("hwy")
 			selExpr.Sel.Name = "Load"
+			return
 		}
 	case "Store":
 		// For Fallback (IsMethod: false), use generic hwy.Store
 		// NEON/AVX use IsMethod: true, handled in transformToMethod
 		selExpr.X = ast.NewIdent("hwy")
 		selExpr.Sel.Name = "Store"
+		return
 	case "Load4":
 		// For Vec types (Float16/BFloat16), use hwy wrapper or asm function
 		if strings.HasPrefix(vecTypeName, "Vec") || strings.HasPrefix(vecTypeName, "hwy.Vec") {

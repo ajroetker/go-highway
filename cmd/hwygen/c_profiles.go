@@ -133,16 +133,25 @@ type CIntrinsicProfile struct {
 	// GOAT compilation settings
 	GoatTarget     string   // "arm64" or "amd64"
 	GoatExtraFlags []string // e.g., ["-march=armv8-a+simd+fp"]
+
+	// SVE predicate support: every SVE intrinsic requires an svbool_t predicate.
+	NeedsPredicate bool   // true for SVE — every intrinsic needs svbool_t pg
+	PredicateDecl  string // e.g. "svptrue_b32()" or "svptrue_b64()"
+
+	// FuncAttrs is appended after the parameter list in C function signatures.
+	// Used for SVE streaming mode on darwin: "__arm_streaming".
+	FuncAttrs string
 }
 
 // CLoopTier represents one level of the tiered loop structure used in
 // generated C code. Each tier processes a different number of elements
 // per iteration, from widest SIMD down to scalar.
 type CLoopTier struct {
-	Name     string // "zmm", "ymm", "xmm", "q", "d", "scalar"
-	Lanes    int    // Number of elements per vector at this tier
-	Unroll   int    // Number of vectors processed per iteration (4 for main, 1 for single)
-	IsScalar bool   // True if this tier processes one element at a time
+	Name         string // "zmm", "ymm", "xmm", "q", "d", "sve", "scalar"
+	Lanes        int    // Number of elements per vector at this tier (0 if dynamic)
+	DynamicLanes string // Runtime expression for lane count, e.g. "svcntw()" (empty = use Lanes)
+	Unroll       int    // Number of vectors processed per iteration (4 for main, 1 for single)
+	IsScalar     bool   // True if this tier processes one element at a time
 }
 
 // cProfileRegistry holds all known target+type profile combinations.
@@ -166,6 +175,10 @@ func init() {
 		neonUint32Profile(),
 		neonInt32Profile(),
 		neonInt64Profile(),
+		sveDarwinF32Profile(),
+		sveDarwinF64Profile(),
+		sveLinuxF32Profile(),
+		sveLinuxF64Profile(),
 	} {
 		// Primary key: "TargetName:ElemType"
 		key := p.TargetName + ":" + p.ElemType
@@ -178,7 +191,7 @@ func init() {
 		"bfloat16": "hwy.BFloat16",
 	}
 	for bare, qualified := range aliases {
-		for _, target := range []string{"NEON", "AVX2", "AVX512"} {
+		for _, target := range []string{"NEON", "AVX2", "AVX512", "SVE_DARWIN", "SVE_LINUX"} {
 			qualifiedKey := target + ":" + qualified
 			if p, ok := cProfileRegistry[qualifiedKey]; ok {
 				cProfileRegistry[target+":"+bare] = p
@@ -988,5 +1001,235 @@ func neonInt64Profile() *CIntrinsicProfile {
 		NativeArithmetic: true,
 		GoatTarget:       "arm64",
 		GoatExtraFlags:   []string{"-march=armv8-a+simd+fp"},
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SVE darwin float32 (Apple M4 via SME streaming mode, hardcoded SVL=512)
+// ---------------------------------------------------------------------------
+// On macOS M4+, SVE instructions execute in __arm_streaming mode (via SME).
+// The streaming vector length (SVL) is fixed at 512 bits = 16 f32 lanes.
+// Every SVE intrinsic except dup and reinterpret requires an svbool_t predicate.
+
+func sveDarwinF32Profile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "float32",
+		TargetName: "SVE_DARWIN",
+		Include:    "#include <arm_sve.h>",
+		CType:      "float",
+		VecTypes: map[string]string{
+			"sve":    "svfloat32_t",
+			"scalar": "svfloat32_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "sve", Lanes: 16, Unroll: 4, IsScalar: false},
+			{Name: "sve", Lanes: 16, Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:    map[string]string{"sve": "svld1_f32"},
+		StoreFn:   map[string]string{"sve": "svst1_f32"},
+		AddFn:     map[string]string{"sve": "svadd_f32_x"},
+		SubFn:     map[string]string{"sve": "svsub_f32_x"},
+		MulFn:     map[string]string{"sve": "svmul_f32_x"},
+		DivFn:     map[string]string{"sve": "svdiv_f32_x"},
+		FmaFn:     map[string]string{"sve": "svmla_f32_x"},
+		NegFn:     map[string]string{"sve": "svneg_f32_x"},
+		AbsFn:     map[string]string{"sve": "svabs_f32_x"},
+		SqrtFn:    map[string]string{"sve": "svsqrt_f32_x"},
+		MinFn:     map[string]string{"sve": "svmin_f32_x"},
+		MaxFn:     map[string]string{"sve": "svmax_f32_x"},
+		DupFn:     map[string]string{"sve": "svdup_f32"},
+		GetLaneFn: map[string]string{"sve": "svlasta_f32"},
+
+		ReduceSumFn:       map[string]string{"sve": "svaddv_f32"},
+		ReduceMinFn:       map[string]string{"sve": "svminv_f32"},
+		ReduceMaxFn:       map[string]string{"sve": "svmaxv_f32"},
+		InterleaveLowerFn: map[string]string{"sve": "svzip1_f32"},
+		InterleaveUpperFn: map[string]string{"sve": "svzip2_f32"},
+		LessThanFn:        map[string]string{"sve": "svcmplt_f32"},
+		EqualFn:           map[string]string{"sve": "svcmpeq_f32"},
+		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f32"},
+		IfThenElseFn:      map[string]string{"sve": "svsel_f32"},
+		MaskType:          map[string]string{"sve": "svbool_t"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		FmaArgOrder:      "acc_first",
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv9-a+sme"},
+		NeedsPredicate:   true,
+		PredicateDecl:    "svptrue_b32()",
+		// NOTE: Do NOT use __arm_streaming here. Clang places smstart after
+		// early-exit branches, creating paths where SVE instructions execute
+		// outside streaming mode. Instead, GOAT injects smstart/smstop
+		// conservatively before the first SVE instruction on each code path.
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SVE darwin float64 (Apple M4 via SME streaming mode, hardcoded SVL=512)
+// ---------------------------------------------------------------------------
+
+func sveDarwinF64Profile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "float64",
+		TargetName: "SVE_DARWIN",
+		Include:    "#include <arm_sve.h>",
+		CType:      "double",
+		VecTypes: map[string]string{
+			"sve":    "svfloat64_t",
+			"scalar": "svfloat64_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "sve", Lanes: 8, Unroll: 4, IsScalar: false},
+			{Name: "sve", Lanes: 8, Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:    map[string]string{"sve": "svld1_f64"},
+		StoreFn:   map[string]string{"sve": "svst1_f64"},
+		AddFn:     map[string]string{"sve": "svadd_f64_x"},
+		SubFn:     map[string]string{"sve": "svsub_f64_x"},
+		MulFn:     map[string]string{"sve": "svmul_f64_x"},
+		DivFn:     map[string]string{"sve": "svdiv_f64_x"},
+		FmaFn:     map[string]string{"sve": "svmla_f64_x"},
+		NegFn:     map[string]string{"sve": "svneg_f64_x"},
+		AbsFn:     map[string]string{"sve": "svabs_f64_x"},
+		SqrtFn:    map[string]string{"sve": "svsqrt_f64_x"},
+		MinFn:     map[string]string{"sve": "svmin_f64_x"},
+		MaxFn:     map[string]string{"sve": "svmax_f64_x"},
+		DupFn:     map[string]string{"sve": "svdup_f64"},
+		GetLaneFn: map[string]string{"sve": "svlasta_f64"},
+
+		ReduceSumFn:       map[string]string{"sve": "svaddv_f64"},
+		ReduceMinFn:       map[string]string{"sve": "svminv_f64"},
+		ReduceMaxFn:       map[string]string{"sve": "svmaxv_f64"},
+		InterleaveLowerFn: map[string]string{"sve": "svzip1_f64"},
+		InterleaveUpperFn: map[string]string{"sve": "svzip2_f64"},
+		LessThanFn:        map[string]string{"sve": "svcmplt_f64"},
+		EqualFn:           map[string]string{"sve": "svcmpeq_f64"},
+		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f64"},
+		IfThenElseFn:      map[string]string{"sve": "svsel_f64"},
+		MaskType:          map[string]string{"sve": "svbool_t"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		FmaArgOrder:      "acc_first",
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv9-a+sme"},
+		NeedsPredicate:   true,
+		PredicateDecl:    "svptrue_b64()",
+		// NOTE: Do NOT use __arm_streaming here — see f32 profile comment.
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SVE linux float32 (Graviton 3/4, Neoverse — native SVE, dynamic VL)
+// ---------------------------------------------------------------------------
+// On Linux ARM64 with SVE, the vector length is determined at runtime via
+// svcntw() (f32) or svcntd() (f64). No streaming mode needed.
+
+func sveLinuxF32Profile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "float32",
+		TargetName: "SVE_LINUX",
+		Include:    "#include <arm_sve.h>",
+		CType:      "float",
+		VecTypes: map[string]string{
+			"sve":    "svfloat32_t",
+			"scalar": "svfloat32_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "sve", DynamicLanes: "svcntw()", Unroll: 4, IsScalar: false},
+			{Name: "sve", DynamicLanes: "svcntw()", Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:    map[string]string{"sve": "svld1_f32"},
+		StoreFn:   map[string]string{"sve": "svst1_f32"},
+		AddFn:     map[string]string{"sve": "svadd_f32_x"},
+		SubFn:     map[string]string{"sve": "svsub_f32_x"},
+		MulFn:     map[string]string{"sve": "svmul_f32_x"},
+		DivFn:     map[string]string{"sve": "svdiv_f32_x"},
+		FmaFn:     map[string]string{"sve": "svmla_f32_x"},
+		NegFn:     map[string]string{"sve": "svneg_f32_x"},
+		AbsFn:     map[string]string{"sve": "svabs_f32_x"},
+		SqrtFn:    map[string]string{"sve": "svsqrt_f32_x"},
+		MinFn:     map[string]string{"sve": "svmin_f32_x"},
+		MaxFn:     map[string]string{"sve": "svmax_f32_x"},
+		DupFn:     map[string]string{"sve": "svdup_f32"},
+		GetLaneFn: map[string]string{"sve": "svlasta_f32"},
+
+		ReduceSumFn:       map[string]string{"sve": "svaddv_f32"},
+		ReduceMinFn:       map[string]string{"sve": "svminv_f32"},
+		ReduceMaxFn:       map[string]string{"sve": "svmaxv_f32"},
+		InterleaveLowerFn: map[string]string{"sve": "svzip1_f32"},
+		InterleaveUpperFn: map[string]string{"sve": "svzip2_f32"},
+		LessThanFn:        map[string]string{"sve": "svcmplt_f32"},
+		EqualFn:           map[string]string{"sve": "svcmpeq_f32"},
+		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f32"},
+		IfThenElseFn:      map[string]string{"sve": "svsel_f32"},
+		MaskType:          map[string]string{"sve": "svbool_t"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		FmaArgOrder:      "acc_first",
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv9-a+sve2"},
+		NeedsPredicate:   true,
+		PredicateDecl:    "svptrue_b32()",
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SVE linux float64 (Graviton 3/4, Neoverse — native SVE, dynamic VL)
+// ---------------------------------------------------------------------------
+
+func sveLinuxF64Profile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "float64",
+		TargetName: "SVE_LINUX",
+		Include:    "#include <arm_sve.h>",
+		CType:      "double",
+		VecTypes: map[string]string{
+			"sve":    "svfloat64_t",
+			"scalar": "svfloat64_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "sve", DynamicLanes: "svcntd()", Unroll: 4, IsScalar: false},
+			{Name: "sve", DynamicLanes: "svcntd()", Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:    map[string]string{"sve": "svld1_f64"},
+		StoreFn:   map[string]string{"sve": "svst1_f64"},
+		AddFn:     map[string]string{"sve": "svadd_f64_x"},
+		SubFn:     map[string]string{"sve": "svsub_f64_x"},
+		MulFn:     map[string]string{"sve": "svmul_f64_x"},
+		DivFn:     map[string]string{"sve": "svdiv_f64_x"},
+		FmaFn:     map[string]string{"sve": "svmla_f64_x"},
+		NegFn:     map[string]string{"sve": "svneg_f64_x"},
+		AbsFn:     map[string]string{"sve": "svabs_f64_x"},
+		SqrtFn:    map[string]string{"sve": "svsqrt_f64_x"},
+		MinFn:     map[string]string{"sve": "svmin_f64_x"},
+		MaxFn:     map[string]string{"sve": "svmax_f64_x"},
+		DupFn:     map[string]string{"sve": "svdup_f64"},
+		GetLaneFn: map[string]string{"sve": "svlasta_f64"},
+
+		ReduceSumFn:       map[string]string{"sve": "svaddv_f64"},
+		ReduceMinFn:       map[string]string{"sve": "svminv_f64"},
+		ReduceMaxFn:       map[string]string{"sve": "svmaxv_f64"},
+		InterleaveLowerFn: map[string]string{"sve": "svzip1_f64"},
+		InterleaveUpperFn: map[string]string{"sve": "svzip2_f64"},
+		LessThanFn:        map[string]string{"sve": "svcmplt_f64"},
+		EqualFn:           map[string]string{"sve": "svcmpeq_f64"},
+		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f64"},
+		IfThenElseFn:      map[string]string{"sve": "svsel_f64"},
+		MaskType:          map[string]string{"sve": "svbool_t"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		FmaArgOrder:      "acc_first",
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv9-a+sve2"},
+		NeedsPredicate:   true,
+		PredicateDecl:    "svptrue_b64()",
 	}
 }

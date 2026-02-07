@@ -48,12 +48,15 @@ func makeUnexported(name string) string {
 
 // targetPriority returns a priority value for SIMD targets.
 // Higher values are checked first in dispatch code.
-// This ensures AVX512 is checked before AVX2 (since AVX512 CPUs also have AVX2).
+// This ensures AVX512 is checked before AVX2 (since AVX512 CPUs also have AVX2),
+// and SVE is checked before NEON (SVE is a superset with wider vectors).
 func targetPriority(name string) int {
 	switch name {
 	case "AVX512":
 		return 3
 	case "AVX2":
+		return 2
+	case "SVE_DARWIN", "SVE_LINUX":
 		return 2
 	case "NEON":
 		return 1
@@ -449,6 +452,11 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 			fmt.Fprintf(&buf, "\t\tinit%sAVX2()\n", capPrefix)
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
+		case "SVE_DARWIN", "SVE_LINUX":
+			// SVE dispatch is handled entirely by z_c_*.gen.go init() functions
+			// which override dispatch vars when SVE/SME is detected at runtime.
+			// No GoSimd init function is generated for SVE targets.
+			continue
 		case "NEON":
 			// NEON is mandatory on ARM64, so always use it
 			fmt.Fprintf(&buf, "\tinit%sNEON()\n", capPrefix)
@@ -464,7 +472,11 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	fmt.Fprintf(&buf, "}\n\n")
 
 	// Generate init functions for each target
+	// SVE targets are skipped — their dispatch is handled by z_c_*.gen.go init() functions.
 	for _, target := range archTargets {
+		if isSVETarget(target) {
+			continue
+		}
 		initFuncName := "init" + capPrefix + target.Name
 		fmt.Fprintf(&buf, "func %s() {\n", initFuncName)
 

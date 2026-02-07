@@ -991,6 +991,33 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 	return nil
 }
 
+// isSVETarget returns true if the target is an SVE target (SVE_DARWIN or SVE_LINUX).
+func isSVETarget(target Target) bool {
+	return target.Name == "SVE_DARWIN" || target.Name == "SVE_LINUX"
+}
+
+// isSVEStreamingTarget returns true for SVE targets that require SME streaming
+// mode (smstart/smstop). On Darwin, SVE instructions only work in streaming mode,
+// so per-function dispatch is impractical due to ~50ns transition overhead.
+// These targets should NOT override scalar dispatch vars; instead, SVE assembly
+// is exposed for use from batch wrappers that enter streaming mode once.
+func isSVEStreamingTarget(target Target) bool {
+	return target.Name == "SVE_DARWIN"
+}
+
+// sveRuntimeGuard returns the runtime detection function call for SVE targets.
+// SVE_DARWIN uses hwy.HasSME(), SVE_LINUX uses hwy.HasSVE().
+func sveRuntimeGuard(target Target) string {
+	switch target.Name {
+	case "SVE_DARWIN":
+		return "hwy.HasSME()"
+	case "SVE_LINUX":
+		return "hwy.HasSVE()"
+	default:
+		return ""
+	}
+}
+
 // emitZCDispatch generates a z_c_*.gen.go file in the parent package that
 // overrides dispatch variables with assembly implementations. It creates adapter
 // functions that convert generic struct pointers (e.g., *Image[T]) to C-compatible
@@ -1013,20 +1040,25 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 		return fmt.Errorf("resolve asm import path: %w", err)
 	}
 
-	// Check if we need the hwy import for half-precision types
-	needsHwy := false
-	for _, pf := range funcs {
-		for _, et := range getCElemTypes(&pf) {
-			if isHalfPrecisionType(et) {
-				profile := GetCProfile(target.Name, et)
-				if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
-					needsHwy = true
-					break
+	// Determine if hwy import is needed. SVE streaming targets (Darwin) skip
+	// init() generation, so only need hwy for half-precision types. Non-streaming
+	// SVE targets (Linux) generate init() with a runtime guard (hwy.HasSVE()).
+	needsHwy := isSVETarget(target) && !isSVEStreamingTarget(target)
+	if !needsHwy {
+		// Check if we need the hwy import for half-precision types
+		for _, pf := range funcs {
+			for _, et := range getCElemTypes(&pf) {
+				if isHalfPrecisionType(et) {
+					profile := GetCProfile(target.Name, et)
+					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+						needsHwy = true
+						break
+					}
 				}
 			}
-		}
-		if needsHwy {
-			break
+			if needsHwy {
+				break
+			}
 		}
 	}
 
@@ -1042,23 +1074,36 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 	fmt.Fprintf(&buf, "\t\"%s\"\n", asmImport)
 	fmt.Fprintf(&buf, ")\n\n")
 
-	// init() to override dispatch variables
-	fmt.Fprintf(&buf, "func init() {\n")
-	for _, pf := range funcs {
-		for _, elemType := range getCElemTypes(&pf) {
-			profile := GetCProfile(target.Name, elemType)
-			if profile == nil {
-				continue
-			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-				continue
-			}
-			dispatchVar := buildDispatchVarName(pf.Name, elemType)
-			adapterName := buildAdapterFuncName(pf.Name, elemType)
-			fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
+	// init() to override dispatch variables.
+	// SVE streaming targets (Darwin) do NOT override scalar dispatch vars
+	// because per-function smstart/smstop overhead (~50ns) makes SVE slower
+	// than NEON for scalar calls. The adapter functions are still generated
+	// for use from batch wrappers (e.g., sme_wrappers.go).
+	// Non-streaming SVE targets (Linux) override dispatch normally.
+	if !isSVEStreamingTarget(target) {
+		fmt.Fprintf(&buf, "func init() {\n")
+		guard := sveRuntimeGuard(target)
+		if guard != "" {
+			fmt.Fprintf(&buf, "\tif !%s {\n", guard)
+			fmt.Fprintf(&buf, "\t\treturn\n")
+			fmt.Fprintf(&buf, "\t}\n")
 		}
+		for _, pf := range funcs {
+			for _, elemType := range getCElemTypes(&pf) {
+				profile := GetCProfile(target.Name, elemType)
+				if profile == nil {
+					continue
+				}
+				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+					continue
+				}
+				dispatchVar := buildDispatchVarName(pf.Name, elemType)
+				adapterName := buildAdapterFuncName(pf.Name, elemType)
+				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
+			}
+		}
+		fmt.Fprintf(&buf, "}\n\n")
 	}
-	fmt.Fprintf(&buf, "}\n\n")
 
 	// Adapter functions: Image[T] → C struct → asm call
 	for _, pf := range funcs {
@@ -1144,6 +1189,33 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				}
 			}
 
+			// Hidden length param (when slices exist but no explicit int params)
+			hasSlices := false
+			hasIntParams := false
+			for _, p := range pf.Params {
+				if strings.HasPrefix(p.Type, "[]") {
+					hasSlices = true
+				}
+				if p.Type == "int" || p.Type == "int64" {
+					hasIntParams = true
+				}
+			}
+			if hasSlices && !hasIntParams {
+				paramDefs = append(paramDefs, "plen unsafe.Pointer")
+				paramNames = append(paramNames, "plen")
+			}
+
+			// Return value output pointers
+			for _, ret := range pf.Returns {
+				name := ret.Name
+				if name == "" {
+					name = "result"
+				}
+				ptrName := "pout_" + name
+				paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
+				paramNames = append(paramNames, ptrName)
+			}
+
 			fmt.Fprintf(&buf, "// %s calls the %s SIMD assembly implementation.\n",
 				exportedName, strings.ToUpper(target.Name))
 			fmt.Fprintf(&buf, "func %s(%s) {\n",
@@ -1200,20 +1272,25 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 		return fmt.Errorf("resolve asm import path: %w", err)
 	}
 
-	// Check if we need the hwy import for half-precision types
-	needsHwy := false
-	for _, pf := range funcs {
-		for _, et := range getCElemTypes(&pf) {
-			if isHalfPrecisionType(et) {
-				profile := GetCProfile(target.Name, et)
-				if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
-					needsHwy = true
-					break
+	// Determine if hwy import is needed. SVE streaming targets (Darwin) skip
+	// init() generation, so only need hwy for half-precision types. Non-streaming
+	// SVE targets (Linux) generate init() with a runtime guard (hwy.HasSVE()).
+	needsHwy := isSVETarget(target) && !isSVEStreamingTarget(target)
+	if !needsHwy {
+		// Check if we need the hwy import for half-precision types
+		for _, pf := range funcs {
+			for _, et := range getCElemTypes(&pf) {
+				if isHalfPrecisionType(et) {
+					profile := GetCProfile(target.Name, et)
+					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+						needsHwy = true
+						break
+					}
 				}
 			}
-		}
-		if needsHwy {
-			break
+			if needsHwy {
+				break
+			}
 		}
 	}
 
@@ -1229,23 +1306,36 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 	fmt.Fprintf(&buf, "\t\"%s\"\n", asmImport)
 	fmt.Fprintf(&buf, ")\n\n")
 
-	// init() to override dispatch variables
-	fmt.Fprintf(&buf, "func init() {\n")
-	for _, pf := range funcs {
-		for _, elemType := range getCElemTypes(&pf) {
-			profile := GetCProfile(target.Name, elemType)
-			if profile == nil {
-				continue
-			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-				continue
-			}
-			dispatchVar := buildDispatchVarName(pf.Name, elemType)
-			adapterName := buildAdapterFuncName(pf.Name, elemType)
-			fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
+	// init() to override dispatch variables.
+	// SVE streaming targets (Darwin) do NOT override scalar dispatch vars
+	// because per-function smstart/smstop overhead (~50ns) makes SVE slower
+	// than NEON for scalar calls. The adapter functions are still generated
+	// for use from batch wrappers (e.g., sme_wrappers.go).
+	// Non-streaming SVE targets (Linux) override dispatch normally.
+	if !isSVEStreamingTarget(target) {
+		fmt.Fprintf(&buf, "func init() {\n")
+		guard := sveRuntimeGuard(target)
+		if guard != "" {
+			fmt.Fprintf(&buf, "\tif !%s {\n", guard)
+			fmt.Fprintf(&buf, "\t\treturn\n")
+			fmt.Fprintf(&buf, "\t}\n")
 		}
+		for _, pf := range funcs {
+			for _, elemType := range getCElemTypes(&pf) {
+				profile := GetCProfile(target.Name, elemType)
+				if profile == nil {
+					continue
+				}
+				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+					continue
+				}
+				dispatchVar := buildDispatchVarName(pf.Name, elemType)
+				adapterName := buildAdapterFuncName(pf.Name, elemType)
+				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
+			}
+		}
+		fmt.Fprintf(&buf, "}\n\n")
 	}
-	fmt.Fprintf(&buf, "}\n\n")
 
 	// Adapter functions: Go slice+int params → unsafe.Pointer → asm call
 	for _, pf := range funcs {
@@ -1281,8 +1371,6 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	// Build Go function signature matching the dispatch var type
 	goSig := groupGoParams(pf, goSliceType, elemType)
 
-	fmt.Fprintf(buf, "func %s(%s) {\n", adapterName, goSig)
-
 	// Classify params.
 	var sliceParams []string
 	var intParams []string
@@ -1294,22 +1382,71 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		}
 	}
 
+	// Determine if we need a hidden length param (no explicit int params but has slices)
+	needsHiddenLen := len(intParams) == 0 && len(sliceParams) > 0
+
+	// Determine if we have return values
+	hasReturns := len(pf.Returns) > 0
+
+	// Build return type string
+	var returnType string
+	if hasReturns {
+		if len(pf.Returns) == 1 {
+			returnType = goReturnTypeForWrapper(pf.Returns[0].Type, elemType)
+		} else {
+			var retTypes []string
+			for _, ret := range pf.Returns {
+				retTypes = append(retTypes, goReturnTypeForWrapper(ret.Type, elemType))
+			}
+			returnType = "(" + strings.Join(retTypes, ", ") + ")"
+		}
+	}
+
+	// Function signature
+	if hasReturns {
+		fmt.Fprintf(buf, "func %s(%s) %s {\n", adapterName, goSig, returnType)
+	} else {
+		fmt.Fprintf(buf, "func %s(%s) {\n", adapterName, goSig)
+	}
+
 	// Guard against empty slices to prevent &slice[0] panic.
-	// Int params are not guarded — the C code handles zero dimensions,
-	// and some int params (e.g., phase) are legitimately 0.
 	if len(sliceParams) > 0 {
 		var checks []string
 		for _, sp := range sliceParams {
 			checks = append(checks, "len("+sp+") == 0")
 		}
 		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
-		fmt.Fprintf(buf, "\t\treturn\n")
+		if hasReturns {
+			var zeros []string
+			for range pf.Returns {
+				zeros = append(zeros, "0")
+			}
+			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
+		} else {
+			fmt.Fprintf(buf, "\t\treturn\n")
+		}
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
 	// Convert int params to int64 for unsafe.Pointer
 	for _, ip := range intParams {
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
+	}
+
+	// Hidden length param
+	if needsHiddenLen {
+		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", sliceParams[0])
+	}
+
+	// Output variables for return values
+	if hasReturns {
+		for _, ret := range pf.Returns {
+			name := ret.Name
+			if name == "" {
+				name = "result"
+			}
+			fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+		}
 	}
 
 	// Call asm passthrough
@@ -1329,7 +1466,35 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			}
 		}
 	}
+	// Hidden length pointer
+	if needsHiddenLen {
+		fmt.Fprintf(buf, "\t\tunsafe.Pointer(&lenVal),\n")
+	}
+	// Output pointers
+	if hasReturns {
+		for _, ret := range pf.Returns {
+			name := ret.Name
+			if name == "" {
+				name = "result"
+			}
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&out_%s),\n", name)
+		}
+	}
 	fmt.Fprintf(buf, "\t)\n")
+
+	// Return with type narrowing from int64 to actual return type
+	if hasReturns {
+		var retExprs []string
+		for _, ret := range pf.Returns {
+			name := ret.Name
+			if name == "" {
+				name = "result"
+			}
+			goType := goReturnTypeForWrapper(ret.Type, elemType)
+			retExprs = append(retExprs, goType+"(out_"+name+")")
+		}
+		fmt.Fprintf(buf, "\treturn %s\n", strings.Join(retExprs, ", "))
+	}
 	fmt.Fprintf(buf, "}\n\n")
 }
 
@@ -1653,7 +1818,11 @@ func astWrapperGoSliceType(elemType string) string {
 }
 
 // goReturnTypeForWrapper maps Go return types to their Go type name for wrappers.
-func goReturnTypeForWrapper(goType string) string {
+// elemType is used to resolve generic "T" return types to concrete types.
+func goReturnTypeForWrapper(goType, elemType string) string {
+	if goType == "T" {
+		return astWrapperGoScalarType(elemType)
+	}
 	switch goType {
 	case "uint32":
 		return "uint32"
@@ -1722,11 +1891,11 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	var returnType string
 	if hasReturns {
 		if len(pf.Returns) == 1 {
-			returnType = goReturnTypeForWrapper(pf.Returns[0].Type)
+			returnType = goReturnTypeForWrapper(pf.Returns[0].Type, elemType)
 		} else {
 			var retTypes []string
 			for _, ret := range pf.Returns {
-				retTypes = append(retTypes, goReturnTypeForWrapper(ret.Type))
+				retTypes = append(retTypes, goReturnTypeForWrapper(ret.Type, elemType))
 			}
 			returnType = "(" + strings.Join(retTypes, ", ") + ")"
 		}
@@ -1870,7 +2039,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			if name == "" {
 				name = "result"
 			}
-			goType := goReturnTypeForWrapper(ret.Type)
+			goType := goReturnTypeForWrapper(ret.Type, elemType)
 			if goType == "int64" || goType == "int" {
 				retExprs = append(retExprs, goType+"(out_"+name+")")
 			} else {

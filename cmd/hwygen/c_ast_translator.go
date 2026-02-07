@@ -559,7 +559,11 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 			params = append(params, info.cType+" "+info.cName)
 		}
 	}
-	t.writef("void %s(%s) {\n", funcName, strings.Join(params, ", "))
+	if t.profile.FuncAttrs != "" {
+		t.writef("void %s(%s) %s {\n", funcName, strings.Join(params, ", "), t.profile.FuncAttrs)
+	} else {
+		t.writef("void %s(%s) {\n", funcName, strings.Join(params, ", "))
+	}
 }
 
 // cFuncName builds the C function name from the Go function name.
@@ -569,6 +573,18 @@ func (t *CASTTranslator) cFuncName(baseName string) string {
 	name = strings.TrimPrefix(name, "base")
 	targetSuffix := strings.ToLower(t.profile.TargetName)
 	return name + "_c_" + cTypeSuffix(t.elemType) + "_" + targetSuffix
+}
+
+// lanesExpr returns the lanes count as a string. For profiles with dynamic
+// lanes (e.g. SVE Linux), this returns the runtime expression like "svcntw()".
+// Otherwise it returns the literal lane count.
+func (t *CASTTranslator) lanesExpr() string {
+	for _, tier := range t.profile.Tiers {
+		if tier.Name == t.tier && tier.DynamicLanes != "" {
+			return tier.DynamicLanes
+		}
+	}
+	return fmt.Sprintf("%d", t.lanes)
 }
 
 // emitParamDerefs emits: long m = *pm; for each pointer-passed parameter.
@@ -586,6 +602,10 @@ func (t *CASTTranslator) emitParamDerefs() {
 		derefType = strings.TrimSpace(derefType)
 		t.writef("%s %s = *%s;\n", derefType, info.goName, info.cName)
 		t.vars[info.goName] = cVarInfo{cType: derefType}
+	}
+	// SVE predicate declaration
+	if t.profile.NeedsPredicate {
+		t.writef("svbool_t pg = %s;\n", t.profile.PredicateDecl)
 	}
 }
 
@@ -1543,7 +1563,7 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 	// Check for v.NumLanes() method calls
 	if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
 		if sel.Sel.Name == "NumLanes" || sel.Sel.Name == "NumElements" {
-			return fmt.Sprintf("%d", t.lanes)
+			return t.lanesExpr()
 		}
 	}
 
@@ -1772,7 +1792,7 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 	case "StoreSlice":
 		return t.emitHwyStoreExpr(args) // same semantics as Store for C
 	case "MaxLanes", "NumLanes":
-		return fmt.Sprintf("%d", t.lanes)
+		return t.lanesExpr()
 	case "GetLane":
 		return t.emitHwyGetLane(args)
 	default:
@@ -1786,6 +1806,7 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 }
 
 // emitHwyLoad: hwy.Load(slice[off:]) → vld1q_f32(ptr + off)
+// SVE: svld1_f32(pg, ptr + off) — predicate is first arg
 func (t *CASTTranslator) emitHwyLoad(args []ast.Expr) string {
 	if len(args) < 1 {
 		return "/* Load: missing args */"
@@ -1793,12 +1814,16 @@ func (t *CASTTranslator) emitHwyLoad(args []ast.Expr) string {
 	loadFn := t.profile.LoadFn[t.tier]
 	ptr := t.translateExpr(args[0])
 	if t.profile.CastExpr != "" {
-		return fmt.Sprintf("%s(%s(%s))", loadFn, t.profile.CastExpr, ptr)
+		ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+	}
+	if t.profile.NeedsPredicate {
+		return fmt.Sprintf("%s(pg, %s)", loadFn, ptr)
 	}
 	return fmt.Sprintf("%s(%s)", loadFn, ptr)
 }
 
 // emitHwyStore: hwy.Store(vec, slice[off:]) → vst1q_f32(ptr + off, vec)
+// SVE: svst1_f32(pg, ptr + off, vec) — predicate first, then ptr, then vec
 func (t *CASTTranslator) emitHwyStore(args []ast.Expr) {
 	if len(args) < 2 {
 		t.writef("/* Store: missing args */\n")
@@ -1807,11 +1832,14 @@ func (t *CASTTranslator) emitHwyStore(args []ast.Expr) {
 	storeFn := t.profile.StoreFn[t.tier]
 	vec := t.translateExpr(args[0])
 	ptr := t.translateExpr(args[1])
-	// NEON Store: vst1q_f32(ptr, vec) — pointer first, vector second
-	// AVX Store: _mm256_storeu_ps(ptr, vec) — same convention
 	if t.profile.CastExpr != "" {
-		t.writef("%s(%s(%s), %s);\n", storeFn, t.profile.CastExpr, ptr, vec)
+		ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+	}
+	if t.profile.NeedsPredicate {
+		// SVE Store: svst1_f32(pg, ptr, vec)
+		t.writef("%s(pg, %s, %s);\n", storeFn, ptr, vec)
 	} else {
+		// NEON/AVX Store: vst1q_f32(ptr, vec)
 		t.writef("%s(%s, %s);\n", storeFn, ptr, vec)
 	}
 }
@@ -1825,7 +1853,10 @@ func (t *CASTTranslator) emitHwyStoreExpr(args []ast.Expr) string {
 	vec := t.translateExpr(args[0])
 	ptr := t.translateExpr(args[1])
 	if t.profile.CastExpr != "" {
-		return fmt.Sprintf("%s(%s(%s), %s)", storeFn, t.profile.CastExpr, ptr, vec)
+		ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+	}
+	if t.profile.NeedsPredicate {
+		return fmt.Sprintf("%s(pg, %s, %s)", storeFn, ptr, vec)
 	}
 	return fmt.Sprintf("%s(%s, %s)", storeFn, ptr, vec)
 }
@@ -1866,6 +1897,7 @@ func (t *CASTTranslator) emitHwyZero() string {
 // Go convention (like AVX): MulAdd(a, b, acc) = a*b + acc
 // NEON: vfmaq_f32(acc, a, b) — accumulator first
 // AVX: _mm256_fmadd_ps(a, b, acc) — accumulator last
+// SVE: svmla_f32_x(pg, acc, a, b) — predicate first, accumulator second
 func (t *CASTTranslator) emitHwyMulAdd(args []ast.Expr) string {
 	if len(args) < 3 {
 		return "/* MulAdd: missing args */"
@@ -1875,6 +1907,10 @@ func (t *CASTTranslator) emitHwyMulAdd(args []ast.Expr) string {
 	b := t.translateExpr(args[1])
 	acc := t.translateExpr(args[2])
 
+	if t.profile.NeedsPredicate {
+		// SVE: svmla_f32_x(pg, acc, a, b) — predicate first, then acc_first order
+		return fmt.Sprintf("%s(pg, %s, %s, %s)", fmaFn, acc, a, b)
+	}
 	if t.profile.FmaArgOrder == "acc_first" {
 		// NEON: FMA(acc, a, b)
 		return fmt.Sprintf("%s(%s, %s, %s)", fmaFn, acc, a, b)
@@ -1894,6 +1930,7 @@ func (t *CASTTranslator) emitHwyShiftRight(args []ast.Expr) string {
 
 	// Select intrinsic based on target and element type
 	var fn string
+	needsPg := false
 	switch t.profile.TargetName {
 	case "NEON":
 		switch t.elemType {
@@ -1907,6 +1944,20 @@ func (t *CASTTranslator) emitHwyShiftRight(args []ast.Expr) string {
 			fn = "vshrq_n_u64"
 		default:
 			fn = "vshrq_n_s32" // fallback
+		}
+	case "SVE_DARWIN", "SVE_LINUX":
+		needsPg = true
+		switch t.elemType {
+		case "int32":
+			fn = "svasr_n_s32_x"
+		case "int64":
+			fn = "svasr_n_s64_x"
+		case "uint32":
+			fn = "svlsr_n_u32_x"
+		case "uint64":
+			fn = "svlsr_n_u64_x"
+		default:
+			fn = "svasr_n_s32_x" // fallback
 		}
 	case "AVX2":
 		switch t.elemType {
@@ -1930,6 +1981,9 @@ func (t *CASTTranslator) emitHwyShiftRight(args []ast.Expr) string {
 		fn = "vshrq_n_s32" // fallback to NEON
 	}
 
+	if needsPg {
+		return fmt.Sprintf("%s(pg, %s, %s)", fn, v, n)
+	}
 	return fmt.Sprintf("%s(%s, %s)", fn, v, n)
 }
 
@@ -1968,6 +2022,7 @@ func (t *CASTTranslator) emitCopy(args []ast.Expr) {
 }
 
 // emitHwyBinaryOp: hwy.Add(a, b) → vaddq_f32(a, b)
+// SVE: svadd_f32_x(pg, a, b) — predicate first
 func (t *CASTTranslator) emitHwyBinaryOp(fnMap map[string]string, args []ast.Expr) string {
 	if len(args) < 2 {
 		return "/* binary op: missing args */"
@@ -1980,26 +2035,37 @@ func (t *CASTTranslator) emitHwyBinaryOp(fnMap map[string]string, args []ast.Exp
 		// This handles cases like int64 multiply on NEON (no vmulq_s64).
 		return fmt.Sprintf("(%s) * (%s)", a, b)
 	}
+	if t.profile.NeedsPredicate {
+		return fmt.Sprintf("%s(pg, %s, %s)", fn, a, b)
+	}
 	return fmt.Sprintf("%s(%s, %s)", fn, a, b)
 }
 
 // emitHwyUnaryOp: hwy.Neg(x) → vnegq_f32(x)
+// SVE: svneg_f32_x(pg, x) — predicate first
 func (t *CASTTranslator) emitHwyUnaryOp(fnMap map[string]string, args []ast.Expr) string {
 	if len(args) < 1 {
 		return "/* unary op: missing args */"
 	}
 	fn := fnMap[t.tier]
 	x := t.translateExpr(args[0])
+	if t.profile.NeedsPredicate {
+		return fmt.Sprintf("%s(pg, %s)", fn, x)
+	}
 	return fmt.Sprintf("%s(%s)", fn, x)
 }
 
 // emitHwyReduceSum: hwy.ReduceSum(v) → vaddvq_f32(v) (returns scalar, not vector)
+// SVE: svaddv_f32(pg, v) — predicate is first arg
 func (t *CASTTranslator) emitHwyReduceSum(args []ast.Expr) string {
 	if len(args) < 1 {
 		return "/* ReduceSum: missing args */"
 	}
 	fn := t.profile.ReduceSumFn[t.tier]
 	v := t.translateExpr(args[0])
+	if t.profile.NeedsPredicate {
+		return fmt.Sprintf("%s(pg, %s)", fn, v)
+	}
 	return fmt.Sprintf("%s(%s)", fn, v)
 }
 
@@ -2024,6 +2090,7 @@ func (t *CASTTranslator) emitHwyIfThenElse(args []ast.Expr) string {
 }
 
 // emitHwyGetLane: hwy.GetLane(v, idx) → vgetq_lane_f32(v, idx)
+// SVE: svlasta_f32(pg, v) — predicate is first arg, no index (extracts first active element)
 // For variable (non-literal) indices, emits a store-to-stack pattern.
 func (t *CASTTranslator) emitHwyGetLane(args []ast.Expr) string {
 	if len(args) < 2 {
@@ -2031,6 +2098,10 @@ func (t *CASTTranslator) emitHwyGetLane(args []ast.Expr) string {
 	}
 	fn := t.profile.GetLaneFn[t.tier]
 	v := t.translateExpr(args[0])
+	if t.profile.NeedsPredicate {
+		// SVE: svlasta_f32(pg, v) — index is implicit (first active element)
+		return fmt.Sprintf("%s(pg, %s)", fn, v)
+	}
 	idx := t.translateExpr(args[1])
 	return fmt.Sprintf("%s(%s, %s)", fn, v, idx)
 }
@@ -2105,14 +2176,18 @@ func (t *CASTTranslator) translateLoad4Assign(lhs []ast.Expr, args []ast.Expr, t
 			}
 		}
 	} else {
-		// AVX fallback: 4 individual loads
+		// AVX/SVE fallback: 4 individual loads
 		loadFn := t.profile.LoadFn[t.tier]
 		for i := range 4 {
 			var loadExpr string
-			if i == 0 {
-				loadExpr = fmt.Sprintf("%s(%s)", loadFn, ptr)
+			ptrExpr := ptr
+			if i > 0 {
+				ptrExpr = fmt.Sprintf("%s + %d", ptr, i*t.lanes)
+			}
+			if t.profile.NeedsPredicate {
+				loadExpr = fmt.Sprintf("%s(pg, %s)", loadFn, ptrExpr)
 			} else {
-				loadExpr = fmt.Sprintf("%s(%s + %d)", loadFn, ptr, i*t.lanes)
+				loadExpr = fmt.Sprintf("%s(%s)", loadFn, ptrExpr)
 			}
 			if tok == token.DEFINE {
 				t.vars[names[i]] = cVarInfo{cType: vecType, isVector: true}

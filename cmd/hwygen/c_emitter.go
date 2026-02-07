@@ -99,52 +99,116 @@ func (e *CEmitter) emitCFunction(buf *bytes.Buffer, pf *ParsedFunc) error {
 
 	// Function signature following GOAT conventions:
 	// void func_name(cType *input, cType *result, long *len)
-	fmt.Fprintf(buf, "// %s: processes entire array with NEON SIMD\n", funcName)
-	fmt.Fprintf(buf, "void %s(%s *input, %s *result, long *len) {\n", funcName, cType, cType)
+	// For SVE, append FuncAttrs (e.g., __arm_streaming).
+	funcAttrs := ""
+	if e.profile != nil && e.profile.FuncAttrs != "" {
+		funcAttrs = " " + e.profile.FuncAttrs
+	}
+	simdLabel := "NEON"
+	if e.isSVE() {
+		simdLabel = "SVE"
+	}
+	fmt.Fprintf(buf, "// %s: processes entire array with %s SIMD\n", funcName, simdLabel)
+	fmt.Fprintf(buf, "void %s(%s *input, %s *result, long *len)%s {\n", funcName, cType, cType, funcAttrs)
 	fmt.Fprintf(buf, "    long n = *len;\n")
-	fmt.Fprintf(buf, "    long i = 0;\n\n")
+	fmt.Fprintf(buf, "    long i = 0;\n")
+
+	// SVE predicate declaration
+	if e.isSVE() {
+		fmt.Fprintf(buf, "    svbool_t pg = %s;\n", e.profile.PredicateDecl)
+	}
+
+	// Dynamic lanes variable for SVE linux
+	lExpr := e.lanesExpr()
+	if e.hasDynamicLanes() {
+		fmt.Fprintf(buf, "    long lanes = %s;\n", e.dynamicLanesExpr())
+	}
+	fmt.Fprintf(buf, "\n")
 
 	// Emit constants
 	e.emitConstants(buf, pf)
 
-	// Main SIMD loop - process multiple vectors at once for better throughput
-	fmt.Fprintf(buf, "    // Process %d elements at a time (4 vectors)\n", lanes*4)
-	fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes*4-1, lanes*4)
+	if e.isSVE() {
+		// SVE path: predicated loads/stores
+		// Main SIMD loop - process 4 vectors at once for better throughput
+		fmt.Fprintf(buf, "    // Process %s*4 elements at a time (4 vectors)\n", lExpr)
+		fmt.Fprintf(buf, "    for (; i + %s * 4 - 1 < n; i += %s * 4) {\n", lExpr, lExpr)
 
-	// Load 4 vectors
-	for j := range 4 {
-		fmt.Fprintf(buf, "        %s x%d = %s(%s(input + i + %d));\n", vecType, j, e.loadIntrinsic(), castExpr, j*lanes)
+		// Load 4 vectors
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s x%d = %s(pg, input + i + %s * %d);\n", vecType, j, e.loadIntrinsic(), lExpr, j)
+		}
+		fmt.Fprintf(buf, "\n")
+
+		// Emit the computation for each vector
+		for j := range 4 {
+			e.emitVecComputation(buf, pf, j, "        ")
+		}
+
+		// Store results
+		fmt.Fprintf(buf, "\n")
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s(pg, result + i + %s * %d, res%d);\n", e.storeIntrinsic(), lExpr, j, j)
+		}
+		fmt.Fprintf(buf, "    }\n\n")
+
+		// Single vector loop for remaining elements
+		fmt.Fprintf(buf, "    // Process %s elements at a time\n", lExpr)
+		fmt.Fprintf(buf, "    for (; i + %s - 1 < n; i += %s) {\n", lExpr, lExpr)
+		fmt.Fprintf(buf, "        %s x = %s(pg, input + i);\n", vecType, e.loadIntrinsic())
+		e.emitVecComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        %s(pg, result + i, res);\n", e.storeIntrinsic())
+		fmt.Fprintf(buf, "    }\n\n")
+
+		// Scalar tail - use SVE dup + extract
+		fmt.Fprintf(buf, "    // Scalar remainder using SVE for consistency\n")
+		fmt.Fprintf(buf, "    for (; i < n; i++) {\n")
+		fmt.Fprintf(buf, "        %s xv = input[i];\n", cType)
+		fmt.Fprintf(buf, "        %s x = %s(xv);\n", vecType, e.dupIntrinsic())
+		e.emitVecComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        result[i] = %s(pg, res);\n", e.getLaneIntrinsic())
+		fmt.Fprintf(buf, "    }\n")
+	} else {
+		// NEON/AVX path (original)
+		// Main SIMD loop - process multiple vectors at once for better throughput
+		fmt.Fprintf(buf, "    // Process %d elements at a time (4 vectors)\n", lanes*4)
+		fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes*4-1, lanes*4)
+
+		// Load 4 vectors
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s x%d = %s(%s(input + i + %d));\n", vecType, j, e.loadIntrinsic(), castExpr, j*lanes)
+		}
+		fmt.Fprintf(buf, "\n")
+
+		// Emit the computation for each vector
+		for j := range 4 {
+			e.emitVecComputation(buf, pf, j, "        ")
+		}
+
+		// Store results
+		fmt.Fprintf(buf, "\n")
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s(%s(result + i + %d), res%d);\n", e.storeIntrinsic(), castExpr, j*lanes, j)
+		}
+		fmt.Fprintf(buf, "    }\n\n")
+
+		// Single vector loop for remaining elements
+		fmt.Fprintf(buf, "    // Process %d elements at a time\n", lanes)
+		fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes-1, lanes)
+		fmt.Fprintf(buf, "        %s x = %s(%s(input + i));\n", vecType, e.loadIntrinsic(), castExpr)
+		e.emitVecComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        %s(%s(result + i), res);\n", e.storeIntrinsic(), castExpr)
+		fmt.Fprintf(buf, "    }\n\n")
+
+		// Scalar tail - use NEON for single elements
+		fmt.Fprintf(buf, "    // Scalar remainder using NEON for consistency\n")
+		fmt.Fprintf(buf, "    for (; i < n; i++) {\n")
+		fmt.Fprintf(buf, "        %s xv = input[i];\n", cType)
+		fmt.Fprintf(buf, "        %s x = %s(xv);\n", vecType, e.dupIntrinsic())
+		e.emitVecComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        result[i] = %s(res, 0);\n", e.getLaneIntrinsic())
+		fmt.Fprintf(buf, "    }\n")
 	}
-	fmt.Fprintf(buf, "\n")
-
-	// Emit the computation for each vector
-	for j := range 4 {
-		e.emitVecComputation(buf, pf, j, "        ")
-	}
-
-	// Store results
-	fmt.Fprintf(buf, "\n")
-	for j := range 4 {
-		fmt.Fprintf(buf, "        %s(%s(result + i + %d), res%d);\n", e.storeIntrinsic(), castExpr, j*lanes, j)
-	}
-	fmt.Fprintf(buf, "    }\n\n")
-
-	// Single vector loop for remaining elements
-	fmt.Fprintf(buf, "    // Process %d elements at a time\n", lanes)
-	fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes-1, lanes)
-	fmt.Fprintf(buf, "        %s x = %s(%s(input + i));\n", vecType, e.loadIntrinsic(), castExpr)
-	e.emitVecComputationSingle(buf, pf, "        ")
-	fmt.Fprintf(buf, "        %s(%s(result + i), res);\n", e.storeIntrinsic(), castExpr)
-	fmt.Fprintf(buf, "    }\n\n")
-
-	// Scalar tail - use NEON for single elements
-	fmt.Fprintf(buf, "    // Scalar remainder using NEON for consistency\n")
-	fmt.Fprintf(buf, "    for (; i < n; i++) {\n")
-	fmt.Fprintf(buf, "        %s xv = input[i];\n", cType)
-	fmt.Fprintf(buf, "        %s x = %s(xv);\n", vecType, e.dupIntrinsic())
-	e.emitVecComputationSingle(buf, pf, "        ")
-	fmt.Fprintf(buf, "        result[i] = %s(res, 0);\n", e.getLaneIntrinsic())
-	fmt.Fprintf(buf, "    }\n")
 
 	fmt.Fprintf(buf, "}\n")
 	return nil
@@ -154,8 +218,6 @@ func (e *CEmitter) emitCFunction(buf *bytes.Buffer, pf *ParsedFunc) error {
 func (e *CEmitter) emitConstants(buf *bytes.Buffer, pf *ParsedFunc) {
 	vecType := e.vecType()
 
-	// Based on the function, emit appropriate constants
-	// This is a simplified version - a full implementation would analyze the AST
 	switch {
 	case strings.Contains(pf.Name, "Exp"):
 		e.emitExpConstants(buf, vecType)
@@ -168,87 +230,87 @@ func (e *CEmitter) emitConstants(buf *bytes.Buffer, pf *ParsedFunc) {
 }
 
 // emitExpConstants emits constants for exp computation.
-// Float64 constants use hex bit patterns to avoid clang placing them in rodata sections.
+// Uses generic intrinsic helpers to support NEON and SVE targets.
+// Float64 NEON constants use volatile + hex bit patterns to prevent rodata hoisting.
 func (e *CEmitter) emitExpConstants(buf *bytes.Buffer, vecType string) {
+	vol := e.volatilePrefix()
+	intVec := e.intVecType()
+
 	if e.elemType == "float32" {
 		fmt.Fprintf(buf, "    // Exp constants (f32)\n")
-		fmt.Fprintf(buf, "    %s invLn2 = vreinterpretq_f32_s32(vdupq_n_s32(0x3FB8AA3B));\n", vecType)
-		fmt.Fprintf(buf, "    %s ln2Hi = vreinterpretq_f32_s32(vdupq_n_s32(0x3F317200));\n", vecType)
-		fmt.Fprintf(buf, "    %s ln2Lo = vreinterpretq_f32_s32(vdupq_n_s32(0xB95E8083));\n", vecType)
-		fmt.Fprintf(buf, "    %s overflow = vreinterpretq_f32_s32(vdupq_n_s32(0x42B17218));\n", vecType)
-		fmt.Fprintf(buf, "    %s underflow = vreinterpretq_f32_s32(vdupq_n_s32(0xC2AEAC50));\n", vecType)
-		fmt.Fprintf(buf, "    %s c1 = vdupq_n_f32(1.0f);\n", vecType)
-		fmt.Fprintf(buf, "    %s c2 = vdupq_n_f32(0.5f);\n", vecType)
-		fmt.Fprintf(buf, "    %s c3 = vdupq_n_f32(0.16666666666666666f);\n", vecType)
-		fmt.Fprintf(buf, "    %s c4 = vdupq_n_f32(0.041666666666666664f);\n", vecType)
-		fmt.Fprintf(buf, "    %s c5 = vdupq_n_f32(0.008333333333333333f);\n", vecType)
-		fmt.Fprintf(buf, "    %s c6 = vdupq_n_f32(0.001388888888888889f);\n", vecType)
-		fmt.Fprintf(buf, "    %s zero = vdupq_n_f32(0.0f);\n", vecType)
-		fmt.Fprintf(buf, "    %s inf = vdupq_n_f32(1.0f / 0.0f);\n", vecType)
-		fmt.Fprintf(buf, "    int32x4_t bias = vdupq_n_s32(127);\n")
+		fmt.Fprintf(buf, "    %s invLn2 = %s;\n", vecType, e.fmtConstHex("0x3FB8AA3B"))
+		fmt.Fprintf(buf, "    %s ln2Hi = %s;\n", vecType, e.fmtConstHex("0x3F317200"))
+		fmt.Fprintf(buf, "    %s ln2Lo = %s;\n", vecType, e.fmtConstHex("0xB95E8083"))
+		fmt.Fprintf(buf, "    %s overflow = %s;\n", vecType, e.fmtConstHex("0x42B17218"))
+		fmt.Fprintf(buf, "    %s underflow = %s;\n", vecType, e.fmtConstHex("0xC2AEAC50"))
+		fmt.Fprintf(buf, "    %s c1 = %s;\n", vecType, e.fmtConstFloat("1.0f"))
+		fmt.Fprintf(buf, "    %s c2 = %s;\n", vecType, e.fmtConstFloat("0.5f"))
+		fmt.Fprintf(buf, "    %s c3 = %s;\n", vecType, e.fmtConstFloat("0.16666666666666666f"))
+		fmt.Fprintf(buf, "    %s c4 = %s;\n", vecType, e.fmtConstFloat("0.041666666666666664f"))
+		fmt.Fprintf(buf, "    %s c5 = %s;\n", vecType, e.fmtConstFloat("0.008333333333333333f"))
+		fmt.Fprintf(buf, "    %s c6 = %s;\n", vecType, e.fmtConstFloat("0.001388888888888889f"))
+		fmt.Fprintf(buf, "    %s zero = %s;\n", vecType, e.fmtConstFloat("0.0f"))
+		fmt.Fprintf(buf, "    %s inf = %s;\n", vecType, e.fmtConstFloat("1.0f / 0.0f"))
+		fmt.Fprintf(buf, "    %s bias = %s;\n", intVec, e.fmtConstInt(e.expBias()))
 	} else {
-		// Use volatile + hex bit patterns to prevent clang from hoisting to rodata
-		// GOAT cannot handle rodata sections, so we must force inline constant construction
-		fmt.Fprintf(buf, "    // Exp constants (f64) - volatile prevents rodata hoisting\n")
-		fmt.Fprintf(buf, "    volatile %s invLn2 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF71547652B82FELL)); // 1.4426950408889634\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s ln2Hi = vreinterpretq_f64_s64(vdupq_n_s64(0x3FE62E42FEFA39EFLL)); // 0.6931471805599453\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s ln2Lo = vreinterpretq_f64_s64(vdupq_n_s64(0xBDE8BFBE8E7BCD5ELL)); // -1.9082149292705877e-10\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s overflow = vreinterpretq_f64_s64(vdupq_n_s64(0x40862E42FEFA39EFLL)); // 709.0\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s underflow = vreinterpretq_f64_s64(vdupq_n_s64(0xC0862E42FEFA39EFLL)); // -709.0\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s c1 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF0000000000000LL)); // 1.0\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s c2 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FE0000000000000LL)); // 0.5\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s c3 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FC5555555555555LL)); // 0.16666666666666666\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s c4 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FA5555555555555LL)); // 0.041666666666666664\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s c5 = vreinterpretq_f64_s64(vdupq_n_s64(0x3F81111111111111LL)); // 0.008333333333333333\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s c6 = vreinterpretq_f64_s64(vdupq_n_s64(0x3F56C16C16C16C17LL)); // 0.001388888888888889\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s zero = vreinterpretq_f64_s64(vdupq_n_s64(0x0000000000000000LL)); // 0.0\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s inf = vreinterpretq_f64_s64(vdupq_n_s64(0x7FF0000000000000LL)); // +inf\n", vecType)
-		fmt.Fprintf(buf, "    volatile int64x2_t bias = vdupq_n_s64(1023);\n")
+		fmt.Fprintf(buf, "    // Exp constants (f64)\n")
+		fmt.Fprintf(buf, "    %s%s invLn2 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF71547652B82FELL"))
+		fmt.Fprintf(buf, "    %s%s ln2Hi = %s;\n", vol, vecType, e.fmtConstHex("0x3FE62E42FEFA39EFLL"))
+		fmt.Fprintf(buf, "    %s%s ln2Lo = %s;\n", vol, vecType, e.fmtConstHex("0xBDE8BFBE8E7BCD5ELL"))
+		fmt.Fprintf(buf, "    %s%s overflow = %s;\n", vol, vecType, e.fmtConstHex("0x40862E42FEFA39EFLL"))
+		fmt.Fprintf(buf, "    %s%s underflow = %s;\n", vol, vecType, e.fmtConstHex("0xC0862E42FEFA39EFLL"))
+		fmt.Fprintf(buf, "    %s%s c1 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
+		fmt.Fprintf(buf, "    %s%s c2 = %s;\n", vol, vecType, e.fmtConstHex("0x3FE0000000000000LL"))
+		fmt.Fprintf(buf, "    %s%s c3 = %s;\n", vol, vecType, e.fmtConstHex("0x3FC5555555555555LL"))
+		fmt.Fprintf(buf, "    %s%s c4 = %s;\n", vol, vecType, e.fmtConstHex("0x3FA5555555555555LL"))
+		fmt.Fprintf(buf, "    %s%s c5 = %s;\n", vol, vecType, e.fmtConstHex("0x3F81111111111111LL"))
+		fmt.Fprintf(buf, "    %s%s c6 = %s;\n", vol, vecType, e.fmtConstHex("0x3F56C16C16C16C17LL"))
+		fmt.Fprintf(buf, "    %s%s zero = %s;\n", vol, vecType, e.fmtConstHex("0x0000000000000000LL"))
+		fmt.Fprintf(buf, "    %s%s inf = %s;\n", vol, vecType, e.fmtConstHex("0x7FF0000000000000LL"))
+		fmt.Fprintf(buf, "    %s%s bias = %s;\n", vol, intVec, e.fmtConstInt(e.expBias()))
 	}
 }
 
 // emitSigmoidConstants emits constants for sigmoid computation.
 func (e *CEmitter) emitSigmoidConstants(buf *bytes.Buffer, vecType string) {
 	e.emitExpConstants(buf, vecType)
+	vol := e.volatilePrefix()
 	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "    %s one = vdupq_n_f32(1.0f);\n", vecType)
-		fmt.Fprintf(buf, "    %s satHi = vdupq_n_f32(20.0f);\n", vecType)
-		fmt.Fprintf(buf, "    %s satLo = vdupq_n_f32(-20.0f);\n", vecType)
+		fmt.Fprintf(buf, "    %s one = %s;\n", vecType, e.fmtConstFloat("1.0f"))
+		fmt.Fprintf(buf, "    %s satHi = %s;\n", vecType, e.fmtConstFloat("20.0f"))
+		fmt.Fprintf(buf, "    %s satLo = %s;\n", vecType, e.fmtConstFloat("-20.0f"))
 	} else {
-		// Use volatile + hex bit patterns to prevent clang from hoisting to rodata
-		fmt.Fprintf(buf, "    volatile %s one = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF0000000000000LL)); // 1.0\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s satHi = vreinterpretq_f64_s64(vdupq_n_s64(0x4034000000000000LL)); // 20.0\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s satLo = vreinterpretq_f64_s64(vdupq_n_s64(0xC034000000000000LL)); // -20.0\n", vecType)
+		fmt.Fprintf(buf, "    %s%s one = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
+		fmt.Fprintf(buf, "    %s%s satHi = %s;\n", vol, vecType, e.fmtConstHex("0x4034000000000000LL"))
+		fmt.Fprintf(buf, "    %s%s satLo = %s;\n", vol, vecType, e.fmtConstHex("0xC034000000000000LL"))
 	}
 }
 
 // emitErfConstants emits constants for erf computation.
 func (e *CEmitter) emitErfConstants(buf *bytes.Buffer, vecType string) {
 	e.emitExpConstants(buf, vecType)
+	vol := e.volatilePrefix()
 	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "    %s a1 = vdupq_n_f32(0.254829592f);\n", vecType)
-		fmt.Fprintf(buf, "    %s a2 = vdupq_n_f32(-0.284496736f);\n", vecType)
-		fmt.Fprintf(buf, "    %s a3 = vdupq_n_f32(1.421413741f);\n", vecType)
-		fmt.Fprintf(buf, "    %s a4 = vdupq_n_f32(-1.453152027f);\n", vecType)
-		fmt.Fprintf(buf, "    %s a5 = vdupq_n_f32(1.061405429f);\n", vecType)
-		fmt.Fprintf(buf, "    %s erfP = vreinterpretq_f32_s32(vdupq_n_s32(0x3EA7BA27));\n", vecType)
-		fmt.Fprintf(buf, "    %s one = vdupq_n_f32(1.0f);\n", vecType)
+		fmt.Fprintf(buf, "    %s a1 = %s;\n", vecType, e.fmtConstFloat("0.254829592f"))
+		fmt.Fprintf(buf, "    %s a2 = %s;\n", vecType, e.fmtConstFloat("-0.284496736f"))
+		fmt.Fprintf(buf, "    %s a3 = %s;\n", vecType, e.fmtConstFloat("1.421413741f"))
+		fmt.Fprintf(buf, "    %s a4 = %s;\n", vecType, e.fmtConstFloat("-1.453152027f"))
+		fmt.Fprintf(buf, "    %s a5 = %s;\n", vecType, e.fmtConstFloat("1.061405429f"))
+		fmt.Fprintf(buf, "    %s erfP = %s;\n", vecType, e.fmtConstHex("0x3EA7BA27"))
+		fmt.Fprintf(buf, "    %s one = %s;\n", vecType, e.fmtConstFloat("1.0f"))
 	} else {
-		// Use volatile + hex bit patterns to prevent clang from hoisting to rodata
-		fmt.Fprintf(buf, "    volatile %s a1 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FD04DDF3B72BEF5LL)); // 0.254829592\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s a2 = vreinterpretq_f64_s64(vdupq_n_s64(0xBFD2327F14F2FE0ELL)); // -0.284496736\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s a3 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF6C0CC1ECAC78CLL)); // 1.421413741\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s a4 = vreinterpretq_f64_s64(vdupq_n_s64(0xBFF7412D14DC4B0DLL)); // -1.453152027\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s a5 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF0FB926CE8EF39LL)); // 1.061405429\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s erfP = vreinterpretq_f64_s64(vdupq_n_s64(0x3FD4F80D2CC7BBF6LL)); // 0.3275911\n", vecType)
-		fmt.Fprintf(buf, "    volatile %s one = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF0000000000000LL)); // 1.0\n", vecType)
+		fmt.Fprintf(buf, "    %s%s a1 = %s;\n", vol, vecType, e.fmtConstHex("0x3FD04DDF3B72BEF5LL"))
+		fmt.Fprintf(buf, "    %s%s a2 = %s;\n", vol, vecType, e.fmtConstHex("0xBFD2327F14F2FE0ELL"))
+		fmt.Fprintf(buf, "    %s%s a3 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF6C0CC1ECAC78CLL"))
+		fmt.Fprintf(buf, "    %s%s a4 = %s;\n", vol, vecType, e.fmtConstHex("0xBFF7412D14DC4B0DLL"))
+		fmt.Fprintf(buf, "    %s%s a5 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0FB926CE8EF39LL"))
+		fmt.Fprintf(buf, "    %s%s erfP = %s;\n", vol, vecType, e.fmtConstHex("0x3FD4F80D2CC7BBF6LL"))
+		fmt.Fprintf(buf, "    %s%s one = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
 	}
 }
 
-// emitVecComputation emits the NEON computation for a single vector.
+// emitVecComputation emits the SIMD computation for a single vector.
 func (e *CEmitter) emitVecComputation(buf *bytes.Buffer, pf *ParsedFunc, idx int, indent string) {
-	// This generates the actual computation based on the function type
-	// For now, handle the most common functions explicitly
 	suffix := fmt.Sprintf("%d", idx)
 	x := "x" + suffix
 	res := "res" + suffix
@@ -261,7 +323,6 @@ func (e *CEmitter) emitVecComputation(buf *bytes.Buffer, pf *ParsedFunc, idx int
 	case strings.Contains(pf.Name, "ErfVec"):
 		e.emitErfComputation(buf, x, res, indent)
 	default:
-		// Generic fallback - just copy
 		fmt.Fprintf(buf, "%s%s %s = %s; // TODO: implement %s\n", indent, e.vecType(), res, x, pf.Name)
 	}
 }
@@ -280,214 +341,158 @@ func (e *CEmitter) emitVecComputationSingle(buf *bytes.Buffer, pf *ParsedFunc, i
 	}
 }
 
-// emitExpComputation emits the exp computation.
+// emitExpComputation emits the exp computation using generic intrinsic helpers.
+// Works for NEON f32, NEON f64, SVE f32, and SVE f64 targets.
 func (e *CEmitter) emitExpComputation(buf *bytes.Buffer, x, res, indent string) {
 	vecType := e.vecType()
+	maskT := e.maskType()
+	intVec := e.intVecType()
 
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s// Overflow/underflow check\n", indent)
-		fmt.Fprintf(buf, "%suint32x4_t over_%s = vcgtq_f32(%s, overflow);\n", indent, res, x)
-		fmt.Fprintf(buf, "%suint32x4_t under_%s = vcltq_f32(%s, underflow);\n", indent, res, x)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Range reduction: k = round(x * invLn2)\n", indent)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f32(vmulq_f32(%s, invLn2));\n", indent, vecType, res, x)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f32(%s, kf_%s, ln2Hi);\n", indent, vecType, res, x, res)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f32(r_%s, kf_%s, ln2Lo);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Horner's polynomial\n", indent)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f32(c5, c6, r_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c4, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c3, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c2, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Scale by 2^k\n", indent)
-		fmt.Fprintf(buf, "%sint32x4_t ki_%s = vcvtnq_s32_f32(kf_%s);\n", indent, res, res)
-		fmt.Fprintf(buf, "%sint32x4_t scale_bits_%s = vshlq_n_s32(vaddq_s32(ki_%s, bias), 23);\n", indent, res, res)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f32_s32(scale_bits_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s %s = vmulq_f32(p_%s, scale_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Handle overflow/underflow\n", indent)
-		fmt.Fprintf(buf, "%s%s = vbslq_f32(over_%s, inf, %s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s%s = vbslq_f32(under_%s, zero, %s);\n", indent, res, res, res)
-	} else {
-		fmt.Fprintf(buf, "%s// Overflow/underflow check\n", indent)
-		fmt.Fprintf(buf, "%suint64x2_t over_%s = vcgtq_f64(%s, overflow);\n", indent, res, x)
-		fmt.Fprintf(buf, "%suint64x2_t under_%s = vcltq_f64(%s, underflow);\n", indent, res, x)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Range reduction\n", indent)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f64(vmulq_f64(%s, invLn2));\n", indent, vecType, res, x)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f64(%s, kf_%s, ln2Hi);\n", indent, vecType, res, x, res)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f64(r_%s, kf_%s, ln2Lo);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Horner's polynomial\n", indent)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f64(c5, c6, r_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c4, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c3, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c2, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Scale by 2^k\n", indent)
-		fmt.Fprintf(buf, "%sint64x2_t ki_%s = vcvtq_s64_f64(kf_%s);\n", indent, res, res)
-		fmt.Fprintf(buf, "%sint64x2_t scale_bits_%s = vshlq_n_s64(vaddq_s64(ki_%s, bias), 52);\n", indent, res, res)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f64_s64(scale_bits_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s %s = vmulq_f64(p_%s, scale_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Handle overflow/underflow\n", indent)
-		fmt.Fprintf(buf, "%s%s = vbslq_f64(over_%s, inf, %s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s%s = vbslq_f64(under_%s, zero, %s);\n", indent, res, res, res)
-	}
+	fmt.Fprintf(buf, "%s// Overflow/underflow check\n", indent)
+	fmt.Fprintf(buf, "%s%s over_%s = %s;\n", indent, maskT, res, e.fmtCmpGt(x, "overflow"))
+	fmt.Fprintf(buf, "%s%s under_%s = %s;\n", indent, maskT, res, e.fmtCmpLt(x, "underflow"))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Range reduction: k = round(x * invLn2)\n", indent)
+	fmt.Fprintf(buf, "%s%s kf_%s = %s;\n", indent, vecType, res, e.fmtRound(e.fmtMul(x, "invLn2")))
+	fmt.Fprintf(buf, "%s%s r_%s = %s;\n", indent, vecType, res, e.fmtFms(x, "kf_"+res, "ln2Hi"))
+	fmt.Fprintf(buf, "%sr_%s = %s;\n", indent, res, e.fmtFms("r_"+res, "kf_"+res, "ln2Lo"))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Horner's polynomial\n", indent)
+	fmt.Fprintf(buf, "%s%s p_%s = %s;\n", indent, vecType, res, e.fmtFma("c5", "c6", "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c4", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c3", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c2", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c1", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c1", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Scale by 2^k\n", indent)
+	fmt.Fprintf(buf, "%s%s ki_%s = %s;\n", indent, intVec, res, e.fmtCvtFloatToInt("kf_"+res))
+	fmt.Fprintf(buf, "%s%s scale_bits_%s = %s;\n", indent, intVec, res, e.fmtIntShl(e.fmtIntAdd("ki_"+res, "bias"), e.expShift()))
+	fmt.Fprintf(buf, "%s%s scale_%s = %s;\n", indent, vecType, res, e.fmtReinterpretFloatFromInt("scale_bits_"+res))
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMul("p_"+res, "scale_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Handle overflow/underflow\n", indent)
+	fmt.Fprintf(buf, "%s%s = %s;\n", indent, res, e.fmtSel("over_"+res, "inf", res))
+	fmt.Fprintf(buf, "%s%s = %s;\n", indent, res, e.fmtSel("under_"+res, "zero", res))
 }
 
-// emitSigmoidComputation emits sigmoid computation that calls exp internally.
+// emitSigmoidComputation emits sigmoid computation using generic intrinsic helpers.
 func (e *CEmitter) emitSigmoidComputation(buf *bytes.Buffer, x, res, indent string) {
 	vecType := e.vecType()
+	intVec := e.intVecType()
 
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s// Clamp input\n", indent)
-		fmt.Fprintf(buf, "%s%s clamped_%s = vmaxq_f32(vminq_f32(%s, satHi), satLo);\n", indent, vecType, res, x)
-		fmt.Fprintf(buf, "%s%s negX_%s = vnegq_f32(clamped_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Compute exp(-x) inline\n", indent)
-		// Inline the exp computation
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f32(vmulq_f32(negX_%s, invLn2));\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f32(negX_%s, kf_%s, ln2Hi);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f32(r_%s, kf_%s, ln2Lo);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f32(c5, c6, r_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c4, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c3, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c2, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sint32x4_t ki_%s = vcvtnq_s32_f32(kf_%s);\n", indent, res, res)
-		fmt.Fprintf(buf, "%sint32x4_t scale_bits_%s = vshlq_n_s32(vaddq_s32(ki_%s, bias), 23);\n", indent, res, res)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f32_s32(scale_bits_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s expNegX_%s = vmulq_f32(p_%s, scale_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// sigmoid = 1 / (1 + exp(-x))\n", indent)
-		fmt.Fprintf(buf, "%s%s denom_%s = vaddq_f32(one, expNegX_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s %s = vdivq_f32(one, denom_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Handle saturation\n", indent)
-		fmt.Fprintf(buf, "%s%s = vbslq_f32(vcgtq_f32(%s, satHi), one, %s);\n", indent, res, x, res)
-		fmt.Fprintf(buf, "%s%s = vbslq_f32(vcltq_f32(%s, satLo), zero, %s);\n", indent, res, x, res)
-	} else {
-		// Float64 version
-		fmt.Fprintf(buf, "%s// Clamp input\n", indent)
-		fmt.Fprintf(buf, "%s%s clamped_%s = vmaxq_f64(vminq_f64(%s, satHi), satLo);\n", indent, vecType, res, x)
-		fmt.Fprintf(buf, "%s%s negX_%s = vnegq_f64(clamped_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Compute exp(-x) inline\n", indent)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f64(vmulq_f64(negX_%s, invLn2));\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f64(negX_%s, kf_%s, ln2Hi);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f64(r_%s, kf_%s, ln2Lo);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f64(c5, c6, r_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c4, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c3, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c2, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sint64x2_t ki_%s = vcvtq_s64_f64(kf_%s);\n", indent, res, res)
-		fmt.Fprintf(buf, "%sint64x2_t scale_bits_%s = vshlq_n_s64(vaddq_s64(ki_%s, bias), 52);\n", indent, res, res)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f64_s64(scale_bits_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s expNegX_%s = vmulq_f64(p_%s, scale_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// sigmoid = 1 / (1 + exp(-x))\n", indent)
-		fmt.Fprintf(buf, "%s%s denom_%s = vaddq_f64(one, expNegX_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s %s = vdivq_f64(one, denom_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Handle saturation\n", indent)
-		fmt.Fprintf(buf, "%s%s = vbslq_f64(vcgtq_f64(%s, satHi), one, %s);\n", indent, res, x, res)
-		fmt.Fprintf(buf, "%s%s = vbslq_f64(vcltq_f64(%s, satLo), zero, %s);\n", indent, res, x, res)
-	}
+	fmt.Fprintf(buf, "%s// Clamp input\n", indent)
+	fmt.Fprintf(buf, "%s%s clamped_%s = %s;\n", indent, vecType, res, e.fmtMax(e.fmtMin(x, "satHi"), "satLo"))
+	fmt.Fprintf(buf, "%s%s negX_%s = %s;\n", indent, vecType, res, e.fmtNeg("clamped_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Compute exp(-x) inline\n", indent)
+	fmt.Fprintf(buf, "%s%s kf_%s = %s;\n", indent, vecType, res, e.fmtRound(e.fmtMul("negX_"+res, "invLn2")))
+	fmt.Fprintf(buf, "%s%s r_%s = %s;\n", indent, vecType, res, e.fmtFms("negX_"+res, "kf_"+res, "ln2Hi"))
+	fmt.Fprintf(buf, "%sr_%s = %s;\n", indent, res, e.fmtFms("r_"+res, "kf_"+res, "ln2Lo"))
+	fmt.Fprintf(buf, "%s%s p_%s = %s;\n", indent, vecType, res, e.fmtFma("c5", "c6", "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c4", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c3", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c2", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c1", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c1", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%s%s ki_%s = %s;\n", indent, intVec, res, e.fmtCvtFloatToInt("kf_"+res))
+	fmt.Fprintf(buf, "%s%s scale_bits_%s = %s;\n", indent, intVec, res, e.fmtIntShl(e.fmtIntAdd("ki_"+res, "bias"), e.expShift()))
+	fmt.Fprintf(buf, "%s%s scale_%s = %s;\n", indent, vecType, res, e.fmtReinterpretFloatFromInt("scale_bits_"+res))
+	fmt.Fprintf(buf, "%s%s expNegX_%s = %s;\n", indent, vecType, res, e.fmtMul("p_"+res, "scale_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// sigmoid = 1 / (1 + exp(-x))\n", indent)
+	fmt.Fprintf(buf, "%s%s denom_%s = %s;\n", indent, vecType, res, e.fmtAdd("one", "expNegX_"+res))
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtDiv("one", "denom_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Handle saturation\n", indent)
+	fmt.Fprintf(buf, "%s%s = %s;\n", indent, res, e.fmtSel(e.fmtCmpGt(x, "satHi"), "one", res))
+	fmt.Fprintf(buf, "%s%s = %s;\n", indent, res, e.fmtSel(e.fmtCmpLt(x, "satLo"), "zero", res))
 }
 
-// emitErfComputation emits erf computation.
+// emitErfComputation emits erf computation using generic intrinsic helpers.
 func (e *CEmitter) emitErfComputation(buf *bytes.Buffer, x, res, indent string) {
 	vecType := e.vecType()
+	maskT := e.maskType()
+	intVec := e.intVecType()
 
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s// Get sign and absolute value\n", indent)
-		fmt.Fprintf(buf, "%suint32x4_t isNeg_%s = vcltq_f32(%s, zero);\n", indent, res, x)
-		fmt.Fprintf(buf, "%s%s absX_%s = vabsq_f32(%s);\n", indent, vecType, res, x)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// t = 1 / (1 + p * |x|)\n", indent)
-		fmt.Fprintf(buf, "%s%s t_%s = vdivq_f32(one, vfmaq_f32(one, erfP, absX_%s));\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Compute -x^2\n", indent)
-		fmt.Fprintf(buf, "%s%s negX2_%s = vnegq_f32(vmulq_f32(%s, %s));\n", indent, vecType, res, x, x)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Compute exp(-x^2) inline\n", indent)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f32(vmulq_f32(negX2_%s, invLn2));\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f32(negX2_%s, kf_%s, ln2Hi);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f32(r_%s, kf_%s, ln2Lo);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f32(c5, c6, r_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c4, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c3, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c2, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sint32x4_t ki_%s = vcvtnq_s32_f32(kf_%s);\n", indent, res, res)
-		fmt.Fprintf(buf, "%sint32x4_t scale_bits_%s = vshlq_n_s32(vaddq_s32(ki_%s, bias), 23);\n", indent, res, res)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f32_s32(scale_bits_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s expNegX2_%s = vmulq_f32(p_%s, scale_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Polynomial: t*(a1 + t*(a2 + t*(a3 + t*(a4 + t*a5))))\n", indent)
-		fmt.Fprintf(buf, "%s%s poly_%s = a5;\n", indent, vecType, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a4, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a3, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a2, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a1, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vmulq_f32(poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// erf = 1 - poly * exp(-x^2)\n", indent)
-		fmt.Fprintf(buf, "%s%s erfAbs_%s = vfmsq_f32(one, poly_%s, expNegX2_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Apply sign\n", indent)
-		fmt.Fprintf(buf, "%s%s %s = vbslq_f32(isNeg_%s, vnegq_f32(erfAbs_%s), erfAbs_%s);\n", indent, vecType, res, res, res, res)
-	} else {
-		// Float64 version - similar structure
-		fmt.Fprintf(buf, "%s// Get sign and absolute value\n", indent)
-		fmt.Fprintf(buf, "%suint64x2_t isNeg_%s = vcltq_f64(%s, zero);\n", indent, res, x)
-		fmt.Fprintf(buf, "%s%s absX_%s = vabsq_f64(%s);\n", indent, vecType, res, x)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// t = 1 / (1 + p * |x|)\n", indent)
-		fmt.Fprintf(buf, "%s%s t_%s = vdivq_f64(one, vfmaq_f64(one, erfP, absX_%s));\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Compute -x^2\n", indent)
-		fmt.Fprintf(buf, "%s%s negX2_%s = vnegq_f64(vmulq_f64(%s, %s));\n", indent, vecType, res, x, x)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Compute exp(-x^2) inline\n", indent)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f64(vmulq_f64(negX2_%s, invLn2));\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f64(negX2_%s, kf_%s, ln2Hi);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f64(r_%s, kf_%s, ln2Lo);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f64(c5, c6, r_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c4, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c3, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c2, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%sint64x2_t ki_%s = vcvtq_s64_f64(kf_%s);\n", indent, res, res)
-		fmt.Fprintf(buf, "%sint64x2_t scale_bits_%s = vshlq_n_s64(vaddq_s64(ki_%s, bias), 52);\n", indent, res, res)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f64_s64(scale_bits_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s expNegX2_%s = vmulq_f64(p_%s, scale_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Polynomial\n", indent)
-		fmt.Fprintf(buf, "%s%s poly_%s = a5;\n", indent, vecType, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a4, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a3, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a2, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a1, poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%spoly_%s = vmulq_f64(poly_%s, t_%s);\n", indent, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// erf = 1 - poly * exp(-x^2)\n", indent)
-		fmt.Fprintf(buf, "%s%s erfAbs_%s = vfmsq_f64(one, poly_%s, expNegX2_%s);\n", indent, vecType, res, res, res)
-		fmt.Fprintf(buf, "%s\n", indent)
-		fmt.Fprintf(buf, "%s// Apply sign\n", indent)
-		fmt.Fprintf(buf, "%s%s %s = vbslq_f64(isNeg_%s, vnegq_f64(erfAbs_%s), erfAbs_%s);\n", indent, vecType, res, res, res, res)
+	fmt.Fprintf(buf, "%s// Get sign and absolute value\n", indent)
+	fmt.Fprintf(buf, "%s%s isNeg_%s = %s;\n", indent, maskT, res, e.fmtCmpLt(x, "zero"))
+	fmt.Fprintf(buf, "%s%s absX_%s = %s;\n", indent, vecType, res, e.fmtAbs(x))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// t = 1 / (1 + p * |x|)\n", indent)
+	fmt.Fprintf(buf, "%s%s t_%s = %s;\n", indent, vecType, res, e.fmtDiv("one", e.fmtFma("one", "erfP", "absX_"+res)))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Compute -x^2\n", indent)
+	fmt.Fprintf(buf, "%s%s negX2_%s = %s;\n", indent, vecType, res, e.fmtNeg(e.fmtMul(x, x)))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Compute exp(-x^2) inline\n", indent)
+	fmt.Fprintf(buf, "%s%s kf_%s = %s;\n", indent, vecType, res, e.fmtRound(e.fmtMul("negX2_"+res, "invLn2")))
+	fmt.Fprintf(buf, "%s%s r_%s = %s;\n", indent, vecType, res, e.fmtFms("negX2_"+res, "kf_"+res, "ln2Hi"))
+	fmt.Fprintf(buf, "%sr_%s = %s;\n", indent, res, e.fmtFms("r_"+res, "kf_"+res, "ln2Lo"))
+	fmt.Fprintf(buf, "%s%s p_%s = %s;\n", indent, vecType, res, e.fmtFma("c5", "c6", "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c4", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c3", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c2", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c1", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%sp_%s = %s;\n", indent, res, e.fmtFma("c1", "p_"+res, "r_"+res))
+	fmt.Fprintf(buf, "%s%s ki_%s = %s;\n", indent, intVec, res, e.fmtCvtFloatToInt("kf_"+res))
+	fmt.Fprintf(buf, "%s%s scale_bits_%s = %s;\n", indent, intVec, res, e.fmtIntShl(e.fmtIntAdd("ki_"+res, "bias"), e.expShift()))
+	fmt.Fprintf(buf, "%s%s scale_%s = %s;\n", indent, vecType, res, e.fmtReinterpretFloatFromInt("scale_bits_"+res))
+	fmt.Fprintf(buf, "%s%s expNegX2_%s = %s;\n", indent, vecType, res, e.fmtMul("p_"+res, "scale_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Polynomial: t*(a1 + t*(a2 + t*(a3 + t*(a4 + t*a5))))\n", indent)
+	fmt.Fprintf(buf, "%s%s poly_%s = a5;\n", indent, vecType, res)
+	fmt.Fprintf(buf, "%spoly_%s = %s;\n", indent, res, e.fmtFma("a4", "poly_"+res, "t_"+res))
+	fmt.Fprintf(buf, "%spoly_%s = %s;\n", indent, res, e.fmtFma("a3", "poly_"+res, "t_"+res))
+	fmt.Fprintf(buf, "%spoly_%s = %s;\n", indent, res, e.fmtFma("a2", "poly_"+res, "t_"+res))
+	fmt.Fprintf(buf, "%spoly_%s = %s;\n", indent, res, e.fmtFma("a1", "poly_"+res, "t_"+res))
+	fmt.Fprintf(buf, "%spoly_%s = %s;\n", indent, res, e.fmtMul("poly_"+res, "t_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// erf = 1 - poly * exp(-x^2)\n", indent)
+	fmt.Fprintf(buf, "%s%s erfAbs_%s = %s;\n", indent, vecType, res, e.fmtFms("one", "poly_"+res, "expNegX2_"+res))
+	fmt.Fprintf(buf, "%s\n", indent)
+	fmt.Fprintf(buf, "%s// Apply sign\n", indent)
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtSel("isNeg_"+res, e.fmtNeg("erfAbs_"+res), "erfAbs_"+res))
+}
+
+// isSVE returns true if the profile targets SVE (either darwin or linux).
+func (e *CEmitter) isSVE() bool {
+	return e.profile != nil && e.profile.NeedsPredicate
+}
+
+// hasDynamicLanes returns true if any non-scalar tier uses dynamic lanes.
+func (e *CEmitter) hasDynamicLanes() bool {
+	if e.profile == nil {
+		return false
 	}
+	for _, tier := range e.profile.Tiers {
+		if !tier.IsScalar && tier.DynamicLanes != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// dynamicLanesExpr returns the runtime expression for dynamic lanes (e.g. "svcntw()"),
+// or "" if fixed lanes are used.
+func (e *CEmitter) dynamicLanesExpr() string {
+	if e.profile == nil {
+		return ""
+	}
+	for _, tier := range e.profile.Tiers {
+		if !tier.IsScalar && tier.DynamicLanes != "" {
+			return tier.DynamicLanes
+		}
+	}
+	return ""
+}
+
+// lanesExpr returns either a literal (e.g. "16") or "lanes" for dynamic mode.
+func (e *CEmitter) lanesExpr() string {
+	if e.hasDynamicLanes() {
+		return "lanes"
+	}
+	return fmt.Sprintf("%d", e.lanes())
 }
 
 // Helper methods for type-specific intrinsics
@@ -713,52 +718,104 @@ func (e *CEmitter) emitCompositeFunction(buf *bytes.Buffer, pf *ParsedFunc) erro
 	lanes := e.lanes()
 
 	// Function signature following GOAT conventions
-	fmt.Fprintf(buf, "// %s: processes entire array with NEON SIMD\n", funcName)
-	fmt.Fprintf(buf, "void %s(%s *input, %s *output, long *len) {\n", funcName, cType, cType)
+	funcAttrs := ""
+	if e.profile != nil && e.profile.FuncAttrs != "" {
+		funcAttrs = " " + e.profile.FuncAttrs
+	}
+	simdLabel := "NEON"
+	if e.isSVE() {
+		simdLabel = "SVE"
+	}
+	fmt.Fprintf(buf, "// %s: processes entire array with %s SIMD\n", funcName, simdLabel)
+	fmt.Fprintf(buf, "void %s(%s *input, %s *output, long *len)%s {\n", funcName, cType, cType, funcAttrs)
 	fmt.Fprintf(buf, "    long n = *len;\n")
-	fmt.Fprintf(buf, "    long i = 0;\n\n")
+	fmt.Fprintf(buf, "    long i = 0;\n")
+
+	// SVE predicate declaration
+	if e.isSVE() {
+		fmt.Fprintf(buf, "    svbool_t pg = %s;\n", e.profile.PredicateDecl)
+	}
+
+	// Dynamic lanes variable for SVE linux
+	lExpr := e.lanesExpr()
+	if e.hasDynamicLanes() {
+		fmt.Fprintf(buf, "    long lanes = %s;\n", e.dynamicLanesExpr())
+	}
+	fmt.Fprintf(buf, "\n")
 
 	// Emit constants based on composite function type
 	e.emitCompositeConstants(buf, pf)
 
-	// Main SIMD loop - process multiple vectors at once
-	fmt.Fprintf(buf, "    // Process %d elements at a time (4 vectors)\n", lanes*4)
-	fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes*4-1, lanes*4)
+	if e.isSVE() {
+		// SVE path
+		fmt.Fprintf(buf, "    // Process %s*4 elements at a time (4 vectors)\n", lExpr)
+		fmt.Fprintf(buf, "    for (; i + %s * 4 - 1 < n; i += %s * 4) {\n", lExpr, lExpr)
 
-	// Load 4 vectors
-	for j := range 4 {
-		fmt.Fprintf(buf, "        %s x%d = %s(input + i + %d);\n", vecType, j, e.loadIntrinsic(), j*lanes)
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s x%d = %s(pg, input + i + %s * %d);\n", vecType, j, e.loadIntrinsic(), lExpr, j)
+		}
+		fmt.Fprintf(buf, "\n")
+
+		for j := range 4 {
+			e.emitCompositeComputation(buf, pf, j, "        ")
+		}
+
+		fmt.Fprintf(buf, "\n")
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s(pg, output + i + %s * %d, res%d);\n", e.storeIntrinsic(), lExpr, j, j)
+		}
+		fmt.Fprintf(buf, "    }\n\n")
+
+		fmt.Fprintf(buf, "    // Process %s elements at a time\n", lExpr)
+		fmt.Fprintf(buf, "    for (; i + %s - 1 < n; i += %s) {\n", lExpr, lExpr)
+		fmt.Fprintf(buf, "        %s x = %s(pg, input + i);\n", vecType, e.loadIntrinsic())
+		e.emitCompositeComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        %s(pg, output + i, res);\n", e.storeIntrinsic())
+		fmt.Fprintf(buf, "    }\n\n")
+
+		fmt.Fprintf(buf, "    // Scalar remainder using SVE for consistency\n")
+		fmt.Fprintf(buf, "    for (; i < n; i++) {\n")
+		fmt.Fprintf(buf, "        %s xv = input[i];\n", cType)
+		fmt.Fprintf(buf, "        %s x = %s(xv);\n", vecType, e.dupIntrinsic())
+		e.emitCompositeComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        output[i] = %s(pg, res);\n", e.getLaneIntrinsic())
+		fmt.Fprintf(buf, "    }\n")
+	} else {
+		// NEON/AVX path (original)
+		// Main SIMD loop - process multiple vectors at once
+		fmt.Fprintf(buf, "    // Process %d elements at a time (4 vectors)\n", lanes*4)
+		fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes*4-1, lanes*4)
+
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s x%d = %s(input + i + %d);\n", vecType, j, e.loadIntrinsic(), j*lanes)
+		}
+		fmt.Fprintf(buf, "\n")
+
+		for j := range 4 {
+			e.emitCompositeComputation(buf, pf, j, "        ")
+		}
+
+		fmt.Fprintf(buf, "\n")
+		for j := range 4 {
+			fmt.Fprintf(buf, "        %s(output + i + %d, res%d);\n", e.storeIntrinsic(), j*lanes, j)
+		}
+		fmt.Fprintf(buf, "    }\n\n")
+
+		fmt.Fprintf(buf, "    // Process %d elements at a time\n", lanes)
+		fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes-1, lanes)
+		fmt.Fprintf(buf, "        %s x = %s(input + i);\n", vecType, e.loadIntrinsic())
+		e.emitCompositeComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        %s(output + i, res);\n", e.storeIntrinsic())
+		fmt.Fprintf(buf, "    }\n\n")
+
+		fmt.Fprintf(buf, "    // Scalar remainder using NEON for consistency\n")
+		fmt.Fprintf(buf, "    for (; i < n; i++) {\n")
+		fmt.Fprintf(buf, "        %s xv = input[i];\n", cType)
+		fmt.Fprintf(buf, "        %s x = %s(xv);\n", vecType, e.dupIntrinsic())
+		e.emitCompositeComputationSingle(buf, pf, "        ")
+		fmt.Fprintf(buf, "        output[i] = %s(res, 0);\n", e.getLaneIntrinsic())
+		fmt.Fprintf(buf, "    }\n")
 	}
-	fmt.Fprintf(buf, "\n")
-
-	// Emit the composite computation for each vector
-	for j := range 4 {
-		e.emitCompositeComputation(buf, pf, j, "        ")
-	}
-
-	// Store results
-	fmt.Fprintf(buf, "\n")
-	for j := range 4 {
-		fmt.Fprintf(buf, "        %s(output + i + %d, res%d);\n", e.storeIntrinsic(), j*lanes, j)
-	}
-	fmt.Fprintf(buf, "    }\n\n")
-
-	// Single vector loop for remaining elements
-	fmt.Fprintf(buf, "    // Process %d elements at a time\n", lanes)
-	fmt.Fprintf(buf, "    for (; i + %d < n; i += %d) {\n", lanes-1, lanes)
-	fmt.Fprintf(buf, "        %s x = %s(input + i);\n", vecType, e.loadIntrinsic())
-	e.emitCompositeComputationSingle(buf, pf, "        ")
-	fmt.Fprintf(buf, "        %s(output + i, res);\n", e.storeIntrinsic())
-	fmt.Fprintf(buf, "    }\n\n")
-
-	// Scalar tail
-	fmt.Fprintf(buf, "    // Scalar remainder using NEON for consistency\n")
-	fmt.Fprintf(buf, "    for (; i < n; i++) {\n")
-	fmt.Fprintf(buf, "        %s xv = input[i];\n", cType)
-	fmt.Fprintf(buf, "        %s x = %s(xv);\n", vecType, e.dupIntrinsic())
-	e.emitCompositeComputationSingle(buf, pf, "        ")
-	fmt.Fprintf(buf, "        output[i] = %s(res, 0);\n", e.getLaneIntrinsic())
-	fmt.Fprintf(buf, "    }\n")
 
 	fmt.Fprintf(buf, "}\n")
 	return nil
@@ -767,33 +824,26 @@ func (e *CEmitter) emitCompositeFunction(buf *bytes.Buffer, pf *ParsedFunc) erro
 // emitCompositeConstants emits constants for composite functions.
 func (e *CEmitter) emitCompositeConstants(buf *bytes.Buffer, pf *ParsedFunc) {
 	vecType := e.vecType()
+	vol := e.volatilePrefix()
 
 	switch {
 	case strings.Contains(pf.Name, "GELU") && strings.Contains(pf.Name, "Approx"):
 		// GELUApprox uses sigmoid: x * sigmoid(1.702 * x)
-		e.emitExpConstants(buf, vecType) // for sigmoid
+		e.emitSigmoidConstants(buf, vecType)
 		if e.elemType == "float32" {
-			fmt.Fprintf(buf, "    %s one = vdupq_n_f32(1.0f);\n", vecType)
-			fmt.Fprintf(buf, "    %s satHi = vdupq_n_f32(20.0f);\n", vecType)
-			fmt.Fprintf(buf, "    %s satLo = vdupq_n_f32(-20.0f);\n", vecType)
-			fmt.Fprintf(buf, "    %s geluCoeff = vdupq_n_f32(1.702f);\n", vecType)
+			fmt.Fprintf(buf, "    %s geluCoeff = %s;\n", vecType, e.fmtConstFloat("1.702f"))
 		} else {
-			// Use volatile + hex bit patterns to prevent clang from hoisting to rodata
-			fmt.Fprintf(buf, "    volatile %s one = vreinterpretq_f64_s64(vdupq_n_s64(0x3FF0000000000000LL)); // 1.0\n", vecType)
-			fmt.Fprintf(buf, "    volatile %s satHi = vreinterpretq_f64_s64(vdupq_n_s64(0x4034000000000000LL)); // 20.0\n", vecType)
-			fmt.Fprintf(buf, "    volatile %s satLo = vreinterpretq_f64_s64(vdupq_n_s64(0xC034000000000000LL)); // -20.0\n", vecType)
-			fmt.Fprintf(buf, "    volatile %s geluCoeff = vreinterpretq_f64_s64(vdupq_n_s64(0x3FFB3D70A3D70A3DLL)); // 1.702\n", vecType)
+			fmt.Fprintf(buf, "    %s%s geluCoeff = %s;\n", vol, vecType, e.fmtConstHex("0x3FFB3D70A3D70A3DLL"))
 		}
 	case strings.Contains(pf.Name, "GELU"):
 		// GELU uses erf: x * 0.5 * (1 + erf(x / sqrt(2)))
 		e.emitErfConstants(buf, vecType)
 		if e.elemType == "float32" {
-			fmt.Fprintf(buf, "    %s half = vdupq_n_f32(0.5f);\n", vecType)
-			fmt.Fprintf(buf, "    %s invSqrt2 = vdupq_n_f32(0.7071067811865476f);\n", vecType)
+			fmt.Fprintf(buf, "    %s half = %s;\n", vecType, e.fmtConstFloat("0.5f"))
+			fmt.Fprintf(buf, "    %s invSqrt2 = %s;\n", vecType, e.fmtConstFloat("0.7071067811865476f"))
 		} else {
-			// Use volatile + hex bit patterns to prevent clang from hoisting to rodata
-			fmt.Fprintf(buf, "    volatile %s half = vreinterpretq_f64_s64(vdupq_n_s64(0x3FE0000000000000LL)); // 0.5\n", vecType)
-			fmt.Fprintf(buf, "    volatile %s invSqrt2 = vreinterpretq_f64_s64(vdupq_n_s64(0x3FE6A09E667F3BCDLL)); // 0.7071067811865476\n", vecType)
+			fmt.Fprintf(buf, "    %s%s half = %s;\n", vol, vecType, e.fmtConstHex("0x3FE0000000000000LL"))
+			fmt.Fprintf(buf, "    %s%s invSqrt2 = %s;\n", vol, vecType, e.fmtConstHex("0x3FE6A09E667F3BCDLL"))
 		}
 	}
 	fmt.Fprintf(buf, "\n")
@@ -811,7 +861,6 @@ func (e *CEmitter) emitCompositeComputation(buf *bytes.Buffer, pf *ParsedFunc, i
 	case strings.Contains(pf.Name, "GELU"):
 		e.emitGELUComputation(buf, x, res, indent)
 	default:
-		// Fallback - just copy
 		fmt.Fprintf(buf, "%s%s %s = %s; // TODO: implement %s\n", indent, e.vecType(), res, x, pf.Name)
 	}
 }
@@ -836,27 +885,16 @@ func (e *CEmitter) emitGELUComputation(buf *bytes.Buffer, x, res, indent string)
 	fmt.Fprintf(buf, "%s\n", indent)
 
 	// Scale x by 1/sqrt(2)
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s%s xScaled_%s = vmulq_f32(%s, invSqrt2);\n", indent, vecType, res, x)
-	} else {
-		fmt.Fprintf(buf, "%s%s xScaled_%s = vmulq_f64(%s, invSqrt2);\n", indent, vecType, res, x)
-	}
+	fmt.Fprintf(buf, "%s%s xScaled_%s = %s;\n", indent, vecType, res, e.fmtMul(x, "invSqrt2"))
 
 	// Compute erf(xScaled) - inline the erf computation
 	fmt.Fprintf(buf, "%s// Compute erf(x / sqrt(2))\n", indent)
-	e.emitErfComputationInline(buf, "xScaled_"+res, "erf_"+res, indent)
+	e.emitErfComputation(buf, "xScaled_"+res, "erf_"+res, indent)
 
 	// Compute 0.5 * (1 + erf)
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s%s onePlusErf_%s = vaddq_f32(one, erf_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s halfOnePlusErf_%s = vmulq_f32(half, onePlusErf_%s);\n", indent, vecType, res, res)
-		// Compute result = x * 0.5 * (1 + erf)
-		fmt.Fprintf(buf, "%s%s %s = vmulq_f32(%s, halfOnePlusErf_%s);\n", indent, vecType, res, x, res)
-	} else {
-		fmt.Fprintf(buf, "%s%s onePlusErf_%s = vaddq_f64(one, erf_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s halfOnePlusErf_%s = vmulq_f64(half, onePlusErf_%s);\n", indent, vecType, res, res)
-		fmt.Fprintf(buf, "%s%s %s = vmulq_f64(%s, halfOnePlusErf_%s);\n", indent, vecType, res, x, res)
-	}
+	fmt.Fprintf(buf, "%s%s onePlusErf_%s = %s;\n", indent, vecType, res, e.fmtAdd("one", "erf_"+res))
+	fmt.Fprintf(buf, "%s%s halfOnePlusErf_%s = %s;\n", indent, vecType, res, e.fmtMul("half", "onePlusErf_"+res))
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMul(x, "halfOnePlusErf_"+res))
 }
 
 // emitGELUApproxComputation emits approximate GELU: x * sigmoid(1.702 * x)
@@ -867,143 +905,14 @@ func (e *CEmitter) emitGELUApproxComputation(buf *bytes.Buffer, x, res, indent s
 	fmt.Fprintf(buf, "%s\n", indent)
 
 	// Scale x by 1.702
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s%s xScaled_%s = vmulq_f32(%s, geluCoeff);\n", indent, vecType, res, x)
-	} else {
-		fmt.Fprintf(buf, "%s%s xScaled_%s = vmulq_f64(%s, geluCoeff);\n", indent, vecType, res, x)
-	}
+	fmt.Fprintf(buf, "%s%s xScaled_%s = %s;\n", indent, vecType, res, e.fmtMul(x, "geluCoeff"))
 
 	// Compute sigmoid(xScaled) - inline the sigmoid computation
 	fmt.Fprintf(buf, "%s// Compute sigmoid(1.702 * x)\n", indent)
-	e.emitSigmoidComputationInline(buf, "xScaled_"+res, "sig_"+res, indent)
+	e.emitSigmoidComputation(buf, "xScaled_"+res, "sig_"+res, indent)
 
 	// Compute result = x * sigmoid
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s%s %s = vmulq_f32(%s, sig_%s);\n", indent, vecType, res, x, res)
-	} else {
-		fmt.Fprintf(buf, "%s%s %s = vmulq_f64(%s, sig_%s);\n", indent, vecType, res, x, res)
-	}
-}
-
-// emitErfComputationInline emits an inline erf computation that stores result in a named variable.
-func (e *CEmitter) emitErfComputationInline(buf *bytes.Buffer, xVar, resVar, indent string) {
-	vecType := e.vecType()
-
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%suint32x4_t isNeg_%s = vcltq_f32(%s, zero);\n", indent, resVar, xVar)
-		fmt.Fprintf(buf, "%s%s absX_%s = vabsq_f32(%s);\n", indent, vecType, resVar, xVar)
-		fmt.Fprintf(buf, "%s%s t_%s = vdivq_f32(one, vfmaq_f32(one, erfP, absX_%s));\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s negX2_%s = vnegq_f32(vmulq_f32(%s, %s));\n", indent, vecType, resVar, xVar, xVar)
-		// Compute exp(-x^2)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f32(vmulq_f32(negX2_%s, invLn2));\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f32(negX2_%s, kf_%s, ln2Hi);\n", indent, vecType, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f32(r_%s, kf_%s, ln2Lo);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f32(c5, c6, r_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c4, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c3, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c2, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sint32x4_t ki_%s = vcvtnq_s32_f32(kf_%s);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%sint32x4_t scale_bits_%s = vshlq_n_s32(vaddq_s32(ki_%s, bias), 23);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f32_s32(scale_bits_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s expNegX2_%s = vmulq_f32(p_%s, scale_%s);\n", indent, vecType, resVar, resVar, resVar)
-		// Polynomial
-		fmt.Fprintf(buf, "%s%s poly_%s = a5;\n", indent, vecType, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a4, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a3, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a2, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f32(a1, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vmulq_f32(poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		// erf = 1 - poly * exp(-x^2)
-		fmt.Fprintf(buf, "%s%s erfAbs_%s = vfmsq_f32(one, poly_%s, expNegX2_%s);\n", indent, vecType, resVar, resVar, resVar)
-		// Apply sign
-		fmt.Fprintf(buf, "%s%s %s = vbslq_f32(isNeg_%s, vnegq_f32(erfAbs_%s), erfAbs_%s);\n", indent, vecType, resVar, resVar, resVar, resVar)
-	} else {
-		// Float64 version
-		fmt.Fprintf(buf, "%suint64x2_t isNeg_%s = vcltq_f64(%s, zero);\n", indent, resVar, xVar)
-		fmt.Fprintf(buf, "%s%s absX_%s = vabsq_f64(%s);\n", indent, vecType, resVar, xVar)
-		fmt.Fprintf(buf, "%s%s t_%s = vdivq_f64(one, vfmaq_f64(one, erfP, absX_%s));\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s negX2_%s = vnegq_f64(vmulq_f64(%s, %s));\n", indent, vecType, resVar, xVar, xVar)
-		// Compute exp(-x^2)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f64(vmulq_f64(negX2_%s, invLn2));\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f64(negX2_%s, kf_%s, ln2Hi);\n", indent, vecType, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f64(r_%s, kf_%s, ln2Lo);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f64(c5, c6, r_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c4, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c3, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c2, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sint64x2_t ki_%s = vcvtq_s64_f64(kf_%s);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%sint64x2_t scale_bits_%s = vshlq_n_s64(vaddq_s64(ki_%s, bias), 52);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f64_s64(scale_bits_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s expNegX2_%s = vmulq_f64(p_%s, scale_%s);\n", indent, vecType, resVar, resVar, resVar)
-		// Polynomial
-		fmt.Fprintf(buf, "%s%s poly_%s = a5;\n", indent, vecType, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a4, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a3, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a2, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vfmaq_f64(a1, poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%spoly_%s = vmulq_f64(poly_%s, t_%s);\n", indent, resVar, resVar, resVar)
-		// erf = 1 - poly * exp(-x^2)
-		fmt.Fprintf(buf, "%s%s erfAbs_%s = vfmsq_f64(one, poly_%s, expNegX2_%s);\n", indent, vecType, resVar, resVar, resVar)
-		// Apply sign
-		fmt.Fprintf(buf, "%s%s %s = vbslq_f64(isNeg_%s, vnegq_f64(erfAbs_%s), erfAbs_%s);\n", indent, vecType, resVar, resVar, resVar, resVar)
-	}
-}
-
-// emitSigmoidComputationInline emits an inline sigmoid computation.
-func (e *CEmitter) emitSigmoidComputationInline(buf *bytes.Buffer, xVar, resVar, indent string) {
-	vecType := e.vecType()
-
-	if e.elemType == "float32" {
-		fmt.Fprintf(buf, "%s%s clamped_%s = vmaxq_f32(vminq_f32(%s, satHi), satLo);\n", indent, vecType, resVar, xVar)
-		fmt.Fprintf(buf, "%s%s negX_%s = vnegq_f32(clamped_%s);\n", indent, vecType, resVar, resVar)
-		// Compute exp(-x)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f32(vmulq_f32(negX_%s, invLn2));\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f32(negX_%s, kf_%s, ln2Hi);\n", indent, vecType, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f32(r_%s, kf_%s, ln2Lo);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f32(c5, c6, r_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c4, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c3, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c2, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f32(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sint32x4_t ki_%s = vcvtnq_s32_f32(kf_%s);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%sint32x4_t scale_bits_%s = vshlq_n_s32(vaddq_s32(ki_%s, bias), 23);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f32_s32(scale_bits_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s expNegX_%s = vmulq_f32(p_%s, scale_%s);\n", indent, vecType, resVar, resVar, resVar)
-		// sigmoid = 1 / (1 + exp(-x))
-		fmt.Fprintf(buf, "%s%s denom_%s = vaddq_f32(one, expNegX_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s %s = vdivq_f32(one, denom_%s);\n", indent, vecType, resVar, resVar)
-		// Saturation
-		fmt.Fprintf(buf, "%s%s = vbslq_f32(vcgtq_f32(%s, satHi), one, %s);\n", indent, resVar, xVar, resVar)
-		fmt.Fprintf(buf, "%s%s = vbslq_f32(vcltq_f32(%s, satLo), zero, %s);\n", indent, resVar, xVar, resVar)
-	} else {
-		fmt.Fprintf(buf, "%s%s clamped_%s = vmaxq_f64(vminq_f64(%s, satHi), satLo);\n", indent, vecType, resVar, xVar)
-		fmt.Fprintf(buf, "%s%s negX_%s = vnegq_f64(clamped_%s);\n", indent, vecType, resVar, resVar)
-		// Compute exp(-x)
-		fmt.Fprintf(buf, "%s%s kf_%s = vrndnq_f64(vmulq_f64(negX_%s, invLn2));\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s r_%s = vfmsq_f64(negX_%s, kf_%s, ln2Hi);\n", indent, vecType, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sr_%s = vfmsq_f64(r_%s, kf_%s, ln2Lo);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s p_%s = vfmaq_f64(c5, c6, r_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c4, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c3, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c2, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sp_%s = vfmaq_f64(c1, p_%s, r_%s);\n", indent, resVar, resVar, resVar)
-		fmt.Fprintf(buf, "%sint64x2_t ki_%s = vcvtq_s64_f64(kf_%s);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%sint64x2_t scale_bits_%s = vshlq_n_s64(vaddq_s64(ki_%s, bias), 52);\n", indent, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s scale_%s = vreinterpretq_f64_s64(scale_bits_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s expNegX_%s = vmulq_f64(p_%s, scale_%s);\n", indent, vecType, resVar, resVar, resVar)
-		// sigmoid = 1 / (1 + exp(-x))
-		fmt.Fprintf(buf, "%s%s denom_%s = vaddq_f64(one, expNegX_%s);\n", indent, vecType, resVar, resVar)
-		fmt.Fprintf(buf, "%s%s %s = vdivq_f64(one, denom_%s);\n", indent, vecType, resVar, resVar)
-		// Saturation
-		fmt.Fprintf(buf, "%s%s = vbslq_f64(vcgtq_f64(%s, satHi), one, %s);\n", indent, resVar, xVar, resVar)
-		fmt.Fprintf(buf, "%s%s = vbslq_f64(vcltq_f64(%s, satLo), zero, %s);\n", indent, resVar, xVar, resVar)
-	}
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMul(x, "sig_"+res))
 }
 
 // ---------------------------------------------------------------------------
