@@ -18,8 +18,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-//go:generate go run ../../../cmd/hwygen -input lifting_base.go -output . -targets avx2,avx512,neon,fallback -dispatch lifting
-//go:generate go run ../../../cmd/hwygen -input lifting_base.go -output . -targets neon -asm
+//go:generate go run ../../../cmd/hwygen -input lifting_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch lifting
 
 // BaseLiftUpdate53 applies the 5/3 update step: target[i] -= (neighbor[i+off1] + neighbor[i+off2] + 2) >> 2
 // This is used for the update step in 5/3 synthesis and the predict step in analysis.
@@ -543,6 +542,183 @@ func BaseSynthesize53Core[T hwy.SignedInts](data []T, n int, low []T, sn int, hi
 			data[2*i] = high[i]
 		}
 	}
+}
+
+// BaseSynthesize53CoreCols fuses copy + LiftUpdate53 + LiftPredict53 + Interleave
+// for multiple columns processed in parallel via SIMD. The data layout is
+// column-interleaved: colBuf[y*lanes + c] holds the value for row y, column c
+// (where lanes = hwy.MaxLanes). Each SIMD load/store at colBuf[y*lanes:]
+// touches all `lanes` columns for row y simultaneously.
+//
+// colBuf has height*lanes elements on entry ([low rows | high rows] interleaved
+// by column) and contains the synthesized output on exit (interleaved rows).
+// lowBuf and highBuf are scratch buffers with capacity >= sn*lanes and dn*lanes.
+func BaseSynthesize53CoreCols[T hwy.SignedInts](colBuf []T, height int, lowBuf []T, sn int, highBuf []T, dn int, phase int) {
+	lanes := hwy.MaxLanes[T]()
+
+	// 1. Copy subbands from colBuf into scratch buffers.
+	// colBuf layout: rows [0..sn-1] are low-pass, rows [sn..sn+dn-1] are high-pass.
+	for y := 0; y < sn; y++ {
+		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
+	}
+	for y := 0; y < dn; y++ {
+		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
+	}
+
+	// 2. LiftUpdate53 across columns: low[y] -= (high[off1] + high[off2] + 2) >> 2
+	{
+		twoVec := hwy.Set(T(2))
+
+		start := 0
+		if phase == 0 {
+			// Boundary: y=0, clamp high[-1] to high[0]
+			h0 := hwy.Load(highBuf[0:])
+			l0 := hwy.Load(lowBuf[0:])
+			hwy.Store(hwy.Sub(l0, hwy.ShiftRight(hwy.Add(hwy.Add(h0, h0), twoVec), 2)), lowBuf[0:])
+			start = 1
+		}
+
+		safeEnd := sn
+		if phase == 0 {
+			if dn < safeEnd {
+				safeEnd = dn
+			}
+		} else {
+			if dn-1 < safeEnd {
+				safeEnd = dn - 1
+			}
+		}
+
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 hwy.Vec[T]
+			if phase == 0 {
+				n1 = hwy.Load(highBuf[(y-1)*lanes:])
+				n2 = hwy.Load(highBuf[y*lanes:])
+			} else {
+				n1 = hwy.Load(highBuf[y*lanes:])
+				n2 = hwy.Load(highBuf[(y+1)*lanes:])
+			}
+			sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+			update := hwy.ShiftRight(sum, 2)
+			t := hwy.Load(lowBuf[y*lanes:])
+			hwy.Store(hwy.Sub(t, update), lowBuf[y*lanes:])
+		}
+
+		// Tail with boundary clamping
+		for y := safeEnd; y < sn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y - 1
+				n2Idx = y
+			} else {
+				n1Idx = y
+				n2Idx = y + 1
+			}
+			if n1Idx >= dn {
+				n1Idx = dn - 1
+			}
+			if n2Idx >= dn {
+				n2Idx = dn - 1
+			}
+			n1 := hwy.Load(highBuf[n1Idx*lanes:])
+			n2 := hwy.Load(highBuf[n2Idx*lanes:])
+			sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+			update := hwy.ShiftRight(sum, 2)
+			t := hwy.Load(lowBuf[y*lanes:])
+			hwy.Store(hwy.Sub(t, update), lowBuf[y*lanes:])
+		}
+		_ = twoVec
+	}
+
+	// 3. LiftPredict53 across columns: high[y] += (low[off1] + low[off2]) >> 1
+	{
+		start := 0
+		if phase == 1 {
+			// Boundary: y=0, clamp low[-1] to low[0]
+			l0 := hwy.Load(lowBuf[0:])
+			h0 := hwy.Load(highBuf[0:])
+			hwy.Store(hwy.Add(h0, hwy.ShiftRight(hwy.Add(l0, l0), 1)), highBuf[0:])
+			start = 1
+		}
+
+		safeEnd := dn
+		if phase == 0 {
+			if sn-1 < safeEnd {
+				safeEnd = sn - 1
+			}
+		} else {
+			if sn < safeEnd {
+				safeEnd = sn
+			}
+		}
+
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 hwy.Vec[T]
+			if phase == 0 {
+				n1 = hwy.Load(lowBuf[y*lanes:])
+				n2 = hwy.Load(lowBuf[(y+1)*lanes:])
+			} else {
+				n1 = hwy.Load(lowBuf[(y-1)*lanes:])
+				n2 = hwy.Load(lowBuf[y*lanes:])
+			}
+			update := hwy.ShiftRight(hwy.Add(n1, n2), 1)
+			t := hwy.Load(highBuf[y*lanes:])
+			hwy.Store(hwy.Add(t, update), highBuf[y*lanes:])
+		}
+
+		// Tail with boundary clamping
+		for y := safeEnd; y < dn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y
+				n2Idx = y + 1
+			} else {
+				n1Idx = y - 1
+				n2Idx = y
+			}
+			if n1Idx < 0 {
+				n1Idx = 0
+			}
+			if n1Idx >= sn {
+				n1Idx = sn - 1
+			}
+			if n2Idx >= sn {
+				n2Idx = sn - 1
+			}
+			n1 := hwy.Load(lowBuf[n1Idx*lanes:])
+			n2 := hwy.Load(lowBuf[n2Idx*lanes:])
+			update := hwy.ShiftRight(hwy.Add(n1, n2), 1)
+			t := hwy.Load(highBuf[y*lanes:])
+			hwy.Store(hwy.Add(t, update), highBuf[y*lanes:])
+		}
+	}
+
+	// 4. Interleave rows back into colBuf.
+	// Output row order: low[0], high[0], low[1], high[1], ...
+	if phase == 0 {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+		// Remaining low (sn > dn)
+		for y := dn; y < sn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+	} else {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := sn; y < dn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+	}
+	_ = lanes
 }
 
 // BaseDeinterleave extracts low and high-pass coefficients from src.

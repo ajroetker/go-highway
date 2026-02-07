@@ -63,7 +63,10 @@ func init() {
 	// Check for HWY_NO_SME environment variable to disable SME
 	if hasSME && os.Getenv("HWY_NO_SME") == "" {
 		currentLevel = DispatchSME
-		currentWidth = 64 // SME streaming vector length is 512-bit (64 bytes) on M4
+		// Keep currentWidth at NEON width (16 bytes) until hwygen generates
+		// SVE/SME-width kernels. MaxLanes must match the dispatched kernel
+		// width, and all current arm64 kernels target NEON (128-bit).
+		// Packages that need SME use hwy.HasSME() for explicit dispatch.
 	}
 
 	// Future: SVE support (without SME streaming mode)

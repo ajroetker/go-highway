@@ -23,6 +23,8 @@ func init() {
 	ScaleSliceFloat64 = scaleSliceAsmF64
 	Synthesize53CoreInt32 = synthesize53CoreAsmS32
 	Synthesize53CoreInt64 = synthesize53CoreAsmS64
+	Synthesize53CoreColsInt32 = synthesize53CoreColsAsmS32
+	Synthesize53CoreColsInt64 = synthesize53CoreColsAsmS64
 }
 
 func liftUpdate53AsmS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
@@ -209,6 +211,44 @@ func synthesize53CoreAsmS64(data []int64, n int, low []int64, sn int, high []int
 		unsafe.Pointer(&low[0]),
 		unsafe.Pointer(&snVal),
 		unsafe.Pointer(&high[0]),
+		unsafe.Pointer(&dnVal),
+		unsafe.Pointer(&phaseVal),
+	)
+}
+
+func synthesize53CoreColsAsmS32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn, phase int) {
+	if len(colBuf) == 0 || len(lowBuf) == 0 || len(highBuf) == 0 {
+		return
+	}
+	heightVal := int64(height)
+	snVal := int64(sn)
+	dnVal := int64(dn)
+	phaseVal := int64(phase)
+	asm.Synthesize53CoreCols_S32(
+		unsafe.Pointer(&colBuf[0]),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&lowBuf[0]),
+		unsafe.Pointer(&snVal),
+		unsafe.Pointer(&highBuf[0]),
+		unsafe.Pointer(&dnVal),
+		unsafe.Pointer(&phaseVal),
+	)
+}
+
+func synthesize53CoreColsAsmS64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn, phase int) {
+	if len(colBuf) == 0 || len(lowBuf) == 0 || len(highBuf) == 0 {
+		return
+	}
+	heightVal := int64(height)
+	snVal := int64(sn)
+	dnVal := int64(dn)
+	phaseVal := int64(phase)
+	asm.Synthesize53CoreCols_S64(
+		unsafe.Pointer(&colBuf[0]),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&lowBuf[0]),
+		unsafe.Pointer(&snVal),
+		unsafe.Pointer(&highBuf[0]),
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
 	)

@@ -13,10 +13,12 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseLiftUpdate53_NEON_twoVec_f32         = asm.BroadcastInt64x2(int64(2))
-	BaseLiftUpdate53_NEON_twoVec_i32_f32     = asm.BroadcastInt32x4(int32(2))
-	BaseSynthesize53Core_NEON_twoVec_f32     = asm.BroadcastInt64x2(int64(2))
-	BaseSynthesize53Core_NEON_twoVec_i32_f32 = asm.BroadcastInt32x4(int32(2))
+	BaseLiftUpdate53_NEON_twoVec_f32             = asm.BroadcastInt64x2(int64(2))
+	BaseLiftUpdate53_NEON_twoVec_i32_f32         = asm.BroadcastInt32x4(int32(2))
+	BaseSynthesize53CoreCols_NEON_twoVec_f32     = asm.BroadcastInt64x2(int64(2))
+	BaseSynthesize53CoreCols_NEON_twoVec_i32_f32 = asm.BroadcastInt32x4(int32(2))
+	BaseSynthesize53Core_NEON_twoVec_f32         = asm.BroadcastInt64x2(int64(2))
+	BaseSynthesize53Core_NEON_twoVec_i32_f32     = asm.BroadcastInt32x4(int32(2))
 )
 
 func BaseLiftUpdate53_neon_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
@@ -1361,6 +1363,298 @@ func BaseSynthesize53Core_neon_Int64(data []int64, n int, low []int64, sn int, h
 			data[2*i] = high[i]
 		}
 	}
+}
+
+func BaseSynthesize53CoreCols_neon_Int32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn int, phase int) {
+	lanes := 4
+	for y := 0; y < sn; y++ {
+		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
+	}
+	for y := 0; y < dn; y++ {
+		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
+	}
+	{
+		twoVec := BaseSynthesize53CoreCols_NEON_twoVec_i32_f32
+		start := 0
+		if phase == 0 {
+			h0 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[0])))
+			l0 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[0])))
+			l0.Sub(h0.Add(h0).Add(twoVec).ShiftAllRight(2)).Store((*[4]int32)(unsafe.Pointer(&lowBuf[0])))
+			start = 1
+		}
+		safeEnd := sn
+		if phase == 0 {
+			if dn < safeEnd {
+				safeEnd = dn
+			}
+		} else {
+			if dn-1 < safeEnd {
+				safeEnd = dn - 1
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 asm.Int32x4
+			if phase == 0 {
+				n1 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[(y-1)*lanes])))
+				n2 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			} else {
+				n1 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+				n2 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
+			}
+			sum := n1.Add(n2).Add(twoVec)
+			update := sum.ShiftAllRight(2)
+			t := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).Store((*[4]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+		}
+		for y := safeEnd; y < sn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y - 1
+				n2Idx = y
+			} else {
+				n1Idx = y
+				n2Idx = y + 1
+			}
+			if n1Idx >= dn {
+				n1Idx = dn - 1
+			}
+			if n2Idx >= dn {
+				n2Idx = dn - 1
+			}
+			n1 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
+			n2 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
+			sum := n1.Add(n2).Add(twoVec)
+			update := sum.ShiftAllRight(2)
+			t := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).Store((*[4]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+		}
+		_ = twoVec
+	}
+	{
+		start := 0
+		if phase == 1 {
+			l0 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[0])))
+			h0 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[0])))
+			h0.Add(l0.Add(l0).ShiftAllRight(1)).Store((*[4]int32)(unsafe.Pointer(&highBuf[0])))
+			start = 1
+		}
+		safeEnd := dn
+		if phase == 0 {
+			if sn-1 < safeEnd {
+				safeEnd = sn - 1
+			}
+		} else {
+			if sn < safeEnd {
+				safeEnd = sn
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 asm.Int32x4
+			if phase == 0 {
+				n1 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+				n2 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[(y+1)*lanes])))
+			} else {
+				n1 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
+				n2 = asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			}
+			update := n1.Add(n2).ShiftAllRight(1)
+			t := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).Store((*[4]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+		}
+		for y := safeEnd; y < dn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y
+				n2Idx = y + 1
+			} else {
+				n1Idx = y - 1
+				n2Idx = y
+			}
+			if n1Idx < 0 {
+				n1Idx = 0
+			}
+			if n1Idx >= sn {
+				n1Idx = sn - 1
+			}
+			if n2Idx >= sn {
+				n2Idx = sn - 1
+			}
+			n1 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
+			n2 := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
+			update := n1.Add(n2).ShiftAllRight(1)
+			t := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).Store((*[4]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+		}
+	}
+	if phase == 0 {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+	} else {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := sn; y < dn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+	}
+	_ = lanes
+}
+
+func BaseSynthesize53CoreCols_neon_Int64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn int, phase int) {
+	lanes := 2
+	for y := 0; y < sn; y++ {
+		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
+	}
+	for y := 0; y < dn; y++ {
+		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
+	}
+	{
+		twoVec := BaseSynthesize53CoreCols_NEON_twoVec_f32
+		start := 0
+		if phase == 0 {
+			h0 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[0])))
+			l0 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[0])))
+			l0.Sub(h0.Add(h0).Add(twoVec).ShiftAllRight(2)).Store((*[2]int64)(unsafe.Pointer(&lowBuf[0])))
+			start = 1
+		}
+		safeEnd := sn
+		if phase == 0 {
+			if dn < safeEnd {
+				safeEnd = dn
+			}
+		} else {
+			if dn-1 < safeEnd {
+				safeEnd = dn - 1
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 asm.Int64x2
+			if phase == 0 {
+				n1 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[(y-1)*lanes])))
+				n2 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			} else {
+				n1 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+				n2 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
+			}
+			sum := n1.Add(n2).Add(twoVec)
+			update := sum.ShiftAllRight(2)
+			t := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).Store((*[2]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+		}
+		for y := safeEnd; y < sn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y - 1
+				n2Idx = y
+			} else {
+				n1Idx = y
+				n2Idx = y + 1
+			}
+			if n1Idx >= dn {
+				n1Idx = dn - 1
+			}
+			if n2Idx >= dn {
+				n2Idx = dn - 1
+			}
+			n1 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
+			n2 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
+			sum := n1.Add(n2).Add(twoVec)
+			update := sum.ShiftAllRight(2)
+			t := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).Store((*[2]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+		}
+		_ = twoVec
+	}
+	{
+		start := 0
+		if phase == 1 {
+			l0 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[0])))
+			h0 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[0])))
+			h0.Add(l0.Add(l0).ShiftAllRight(1)).Store((*[2]int64)(unsafe.Pointer(&highBuf[0])))
+			start = 1
+		}
+		safeEnd := dn
+		if phase == 0 {
+			if sn-1 < safeEnd {
+				safeEnd = sn - 1
+			}
+		} else {
+			if sn < safeEnd {
+				safeEnd = sn
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 asm.Int64x2
+			if phase == 0 {
+				n1 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+				n2 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[(y+1)*lanes])))
+			} else {
+				n1 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
+				n2 = asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			}
+			update := n1.Add(n2).ShiftAllRight(1)
+			t := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).Store((*[2]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+		}
+		for y := safeEnd; y < dn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y
+				n2Idx = y + 1
+			} else {
+				n1Idx = y - 1
+				n2Idx = y
+			}
+			if n1Idx < 0 {
+				n1Idx = 0
+			}
+			if n1Idx >= sn {
+				n1Idx = sn - 1
+			}
+			if n2Idx >= sn {
+				n2Idx = sn - 1
+			}
+			n1 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
+			n2 := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
+			update := n1.Add(n2).ShiftAllRight(1)
+			t := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).Store((*[2]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+		}
+	}
+	if phase == 0 {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+	} else {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := sn; y < dn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+	}
+	_ = lanes
 }
 
 func BaseDeinterleave_neon(src []float32, low []float32, sn int, high []float32, dn int, phase int) {

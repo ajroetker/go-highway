@@ -10,138 +10,6 @@ import (
 )
 
 // Public wrapper functions
-// InterleaveCF32 computes BaseInterleave for entire arrays using NEON SIMD.
-func InterleaveCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	interleave_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// InterleaveCF64 computes BaseInterleave for entire arrays using NEON SIMD.
-func InterleaveCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	interleave_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// InterleaveCS32 computes BaseInterleave for entire arrays using NEON SIMD.
-func InterleaveCS32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	interleave_c_s32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// InterleaveCS64 computes BaseInterleave for entire arrays using NEON SIMD.
-func InterleaveCS64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	interleave_c_s64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// InterleaveCU32 computes BaseInterleave for entire arrays using NEON SIMD.
-func InterleaveCU32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	interleave_c_u32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// InterleaveCU64 computes BaseInterleave for entire arrays using NEON SIMD.
-func InterleaveCU64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	interleave_c_u64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeinterleaveCF32 computes BaseDeinterleave for entire arrays using NEON SIMD.
-func DeinterleaveCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deinterleave_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeinterleaveCF64 computes BaseDeinterleave for entire arrays using NEON SIMD.
-func DeinterleaveCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deinterleave_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeinterleaveCS32 computes BaseDeinterleave for entire arrays using NEON SIMD.
-func DeinterleaveCS32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deinterleave_c_s32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeinterleaveCS64 computes BaseDeinterleave for entire arrays using NEON SIMD.
-func DeinterleaveCS64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deinterleave_c_s64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeinterleaveCU32 computes BaseDeinterleave for entire arrays using NEON SIMD.
-func DeinterleaveCU32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deinterleave_c_u32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeinterleaveCU64 computes BaseDeinterleave for entire arrays using NEON SIMD.
-func DeinterleaveCU64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deinterleave_c_u64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
 // LiftUpdate53CS32 computes LiftUpdate53 using NEON SIMD assembly.
 func LiftUpdate53CS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
 	if len(target) == 0 || len(neighbor) == 0 {
@@ -338,6 +206,46 @@ func Synthesize53CoreCS64(data []int64, n int, low []int64, sn int, high []int64
 		unsafe.Pointer(&low[0]),
 		unsafe.Pointer(&snVal),
 		unsafe.Pointer(&high[0]),
+		unsafe.Pointer(&dnVal),
+		unsafe.Pointer(&phaseVal),
+	)
+}
+
+// Synthesize53CoreColsCS32 computes Synthesize53CoreCols using NEON SIMD assembly.
+func Synthesize53CoreColsCS32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn, phase int) {
+	if len(colBuf) == 0 || len(lowBuf) == 0 || len(highBuf) == 0 {
+		return
+	}
+	heightVal := int64(height)
+	snVal := int64(sn)
+	dnVal := int64(dn)
+	phaseVal := int64(phase)
+	synthesize53corecols_c_s32_neon(
+		unsafe.Pointer(&colBuf[0]),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&lowBuf[0]),
+		unsafe.Pointer(&snVal),
+		unsafe.Pointer(&highBuf[0]),
+		unsafe.Pointer(&dnVal),
+		unsafe.Pointer(&phaseVal),
+	)
+}
+
+// Synthesize53CoreColsCS64 computes Synthesize53CoreCols using NEON SIMD assembly.
+func Synthesize53CoreColsCS64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn, phase int) {
+	if len(colBuf) == 0 || len(lowBuf) == 0 || len(highBuf) == 0 {
+		return
+	}
+	heightVal := int64(height)
+	snVal := int64(sn)
+	dnVal := int64(dn)
+	phaseVal := int64(phase)
+	synthesize53corecols_c_s64_neon(
+		unsafe.Pointer(&colBuf[0]),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&lowBuf[0]),
+		unsafe.Pointer(&snVal),
+		unsafe.Pointer(&highBuf[0]),
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
 	)

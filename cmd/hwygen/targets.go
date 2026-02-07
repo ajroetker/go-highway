@@ -20,6 +20,34 @@ import (
 	"strings"
 )
 
+// TargetMode specifies how code should be generated for a target.
+type TargetMode int
+
+const (
+	TargetModeGoSimd TargetMode = iota // Pure Go simd/archsimd
+	TargetModeAsm                      // C -> GOAT -> Go assembly
+	TargetModeC                        // C only (inspection)
+)
+
+// TargetSpec pairs a Target with its generation mode.
+type TargetSpec struct {
+	Target Target
+	Mode   TargetMode
+}
+
+// parseTargetSpec parses a target spec string like "neon:asm" into its name and mode.
+func parseTargetSpec(spec string) (name string, mode TargetMode) {
+	if idx := strings.Index(spec, ":"); idx > 0 {
+		switch spec[idx+1:] {
+		case "asm":
+			return spec[:idx], TargetModeAsm
+		case "c":
+			return spec[:idx], TargetModeC
+		}
+	}
+	return spec, TargetModeGoSimd
+}
+
 // Target represents an architecture-specific code generation target.
 type Target struct {
 	Name       string            // "AVX2", "AVX512", "NEON", "Fallback"

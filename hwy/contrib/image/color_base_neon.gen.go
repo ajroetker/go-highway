@@ -28,7 +28,7 @@ func BaseForwardRCT_neon_Int32(r *Image[int32], g *Image[int32], b *Image[int32]
 	lanes := 4
 	height := r.height
 	width := r.width
-	for y := 0; y < height; y++ {
+	for y := range height {
 		rRow := r.Row(y)
 		gRow := g.Row(y)
 		bRow := b.Row(y)
@@ -88,7 +88,7 @@ func BaseForwardRCT_neon_Int64(r *Image[int64], g *Image[int64], b *Image[int64]
 	lanes := 2
 	height := r.height
 	width := r.width
-	for y := 0; y < height; y++ {
+	for y := range height {
 		rRow := r.Row(y)
 		gRow := g.Row(y)
 		bRow := b.Row(y)
@@ -147,7 +147,7 @@ func BaseInverseRCT_neon_Int32(y *Image[int32], cb *Image[int32], cr *Image[int3
 	lanes := 4
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -206,7 +206,7 @@ func BaseInverseRCT_neon_Int64(y *Image[int64], cb *Image[int64], cr *Image[int6
 	lanes := 2
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -275,7 +275,7 @@ func BaseForwardICT_neon_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b
 	lanes := 8
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -340,7 +340,7 @@ func BaseForwardICT_neon_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat16]
 	lanes := 8
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -405,7 +405,7 @@ func BaseForwardICT_neon(r *Image[float32], g *Image[float32], b *Image[float32]
 	lanes := 4
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -470,7 +470,7 @@ func BaseForwardICT_neon_Float64(r *Image[float64], g *Image[float64], b *Image[
 	lanes := 2
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -530,7 +530,7 @@ func BaseInverseICT_neon_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], 
 	lanes := 8
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -590,7 +590,7 @@ func BaseInverseICT_neon_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat16
 	lanes := 8
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -650,7 +650,7 @@ func BaseInverseICT_neon(y *Image[float32], cb *Image[float32], cr *Image[float3
 	lanes := 4
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -710,7 +710,7 @@ func BaseInverseICT_neon_Float64(y *Image[float64], cb *Image[float64], cr *Imag
 	lanes := 2
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)

@@ -15,25 +15,61 @@ import (
 	"github.com/ajroetker/go-highway/cmd/hwygen/ir"
 )
 
-// runCMode generates C code for requested targets, compiles with GOAT,
-// and generates Go wrapper functions.
-func (g *Generator) runCMode(result *ParseResult) error {
-	// Parse requested targets
+// runAsmMode generates C code for ASM targets, compiles with GOAT,
+// and returns AsmAdapterInfo for unified dispatch wiring.
+func (g *Generator) runAsmMode(result *ParseResult, asmSpecs []TargetSpec) ([]AsmAdapterInfo, error) {
 	var targets []Target
-	for _, name := range g.Targets {
-		target, err := GetTarget(name)
-		if err != nil {
-			return err
-		}
-		// Skip fallback - no C generation needed
-		if target.Name == "Fallback" {
+	for _, ts := range asmSpecs {
+		if ts.Target.Name == "Fallback" {
 			continue
 		}
-		targets = append(targets, target)
+		targets = append(targets, ts.Target)
 	}
-
 	if len(targets) == 0 {
-		return fmt.Errorf("no valid C generation targets specified (got: %v)", g.Targets)
+		return nil, nil
+	}
+	return g.runCModeInternal(result, targets, true)
+}
+
+// runCOnlyMode generates C code for inspection only (no GOAT compilation).
+func (g *Generator) runCOnlyMode(result *ParseResult, cSpecs []TargetSpec) error {
+	var targets []Target
+	for _, ts := range cSpecs {
+		if ts.Target.Name == "Fallback" {
+			continue
+		}
+		targets = append(targets, ts.Target)
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	_, err := g.runCModeInternal(result, targets, false)
+	return err
+}
+
+// runCMode generates C code for requested targets, compiles with GOAT,
+// and generates Go wrapper functions. Used when all targets are C/ASM mode (legacy path).
+func (g *Generator) runCMode(result *ParseResult) error {
+	var targets []Target
+	for _, ts := range g.TargetSpecs {
+		if ts.Target.Name == "Fallback" {
+			continue
+		}
+		targets = append(targets, ts.Target)
+	}
+	if len(targets) == 0 {
+		return fmt.Errorf("no valid C generation targets specified")
+	}
+	isAsm := g.AsmMode()
+	_, err := g.runCModeInternal(result, targets, isAsm)
+	return err
+}
+
+// runCModeInternal is the shared implementation for C/ASM code generation.
+// When asmMode is true, it compiles C to Go assembly via GOAT and returns adapter info.
+func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmMode bool) ([]AsmAdapterInfo, error) {
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("no valid C generation targets specified")
 	}
 
 	// Collect all eligible functions
@@ -53,7 +89,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 
 	totalFuncs := len(vecFuncs) + len(sliceFuncs) + len(astFuncs)
 	if totalFuncs == 0 {
-		return fmt.Errorf("no C-eligible functions found")
+		return nil, fmt.Errorf("no C-eligible functions found")
 	}
 
 	fmt.Printf("Found %d C-eligible functions:\n", totalFuncs)
@@ -68,7 +104,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 	if g.FusionMode && len(sliceFuncs) > 0 {
 		fmt.Println("\nUsing IR-based fusion optimization...")
 		if err := g.runFusionCMode(result, sliceFuncs, targets); err != nil {
-			return fmt.Errorf("fusion mode: %w", err)
+			return nil, fmt.Errorf("fusion mode: %w", err)
 		}
 		// Continue with non-slice functions using standard path
 		sliceFuncs = nil
@@ -77,16 +113,19 @@ func (g *Generator) runCMode(result *ParseResult) error {
 		fmt.Printf("  - %s (AST→C)\n", pf.Name)
 	}
 
+	// Collect adapter info across all targets
+	var allAdapters []AsmAdapterInfo
+
 	// Process each target
 	for _, target := range targets {
 		fmt.Printf("\nGenerating C for target: %s\n", target.Name)
 
 		// In asm mode, C/assembly files go to asm/ subdirectory
 		cOutputDir := g.OutputDir
-		if g.AsmMode {
+		if asmMode {
 			cOutputDir = filepath.Join(g.OutputDir, "asm")
 			if err := os.MkdirAll(cOutputDir, 0o755); err != nil {
-				return fmt.Errorf("create asm directory: %w", err)
+				return nil, fmt.Errorf("create asm directory: %w", err)
 			}
 		}
 
@@ -105,7 +144,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				emitter.profile = profile
 				cFile, err := emitter.EmitC(&pf, cOutputDir)
 				if err != nil {
-					return fmt.Errorf("emit C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
+					return nil, fmt.Errorf("emit C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
 				}
 				cFiles = append(cFiles, cFile)
 			}
@@ -123,7 +162,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				emitter.profile = profile
 				cFile, err := emitter.EmitCompositeC(&pf, cOutputDir)
 				if err != nil {
-					return fmt.Errorf("emit composite C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
+					return nil, fmt.Errorf("emit composite C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
 				}
 				cFiles = append(cFiles, cFile)
 			}
@@ -146,7 +185,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 				emitter.profile = profile
 				cFile, err := emitter.EmitASTTranslatedC(&pf, cOutputDir)
 				if err != nil {
-					return fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
+					return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
 				}
 				cFiles = append(cFiles, cFile)
 			}
@@ -156,8 +195,8 @@ func (g *Generator) runCMode(result *ParseResult) error {
 			continue
 		}
 
-		// If -asm mode, compile C files with GOAT and generate wrappers
-		if g.AsmMode {
+		// If asm mode, compile C files with GOAT and generate wrappers
+		if asmMode {
 			fmt.Printf("Compiling %d C files with GOAT...\n", len(cFiles))
 			var compiledFiles []string
 			for _, cFile := range cFiles {
@@ -197,24 +236,24 @@ func (g *Generator) runCMode(result *ParseResult) error {
 			// Non-struct wrappers go to asm/ subdirectory
 			if len(nonStructFuncs) > 0 {
 				if err := g.emitCWrappers(nonStructFuncs, target, cOutputDir); err != nil {
-					return fmt.Errorf("emit asm wrappers for %s: %w", target.Name, err)
+					return nil, fmt.Errorf("emit asm wrappers for %s: %w", target.Name, err)
 				}
 			}
 
 			// Struct-ptr functions need:
 			// 1. Thin exported passthrough wrappers in asm/
-			// 2. z_c_ dispatch file in parent with Image→CStruct adapters
+			// 2. ASM adapter + wiring file in parent
 			if len(structFuncs) > 0 {
 				if err := g.emitStructAsmPassthrough(structFuncs, target, cOutputDir); err != nil {
-					return fmt.Errorf("emit asm passthrough for %s: %w", target.Name, err)
+					return nil, fmt.Errorf("emit asm passthrough for %s: %w", target.Name, err)
 				}
 				if err := g.emitZCDispatch(structFuncs, target); err != nil {
-					return fmt.Errorf("emit z_c dispatch for %s: %w", target.Name, err)
+					return nil, fmt.Errorf("emit asm adapter for %s: %w", target.Name, err)
 				}
 			}
 
 			// Non-struct AST-translated functions (slice+int params) also need
-			// z_c_ dispatch to wire asm into the dispatch vars.
+			// ASM adapter + wiring.
 			var nonStructASTFuncs []ParsedFunc
 			for _, f := range nonStructFuncs {
 				if IsASTCEligible(&f) {
@@ -223,10 +262,29 @@ func (g *Generator) runCMode(result *ParseResult) error {
 			}
 			if len(nonStructASTFuncs) > 0 {
 				if err := g.emitSliceAsmPassthrough(nonStructASTFuncs, target, cOutputDir); err != nil {
-					return fmt.Errorf("emit slice asm passthrough for %s: %w", target.Name, err)
+					return nil, fmt.Errorf("emit slice asm passthrough for %s: %w", target.Name, err)
 				}
 				if err := g.emitZCDispatchForSlices(nonStructASTFuncs, target); err != nil {
-					return fmt.Errorf("emit z_c slice dispatch for %s: %w", target.Name, err)
+					return nil, fmt.Errorf("emit asm adapter for slices %s: %w", target.Name, err)
+				}
+			}
+
+			// Collect adapter info for all ASM-eligible functions
+			for _, pf := range append(structFuncs, nonStructASTFuncs...) {
+				for _, elemType := range getCElemTypes(&pf) {
+					profile := GetCProfile(target.Name, elemType)
+					if profile == nil {
+						continue
+					}
+					if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+						continue
+					}
+					allAdapters = append(allAdapters, AsmAdapterInfo{
+						TargetName:  target.Name,
+						Arch:        target.Arch(),
+						DispatchVar: buildDispatchVarName(pf.Name, elemType),
+						AdapterFunc: buildAdapterFuncName(pf.Name, elemType),
+					})
 				}
 			}
 		} else {
@@ -234,7 +292,7 @@ func (g *Generator) runCMode(result *ParseResult) error {
 		}
 	}
 
-	return nil
+	return allAdapters, nil
 }
 
 // runFusionCMode generates C code with IR-based fusion optimization.
@@ -346,7 +404,7 @@ func (g *Generator) runFusionCMode(result *ParseResult, sliceFuncs []ParsedFunc,
 			continue
 		}
 
-		if g.AsmMode {
+		if g.AsmMode() {
 			fmt.Printf("Compiling %d C files with GOAT...\n", len(cFiles))
 			var compiledFiles []string
 			for _, cFile := range cFiles {
@@ -530,8 +588,11 @@ func getCElemTypes(pf *ParsedFunc) []string {
 	return []string{"float32"}
 }
 
-// IsSliceFunction checks if a function operates on slices (not Vec).
-// These are composite functions like GELU that process entire arrays.
+// IsSliceFunction checks if a function operates on slices (not Vec) and is
+// vectorizable. These are composite functions like GELU that process entire
+// arrays using hwy SIMD operations. Pure scalar functions (like Interleave,
+// Deinterleave) that operate on slices but have no hwy calls are excluded —
+// the composite C template generates incorrect code for them.
 func IsSliceFunction(pf *ParsedFunc) bool {
 	hasSliceParam := false
 	for _, param := range pf.Params {
@@ -540,8 +601,17 @@ func IsSliceFunction(pf *ParsedFunc) bool {
 			break
 		}
 	}
-	// Must have slice params and NOT have Vec in signature
-	return hasSliceParam && !hasVecInSignature(*pf)
+	if !hasSliceParam || hasVecInSignature(*pf) {
+		return false
+	}
+	// Must have hwy operations to be vectorizable via the composite C path.
+	for _, call := range pf.HwyCalls {
+		if call.Package == "hwy" {
+			return true
+		}
+	}
+	// Also eligible if it's a recognized math composite (Exp, Sin, GELU, etc.)
+	return mathOpFromFuncName(pf.Name) != ""
 }
 
 // getCProfileForFile determines the CIntrinsicProfile for a generated C file
@@ -1688,12 +1758,31 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 
 	// Guard against empty slices to prevent &slice[0] panic.
-	// Int params are not guarded — the C code handles zero dimensions,
-	// and some int params (e.g., phase) are legitimately 0.
 	if len(sliceParams) > 0 {
 		var checks []string
 		for _, sp := range sliceParams {
 			checks = append(checks, "len("+sp+") == 0")
+		}
+		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
+		if hasReturns {
+			var zeros []string
+			for range pf.Returns {
+				zeros = append(zeros, "0")
+			}
+			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
+		} else {
+			fmt.Fprintf(buf, "\t\treturn\n")
+		}
+		fmt.Fprintf(buf, "\t}\n")
+	}
+
+	// Guard against zero dimensions for matmul-like functions (3 slices, 3 ints).
+	// If any dimension is zero there is no work to do, and the bounds checks
+	// below would compute incorrect products (e.g., len(a) < 0*k).
+	if len(sliceParams) == 3 && len(intParams) == 3 {
+		var checks []string
+		for _, ip := range intParams {
+			checks = append(checks, ip+" == 0")
 		}
 		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
 		if hasReturns {

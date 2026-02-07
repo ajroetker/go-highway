@@ -39,7 +39,7 @@ func BaseForwardRCT_avx512_Int32(r *Image[int32], g *Image[int32], b *Image[int3
 	lanes := 16
 	height := r.height
 	width := r.width
-	for y := 0; y < height; y++ {
+	for y := range height {
 		rRow := r.Row(y)
 		gRow := g.Row(y)
 		bRow := b.Row(y)
@@ -100,7 +100,7 @@ func BaseForwardRCT_avx512_Int64(r *Image[int64], g *Image[int64], b *Image[int6
 	lanes := 8
 	height := r.height
 	width := r.width
-	for y := 0; y < height; y++ {
+	for y := range height {
 		rRow := r.Row(y)
 		gRow := g.Row(y)
 		bRow := b.Row(y)
@@ -160,7 +160,7 @@ func BaseInverseRCT_avx512_Int32(y *Image[int32], cb *Image[int32], cr *Image[in
 	lanes := 16
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -220,7 +220,7 @@ func BaseInverseRCT_avx512_Int64(y *Image[int64], cb *Image[int64], cr *Image[in
 	lanes := 8
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -290,7 +290,7 @@ func BaseForwardICT_avx512_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16],
 	lanes := 16
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -356,7 +356,7 @@ func BaseForwardICT_avx512_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat1
 	lanes := 16
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -422,7 +422,7 @@ func BaseForwardICT_avx512(r *Image[float32], g *Image[float32], b *Image[float3
 	lanes := 16
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -488,7 +488,7 @@ func BaseForwardICT_avx512_Float64(r *Image[float64], g *Image[float64], b *Imag
 	lanes := 8
 	height := r.height
 	width := r.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		rRow := r.Row(row)
 		gRow := g.Row(row)
 		bRow := b.Row(row)
@@ -549,7 +549,7 @@ func BaseInverseICT_avx512_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16]
 	lanes := 16
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -610,7 +610,7 @@ func BaseInverseICT_avx512_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat
 	lanes := 16
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -671,7 +671,7 @@ func BaseInverseICT_avx512(y *Image[float32], cb *Image[float32], cr *Image[floa
 	lanes := 16
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)
@@ -732,7 +732,7 @@ func BaseInverseICT_avx512_Float64(y *Image[float64], cb *Image[float64], cr *Im
 	lanes := 8
 	height := y.height
 	width := y.width
-	for row := 0; row < height; row++ {
+	for row := range height {
 		yRow := y.Row(row)
 		cbRow := cb.Row(row)
 		crRow := cr.Row(row)

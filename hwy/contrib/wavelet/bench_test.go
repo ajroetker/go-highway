@@ -16,25 +16,12 @@ package wavelet
 
 import (
 	"testing"
-
-	"github.com/ajroetker/go-highway/hwy/contrib/image"
 )
 
 // 1D benchmark sizes
 var bench1DSizes = []int{64, 256, 1024, 4096}
 
-// 2D benchmark sizes
-var bench2DSizes = []struct {
-	name   string
-	width  int
-	height int
-}{
-	{"256x256", 256, 256},
-	{"1080p", 1920, 1080},
-	{"4K", 3840, 2160},
-}
-
-func BenchmarkSynthesize53_1D(b *testing.B) {
+func BenchmarkSynthesize53(b *testing.B) {
 	for _, size := range bench1DSizes {
 		b.Run(benchSizeName(size), func(b *testing.B) {
 			data := make([]int32, size)
@@ -42,17 +29,21 @@ func BenchmarkSynthesize53_1D(b *testing.B) {
 				data[i] = int32(i % 256)
 			}
 
+			maxHalf := (size + 1) / 2
+			low := make([]int32, maxHalf)
+			high := make([]int32, maxHalf)
+
 			b.ResetTimer()
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Synthesize53(data, 0)
+			for b.Loop() {
+				Synthesize53(data, 0, low, high)
 			}
 			b.SetBytes(int64(size * 4)) // int32 = 4 bytes
 		})
 	}
 }
 
-func BenchmarkAnalyze53_1D(b *testing.B) {
+func BenchmarkAnalyze53(b *testing.B) {
 	for _, size := range bench1DSizes {
 		b.Run(benchSizeName(size), func(b *testing.B) {
 			data := make([]int32, size)
@@ -60,152 +51,16 @@ func BenchmarkAnalyze53_1D(b *testing.B) {
 				data[i] = int32(i % 256)
 			}
 
+			maxHalf := (size + 1) / 2
+			low := make([]int32, maxHalf)
+			high := make([]int32, maxHalf)
+
 			b.ResetTimer()
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Analyze53(data, 0)
+			for b.Loop() {
+				Analyze53(data, 0, low, high)
 			}
 			b.SetBytes(int64(size * 4))
-		})
-	}
-}
-
-func BenchmarkSynthesize97_1D_Float32(b *testing.B) {
-	for _, size := range bench1DSizes {
-		b.Run(benchSizeName(size), func(b *testing.B) {
-			data := make([]float32, size)
-			for i := range data {
-				data[i] = float32(i) / float32(size)
-			}
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Synthesize97(data, 0)
-			}
-			b.SetBytes(int64(size * 4))
-		})
-	}
-}
-
-func BenchmarkAnalyze97_1D_Float32(b *testing.B) {
-	for _, size := range bench1DSizes {
-		b.Run(benchSizeName(size), func(b *testing.B) {
-			data := make([]float32, size)
-			for i := range data {
-				data[i] = float32(i) / float32(size)
-			}
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Analyze97(data, 0)
-			}
-			b.SetBytes(int64(size * 4))
-		})
-	}
-}
-
-func BenchmarkSynthesize2D_53(b *testing.B) {
-	for _, size := range bench2DSizes {
-		b.Run(size.name, func(b *testing.B) {
-			img := image.NewImage[int32](size.width, size.height)
-			for y := 0; y < size.height; y++ {
-				row := img.Row(y)
-				for x := 0; x < size.width; x++ {
-					row[x] = int32((x + y) % 256)
-				}
-			}
-
-			// Pre-analyze for synthesis benchmark
-			Analyze2D_53(img, 3, zeroPhase)
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Synthesize2D_53(img, 3, zeroPhase)
-				// Re-analyze for next iteration
-				if i < b.N-1 {
-					Analyze2D_53(img, 3, zeroPhase)
-				}
-			}
-			b.SetBytes(int64(size.width * size.height * 4))
-		})
-	}
-}
-
-func BenchmarkAnalyze2D_53(b *testing.B) {
-	for _, size := range bench2DSizes {
-		b.Run(size.name, func(b *testing.B) {
-			img := image.NewImage[int32](size.width, size.height)
-			for y := 0; y < size.height; y++ {
-				row := img.Row(y)
-				for x := 0; x < size.width; x++ {
-					row[x] = int32((x + y) % 256)
-				}
-			}
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Analyze2D_53(img, 3, zeroPhase)
-				// Re-synthesize for next iteration
-				if i < b.N-1 {
-					Synthesize2D_53(img, 3, zeroPhase)
-				}
-			}
-			b.SetBytes(int64(size.width * size.height * 4))
-		})
-	}
-}
-
-func BenchmarkSynthesize2D_97_Float32(b *testing.B) {
-	for _, size := range bench2DSizes {
-		b.Run(size.name, func(b *testing.B) {
-			img := image.NewImage[float32](size.width, size.height)
-			for y := 0; y < size.height; y++ {
-				row := img.Row(y)
-				for x := 0; x < size.width; x++ {
-					row[x] = float32((x + y) % 256) / 255.0
-				}
-			}
-
-			// Pre-analyze for synthesis benchmark
-			Analyze2D_97(img, 3, zeroPhase)
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Synthesize2D_97(img, 3, zeroPhase)
-				if i < b.N-1 {
-					Analyze2D_97(img, 3, zeroPhase)
-				}
-			}
-			b.SetBytes(int64(size.width * size.height * 4))
-		})
-	}
-}
-
-func BenchmarkAnalyze2D_97_Float32(b *testing.B) {
-	for _, size := range bench2DSizes {
-		b.Run(size.name, func(b *testing.B) {
-			img := image.NewImage[float32](size.width, size.height)
-			for y := 0; y < size.height; y++ {
-				row := img.Row(y)
-				for x := 0; x < size.width; x++ {
-					row[x] = float32((x + y) % 256) / 255.0
-				}
-			}
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				Analyze2D_97(img, 3, zeroPhase)
-				if i < b.N-1 {
-					Synthesize2D_97(img, 3, zeroPhase)
-				}
-			}
-			b.SetBytes(int64(size.width * size.height * 4))
 		})
 	}
 }

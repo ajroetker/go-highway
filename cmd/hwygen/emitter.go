@@ -248,7 +248,7 @@ func deriveDispatchPrefix(funcs []ParsedFunc) string {
 // - dispatch_{prefix}_arm64.gen.go for NEON
 // - dispatch_{prefix}.gen.go for fallback-only (no build tags)
 // If dispatchName is empty, derives prefix from function names.
-func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string) error {
+func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string, _ []AsmAdapterInfo) error {
 	// Use provided dispatch name or derive from function names
 	// Use provided dispatch name or derive from function names
 	prefix := dispatchName

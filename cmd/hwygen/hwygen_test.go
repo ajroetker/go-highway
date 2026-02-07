@@ -14,6 +14,19 @@ import (
 	"testing"
 )
 
+// makeTestSpecs creates TargetSpecs from target names and a mode for tests.
+func makeTestSpecs(mode TargetMode, names ...string) []TargetSpec {
+	var specs []TargetSpec
+	for _, name := range names {
+		t, err := GetTarget(name)
+		if err != nil {
+			panic(err)
+		}
+		specs = append(specs, TargetSpec{Target: t, Mode: mode})
+	}
+	return specs
+}
+
 func TestGetTarget(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -189,9 +202,9 @@ func BaseAdd[T hwy.Floats](a, b, result []T) {
 
 	// Create generator
 	gen := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"avx2", "fallback"},
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2", "fallback"),
 	}
 
 	// Run generation
@@ -351,9 +364,9 @@ func BaseSigmoid[T hwy.Floats](input, output []T) {
 
 	// Create generator
 	gen := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"avx2", "fallback"},
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2", "fallback"),
 	}
 
 	// Run generation
@@ -784,7 +797,7 @@ func BaseAdd[T hwy.Floats](a, b, result []T) {
 		InputFile:    inputFile,
 		OutputDir:    tmpDir,
 		OutputPrefix: "custom_prefix",
-		Targets:      []string{"avx2", "fallback"},
+		TargetSpecs:  makeTestSpecs(TargetModeGoSimd, "avx2", "fallback"),
 	}
 
 	// Run generation
@@ -858,7 +871,7 @@ func BaseAdd[T hwy.Floats](a, b, result []T) {
 		InputFile:      inputFile,
 		OutputDir:      tmpDir,
 		DispatchPrefix: "custom_dispatch",
-		Targets:        []string{"avx2", "fallback"},
+		TargetSpecs:    makeTestSpecs(TargetModeGoSimd, "avx2", "fallback"),
 	}
 
 	// Run generation
@@ -912,9 +925,9 @@ func BaseCopy[T hwy.FloatsNative](src, dst []T) {
 
 	// Create generator for AVX2
 	gen := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"avx2"},
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2"),
 	}
 
 	// Run generation
@@ -1020,9 +1033,9 @@ func BaseDecodeFloat32s(dst []float32, src []byte) {
 
 	// Test AVX2 target (should get lanes=32 for uint8, not lanes=8 for float32)
 	gen := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"avx2"},
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2"),
 	}
 
 	if err := gen.Run(); err != nil {
@@ -1054,9 +1067,9 @@ func BaseDecodeFloat32s(dst []float32, src []byte) {
 
 	// Test NEON target (should get lanes=16 for uint8, not lanes=4 for float32)
 	gen2 := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "neon"),
 	}
 
 	if err := gen2.Run(); err != nil {
@@ -1106,9 +1119,9 @@ func BaseScale[T hwy.Floats](data []T, scale T) {
 	}
 
 	gen := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "neon"),
 	}
 
 	if err := gen.Run(); err != nil {
@@ -1178,10 +1191,9 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	}
 
 	gen := &Generator{
-		InputFile: inputFile,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
-		CMode:     true,
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
 	}
 
 	if err := gen.Run(); err != nil {
@@ -1620,10 +1632,9 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	gen := &Generator{
-		InputFile: matmulPath,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
-		CMode:     true,
+		InputFile:   matmulPath,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
 	}
 
 	if err := gen.Run(); err != nil {
@@ -1900,13 +1911,16 @@ func TestCModeAsmPipeline(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
+	// resolveAsmImportPath walks up from OutputDir looking for go.mod.
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"),
+		[]byte("module testpkg\n\ngo 1.26\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
 
 	gen := &Generator{
-		InputFile: matmulPath,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
-		CMode:     true,
-		AsmMode:   true,
+		InputFile:   matmulPath,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeAsm, "neon"),
 	}
 
 	err := gen.Run()
@@ -1990,18 +2004,22 @@ func TestCModeAsmCorrectnessF32(t *testing.T) {
 	}
 
 	// Create temp package directory
-	tmpDir := filepath.Join(t.TempDir(), "matmulgen")
+	tmpRoot := t.TempDir()
+	tmpDir := filepath.Join(tmpRoot, "matmulgen")
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
+	}
+	// resolveAsmImportPath walks up from OutputDir looking for go.mod.
+	if err := os.WriteFile(filepath.Join(tmpRoot, "go.mod"),
+		[]byte("module testpkg\n\ngo 1.26\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
 	}
 
 	// Step 1+2+3: Generate C, compile with GOAT, generate wrappers
 	gen := &Generator{
-		InputFile: matmulPath,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
-		CMode:     true,
-		AsmMode:   true,
+		InputFile:   matmulPath,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeAsm, "neon"),
 	}
 	if err := gen.Run(); err != nil {
 		if strings.Contains(err.Error(), "GOAT") || strings.Contains(err.Error(), "goat") ||
@@ -2742,18 +2760,22 @@ func TestBenchmarkASTvsHandwritten(t *testing.T) {
 		t.Skipf("matmul_base.go not found: %v", err)
 	}
 
-	tmpDir := filepath.Join(t.TempDir(), "matmulbench")
+	tmpRoot := t.TempDir()
+	tmpDir := filepath.Join(tmpRoot, "matmulbench")
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
+	}
+	// resolveAsmImportPath walks up from OutputDir looking for go.mod.
+	if err := os.WriteFile(filepath.Join(tmpRoot, "go.mod"),
+		[]byte("module testpkg\n\ngo 1.26\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
 	}
 
 	// Step 1: Generate AST-translated C and compile with GOAT
 	gen := &Generator{
-		InputFile: matmulPath,
-		OutputDir: tmpDir,
-		Targets:   []string{"neon"},
-		CMode:     true,
-		AsmMode:   true,
+		InputFile:   matmulPath,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeAsm, "neon"),
 	}
 	if err := gen.Run(); err != nil {
 		if strings.Contains(err.Error(), "GOAT") || strings.Contains(err.Error(), "goat") ||

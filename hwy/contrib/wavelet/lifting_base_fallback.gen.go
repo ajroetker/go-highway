@@ -1120,6 +1120,298 @@ func BaseSynthesize53Core_fallback_Int64(data []int64, n int, low []int64, sn in
 	}
 }
 
+func BaseSynthesize53CoreCols_fallback_Int32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn int, phase int) {
+	lanes := hwy.MaxLanes[int32]()
+	for y := 0; y < sn; y++ {
+		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
+	}
+	for y := 0; y < dn; y++ {
+		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
+	}
+	{
+		twoVec := hwy.Set(int32(2))
+		start := 0
+		if phase == 0 {
+			h0 := hwy.Load(highBuf[0:])
+			l0 := hwy.Load(lowBuf[0:])
+			hwy.Store(hwy.Sub(l0, hwy.ShiftRight(hwy.Add(hwy.Add(h0, h0), twoVec), 2)), lowBuf[0:])
+			start = 1
+		}
+		safeEnd := sn
+		if phase == 0 {
+			if dn < safeEnd {
+				safeEnd = dn
+			}
+		} else {
+			if dn-1 < safeEnd {
+				safeEnd = dn - 1
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 hwy.Vec[int32]
+			if phase == 0 {
+				n1 = hwy.Load(highBuf[(y-1)*lanes:])
+				n2 = hwy.Load(highBuf[y*lanes:])
+			} else {
+				n1 = hwy.Load(highBuf[y*lanes:])
+				n2 = hwy.Load(highBuf[(y+1)*lanes:])
+			}
+			sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+			update := hwy.ShiftRight(sum, 2)
+			t := hwy.Load(lowBuf[y*lanes:])
+			hwy.Store(hwy.Sub(t, update), lowBuf[y*lanes:])
+		}
+		for y := safeEnd; y < sn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y - 1
+				n2Idx = y
+			} else {
+				n1Idx = y
+				n2Idx = y + 1
+			}
+			if n1Idx >= dn {
+				n1Idx = dn - 1
+			}
+			if n2Idx >= dn {
+				n2Idx = dn - 1
+			}
+			n1 := hwy.Load(highBuf[n1Idx*lanes:])
+			n2 := hwy.Load(highBuf[n2Idx*lanes:])
+			sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+			update := hwy.ShiftRight(sum, 2)
+			t := hwy.Load(lowBuf[y*lanes:])
+			hwy.Store(hwy.Sub(t, update), lowBuf[y*lanes:])
+		}
+		_ = twoVec
+	}
+	{
+		start := 0
+		if phase == 1 {
+			l0 := hwy.Load(lowBuf[0:])
+			h0 := hwy.Load(highBuf[0:])
+			hwy.Store(hwy.Add(h0, hwy.ShiftRight(hwy.Add(l0, l0), 1)), highBuf[0:])
+			start = 1
+		}
+		safeEnd := dn
+		if phase == 0 {
+			if sn-1 < safeEnd {
+				safeEnd = sn - 1
+			}
+		} else {
+			if sn < safeEnd {
+				safeEnd = sn
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 hwy.Vec[int32]
+			if phase == 0 {
+				n1 = hwy.Load(lowBuf[y*lanes:])
+				n2 = hwy.Load(lowBuf[(y+1)*lanes:])
+			} else {
+				n1 = hwy.Load(lowBuf[(y-1)*lanes:])
+				n2 = hwy.Load(lowBuf[y*lanes:])
+			}
+			update := hwy.ShiftRight(hwy.Add(n1, n2), 1)
+			t := hwy.Load(highBuf[y*lanes:])
+			hwy.Store(hwy.Add(t, update), highBuf[y*lanes:])
+		}
+		for y := safeEnd; y < dn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y
+				n2Idx = y + 1
+			} else {
+				n1Idx = y - 1
+				n2Idx = y
+			}
+			if n1Idx < 0 {
+				n1Idx = 0
+			}
+			if n1Idx >= sn {
+				n1Idx = sn - 1
+			}
+			if n2Idx >= sn {
+				n2Idx = sn - 1
+			}
+			n1 := hwy.Load(lowBuf[n1Idx*lanes:])
+			n2 := hwy.Load(lowBuf[n2Idx*lanes:])
+			update := hwy.ShiftRight(hwy.Add(n1, n2), 1)
+			t := hwy.Load(highBuf[y*lanes:])
+			hwy.Store(hwy.Add(t, update), highBuf[y*lanes:])
+		}
+	}
+	if phase == 0 {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+	} else {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := sn; y < dn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+	}
+	_ = lanes
+}
+
+func BaseSynthesize53CoreCols_fallback_Int64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn int, phase int) {
+	lanes := hwy.MaxLanes[int64]()
+	for y := 0; y < sn; y++ {
+		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
+	}
+	for y := 0; y < dn; y++ {
+		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
+	}
+	{
+		twoVec := hwy.Set(int64(2))
+		start := 0
+		if phase == 0 {
+			h0 := hwy.Load(highBuf[0:])
+			l0 := hwy.Load(lowBuf[0:])
+			hwy.Store(hwy.Sub(l0, hwy.ShiftRight(hwy.Add(hwy.Add(h0, h0), twoVec), 2)), lowBuf[0:])
+			start = 1
+		}
+		safeEnd := sn
+		if phase == 0 {
+			if dn < safeEnd {
+				safeEnd = dn
+			}
+		} else {
+			if dn-1 < safeEnd {
+				safeEnd = dn - 1
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 hwy.Vec[int64]
+			if phase == 0 {
+				n1 = hwy.Load(highBuf[(y-1)*lanes:])
+				n2 = hwy.Load(highBuf[y*lanes:])
+			} else {
+				n1 = hwy.Load(highBuf[y*lanes:])
+				n2 = hwy.Load(highBuf[(y+1)*lanes:])
+			}
+			sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+			update := hwy.ShiftRight(sum, 2)
+			t := hwy.Load(lowBuf[y*lanes:])
+			hwy.Store(hwy.Sub(t, update), lowBuf[y*lanes:])
+		}
+		for y := safeEnd; y < sn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y - 1
+				n2Idx = y
+			} else {
+				n1Idx = y
+				n2Idx = y + 1
+			}
+			if n1Idx >= dn {
+				n1Idx = dn - 1
+			}
+			if n2Idx >= dn {
+				n2Idx = dn - 1
+			}
+			n1 := hwy.Load(highBuf[n1Idx*lanes:])
+			n2 := hwy.Load(highBuf[n2Idx*lanes:])
+			sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+			update := hwy.ShiftRight(sum, 2)
+			t := hwy.Load(lowBuf[y*lanes:])
+			hwy.Store(hwy.Sub(t, update), lowBuf[y*lanes:])
+		}
+		_ = twoVec
+	}
+	{
+		start := 0
+		if phase == 1 {
+			l0 := hwy.Load(lowBuf[0:])
+			h0 := hwy.Load(highBuf[0:])
+			hwy.Store(hwy.Add(h0, hwy.ShiftRight(hwy.Add(l0, l0), 1)), highBuf[0:])
+			start = 1
+		}
+		safeEnd := dn
+		if phase == 0 {
+			if sn-1 < safeEnd {
+				safeEnd = sn - 1
+			}
+		} else {
+			if sn < safeEnd {
+				safeEnd = sn
+			}
+		}
+		for y := start; y < safeEnd; y++ {
+			var n1, n2 hwy.Vec[int64]
+			if phase == 0 {
+				n1 = hwy.Load(lowBuf[y*lanes:])
+				n2 = hwy.Load(lowBuf[(y+1)*lanes:])
+			} else {
+				n1 = hwy.Load(lowBuf[(y-1)*lanes:])
+				n2 = hwy.Load(lowBuf[y*lanes:])
+			}
+			update := hwy.ShiftRight(hwy.Add(n1, n2), 1)
+			t := hwy.Load(highBuf[y*lanes:])
+			hwy.Store(hwy.Add(t, update), highBuf[y*lanes:])
+		}
+		for y := safeEnd; y < dn; y++ {
+			var n1Idx, n2Idx int
+			if phase == 0 {
+				n1Idx = y
+				n2Idx = y + 1
+			} else {
+				n1Idx = y - 1
+				n2Idx = y
+			}
+			if n1Idx < 0 {
+				n1Idx = 0
+			}
+			if n1Idx >= sn {
+				n1Idx = sn - 1
+			}
+			if n2Idx >= sn {
+				n2Idx = sn - 1
+			}
+			n1 := hwy.Load(lowBuf[n1Idx*lanes:])
+			n2 := hwy.Load(lowBuf[n2Idx*lanes:])
+			update := hwy.ShiftRight(hwy.Add(n1, n2), 1)
+			t := hwy.Load(highBuf[y*lanes:])
+			hwy.Store(hwy.Add(t, update), highBuf[y*lanes:])
+		}
+	}
+	if phase == 0 {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+	} else {
+		minN := min(sn, dn)
+		for y := 0; y < minN; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := dn; y < sn; y++ {
+			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
+		}
+		for y := sn; y < dn; y++ {
+			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
+		}
+	}
+	_ = lanes
+}
+
 func BaseDeinterleave_fallback(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
 	if phase == 0 {
 		for i := range sn {

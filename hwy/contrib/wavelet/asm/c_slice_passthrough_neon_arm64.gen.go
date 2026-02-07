@@ -65,3 +65,13 @@ func Synthesize53Core_S64(data unsafe.Pointer, pn unsafe.Pointer, low unsafe.Poi
 	synthesize53core_c_s64_neon(data, pn, low, psn, high, pdn, pphase)
 }
 
+// Synthesize53CoreCols_S32 calls the NEON SIMD assembly implementation.
+func Synthesize53CoreCols_S32(colBuf unsafe.Pointer, pheight unsafe.Pointer, lowBuf unsafe.Pointer, psn unsafe.Pointer, highBuf unsafe.Pointer, pdn unsafe.Pointer, pphase unsafe.Pointer) {
+	synthesize53corecols_c_s32_neon(colBuf, pheight, lowBuf, psn, highBuf, pdn, pphase)
+}
+
+// Synthesize53CoreCols_S64 calls the NEON SIMD assembly implementation.
+func Synthesize53CoreCols_S64(colBuf unsafe.Pointer, pheight unsafe.Pointer, lowBuf unsafe.Pointer, psn unsafe.Pointer, highBuf unsafe.Pointer, pdn unsafe.Pointer, pphase unsafe.Pointer) {
+	synthesize53corecols_c_s64_neon(colBuf, pheight, lowBuf, psn, highBuf, pdn, pphase)
+}
+

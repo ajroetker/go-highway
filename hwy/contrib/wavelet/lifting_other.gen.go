@@ -28,6 +28,8 @@ var InterleaveUint32 func(dst []uint32, low []uint32, sn int, high []uint32, dn 
 var InterleaveUint64 func(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int)
 var Synthesize53CoreInt32 func(data []int32, n int, low []int32, sn int, high []int32, dn int, phase int)
 var Synthesize53CoreInt64 func(data []int64, n int, low []int64, sn int, high []int64, dn int, phase int)
+var Synthesize53CoreColsInt32 func(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn int, phase int)
+var Synthesize53CoreColsInt64 func(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn int, phase int)
 var DeinterleaveFloat32 func(src []float32, low []float32, sn int, high []float32, dn int, phase int)
 var DeinterleaveFloat64 func(src []float64, low []float64, sn int, high []float64, dn int, phase int)
 var DeinterleaveInt32 func(src []int32, low []int32, sn int, high []int32, dn int, phase int)
@@ -132,6 +134,26 @@ func Synthesize53Core[T hwy.SignedInts](data []T, n int, low []T, sn int, high [
 	}
 }
 
+// Synthesize53CoreCols fuses copy + LiftUpdate53 + LiftPredict53 + Interleave
+// for multiple columns processed in parallel via SIMD. The data layout is
+// column-interleaved: colBuf[y*lanes + c] holds the value for row y, column c
+// (where lanes = hwy.MaxLanes). Each SIMD load/store at colBuf[y*lanes:]
+// touches all `lanes` columns for row y simultaneously.
+//
+// colBuf has height*lanes elements on entry ([low rows | high rows] interleaved
+// by column) and contains the synthesized output on exit (interleaved rows).
+// lowBuf and highBuf are scratch buffers with capacity >= sn*lanes and dn*lanes.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Synthesize53CoreCols[T hwy.SignedInts](colBuf []T, height int, lowBuf []T, sn int, highBuf []T, dn int, phase int) {
+	switch any(colBuf).(type) {
+	case []int32:
+		Synthesize53CoreColsInt32(any(colBuf).([]int32), height, any(lowBuf).([]int32), sn, any(highBuf).([]int32), dn, phase)
+	case []int64:
+		Synthesize53CoreColsInt64(any(colBuf).([]int64), height, any(lowBuf).([]int64), sn, any(highBuf).([]int64), dn, phase)
+	}
+}
+
 // Deinterleave extracts low and high-pass coefficients from src.
 // phase=0: low[i]=src[2i], high[i]=src[2i+1]
 // phase=1: high[i]=src[2i], low[i]=src[2i+1]
@@ -180,6 +202,8 @@ func initLiftingFallback() {
 	InterleaveUint64 = BaseInterleave_fallback_Uint64
 	Synthesize53CoreInt32 = BaseSynthesize53Core_fallback_Int32
 	Synthesize53CoreInt64 = BaseSynthesize53Core_fallback_Int64
+	Synthesize53CoreColsInt32 = BaseSynthesize53CoreCols_fallback_Int32
+	Synthesize53CoreColsInt64 = BaseSynthesize53CoreCols_fallback_Int64
 	DeinterleaveFloat32 = BaseDeinterleave_fallback
 	DeinterleaveFloat64 = BaseDeinterleave_fallback_Float64
 	DeinterleaveInt32 = BaseDeinterleave_fallback_Int32
