@@ -15,7 +15,7 @@ import (
 // implementations become faster than sequential BlockedMatMul.
 //
 // Run with:
-//   GOEXPERIMENT=simd go1.26rc2 test -bench=BenchmarkParallelCrossover -benchmem -timeout=10m ./hwy/contrib/matmul/
+//   GOEXPERIMENT=simd go test -bench=BenchmarkParallelCrossover -benchmem -timeout=10m ./hwy/contrib/matmul/
 func BenchmarkParallelCrossover(b *testing.B) {
 	pool := workerpool.New(0)
 	defer pool.Close()

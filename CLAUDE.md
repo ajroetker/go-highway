@@ -4,12 +4,12 @@ A portable SIMD abstraction library for Go, inspired by Google's Highway C++ lib
 
 ## Go Version
 
-Use `go1.26rc2` for all Go commands in this repository:
+Use `go` for all Go commands in this repository:
 
 ```bash
-go1.26rc2 build ./...
-go1.26rc2 test ./...
-go1.26rc2 run ./cmd/hwygen
+go build ./...
+go test ./...
+go run ./cmd/hwygen
 ```
 
 ## SIMD Acceleration
@@ -18,17 +18,17 @@ Enable hardware SIMD with the `GOEXPERIMENT=simd` environment variable:
 
 ```bash
 # Build with SIMD
-GOEXPERIMENT=simd go1.26rc2 build ./...
+GOEXPERIMENT=simd go build ./...
 
 # Test with SIMD
-GOEXPERIMENT=simd go1.26rc2 test ./...
+GOEXPERIMENT=simd go test ./...
 
 # Force fallback path (for testing pure Go implementation)
-HWY_NO_SIMD=1 GOEXPERIMENT=simd go1.26rc2 test ./...
+HWY_NO_SIMD=1 GOEXPERIMENT=simd go test ./...
 
 # Run benchmarks
-GOEXPERIMENT=simd go1.26rc2 test -bench=. -benchmem ./hwy/contrib/algo/...
-GOEXPERIMENT=simd go1.26rc2 test -bench=. -benchmem ./hwy/contrib/math/...
+GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/algo/...
+GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/math/...
 ```
 
 ## Project Structure
@@ -47,7 +47,7 @@ GOEXPERIMENT=simd go1.26rc2 test -bench=. -benchmem ./hwy/contrib/math/...
 Generate optimized target-specific code:
 
 ```bash
-go1.26rc2 build -o bin/hwygen ./cmd/hwygen
+go build -o bin/hwygen ./cmd/hwygen
 ./bin/hwygen -input mycode.go -target avx2 -output mycode_avx2.go
 ```
 
@@ -64,7 +64,7 @@ When implementing a new SIMD feature:
 
 2. **Run hwygen generation before creating any dispatch overrides**:
    ```bash
-   cd hwy/contrib/matmul && go1.26rc2 generate transpose_base.go
+   cd hwy/contrib/matmul && go generate transpose_base.go
    ```
    This creates `*_arm64.gen.go`, `*_amd64.gen.go`, `*_fallback.gen.go`, etc.
 
@@ -117,7 +117,7 @@ void my_sme_func(float *a, float *b) { ... }
 Always run tests with SIMD enabled to verify hardware paths:
 
 ```bash
-GOEXPERIMENT=simd go1.26rc2 test ./...
+GOEXPERIMENT=simd go test ./...
 ```
 
 Tests automatically skip AVX-512 on unsupported hardware.

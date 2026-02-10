@@ -2052,7 +2052,7 @@ func TestCModeAsmCorrectnessF32(t *testing.T) {
 	}
 	goModContent := fmt.Sprintf(`module matmulgen
 
-go 1.26rc2
+go 1.26
 
 require github.com/ajroetker/go-highway v0.0.0
 
@@ -2148,7 +2148,7 @@ func TestMatMulCF32Correctness(t *testing.T) {
 	}
 }
 
-// goRoot returns the GOROOT for go1.26rc2.
+// goRoot returns the GOROOT for go1.26.
 func goRoot() string {
 	// Try the same approach as runGOAT: use runtime.GOROOT()
 	return runtime.GOROOT()
@@ -2837,7 +2837,7 @@ func MatMulHandwrittenF32(a, b, c []float32, m, n, k int) {
 	}
 	goModContent := fmt.Sprintf(`module matmulbench
 
-go 1.26rc2
+go 1.26
 
 require github.com/ajroetker/go-highway v0.0.0
 
@@ -3455,7 +3455,7 @@ func BitProductHandwritten(code, q1, q2, q3, q4 []uint64) uint32 {
 	// Step 4: Write go.mod
 	goModContent := `module rabitqbench
 
-go 1.26rc2
+go 1.26
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
@@ -3695,7 +3695,7 @@ func FindVarintEndsHandwritten(src []byte) uint32 {
 	// Step 4: Write go.mod
 	goModContent := `module varintbench
 
-go 1.26rc2
+go 1.26
 `
 	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0644); err != nil {
 		t.Fatalf("write go.mod: %v", err)

@@ -162,7 +162,7 @@ Bits 4-0: Zn (source Z register)
 
 Run SME tests:
 ```bash
-GOEXPERIMENT=simd go1.26rc1 test -v -run TestSME ./hwy/contrib/matmul/
+GOEXPERIMENT=simd go test -v -run TestSME ./hwy/contrib/matmul/
 ```
 
 All tests should pass:
@@ -185,7 +185,7 @@ GoAT-generated FMOPA assembly is **11-27% slower** than handwritten assembly on 
 | 48×48 | 389 GFLOPS | 479 GFLOPS | 19% slower |
 | 64×64 | 447 GFLOPS | 500 GFLOPS | 11% slower |
 
-Benchmarks run on Apple M4 Max with `GOEXPERIMENT=simd go1.26rc2`.
+Benchmarks run on Apple M4 Max with `GOEXPERIMENT=simd go`.
 
 ### Root Cause: Memory Latency Hiding
 
