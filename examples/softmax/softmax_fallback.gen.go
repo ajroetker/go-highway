@@ -30,9 +30,9 @@ func BaseSoftmax_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
 	for i := range size {
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -56,9 +56,9 @@ func BaseSoftmax_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) 
 	for i := range size {
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -130,9 +130,9 @@ func BaseSoftmaxScalar_fallback_Float16(input []hwy.Float16, output []hwy.Float1
 		output[i] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[i].Float32() - maxVal.Float32()))))
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -152,9 +152,9 @@ func BaseSoftmaxScalar_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFlo
 		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[i].Float32() - maxVal.Float32()))))
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 

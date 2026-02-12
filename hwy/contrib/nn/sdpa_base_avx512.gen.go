@@ -226,7 +226,7 @@ func BaseSDPACausal_avx512_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.Flo
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
-	negInf := float32(stdmath.Inf(-1))
+	negInf := hwy.Float32ToFloat16(float32(stdmath.Inf(-1)))
 	offset := kvLen - seqLen
 	for i := range seqLen {
 		qOff := i * headDim
@@ -234,7 +234,7 @@ func BaseSDPACausal_avx512_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.Flo
 		causalEnd := i + offset + 1
 		for j := range kvLen {
 			if j >= causalEnd {
-				scores[sOff+j] = hwy.Float32ToFloat16(negInf)
+				scores[sOff+j] = hwy.Float32ToFloat16(negInf.Float32())
 				continue
 			}
 			kOff := j * headDim
@@ -280,7 +280,7 @@ func BaseSDPACausal_avx512_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
-	negInf := float32(stdmath.Inf(-1))
+	negInf := hwy.Float32ToBFloat16(float32(stdmath.Inf(-1)))
 	offset := kvLen - seqLen
 	for i := range seqLen {
 		qOff := i * headDim
@@ -288,7 +288,7 @@ func BaseSDPACausal_avx512_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.
 		causalEnd := i + offset + 1
 		for j := range kvLen {
 			if j >= causalEnd {
-				scores[sOff+j] = hwy.Float32ToBFloat16(negInf)
+				scores[sOff+j] = hwy.Float32ToBFloat16(negInf.Float32())
 				continue
 			}
 			kOff := j * headDim

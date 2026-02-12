@@ -88,8 +88,8 @@ func BaseOnePlus[T hwy.Floats](x T) T {
 }
 `,
 			expected: []string{
-				"hwy.Float32ToFloat16(x.Float32() + 1)",
-				"hwy.Float32ToBFloat16(x.Float32() + 1)",
+				"hwy.Float32ToFloat16(float32(x.Float32() + 1))",
+				"hwy.Float32ToBFloat16(float32(x.Float32() + 1))",
 			},
 		},
 		{
@@ -103,18 +103,20 @@ func BaseOnePlus[T hwy.Floats](x T) T {
 `,
 			expected: []string{
 				"y := x.Float32() + 1",
-				// T(y) becomes float32(y) in wrapHalfPrecisionExpr because
-				// scalar computation stays in float32. The return statement
-				// handles conversion back to half-precision.
-				"z := float32(y)",
-				"return hwy.Float32ToFloat16(z)",
-				"return hwy.Float32ToBFloat16(z)",
+				// T(y) now produces an actual half-precision value at the
+				// assignment level via Float32ToFloat16(float32(...)).
+				"z := hwy.Float32ToFloat16(float32(y))",
+				"z := hwy.Float32ToBFloat16(float32(y))",
+				// z is now a half-precision scalar, returned directly.
+				"return z",
 			},
 			mistakes: []string{
-				// z should NOT be treated as a half-precision scalar
-				// (it's a float32 intermediate from a type conversion).
+				// z is already half-precision, should not be double-wrapped.
 				"return hwy.Float32ToFloat16(z.Float32())",
 				"return hwy.Float32ToBFloat16(z.Float32())",
+				// z holds the correct type, no need to convert on return.
+				"return hwy.Float32ToFloat16(z)",
+				"return hwy.Float32ToBFloat16(z)",
 			},
 		},
 		{
@@ -131,13 +133,16 @@ func BasePrintPlusOne[T hwy.Floats](x T) {
 `,
 			expected: []string{
 				`fmt.Printf("%g\n", float64(v.Float32()))`,
-				// T(x+1) becomes float32(x.Float32() + 1) because
-				// wrapHalfPrecisionExpr promotes to float32 for scalar ops.
-				`Print(float32(x.Float32() + 1))`,
+				// T(x+1) at a value boundary (function arg) now produces
+				// an actual half-precision value inline.
+				`Print(hwy.Float32ToFloat16(float32(x.Float32() + 1)))`,
+				`Print(hwy.Float32ToBFloat16(float32(x.Float32() + 1)))`,
 			},
 			mistakes: []string{
 				// Without an expression or explicit cast, it shouldn't try to promote the half-precision.
 				`Print(x.Float32())`,
+				// Should no longer produce float32 intermediate in function args.
+				`Print(float32(x.Float32() + 1))`,
 			},
 		},
 	}

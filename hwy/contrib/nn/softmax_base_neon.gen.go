@@ -32,9 +32,9 @@ func BaseSoftmax_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	for i := range size {
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -58,9 +58,9 @@ func BaseSoftmax_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	for i := range size {
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -153,9 +153,9 @@ func BaseLogSoftmax_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	for i := range size {
 		expSum += expVals[i].Float32()
 	}
-	logSumExp := float32(stdmath.Log(float64(expSum)))
+	logSumExp := hwy.Float32ToFloat16(float32(stdmath.Log(float64(expSum))))
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(shifted[i].Float32() - logSumExp)
+		output[i] = hwy.Float32ToFloat16(shifted[i].Float32() - logSumExp.Float32())
 	}
 }
 
@@ -180,9 +180,9 @@ func BaseLogSoftmax_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	for i := range size {
 		expSum += expVals[i].Float32()
 	}
-	logSumExp := float32(stdmath.Log(float64(expSum)))
+	logSumExp := hwy.Float32ToBFloat16(float32(stdmath.Log(float64(expSum))))
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(shifted[i].Float32() - logSumExp)
+		output[i] = hwy.Float32ToBFloat16(shifted[i].Float32() - logSumExp.Float32())
 	}
 }
 
@@ -272,9 +272,9 @@ func BaseSoftmaxScalar_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 		output[i] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[i].Float32() - maxVal.Float32()))))
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -294,9 +294,9 @@ func BaseSoftmaxScalar_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 		output[i] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[i].Float32() - maxVal.Float32()))))
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -355,19 +355,19 @@ func BaseSoftmaxWithTemperature_neon_Float16(input []hwy.Float16, output []hwy.F
 			maxVal = input[i]
 		}
 	}
-	invTemp := float32(1.0) / temperature.Float32()
+	invTemp := hwy.Float32ToFloat16(float32(1.0) / temperature.Float32())
 	shifted := make([]hwy.Float16, size)
 	for i := range size {
-		shifted[i] = hwy.Float32ToFloat16((input[i].Float32() - maxVal.Float32()) * invTemp)
+		shifted[i] = hwy.Float32ToFloat16((input[i].Float32() - maxVal.Float32()) * invTemp.Float32())
 	}
 	algo.BaseApply_neon_Float16(shifted, output, math.BaseExpVec_neon_Float16)
 	var expSum float32
 	for i := range size {
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 
@@ -382,19 +382,19 @@ func BaseSoftmaxWithTemperature_neon_BFloat16(input []hwy.BFloat16, output []hwy
 			maxVal = input[i]
 		}
 	}
-	invTemp := float32(1.0) / temperature.Float32()
+	invTemp := hwy.Float32ToBFloat16(float32(1.0) / temperature.Float32())
 	shifted := make([]hwy.BFloat16, size)
 	for i := range size {
-		shifted[i] = hwy.Float32ToBFloat16((input[i].Float32() - maxVal.Float32()) * invTemp)
+		shifted[i] = hwy.Float32ToBFloat16((input[i].Float32() - maxVal.Float32()) * invTemp.Float32())
 	}
 	algo.BaseApply_neon_BFloat16(shifted, output, math.BaseExpVec_neon_BFloat16)
 	var expSum float32
 	for i := range size {
 		expSum += output[i].Float32()
 	}
-	invSum := float32(1.0) / expSum
+	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum)
+		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
 	}
 }
 

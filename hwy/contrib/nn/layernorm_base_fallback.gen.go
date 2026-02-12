@@ -14,7 +14,7 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 		return
 	}
 	numGroups := size / normSize
-	invN := float32(1.0) / float32(normSize)
+	invN := hwy.Float32ToFloat16(float32(1.0) / float32(normSize))
 	lanes := hwy.MaxLanes[hwy.Float16]()
 	for g := range numGroups {
 		off := g * normSize
@@ -28,7 +28,7 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 		for i := ii; i < normSize; i++ {
 			mean += input[off+i].Float32()
 		}
-		mean *= invN
+		mean *= invN.Float32()
 		vMean := hwy.Set(hwy.Float32ToFloat16(mean))
 		varAcc := hwy.Zero[hwy.Float16]()
 		ii = 0
@@ -42,9 +42,9 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 			diff := input[off+i].Float32() - mean
 			variance += diff * diff
 		}
-		variance *= invN
-		invStd := float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32())))
-		vInvStd := hwy.Set(hwy.Float32ToFloat16(invStd))
+		variance *= invN.Float32()
+		invStd := hwy.Float32ToFloat16(float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32()))))
+		vInvStd := hwy.Set(invStd)
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
@@ -57,8 +57,8 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 				hwy.Store(result, output[off+ii:])
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToFloat16(normed*gamma[i].Float32() + beta[i].Float32())
+				normed := hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToFloat16(normed.Float32()*gamma[i].Float32() + beta[i].Float32())
 			}
 		} else if gamma != nil {
 			ii = 0
@@ -71,8 +71,8 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 				hwy.Store(result, output[off+ii:])
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToFloat16(normed * gamma[i].Float32())
+				normed := hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToFloat16(normed.Float32() * gamma[i].Float32())
 			}
 		} else {
 			ii = 0
@@ -83,7 +83,7 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 				hwy.Store(result, output[off+ii:])
 			}
 			for i := ii; i < normSize; i++ {
-				output[off+i] = hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd)
+				output[off+i] = hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
 			}
 		}
 	}
@@ -95,7 +95,7 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 		return
 	}
 	numGroups := size / normSize
-	invN := float32(1.0) / float32(normSize)
+	invN := hwy.Float32ToBFloat16(float32(1.0) / float32(normSize))
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	for g := range numGroups {
 		off := g * normSize
@@ -109,7 +109,7 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 		for i := ii; i < normSize; i++ {
 			mean += input[off+i].Float32()
 		}
-		mean *= invN
+		mean *= invN.Float32()
 		vMean := hwy.Set(hwy.Float32ToBFloat16(mean))
 		varAcc := hwy.Zero[hwy.BFloat16]()
 		ii = 0
@@ -123,9 +123,9 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 			diff := input[off+i].Float32() - mean
 			variance += diff * diff
 		}
-		variance *= invN
-		invStd := float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32())))
-		vInvStd := hwy.Set(hwy.Float32ToBFloat16(invStd))
+		variance *= invN.Float32()
+		invStd := hwy.Float32ToBFloat16(float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32()))))
+		vInvStd := hwy.Set(invStd)
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
@@ -138,8 +138,8 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 				hwy.Store(result, output[off+ii:])
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToBFloat16(normed*gamma[i].Float32() + beta[i].Float32())
+				normed := hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToBFloat16(normed.Float32()*gamma[i].Float32() + beta[i].Float32())
 			}
 		} else if gamma != nil {
 			ii = 0
@@ -152,8 +152,8 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 				hwy.Store(result, output[off+ii:])
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToBFloat16(normed * gamma[i].Float32())
+				normed := hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToBFloat16(normed.Float32() * gamma[i].Float32())
 			}
 		} else {
 			ii = 0
@@ -164,7 +164,7 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 				hwy.Store(result, output[off+ii:])
 			}
 			for i := ii; i < normSize; i++ {
-				output[off+i] = hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd)
+				output[off+i] = hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
 			}
 		}
 	}

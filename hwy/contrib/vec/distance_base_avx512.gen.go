@@ -183,12 +183,12 @@ func BaseL2SquaredDistance_avx512_Float64(a []float64, b []float64) float64 {
 
 func BaseL2Distance_avx512_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
 	sqDist := BaseL2SquaredDistance_avx512_Float16(a, b)
-	return hwy.Float16(stdmath.Sqrt(float64(sqDist)))
+	return hwy.Float32ToFloat16(float32(stdmath.Sqrt(float64(sqDist))))
 }
 
 func BaseL2Distance_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 {
 	sqDist := BaseL2SquaredDistance_avx512_BFloat16(a, b)
-	return hwy.BFloat16(stdmath.Sqrt(float64(sqDist)))
+	return hwy.Float32ToBFloat16(float32(stdmath.Sqrt(float64(sqDist))))
 }
 
 func BaseL2Distance_avx512(a []float32, b []float32) float32 {

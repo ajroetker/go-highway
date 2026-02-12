@@ -449,7 +449,7 @@ BB2_11:
 	WORD $0xbd000040 // str	s0, [x2]
 	RET
 
-TEXT ·matmul_bf16_neon(SB), $144-72
+TEXT ·matmul_bf16_neon(SB), $160-72
 	MOVD a+0(FP), R0
 	MOVD b+8(FP), R1
 	MOVD c+16(FP), R2
@@ -459,7 +459,7 @@ TEXT ·matmul_bf16_neon(SB), $144-72
 	MOVD lda_ptr+48(FP), R6
 	MOVD ldb_ptr+56(FP), R7
 	MOVD ldc_ptr+64(FP), R8
-	MOVD R8, 0(RSP)
+	MOVD R8, 144(RSP)
 	WORD $0xa9055ff8        // stp	x24, x23, [sp, #80]             ; 16-byte Folded Spill
 	WORD $0xa90657f6        // stp	x22, x21, [sp, #96]             ; 16-byte Folded Spill
 	WORD $0xa9074ff4        // stp	x20, x19, [sp, #112]            ; 16-byte Folded Spill

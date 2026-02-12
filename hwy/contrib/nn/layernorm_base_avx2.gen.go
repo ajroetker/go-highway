@@ -19,7 +19,7 @@ func BaseLayerNorm_avx2_Float16(input []hwy.Float16, output []hwy.Float16, normS
 		return
 	}
 	numGroups := size / normSize
-	invN := float32(1.0) / float32(normSize)
+	invN := hwy.Float32ToFloat16(float32(1.0) / float32(normSize))
 	lanes := 8
 	for g := range numGroups {
 		off := g * normSize
@@ -33,7 +33,7 @@ func BaseLayerNorm_avx2_Float16(input []hwy.Float16, output []hwy.Float16, normS
 		for i := ii; i < normSize; i++ {
 			mean += input[off+i].Float32()
 		}
-		mean *= invN
+		mean *= invN.Float32()
 		vMean := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(mean)))
 		varAcc := asm.ZeroFloat16x8AVX2()
 		ii = 0
@@ -47,9 +47,9 @@ func BaseLayerNorm_avx2_Float16(input []hwy.Float16, output []hwy.Float16, normS
 			diff := input[off+i].Float32() - mean
 			variance += diff * diff
 		}
-		variance *= invN
-		invStd := float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32())))
-		vInvStd := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(invStd)))
+		variance *= invN.Float32()
+		invStd := hwy.Float32ToFloat16(float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32()))))
+		vInvStd := asm.BroadcastFloat16x8AVX2(uint16(invStd))
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
@@ -62,8 +62,8 @@ func BaseLayerNorm_avx2_Float16(input []hwy.Float16, output []hwy.Float16, normS
 				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToFloat16(normed*gamma[i].Float32() + beta[i].Float32())
+				normed := hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToFloat16(normed.Float32()*gamma[i].Float32() + beta[i].Float32())
 			}
 		} else if gamma != nil {
 			ii = 0
@@ -76,8 +76,8 @@ func BaseLayerNorm_avx2_Float16(input []hwy.Float16, output []hwy.Float16, normS
 				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToFloat16(normed * gamma[i].Float32())
+				normed := hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToFloat16(normed.Float32() * gamma[i].Float32())
 			}
 		} else {
 			ii = 0
@@ -88,7 +88,7 @@ func BaseLayerNorm_avx2_Float16(input []hwy.Float16, output []hwy.Float16, normS
 				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
-				output[off+i] = hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd)
+				output[off+i] = hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
 			}
 		}
 	}
@@ -100,7 +100,7 @@ func BaseLayerNorm_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 		return
 	}
 	numGroups := size / normSize
-	invN := float32(1.0) / float32(normSize)
+	invN := hwy.Float32ToBFloat16(float32(1.0) / float32(normSize))
 	lanes := 8
 	for g := range numGroups {
 		off := g * normSize
@@ -114,7 +114,7 @@ func BaseLayerNorm_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 		for i := ii; i < normSize; i++ {
 			mean += input[off+i].Float32()
 		}
-		mean *= invN
+		mean *= invN.Float32()
 		vMean := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(mean)))
 		varAcc := asm.ZeroBFloat16x8AVX2()
 		ii = 0
@@ -128,9 +128,9 @@ func BaseLayerNorm_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 			diff := input[off+i].Float32() - mean
 			variance += diff * diff
 		}
-		variance *= invN
-		invStd := float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32())))
-		vInvStd := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(invStd)))
+		variance *= invN.Float32()
+		invStd := hwy.Float32ToBFloat16(float32(1.0 / stdmath.Sqrt(float64(variance+epsilon.Float32()))))
+		vInvStd := asm.BroadcastBFloat16x8AVX2(uint16(invStd))
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
@@ -143,8 +143,8 @@ func BaseLayerNorm_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToBFloat16(normed*gamma[i].Float32() + beta[i].Float32())
+				normed := hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToBFloat16(normed.Float32()*gamma[i].Float32() + beta[i].Float32())
 			}
 		} else if gamma != nil {
 			ii = 0
@@ -157,8 +157,8 @@ func BaseLayerNorm_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
-				normed := (input[off+i].Float32() - mean) * invStd
-				output[off+i] = hwy.Float32ToBFloat16(normed * gamma[i].Float32())
+				normed := hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
+				output[off+i] = hwy.Float32ToBFloat16(normed.Float32() * gamma[i].Float32())
 			}
 		} else {
 			ii = 0
@@ -169,7 +169,7 @@ func BaseLayerNorm_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
-				output[off+i] = hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd)
+				output[off+i] = hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
 			}
 		}
 	}
