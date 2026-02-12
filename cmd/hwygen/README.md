@@ -231,6 +231,40 @@ Output (for float64):
 func BaseAdd_avx2_Float64(a, b []float64) { ... }
 ```
 
+### Scalar Half-Precision Types: `hwy.Float16` and `hwy.BFloat16`
+
+Since Go doesn't natively support half-precision types like `float16` and `bfloat16`, `hwy` adds `hwy.Float16`
+and `hwy.BFloat16` types.
+
+They work as usual with vector types (some SIMD architectures natively support half-precision types).
+
+But they required specialized handling for scalar expressions, since Go doesn't allow custom operator functions
+(like C++ `operator+`) for user-defined types. 
+So in scalar expressions they are implicitly "promoted" to float32.
+One has to be aware of that, and if then using the result to feed to a vector, or call another function,
+explicitly convert it back to the generic type. E.g.: `T(myPromotedValue)`. This is a no-op for other float types,
+but for `hwy.Float16` and `hwy.BFloat16` it will generate the correct conversion.
+
+Example:
+
+```go
+func BaseOnePlus[T hwy.Floats](x T) {
+    return T(x+1)
+}
+```
+
+Compare the generated code for `float32` and `hwy.Float16`:
+
+```go
+func BaseOnePlus_fallback(x float32) float32 {
+        return float32(x + 1)
+}
+
+func BaseOnePlus_fallback_float16(x hwy.Float16) {
+    return hwy.Float32ToFloat16(x.Float32()+1)
+}
+```
+
 ### Operation Transformation
 
 | Portable | AVX2 | Fallback |
