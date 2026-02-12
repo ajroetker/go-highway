@@ -48,7 +48,7 @@ func BaseArgmax_avx2_Float16(v []hwy.Float16) int {
 	bestIdx := 0
 	var maxVal float32
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val.Float32() != val.Float32() {
 			continue
@@ -109,7 +109,7 @@ func BaseArgmax_avx2_BFloat16(v []hwy.BFloat16) int {
 	bestIdx := 0
 	var maxVal float32
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val.Float32() != val.Float32() {
 			continue
@@ -170,7 +170,7 @@ func BaseArgmax_avx2(v []float32) int {
 	bestIdx := 0
 	var maxVal float32
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val != val {
 			continue
@@ -231,7 +231,7 @@ func BaseArgmax_avx2_Float64(v []float64) int {
 	bestIdx := 0
 	var maxVal float64
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val != val {
 			continue
@@ -292,7 +292,7 @@ func BaseArgmin_avx2_Float16(v []hwy.Float16) int {
 	bestIdx := 0
 	var minVal float32
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val.Float32() != val.Float32() {
 			continue
@@ -353,7 +353,7 @@ func BaseArgmin_avx2_BFloat16(v []hwy.BFloat16) int {
 	bestIdx := 0
 	var minVal float32
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val.Float32() != val.Float32() {
 			continue
@@ -414,7 +414,7 @@ func BaseArgmin_avx2(v []float32) int {
 	bestIdx := 0
 	var minVal float32
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val != val {
 			continue
@@ -475,7 +475,7 @@ func BaseArgmin_avx2_Float64(v []float64) int {
 	bestIdx := 0
 	var minVal float64
 	foundValid := false
-	for j := 0; j < lanes; j++ {
+	for j := range lanes {
 		val := valsData[j]
 		if val != val {
 			continue

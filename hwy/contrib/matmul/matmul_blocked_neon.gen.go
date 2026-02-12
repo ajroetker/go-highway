@@ -49,7 +49,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 					acc21 := asm.ZeroFloat16x8()
 					acc30 := asm.ZeroFloat16x8()
 					acc31 := asm.ZeroFloat16x8()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -90,7 +90,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 						acc1 := asm.ZeroFloat16x8()
 						acc2 := asm.ZeroFloat16x8()
 						acc3 := asm.ZeroFloat16x8()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := asm.BroadcastFloat16x8(uint16(a[i*k+p]))
 							vA1 := asm.BroadcastFloat16x8(uint16(a[(i+1)*k+p]))
 							vA2 := asm.BroadcastFloat16x8(uint16(a[(i+2)*k+p]))
@@ -108,7 +108,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p].Float32() * bpj.Float32()
 								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
@@ -131,7 +131,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := asm.ZeroFloat16x8()
 					acc1 := asm.ZeroFloat16x8()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := asm.BroadcastFloat16x8(uint16(a[i*k+p]))
 						vA1 := asm.BroadcastFloat16x8(uint16(a[(i+1)*k+p]))
 						vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[p*n+j:][0]))
@@ -143,7 +143,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p].Float32() * bp.Float32()
 						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
@@ -158,7 +158,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := asm.ZeroFloat16x8()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := asm.BroadcastFloat16x8(uint16(a[i*k+p]))
 						vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[p*n+j:][0]))
 						vA.MulAddAcc(vB, &acc)
@@ -167,7 +167,7 @@ func BaseBlockedMatMul_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 					}
 					c[cRowStart+j] = hwy.Float32ToFloat16(sum)
@@ -215,7 +215,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 					acc21 := asm.ZeroBFloat16x8()
 					acc30 := asm.ZeroBFloat16x8()
 					acc31 := asm.ZeroBFloat16x8()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -256,7 +256,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 						acc1 := asm.ZeroBFloat16x8()
 						acc2 := asm.ZeroBFloat16x8()
 						acc3 := asm.ZeroBFloat16x8()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := asm.BroadcastBFloat16x8(uint16(a[i*k+p]))
 							vA1 := asm.BroadcastBFloat16x8(uint16(a[(i+1)*k+p]))
 							vA2 := asm.BroadcastBFloat16x8(uint16(a[(i+2)*k+p]))
@@ -274,7 +274,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p].Float32() * bpj.Float32()
 								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
@@ -297,7 +297,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := asm.ZeroBFloat16x8()
 					acc1 := asm.ZeroBFloat16x8()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := asm.BroadcastBFloat16x8(uint16(a[i*k+p]))
 						vA1 := asm.BroadcastBFloat16x8(uint16(a[(i+1)*k+p]))
 						vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[p*n+j:][0]))
@@ -309,7 +309,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p].Float32() * bp.Float32()
 						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
@@ -324,7 +324,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := asm.ZeroBFloat16x8()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := asm.BroadcastBFloat16x8(uint16(a[i*k+p]))
 						vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[p*n+j:][0]))
 						vA.MulAddAcc(vB, &acc)
@@ -333,7 +333,7 @@ func BaseBlockedMatMul_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 					}
 					c[cRowStart+j] = hwy.Float32ToBFloat16(sum)
@@ -381,7 +381,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 					acc21 := asm.ZeroFloat32x4()
 					acc30 := asm.ZeroFloat32x4()
 					acc31 := asm.ZeroFloat32x4()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -422,7 +422,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 						acc1 := asm.ZeroFloat32x4()
 						acc2 := asm.ZeroFloat32x4()
 						acc3 := asm.ZeroFloat32x4()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := asm.BroadcastFloat32x4(a[i*k+p])
 							vA1 := asm.BroadcastFloat32x4(a[(i+1)*k+p])
 							vA2 := asm.BroadcastFloat32x4(a[(i+2)*k+p])
@@ -440,7 +440,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p] * bpj
 								sum1 += a[(i+1)*k+p] * bpj
@@ -463,7 +463,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := asm.ZeroFloat32x4()
 					acc1 := asm.ZeroFloat32x4()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := asm.BroadcastFloat32x4(a[i*k+p])
 						vA1 := asm.BroadcastFloat32x4(a[(i+1)*k+p])
 						vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[p*n+j])))
@@ -475,7 +475,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p] * bp
 						sum1 += a[(i+1)*k+p] * bp
@@ -490,7 +490,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := asm.ZeroFloat32x4()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := asm.BroadcastFloat32x4(a[i*k+p])
 						vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[p*n+j])))
 						vA.MulAddAcc(vB, &acc)
@@ -499,7 +499,7 @@ func BaseBlockedMatMul_neon(a []float32, b []float32, c []float32, m int, n int,
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p] * b[p*n+j]
 					}
 					c[cRowStart+j] = sum
@@ -547,7 +547,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 					acc21 := asm.ZeroFloat64x2()
 					acc30 := asm.ZeroFloat64x2()
 					acc31 := asm.ZeroFloat64x2()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -588,7 +588,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 						acc1 := asm.ZeroFloat64x2()
 						acc2 := asm.ZeroFloat64x2()
 						acc3 := asm.ZeroFloat64x2()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := asm.BroadcastFloat64x2(a[i*k+p])
 							vA1 := asm.BroadcastFloat64x2(a[(i+1)*k+p])
 							vA2 := asm.BroadcastFloat64x2(a[(i+2)*k+p])
@@ -606,7 +606,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float64
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p] * bpj
 								sum1 += a[(i+1)*k+p] * bpj
@@ -629,7 +629,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := asm.ZeroFloat64x2()
 					acc1 := asm.ZeroFloat64x2()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := asm.BroadcastFloat64x2(a[i*k+p])
 						vA1 := asm.BroadcastFloat64x2(a[(i+1)*k+p])
 						vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[p*n+j])))
@@ -641,7 +641,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float64
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p] * bp
 						sum1 += a[(i+1)*k+p] * bp
@@ -656,7 +656,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := asm.ZeroFloat64x2()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := asm.BroadcastFloat64x2(a[i*k+p])
 						vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[p*n+j])))
 						vA.MulAddAcc(vB, &acc)
@@ -665,7 +665,7 @@ func BaseBlockedMatMul_neon_Float64(a []float64, b []float64, c []float64, m int
 				}
 				for ; j < jEnd; j++ {
 					var sum float64
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p] * b[p*n+j]
 					}
 					c[cRowStart+j] = sum

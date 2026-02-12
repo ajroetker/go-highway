@@ -35,7 +35,7 @@ func BaseQKVDense_neon_Float16(x []hwy.Float16, wQKV []hwy.Float16, biasQ []hwy.
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat16x8()
 			acc1 := asm.ZeroFloat16x8()
@@ -106,7 +106,7 @@ func BaseQKVDense_neon_Float16(x []hwy.Float16, wQKV []hwy.Float16, biasQ []hwy.
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat16x8()
 			var p int
@@ -165,7 +165,7 @@ func BaseQKVDense_neon_BFloat16(x []hwy.BFloat16, wQKV []hwy.BFloat16, biasQ []h
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroBFloat16x8()
 			acc1 := asm.ZeroBFloat16x8()
@@ -236,7 +236,7 @@ func BaseQKVDense_neon_BFloat16(x []hwy.BFloat16, wQKV []hwy.BFloat16, biasQ []h
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := asm.ZeroBFloat16x8()
 			var p int
@@ -295,7 +295,7 @@ func BaseQKVDense_neon(x []float32, wQKV []float32, biasQ []float32, biasK []flo
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat32x4()
 			acc1 := asm.ZeroFloat32x4()
@@ -366,7 +366,7 @@ func BaseQKVDense_neon(x []float32, wQKV []float32, biasQ []float32, biasK []flo
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat32x4()
 			var p int
@@ -425,7 +425,7 @@ func BaseQKVDense_neon_Float64(x []float64, wQKV []float64, biasQ []float64, bia
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat64x2()
 			acc1 := asm.ZeroFloat64x2()
@@ -496,7 +496,7 @@ func BaseQKVDense_neon_Float64(x []float64, wQKV []float64, biasQ []float64, bia
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat64x2()
 			var p int

@@ -12,20 +12,20 @@ func BaseSDPA_fallback_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.Float16
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
 			}
 			scores[sOff+j] = hwy.Float32ToFloat16(float32(sum * float64(scale.Float32())))
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				scores[sOff+j] = hwy.Float32ToFloat16(scores[sOff+j].Float32() + mask[mOff+j].Float32())
 			}
 		}
@@ -48,12 +48,12 @@ func BaseSDPA_fallback_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.Float16
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
 			}
 			output[oOff+d] = hwy.Float32ToFloat16(float32(sum))
@@ -65,20 +65,20 @@ func BaseSDPA_fallback_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.BFlo
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
 			}
 			scores[sOff+j] = hwy.Float32ToBFloat16(float32(sum * float64(scale.Float32())))
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				scores[sOff+j] = hwy.Float32ToBFloat16(scores[sOff+j].Float32() + mask[mOff+j].Float32())
 			}
 		}
@@ -101,12 +101,12 @@ func BaseSDPA_fallback_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.BFlo
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
 			}
 			output[oOff+d] = hwy.Float32ToBFloat16(float32(sum))
@@ -118,20 +118,20 @@ func BaseSDPA_fallback(q []float32, k []float32, v []float32, mask []float32, sc
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p]) * float64(k[kOff+p])
 			}
 			scores[sOff+j] = float32(sum * float64(scale))
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				scores[sOff+j] += mask[mOff+j]
 			}
 		}
@@ -154,12 +154,12 @@ func BaseSDPA_fallback(q []float32, k []float32, v []float32, mask []float32, sc
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
 			}
 			output[oOff+d] = float32(sum)
@@ -171,20 +171,20 @@ func BaseSDPA_fallback_Float64(q []float64, k []float64, v []float64, mask []flo
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p]) * float64(k[kOff+p])
 			}
 			scores[sOff+j] = float64(sum * float64(scale))
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				scores[sOff+j] += mask[mOff+j]
 			}
 		}
@@ -207,12 +207,12 @@ func BaseSDPA_fallback_Float64(q []float64, k []float64, v []float64, mask []flo
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
 			}
 			output[oOff+d] = float64(sum)
@@ -226,18 +226,18 @@ func BaseSDPACausal_fallback_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.F
 	}
 	negInf := float32(stdmath.Inf(-1))
 	offset := kvLen - seqLen
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			if j >= causalEnd {
 				scores[sOff+j] = hwy.Float32ToFloat16(negInf)
 				continue
 			}
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
 			}
 			scores[sOff+j] = hwy.Float32ToFloat16(float32(sum * float64(scale.Float32())))
@@ -261,12 +261,12 @@ func BaseSDPACausal_fallback_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.F
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
 			}
 			output[oOff+d] = hwy.Float32ToFloat16(float32(sum))
@@ -280,18 +280,18 @@ func BaseSDPACausal_fallback_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hw
 	}
 	negInf := float32(stdmath.Inf(-1))
 	offset := kvLen - seqLen
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			if j >= causalEnd {
 				scores[sOff+j] = hwy.Float32ToBFloat16(negInf)
 				continue
 			}
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
 			}
 			scores[sOff+j] = hwy.Float32ToBFloat16(float32(sum * float64(scale.Float32())))
@@ -315,12 +315,12 @@ func BaseSDPACausal_fallback_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hw
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
 			}
 			output[oOff+d] = hwy.Float32ToBFloat16(float32(sum))
@@ -334,18 +334,18 @@ func BaseSDPACausal_fallback(q []float32, k []float32, v []float32, scores []flo
 	}
 	negInf := float32(stdmath.Inf(-1))
 	offset := kvLen - seqLen
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			if j >= causalEnd {
 				scores[sOff+j] = negInf
 				continue
 			}
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p]) * float64(k[kOff+p])
 			}
 			scores[sOff+j] = float32(sum * float64(scale))
@@ -369,12 +369,12 @@ func BaseSDPACausal_fallback(q []float32, k []float32, v []float32, scores []flo
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
 			}
 			output[oOff+d] = float32(sum)
@@ -388,18 +388,18 @@ func BaseSDPACausal_fallback_Float64(q []float64, k []float64, v []float64, scor
 	}
 	negInf := float64(stdmath.Inf(-1))
 	offset := kvLen - seqLen
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := 0; j < kvLen; j++ {
+		for j := range kvLen {
 			if j >= causalEnd {
 				scores[sOff+j] = negInf
 				continue
 			}
 			kOff := j * headDim
 			var sum float64
-			for p := 0; p < headDim; p++ {
+			for p := range headDim {
 				sum += float64(q[qOff+p]) * float64(k[kOff+p])
 			}
 			scores[sOff+j] = float64(sum * float64(scale))
@@ -423,12 +423,12 @@ func BaseSDPACausal_fallback_Float64(q []float64, k []float64, v []float64, scor
 			}
 		}
 	}
-	for i := 0; i < seqLen; i++ {
+	for i := range seqLen {
 		sOff := i * kvLen
 		oOff := i * headDim
-		for d := 0; d < headDim; d++ {
+		for d := range headDim {
 			var sum float64
-			for j := 0; j < kvLen; j++ {
+			for j := range kvLen {
 				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
 			}
 			output[oOff+d] = float64(sum)

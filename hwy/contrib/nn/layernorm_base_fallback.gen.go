@@ -16,7 +16,7 @@ func BaseLayerNorm_fallback_Float16(input []hwy.Float16, output []hwy.Float16, n
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := hwy.MaxLanes[hwy.Float16]()
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := hwy.Zero[hwy.Float16]()
 		ii := 0
@@ -97,7 +97,7 @@ func BaseLayerNorm_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := hwy.Zero[hwy.BFloat16]()
 		ii := 0
@@ -177,7 +177,7 @@ func BaseLayerNorm_fallback(input []float32, output []float32, normSize int, gam
 	}
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := float32(0)
 		ii := 0
@@ -257,7 +257,7 @@ func BaseLayerNorm_fallback_Float64(input []float64, output []float64, normSize 
 	}
 	numGroups := size / normSize
 	invN := float64(1.0) / float64(normSize)
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := float64(0)
 		ii := 0

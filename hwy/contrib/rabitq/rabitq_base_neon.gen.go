@@ -15,47 +15,33 @@ func BaseBitProduct_neon(code []uint64, q1 []uint64, q2 []uint64, q3 []uint64, q
 	if len(code) == 0 {
 		return 0
 	}
-	var sum1_0, sum1_1, sum2_0, sum2_1 uint64
-	var sum4_0, sum4_1, sum8_0, sum8_1 uint64
+	var sum1, sum2, sum4, sum8 uint64
 	lanes := 2
 	n := len(code)
-	stride := lanes * 2
+	stride := lanes * 4
 	var i int
 	for i = 0; i+stride <= n; i += stride {
-		codeVec0 := asm.LoadUint64x2Slice(code[i:])
-		q1Vec0 := asm.LoadUint64x2Slice(q1[i:])
-		q2Vec0 := asm.LoadUint64x2Slice(q2[i:])
-		q3Vec0 := asm.LoadUint64x2Slice(q3[i:])
-		q4Vec0 := asm.LoadUint64x2Slice(q4[i:])
-		codeVec1 := asm.LoadUint64x2Slice(code[i+lanes:])
-		q1Vec1 := asm.LoadUint64x2Slice(q1[i+lanes:])
-		q2Vec1 := asm.LoadUint64x2Slice(q2[i+lanes:])
-		q3Vec1 := asm.LoadUint64x2Slice(q3[i+lanes:])
-		q4Vec1 := asm.LoadUint64x2Slice(q4[i+lanes:])
-		and1_0 := codeVec0.And(q1Vec0)
-		and1_1 := codeVec1.And(q1Vec1)
-		pop1_0 := hwy.PopCount_NEON_Uint64x2(and1_0)
-		pop1_1 := hwy.PopCount_NEON_Uint64x2(and1_1)
-		sum1_0 += uint64(pop1_0.ReduceSum())
-		sum1_1 += uint64(pop1_1.ReduceSum())
-		and2_0 := codeVec0.And(q2Vec0)
-		and2_1 := codeVec1.And(q2Vec1)
-		pop2_0 := hwy.PopCount_NEON_Uint64x2(and2_0)
-		pop2_1 := hwy.PopCount_NEON_Uint64x2(and2_1)
-		sum2_0 += uint64(pop2_0.ReduceSum())
-		sum2_1 += uint64(pop2_1.ReduceSum())
-		and4_0 := codeVec0.And(q3Vec0)
-		and4_1 := codeVec1.And(q3Vec1)
-		pop4_0 := hwy.PopCount_NEON_Uint64x2(and4_0)
-		pop4_1 := hwy.PopCount_NEON_Uint64x2(and4_1)
-		sum4_0 += uint64(pop4_0.ReduceSum())
-		sum4_1 += uint64(pop4_1.ReduceSum())
-		and8_0 := codeVec0.And(q4Vec0)
-		and8_1 := codeVec1.And(q4Vec1)
-		pop8_0 := hwy.PopCount_NEON_Uint64x2(and8_0)
-		pop8_1 := hwy.PopCount_NEON_Uint64x2(and8_1)
-		sum8_0 += uint64(pop8_0.ReduceSum())
-		sum8_1 += uint64(pop8_1.ReduceSum())
+		codeVec0, codeVec1, codeVec2, codeVec3 := asm.Load4Uint64x2Slice(code[i:])
+		q1Vec0, q1Vec1, q1Vec2, q1Vec3 := asm.Load4Uint64x2Slice(q1[i:])
+		q2Vec0, q2Vec1, q2Vec2, q2Vec3 := asm.Load4Uint64x2Slice(q2[i:])
+		q3Vec0, q3Vec1, q3Vec2, q3Vec3 := asm.Load4Uint64x2Slice(q3[i:])
+		q4Vec0, q4Vec1, q4Vec2, q4Vec3 := asm.Load4Uint64x2Slice(q4[i:])
+		sum1 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec0.And(q1Vec0)).ReduceSum())
+		sum1 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec1.And(q1Vec1)).ReduceSum())
+		sum1 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec2.And(q1Vec2)).ReduceSum())
+		sum1 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec3.And(q1Vec3)).ReduceSum())
+		sum2 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec0.And(q2Vec0)).ReduceSum())
+		sum2 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec1.And(q2Vec1)).ReduceSum())
+		sum2 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec2.And(q2Vec2)).ReduceSum())
+		sum2 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec3.And(q2Vec3)).ReduceSum())
+		sum4 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec0.And(q3Vec0)).ReduceSum())
+		sum4 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec1.And(q3Vec1)).ReduceSum())
+		sum4 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec2.And(q3Vec2)).ReduceSum())
+		sum4 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec3.And(q3Vec3)).ReduceSum())
+		sum8 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec0.And(q4Vec0)).ReduceSum())
+		sum8 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec1.And(q4Vec1)).ReduceSum())
+		sum8 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec2.And(q4Vec2)).ReduceSum())
+		sum8 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec3.And(q4Vec3)).ReduceSum())
 	}
 	for i+lanes <= n {
 		codeVec := asm.LoadUint64x2Slice(code[i:])
@@ -63,20 +49,12 @@ func BaseBitProduct_neon(code []uint64, q1 []uint64, q2 []uint64, q3 []uint64, q
 		q2Vec := asm.LoadUint64x2Slice(q2[i:])
 		q3Vec := asm.LoadUint64x2Slice(q3[i:])
 		q4Vec := asm.LoadUint64x2Slice(q4[i:])
-		pop1 := hwy.PopCount_NEON_Uint64x2(codeVec.And(q1Vec))
-		pop2 := hwy.PopCount_NEON_Uint64x2(codeVec.And(q2Vec))
-		pop4 := hwy.PopCount_NEON_Uint64x2(codeVec.And(q3Vec))
-		pop8 := hwy.PopCount_NEON_Uint64x2(codeVec.And(q4Vec))
-		sum1_0 += uint64(pop1.ReduceSum())
-		sum2_0 += uint64(pop2.ReduceSum())
-		sum4_0 += uint64(pop4.ReduceSum())
-		sum8_0 += uint64(pop8.ReduceSum())
+		sum1 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec.And(q1Vec)).ReduceSum())
+		sum2 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec.And(q2Vec)).ReduceSum())
+		sum4 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec.And(q3Vec)).ReduceSum())
+		sum8 += uint64(hwy.PopCount_NEON_Uint64x2(codeVec.And(q4Vec)).ReduceSum())
 		i += lanes
 	}
-	sum1 := sum1_0 + sum1_1
-	sum2 := sum2_0 + sum2_1
-	sum4 := sum4_0 + sum4_1
-	sum8 := sum8_0 + sum8_1
 	for ; i < n; i++ {
 		sum1 += uint64(bits.OnesCount64(code[i] & q1[i]))
 		sum2 += uint64(bits.OnesCount64(code[i] & q2[i]))

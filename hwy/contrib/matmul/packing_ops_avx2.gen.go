@@ -19,19 +19,19 @@ func BasePackRHSFast_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, n int, 
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcIdx+c:][0]))
-					v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(packed[dstIdx+c:]))), len(packed[dstIdx+c:])))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
 				}
 				dstIdx += nr
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = hwy.Float32ToFloat16(b[srcIdx+c].Float32())
 				dstIdx++
 			}
@@ -50,19 +50,19 @@ func BasePackRHSFast_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n in
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcIdx+c:][0]))
-					v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(packed[dstIdx+c:]))), len(packed[dstIdx+c:])))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
 				}
 				dstIdx += nr
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = hwy.Float32ToBFloat16(b[srcIdx+c].Float32())
 				dstIdx++
 			}
@@ -81,7 +81,7 @@ func BasePackRHSFast_avx2(b []float32, packed []float32, n int, rowStart int, co
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[srcIdx+c])))
@@ -91,9 +91,9 @@ func BasePackRHSFast_avx2(b []float32, packed []float32, n int, rowStart int, co
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -112,7 +112,7 @@ func BasePackRHSFast_avx2_Float64(b []float64, packed []float64, n int, rowStart
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[srcIdx+c])))
@@ -122,9 +122,9 @@ func BasePackRHSFast_avx2_Float64(b []float64, packed []float64, n int, rowStart
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -140,7 +140,7 @@ func BaseApplyPackedOutput_avx2_Float16(packedOutput []hwy.Float16, output []hwy
 	lanes := 8
 	alphaVec := asm.BroadcastFloat16x8AVX2(uint16(alpha))
 	betaVec := asm.BroadcastFloat16x8AVX2(uint16(beta))
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -149,7 +149,7 @@ func BaseApplyPackedOutput_avx2_Float16(packedOutput []hwy.Float16, output []hwy
 			outputVal := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
 			scaledOutput := outputVal.Mul(betaVec)
 			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
-			newVal.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outputIdx+c:]))), len(output[outputIdx+c:])))
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -162,7 +162,7 @@ func BaseApplyPackedOutput_avx2_BFloat16(packedOutput []hwy.BFloat16, output []h
 	lanes := 8
 	alphaVec := asm.BroadcastBFloat16x8AVX2(uint16(alpha))
 	betaVec := asm.BroadcastBFloat16x8AVX2(uint16(beta))
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -171,7 +171,7 @@ func BaseApplyPackedOutput_avx2_BFloat16(packedOutput []hwy.BFloat16, output []h
 			outputVal := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
 			scaledOutput := outputVal.Mul(betaVec)
 			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
-			newVal.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outputIdx+c:]))), len(output[outputIdx+c:])))
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -184,7 +184,7 @@ func BaseApplyPackedOutput_avx2(packedOutput []float32, output []float32, alpha 
 	lanes := 8
 	alphaVec := archsimd.BroadcastFloat32x8(alpha)
 	betaVec := archsimd.BroadcastFloat32x8(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -206,7 +206,7 @@ func BaseApplyPackedOutput_avx2_Float64(packedOutput []float64, output []float64
 	lanes := 4
 	alphaVec := archsimd.BroadcastFloat64x4(alpha)
 	betaVec := archsimd.BroadcastFloat64x4(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -226,13 +226,13 @@ func BaseApplyPackedOutput_avx2_Float64(packedOutput []float64, output []float64
 
 func BaseApplyPackedOutputSimple_avx2_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
 			v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
-			v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outputIdx+c:]))), len(output[outputIdx+c:])))
+			v.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(packedOutput[packedIdx+c].Float32())
@@ -242,13 +242,13 @@ func BaseApplyPackedOutputSimple_avx2_Float16(packedOutput []hwy.Float16, output
 
 func BaseApplyPackedOutputSimple_avx2_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
 			v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
-			v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outputIdx+c:]))), len(output[outputIdx+c:])))
+			v.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(packedOutput[packedIdx+c].Float32())
@@ -258,7 +258,7 @@ func BaseApplyPackedOutputSimple_avx2_BFloat16(packedOutput []hwy.BFloat16, outp
 
 func BaseApplyPackedOutputSimple_avx2(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -274,7 +274,7 @@ func BaseApplyPackedOutputSimple_avx2(packedOutput []float32, output []float32, 
 
 func BaseApplyPackedOutputSimple_avx2_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 4
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -290,7 +290,7 @@ func BaseApplyPackedOutputSimple_avx2_Float64(packedOutput []float64, output []f
 
 func BaseApplyPackedOutputAccum_avx2_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -298,7 +298,7 @@ func BaseApplyPackedOutputAccum_avx2_Float16(packedOutput []hwy.Float16, output 
 			packedVal := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
 			outputVal := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
 			newVal := outputVal.Add(packedVal)
-			newVal.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outputIdx+c:]))), len(output[outputIdx+c:])))
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())
@@ -308,7 +308,7 @@ func BaseApplyPackedOutputAccum_avx2_Float16(packedOutput []hwy.Float16, output 
 
 func BaseApplyPackedOutputAccum_avx2_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -316,7 +316,7 @@ func BaseApplyPackedOutputAccum_avx2_BFloat16(packedOutput []hwy.BFloat16, outpu
 			packedVal := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedOutput[packedIdx+c:][0]))
 			outputVal := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&output[outputIdx+c:][0]))
 			newVal := outputVal.Add(packedVal)
-			newVal.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outputIdx+c:]))), len(output[outputIdx+c:])))
+			newVal.StorePtr(unsafe.Pointer(&output[outputIdx+c:][0]))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = hwy.Float32ToBFloat16(output[outputIdx+c].Float32() + packedOutput[packedIdx+c].Float32())
@@ -326,7 +326,7 @@ func BaseApplyPackedOutputAccum_avx2_BFloat16(packedOutput []hwy.BFloat16, outpu
 
 func BaseApplyPackedOutputAccum_avx2(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -344,7 +344,7 @@ func BaseApplyPackedOutputAccum_avx2(packedOutput []float32, output []float32, p
 
 func BaseApplyPackedOutputAccum_avx2_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 4
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0

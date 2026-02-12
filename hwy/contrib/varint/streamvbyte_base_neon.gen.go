@@ -90,7 +90,7 @@ func BaseEncodeStreamVByte32_neon(values []uint32) (control []byte, data []byte)
 	numGroups := (len(values) + 3) / 4
 	control = make([]byte, numGroups)
 	data = make([]byte, 0, len(values)*4)
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 		if remaining >= 4 {
@@ -125,7 +125,7 @@ func BaseEncodeStreamVByte32Into_neon(values []uint32, controlBuf []byte, dataBu
 		dataBuf = dataBuf[:maxDataLen]
 	}
 	dataPos := 0
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 		if remaining >= 4 && dataPos+16 <= len(dataBuf) {
@@ -148,7 +148,7 @@ func BaseEncodeStreamVByte32GroupSIMD_neon(values []uint32) (ctrl byte, data []b
 		return encodeGroupScalar(values)
 	}
 	ctrl = 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := encodedLengthU32(values[i])
 		ctrl |= byte(length-1) << (i * 2)
 	}
@@ -177,7 +177,7 @@ func BaseEncodeStreamVByte32GroupSIMDInto_neon(values []uint32, dst []uint8) (ct
 		return 0, 4
 	}
 	ctrl = 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := encodedLengthU32(values[i])
 		ctrl |= byte(length-1) << (i * 2)
 	}

@@ -22,21 +22,21 @@ func BaseTranspose2DStrided_neon_Float16(src []hwy.Float16, rowStart int, rowEnd
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.Float16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.Float16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
 				}
 			}
@@ -44,22 +44,22 @@ func BaseTranspose2DStrided_neon_Float16(src []hwy.Float16, rowStart int, rowEnd
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]asm.Float16x8{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1:][0]))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [8]asm.Float16x8{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*dstM+i:][0]))
+				for c_1 := range lanes {
+					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*dstM+i:][0]))
 				}
 			}
 		}
@@ -68,21 +68,21 @@ func BaseTranspose2DStrided_neon_Float16(src []hwy.Float16, rowStart int, rowEnd
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.Float16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.Float16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
 				}
 			}
@@ -98,12 +98,12 @@ func BaseTranspose2DStrided_neon_Float16(src []hwy.Float16, rowStart int, rowEnd
 			}
 		}
 		for i_2 := rowStart; i_2 < min(blockRowStart_2, rowEnd); i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
 		for i_2 := max(blockRowEnd_2, rowStart); i_2 < rowEnd; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
@@ -122,21 +122,21 @@ func BaseTranspose2DStrided_neon_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.BFloat16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.BFloat16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
 				}
 			}
@@ -144,22 +144,22 @@ func BaseTranspose2DStrided_neon_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]asm.BFloat16x8{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1:][0]))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [8]asm.BFloat16x8{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*dstM+i:][0]))
+				for c_1 := range lanes {
+					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*dstM+i:][0]))
 				}
 			}
 		}
@@ -168,21 +168,21 @@ func BaseTranspose2DStrided_neon_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.BFloat16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.BFloat16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
 				}
 			}
@@ -198,12 +198,12 @@ func BaseTranspose2DStrided_neon_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 			}
 		}
 		for i_2 := rowStart; i_2 < min(blockRowStart_2, rowEnd); i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
 		for i_2 := max(blockRowEnd_2, rowStart); i_2 < rowEnd; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
@@ -222,21 +222,21 @@ func BaseTranspose2DStrided_neon(src []float32, rowStart int, rowEnd int, k int,
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [4]asm.Float32x4{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [4]asm.Float32x4{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[4]float32)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
@@ -244,22 +244,22 @@ func BaseTranspose2DStrided_neon(src []float32, rowStart int, rowEnd int, k int,
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [4]asm.Float32x4{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [4]asm.Float32x4{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = hwy.InterleaveLower_NEON_F32x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_NEON_F32x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = hwy.InterleaveLower_NEON_F32x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_NEON_F32x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].Store((*[4]float32)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
+				for c_1 := range lanes {
+					rows_11[c_1].Store((*[4]float32)(unsafe.Pointer(&dst[(j1+c_1)*dstM+i])))
 				}
 			}
 		}
@@ -268,21 +268,21 @@ func BaseTranspose2DStrided_neon(src []float32, rowStart int, rowEnd int, k int,
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [4]asm.Float32x4{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [4]asm.Float32x4{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[4]float32)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
@@ -298,12 +298,12 @@ func BaseTranspose2DStrided_neon(src []float32, rowStart int, rowEnd int, k int,
 			}
 		}
 		for i_2 := rowStart; i_2 < min(blockRowStart_2, rowEnd); i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = src[i_2*k+j_2]
 			}
 		}
 		for i_2 := max(blockRowEnd_2, rowStart); i_2 < rowEnd; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = src[i_2*k+j_2]
 			}
 		}
@@ -322,21 +322,21 @@ func BaseTranspose2DStrided_neon_Float64(src []float64, rowStart int, rowEnd int
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [2]asm.Float64x2{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [2]asm.Float64x2{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[2]float64)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
@@ -344,22 +344,22 @@ func BaseTranspose2DStrided_neon_Float64(src []float64, rowStart int, rowEnd int
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [2]asm.Float64x2{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [2]asm.Float64x2{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = hwy.InterleaveLower_NEON_F64x2(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_NEON_F64x2(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = hwy.InterleaveLower_NEON_F64x2(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_NEON_F64x2(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].Store((*[2]float64)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
+				for c_1 := range lanes {
+					rows_11[c_1].Store((*[2]float64)(unsafe.Pointer(&dst[(j1+c_1)*dstM+i])))
 				}
 			}
 		}
@@ -368,21 +368,21 @@ func BaseTranspose2DStrided_neon_Float64(src []float64, rowStart int, rowEnd int
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [2]asm.Float64x2{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [2]asm.Float64x2{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[2]float64)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
@@ -398,12 +398,12 @@ func BaseTranspose2DStrided_neon_Float64(src []float64, rowStart int, rowEnd int
 			}
 		}
 		for i_2 := rowStart; i_2 < min(blockRowStart_2, rowEnd); i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = src[i_2*k+j_2]
 			}
 		}
 		for i_2 := max(blockRowEnd_2, rowStart); i_2 < rowEnd; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*dstM+i_2] = src[i_2*k+j_2]
 			}
 		}
@@ -421,21 +421,21 @@ func BaseTranspose2D_neon_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.Float16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.Float16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
 				}
 			}
@@ -443,22 +443,22 @@ func BaseTranspose2D_neon_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]asm.Float16x8{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1:][0]))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [8]asm.Float16x8{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*m+i:][0]))
+				for c_1 := range lanes {
+					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*m+i:][0]))
 				}
 			}
 		}
@@ -467,21 +467,21 @@ func BaseTranspose2D_neon_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.Float16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.Float16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
 				}
 			}
@@ -490,13 +490,13 @@ func BaseTranspose2D_neon_Float16(src []hwy.Float16, m int, k int, dst []hwy.Flo
 	{
 		blockM_2 := (m / lanes) * lanes
 		blockK_2 := (k / lanes) * lanes
-		for i_2 := 0; i_2 < m; i_2++ {
+		for i_2 := range m {
 			for j_2 := blockK_2; j_2 < k; j_2++ {
 				dst[j_2*m+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
 		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*m+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
@@ -513,21 +513,21 @@ func BaseTranspose2D_neon_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.BFloat16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.BFloat16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
 				}
 			}
@@ -535,22 +535,22 @@ func BaseTranspose2D_neon_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]asm.BFloat16x8{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1:][0]))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [8]asm.BFloat16x8{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*m+i:][0]))
+				for c_1 := range lanes {
+					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*m+i:][0]))
 				}
 			}
 		}
@@ -559,21 +559,21 @@ func BaseTranspose2D_neon_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [8]asm.BFloat16x8{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [8]asm.BFloat16x8{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
 				}
 			}
@@ -582,13 +582,13 @@ func BaseTranspose2D_neon_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.B
 	{
 		blockM_2 := (m / lanes) * lanes
 		blockK_2 := (k / lanes) * lanes
-		for i_2 := 0; i_2 < m; i_2++ {
+		for i_2 := range m {
 			for j_2 := blockK_2; j_2 < k; j_2++ {
 				dst[j_2*m+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
 		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*m+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
 			}
 		}
@@ -605,21 +605,21 @@ func BaseTranspose2D_neon(src []float32, m int, k int, dst []float32) {
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [4]asm.Float32x4{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [4]asm.Float32x4{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[4]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
@@ -627,22 +627,22 @@ func BaseTranspose2D_neon(src []float32, m int, k int, dst []float32) {
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [4]asm.Float32x4{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [4]asm.Float32x4{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = hwy.InterleaveLower_NEON_F32x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_NEON_F32x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = hwy.InterleaveLower_NEON_F32x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_NEON_F32x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].Store((*[4]float32)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
+				for c_1 := range lanes {
+					rows_11[c_1].Store((*[4]float32)(unsafe.Pointer(&dst[(j1+c_1)*m+i])))
 				}
 			}
 		}
@@ -651,21 +651,21 @@ func BaseTranspose2D_neon(src []float32, m int, k int, dst []float32) {
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [4]asm.Float32x4{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [4]asm.Float32x4{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F32x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[4]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
@@ -674,13 +674,13 @@ func BaseTranspose2D_neon(src []float32, m int, k int, dst []float32) {
 	{
 		blockM_2 := (m / lanes) * lanes
 		blockK_2 := (k / lanes) * lanes
-		for i_2 := 0; i_2 < m; i_2++ {
+		for i_2 := range m {
 			for j_2 := blockK_2; j_2 < k; j_2++ {
 				dst[j_2*m+i_2] = src[i_2*k+j_2]
 			}
 		}
 		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*m+i_2] = src[i_2*k+j_2]
 			}
 		}
@@ -697,21 +697,21 @@ func BaseTranspose2D_neon_Float64(src []float64, m int, k int, dst []float64) {
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [2]asm.Float64x2{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [2]asm.Float64x2{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[2]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
@@ -719,22 +719,22 @@ func BaseTranspose2D_neon_Float64(src []float64, m int, k int, dst []float64) {
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [2]asm.Float64x2{}
-				for r_11 := 0; r_11 < lanes; r_11++ {
-					rows_11[r_11] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+				for r_1 := range lanes {
+					rows_11[r_1] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
 				}
 				for level_11 := 0; (1 << level_11) < lanes; level_11++ {
 					stride_11 := 1 << level_11
 					newRows_11 := [2]asm.Float64x2{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_11 := 0; j_11 < stride_11; j_11++ {
-							newRows_11[i_11+j_11] = hwy.InterleaveLower_NEON_F64x2(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
-							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_NEON_F64x2(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+						for j_1 := range stride_11 {
+							newRows_11[i_11+j_1] = hwy.InterleaveLower_NEON_F64x2(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
+							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_NEON_F64x2(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_11 := 0; c_11 < lanes; c_11++ {
-					rows_11[c_11].Store((*[2]float64)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
+				for c_1 := range lanes {
+					rows_11[c_1].Store((*[2]float64)(unsafe.Pointer(&dst[(j1+c_1)*m+i])))
 				}
 			}
 		}
@@ -743,21 +743,21 @@ func BaseTranspose2D_neon_Float64(src []float64, m int, k int, dst []float64) {
 		for j := 0; j <= k-lanes; j += lanes {
 			{
 				rows_1 := [2]asm.Float64x2{}
-				for r_1 := 0; r_1 < lanes; r_1++ {
+				for r_1 := range lanes {
 					rows_1[r_1] = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
 					stride_1 := 1 << level_1
 					newRows_1 := [2]asm.Float64x2{}
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := 0; j_1 < stride_1; j_1++ {
+						for j_1 := range stride_1 {
 							newRows_1[i_1+j_1] = hwy.InterleaveLower_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_NEON_F64x2(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
 						}
 					}
 					rows_1 = newRows_1
 				}
-				for c_1 := 0; c_1 < lanes; c_1++ {
+				for c_1 := range lanes {
 					rows_1[c_1].Store((*[2]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
@@ -766,13 +766,13 @@ func BaseTranspose2D_neon_Float64(src []float64, m int, k int, dst []float64) {
 	{
 		blockM_2 := (m / lanes) * lanes
 		blockK_2 := (k / lanes) * lanes
-		for i_2 := 0; i_2 < m; i_2++ {
+		for i_2 := range m {
 			for j_2 := blockK_2; j_2 < k; j_2++ {
 				dst[j_2*m+i_2] = src[i_2*k+j_2]
 			}
 		}
 		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := 0; j_2 < blockK_2; j_2++ {
+			for j_2 := range blockK_2 {
 				dst[j_2*m+i_2] = src[i_2*k+j_2]
 			}
 		}

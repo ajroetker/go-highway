@@ -30,7 +30,7 @@ func BaseDense_fallback_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hw
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := hwy.Zero[hwy.Float16]()
 			acc1 := hwy.Zero[hwy.Float16]()
@@ -74,7 +74,7 @@ func BaseDense_fallback_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hw
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := hwy.Zero[hwy.Float16]()
 			var p int
@@ -119,7 +119,7 @@ func BaseDense_fallback_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias [
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := hwy.Zero[hwy.BFloat16]()
 			acc1 := hwy.Zero[hwy.BFloat16]()
@@ -163,7 +163,7 @@ func BaseDense_fallback_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias [
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := hwy.Zero[hwy.BFloat16]()
 			var p int
@@ -207,7 +207,7 @@ func BaseDense_fallback(x []float32, weight []float32, bias []float32, output []
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := float32(0)
 			acc1 := float32(0)
@@ -251,7 +251,7 @@ func BaseDense_fallback(x []float32, weight []float32, bias []float32, output []
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := float32(0)
 			var p int
@@ -295,7 +295,7 @@ func BaseDense_fallback_Float64(x []float64, weight []float64, bias []float64, o
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := float64(0)
 			acc1 := float64(0)
@@ -339,7 +339,7 @@ func BaseDense_fallback_Float64(x []float64, weight []float64, bias []float64, o
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := float64(0)
 			var p int

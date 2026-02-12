@@ -30,7 +30,7 @@ func BaseQKVDense_fallback_Float16(x []hwy.Float16, wQKV []hwy.Float16, biasQ []
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := hwy.Zero[hwy.Float16]()
 			acc1 := hwy.Zero[hwy.Float16]()
@@ -101,7 +101,7 @@ func BaseQKVDense_fallback_Float16(x []hwy.Float16, wQKV []hwy.Float16, biasQ []
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := hwy.Zero[hwy.Float16]()
 			var p int
@@ -160,7 +160,7 @@ func BaseQKVDense_fallback_BFloat16(x []hwy.BFloat16, wQKV []hwy.BFloat16, biasQ
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := hwy.Zero[hwy.BFloat16]()
 			acc1 := hwy.Zero[hwy.BFloat16]()
@@ -231,7 +231,7 @@ func BaseQKVDense_fallback_BFloat16(x []hwy.BFloat16, wQKV []hwy.BFloat16, biasQ
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := hwy.Zero[hwy.BFloat16]()
 			var p int
@@ -289,7 +289,7 @@ func BaseQKVDense_fallback(x []float32, wQKV []float32, biasQ []float32, biasK [
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := float32(0)
 			acc1 := float32(0)
@@ -360,7 +360,7 @@ func BaseQKVDense_fallback(x []float32, wQKV []float32, biasQ []float32, biasK [
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := float32(0)
 			var p int
@@ -418,7 +418,7 @@ func BaseQKVDense_fallback_Float64(x []float64, wQKV []float64, biasQ []float64,
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := float64(0)
 			acc1 := float64(0)
@@ -489,7 +489,7 @@ func BaseQKVDense_fallback_Float64(x []float64, wQKV []float64, biasQ []float64,
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := float64(0)
 			var p int

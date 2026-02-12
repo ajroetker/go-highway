@@ -18,7 +18,7 @@ func BasePackRHSFast_neon_Float16(b []hwy.Float16, packed []hwy.Float16, n int, 
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[srcIdx+c:][0]))
@@ -28,9 +28,9 @@ func BasePackRHSFast_neon_Float16(b []hwy.Float16, packed []hwy.Float16, n int, 
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = hwy.Float32ToFloat16(b[srcIdx+c].Float32())
 				dstIdx++
 			}
@@ -49,7 +49,7 @@ func BasePackRHSFast_neon_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n in
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[srcIdx+c:][0]))
@@ -59,9 +59,9 @@ func BasePackRHSFast_neon_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n in
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = hwy.Float32ToBFloat16(b[srcIdx+c].Float32())
 				dstIdx++
 			}
@@ -80,7 +80,7 @@ func BasePackRHSFast_neon(b []float32, packed []float32, n int, rowStart int, co
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[srcIdx+c])))
@@ -90,9 +90,9 @@ func BasePackRHSFast_neon(b []float32, packed []float32, n int, rowStart int, co
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -111,7 +111,7 @@ func BasePackRHSFast_neon_Float64(b []float64, packed []float64, n int, rowStart
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[srcIdx+c])))
@@ -121,9 +121,9 @@ func BasePackRHSFast_neon_Float64(b []float64, packed []float64, n int, rowStart
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -139,7 +139,7 @@ func BaseApplyPackedOutput_neon_Float16(packedOutput []hwy.Float16, output []hwy
 	lanes := 8
 	alphaVec := asm.BroadcastFloat16x8(uint16(alpha))
 	betaVec := asm.BroadcastFloat16x8(uint16(beta))
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -161,7 +161,7 @@ func BaseApplyPackedOutput_neon_BFloat16(packedOutput []hwy.BFloat16, output []h
 	lanes := 8
 	alphaVec := asm.BroadcastBFloat16x8(uint16(alpha))
 	betaVec := asm.BroadcastBFloat16x8(uint16(beta))
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -183,7 +183,7 @@ func BaseApplyPackedOutput_neon(packedOutput []float32, output []float32, alpha 
 	lanes := 4
 	alphaVec := asm.BroadcastFloat32x4(alpha)
 	betaVec := asm.BroadcastFloat32x4(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -205,7 +205,7 @@ func BaseApplyPackedOutput_neon_Float64(packedOutput []float64, output []float64
 	lanes := 2
 	alphaVec := asm.BroadcastFloat64x2(alpha)
 	betaVec := asm.BroadcastFloat64x2(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -225,7 +225,7 @@ func BaseApplyPackedOutput_neon_Float64(packedOutput []float64, output []float64
 
 func BaseApplyPackedOutputSimple_neon_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -241,7 +241,7 @@ func BaseApplyPackedOutputSimple_neon_Float16(packedOutput []hwy.Float16, output
 
 func BaseApplyPackedOutputSimple_neon_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -257,7 +257,7 @@ func BaseApplyPackedOutputSimple_neon_BFloat16(packedOutput []hwy.BFloat16, outp
 
 func BaseApplyPackedOutputSimple_neon(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 4
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -273,7 +273,7 @@ func BaseApplyPackedOutputSimple_neon(packedOutput []float32, output []float32, 
 
 func BaseApplyPackedOutputSimple_neon_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 2
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -289,7 +289,7 @@ func BaseApplyPackedOutputSimple_neon_Float64(packedOutput []float64, output []f
 
 func BaseApplyPackedOutputAccum_neon_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -307,7 +307,7 @@ func BaseApplyPackedOutputAccum_neon_Float16(packedOutput []hwy.Float16, output 
 
 func BaseApplyPackedOutputAccum_neon_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 8
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -325,7 +325,7 @@ func BaseApplyPackedOutputAccum_neon_BFloat16(packedOutput []hwy.BFloat16, outpu
 
 func BaseApplyPackedOutputAccum_neon(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 4
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -343,7 +343,7 @@ func BaseApplyPackedOutputAccum_neon(packedOutput []float32, output []float32, p
 
 func BaseApplyPackedOutputAccum_neon_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := 2
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0

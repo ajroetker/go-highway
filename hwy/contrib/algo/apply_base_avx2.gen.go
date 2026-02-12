@@ -18,13 +18,13 @@ func BaseApply_avx2_Float16(in []hwy.Float16, out []hwy.Float16, fn func(asm.Flo
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(out[i:]))), len(out[i:])))
+		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
 		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&in[i+8:][0]))
-		fn(x1).StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(out[i+8:]))), len(out[i+8:])))
+		fn(x1).StorePtr(unsafe.Pointer(&out[i+8:][0]))
 	}
 	for ; i+lanes <= n; i += lanes {
 		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(out[i:]))), len(out[i:])))
+		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := [8]hwy.Float16{}
@@ -41,13 +41,13 @@ func BaseApply_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(asm.
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(out[i:]))), len(out[i:])))
+		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
 		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&in[i+8:][0]))
-		fn(x1).StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(out[i+8:]))), len(out[i+8:])))
+		fn(x1).StorePtr(unsafe.Pointer(&out[i+8:][0]))
 	}
 	for ; i+lanes <= n; i += lanes {
 		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(out[i:]))), len(out[i:])))
+		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := [8]hwy.BFloat16{}

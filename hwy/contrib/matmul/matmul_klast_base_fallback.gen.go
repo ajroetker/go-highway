@@ -27,7 +27,7 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := hwy.Zero[hwy.Float16]()
 			acc1 := hwy.Zero[hwy.Float16]()
@@ -64,7 +64,7 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := hwy.Zero[hwy.Float16]()
 			var p int
@@ -103,7 +103,7 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := hwy.Zero[hwy.BFloat16]()
 			acc1 := hwy.Zero[hwy.BFloat16]()
@@ -140,7 +140,7 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := hwy.Zero[hwy.BFloat16]()
 			var p int
@@ -178,7 +178,7 @@ func BaseMatMulKLast_fallback(a []float32, b []float32, c []float32, m int, n in
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := float32(0)
 			acc1 := float32(0)
@@ -215,7 +215,7 @@ func BaseMatMulKLast_fallback(a []float32, b []float32, c []float32, m int, n in
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := float32(0)
 			var p int
@@ -253,7 +253,7 @@ func BaseMatMulKLast_fallback_Float64(a []float64, b []float64, c []float64, m i
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := float64(0)
 			acc1 := float64(0)
@@ -290,7 +290,7 @@ func BaseMatMulKLast_fallback_Float64(a []float64, b []float64, c []float64, m i
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := float64(0)
 			var p int

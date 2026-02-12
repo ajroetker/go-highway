@@ -20,7 +20,7 @@ func BaseLayerNorm_neon_Float16(input []hwy.Float16, output []hwy.Float16, normS
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := 8
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := asm.ZeroFloat16x8()
 		ii := 0
@@ -101,7 +101,7 @@ func BaseLayerNorm_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, no
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := 8
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := asm.ZeroBFloat16x8()
 		ii := 0
@@ -182,7 +182,7 @@ func BaseLayerNorm_neon(input []float32, output []float32, normSize int, gamma [
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := 4
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := asm.ZeroFloat32x4()
 		ii := 0
@@ -263,7 +263,7 @@ func BaseLayerNorm_neon_Float64(input []float64, output []float64, normSize int,
 	numGroups := size / normSize
 	invN := float64(1.0) / float64(normSize)
 	lanes := 2
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := asm.ZeroFloat64x2()
 		ii := 0

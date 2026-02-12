@@ -4415,7 +4415,7 @@ BB4_28:
 	BLT  BB4_28
 	B    BB4_5
 
-TEXT ·multitile_fmopa_at_f16_strided(SB), $528-72
+TEXT ·multitile_fmopa_at_f16_strided(SB), $544-72
 	MOVD at+0(FP), R0
 	MOVD b+8(FP), R1
 	MOVD c+16(FP), R2
@@ -4425,7 +4425,7 @@ TEXT ·multitile_fmopa_at_f16_strided(SB), $528-72
 	MOVD pldc+48(FP), R6
 	MOVD pcoff+56(FP), R7
 	MOVD scratch+64(FP), R8
-	MOVD R8, 0(RSP)
+	MOVD R8, 528(RSP)
 	WORD $0xf81c03f9        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
 	WORD $0xa91d5ff8        // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91e57f6        // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
@@ -7587,7 +7587,7 @@ BB6_28:
 	BLT  BB6_28
 	B    BB6_5
 
-TEXT ·multitile_bfmopa_at_bf16_strided(SB), $528-72
+TEXT ·multitile_bfmopa_at_bf16_strided(SB), $544-72
 	MOVD at+0(FP), R0
 	MOVD b+8(FP), R1
 	MOVD c+16(FP), R2
@@ -7597,7 +7597,7 @@ TEXT ·multitile_bfmopa_at_bf16_strided(SB), $528-72
 	MOVD pldc+48(FP), R6
 	MOVD pcoff+56(FP), R7
 	MOVD scratch+64(FP), R8
-	MOVD R8, 0(RSP)
+	MOVD R8, 528(RSP)
 	WORD $0xf81c03f9        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
 	WORD $0xa91d5ff8        // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91e57f6        // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]

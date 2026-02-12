@@ -27,7 +27,7 @@ func BasePackedMicroKernel_neon_Float16(packedA []hwy.Float16, packedB []hwy.Flo
 	acc31 := asm.ZeroFloat16x8()
 	aIdx := 0
 	bIdx := 0
-	for p := 0; p < kc; p++ {
+	for range kc {
 		a0 := packedA[aIdx]
 		a1 := packedA[aIdx+1]
 		a2 := packedA[aIdx+2]
@@ -95,7 +95,7 @@ func BasePackedMicroKernel_neon_BFloat16(packedA []hwy.BFloat16, packedB []hwy.B
 	acc31 := asm.ZeroBFloat16x8()
 	aIdx := 0
 	bIdx := 0
-	for p := 0; p < kc; p++ {
+	for range kc {
 		a0 := packedA[aIdx]
 		a1 := packedA[aIdx+1]
 		a2 := packedA[aIdx+2]
@@ -163,7 +163,7 @@ func BasePackedMicroKernel_neon(packedA []float32, packedB []float32, c []float3
 	acc31 := asm.ZeroFloat32x4()
 	aIdx := 0
 	bIdx := 0
-	for p := 0; p < kc; p++ {
+	for range kc {
 		a0 := packedA[aIdx]
 		a1 := packedA[aIdx+1]
 		a2 := packedA[aIdx+2]
@@ -231,7 +231,7 @@ func BasePackedMicroKernel_neon_Float64(packedA []float64, packedB []float64, c 
 	acc31 := asm.ZeroFloat64x2()
 	aIdx := 0
 	bIdx := 0
-	for p := 0; p < kc; p++ {
+	for range kc {
 		a0 := packedA[aIdx]
 		a1 := packedA[aIdx+1]
 		a2 := packedA[aIdx+2]
@@ -285,12 +285,12 @@ func BasePackedMicroKernel_neon_Float64(packedA []float64, packedB []float64, c 
 
 func basePackedMicroKernelGeneral_neon_Float16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n int, ir int, jr int, kc int, mr int, nr int) {
 	lanes := 8
-	for r := 0; r < mr; r++ {
+	for r := range mr {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= nr; col += lanes {
 			acc := asm.ZeroFloat16x8()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat16x8(uint16(aVal))
 				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
@@ -302,7 +302,7 @@ func basePackedMicroKernelGeneral_neon_Float16(packedA []hwy.Float16, packedB []
 		}
 		for ; col < nr; col++ {
 			var sum float32
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r].Float32() * packedB[p*nr+col].Float32()
 			}
 			c[cRowStart+jr+col] = hwy.Float32ToFloat16(c[cRowStart+jr+col].Float32() + sum)
@@ -312,12 +312,12 @@ func basePackedMicroKernelGeneral_neon_Float16(packedA []hwy.Float16, packedB []
 
 func basePackedMicroKernelGeneral_neon_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n int, ir int, jr int, kc int, mr int, nr int) {
 	lanes := 8
-	for r := 0; r < mr; r++ {
+	for r := range mr {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= nr; col += lanes {
 			acc := asm.ZeroBFloat16x8()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastBFloat16x8(uint16(aVal))
 				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
@@ -329,7 +329,7 @@ func basePackedMicroKernelGeneral_neon_BFloat16(packedA []hwy.BFloat16, packedB 
 		}
 		for ; col < nr; col++ {
 			var sum float32
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r].Float32() * packedB[p*nr+col].Float32()
 			}
 			c[cRowStart+jr+col] = hwy.Float32ToBFloat16(c[cRowStart+jr+col].Float32() + sum)
@@ -339,12 +339,12 @@ func basePackedMicroKernelGeneral_neon_BFloat16(packedA []hwy.BFloat16, packedB 
 
 func basePackedMicroKernelGeneral_neon(packedA []float32, packedB []float32, c []float32, n int, ir int, jr int, kc int, mr int, nr int) {
 	lanes := 4
-	for r := 0; r < mr; r++ {
+	for r := range mr {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= nr; col += lanes {
 			acc := asm.ZeroFloat32x4()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat32x4(aVal)
 				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[p*nr+col])))
@@ -356,7 +356,7 @@ func basePackedMicroKernelGeneral_neon(packedA []float32, packedB []float32, c [
 		}
 		for ; col < nr; col++ {
 			var sum float32
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r] * packedB[p*nr+col]
 			}
 			c[cRowStart+jr+col] += sum
@@ -366,12 +366,12 @@ func basePackedMicroKernelGeneral_neon(packedA []float32, packedB []float32, c [
 
 func basePackedMicroKernelGeneral_neon_Float64(packedA []float64, packedB []float64, c []float64, n int, ir int, jr int, kc int, mr int, nr int) {
 	lanes := 2
-	for r := 0; r < mr; r++ {
+	for r := range mr {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= nr; col += lanes {
 			acc := asm.ZeroFloat64x2()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat64x2(aVal)
 				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[p*nr+col])))
@@ -383,7 +383,7 @@ func basePackedMicroKernelGeneral_neon_Float64(packedA []float64, packedB []floa
 		}
 		for ; col < nr; col++ {
 			var sum float64
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r] * packedB[p*nr+col]
 			}
 			c[cRowStart+jr+col] += sum
@@ -393,12 +393,12 @@ func basePackedMicroKernelGeneral_neon_Float64(packedA []float64, packedB []floa
 
 func BasePackedMicroKernelPartial_neon_Float16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
 	lanes := 8
-	for r := 0; r < activeRows; r++ {
+	for r := range activeRows {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= activeCols; col += lanes {
 			acc := asm.ZeroFloat16x8()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat16x8(uint16(aVal))
 				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
@@ -410,7 +410,7 @@ func BasePackedMicroKernelPartial_neon_Float16(packedA []hwy.Float16, packedB []
 		}
 		for ; col < activeCols; col++ {
 			var sum float32
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r].Float32() * packedB[p*nr+col].Float32()
 			}
 			c[cRowStart+jr+col] = hwy.Float32ToFloat16(c[cRowStart+jr+col].Float32() + sum)
@@ -420,12 +420,12 @@ func BasePackedMicroKernelPartial_neon_Float16(packedA []hwy.Float16, packedB []
 
 func BasePackedMicroKernelPartial_neon_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
 	lanes := 8
-	for r := 0; r < activeRows; r++ {
+	for r := range activeRows {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= activeCols; col += lanes {
 			acc := asm.ZeroBFloat16x8()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastBFloat16x8(uint16(aVal))
 				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
@@ -437,7 +437,7 @@ func BasePackedMicroKernelPartial_neon_BFloat16(packedA []hwy.BFloat16, packedB 
 		}
 		for ; col < activeCols; col++ {
 			var sum float32
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r].Float32() * packedB[p*nr+col].Float32()
 			}
 			c[cRowStart+jr+col] = hwy.Float32ToBFloat16(c[cRowStart+jr+col].Float32() + sum)
@@ -447,12 +447,12 @@ func BasePackedMicroKernelPartial_neon_BFloat16(packedA []hwy.BFloat16, packedB 
 
 func BasePackedMicroKernelPartial_neon(packedA []float32, packedB []float32, c []float32, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
 	lanes := 4
-	for r := 0; r < activeRows; r++ {
+	for r := range activeRows {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= activeCols; col += lanes {
 			acc := asm.ZeroFloat32x4()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat32x4(aVal)
 				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&packedB[p*nr+col])))
@@ -464,7 +464,7 @@ func BasePackedMicroKernelPartial_neon(packedA []float32, packedB []float32, c [
 		}
 		for ; col < activeCols; col++ {
 			var sum float32
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r] * packedB[p*nr+col]
 			}
 			c[cRowStart+jr+col] += sum
@@ -474,12 +474,12 @@ func BasePackedMicroKernelPartial_neon(packedA []float32, packedB []float32, c [
 
 func BasePackedMicroKernelPartial_neon_Float64(packedA []float64, packedB []float64, c []float64, n int, ir int, jr int, kc int, mr int, nr int, activeRows int, activeCols int) {
 	lanes := 2
-	for r := 0; r < activeRows; r++ {
+	for r := range activeRows {
 		cRowStart := (ir + r) * n
 		var col int
 		for col = 0; col+lanes <= activeCols; col += lanes {
 			acc := asm.ZeroFloat64x2()
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat64x2(aVal)
 				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&packedB[p*nr+col])))
@@ -491,7 +491,7 @@ func BasePackedMicroKernelPartial_neon_Float64(packedA []float64, packedB []floa
 		}
 		for ; col < activeCols; col++ {
 			var sum float64
-			for p := 0; p < kc; p++ {
+			for p := range kc {
 				sum += packedA[p*mr+r] * packedB[p*nr+col]
 			}
 			c[cRowStart+jr+col] += sum

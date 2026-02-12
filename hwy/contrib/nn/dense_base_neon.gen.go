@@ -35,7 +35,7 @@ func BaseDense_neon_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy.Fl
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat16x8()
 			acc1 := asm.ZeroFloat16x8()
@@ -79,7 +79,7 @@ func BaseDense_neon_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy.Fl
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat16x8()
 			var p int
@@ -124,7 +124,7 @@ func BaseDense_neon_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []hwy
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroBFloat16x8()
 			acc1 := asm.ZeroBFloat16x8()
@@ -168,7 +168,7 @@ func BaseDense_neon_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []hwy
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := asm.ZeroBFloat16x8()
 			var p int
@@ -213,7 +213,7 @@ func BaseDense_neon(x []float32, weight []float32, bias []float32, output []floa
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat32x4()
 			acc1 := asm.ZeroFloat32x4()
@@ -257,7 +257,7 @@ func BaseDense_neon(x []float32, weight []float32, bias []float32, output []floa
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat32x4()
 			var p int
@@ -302,7 +302,7 @@ func BaseDense_neon_Float64(x []float64, weight []float64, bias []float64, outpu
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat64x2()
 			acc1 := asm.ZeroFloat64x2()
@@ -346,7 +346,7 @@ func BaseDense_neon_Float64(x []float64, weight []float64, bias []float64, outpu
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat64x2()
 			var p int

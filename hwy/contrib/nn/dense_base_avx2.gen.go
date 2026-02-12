@@ -36,7 +36,7 @@ func BaseDense_avx2_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy.Fl
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat16x8AVX2()
 			acc1 := asm.ZeroFloat16x8AVX2()
@@ -80,7 +80,7 @@ func BaseDense_avx2_Float16(x []hwy.Float16, weight []hwy.Float16, bias []hwy.Fl
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat16x8AVX2()
 			var p int
@@ -125,7 +125,7 @@ func BaseDense_avx2_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []hwy
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroBFloat16x8AVX2()
 			acc1 := asm.ZeroBFloat16x8AVX2()
@@ -169,7 +169,7 @@ func BaseDense_avx2_BFloat16(x []hwy.BFloat16, weight []hwy.BFloat16, bias []hwy
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := asm.ZeroBFloat16x8AVX2()
 			var p int
@@ -214,7 +214,7 @@ func BaseDense_avx2(x []float32, weight []float32, bias []float32, output []floa
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := archsimd.BroadcastFloat32x8(0)
 			acc1 := archsimd.BroadcastFloat32x8(0)
@@ -258,7 +258,7 @@ func BaseDense_avx2(x []float32, weight []float32, bias []float32, output []floa
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := archsimd.BroadcastFloat32x8(0)
 			var p int
@@ -303,7 +303,7 @@ func BaseDense_avx2_Float64(x []float64, weight []float64, bias []float64, outpu
 		oRow1 := (i + 1) * outFeatures
 		oRow2 := (i + 2) * outFeatures
 		oRow3 := (i + 3) * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc0 := archsimd.BroadcastFloat64x4(0)
 			acc1 := archsimd.BroadcastFloat64x4(0)
@@ -347,7 +347,7 @@ func BaseDense_avx2_Float64(x []float64, weight []float64, bias []float64, outpu
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
 		oRow := i * outFeatures
-		for j := 0; j < outFeatures; j++ {
+		for j := range outFeatures {
 			wRow := j * inFeatures
 			acc := archsimd.BroadcastFloat64x4(0)
 			var p int

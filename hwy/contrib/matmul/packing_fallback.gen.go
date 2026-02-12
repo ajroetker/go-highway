@@ -16,8 +16,8 @@ func BasePackLHS_fallback_Float16(a []hwy.Float16, packed []hwy.Float16, m int, 
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = hwy.Float32ToFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -25,8 +25,8 @@ func BasePackLHS_fallback_Float16(a []hwy.Float16, packed []hwy.Float16, m int, 
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = hwy.Float32ToFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -49,8 +49,8 @@ func BasePackLHS_fallback_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m in
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = hwy.Float32ToBFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -58,8 +58,8 @@ func BasePackLHS_fallback_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m in
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = hwy.Float32ToBFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -82,8 +82,8 @@ func BasePackLHS_fallback(a []float32, packed []float32, m int, k int, rowStart 
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -91,8 +91,8 @@ func BasePackLHS_fallback(a []float32, packed []float32, m int, k int, rowStart 
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -115,8 +115,8 @@ func BasePackLHS_fallback_Float64(a []float64, packed []float64, m int, k int, r
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -124,8 +124,8 @@ func BasePackLHS_fallback_Float64(a []float64, packed []float64, m int, k int, r
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -148,9 +148,9 @@ func BasePackRHS_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k int, 
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -158,9 +158,9 @@ func BasePackRHS_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k int, 
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -183,9 +183,9 @@ func BasePackRHS_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k in
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -193,9 +193,9 @@ func BasePackRHS_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k in
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -218,9 +218,9 @@ func BasePackRHS_fallback(b []float32, packed []float32, k int, n int, rowStart 
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -228,9 +228,9 @@ func BasePackRHS_fallback(b []float32, packed []float32, k int, n int, rowStart 
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -253,9 +253,9 @@ func BasePackRHS_fallback_Float64(b []float64, packed []float64, k int, n int, r
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -263,9 +263,9 @@ func BasePackRHS_fallback_Float64(b []float64, packed []float64, k int, n int, r
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -306,7 +306,7 @@ func BasePackRHSVec_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k in
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
 					v := hwy.Load(b[bRowStart+baseCol+c:])
@@ -317,9 +317,9 @@ func BasePackRHSVec_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k in
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
 					packIdx++
 				}
@@ -346,7 +346,7 @@ func BasePackRHSVec_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
 					v := hwy.Load(b[bRowStart+baseCol+c:])
@@ -357,9 +357,9 @@ func BasePackRHSVec_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
 					packIdx++
 				}
@@ -385,7 +385,7 @@ func BasePackRHSVec_fallback(b []float32, packed []float32, k int, n int, rowSta
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c++ {
 					v := b[bRowStart+baseCol+c]
@@ -396,9 +396,9 @@ func BasePackRHSVec_fallback(b []float32, packed []float32, k int, n int, rowSta
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = b[bRowStart+baseCol+c]
 					packIdx++
 				}
@@ -424,7 +424,7 @@ func BasePackRHSVec_fallback_Float64(b []float64, packed []float64, k int, n int
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c++ {
 					v := b[bRowStart+baseCol+c]
@@ -435,9 +435,9 @@ func BasePackRHSVec_fallback_Float64(b []float64, packed []float64, k int, n int
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = b[bRowStart+baseCol+c]
 					packIdx++
 				}

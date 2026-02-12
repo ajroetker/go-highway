@@ -34,7 +34,7 @@ func BasePackedMatMul_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.F
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(c[idx_1:]))), len(c[idx_1:])))
+			vZero_1.StorePtr(unsafe.Pointer(&c[idx_1:][0]))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToFloat16(0)
@@ -58,14 +58,14 @@ func BasePackedMatMul_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.F
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -107,7 +107,7 @@ func BasePackedMatMul_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hw
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(c[idx_1:]))), len(c[idx_1:])))
+			vZero_1.StorePtr(unsafe.Pointer(&c[idx_1:][0]))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToBFloat16(0)
@@ -131,14 +131,14 @@ func BasePackedMatMul_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hw
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -204,14 +204,14 @@ func BasePackedMatMul_avx512(a []float32, b []float32, c []float32, m int, n int
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -277,14 +277,14 @@ func BasePackedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m in
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -321,7 +321,7 @@ func BasePackedMatMulWithBuffers_avx512_Float16(a []hwy.Float16, b []hwy.Float16
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(c[idx_1:]))), len(c[idx_1:])))
+			vZero_1.StorePtr(unsafe.Pointer(&c[idx_1:][0]))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToFloat16(0)
@@ -345,14 +345,14 @@ func BasePackedMatMulWithBuffers_avx512_Float16(a []hwy.Float16, b []hwy.Float16
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -389,7 +389,7 @@ func BasePackedMatMulWithBuffers_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloa
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(c[idx_1:]))), len(c[idx_1:])))
+			vZero_1.StorePtr(unsafe.Pointer(&c[idx_1:][0]))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = hwy.Float32ToBFloat16(0)
@@ -413,14 +413,14 @@ func BasePackedMatMulWithBuffers_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloa
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -481,14 +481,14 @@ func BasePackedMatMulWithBuffers_avx512(a []float32, b []float32, c []float32, m
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -549,14 +549,14 @@ func BasePackedMatMulWithBuffers_avx512_Float64(a []float64, b []float64, c []fl
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -585,7 +585,7 @@ func BasePackedMatMulStrip_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(c[rowStart*n : rowEnd*n][idx_1:]))), len(c[rowStart*n : rowEnd*n][idx_1:])))
+			vZero_1.StorePtr(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1:][0]))
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0
@@ -609,14 +609,14 @@ func BasePackedMatMulStrip_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -645,7 +645,7 @@ func BasePackedMatMulStrip_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			vZero_1.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(c[rowStart*n : rowEnd*n][idx_1:]))), len(c[rowStart*n : rowEnd*n][idx_1:])))
+			vZero_1.StorePtr(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1:][0]))
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0
@@ -669,14 +669,14 @@ func BasePackedMatMulStrip_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -729,14 +729,14 @@ func BasePackedMatMulStrip_avx512(a []float32, b []float32, c []float32, m int, 
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -789,14 +789,14 @@ func BasePackedMatMulStrip_avx512_Float64(a []float64, b []float64, c []float64,
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr

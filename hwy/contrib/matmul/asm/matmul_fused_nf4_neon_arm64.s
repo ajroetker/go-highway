@@ -6,7 +6,7 @@
 // flags: -O3
 // source: ../c/matmul_fused_nf4_neon_arm64.c
 
-TEXT ·fused_nf4_matmul_neon(SB), $80-72
+TEXT ·fused_nf4_matmul_neon(SB), $96-72
 	MOVD input+0(FP), R0
 	MOVD packed+8(FP), R1
 	MOVD scales+16(FP), R2
@@ -16,7 +16,7 @@ TEXT ·fused_nf4_matmul_neon(SB), $80-72
 	MOVD pN+48(FP), R6
 	MOVD pGroupSize+56(FP), R7
 	MOVD pNumGroups+64(FP), R8
-	MOVD R8, 0(RSP)
+	MOVD R8, 80(RSP)
 	WORD $0xf9400088           // ldr	x8, [x4]
 	WORD $0xf100051f           // cmp	x8, #1
 	BLT  BB0_14
@@ -132,7 +132,7 @@ BB0_13:
 BB0_14:
 	RET
 
-TEXT ·fused_int4_matmul_neon(SB), $64-72
+TEXT ·fused_int4_matmul_neon(SB), $80-72
 	MOVD input+0(FP), R0
 	MOVD packed+8(FP), R1
 	MOVD scales+16(FP), R2
@@ -142,7 +142,7 @@ TEXT ·fused_int4_matmul_neon(SB), $64-72
 	MOVD pN+48(FP), R6
 	MOVD pGroupSize+56(FP), R7
 	MOVD pNumGroups+64(FP), R8
-	MOVD R8, 0(RSP)
+	MOVD R8, 64(RSP)
 	WORD $0xf9400088           // ldr	x8, [x4]
 	WORD $0xf100051f           // cmp	x8, #1
 	BLT  BB1_14

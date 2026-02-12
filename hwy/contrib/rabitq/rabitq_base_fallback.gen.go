@@ -12,47 +12,33 @@ func BaseBitProduct_fallback(code []uint64, q1 []uint64, q2 []uint64, q3 []uint6
 	if len(code) == 0 {
 		return 0
 	}
-	var sum1_0, sum1_1, sum2_0, sum2_1 uint64
-	var sum4_0, sum4_1, sum8_0, sum8_1 uint64
+	var sum1, sum2, sum4, sum8 uint64
 	lanes := hwy.Zero[uint64]().NumLanes()
 	n := len(code)
-	stride := lanes * 2
+	stride := lanes * 4
 	var i int
 	for i = 0; i+stride <= n; i += stride {
-		codeVec0 := hwy.LoadSlice(code[i:])
-		q1Vec0 := hwy.LoadSlice(q1[i:])
-		q2Vec0 := hwy.LoadSlice(q2[i:])
-		q3Vec0 := hwy.LoadSlice(q3[i:])
-		q4Vec0 := hwy.LoadSlice(q4[i:])
-		codeVec1 := hwy.LoadSlice(code[i+lanes:])
-		q1Vec1 := hwy.LoadSlice(q1[i+lanes:])
-		q2Vec1 := hwy.LoadSlice(q2[i+lanes:])
-		q3Vec1 := hwy.LoadSlice(q3[i+lanes:])
-		q4Vec1 := hwy.LoadSlice(q4[i+lanes:])
-		and1_0 := hwy.And(codeVec0, q1Vec0)
-		and1_1 := hwy.And(codeVec1, q1Vec1)
-		pop1_0 := hwy.PopCount(and1_0)
-		pop1_1 := hwy.PopCount(and1_1)
-		sum1_0 += uint64(hwy.ReduceSum(pop1_0))
-		sum1_1 += uint64(hwy.ReduceSum(pop1_1))
-		and2_0 := hwy.And(codeVec0, q2Vec0)
-		and2_1 := hwy.And(codeVec1, q2Vec1)
-		pop2_0 := hwy.PopCount(and2_0)
-		pop2_1 := hwy.PopCount(and2_1)
-		sum2_0 += uint64(hwy.ReduceSum(pop2_0))
-		sum2_1 += uint64(hwy.ReduceSum(pop2_1))
-		and4_0 := hwy.And(codeVec0, q3Vec0)
-		and4_1 := hwy.And(codeVec1, q3Vec1)
-		pop4_0 := hwy.PopCount(and4_0)
-		pop4_1 := hwy.PopCount(and4_1)
-		sum4_0 += uint64(hwy.ReduceSum(pop4_0))
-		sum4_1 += uint64(hwy.ReduceSum(pop4_1))
-		and8_0 := hwy.And(codeVec0, q4Vec0)
-		and8_1 := hwy.And(codeVec1, q4Vec1)
-		pop8_0 := hwy.PopCount(and8_0)
-		pop8_1 := hwy.PopCount(and8_1)
-		sum8_0 += uint64(hwy.ReduceSum(pop8_0))
-		sum8_1 += uint64(hwy.ReduceSum(pop8_1))
+		codeVec0, codeVec1, codeVec2, codeVec3 := hwy.Load4(code[i:])
+		q1Vec0, q1Vec1, q1Vec2, q1Vec3 := hwy.Load4(q1[i:])
+		q2Vec0, q2Vec1, q2Vec2, q2Vec3 := hwy.Load4(q2[i:])
+		q3Vec0, q3Vec1, q3Vec2, q3Vec3 := hwy.Load4(q3[i:])
+		q4Vec0, q4Vec1, q4Vec2, q4Vec3 := hwy.Load4(q4[i:])
+		sum1 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec0, q1Vec0))))
+		sum1 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec1, q1Vec1))))
+		sum1 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec2, q1Vec2))))
+		sum1 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec3, q1Vec3))))
+		sum2 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec0, q2Vec0))))
+		sum2 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec1, q2Vec1))))
+		sum2 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec2, q2Vec2))))
+		sum2 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec3, q2Vec3))))
+		sum4 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec0, q3Vec0))))
+		sum4 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec1, q3Vec1))))
+		sum4 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec2, q3Vec2))))
+		sum4 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec3, q3Vec3))))
+		sum8 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec0, q4Vec0))))
+		sum8 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec1, q4Vec1))))
+		sum8 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec2, q4Vec2))))
+		sum8 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec3, q4Vec3))))
 	}
 	for i+lanes <= n {
 		codeVec := hwy.LoadSlice(code[i:])
@@ -60,20 +46,12 @@ func BaseBitProduct_fallback(code []uint64, q1 []uint64, q2 []uint64, q3 []uint6
 		q2Vec := hwy.LoadSlice(q2[i:])
 		q3Vec := hwy.LoadSlice(q3[i:])
 		q4Vec := hwy.LoadSlice(q4[i:])
-		pop1 := hwy.PopCount(hwy.And(codeVec, q1Vec))
-		pop2 := hwy.PopCount(hwy.And(codeVec, q2Vec))
-		pop4 := hwy.PopCount(hwy.And(codeVec, q3Vec))
-		pop8 := hwy.PopCount(hwy.And(codeVec, q4Vec))
-		sum1_0 += uint64(hwy.ReduceSum(pop1))
-		sum2_0 += uint64(hwy.ReduceSum(pop2))
-		sum4_0 += uint64(hwy.ReduceSum(pop4))
-		sum8_0 += uint64(hwy.ReduceSum(pop8))
+		sum1 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec, q1Vec))))
+		sum2 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec, q2Vec))))
+		sum4 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec, q3Vec))))
+		sum8 += uint64(hwy.ReduceSum(hwy.PopCount(hwy.And(codeVec, q4Vec))))
 		i += lanes
 	}
-	sum1 := sum1_0 + sum1_1
-	sum2 := sum2_0 + sum2_1
-	sum4 := sum4_0 + sum4_1
-	sum8 := sum8_0 + sum8_1
 	for ; i < n; i++ {
 		sum1 += uint64(bits.OnesCount64(code[i] & q1[i]))
 		sum2 += uint64(bits.OnesCount64(code[i] & q2[i]))

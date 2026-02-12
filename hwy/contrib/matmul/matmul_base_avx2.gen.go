@@ -28,7 +28,7 @@ func BaseMatMul_avx2_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 		lanes := 8
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			vZero.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(cRow[j:]))), len(cRow[j:])))
+			vZero.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 		}
 		for ; j < n; j++ {
 			cRow[j] = hwy.Float32ToFloat16(0)
@@ -41,7 +41,7 @@ func BaseMatMul_avx2_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 				vB := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j:][0]))
 				vC := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&cRow[j:][0]))
 				vC = vA.MulAdd(vB, vC)
-				vC.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(cRow[j:]))), len(cRow[j:])))
+				vC.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 			}
 			for ; j < n; j++ {
 				cRow[j] = hwy.Float32ToFloat16(cRow[j].Float32() + aip.Float32()*bRow[j].Float32())
@@ -66,7 +66,7 @@ func BaseMatMul_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 		lanes := 8
 		var j int
 		for j = 0; j+lanes <= n; j += lanes {
-			vZero.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(cRow[j:]))), len(cRow[j:])))
+			vZero.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 		}
 		for ; j < n; j++ {
 			cRow[j] = hwy.Float32ToBFloat16(0)
@@ -79,7 +79,7 @@ func BaseMatMul_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 				vB := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j:][0]))
 				vC := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&cRow[j:][0]))
 				vC = vA.MulAdd(vB, vC)
-				vC.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(cRow[j:]))), len(cRow[j:])))
+				vC.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 			}
 			for ; j < n; j++ {
 				cRow[j] = hwy.Float32ToBFloat16(cRow[j].Float32() + aip.Float32()*bRow[j].Float32())

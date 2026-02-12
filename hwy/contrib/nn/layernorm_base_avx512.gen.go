@@ -21,7 +21,7 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := 16
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := asm.ZeroFloat16x16AVX512()
 		ii := 0
@@ -59,7 +59,7 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 				g := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
 				b := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&beta[ii:][0]))
 				result := normed.MulAdd(g, b)
-				result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[off+ii:]))), len(output[off+ii:])))
+				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i].Float32() - mean) * invStd
@@ -73,7 +73,7 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 				normed := diff.Mul(vInvStd)
 				g := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
 				result := normed.Mul(g)
-				result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[off+ii:]))), len(output[off+ii:])))
+				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i].Float32() - mean) * invStd
@@ -85,7 +85,7 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
 				diff := x.Sub(vMean)
 				result := diff.Mul(vInvStd)
-				result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[off+ii:]))), len(output[off+ii:])))
+				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
 				output[off+i] = hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd)
@@ -102,7 +102,7 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := 16
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := asm.ZeroBFloat16x16AVX512()
 		ii := 0
@@ -140,7 +140,7 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 				g := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
 				b := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&beta[ii:][0]))
 				result := normed.MulAdd(g, b)
-				result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[off+ii:]))), len(output[off+ii:])))
+				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i].Float32() - mean) * invStd
@@ -154,7 +154,7 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 				normed := diff.Mul(vInvStd)
 				g := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
 				result := normed.Mul(g)
-				result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[off+ii:]))), len(output[off+ii:])))
+				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i].Float32() - mean) * invStd
@@ -166,7 +166,7 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
 				diff := x.Sub(vMean)
 				result := diff.Mul(vInvStd)
-				result.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[off+ii:]))), len(output[off+ii:])))
+				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
 			}
 			for i := ii; i < normSize; i++ {
 				output[off+i] = hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd)
@@ -183,7 +183,7 @@ func BaseLayerNorm_avx512(input []float32, output []float32, normSize int, gamma
 	numGroups := size / normSize
 	invN := float32(1.0) / float32(normSize)
 	lanes := 16
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := archsimd.BroadcastFloat32x16(0)
 		ii := 0
@@ -264,7 +264,7 @@ func BaseLayerNorm_avx512_Float64(input []float64, output []float64, normSize in
 	numGroups := size / normSize
 	invN := float64(1.0) / float64(normSize)
 	lanes := 8
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		off := g * normSize
 		sumAcc := archsimd.BroadcastFloat64x8(0)
 		ii := 0

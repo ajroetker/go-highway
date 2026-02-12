@@ -110,14 +110,14 @@ func BasePackedMicroKernel4x2_avx512_Float16(packedA []hwy.Float16, packedB []hw
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx0:]))), len(output[outIdx0:])))
-	acc01.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx0+lanes:]))), len(output[outIdx0+lanes:])))
-	acc10.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx1:]))), len(output[outIdx1:])))
-	acc11.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx1+lanes:]))), len(output[outIdx1+lanes:])))
-	acc20.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx2:]))), len(output[outIdx2:])))
-	acc21.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx2+lanes:]))), len(output[outIdx2+lanes:])))
-	acc30.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx3:]))), len(output[outIdx3:])))
-	acc31.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx3+lanes:]))), len(output[outIdx3+lanes:])))
+	acc00.StorePtr(unsafe.Pointer(&output[outIdx0:][0]))
+	acc01.StorePtr(unsafe.Pointer(&output[outIdx0+lanes:][0]))
+	acc10.StorePtr(unsafe.Pointer(&output[outIdx1:][0]))
+	acc11.StorePtr(unsafe.Pointer(&output[outIdx1+lanes:][0]))
+	acc20.StorePtr(unsafe.Pointer(&output[outIdx2:][0]))
+	acc21.StorePtr(unsafe.Pointer(&output[outIdx2+lanes:][0]))
+	acc30.StorePtr(unsafe.Pointer(&output[outIdx3:][0]))
+	acc31.StorePtr(unsafe.Pointer(&output[outIdx3+lanes:][0]))
 }
 
 func BasePackedMicroKernel4x2_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, output []hwy.BFloat16, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
@@ -218,14 +218,14 @@ func BasePackedMicroKernel4x2_avx512_BFloat16(packedA []hwy.BFloat16, packedB []
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx0:]))), len(output[outIdx0:])))
-	acc01.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx0+lanes:]))), len(output[outIdx0+lanes:])))
-	acc10.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx1:]))), len(output[outIdx1:])))
-	acc11.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx1+lanes:]))), len(output[outIdx1+lanes:])))
-	acc20.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx2:]))), len(output[outIdx2:])))
-	acc21.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx2+lanes:]))), len(output[outIdx2+lanes:])))
-	acc30.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx3:]))), len(output[outIdx3:])))
-	acc31.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(output[outIdx3+lanes:]))), len(output[outIdx3+lanes:])))
+	acc00.StorePtr(unsafe.Pointer(&output[outIdx0:][0]))
+	acc01.StorePtr(unsafe.Pointer(&output[outIdx0+lanes:][0]))
+	acc10.StorePtr(unsafe.Pointer(&output[outIdx1:][0]))
+	acc11.StorePtr(unsafe.Pointer(&output[outIdx1+lanes:][0]))
+	acc20.StorePtr(unsafe.Pointer(&output[outIdx2:][0]))
+	acc21.StorePtr(unsafe.Pointer(&output[outIdx2+lanes:][0]))
+	acc30.StorePtr(unsafe.Pointer(&output[outIdx3:][0]))
+	acc31.StorePtr(unsafe.Pointer(&output[outIdx3+lanes:][0]))
 }
 
 func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, output []float32, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
@@ -449,7 +449,7 @@ func BaseZeroSlice_avx512_Float16(s []hwy.Float16, n int) {
 	lanes := 16
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(s[idx:]))), len(s[idx:])))
+		vZero.StorePtr(unsafe.Pointer(&s[idx:][0]))
 	}
 	for ; idx < n; idx++ {
 		s[idx] = hwy.Float32ToFloat16(0)
@@ -461,7 +461,7 @@ func BaseZeroSlice_avx512_BFloat16(s []hwy.BFloat16, n int) {
 	lanes := 16
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(s[idx:]))), len(s[idx:])))
+		vZero.StorePtr(unsafe.Pointer(&s[idx:][0]))
 	}
 	for ; idx < n; idx++ {
 		s[idx] = hwy.Float32ToBFloat16(0)

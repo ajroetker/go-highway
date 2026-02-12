@@ -8,17 +8,17 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 		var n int
 		for n = 0; n < N; n++ {
 			acc := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				inputVal := float32(inputRow[k])
 				baseIdx := k * N
 				scaleBase := k * numGroups
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -40,7 +40,7 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 		for ; n < N; n++ {
 			groupIdx := n / groupSize
 			sum := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				weightIdx := k*N + n
 				packedIdx := weightIdx / 2
 				var quantIdx int
@@ -64,17 +64,17 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 		var n int
 		for n = 0; n < N; n++ {
 			acc := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				inputVal := float32(inputRow[k])
 				baseIdx := k * N
 				scaleBase := k * numGroups
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -96,7 +96,7 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 		for ; n < N; n++ {
 			groupIdx := n / groupSize
 			sum := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				weightIdx := k*N + n
 				packedIdx := weightIdx / 2
 				var unsignedVal int

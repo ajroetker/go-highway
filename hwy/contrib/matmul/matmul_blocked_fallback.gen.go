@@ -44,7 +44,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 					acc21 := hwy.Zero[hwy.Float16]()
 					acc30 := hwy.Zero[hwy.Float16]()
 					acc31 := hwy.Zero[hwy.Float16]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -85,7 +85,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 						acc1 := hwy.Zero[hwy.Float16]()
 						acc2 := hwy.Zero[hwy.Float16]()
 						acc3 := hwy.Zero[hwy.Float16]()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := hwy.Set(a[i*k+p])
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
@@ -103,7 +103,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p].Float32() * bpj.Float32()
 								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
@@ -126,7 +126,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := hwy.Zero[hwy.Float16]()
 					acc1 := hwy.Zero[hwy.Float16]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
 						vB := hwy.Load(b[p*n+j:])
@@ -138,7 +138,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p].Float32() * bp.Float32()
 						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
@@ -153,7 +153,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := hwy.Zero[hwy.Float16]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := hwy.Set(a[i*k+p])
 						vB := hwy.Load(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
@@ -162,7 +162,7 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 					}
 					c[cRowStart+j] = hwy.Float32ToFloat16(sum)
@@ -210,7 +210,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 					acc21 := hwy.Zero[hwy.BFloat16]()
 					acc30 := hwy.Zero[hwy.BFloat16]()
 					acc31 := hwy.Zero[hwy.BFloat16]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -251,7 +251,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 						acc1 := hwy.Zero[hwy.BFloat16]()
 						acc2 := hwy.Zero[hwy.BFloat16]()
 						acc3 := hwy.Zero[hwy.BFloat16]()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := hwy.Set(a[i*k+p])
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
@@ -269,7 +269,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p].Float32() * bpj.Float32()
 								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
@@ -292,7 +292,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := hwy.Zero[hwy.BFloat16]()
 					acc1 := hwy.Zero[hwy.BFloat16]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
 						vB := hwy.Load(b[p*n+j:])
@@ -304,7 +304,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p].Float32() * bp.Float32()
 						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
@@ -319,7 +319,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := hwy.Zero[hwy.BFloat16]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := hwy.Set(a[i*k+p])
 						vB := hwy.Load(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
@@ -328,7 +328,7 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
 					}
 					c[cRowStart+j] = hwy.Float32ToBFloat16(sum)
@@ -376,7 +376,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 					acc21 := hwy.Zero[float32]()
 					acc30 := hwy.Zero[float32]()
 					acc31 := hwy.Zero[float32]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -417,7 +417,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 						acc1 := hwy.Zero[float32]()
 						acc2 := hwy.Zero[float32]()
 						acc3 := hwy.Zero[float32]()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := hwy.Set(a[i*k+p])
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
@@ -435,7 +435,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p] * bpj
 								sum1 += a[(i+1)*k+p] * bpj
@@ -458,7 +458,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := hwy.Zero[float32]()
 					acc1 := hwy.Zero[float32]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
 						vB := hwy.Load(b[p*n+j:])
@@ -470,7 +470,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p] * bp
 						sum1 += a[(i+1)*k+p] * bp
@@ -485,7 +485,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := hwy.Zero[float32]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := hwy.Set(a[i*k+p])
 						vB := hwy.Load(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
@@ -494,7 +494,7 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p] * b[p*n+j]
 					}
 					c[cRowStart+j] = sum
@@ -542,7 +542,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 					acc21 := hwy.Zero[float64]()
 					acc30 := hwy.Zero[float64]()
 					acc31 := hwy.Zero[float64]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						a0p := a[i*k+p]
 						a1p := a[(i+1)*k+p]
 						a2p := a[(i+2)*k+p]
@@ -583,7 +583,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 						acc1 := hwy.Zero[float64]()
 						acc2 := hwy.Zero[float64]()
 						acc3 := hwy.Zero[float64]()
-						for p := 0; p < k; p++ {
+						for p := range k {
 							vA0 := hwy.Set(a[i*k+p])
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
@@ -601,7 +601,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float64
-							for p := 0; p < k; p++ {
+							for p := range k {
 								bpj := b[p*n+jj]
 								sum0 += a[i*k+p] * bpj
 								sum1 += a[(i+1)*k+p] * bpj
@@ -624,7 +624,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := hwy.Zero[float64]()
 					acc1 := hwy.Zero[float64]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
 						vB := hwy.Load(b[p*n+j:])
@@ -636,7 +636,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float64
-					for p := 0; p < k; p++ {
+					for p := range k {
 						bp := b[p*n+j]
 						sum0 += a[i*k+p] * bp
 						sum1 += a[(i+1)*k+p] * bp
@@ -651,7 +651,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc := hwy.Zero[float64]()
-					for p := 0; p < k; p++ {
+					for p := range k {
 						vA := hwy.Set(a[i*k+p])
 						vB := hwy.Load(b[p*n+j:])
 						acc = hwy.MulAdd(vA, vB, acc)
@@ -660,7 +660,7 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 				}
 				for ; j < jEnd; j++ {
 					var sum float64
-					for p := 0; p < k; p++ {
+					for p := range k {
 						sum += a[i*k+p] * b[p*n+j]
 					}
 					c[cRowStart+j] = sum

@@ -4,7 +4,7 @@
 // 	clang   21.1.8
 // 	objdump 2.45.1
 // flags: --target=arm64 -march=armv8-a+simd+fp -fno-builtin-memset -O3
-// source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/baseinverseict_c_f32_neon_arm64.c
+// source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway2/hwy/contrib/image/asm/baseinverseict_c_f32_neon_arm64.c
 
 package asm
 

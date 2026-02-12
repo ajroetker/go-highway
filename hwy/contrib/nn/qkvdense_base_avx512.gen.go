@@ -36,7 +36,7 @@ func BaseQKVDense_avx512_Float16(x []hwy.Float16, wQKV []hwy.Float16, biasQ []hw
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroFloat16x16AVX512()
 			acc1 := asm.ZeroFloat16x16AVX512()
@@ -107,7 +107,7 @@ func BaseQKVDense_avx512_Float16(x []hwy.Float16, wQKV []hwy.Float16, biasQ []hw
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := asm.ZeroFloat16x16AVX512()
 			var p int
@@ -166,7 +166,7 @@ func BaseQKVDense_avx512_BFloat16(x []hwy.BFloat16, wQKV []hwy.BFloat16, biasQ [
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := asm.ZeroBFloat16x16AVX512()
 			acc1 := asm.ZeroBFloat16x16AVX512()
@@ -237,7 +237,7 @@ func BaseQKVDense_avx512_BFloat16(x []hwy.BFloat16, wQKV []hwy.BFloat16, biasQ [
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := asm.ZeroBFloat16x16AVX512()
 			var p int
@@ -296,7 +296,7 @@ func BaseQKVDense_avx512(x []float32, wQKV []float32, biasQ []float32, biasK []f
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := archsimd.BroadcastFloat32x16(0)
 			acc1 := archsimd.BroadcastFloat32x16(0)
@@ -367,7 +367,7 @@ func BaseQKVDense_avx512(x []float32, wQKV []float32, biasQ []float32, biasK []f
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := archsimd.BroadcastFloat32x16(0)
 			var p int
@@ -426,7 +426,7 @@ func BaseQKVDense_avx512_Float64(x []float64, wQKV []float64, biasQ []float64, b
 		xRow1 := (i + 1) * inFeatures
 		xRow2 := (i + 2) * inFeatures
 		xRow3 := (i + 3) * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc0 := archsimd.BroadcastFloat64x8(0)
 			acc1 := archsimd.BroadcastFloat64x8(0)
@@ -497,7 +497,7 @@ func BaseQKVDense_avx512_Float64(x []float64, wQKV []float64, biasQ []float64, b
 	}
 	for ; i < batchSize; i++ {
 		xRow := i * inFeatures
-		for j := 0; j < totalOut; j++ {
+		for j := range totalOut {
 			wRow := j * inFeatures
 			acc := archsimd.BroadcastFloat64x8(0)
 			var p int

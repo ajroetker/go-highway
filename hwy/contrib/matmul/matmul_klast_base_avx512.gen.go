@@ -33,7 +33,7 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := asm.ZeroFloat16x16AVX512()
 			acc1 := asm.ZeroFloat16x16AVX512()
@@ -70,7 +70,7 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := asm.ZeroFloat16x16AVX512()
 			var p int
@@ -109,7 +109,7 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := asm.ZeroBFloat16x16AVX512()
 			acc1 := asm.ZeroBFloat16x16AVX512()
@@ -146,7 +146,7 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := asm.ZeroBFloat16x16AVX512()
 			var p int
@@ -185,7 +185,7 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := archsimd.BroadcastFloat32x16(0)
 			acc1 := archsimd.BroadcastFloat32x16(0)
@@ -222,7 +222,7 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := archsimd.BroadcastFloat32x16(0)
 			var p int
@@ -261,7 +261,7 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := archsimd.BroadcastFloat64x8(0)
 			acc1 := archsimd.BroadcastFloat64x8(0)
@@ -298,7 +298,7 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := archsimd.BroadcastFloat64x8(0)
 			var p int

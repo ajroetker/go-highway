@@ -22,8 +22,8 @@ func BasePackLHS_avx2_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k in
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = hwy.Float32ToFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -31,8 +31,8 @@ func BasePackLHS_avx2_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k in
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = hwy.Float32ToFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -55,8 +55,8 @@ func BasePackLHS_avx2_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = hwy.Float32ToBFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -64,8 +64,8 @@ func BasePackLHS_avx2_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = hwy.Float32ToBFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
@@ -88,8 +88,8 @@ func BasePackLHS_avx2(a []float32, packed []float32, m int, k int, rowStart int,
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -97,8 +97,8 @@ func BasePackLHS_avx2(a []float32, packed []float32, m int, k int, rowStart int,
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -121,8 +121,8 @@ func BasePackLHS_avx2_Float64(a []float64, packed []float64, m int, k int, rowSt
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseRow := rowStart + panel*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < mr; r++ {
+		for kk := range panelK {
+			for r := range mr {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -130,8 +130,8 @@ func BasePackLHS_avx2_Float64(a []float64, packed []float64, m int, k int, rowSt
 	}
 	if activeRowsLast < mr && activeRowsLast > 0 {
 		baseRow := rowStart + fullPanels*mr
-		for kk := 0; kk < panelK; kk++ {
-			for r := 0; r < activeRowsLast; r++ {
+		for kk := range panelK {
+			for r := range activeRowsLast {
 				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
 				packIdx++
 			}
@@ -154,9 +154,9 @@ func BasePackRHS_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n in
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -164,9 +164,9 @@ func BasePackRHS_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n in
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -189,9 +189,9 @@ func BasePackRHS_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -199,9 +199,9 @@ func BasePackRHS_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
 				packIdx++
 			}
@@ -224,9 +224,9 @@ func BasePackRHS_avx2(b []float32, packed []float32, k int, n int, rowStart int,
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -234,9 +234,9 @@ func BasePackRHS_avx2(b []float32, packed []float32, k int, n int, rowStart int,
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -259,9 +259,9 @@ func BasePackRHS_avx2_Float64(b []float64, packed []float64, k int, n int, rowSt
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
 		baseCol := colStart + panel*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < nr; c++ {
+			for c := range nr {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -269,9 +269,9 @@ func BasePackRHS_avx2_Float64(b []float64, packed []float64, k int, n int, rowSt
 	}
 	if activeColsLast < nr && activeColsLast > 0 {
 		baseCol := colStart + fullPanels*nr
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			bRowStart := (rowStart + kk) * n
-			for c := 0; c < activeColsLast; c++ {
+			for c := range activeColsLast {
 				packed[packIdx] = b[bRowStart+baseCol+c]
 				packIdx++
 			}
@@ -312,20 +312,20 @@ func BasePackRHSVec_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c:][0]))
-					v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(packed[packIdx+c:]))), len(packed[packIdx+c:])))
+					v.StorePtr(unsafe.Pointer(&packed[packIdx+c:][0]))
 				}
 				packIdx += nr
 			}
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
 					packIdx++
 				}
@@ -352,20 +352,20 @@ func BasePackRHSVec_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
 					v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c:][0]))
-					v.StoreSlice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(packed[packIdx+c:]))), len(packed[packIdx+c:])))
+					v.StorePtr(unsafe.Pointer(&packed[packIdx+c:][0]))
 				}
 				packIdx += nr
 			}
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
 					packIdx++
 				}
@@ -392,7 +392,7 @@ func BasePackRHSVec_avx2(b []float32, packed []float32, k int, n int, rowStart i
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
 					v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
@@ -403,9 +403,9 @@ func BasePackRHSVec_avx2(b []float32, packed []float32, k int, n int, rowStart i
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = b[bRowStart+baseCol+c]
 					packIdx++
 				}
@@ -432,7 +432,7 @@ func BasePackRHSVec_avx2_Float64(b []float64, packed []float64, k int, n int, ro
 		packIdx := 0
 		for panel := 0; panel < fullPanels; panel++ {
 			baseCol := colStart + panel*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
 					v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
@@ -443,9 +443,9 @@ func BasePackRHSVec_avx2_Float64(b []float64, packed []float64, k int, n int, ro
 		}
 		if activeColsLast < nr && activeColsLast > 0 {
 			baseCol := colStart + fullPanels*nr
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				bRowStart := (rowStart + kk) * n
-				for c := 0; c < activeColsLast; c++ {
+				for c := range activeColsLast {
 					packed[packIdx] = b[bRowStart+baseCol+c]
 					packIdx++
 				}

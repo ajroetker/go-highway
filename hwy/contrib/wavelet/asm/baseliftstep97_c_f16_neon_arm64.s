@@ -4,7 +4,7 @@
 // 	clang   21.1.8
 // 	objdump 2.45.1
 // flags: --target=arm64 -march=armv8.2-a+fp16+simd -fno-builtin-memset -O3
-// source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/baseliftstep97_c_f16_neon_arm64.c
+// source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway2/hwy/contrib/wavelet/asm/baseliftstep97_c_f16_neon_arm64.c
 
 TEXT ·liftstep97_c_f16_neon(SB), $0-48
 	MOVD  target+0(FP), R0

@@ -15,47 +15,33 @@ func BaseBitProduct_avx512(code []uint64, q1 []uint64, q2 []uint64, q3 []uint64,
 	if len(code) == 0 {
 		return 0
 	}
-	var sum1_0, sum1_1, sum2_0, sum2_1 uint64
-	var sum4_0, sum4_1, sum8_0, sum8_1 uint64
+	var sum1, sum2, sum4, sum8 uint64
 	lanes := 8
 	n := len(code)
-	stride := lanes * 2
+	stride := lanes * 4
 	var i int
 	for i = 0; i+stride <= n; i += stride {
-		codeVec0 := archsimd.LoadUint64x8Slice(code[i:])
-		q1Vec0 := archsimd.LoadUint64x8Slice(q1[i:])
-		q2Vec0 := archsimd.LoadUint64x8Slice(q2[i:])
-		q3Vec0 := archsimd.LoadUint64x8Slice(q3[i:])
-		q4Vec0 := archsimd.LoadUint64x8Slice(q4[i:])
-		codeVec1 := archsimd.LoadUint64x8Slice(code[i+lanes:])
-		q1Vec1 := archsimd.LoadUint64x8Slice(q1[i+lanes:])
-		q2Vec1 := archsimd.LoadUint64x8Slice(q2[i+lanes:])
-		q3Vec1 := archsimd.LoadUint64x8Slice(q3[i+lanes:])
-		q4Vec1 := archsimd.LoadUint64x8Slice(q4[i+lanes:])
-		and1_0 := codeVec0.And(q1Vec0)
-		and1_1 := codeVec1.And(q1Vec1)
-		pop1_0 := hwy.PopCount_AVX512_Uint64x8(and1_0)
-		pop1_1 := hwy.PopCount_AVX512_Uint64x8(and1_1)
-		sum1_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop1_0))
-		sum1_1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop1_1))
-		and2_0 := codeVec0.And(q2Vec0)
-		and2_1 := codeVec1.And(q2Vec1)
-		pop2_0 := hwy.PopCount_AVX512_Uint64x8(and2_0)
-		pop2_1 := hwy.PopCount_AVX512_Uint64x8(and2_1)
-		sum2_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop2_0))
-		sum2_1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop2_1))
-		and4_0 := codeVec0.And(q3Vec0)
-		and4_1 := codeVec1.And(q3Vec1)
-		pop4_0 := hwy.PopCount_AVX512_Uint64x8(and4_0)
-		pop4_1 := hwy.PopCount_AVX512_Uint64x8(and4_1)
-		sum4_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop4_0))
-		sum4_1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop4_1))
-		and8_0 := codeVec0.And(q4Vec0)
-		and8_1 := codeVec1.And(q4Vec1)
-		pop8_0 := hwy.PopCount_AVX512_Uint64x8(and8_0)
-		pop8_1 := hwy.PopCount_AVX512_Uint64x8(and8_1)
-		sum8_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop8_0))
-		sum8_1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop8_1))
+		codeVec0, codeVec1, codeVec2, codeVec3 := hwy.Load4_AVX512_Uint64x8(code[i:])
+		q1Vec0, q1Vec1, q1Vec2, q1Vec3 := hwy.Load4_AVX512_Uint64x8(q1[i:])
+		q2Vec0, q2Vec1, q2Vec2, q2Vec3 := hwy.Load4_AVX512_Uint64x8(q2[i:])
+		q3Vec0, q3Vec1, q3Vec2, q3Vec3 := hwy.Load4_AVX512_Uint64x8(q3[i:])
+		q4Vec0, q4Vec1, q4Vec2, q4Vec3 := hwy.Load4_AVX512_Uint64x8(q4[i:])
+		sum1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec0.And(q1Vec0))))
+		sum1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec1.And(q1Vec1))))
+		sum1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec2.And(q1Vec2))))
+		sum1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec3.And(q1Vec3))))
+		sum2 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec0.And(q2Vec0))))
+		sum2 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec1.And(q2Vec1))))
+		sum2 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec2.And(q2Vec2))))
+		sum2 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec3.And(q2Vec3))))
+		sum4 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec0.And(q3Vec0))))
+		sum4 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec1.And(q3Vec1))))
+		sum4 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec2.And(q3Vec2))))
+		sum4 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec3.And(q3Vec3))))
+		sum8 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec0.And(q4Vec0))))
+		sum8 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec1.And(q4Vec1))))
+		sum8 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec2.And(q4Vec2))))
+		sum8 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec3.And(q4Vec3))))
 	}
 	for i+lanes <= n {
 		codeVec := archsimd.LoadUint64x8Slice(code[i:])
@@ -63,20 +49,12 @@ func BaseBitProduct_avx512(code []uint64, q1 []uint64, q2 []uint64, q3 []uint64,
 		q2Vec := archsimd.LoadUint64x8Slice(q2[i:])
 		q3Vec := archsimd.LoadUint64x8Slice(q3[i:])
 		q4Vec := archsimd.LoadUint64x8Slice(q4[i:])
-		pop1 := hwy.PopCount_AVX512_Uint64x8(codeVec.And(q1Vec))
-		pop2 := hwy.PopCount_AVX512_Uint64x8(codeVec.And(q2Vec))
-		pop4 := hwy.PopCount_AVX512_Uint64x8(codeVec.And(q3Vec))
-		pop8 := hwy.PopCount_AVX512_Uint64x8(codeVec.And(q4Vec))
-		sum1_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop1))
-		sum2_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop2))
-		sum4_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop4))
-		sum8_0 += uint64(hwy.ReduceSum_AVX512_Uint64x8(pop8))
+		sum1 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec.And(q1Vec))))
+		sum2 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec.And(q2Vec))))
+		sum4 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec.And(q3Vec))))
+		sum8 += uint64(hwy.ReduceSum_AVX512_Uint64x8(hwy.PopCount_AVX512_Uint64x8(codeVec.And(q4Vec))))
 		i += lanes
 	}
-	sum1 := sum1_0 + sum1_1
-	sum2 := sum2_0 + sum2_1
-	sum4 := sum4_0 + sum4_1
-	sum8 := sum8_0 + sum8_1
 	for ; i < n; i++ {
 		sum1 += uint64(bits.OnesCount64(code[i] & q1[i]))
 		sum2 += uint64(bits.OnesCount64(code[i] & q2[i]))

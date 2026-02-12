@@ -52,14 +52,14 @@ func BasePackedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -125,14 +125,14 @@ func BasePackedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -198,14 +198,14 @@ func BasePackedMatMul_fallback(a []float32, b []float32, c []float32, m int, n i
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -271,14 +271,14 @@ func BasePackedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m 
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -339,14 +339,14 @@ func BasePackedMatMulWithBuffers_fallback_Float16(a []hwy.Float16, b []hwy.Float
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -407,14 +407,14 @@ func BasePackedMatMulWithBuffers_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFl
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -475,14 +475,14 @@ func BasePackedMatMulWithBuffers_fallback(a []float32, b []float32, c []float32,
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -543,14 +543,14 @@ func BasePackedMatMulWithBuffers_fallback_Float64(a []float64, b []float64, c []
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -603,14 +603,14 @@ func BasePackedMatMulStrip_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c 
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -663,14 +663,14 @@ func BasePackedMatMulStrip_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16,
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -723,14 +723,14 @@ func BasePackedMatMulStrip_fallback(a []float32, b []float32, c []float32, m int
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr
@@ -783,14 +783,14 @@ func BasePackedMatMulStrip_fallback_Float64(a []float64, b []float64, c []float6
 					if activeColsLast_2 <= 0 {
 						activeColsLast_2 = nr
 					}
-					for jPanel_2 := 0; jPanel_2 < numMicroPanelsB_2; jPanel_2++ {
+					for jPanel_2 := range numMicroPanelsB_2 {
 						jr_2 := jc + jPanel_2*nr
 						bPanelOffset_2 := jPanel_2 * panelK * nr
 						activeCols_2 := nr
 						if jPanel_2 == numMicroPanelsB_2-1 {
 							activeCols_2 = activeColsLast_2
 						}
-						for iPanel_2 := 0; iPanel_2 < numMicroPanelsA_2; iPanel_2++ {
+						for iPanel_2 := range numMicroPanelsA_2 {
 							ir_2 := ic + iPanel_2*mr
 							aPanelOffset_2 := iPanel_2 * panelK * mr
 							activeRows_2 := mr

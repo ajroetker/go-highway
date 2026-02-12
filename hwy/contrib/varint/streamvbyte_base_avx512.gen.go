@@ -91,7 +91,7 @@ func BaseEncodeStreamVByte32_avx512(values []uint32) (control []byte, data []byt
 	numGroups := (len(values) + 3) / 4
 	control = make([]byte, numGroups)
 	data = make([]byte, 0, len(values)*4)
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 		if remaining >= 4 {
@@ -126,7 +126,7 @@ func BaseEncodeStreamVByte32Into_avx512(values []uint32, controlBuf []byte, data
 		dataBuf = dataBuf[:maxDataLen]
 	}
 	dataPos := 0
-	for g := 0; g < numGroups; g++ {
+	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 		if remaining >= 4 && dataPos+16 <= len(dataBuf) {
@@ -149,7 +149,7 @@ func BaseEncodeStreamVByte32GroupSIMD_avx512(values []uint32) (ctrl byte, data [
 		return encodeGroupScalar(values)
 	}
 	ctrl = 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := encodedLengthU32(values[i])
 		ctrl |= byte(length-1) << (i * 2)
 	}
@@ -178,7 +178,7 @@ func BaseEncodeStreamVByte32GroupSIMDInto_avx512(values []uint32, dst []uint8) (
 		return 0, 4
 	}
 	ctrl = 0
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		length := encodedLengthU32(values[i])
 		ctrl |= byte(length-1) << (i * 2)
 	}

@@ -32,7 +32,7 @@ func BaseMatMulKLast_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Floa
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := asm.ZeroFloat16x8()
 			acc1 := asm.ZeroFloat16x8()
@@ -69,7 +69,7 @@ func BaseMatMulKLast_neon_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Floa
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := asm.ZeroFloat16x8()
 			var p int
@@ -108,7 +108,7 @@ func BaseMatMulKLast_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.B
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := asm.ZeroBFloat16x8()
 			acc1 := asm.ZeroBFloat16x8()
@@ -145,7 +145,7 @@ func BaseMatMulKLast_neon_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.B
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := asm.ZeroBFloat16x8()
 			var p int
@@ -184,7 +184,7 @@ func BaseMatMulKLast_neon(a []float32, b []float32, c []float32, m int, n int, k
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := asm.ZeroFloat32x4()
 			acc1 := asm.ZeroFloat32x4()
@@ -221,7 +221,7 @@ func BaseMatMulKLast_neon(a []float32, b []float32, c []float32, m int, n int, k
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := asm.ZeroFloat32x4()
 			var p int
@@ -260,7 +260,7 @@ func BaseMatMulKLast_neon_Float64(a []float64, b []float64, c []float64, m int, 
 		cRow1 := (i + 1) * n
 		cRow2 := (i + 2) * n
 		cRow3 := (i + 3) * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc0 := asm.ZeroFloat64x2()
 			acc1 := asm.ZeroFloat64x2()
@@ -297,7 +297,7 @@ func BaseMatMulKLast_neon_Float64(a []float64, b []float64, c []float64, m int, 
 	for ; i < m; i++ {
 		aRow := i * k
 		cRow := i * n
-		for j := 0; j < n; j++ {
+		for j := range n {
 			bRow := j * k
 			acc := asm.ZeroFloat64x2()
 			var p int

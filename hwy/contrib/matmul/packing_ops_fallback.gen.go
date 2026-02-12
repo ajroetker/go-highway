@@ -13,7 +13,7 @@ func BasePackRHSFast_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, n i
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := hwy.Load(b[srcIdx+c:])
@@ -23,9 +23,9 @@ func BasePackRHSFast_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, n i
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = hwy.Float32ToFloat16(b[srcIdx+c].Float32())
 				dstIdx++
 			}
@@ -44,7 +44,7 @@ func BasePackRHSFast_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, 
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c += lanes {
 					v := hwy.Load(b[srcIdx+c:])
@@ -54,9 +54,9 @@ func BasePackRHSFast_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, 
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = hwy.Float32ToBFloat16(b[srcIdx+c].Float32())
 				dstIdx++
 			}
@@ -74,7 +74,7 @@ func BasePackRHSFast_fallback(b []float32, packed []float32, n int, rowStart int
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= 1 && nr%1 == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c++ {
 					v := b[srcIdx+c]
@@ -84,9 +84,9 @@ func BasePackRHSFast_fallback(b []float32, packed []float32, n int, rowStart int
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -104,7 +104,7 @@ func BasePackRHSFast_fallback_Float64(b []float64, packed []float64, n int, rowS
 		validCols := min(nr, panelCols-stripColIdx)
 		baseCol := colStart + stripColIdx
 		if validCols == nr && nr >= 1 && nr%1 == 0 {
-			for kk := 0; kk < panelK; kk++ {
+			for kk := range panelK {
 				srcIdx := (rowStart+kk)*n + baseCol
 				for c := 0; c < nr; c++ {
 					v := b[srcIdx+c]
@@ -114,9 +114,9 @@ func BasePackRHSFast_fallback_Float64(b []float64, packed []float64, n int, rowS
 			}
 			continue
 		}
-		for kk := 0; kk < panelK; kk++ {
+		for kk := range panelK {
 			srcIdx := (rowStart+kk)*n + baseCol
-			for c := 0; c < validCols; c++ {
+			for c := range validCols {
 				packed[dstIdx] = b[srcIdx+c]
 				dstIdx++
 			}
@@ -132,7 +132,7 @@ func BaseApplyPackedOutput_fallback_Float16(packedOutput []hwy.Float16, output [
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
 	alphaVec := hwy.Set(alpha)
 	betaVec := hwy.Set(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -154,7 +154,7 @@ func BaseApplyPackedOutput_fallback_BFloat16(packedOutput []hwy.BFloat16, output
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
 	alphaVec := hwy.Set(alpha)
 	betaVec := hwy.Set(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -175,7 +175,7 @@ func BaseApplyPackedOutput_fallback_BFloat16(packedOutput []hwy.BFloat16, output
 func BaseApplyPackedOutput_fallback(packedOutput []float32, output []float32, alpha float32, beta float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	alphaVec := float32(alpha)
 	betaVec := float32(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -196,7 +196,7 @@ func BaseApplyPackedOutput_fallback(packedOutput []float32, output []float32, al
 func BaseApplyPackedOutput_fallback_Float64(packedOutput []float64, output []float64, alpha float64, beta float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	alphaVec := float64(alpha)
 	betaVec := float64(beta)
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -216,7 +216,7 @@ func BaseApplyPackedOutput_fallback_Float64(packedOutput []float64, output []flo
 
 func BaseApplyPackedOutputSimple_fallback_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -232,7 +232,7 @@ func BaseApplyPackedOutputSimple_fallback_Float16(packedOutput []hwy.Float16, ou
 
 func BaseApplyPackedOutputSimple_fallback_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -247,7 +247,7 @@ func BaseApplyPackedOutputSimple_fallback_BFloat16(packedOutput []hwy.BFloat16, 
 }
 
 func BaseApplyPackedOutputSimple_fallback(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -262,7 +262,7 @@ func BaseApplyPackedOutputSimple_fallback(packedOutput []float32, output []float
 }
 
 func BaseApplyPackedOutputSimple_fallback_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -278,7 +278,7 @@ func BaseApplyPackedOutputSimple_fallback_Float64(packedOutput []float64, output
 
 func BaseApplyPackedOutputAccum_fallback_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -296,7 +296,7 @@ func BaseApplyPackedOutputAccum_fallback_Float16(packedOutput []hwy.Float16, out
 
 func BaseApplyPackedOutputAccum_fallback_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -313,7 +313,7 @@ func BaseApplyPackedOutputAccum_fallback_BFloat16(packedOutput []hwy.BFloat16, o
 }
 
 func BaseApplyPackedOutputAccum_fallback(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
@@ -330,7 +330,7 @@ func BaseApplyPackedOutputAccum_fallback(packedOutput []float32, output []float3
 }
 
 func BaseApplyPackedOutputAccum_fallback_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	for r := 0; r < height; r++ {
+	for r := range height {
 		packedIdx := r * packedStride
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0

@@ -483,6 +483,7 @@ func scalarizeStmt(stmt ast.Stmt, elemType string) []ast.Stmt {
 		return []ast.Stmt{scalarizeFor(s, elemType)}
 
 	case *ast.RangeStmt:
+		s.X = scalarizeExpr(s.X, elemType)
 		s.Body = &ast.BlockStmt{List: scalarizeStmts(s.Body.List, elemType)}
 		return []ast.Stmt{s}
 
