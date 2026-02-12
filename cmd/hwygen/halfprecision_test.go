@@ -8,20 +8,23 @@ import (
 	"testing"
 )
 
-func TestHalfPrecisionPromotionAndCastGeneration(t *testing.T) {
+// checkFallbackGeneration runs the generator with the given content and checks if
+// the generated fallback code contains the expected strings.
+//
+// If the content is not prefixed with "package", this function automatically prefixes it
+// with a package name and importing of the "hwy" package.
+func checkFallbackGeneration(t *testing.T, content string, expected []string) {
+	t.Helper()
+
+	if !strings.HasPrefix(content, "package ") {
+		content = "package testcast\n\nimport \"github.com/ajroetker/go-highway/hwy\"\n\n" + content
+	}
+
 	// Create a temporary directory for test
 	tmpDir := t.TempDir()
 
 	// Create a simple test input file
-	inputFile := filepath.Join(tmpDir, "cast.go")
-	content := `package testcast
-
-import "github.com/ajroetker/go-highway/hwy"
-
-func BaseOnePlus[T hwy.Floats](x T) T {
-	return T(x + 1)
-}
-`
+	inputFile := filepath.Join(tmpDir, "test.go")
 
 	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to create input file: %v", err)
@@ -39,8 +42,8 @@ func BaseOnePlus[T hwy.Floats](x T) T {
 		t.Fatalf("Generator.Run() failed: %v", err)
 	}
 
-	// Check the fallback file: cast_fallback.gen.go
-	generatedFile := filepath.Join(tmpDir, "cast_fallback.gen.go")
+	// Check the fallback file: test_fallback.gen.go
+	generatedFile := filepath.Join(tmpDir, "test_fallback.gen.go")
 	if _, err := os.Stat(generatedFile); os.IsNotExist(err) {
 		t.Fatalf("Expected file %q was not created", generatedFile)
 	}
@@ -51,26 +54,74 @@ func BaseOnePlus[T hwy.Floats](x T) T {
 	}
 
 	generatedContent := string(contentBytes)
-	fmt.Printf("Generated code:\n%s\n", generatedContent)
 
-	// Since we expect it to fail (not implemented yet), we are just verifying that the test runs
-	// and checks for the presence of the conversion.
-	// The user said: "It should fail for now... I just want the test implemented first."
+	// Normalize spaces for robust check
+	fmt.Printf("Generated content: %s\n", generatedContent)
+	normalizedContent := strings.ReplaceAll(generatedContent, " ", "")
 
-	// We want to verify that for Float16 it generates: hwy.Float32ToFloat16(x.Float32() + 1)
-	// We'll check for the function name for float16.
-	if !strings.Contains(generatedContent, "BaseOnePlus_fallback_Float16") {
-		t.Errorf("Missing generated function for float16: BaseOnePlus_fallback_Float16")
+	for _, exp := range expected {
+		normalizedExpected := strings.ReplaceAll(exp, " ", "")
+		if !strings.Contains(normalizedContent, normalizedExpected) {
+			t.Errorf("Result missing expected string.\nWant (approx): %s\nGot:\n%s", exp, generatedContent)
+		}
+	}
+}
+
+func TestHalfPrecision(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected []string
+	}{
+		{
+			name: "Return statement with cast",
+			content: `
+func BaseOnePlus[T hwy.Floats](x T) T {
+	return T(x + 1)
+}
+`,
+			expected: []string{
+				"hwy.Float32ToFloat16(x.Float32() + 1)",
+				"hwy.Float32ToBFloat16(x.Float32() + 1)",
+			},
+		},
+		{
+			name: "Return converted back",
+			content: `
+func BaseOnePlus[T hwy.Floats](x T) T {
+	y := x+1
+	return T(y)
+}
+`,
+			expected: []string{
+				"y := x.Float32() + 1",
+				"hwy.Float32ToFloat16(y)",
+				"hwy.Float32ToBFloat16(y)",
+			},
+		},
+		{
+			name: "Call converted",
+			content: `
+func BasePrint[T hwy.Floats](v T) T {
+	fmt.Printf("%g\n", v)
+}
+
+func BasePrintPlusOne[T hwy.Floats](x T) T {
+	Print(T(x+1))
+}
+`,
+			expected: []string{
+				`fmt.Printf("%g\n", v.Float32())`,
+				"Print(hwy.Float32ToFloat16(x.Float32() + 1))",
+				"Print(hwy.Float32ToBFloat16(x.Float32() + 1))",
+			},
+		},
 	}
 
-	// And check for the conversion
-	expectedConversion := "hwy.Float32ToFloat16(x.Float32() + 1)"
-	// We normalize spaces for check
-	normalizedContent := strings.ReplaceAll(generatedContent, " ", "")
-	normalizedExpected := strings.ReplaceAll(expectedConversion, " ", "")
-
-	if !strings.Contains(normalizedContent, normalizedExpected) {
-		t.Errorf("Result missing Float16 conversion.\nWant (approx): %s\nGot:\n%s", expectedConversion, generatedContent)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			checkFallbackGeneration(t, tt.content, tt.expected)
+		})
 	}
 }
 
