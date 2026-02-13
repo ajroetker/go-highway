@@ -38,6 +38,10 @@ func Dense[T hwy.Floats](x []T, weight []T, bias []T, output []T, batchSize int,
 }
 
 func init() {
+	initDenseAll()
+}
+
+func initDenseAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initDenseFallback()
 }

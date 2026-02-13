@@ -11,6 +11,10 @@ import (
 )
 
 func init() {
+	initFusednf4actmatmulNeonCAsm()
+}
+
+func initFusednf4actmatmulNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}

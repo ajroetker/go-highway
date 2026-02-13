@@ -14,6 +14,10 @@ var EncodeFloat64s func(dst []byte, src []float64)
 var DecodeFloat64s func(dst []float64, src []byte)
 
 func init() {
+	initEncodeAll()
+}
+
+func initEncodeAll() {
 	if hwy.NoSimdEnv() {
 		initEncodeFallback()
 		return

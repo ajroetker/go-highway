@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"golang.org/x/tools/imports"
 )
 
@@ -422,7 +424,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	}
 
 	// Capitalize prefix for function names (e.g., "matmul" -> "Matmul")
-	capPrefix := strings.Title(prefix)
+	capPrefix := cases.Title(language.English).String(prefix)
 
 	// Generate init() function
 	initGenFn := "init" + capPrefix + "All"
@@ -611,7 +613,7 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	}
 
 	// Capitalize prefix for function names
-	capPrefix := strings.Title(prefix)
+	capPrefix := cases.Title(language.English).String(prefix)
 
 	// Simple init that just uses fallback
 	initGenFn := "init" + capPrefix + "All"

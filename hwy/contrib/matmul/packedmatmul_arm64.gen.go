@@ -104,6 +104,10 @@ func PackedMatMulStrip[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, r
 }
 
 func init() {
+	initPackedmatmulAll()
+}
+
+func initPackedmatmulAll() {
 	if hwy.NoSimdEnv() {
 		initPackedmatmulFallback()
 		return

@@ -38,6 +38,10 @@ func BlockedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 }
 
 func init() {
+	initMatmul_blockedAll()
+}
+
+func initMatmul_blockedAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initMatmul_blockedFallback()
 }

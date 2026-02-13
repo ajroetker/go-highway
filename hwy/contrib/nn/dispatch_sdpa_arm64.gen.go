@@ -64,6 +64,10 @@ func SDPACausal[T hwy.Floats](q []T, k []T, v []T, scores []T, output []T, seqLe
 }
 
 func init() {
+	initSdpaAll()
+}
+
+func initSdpaAll() {
 	if hwy.NoSimdEnv() {
 		initSdpaFallback()
 		return

@@ -214,6 +214,10 @@ func MaxImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 }
 
 func init() {
+	initPointopsAll()
+}
+
+func initPointopsAll() {
 	if hwy.NoSimdEnv() {
 		initPointopsFallback()
 		return

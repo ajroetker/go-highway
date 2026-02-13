@@ -56,6 +56,10 @@ func Transpose2D[T hwy.Floats](src []T, m int, k int, dst []T) {
 }
 
 func init() {
+	initTransposeAll()
+}
+
+func initTransposeAll() {
 	if hwy.NoSimdEnv() {
 		initTransposeFallback()
 		return

@@ -102,6 +102,10 @@ func PackedMicroKernelPartial[T hwy.Floats](packedA []T, packedB []T, c []T, n i
 }
 
 func init() {
+	initPackage_kernelAll()
+}
+
+func initPackage_kernelAll() {
 	if hwy.NoSimdEnv() {
 		initPackage_kernelFallback()
 		return

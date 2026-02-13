@@ -78,6 +78,10 @@ func L2Distance[T hwy.Floats](a []T, b []T) T {
 }
 
 func init() {
+	initDistanceAll()
+}
+
+func initDistanceAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initDistanceFallback()
 }

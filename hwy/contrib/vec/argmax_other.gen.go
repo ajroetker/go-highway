@@ -74,6 +74,10 @@ func Argmin[T hwy.Floats](v []T) int {
 }
 
 func init() {
+	initArgmaxAll()
+}
+
+func initArgmaxAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initArgmaxFallback()
 }

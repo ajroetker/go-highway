@@ -238,6 +238,10 @@ func CountIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 }
 
 func init() {
+	initFindAll()
+}
+
+func initFindAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initFindFallback()
 }

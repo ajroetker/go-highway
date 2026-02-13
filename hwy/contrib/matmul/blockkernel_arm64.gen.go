@@ -128,6 +128,10 @@ func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 }
 
 func init() {
+	initBlockkernelAll()
+}
+
+func initBlockkernelAll() {
 	if hwy.NoSimdEnv() {
 		initBlockkernelFallback()
 		return

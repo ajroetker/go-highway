@@ -179,6 +179,10 @@ func Deinterleave[T hwy.Lanes](src []T, low []T, sn int, high []T, dn int, phase
 }
 
 func init() {
+	initLiftingAll()
+}
+
+func initLiftingAll() {
 	if hwy.NoSimdEnv() {
 		initLiftingFallback()
 		return

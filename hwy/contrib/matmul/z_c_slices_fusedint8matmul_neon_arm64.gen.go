@@ -11,6 +11,10 @@ import (
 )
 
 func init() {
+	initFusedint8matmulNeonCAsm()
+}
+
+func initFusedint8matmulNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}

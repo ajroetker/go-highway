@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/ajroetker/go-highway/cmd/hwygen/ir"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // runAsmMode generates C code for ASM targets, compiles with GOAT,
@@ -1121,7 +1123,11 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 	// for use from batch wrappers (e.g., sme_wrappers.go).
 	// Non-streaming SVE targets (Linux) override dispatch normally.
 	if !isSVEStreamingTarget(target) {
-		fmt.Fprintf(&buf, "func init() {\n")
+		capPrefix := cases.Title(language.English).String(g.DispatchPrefix)
+		capTarget := cases.Title(language.English).String(strings.ToLower(target.Name))
+		initFn := "init" + capPrefix + capTarget + "CAsm"
+		fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initFn)
+		fmt.Fprintf(&buf, "func %s() {\n", initFn)
 		guard := sveRuntimeGuard(target)
 		if guard != "" {
 			fmt.Fprintf(&buf, "\tif !%s {\n", guard)
@@ -1370,7 +1376,11 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 	// for use from batch wrappers (e.g., sme_wrappers.go).
 	// Non-streaming SVE targets (Linux) override dispatch normally.
 	if !isSVEStreamingTarget(target) {
-		fmt.Fprintf(&buf, "func init() {\n")
+		capPrefix := cases.Title(language.English).String(g.DispatchPrefix)
+		capTarget := cases.Title(language.English).String(strings.ToLower(target.Name))
+		initFn := "init" + capPrefix + capTarget + "CAsm"
+		fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initFn)
+		fmt.Fprintf(&buf, "func %s() {\n", initFn)
 		guard := sveRuntimeGuard(target)
 		if guard != "" {
 			fmt.Fprintf(&buf, "\tif !%s {\n", guard)

@@ -12,6 +12,10 @@ var FusedNF4MatMul func(input []float32, packed []uint8, scales []float32, bias 
 var FusedInt4MatMul func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
+	initMatmul_fused_n4All()
+}
+
+func initMatmul_fused_n4All() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initMatmul_fused_n4Fallback()
 }

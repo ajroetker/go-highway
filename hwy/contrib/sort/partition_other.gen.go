@@ -69,6 +69,10 @@ func Partition[T hwy.Lanes](data []T, pivot T) int {
 }
 
 func init() {
+	initPartitionAll()
+}
+
+func initPartitionAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initPartitionFallback()
 }

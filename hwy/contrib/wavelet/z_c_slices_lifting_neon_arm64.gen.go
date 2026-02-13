@@ -11,6 +11,10 @@ import (
 )
 
 func init() {
+	initLiftingNeonCAsm()
+}
+
+func initLiftingNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}

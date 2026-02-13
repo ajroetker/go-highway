@@ -42,6 +42,10 @@ func MatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 }
 
 func init() {
+	initMatmulAll()
+}
+
+func initMatmulAll() {
 	if hwy.NoSimdEnv() {
 		initMatmulFallback()
 		return

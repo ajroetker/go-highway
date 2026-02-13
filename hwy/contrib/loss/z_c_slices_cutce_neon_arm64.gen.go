@@ -11,6 +11,10 @@ import (
 )
 
 func init() {
+	initCutceNeonCAsm()
+}
+
+func initCutceNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}

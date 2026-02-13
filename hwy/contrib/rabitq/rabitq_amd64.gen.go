@@ -14,6 +14,10 @@ var BitProduct func(code []uint64, q1 []uint64, q2 []uint64, q3 []uint64, q4 []u
 var QuantizeVectors func(unitVectors []float32, codes []uint64, dotProducts []float32, codeCounts []uint32, sqrtDimsInv float32, count int, dims int, width int)
 
 func init() {
+	initRabitqAll()
+}
+
+func initRabitqAll() {
 	if hwy.NoSimdEnv() {
 		initRabitqFallback()
 		return

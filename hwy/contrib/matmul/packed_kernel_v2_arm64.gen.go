@@ -72,6 +72,10 @@ func ZeroSlice[T hwy.Floats](s []T, n int) {
 }
 
 func init() {
+	initPacked_kernel_v2All()
+}
+
+func initPacked_kernel_v2All() {
 	if hwy.NoSimdEnv() {
 		initPacked_kernel_v2Fallback()
 		return

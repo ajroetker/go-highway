@@ -15,6 +15,10 @@ var CutCrossEntropyGrad func(hiddenStates []float32, embeddings []float32, label
 var CutCrossEntropyWithLogits func(hiddenStates []float32, embeddings []float32, labels []int32, perPositionLoss []float32, correctLogits []float32, numPositions int, hiddenDim int, vocabSize int) float32
 
 func init() {
+	initCutceAll()
+}
+
+func initCutceAll() {
 	if hwy.NoSimdEnv() {
 		initCutceFallback()
 		return

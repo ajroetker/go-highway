@@ -40,6 +40,10 @@ func LayerNorm[T hwy.Floats](input []T, output []T, normSize int, gamma []T, bet
 }
 
 func init() {
+	initLayernormAll()
+}
+
+func initLayernormAll() {
 	if hwy.NoSimdEnv() {
 		initLayernormFallback()
 		return

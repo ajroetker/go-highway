@@ -15,6 +15,10 @@ var MaskedVByteDecodeBatch64 func(src []byte, dst []uint64, n int) (decoded int,
 var maskedVByteDecodeOne64 func(src []byte) (uint64, int)
 
 func init() {
+	initMaskedvbyteAll()
+}
+
+func initMaskedvbyteAll() {
 	if hwy.NoSimdEnv() {
 		initMaskedvbyteFallback()
 		return

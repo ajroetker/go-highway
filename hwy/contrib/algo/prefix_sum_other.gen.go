@@ -86,6 +86,10 @@ func DeltaDecode[T hwy.Integers](data []T, base T) {
 }
 
 func init() {
+	initPrefix_sumAll()
+}
+
+func initPrefix_sumAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initPrefix_sumFallback()
 }

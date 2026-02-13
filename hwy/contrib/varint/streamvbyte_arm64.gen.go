@@ -17,6 +17,10 @@ var EncodeStreamVByte32GroupSIMD func(values []uint32) (ctrl byte, data []byte)
 var EncodeStreamVByte32GroupSIMDInto func(values []uint32, dst []uint8) (ctrl byte, n int)
 
 func init() {
+	initStreamvbyteAll()
+}
+
+func initStreamvbyteAll() {
 	if hwy.NoSimdEnv() {
 		initStreamvbyteFallback()
 		return

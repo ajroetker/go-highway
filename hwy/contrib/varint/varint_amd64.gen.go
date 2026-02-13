@@ -17,6 +17,10 @@ var Decode5Uvarint64 func(src []byte) (values [5]uint64, consumed int)
 var DecodeUvarint64BatchWithMask func(src []byte, dst []uint64, mask uint32, n int) (decoded int, consumed int)
 
 func init() {
+	initVarintAll()
+}
+
+func initVarintAll() {
 	if hwy.NoSimdEnv() {
 		initVarintFallback()
 		return
