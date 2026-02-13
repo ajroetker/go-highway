@@ -39,7 +39,7 @@ func _matmulFusedNf4ActInitHoistedConstants() {
 	})
 }
 
-func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -73,6 +73,10 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
+			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			sig := math.BaseSigmoidVec_avx512(acc)
 			acc = acc.Mul(sig)
@@ -94,12 +98,15 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -133,6 +140,10 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
+			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			invSqrt2 := BaseFusedNF4MatMulGELU_AVX512_invSqrt2_f32
 			half := BaseFusedNF4MatMulGELU_AVX512_half_f32
@@ -158,12 +169,15 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -197,6 +211,10 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
+			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			coeff := BaseFusedNF4MatMulGELUApprox_AVX512_coeff_f32
 			scaled := acc.Mul(coeff)
@@ -220,12 +238,15 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -260,6 +281,10 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
 			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
 			acc = acc.Max(archsimd.BroadcastFloat32x16(0))
 			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
 		}
@@ -279,12 +304,15 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -318,6 +346,10 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
+			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			sig := math.BaseSigmoidVec_avx512(acc)
 			acc = acc.Mul(sig)
@@ -339,12 +371,15 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -378,6 +413,10 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
+			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			invSqrt2 := BaseFusedInt4MatMulGELU_AVX512_invSqrt2_f32
 			half := BaseFusedInt4MatMulGELU_AVX512_half_f32
@@ -403,12 +442,15 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -442,6 +484,10 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
+			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			coeff := BaseFusedInt4MatMulGELUApprox_AVX512_coeff_f32
 			scaled := acc.Mul(coeff)
@@ -465,12 +511,15 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -505,6 +554,10 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
 			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
 			acc = acc.Max(archsimd.BroadcastFloat32x16(0))
 			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
 		}
@@ -523,6 +576,9 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}

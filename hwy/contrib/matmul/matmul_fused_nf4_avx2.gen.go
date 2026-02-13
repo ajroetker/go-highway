@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -43,6 +43,10 @@ func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, 
 				weights := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
 			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
 			acc.Store((*[8]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
@@ -61,12 +65,15 @@ func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, 
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum
 		}
 	}
 }
 
-func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -100,6 +107,10 @@ func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32,
 				weights := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(weights, acc)
 			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
 			acc.Store((*[8]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
@@ -117,6 +128,9 @@ func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32,
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum
 		}

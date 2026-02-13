@@ -1510,18 +1510,19 @@ func fusedNF4MatMulSME(
 	input []float32,
 	packed []uint8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() {
 		// Fall back to scalar implementation
-		BaseFusedNF4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
 	// Check alignment for SME (16x16 tiles)
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedNF4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
@@ -1568,6 +1569,11 @@ func fusedNF4MatMulSME(
 		// Strided FMOPA: writes directly to output with stride N at column offset nTile
 		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
 	}
+
+	// Apply bias after matmul
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
 }
 
 // dequantizeNF4Tile dequantizes a K×tileN tile of NF4 weights.
@@ -1604,11 +1610,12 @@ func fusedInt4MatMulSME(
 	input []float32,
 	packed []uint8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedInt4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
@@ -1649,6 +1656,11 @@ func fusedInt4MatMulSME(
 
 		// Strided FMOPA: writes directly to output with stride N at column offset nTile
 		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+	}
+
+	// Apply bias after matmul
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
 	}
 }
 
@@ -1726,17 +1738,18 @@ func parallelFusedNF4MatMulSME(
 	input []float32,
 	packed []uint8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() {
-		BaseFusedNF4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
 	// Check alignment for SME (16x16 tiles)
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedNF4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
@@ -1745,7 +1758,7 @@ func parallelFusedNF4MatMulSME(
 
 	// Fall back to sequential if too few tiles
 	if numTiles < MinFusedParallelTiles {
-		fusedNF4MatMulSME(input, packed, scales, output, M, K, N, groupSize)
+		fusedNF4MatMulSME(input, packed, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
@@ -1796,6 +1809,11 @@ func parallelFusedNF4MatMulSME(
 		})
 	}
 	wg.Wait()
+
+	// Apply bias after matmul
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
 }
 
 // parallelFusedInt4MatMulSME performs fused Int4 matmul with parallel N-tile processing.
@@ -1803,16 +1821,17 @@ func parallelFusedInt4MatMulSME(
 	input []float32,
 	packed []uint8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() {
-		BaseFusedInt4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedInt4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
@@ -1820,7 +1839,7 @@ func parallelFusedInt4MatMulSME(
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
-		fusedInt4MatMulSME(input, packed, scales, output, M, K, N, groupSize)
+		fusedInt4MatMulSME(input, packed, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
@@ -1870,6 +1889,11 @@ func parallelFusedInt4MatMulSME(
 		})
 	}
 	wg.Wait()
+
+	// Apply bias after matmul
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
 }
 
 // =============================================================================
@@ -1895,16 +1919,17 @@ func fusedInt8MatMulSME(
 	input []float32,
 	weights []int8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() {
-		BaseFusedInt8MatMul_fallback(input, weights, scales, output, M, K, N, groupSize)
+		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedInt8MatMul_fallback(input, weights, scales, output, M, K, N, groupSize)
+		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
@@ -1954,6 +1979,11 @@ func fusedInt8MatMulSME(
 			}
 		}
 	}
+
+	// Apply bias after matmul
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
 }
 
 func dequantizeInt8Tile(
@@ -2000,16 +2030,17 @@ func parallelFusedInt8MatMulSME(
 	input []float32,
 	weights []int8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() {
-		BaseFusedInt8MatMul_fallback(input, weights, scales, output, M, K, N, groupSize)
+		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedInt8MatMul_fallback(input, weights, scales, output, M, K, N, groupSize)
+		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
@@ -2017,7 +2048,7 @@ func parallelFusedInt8MatMulSME(
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
-		fusedInt8MatMulSME(input, weights, scales, output, M, K, N, groupSize)
+		fusedInt8MatMulSME(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
@@ -2068,6 +2099,11 @@ func parallelFusedInt8MatMulSME(
 		})
 	}
 	wg.Wait()
+
+	// Apply bias after matmul
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
 }
 
 // =============================================================================
@@ -2122,29 +2158,41 @@ func applyActivationToTile(output []float32, M, tileN, stride, colOffset int, ac
 	}
 }
 
-func fusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	fusedNF4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActSiLU)
+// applyBiasToOutput adds bias[n] to every row of output[m, n] for m in [0, M), n in [0, N).
+// output is row-major [M, N], bias has length N.
+func applyBiasToOutput(output []float32, bias []float32, M, N int) {
+	for m := 0; m < M; m++ {
+		rowStart := m * N
+		for n := 0; n < N; n++ {
+			output[rowStart+n] += bias[n]
+		}
+	}
 }
 
-func fusedNF4MatMulGELUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	fusedNF4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActGELU)
+func fusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	fusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
+}
+
+func fusedNF4MatMulGELUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	fusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
 }
 
 func fusedNF4MatMulActSME(
 	input []float32,
 	packed []uint8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 	act ActivationType,
 ) {
 	if !hwy.HasSME() {
-		baseFusedNF4MatMulAct(input, packed, scales, output, M, K, N, groupSize, act)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedNF4MatMulAct(input, packed, scales, output, M, K, N, groupSize, act)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
@@ -2180,28 +2228,38 @@ func fusedNF4MatMulActSME(
 
 		dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
 		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
-		applyActivationToTile(output, M, tileN, N, nTile, act)
+	}
+
+	// Apply bias before activation
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
+
+	// Apply activation to entire output
+	if act != ActNone {
+		applyActivationToTile(output, M, N, N, 0, act)
 	}
 }
 
-func fusedInt4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	fusedInt4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActSiLU)
+func fusedInt4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	fusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
 }
 
-func fusedInt4MatMulGELUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	fusedInt4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActGELU)
+func fusedInt4MatMulGELUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	fusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
 }
 
 func fusedInt4MatMulActSME(
 	input []float32,
 	packed []uint8,
 	scales []float32,
+	bias []float32,
 	output []float32,
 	M, K, N, groupSize int,
 	act ActivationType,
 ) {
 	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedInt4MatMulAct(input, packed, scales, output, M, K, N, groupSize, act)
+		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
@@ -2237,7 +2295,16 @@ func fusedInt4MatMulActSME(
 
 		dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
 		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
-		applyActivationToTile(output, M, tileN, N, nTile, act)
+	}
+
+	// Apply bias before activation
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
+
+	// Apply activation to entire output
+	if act != ActNone {
+		applyActivationToTile(output, M, N, N, 0, act)
 	}
 }
 
@@ -2263,24 +2330,24 @@ func processFusedInt4TileWithAct(
 	applyActivationToTile(output, M, tileN, N, nTile, act)
 }
 
-func parallelFusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedNF4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActSiLU)
+func parallelFusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	parallelFusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
 }
 
-func parallelFusedNF4MatMulGELUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedNF4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActGELU)
+func parallelFusedNF4MatMulGELUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	parallelFusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
 }
 
 func parallelFusedNF4MatMulActSME(
-	input []float32, packed []uint8, scales []float32, output []float32,
+	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
 	if !hwy.HasSME() {
-		baseFusedNF4MatMulAct(input, packed, scales, output, M, K, N, groupSize, act)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedNF4MatMulAct(input, packed, scales, output, M, K, N, groupSize, act)
+		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
@@ -2288,7 +2355,7 @@ func parallelFusedNF4MatMulActSME(
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
-		fusedNF4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, act)
+		fusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
@@ -2327,28 +2394,38 @@ func parallelFusedNF4MatMulActSME(
 			defer fusedTilePool.Put(tileBuf)
 
 			for nTile := range work {
-				processFusedNF4TileWithAct(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, numGroups, groupSize, act)
+				processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
+					nTile, M, K, N, numGroups, groupSize)
 			}
 		})
 	}
 	wg.Wait()
+
+	// Apply bias before activation
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
+
+	// Apply activation to entire output
+	if act != ActNone {
+		applyActivationToTile(output, M, N, N, 0, act)
+	}
 }
 
-func parallelFusedInt4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedInt4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActSiLU)
+func parallelFusedInt4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	parallelFusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
 }
 
-func parallelFusedInt4MatMulGELUSME(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedInt4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, ActGELU)
+func parallelFusedInt4MatMulGELUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+	parallelFusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
 }
 
 func parallelFusedInt4MatMulActSME(
-	input []float32, packed []uint8, scales []float32, output []float32,
+	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
 	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedInt4MatMulAct(input, packed, scales, output, M, K, N, groupSize, act)
+		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
@@ -2356,7 +2433,7 @@ func parallelFusedInt4MatMulActSME(
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
-		fusedInt4MatMulActSME(input, packed, scales, output, M, K, N, groupSize, act)
+		fusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
@@ -2395,12 +2472,22 @@ func parallelFusedInt4MatMulActSME(
 			defer fusedTilePool.Put(tileBuf)
 
 			for nTile := range work {
-				processFusedInt4TileWithAct(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, numGroups, groupSize, act)
+				processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
+					nTile, M, K, N, numGroups, groupSize)
 			}
 		})
 	}
 	wg.Wait()
+
+	// Apply bias before activation
+	if bias != nil {
+		applyBiasToOutput(output, bias, M, N)
+	}
+
+	// Apply activation to entire output
+	if act != ActNone {
+		applyActivationToTile(output, M, N, N, 0, act)
+	}
 }
 
 // =============================================================================
@@ -2435,15 +2522,17 @@ func init() {
 		FusedInt8MatMul = fusedInt8MatMulSME
 		ParallelFusedInt8MatMul = parallelFusedInt8MatMulSME
 
-		// Fused NF4/Int4 + activation SME implementations
+		// Fused NF4/Int4 + activation SME implementations (Act variants).
+		// ParallelFused*MatMulSiLU/GELU route through these via dispatch.go init().
+		FusedNF4MatMulAct = fusedNF4MatMulActSME
+		FusedInt4MatMulAct = fusedInt4MatMulActSME
+		ParallelFusedNF4MatMulAct = parallelFusedNF4MatMulActSME
+		ParallelFusedInt4MatMulAct = parallelFusedInt4MatMulActSME
+		// Individual serial overrides for direct callers.
 		FusedNF4MatMulSiLU = fusedNF4MatMulSiLUSME
 		FusedNF4MatMulGELU = fusedNF4MatMulGELUSME
-		ParallelFusedNF4MatMulSiLU = parallelFusedNF4MatMulSiLUSME
-		ParallelFusedNF4MatMulGELU = parallelFusedNF4MatMulGELUSME
 		FusedInt4MatMulSiLU = fusedInt4MatMulSiLUSME
 		FusedInt4MatMulGELU = fusedInt4MatMulGELUSME
-		ParallelFusedInt4MatMulSiLU = parallelFusedInt4MatMulSiLUSME
-		ParallelFusedInt4MatMulGELU = parallelFusedInt4MatMulGELUSME
 	} else {
 		// NEON dispatch is handled by z_c_slices_*_neon_arm64.gen.go files
 		// (hwygen-generated neon:asm dispatch with SME skip guard).

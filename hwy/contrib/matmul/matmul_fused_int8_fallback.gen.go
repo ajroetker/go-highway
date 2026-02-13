@@ -2,7 +2,7 @@
 
 package matmul
 
-func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -29,6 +29,10 @@ func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []floa
 				dequantWeights := dequantBuf[0]
 				acc = inputVal*dequantWeights + acc
 			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
+			}
 			outputRow[n] = acc
 		}
 		for ; n < N; n++ {
@@ -40,6 +44,9 @@ func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []floa
 				scale := scales[k*numGroups+groupIdx]
 				weight := val * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum
 		}

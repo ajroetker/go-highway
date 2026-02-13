@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -37,6 +37,10 @@ func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32,
 				dequantWeights := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
 				acc = inputVal.MulAdd(dequantWeights, acc)
 			}
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
 			acc.Store((*[8]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
@@ -48,6 +52,9 @@ func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32,
 				scale := scales[k*numGroups+groupIdx]
 				weight := val * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum
 		}

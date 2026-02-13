@@ -70,11 +70,11 @@ func TestFusedNF4MatMulCorrectness(t *testing.T) {
 
 			// Run fused kernel (SME path)
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedNF4MatMul(input, packed, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedNF4MatMul(input, packed, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			// Run reference scalar
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedNF4MatMul_fallback(input, packed, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedNF4MatMul_fallback(input, packed, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			avgDiff := float64(0)
@@ -136,10 +136,10 @@ func TestFusedInt4MatMulCorrectness(t *testing.T) {
 			}
 
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt4MatMul(input, packed, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt4MatMul(input, packed, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedInt4MatMul_fallback(input, packed, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedInt4MatMul_fallback(input, packed, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			for i := range fusedOutput {
@@ -196,10 +196,10 @@ func TestFusedNF4GroupBoundaryCrossing(t *testing.T) {
 			}
 
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedNF4MatMul(input, packed, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedNF4MatMul(input, packed, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedNF4MatMul_fallback(input, packed, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedNF4MatMul_fallback(input, packed, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			maxDiffIdx := 0
@@ -258,10 +258,10 @@ func TestFusedInt4GroupBoundaryCrossing(t *testing.T) {
 			}
 
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt4MatMul(input, packed, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt4MatMul(input, packed, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedInt4MatMul_fallback(input, packed, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedInt4MatMul_fallback(input, packed, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			maxDiffIdx := 0
@@ -323,10 +323,10 @@ func TestParallelFusedNF4MatMulCorrectness(t *testing.T) {
 			}
 
 			parallelOutput := make([]float32, tc.M*tc.N)
-			ParallelFusedNF4MatMul(input, packed, scales, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			ParallelFusedNF4MatMul(input, packed, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			seqOutput := make([]float32, tc.M*tc.N)
-			FusedNF4MatMul(input, packed, scales, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedNF4MatMul(input, packed, scales, nil, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			avgDiff := float64(0)
@@ -389,10 +389,10 @@ func TestParallelFusedInt4MatMulCorrectness(t *testing.T) {
 			}
 
 			parallelOutput := make([]float32, tc.M*tc.N)
-			ParallelFusedInt4MatMul(input, packed, scales, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			ParallelFusedInt4MatMul(input, packed, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			seqOutput := make([]float32, tc.M*tc.N)
-			FusedInt4MatMul(input, packed, scales, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt4MatMul(input, packed, scales, nil, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			for i := range parallelOutput {
@@ -453,7 +453,7 @@ func BenchmarkFusedNF4MatMul(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				FusedNF4MatMul(input, packed, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				FusedNF4MatMul(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -504,7 +504,7 @@ func BenchmarkParallelFusedNF4MatMul(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedNF4MatMul(input, packed, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedNF4MatMul(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -553,7 +553,7 @@ func BenchmarkFusedNF4Comparison(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				FusedNF4MatMul(input, packed, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				FusedNF4MatMul(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -563,7 +563,7 @@ func BenchmarkFusedNF4Comparison(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedNF4MatMul(input, packed, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedNF4MatMul(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")

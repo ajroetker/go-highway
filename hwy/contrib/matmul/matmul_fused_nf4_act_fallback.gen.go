@@ -9,7 +9,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-func BaseFusedNF4MatMulSiLU_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulSiLU_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -43,6 +43,10 @@ func BaseFusedNF4MatMulSiLU_fallback(input []float32, packed []uint8, scales []f
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			sig := math.BaseSigmoidVec_fallback(acc)
 			acc = hwy.Mul(acc, sig)
 			hwy.Store(acc, outputRow[n:])
@@ -63,12 +67,15 @@ func BaseFusedNF4MatMulSiLU_fallback(input []float32, packed []uint8, scales []f
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulGELU_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulGELU_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -100,6 +107,10 @@ func BaseFusedNF4MatMulGELU_fallback(input []float32, packed []uint8, scales []f
 				}
 				weights := dequantBuf[0]
 				acc = inputVal*weights + acc
+			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
 			}
 			invSqrt2 := float32(float32(0.7071067811865476))
 			half := float32(float32(0.5))
@@ -125,12 +136,15 @@ func BaseFusedNF4MatMulGELU_fallback(input []float32, packed []uint8, scales []f
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulGELUApprox_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulGELUApprox_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -164,6 +178,10 @@ func BaseFusedNF4MatMulGELUApprox_fallback(input []float32, packed []uint8, scal
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			coeff := hwy.Set(float32(1.702))
 			scaled := hwy.Mul(acc, coeff)
 			sig := math.BaseSigmoidVec_fallback(scaled)
@@ -186,12 +204,15 @@ func BaseFusedNF4MatMulGELUApprox_fallback(input []float32, packed []uint8, scal
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulReLU_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulReLU_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -224,6 +245,10 @@ func BaseFusedNF4MatMulReLU_fallback(input []float32, packed []uint8, scales []f
 				weights := dequantBuf[0]
 				acc = inputVal*weights + acc
 			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
+			}
 			acc = max(acc, float32(0))
 			outputRow[n] = acc
 		}
@@ -242,13 +267,16 @@ func BaseFusedNF4MatMulReLU_fallback(input []float32, packed []uint8, scales []f
 				scale := scales[k*numGroups+groupIdx]
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulSiLU_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulSiLU_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -282,6 +310,10 @@ func BaseFusedInt4MatMulSiLU_fallback(input []float32, packed []uint8, scales []
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			sig := math.BaseSigmoidVec_fallback(acc)
 			acc = hwy.Mul(acc, sig)
 			hwy.Store(acc, outputRow[n:])
@@ -302,12 +334,15 @@ func BaseFusedInt4MatMulSiLU_fallback(input []float32, packed []uint8, scales []
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulGELU_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulGELU_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -339,6 +374,10 @@ func BaseFusedInt4MatMulGELU_fallback(input []float32, packed []uint8, scales []
 				}
 				weights := dequantBuf[0]
 				acc = inputVal*weights + acc
+			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
 			}
 			invSqrt2 := float32(float32(0.7071067811865476))
 			half := float32(float32(0.5))
@@ -364,12 +403,15 @@ func BaseFusedInt4MatMulGELU_fallback(input []float32, packed []uint8, scales []
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulGELUApprox_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulGELUApprox_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -403,6 +445,10 @@ func BaseFusedInt4MatMulGELUApprox_fallback(input []float32, packed []uint8, sca
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			coeff := hwy.Set(float32(1.702))
 			scaled := hwy.Mul(acc, coeff)
 			sig := math.BaseSigmoidVec_fallback(scaled)
@@ -425,12 +471,15 @@ func BaseFusedInt4MatMulGELUApprox_fallback(input []float32, packed []uint8, sca
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulReLU_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulReLU_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -463,6 +512,10 @@ func BaseFusedInt4MatMulReLU_fallback(input []float32, packed []uint8, scales []
 				weights := dequantBuf[0]
 				acc = inputVal*weights + acc
 			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
+			}
 			acc = max(acc, float32(0))
 			outputRow[n] = acc
 		}
@@ -481,6 +534,9 @@ func BaseFusedInt4MatMulReLU_fallback(input []float32, packed []uint8, scales []
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}

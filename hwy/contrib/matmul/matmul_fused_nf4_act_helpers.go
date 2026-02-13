@@ -135,7 +135,7 @@ func erff32(x float32) float32 {
 }
 
 // baseFusedNF4MatMulAct is the internal implementation for SME code paths.
-func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -180,6 +180,12 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, ou
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
 
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			acc = applyActivationVec(acc, act)
 			hwy.Store(acc, outputRow[n:])
 		}
@@ -202,13 +208,16 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, ou
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = applyActivationScalar(sum, act)
 		}
 	}
 }
 
 // baseFusedInt4MatMulAct is the internal implementation for SME code paths.
-func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -253,6 +262,12 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, o
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
 
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			acc = applyActivationVec(acc, act)
 			hwy.Store(acc, outputRow[n:])
 		}
@@ -274,6 +289,9 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, o
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = applyActivationScalar(sum, act)
 		}

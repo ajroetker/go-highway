@@ -61,11 +61,11 @@ func TestFusedNF4FallbackCorrectness(t *testing.T) {
 
 			// Run via dispatch (should use fallback for small sizes)
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedNF4MatMul(input, packed, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedNF4MatMul(input, packed, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			// Run scalar directly
 			scalarOutput := make([]float32, tc.M*tc.N)
-			BaseFusedNF4MatMul_fallback(input, packed, scales, scalarOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedNF4MatMul_fallback(input, packed, scales, nil, scalarOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			// Should be identical when both use fallback
 			for i := range fusedOutput {
@@ -103,10 +103,10 @@ func TestFusedInt4FallbackCorrectness(t *testing.T) {
 	}
 
 	fusedOutput := make([]float32, M*N)
-	FusedInt4MatMul(input, packed, scales, fusedOutput, M, K, N, groupSize)
+	FusedInt4MatMul(input, packed, scales, nil, fusedOutput, M, K, N, groupSize)
 
 	scalarOutput := make([]float32, M*N)
-	BaseFusedInt4MatMul_fallback(input, packed, scales, scalarOutput, M, K, N, groupSize)
+	BaseFusedInt4MatMul_fallback(input, packed, scales, nil, scalarOutput, M, K, N, groupSize)
 
 	for i := range fusedOutput {
 		if fusedOutput[i] != scalarOutput[i] {
@@ -180,7 +180,7 @@ func TestFusedNF4PackingConsistency(t *testing.T) {
 	}
 
 	output := make([]float32, M*N)
-	BaseFusedNF4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+	BaseFusedNF4MatMul_fallback(input, packed, scales, nil, output, M, K, N, groupSize)
 
 	// Verify output is within NF4 table bounds * K
 	maxPossible := float32(K) * 1.0  // max table value
@@ -208,7 +208,7 @@ func TestFusedInt4SymmetricQuantization(t *testing.T) {
 	scales := []float32{1.0} // unit scale
 	output := make([]float32, M*N)
 
-	BaseFusedInt4MatMul_fallback(input, packed, scales, output, M, K, N, groupSize)
+	BaseFusedInt4MatMul_fallback(input, packed, scales, nil, output, M, K, N, groupSize)
 
 	// weightIdx=0 (even) uses low nibble = 0 -> (0-8) = -8
 	// weightIdx=1 (odd) uses high nibble = 15 -> (15-8) = 7
@@ -217,6 +217,104 @@ func TestFusedInt4SymmetricQuantization(t *testing.T) {
 	}
 	if math.Abs(float64(output[1]-7.0)) > 1e-6 {
 		t.Errorf("Expected output[1] = 7, got %v", output[1])
+	}
+}
+
+// TestFusedNF4BiasCorrectness verifies that bias is correctly added to NF4 matmul output.
+func TestFusedNF4BiasCorrectness(t *testing.T) {
+	rng := testRNGFusedNF4()
+	M, K, N := 16, 32, 48
+	groupSize := 16
+
+	input := make([]float32, M*K)
+	for i := range input {
+		input[i] = rng.Float32()*2 - 1
+	}
+
+	packedSize := (K*N + 1) / 2
+	packed := make([]uint8, packedSize)
+	for i := range packed {
+		packed[i] = uint8(rng.Intn(256))
+	}
+
+	numGroups := (N + groupSize - 1) / groupSize
+	scales := make([]float32, K*numGroups)
+	for i := range scales {
+		scales[i] = rng.Float32() + 0.1
+	}
+
+	bias := make([]float32, N)
+	for i := range bias {
+		bias[i] = float32(i) * 0.1
+	}
+
+	// Compute without bias
+	noBiasOutput := make([]float32, M*N)
+	FusedNF4MatMul(input, packed, scales, nil, noBiasOutput, M, K, N, groupSize)
+
+	// Compute with bias
+	biasOutput := make([]float32, M*N)
+	FusedNF4MatMul(input, packed, scales, bias, biasOutput, M, K, N, groupSize)
+
+	// Verify: biasOutput[m,n] == noBiasOutput[m,n] + bias[n]
+	for m := 0; m < M; m++ {
+		for n := 0; n < N; n++ {
+			idx := m*N + n
+			expected := noBiasOutput[idx] + bias[n]
+			diff := math.Abs(float64(biasOutput[idx] - expected))
+			if diff > 1e-5 {
+				t.Errorf("NF4 bias mismatch at [%d,%d]: got %v, expected %v (diff=%v)", m, n, biasOutput[idx], expected, diff)
+			}
+		}
+	}
+}
+
+// TestFusedInt4BiasCorrectness verifies that bias is correctly added to Int4 matmul output.
+func TestFusedInt4BiasCorrectness(t *testing.T) {
+	rng := testRNGFusedNF4()
+	M, K, N := 16, 32, 48
+	groupSize := 16
+
+	input := make([]float32, M*K)
+	for i := range input {
+		input[i] = rng.Float32()*2 - 1
+	}
+
+	packedSize := (K*N + 1) / 2
+	packed := make([]uint8, packedSize)
+	for i := range packed {
+		packed[i] = uint8(rng.Intn(256))
+	}
+
+	numGroups := (N + groupSize - 1) / groupSize
+	scales := make([]float32, K*numGroups)
+	for i := range scales {
+		scales[i] = rng.Float32() + 0.1
+	}
+
+	bias := make([]float32, N)
+	for i := range bias {
+		bias[i] = float32(i) * 0.1
+	}
+
+	// Compute without bias
+	noBiasOutput := make([]float32, M*N)
+	FusedInt4MatMul(input, packed, scales, nil, noBiasOutput, M, K, N, groupSize)
+
+	// Compute with bias
+	biasOutput := make([]float32, M*N)
+	FusedInt4MatMul(input, packed, scales, bias, biasOutput, M, K, N, groupSize)
+
+	// Verify: biasOutput[m,n] == noBiasOutput[m,n] + bias[n]
+	for m := 0; m < M; m++ {
+		for n := 0; n < N; n++ {
+			idx := m*N + n
+			expected := noBiasOutput[idx] + bias[n]
+			diff := math.Abs(float64(biasOutput[idx] - expected))
+			if diff > 1e-5 {
+				t.Errorf("Int4 bias mismatch at [%d,%d]: got %v, expected %v (diff=%v)", m, n, biasOutput[idx], expected, diff)
+			}
+		}
 	}
 }
 
@@ -257,7 +355,7 @@ func BenchmarkFusedNF4Scalar(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				BaseFusedNF4MatMul_fallback(input, packed, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				BaseFusedNF4MatMul_fallback(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})
@@ -296,7 +394,7 @@ func BenchmarkFusedInt4Scalar(b *testing.B) {
 		ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			BaseFusedInt4MatMul_fallback(input, packed, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+			BaseFusedInt4MatMul_fallback(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 		}
 		b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 	})

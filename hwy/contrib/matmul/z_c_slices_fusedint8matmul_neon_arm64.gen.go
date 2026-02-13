@@ -17,8 +17,8 @@ func init() {
 	FusedInt8MatMul = fusedInt8MatMulAsmF32
 }
 
-func fusedInt8MatMulAsmF32(input []float32, weights []int8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(weights) == 0 || len(scales) == 0 || len(output) == 0 {
+func fusedInt8MatMulAsmF32(input []float32, weights []int8, scales, bias, output []float32, M, K, N, groupSize int) {
+	if len(input) == 0 || len(weights) == 0 || len(scales) == 0 || len(bias) == 0 || len(output) == 0 {
 		return
 	}
 	MVal := int64(M)
@@ -29,6 +29,7 @@ func fusedInt8MatMulAsmF32(input []float32, weights []int8, scales, output []flo
 		unsafe.Pointer(&input[0]),
 		unsafe.Pointer(&weights[0]),
 		unsafe.Pointer(&scales[0]),
+		unsafe.Pointer(&bias[0]),
 		unsafe.Pointer(&output[0]),
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),

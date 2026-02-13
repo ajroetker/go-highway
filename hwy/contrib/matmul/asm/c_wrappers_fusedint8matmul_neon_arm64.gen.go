@@ -7,8 +7,8 @@ import "unsafe"
 
 // Public wrapper functions
 // FusedInt8MatMulCF32 computes FusedInt8MatMul using NEON SIMD assembly.
-func FusedInt8MatMulCF32(input []float32, weights []int8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(weights) == 0 || len(scales) == 0 || len(output) == 0 {
+func FusedInt8MatMulCF32(input []float32, weights []int8, scales, bias, output []float32, M, K, N, groupSize int) {
+	if len(input) == 0 || len(weights) == 0 || len(scales) == 0 || len(bias) == 0 || len(output) == 0 {
 		return
 	}
 	MVal := int64(M)
@@ -19,6 +19,7 @@ func FusedInt8MatMulCF32(input []float32, weights []int8, scales, output []float
 		unsafe.Pointer(&input[0]),
 		unsafe.Pointer(&weights[0]),
 		unsafe.Pointer(&scales[0]),
+		unsafe.Pointer(&bias[0]),
 		unsafe.Pointer(&output[0]),
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),

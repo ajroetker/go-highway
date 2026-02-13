@@ -40,8 +40,8 @@ var nf4LookupTable = [16]float32{
 	1.0,
 }
 
-// BaseFusedNF4MatMul performs fused NF4 dequantization + matrix multiplication.
-// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n]))
+// BaseFusedNF4MatMul performs fused NF4 dequantization + matrix multiplication + optional bias.
+// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n])) + bias[n]
 //
 // This implementation vectorizes over the N dimension, processing multiple
 // output columns simultaneously using SIMD operations.
@@ -50,10 +50,11 @@ var nf4LookupTable = [16]float32{
 //   - input: [M, K] float32 input matrix (row-major)
 //   - packed: [K, N/2] uint8 packed NF4 weights (2 values per byte, low nibble first)
 //   - scales: [K, numGroups] float32 per-group scales
+//   - bias: [N] float32 bias vector (nil for no bias)
 //   - output: [M, N] float32 output matrix (row-major, pre-allocated)
 //   - M, K, N: matrix dimensions
 //   - groupSize: number of columns per scale group
-func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -108,6 +109,12 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
 
+			// Add bias
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			// Store result
 			hwy.Store(acc, outputRow[n:])
 		}
@@ -131,13 +138,16 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum
 		}
 	}
 }
 
-// BaseFusedInt4MatMul performs fused Int4 dequantization + matrix multiplication.
-// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n]))
+// BaseFusedInt4MatMul performs fused Int4 dequantization + matrix multiplication + optional bias.
+// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n])) + bias[n]
 //
 // Int4 uses symmetric quantization: values in [0,15] map to [-8,7].
 //
@@ -145,10 +155,11 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 //   - input: [M, K] float32 input matrix (row-major)
 //   - packed: [K, N/2] uint8 packed Int4 weights (2 values per byte, low nibble first)
 //   - scales: [K, numGroups] float32 per-group scales
+//   - bias: [N] float32 bias vector (nil for no bias)
 //   - output: [M, N] float32 output matrix (row-major, pre-allocated)
 //   - M, K, N: matrix dimensions
 //   - groupSize: number of columns per scale group
-func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -204,6 +215,12 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
 
+			// Add bias
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			// Store result
 			hwy.Store(acc, outputRow[n:])
 		}
@@ -226,6 +243,9 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum
 		}

@@ -18,8 +18,8 @@ package matmul
 
 import "github.com/ajroetker/go-highway/hwy"
 
-// BaseFusedInt8MatMul performs fused Int8 dequantization + matrix multiplication.
-// output[m,n] = sum_k(input[m,k] * (weights[k,n] * scale[k,groupIdx]))
+// BaseFusedInt8MatMul performs fused Int8 dequantization + matrix multiplication + optional bias.
+// output[m,n] = sum_k(input[m,k] * (weights[k,n] * scale[k,groupIdx])) + bias[n]
 //
 // Int8 quantization stores weights as signed 8-bit integers with per-group scales.
 // This is more memory efficient than float32 (4x compression) while maintaining
@@ -29,10 +29,11 @@ import "github.com/ajroetker/go-highway/hwy"
 //   - input: [M, K] float32 input matrix (row-major)
 //   - weights: [K, N] int8 quantized weights (row-major)
 //   - scales: [K, numGroups] float32 per-group scales
+//   - bias: [N] float32 bias vector (nil for no bias)
 //   - output: [M, N] float32 output matrix (row-major, pre-allocated)
 //   - M, K, N: matrix dimensions
 //   - groupSize: number of columns per scale group
-func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, output []float32, M, K, N, groupSize int) {
+func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -82,6 +83,12 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, outp
 				acc = hwy.MulAdd(inputVal, dequantWeights, acc)
 			}
 
+			// Add bias
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			// Store result
 			hwy.Store(acc, outputRow[n:])
 		}
@@ -97,8 +104,10 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, outp
 				weight := val * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum
 		}
 	}
 }
-

@@ -6,43 +6,43 @@ package asm
 import "unsafe"
 
 // FusedNF4MatMulSiLU_F32 calls the NEON SIMD assembly implementation.
-func FusedNF4MatMulSiLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusednf4matmulsilu_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedNF4MatMulSiLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusednf4matmulsilu_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedNF4MatMulGELU_F32 calls the NEON SIMD assembly implementation.
-func FusedNF4MatMulGELU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusednf4matmulgelu_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedNF4MatMulGELU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusednf4matmulgelu_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedNF4MatMulGELUApprox_F32 calls the NEON SIMD assembly implementation.
-func FusedNF4MatMulGELUApprox_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusednf4matmulgeluapprox_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedNF4MatMulGELUApprox_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusednf4matmulgeluapprox_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedNF4MatMulReLU_F32 calls the NEON SIMD assembly implementation.
-func FusedNF4MatMulReLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusednf4matmulrelu_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedNF4MatMulReLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusednf4matmulrelu_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedInt4MatMulSiLU_F32 calls the NEON SIMD assembly implementation.
-func FusedInt4MatMulSiLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusedint4matmulsilu_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedInt4MatMulSiLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusedint4matmulsilu_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedInt4MatMulGELU_F32 calls the NEON SIMD assembly implementation.
-func FusedInt4MatMulGELU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusedint4matmulgelu_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedInt4MatMulGELU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusedint4matmulgelu_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedInt4MatMulGELUApprox_F32 calls the NEON SIMD assembly implementation.
-func FusedInt4MatMulGELUApprox_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusedint4matmulgeluapprox_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedInt4MatMulGELUApprox_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusedint4matmulgeluapprox_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedInt4MatMulReLU_F32 calls the NEON SIMD assembly implementation.
-func FusedInt4MatMulReLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusedint4matmulrelu_c_f32_neon(input, packed, scales, output, pM, pK, pN, pgroupSize)
+func FusedInt4MatMulReLU_F32(input unsafe.Pointer, packed unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
+	fusedint4matmulrelu_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize)
 }
 
 // FusedNF4MatMulSwiGLU_F32 calls the NEON SIMD assembly implementation.

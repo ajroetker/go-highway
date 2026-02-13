@@ -2,7 +2,7 @@
 
 package matmul
 
-func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -35,6 +35,10 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 				weights := dequantBuf[0]
 				acc = inputVal*weights + acc
 			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
+			}
 			outputRow[n] = acc
 		}
 		for ; n < N; n++ {
@@ -53,12 +57,15 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum
 		}
 	}
 }
 
-func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -91,6 +98,10 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 				weights := dequantBuf[0]
 				acc = inputVal*weights + acc
 			}
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
+			}
 			outputRow[n] = acc
 		}
 		for ; n < N; n++ {
@@ -108,6 +119,9 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum
 		}

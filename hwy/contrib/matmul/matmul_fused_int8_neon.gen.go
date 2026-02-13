@@ -10,7 +10,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-func BaseFusedInt8MatMul_neon(input []float32, weights []int8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt8MatMul_neon(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -38,6 +38,10 @@ func BaseFusedInt8MatMul_neon(input []float32, weights []int8, scales []float32,
 				dequantWeights := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[0])))
 				inputVal.MulAddAcc(dequantWeights, &acc)
 			}
+			if bias != nil {
+				biasVec := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
 			acc.Store((*[4]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
@@ -49,6 +53,9 @@ func BaseFusedInt8MatMul_neon(input []float32, weights []int8, scales []float32,
 				scale := scales[k*numGroups+groupIdx]
 				weight := val * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum
 		}

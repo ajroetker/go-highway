@@ -39,9 +39,9 @@ const (
 	ActReLU
 )
 
-// BaseFusedNF4MatMulSiLU performs fused NF4 dequantization + matmul + SiLU activation.
-// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulSiLU performs fused NF4 dequantization + matmul + bias + SiLU activation.
+// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -82,6 +82,12 @@ func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, o
 
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
+			}
+
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
 
 			// SiLU(x) = x * sigmoid(x)
@@ -108,15 +114,18 @@ func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, o
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			// SiLU(x) = x * sigmoid(x) = x / (1 + exp(-x))
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-// BaseFusedNF4MatMulGELU performs fused NF4 dequantization + matmul + GELU activation.
-// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulGELU performs fused NF4 dequantization + matmul + bias + GELU activation.
+// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -157,6 +166,12 @@ func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, o
 
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
+			}
+
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
 
 			// GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2)))
@@ -187,14 +202,17 @@ func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, o
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-// BaseFusedNF4MatMulGELUApprox performs fused NF4 dequantization + matmul + approximate GELU.
-// output[m,n] = GELUApprox(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulGELUApprox performs fused NF4 dequantization + matmul + bias + approximate GELU.
+// output[m,n] = GELUApprox(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -235,6 +253,12 @@ func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []floa
 
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
+			}
+
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
 
 			// GELUApprox(x) ≈ x * sigmoid(1.702 * x)
@@ -263,15 +287,18 @@ func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []floa
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			// GELUApprox(x) = x * sigmoid(1.702*x) = x / (1 + exp(-1.702*x))
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-// BaseFusedNF4MatMulReLU performs fused NF4 dequantization + matmul + ReLU activation.
-// output[m,n] = ReLU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulReLU performs fused NF4 dequantization + matmul + bias + ReLU activation.
+// output[m,n] = ReLU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -314,6 +341,12 @@ func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, o
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
 
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			// ReLU(x) = max(0, x)
 			acc = hwy.Max(acc, hwy.Zero[float32]())
 			hwy.Store(acc, outputRow[n:])
@@ -337,14 +370,17 @@ func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, o
 				weight := nf4LookupTable[quantIdx] * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulSiLU performs fused Int4 dequantization + matmul + SiLU activation.
-// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulSiLU performs fused Int4 dequantization + matmul + bias + SiLU activation.
+// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -385,6 +421,12 @@ func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, 
 
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
+			}
+
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
 
 			sig := math.BaseSigmoidVec[float32](acc)
@@ -410,14 +452,17 @@ func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, 
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulGELU performs fused Int4 dequantization + matmul + GELU activation.
-// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulGELU performs fused Int4 dequantization + matmul + bias + GELU activation.
+// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -458,6 +503,12 @@ func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, 
 
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
+			}
+
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
 
 			invSqrt2 := hwy.Set(float32(0.7071067811865476))
@@ -487,13 +538,16 @@ func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, 
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulGELUApprox performs fused Int4 dequantization + matmul + approximate GELU.
-func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulGELUApprox performs fused Int4 dequantization + matmul + bias + approximate GELU.
+func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -534,6 +588,12 @@ func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []flo
 
 				weights := hwy.Load(dequantBuf)
 				acc = hwy.MulAdd(inputVal, weights, acc)
+			}
+
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
 
 			coeff := hwy.Set(float32(1.702))
@@ -561,13 +621,16 @@ func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []flo
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
 			}
+			if bias != nil {
+				sum += bias[n]
+			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulReLU performs fused Int4 dequantization + matmul + ReLU activation.
-func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulReLU performs fused Int4 dequantization + matmul + bias + ReLU activation.
+func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -610,6 +673,12 @@ func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, 
 				acc = hwy.MulAdd(inputVal, weights, acc)
 			}
 
+			// Add bias before activation
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+
 			acc = hwy.Max(acc, hwy.Zero[float32]())
 			hwy.Store(acc, outputRow[n:])
 		}
@@ -631,6 +700,9 @@ func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, 
 				scale := scales[k*numGroups+groupIdx]
 				weight := float32(unsignedVal-8) * scale
 				sum += inputRow[k] * weight
+			}
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}

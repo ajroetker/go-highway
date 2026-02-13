@@ -69,11 +69,11 @@ func TestFusedInt8MatMulSMECorrectness(t *testing.T) {
 
 			// Run fused kernel (SME path)
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt8MatMul(input, weights, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt8MatMul(input, weights, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			// Run reference scalar
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedInt8MatMul_fallback(input, weights, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedInt8MatMul_fallback(input, weights, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			avgDiff := float64(0)
@@ -133,10 +133,10 @@ func TestFusedInt8MatMulSMEGroupBoundaryCrossing(t *testing.T) {
 			}
 
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt8MatMul(input, weights, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt8MatMul(input, weights, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedInt8MatMul_fallback(input, weights, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedInt8MatMul_fallback(input, weights, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			maxDiffIdx := 0
@@ -199,11 +199,11 @@ func TestFusedInt8MatMulSMEUnaligned(t *testing.T) {
 
 			// Run through FusedInt8MatMul (which should use fallback for unaligned)
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt8MatMul(input, weights, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt8MatMul(input, weights, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			// Run reference scalar directly
 			refOutput := make([]float32, tc.M*tc.N)
-			BaseFusedInt8MatMul_fallback(input, weights, scales, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			BaseFusedInt8MatMul_fallback(input, weights, scales, nil, refOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			for i := range fusedOutput {
@@ -260,10 +260,10 @@ func TestParallelFusedInt8MatMulSMECorrectness(t *testing.T) {
 			}
 
 			parallelOutput := make([]float32, tc.M*tc.N)
-			ParallelFusedInt8MatMul(input, weights, scales, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			ParallelFusedInt8MatMul(input, weights, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			seqOutput := make([]float32, tc.M*tc.N)
-			FusedInt8MatMul(input, weights, scales, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt8MatMul(input, weights, scales, nil, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			maxDiff := float32(0)
 			for i := range parallelOutput {
@@ -324,7 +324,7 @@ func BenchmarkFusedInt8MatMulSME(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				FusedInt8MatMul(input, weights, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				FusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -374,7 +374,7 @@ func BenchmarkParallelFusedInt8MatMulSME(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedInt8MatMul(input, weights, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -422,7 +422,7 @@ func BenchmarkFusedInt8Comparison(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				FusedInt8MatMul(input, weights, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				FusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -432,7 +432,7 @@ func BenchmarkFusedInt8Comparison(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedInt8MatMul(input, weights, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")

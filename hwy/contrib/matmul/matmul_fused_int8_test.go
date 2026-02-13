@@ -81,7 +81,7 @@ func TestFusedInt8MatMulBasicCorrectness(t *testing.T) {
 
 			// Run via dispatch
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt8MatMul(input, weights, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt8MatMul(input, weights, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			// Run reference
 			refOutput := referenceInt8MatMul(input, weights, scales, tc.M, tc.K, tc.N, tc.groupSize)
@@ -128,7 +128,7 @@ func TestFusedInt8MatMulFallbackCorrectness(t *testing.T) {
 
 	// Run fallback
 	fallbackOutput := make([]float32, M*N)
-	BaseFusedInt8MatMul_fallback(input, weights, scales, fallbackOutput, M, K, N, groupSize)
+	BaseFusedInt8MatMul_fallback(input, weights, scales, nil, fallbackOutput, M, K, N, groupSize)
 
 	// Run reference
 	refOutput := referenceInt8MatMul(input, weights, scales, M, K, N, groupSize)
@@ -147,7 +147,7 @@ func TestFusedInt8MatMulEdgeCases(t *testing.T) {
 	// Empty input
 	t.Run("empty", func(t *testing.T) {
 		output := make([]float32, 0)
-		FusedInt8MatMul(nil, nil, nil, output, 0, 0, 0, 1)
+		FusedInt8MatMul(nil, nil, nil, nil, output, 0, 0, 0, 1)
 		// Should not panic
 	})
 
@@ -157,7 +157,7 @@ func TestFusedInt8MatMulEdgeCases(t *testing.T) {
 		weights := []int8{3}
 		scales := []float32{0.5}
 		output := make([]float32, 1)
-		FusedInt8MatMul(input, weights, scales, output, 1, 1, 1, 1)
+		FusedInt8MatMul(input, weights, scales, nil, output, 1, 1, 1, 1)
 
 		expected := float32(2.0 * 3.0 * 0.5)
 		if math.Abs(float64(output[0]-expected)) > 1e-6 {
@@ -171,7 +171,7 @@ func TestFusedInt8MatMulEdgeCases(t *testing.T) {
 		weights := []int8{127, -128} // Max and min Int8 values
 		scales := []float32{1.0, 1.0}
 		output := make([]float32, 2)
-		FusedInt8MatMul(input, weights, scales, output, 1, 1, 2, 2)
+		FusedInt8MatMul(input, weights, scales, nil, output, 1, 1, 2, 2)
 
 		if output[0] != 127.0 {
 			t.Errorf("Expected 127, got %v", output[0])
@@ -215,7 +215,7 @@ func TestFusedInt8MatMulGroupBoundary(t *testing.T) {
 			}
 
 			fusedOutput := make([]float32, tc.M*tc.N)
-			FusedInt8MatMul(input, weights, scales, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			FusedInt8MatMul(input, weights, scales, nil, fusedOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			refOutput := referenceInt8MatMul(input, weights, scales, tc.M, tc.K, tc.N, tc.groupSize)
 
@@ -272,7 +272,7 @@ func BenchmarkFusedInt8MatMul(b *testing.B) {
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				FusedInt8MatMul(input, weights, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+				FusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})
@@ -310,7 +310,7 @@ func BenchmarkFusedInt8MatMulFallback(b *testing.B) {
 		ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			BaseFusedInt8MatMul_fallback(input, weights, scales, output, sz.M, sz.K, sz.N, sz.groupSize)
+			BaseFusedInt8MatMul_fallback(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 		}
 		b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 	})
