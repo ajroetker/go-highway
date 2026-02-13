@@ -148,6 +148,10 @@ func PackRHSVec[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, col
 }
 
 func init() {
+	initPackingAll()
+}
+
+func initPackingAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initPackingFallback()
 }

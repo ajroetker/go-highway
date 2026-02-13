@@ -76,6 +76,10 @@ func NormalizeTo[T hwy.Floats](dst []T, src []T) {
 }
 
 func init() {
+	initNormalizeAll()
+}
+
+func initNormalizeAll() {
 	if hwy.NoSimdEnv() {
 		initNormalizeFallback()
 		return

@@ -44,6 +44,10 @@ func QKVDense[T hwy.Floats](x []T, wQKV []T, biasQ []T, biasK []T, biasV []T, q 
 }
 
 func init() {
+	initQkvdenseAll()
+}
+
+func initQkvdenseAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initQkvdenseFallback()
 }

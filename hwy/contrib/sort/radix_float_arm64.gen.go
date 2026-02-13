@@ -51,6 +51,10 @@ func SortableToFloat[T hwy.Floats](data []T) {
 }
 
 func init() {
+	initRadix_floatAll()
+}
+
+func initRadix_floatAll() {
 	if hwy.NoSimdEnv() {
 		initRadix_floatFallback()
 		return

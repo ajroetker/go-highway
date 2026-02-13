@@ -8,9 +8,13 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var FusedInt8MatMul func(input []float32, weights []int8, scales []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt8MatMul func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
+	initFusedint8matmulAll()
+}
+
+func initFusedint8matmulAll() {
 	if hwy.NoSimdEnv() {
 		initFusedint8matmulFallback()
 		return

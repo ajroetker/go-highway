@@ -118,6 +118,10 @@ func BatchDot[T hwy.Floats](query []T, data []T, dots []T, count int, dims int) 
 }
 
 func init() {
+	initBatchAll()
+}
+
+func initBatchAll() {
 	if hwy.NoSimdEnv() {
 		initBatchFallback()
 		return

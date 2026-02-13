@@ -72,6 +72,10 @@ func CompressPartition[T hwy.Lanes](data []T, pivot T) int {
 }
 
 func init() {
+	initCompress_partitionAll()
+}
+
+func initCompress_partitionAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initCompress_partitionFallback()
 }

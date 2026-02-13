@@ -151,6 +151,10 @@ func SoftmaxWithTemperature[T hwy.Floats](input []T, output []T, temperature T) 
 }
 
 func init() {
+	initSoftmaxAll()
+}
+
+func initSoftmaxAll() {
 	if hwy.NoSimdEnv() {
 		initSoftmaxFallback()
 		return

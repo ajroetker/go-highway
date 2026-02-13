@@ -7,19 +7,37 @@ import "unsafe"
 
 // Public wrapper functions
 // FusedNF4MatMulSiLUCF32 computes FusedNF4MatMulSiLU using NEON SIMD assembly.
-func FusedNF4MatMulSiLUCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedNF4MatMulSiLUCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusednf4matmulsilu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -28,19 +46,37 @@ func FusedNF4MatMulSiLUCF32(input []float32, packed []uint8, scales, output []fl
 }
 
 // FusedNF4MatMulGELUCF32 computes FusedNF4MatMulGELU using NEON SIMD assembly.
-func FusedNF4MatMulGELUCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedNF4MatMulGELUCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusednf4matmulgelu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -49,19 +85,37 @@ func FusedNF4MatMulGELUCF32(input []float32, packed []uint8, scales, output []fl
 }
 
 // FusedNF4MatMulGELUApproxCF32 computes FusedNF4MatMulGELUApprox using NEON SIMD assembly.
-func FusedNF4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedNF4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusednf4matmulgeluapprox_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -70,19 +124,37 @@ func FusedNF4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, outpu
 }
 
 // FusedNF4MatMulReLUCF32 computes FusedNF4MatMulReLU using NEON SIMD assembly.
-func FusedNF4MatMulReLUCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedNF4MatMulReLUCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusednf4matmulrelu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -91,19 +163,37 @@ func FusedNF4MatMulReLUCF32(input []float32, packed []uint8, scales, output []fl
 }
 
 // FusedInt4MatMulSiLUCF32 computes FusedInt4MatMulSiLU using NEON SIMD assembly.
-func FusedInt4MatMulSiLUCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedInt4MatMulSiLUCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusedint4matmulsilu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -112,19 +202,37 @@ func FusedInt4MatMulSiLUCF32(input []float32, packed []uint8, scales, output []f
 }
 
 // FusedInt4MatMulGELUCF32 computes FusedInt4MatMulGELU using NEON SIMD assembly.
-func FusedInt4MatMulGELUCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedInt4MatMulGELUCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusedint4matmulgelu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -133,19 +241,37 @@ func FusedInt4MatMulGELUCF32(input []float32, packed []uint8, scales, output []f
 }
 
 // FusedInt4MatMulGELUApproxCF32 computes FusedInt4MatMulGELUApprox using NEON SIMD assembly.
-func FusedInt4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedInt4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusedint4matmulgeluapprox_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -154,19 +280,37 @@ func FusedInt4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, outp
 }
 
 // FusedInt4MatMulReLUCF32 computes FusedInt4MatMulReLU using NEON SIMD assembly.
-func FusedInt4MatMulReLUCF32(input []float32, packed []uint8, scales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(packed) == 0 || len(scales) == 0 || len(output) == 0 {
-		return
+func FusedInt4MatMulReLUCF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusedint4matmulrelu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&packed[0]),
-		unsafe.Pointer(&scales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -176,20 +320,41 @@ func FusedInt4MatMulReLUCF32(input []float32, packed []uint8, scales, output []f
 
 // FusedNF4MatMulSwiGLUCF32 computes FusedNF4MatMulSwiGLU using NEON SIMD assembly.
 func FusedNF4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(gatePacked) == 0 || len(gateScales) == 0 || len(upPacked) == 0 || len(upScales) == 0 || len(output) == 0 {
-		return
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_gatePacked unsafe.Pointer
+	if len(gatePacked) > 0 {
+		p_gatePacked = unsafe.Pointer(&gatePacked[0])
+	}
+	var p_gateScales unsafe.Pointer
+	if len(gateScales) > 0 {
+		p_gateScales = unsafe.Pointer(&gateScales[0])
+	}
+	var p_upPacked unsafe.Pointer
+	if len(upPacked) > 0 {
+		p_upPacked = unsafe.Pointer(&upPacked[0])
+	}
+	var p_upScales unsafe.Pointer
+	if len(upScales) > 0 {
+		p_upScales = unsafe.Pointer(&upScales[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusednf4matmulswiglu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&gatePacked[0]),
-		unsafe.Pointer(&gateScales[0]),
-		unsafe.Pointer(&upPacked[0]),
-		unsafe.Pointer(&upScales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_gatePacked,
+		p_gateScales,
+		p_upPacked,
+		p_upScales,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
@@ -199,20 +364,41 @@ func FusedNF4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales []
 
 // FusedInt4MatMulSwiGLUCF32 computes FusedInt4MatMulSwiGLU using NEON SIMD assembly.
 func FusedInt4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales, output []float32, M, K, N, groupSize int) {
-	if len(input) == 0 || len(gatePacked) == 0 || len(gateScales) == 0 || len(upPacked) == 0 || len(upScales) == 0 || len(output) == 0 {
-		return
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_gatePacked unsafe.Pointer
+	if len(gatePacked) > 0 {
+		p_gatePacked = unsafe.Pointer(&gatePacked[0])
+	}
+	var p_gateScales unsafe.Pointer
+	if len(gateScales) > 0 {
+		p_gateScales = unsafe.Pointer(&gateScales[0])
+	}
+	var p_upPacked unsafe.Pointer
+	if len(upPacked) > 0 {
+		p_upPacked = unsafe.Pointer(&upPacked[0])
+	}
+	var p_upScales unsafe.Pointer
+	if len(upScales) > 0 {
+		p_upScales = unsafe.Pointer(&upScales[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
 	}
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
 	fusedint4matmulswiglu_c_f32_neon(
-		unsafe.Pointer(&input[0]),
-		unsafe.Pointer(&gatePacked[0]),
-		unsafe.Pointer(&gateScales[0]),
-		unsafe.Pointer(&upPacked[0]),
-		unsafe.Pointer(&upScales[0]),
-		unsafe.Pointer(&output[0]),
+		p_input,
+		p_gatePacked,
+		p_gateScales,
+		p_upPacked,
+		p_upScales,
+		p_output,
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),

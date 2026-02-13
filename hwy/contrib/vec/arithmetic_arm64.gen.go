@@ -392,6 +392,10 @@ func MulConstAddTo[T hwy.Floats](dst []T, a T, x []T) {
 }
 
 func init() {
+	initArithmeticAll()
+}
+
+func initArithmeticAll() {
 	if hwy.NoSimdEnv() {
 		initArithmeticFallback()
 		return

@@ -135,6 +135,10 @@ func ApplyPackedOutputAccum[T hwy.Floats](packedOutput []T, output []T, packedSt
 }
 
 func init() {
+	initPacking_opsAll()
+}
+
+func initPacking_opsAll() {
 	if hwy.NoSimdEnv() {
 		initPacking_opsFallback()
 		return

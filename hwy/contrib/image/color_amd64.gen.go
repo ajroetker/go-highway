@@ -108,6 +108,10 @@ func InverseICT[T hwy.Floats](y *Image[T], cb *Image[T], cr *Image[T], outR *Ima
 }
 
 func init() {
+	initColorAll()
+}
+
+func initColorAll() {
 	if hwy.NoSimdEnv() {
 		initColorFallback()
 		return

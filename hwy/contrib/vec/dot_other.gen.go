@@ -44,6 +44,10 @@ func Dot[T hwy.Floats](a []T, b []T) T {
 }
 
 func init() {
+	initDotAll()
+}
+
+func initDotAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initDotFallback()
 }

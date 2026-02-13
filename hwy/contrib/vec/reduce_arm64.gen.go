@@ -157,6 +157,10 @@ func MinMax[T hwy.Floats](v []T) (minVal T, maxVal T) {
 }
 
 func init() {
+	initReduceAll()
+}
+
+func initReduceAll() {
 	if hwy.NoSimdEnv() {
 		initReduceFallback()
 		return

@@ -54,6 +54,7 @@ type Generator struct {
 	DispatchPrefix string       // Dispatch file prefix (defaults to function name)
 	FusionMode     bool         // Enable IR-based fusion optimization
 	Verbose        bool         // Verbose output for debugging
+	KeepCFiles     bool         // Keep intermediate C files in c/ subdirectory
 }
 
 // Targets returns the list of target name strings (for backward compatibility).

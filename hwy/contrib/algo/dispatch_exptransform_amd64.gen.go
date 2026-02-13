@@ -153,6 +153,10 @@ func ErfTransform[T hwy.Floats](in []T, out []T) {
 }
 
 func init() {
+	initExptransformAll()
+}
+
+func initExptransformAll() {
 	if hwy.NoSimdEnv() {
 		initExptransformFallback()
 		return

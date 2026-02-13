@@ -67,6 +67,10 @@ func IsSorted[T hwy.Lanes](data []T) bool {
 }
 
 func init() {
+	initNetworkAll()
+}
+
+func initNetworkAll() {
 	if hwy.NoSimdEnv() {
 		initNetworkFallback()
 		return

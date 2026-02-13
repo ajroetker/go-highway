@@ -39,7 +39,7 @@ func _matmulFusedNf4ActInitHoistedConstants() {
 	})
 }
 
-func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -47,16 +47,19 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -72,17 +75,12 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			}
-			sig := math.BaseSigmoidVec_avx512(acc)
-			acc = acc.Mul(sig)
-			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var quantIdx int
 				if weightIdx%2 == 0 {
@@ -90,16 +88,33 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 				} else {
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
+			sig := math.BaseSigmoidVec_avx512(acc)
+			acc = acc.Mul(sig)
+			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -107,16 +122,19 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -132,7 +150,30 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+				var quantIdx int
+				if weightIdx%2 == 0 {
+					quantIdx = int(packed[packedIdx] & 0x0F)
+				} else {
+					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			invSqrt2 := BaseFusedNF4MatMulGELU_AVX512_invSqrt2_f32
 			half := BaseFusedNF4MatMulGELU_AVX512_half_f32
@@ -143,27 +184,16 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-				var quantIdx int
-				if weightIdx%2 == 0 {
-					quantIdx = int(packed[packedIdx] & 0x0F)
-				} else {
-					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -171,16 +201,19 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -196,7 +229,30 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+				var quantIdx int
+				if weightIdx%2 == 0 {
+					quantIdx = int(packed[packedIdx] & 0x0F)
+				} else {
+					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			coeff := BaseFusedNF4MatMulGELUApprox_AVX512_coeff_f32
 			scaled := acc.Mul(coeff)
@@ -205,27 +261,16 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-				var quantIdx int
-				if weightIdx%2 == 0 {
-					quantIdx = int(packed[packedIdx] & 0x0F)
-				} else {
-					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -233,16 +278,19 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -258,16 +306,12 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			}
-			acc = acc.Max(archsimd.BroadcastFloat32x16(0))
-			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var quantIdx int
 				if weightIdx%2 == 0 {
@@ -275,16 +319,32 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 				} else {
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
+			acc = acc.Max(archsimd.BroadcastFloat32x16(0))
+			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -292,16 +352,19 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -317,17 +380,12 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			}
-			sig := math.BaseSigmoidVec_avx512(acc)
-			acc = acc.Mul(sig)
-			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var unsignedVal int
 				if weightIdx%2 == 0 {
@@ -335,16 +393,33 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 				} else {
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
+			sig := math.BaseSigmoidVec_avx512(acc)
+			acc = acc.Mul(sig)
+			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -352,16 +427,19 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -377,7 +455,30 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+				var unsignedVal int
+				if weightIdx%2 == 0 {
+					unsignedVal = int(packed[packedIdx] & 0x0F)
+				} else {
+					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			invSqrt2 := BaseFusedInt4MatMulGELU_AVX512_invSqrt2_f32
 			half := BaseFusedInt4MatMulGELU_AVX512_half_f32
@@ -388,27 +489,16 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-				var unsignedVal int
-				if weightIdx%2 == 0 {
-					unsignedVal = int(packed[packedIdx] & 0x0F)
-				} else {
-					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -416,16 +506,19 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -441,7 +534,30 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+				var unsignedVal int
+				if weightIdx%2 == 0 {
+					unsignedVal = int(packed[packedIdx] & 0x0F)
+				} else {
+					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
 			coeff := BaseFusedInt4MatMulGELUApprox_AVX512_coeff_f32
 			scaled := acc.Mul(coeff)
@@ -450,27 +566,16 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-				var unsignedVal int
-				if weightIdx%2 == 0 {
-					unsignedVal = int(packed[packedIdx] & 0x0F)
-				} else {
-					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	_matmulFusedNf4ActInitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -478,16 +583,19 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -503,16 +611,12 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			}
-			acc = acc.Max(archsimd.BroadcastFloat32x16(0))
-			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var unsignedVal int
 				if weightIdx%2 == 0 {
@@ -520,9 +624,25 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 				} else {
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
+			if bias != nil {
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
+			}
+			acc = acc.Max(archsimd.BroadcastFloat32x16(0))
+			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
@@ -538,17 +658,21 @@ func BaseFusedNF4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateSc
 	lanes := 16
 	gateBuf := [16]float32{}
 	upBuf := [16]float32{}
+	gateAccBuf := make([]float32, N)
+	upAccBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			gateAcc := archsimd.BroadcastFloat32x16(0)
-			upAcc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			gateAccBuf[i] = 0
+			upAccBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -573,37 +697,46 @@ func BaseFusedNF4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateSc
 				}
 				gateWeights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gateBuf[0])))
 				upWeights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&upBuf[0])))
+				gateAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				upAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&upAccBuf[n])))
 				gateAcc = inputVal.MulAdd(gateWeights, gateAcc)
 				upAcc = inputVal.MulAdd(upWeights, upAcc)
+				gateAcc.Store((*[16]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				upAcc.Store((*[16]float32)(unsafe.Pointer(&upAccBuf[n])))
 			}
-			gateSilu := gateAcc.Mul(math.BaseSigmoidVec_avx512(gateAcc))
-			result := gateSilu.Mul(upAcc)
-			result.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			gateSum := float32(0)
-			upSum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
+				groupIdx := n / groupSize
 				var gateQuantIdx int
 				if weightIdx%2 == 0 {
 					gateQuantIdx = int(gatePacked[packedIdx] & 0x0F)
 				} else {
 					gateQuantIdx = int((gatePacked[packedIdx] >> 4) & 0x0F)
 				}
-				gateScale := gateScales[k*numGroups+groupIdx]
-				gateSum += inputRow[k] * nf4LookupTable[gateQuantIdx] * gateScale
+				gateScale := gateScales[scaleBase+groupIdx]
+				gateAccBuf[n] += inputRow[k] * nf4LookupTable[gateQuantIdx] * gateScale
 				var upQuantIdx int
 				if weightIdx%2 == 0 {
 					upQuantIdx = int(upPacked[packedIdx] & 0x0F)
 				} else {
 					upQuantIdx = int((upPacked[packedIdx] >> 4) & 0x0F)
 				}
-				upScale := upScales[k*numGroups+groupIdx]
-				upSum += inputRow[k] * nf4LookupTable[upQuantIdx] * upScale
+				upScale := upScales[scaleBase+groupIdx]
+				upAccBuf[n] += inputRow[k] * nf4LookupTable[upQuantIdx] * upScale
 			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			gateAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gateAccBuf[n])))
+			upAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&upAccBuf[n])))
+			gateSilu := gateAcc.Mul(math.BaseSigmoidVec_avx512(gateAcc))
+			result := gateSilu.Mul(upAcc)
+			result.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			gateSum := gateAccBuf[n]
+			upSum := upAccBuf[n]
 			gateSilu := gateSum / (1.0 + float32(stdmath.Exp(float64(-gateSum))))
 			outputRow[n] = gateSilu * upSum
 		}
@@ -619,17 +752,21 @@ func BaseFusedInt4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateS
 	lanes := 16
 	gateBuf := [16]float32{}
 	upBuf := [16]float32{}
+	gateAccBuf := make([]float32, N)
+	upAccBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			gateAcc := archsimd.BroadcastFloat32x16(0)
-			upAcc := archsimd.BroadcastFloat32x16(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			gateAccBuf[i] = 0
+			upAccBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -654,37 +791,46 @@ func BaseFusedInt4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateS
 				}
 				gateWeights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gateBuf[0])))
 				upWeights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&upBuf[0])))
+				gateAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				upAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&upAccBuf[n])))
 				gateAcc = inputVal.MulAdd(gateWeights, gateAcc)
 				upAcc = inputVal.MulAdd(upWeights, upAcc)
+				gateAcc.Store((*[16]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				upAcc.Store((*[16]float32)(unsafe.Pointer(&upAccBuf[n])))
 			}
-			gateSilu := gateAcc.Mul(math.BaseSigmoidVec_avx512(gateAcc))
-			result := gateSilu.Mul(upAcc)
-			result.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			gateSum := float32(0)
-			upSum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
+				groupIdx := n / groupSize
 				var gateUnsigned int
 				if weightIdx%2 == 0 {
 					gateUnsigned = int(gatePacked[packedIdx] & 0x0F)
 				} else {
 					gateUnsigned = int((gatePacked[packedIdx] >> 4) & 0x0F)
 				}
-				gateScale := gateScales[k*numGroups+groupIdx]
-				gateSum += inputRow[k] * float32(gateUnsigned-8) * gateScale
+				gateScale := gateScales[scaleBase+groupIdx]
+				gateAccBuf[n] += inputRow[k] * float32(gateUnsigned-8) * gateScale
 				var upUnsigned int
 				if weightIdx%2 == 0 {
 					upUnsigned = int(upPacked[packedIdx] & 0x0F)
 				} else {
 					upUnsigned = int((upPacked[packedIdx] >> 4) & 0x0F)
 				}
-				upScale := upScales[k*numGroups+groupIdx]
-				upSum += inputRow[k] * float32(upUnsigned-8) * upScale
+				upScale := upScales[scaleBase+groupIdx]
+				upAccBuf[n] += inputRow[k] * float32(upUnsigned-8) * upScale
 			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			gateAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gateAccBuf[n])))
+			upAcc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&upAccBuf[n])))
+			gateSilu := gateAcc.Mul(math.BaseSigmoidVec_avx512(gateAcc))
+			result := gateSilu.Mul(upAcc)
+			result.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			gateSum := gateAccBuf[n]
+			upSum := upAccBuf[n]
 			gateSilu := gateSum / (1.0 + float32(stdmath.Exp(float64(-gateSum))))
 			outputRow[n] = gateSilu * upSum
 		}

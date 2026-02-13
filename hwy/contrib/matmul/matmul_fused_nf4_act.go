@@ -39,9 +39,9 @@ const (
 	ActReLU
 )
 
-// BaseFusedNF4MatMulSiLU performs fused NF4 dequantization + matmul + SiLU activation.
-// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulSiLU performs fused NF4 dequantization + matmul + bias + SiLU activation.
+// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -49,20 +49,23 @@ func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, o
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -81,20 +84,13 @@ func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, o
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			// SiLU(x) = x * sigmoid(x)
-			sig := math.BaseSigmoidVec[float32](acc)
-			acc = hwy.Mul(acc, sig)
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var quantIdx int
@@ -104,9 +100,28 @@ func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, o
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+
+		// Apply bias + SiLU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			sig := math.BaseSigmoidVec[float32](acc)
+			acc = hwy.Mul(acc, sig)
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			// SiLU(x) = x * sigmoid(x) = x / (1 + exp(-x))
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
@@ -114,9 +129,9 @@ func BaseFusedNF4MatMulSiLU(input []float32, packed []uint8, scales []float32, o
 	}
 }
 
-// BaseFusedNF4MatMulGELU performs fused NF4 dequantization + matmul + GELU activation.
-// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulGELU performs fused NF4 dequantization + matmul + bias + GELU activation.
+// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -124,20 +139,23 @@ func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, o
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -156,9 +174,36 @@ func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, o
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+
+				var quantIdx int
+				if weightIdx%2 == 0 {
+					quantIdx = int(packed[packedIdx] & 0x0F)
+				} else {
+					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+
+		// Apply bias + GELU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			// GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2)))
 			invSqrt2 := hwy.Set(float32(0.7071067811865476))
 			half := hwy.Set(float32(0.5))
@@ -168,33 +213,19 @@ func BaseFusedNF4MatMulGELU(input []float32, packed []uint8, scales []float32, o
 			acc = hwy.Mul(acc, hwy.Mul(half, hwy.Add(one, erfVal)))
 			hwy.Store(acc, outputRow[n:])
 		}
-
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-
-				var quantIdx int
-				if weightIdx%2 == 0 {
-					quantIdx = int(packed[packedIdx] & 0x0F)
-				} else {
-					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-// BaseFusedNF4MatMulGELUApprox performs fused NF4 dequantization + matmul + approximate GELU.
-// output[m,n] = GELUApprox(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulGELUApprox performs fused NF4 dequantization + matmul + bias + approximate GELU.
+// output[m,n] = GELUApprox(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -202,20 +233,23 @@ func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []floa
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -234,9 +268,36 @@ func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []floa
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+
+				var quantIdx int
+				if weightIdx%2 == 0 {
+					quantIdx = int(packed[packedIdx] & 0x0F)
+				} else {
+					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+
+		// Apply bias + GELUApprox activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			// GELUApprox(x) ≈ x * sigmoid(1.702 * x)
 			coeff := hwy.Set(float32(1.702))
 			scaled := hwy.Mul(acc, coeff)
@@ -244,24 +305,10 @@ func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []floa
 			acc = hwy.Mul(acc, sig)
 			hwy.Store(acc, outputRow[n:])
 		}
-
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-
-				var quantIdx int
-				if weightIdx%2 == 0 {
-					quantIdx = int(packed[packedIdx] & 0x0F)
-				} else {
-					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			// GELUApprox(x) = x * sigmoid(1.702*x) = x / (1 + exp(-1.702*x))
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
@@ -269,9 +316,9 @@ func BaseFusedNF4MatMulGELUApprox(input []float32, packed []uint8, scales []floa
 	}
 }
 
-// BaseFusedNF4MatMulReLU performs fused NF4 dequantization + matmul + ReLU activation.
-// output[m,n] = ReLU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedNF4MatMulReLU performs fused NF4 dequantization + matmul + bias + ReLU activation.
+// output[m,n] = ReLU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -279,20 +326,23 @@ func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, o
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -311,19 +361,13 @@ func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, o
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			// ReLU(x) = max(0, x)
-			acc = hwy.Max(acc, hwy.Zero[float32]())
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var quantIdx int
@@ -333,18 +377,37 @@ func BaseFusedNF4MatMulReLU(input []float32, packed []uint8, scales []float32, o
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
-				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * nf4LookupTable[quantIdx] * scale
+			}
+		}
+
+		// Apply bias + ReLU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			// ReLU(x) = max(0, x)
+			acc = hwy.Max(acc, hwy.Zero[float32]())
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulSiLU performs fused Int4 dequantization + matmul + SiLU activation.
-// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulSiLU performs fused Int4 dequantization + matmul + bias + SiLU activation.
+// output[m,n] = SiLU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -352,20 +415,23 @@ func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, 
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -384,19 +450,13 @@ func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, 
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			sig := math.BaseSigmoidVec[float32](acc)
-			acc = hwy.Mul(acc, sig)
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var unsignedVal int
@@ -406,18 +466,37 @@ func BaseFusedInt4MatMulSiLU(input []float32, packed []uint8, scales []float32, 
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+
+		// Apply bias + SiLU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			sig := math.BaseSigmoidVec[float32](acc)
+			acc = hwy.Mul(acc, sig)
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulGELU performs fused Int4 dequantization + matmul + GELU activation.
-// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])))
-func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulGELU performs fused Int4 dequantization + matmul + bias + GELU activation.
+// output[m,n] = GELU(sum_k(input[m,k] * dequant(packed[k,n])) + bias[n])
+func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -425,20 +504,23 @@ func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, 
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -457,9 +539,36 @@ func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, 
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+
+				var unsignedVal int
+				if weightIdx%2 == 0 {
+					unsignedVal = int(packed[packedIdx] & 0x0F)
+				} else {
+					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+
+		// Apply bias + GELU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			invSqrt2 := hwy.Set(float32(0.7071067811865476))
 			half := hwy.Set(float32(0.5))
 			one := hwy.Set(float32(1.0))
@@ -468,32 +577,18 @@ func BaseFusedInt4MatMulGELU(input []float32, packed []uint8, scales []float32, 
 			acc = hwy.Mul(acc, hwy.Mul(half, hwy.Add(one, erfVal)))
 			hwy.Store(acc, outputRow[n:])
 		}
-
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-
-				var unsignedVal int
-				if weightIdx%2 == 0 {
-					unsignedVal = int(packed[packedIdx] & 0x0F)
-				} else {
-					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum * 0.5 * (1.0 + float32(stdmath.Erf(float64(sum)*0.7071067811865476)))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulGELUApprox performs fused Int4 dequantization + matmul + approximate GELU.
-func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulGELUApprox performs fused Int4 dequantization + matmul + bias + approximate GELU.
+func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -501,20 +596,23 @@ func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []flo
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -533,41 +631,54 @@ func BaseFusedInt4MatMulGELUApprox(input []float32, packed []uint8, scales []flo
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				packedIdx := weightIdx / 2
+
+				var unsignedVal int
+				if weightIdx%2 == 0 {
+					unsignedVal = int(packed[packedIdx] & 0x0F)
+				} else {
+					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+				}
+
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+
+		// Apply bias + GELUApprox activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
 			coeff := hwy.Set(float32(1.702))
 			scaled := hwy.Mul(acc, coeff)
 			sig := math.BaseSigmoidVec[float32](scaled)
 			acc = hwy.Mul(acc, sig)
 			hwy.Store(acc, outputRow[n:])
 		}
-
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				packedIdx := weightIdx / 2
-
-				var unsignedVal int
-				if weightIdx%2 == 0 {
-					unsignedVal = int(packed[packedIdx] & 0x0F)
-				} else {
-					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
-				}
-
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-1.702*sum))))
 		}
 	}
 }
 
-// BaseFusedInt4MatMulReLU performs fused Int4 dequantization + matmul + ReLU activation.
-func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+// BaseFusedInt4MatMulReLU performs fused Int4 dequantization + matmul + bias + ReLU activation.
+func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -575,20 +686,23 @@ func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, 
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
+	accBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -607,18 +721,13 @@ func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, 
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			acc = hwy.Max(acc, hwy.Zero[float32]())
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var unsignedVal int
@@ -628,9 +737,27 @@ func BaseFusedInt4MatMulReLU(input []float32, packed []uint8, scales []float32, 
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
-				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * float32(unsignedVal-8) * scale
+			}
+		}
+
+		// Apply bias + ReLU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			acc = hwy.Max(acc, hwy.Zero[float32]())
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
 		}
@@ -657,21 +784,25 @@ func BaseFusedNF4MatMulSwiGLU(
 	lanes := hwy.Zero[float32]().NumLanes()
 	gateBuf := make([]float32, lanes)
 	upBuf := make([]float32, lanes)
+	gateAccBuf := make([]float32, N)
+	upAccBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			gateAcc := hwy.Zero[float32]()
-			upAcc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			gateAccBuf[i] = 0
+			upAccBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -700,22 +831,18 @@ func BaseFusedNF4MatMulSwiGLU(
 
 				gateWeights := hwy.Load(gateBuf)
 				upWeights := hwy.Load(upBuf)
+				gateAcc := hwy.Load(gateAccBuf[n:])
+				upAcc := hwy.Load(upAccBuf[n:])
 				gateAcc = hwy.MulAdd(inputVal, gateWeights, gateAcc)
 				upAcc = hwy.MulAdd(inputVal, upWeights, upAcc)
+				hwy.Store(gateAcc, gateAccBuf[n:])
+				hwy.Store(upAcc, upAccBuf[n:])
 			}
 
-			gateSilu := hwy.Mul(gateAcc, math.BaseSigmoidVec[float32](gateAcc))
-			result := hwy.Mul(gateSilu, upAcc)
-			hwy.Store(result, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			gateSum := float32(0)
-			upSum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
+				groupIdx := n / groupSize
 
 				var gateQuantIdx int
 				if weightIdx%2 == 0 {
@@ -723,8 +850,8 @@ func BaseFusedNF4MatMulSwiGLU(
 				} else {
 					gateQuantIdx = int((gatePacked[packedIdx] >> 4) & 0x0F)
 				}
-				gateScale := gateScales[k*numGroups+groupIdx]
-				gateSum += inputRow[k] * nf4LookupTable[gateQuantIdx] * gateScale
+				gateScale := gateScales[scaleBase+groupIdx]
+				gateAccBuf[n] += inputRow[k] * nf4LookupTable[gateQuantIdx] * gateScale
 
 				var upQuantIdx int
 				if weightIdx%2 == 0 {
@@ -732,9 +859,23 @@ func BaseFusedNF4MatMulSwiGLU(
 				} else {
 					upQuantIdx = int((upPacked[packedIdx] >> 4) & 0x0F)
 				}
-				upScale := upScales[k*numGroups+groupIdx]
-				upSum += inputRow[k] * nf4LookupTable[upQuantIdx] * upScale
+				upScale := upScales[scaleBase+groupIdx]
+				upAccBuf[n] += inputRow[k] * nf4LookupTable[upQuantIdx] * upScale
 			}
+		}
+
+		// Apply SwiGLU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			gateAcc := hwy.Load(gateAccBuf[n:])
+			upAcc := hwy.Load(upAccBuf[n:])
+			gateSilu := hwy.Mul(gateAcc, math.BaseSigmoidVec[float32](gateAcc))
+			result := hwy.Mul(gateSilu, upAcc)
+			hwy.Store(result, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			gateSum := gateAccBuf[n]
+			upSum := upAccBuf[n]
 			gateSilu := gateSum / (1.0 + float32(stdmath.Exp(float64(-gateSum))))
 			outputRow[n] = gateSilu * upSum
 		}
@@ -757,21 +898,25 @@ func BaseFusedInt4MatMulSwiGLU(
 	lanes := hwy.Zero[float32]().NumLanes()
 	gateBuf := make([]float32, lanes)
 	upBuf := make([]float32, lanes)
+	gateAccBuf := make([]float32, N)
+	upAccBuf := make([]float32, N)
 
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			gateAcc := hwy.Zero[float32]()
-			upAcc := hwy.Zero[float32]()
+		for i := 0; i < N; i++ {
+			gateAccBuf[i] = 0
+			upAccBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -800,22 +945,18 @@ func BaseFusedInt4MatMulSwiGLU(
 
 				gateWeights := hwy.Load(gateBuf)
 				upWeights := hwy.Load(upBuf)
+				gateAcc := hwy.Load(gateAccBuf[n:])
+				upAcc := hwy.Load(upAccBuf[n:])
 				gateAcc = hwy.MulAdd(inputVal, gateWeights, gateAcc)
 				upAcc = hwy.MulAdd(inputVal, upWeights, upAcc)
+				hwy.Store(gateAcc, gateAccBuf[n:])
+				hwy.Store(upAcc, upAccBuf[n:])
 			}
 
-			gateSilu := hwy.Mul(gateAcc, math.BaseSigmoidVec[float32](gateAcc))
-			result := hwy.Mul(gateSilu, upAcc)
-			hwy.Store(result, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			gateSum := float32(0)
-			upSum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
+				groupIdx := n / groupSize
 
 				var gateUnsigned int
 				if weightIdx%2 == 0 {
@@ -823,8 +964,8 @@ func BaseFusedInt4MatMulSwiGLU(
 				} else {
 					gateUnsigned = int((gatePacked[packedIdx] >> 4) & 0x0F)
 				}
-				gateScale := gateScales[k*numGroups+groupIdx]
-				gateSum += inputRow[k] * float32(gateUnsigned-8) * gateScale
+				gateScale := gateScales[scaleBase+groupIdx]
+				gateAccBuf[n] += inputRow[k] * float32(gateUnsigned-8) * gateScale
 
 				var upUnsigned int
 				if weightIdx%2 == 0 {
@@ -832,9 +973,23 @@ func BaseFusedInt4MatMulSwiGLU(
 				} else {
 					upUnsigned = int((upPacked[packedIdx] >> 4) & 0x0F)
 				}
-				upScale := upScales[k*numGroups+groupIdx]
-				upSum += inputRow[k] * float32(upUnsigned-8) * upScale
+				upScale := upScales[scaleBase+groupIdx]
+				upAccBuf[n] += inputRow[k] * float32(upUnsigned-8) * upScale
 			}
+		}
+
+		// Apply SwiGLU activation + store
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			gateAcc := hwy.Load(gateAccBuf[n:])
+			upAcc := hwy.Load(upAccBuf[n:])
+			gateSilu := hwy.Mul(gateAcc, math.BaseSigmoidVec[float32](gateAcc))
+			result := hwy.Mul(gateSilu, upAcc)
+			hwy.Store(result, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			gateSum := gateAccBuf[n]
+			upSum := upAccBuf[n]
 			gateSilu := gateSum / (1.0 + float32(stdmath.Exp(float64(-gateSum))))
 			outputRow[n] = gateSilu * upSum
 		}

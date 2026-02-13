@@ -72,6 +72,10 @@ func RadixPassSigned[T hwy.SignedInts](src []T, dst []T, shift int) {
 }
 
 func init() {
+	initRadixAll()
+}
+
+func initRadixAll() {
 	if hwy.NoSimdEnv() {
 		initRadixFallback()
 		return

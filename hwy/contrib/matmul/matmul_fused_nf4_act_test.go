@@ -123,11 +123,11 @@ func TestFusedNF4MatMulSiLU(t *testing.T) {
 
 	// First compute raw matmul
 	rawOutput := make([]float32, M*N)
-	BaseFusedNF4MatMul_fallback(input, packed, scales, rawOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMul_fallback(input, packed, scales, nil, rawOutput, M, K, N, groupSize)
 
 	// Then compute fused SiLU version
 	siluOutput := make([]float32, M*N)
-	BaseFusedNF4MatMulSiLU(input, packed, scales, siluOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMulSiLU(input, packed, scales, nil, siluOutput, M, K, N, groupSize)
 
 	// Verify: siluOutput should equal SiLU applied to rawOutput
 	for i := range siluOutput {
@@ -163,10 +163,10 @@ func TestFusedNF4MatMulGELU(t *testing.T) {
 	}
 
 	rawOutput := make([]float32, M*N)
-	BaseFusedNF4MatMul_fallback(input, packed, scales, rawOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMul_fallback(input, packed, scales, nil, rawOutput, M, K, N, groupSize)
 
 	geluOutput := make([]float32, M*N)
-	BaseFusedNF4MatMulGELU(input, packed, scales, geluOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMulGELU(input, packed, scales, nil, geluOutput, M, K, N, groupSize)
 
 	for i := range geluOutput {
 		expected := applyActivationScalar(rawOutput[i], ActGELU)
@@ -201,10 +201,10 @@ func TestFusedNF4MatMulReLU(t *testing.T) {
 	}
 
 	rawOutput := make([]float32, M*N)
-	BaseFusedNF4MatMul_fallback(input, packed, scales, rawOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMul_fallback(input, packed, scales, nil, rawOutput, M, K, N, groupSize)
 
 	reluOutput := make([]float32, M*N)
-	BaseFusedNF4MatMulReLU(input, packed, scales, reluOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMulReLU(input, packed, scales, nil, reluOutput, M, K, N, groupSize)
 
 	for i := range reluOutput {
 		expected := applyActivationScalar(rawOutput[i], ActReLU)
@@ -245,8 +245,8 @@ func TestFusedNF4MatMulSwiGLU(t *testing.T) {
 	// Compute gate and up projections separately
 	gateOutput := make([]float32, M*N)
 	upOutput := make([]float32, M*N)
-	BaseFusedNF4MatMul_fallback(input, gatePacked, gateScales, gateOutput, M, K, N, groupSize)
-	BaseFusedNF4MatMul_fallback(input, upPacked, upScales, upOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMul_fallback(input, gatePacked, gateScales, nil, gateOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMul_fallback(input, upPacked, upScales, nil, upOutput, M, K, N, groupSize)
 
 	// Compute fused SwiGLU
 	swiGLUOutput := make([]float32, M*N)
@@ -289,11 +289,11 @@ func TestFusedInt4MatMulActivations(t *testing.T) {
 
 	// Compute raw Int4 matmul
 	rawOutput := make([]float32, M*N)
-	BaseFusedInt4MatMul_fallback(input, packed, scales, rawOutput, M, K, N, groupSize)
+	BaseFusedInt4MatMul_fallback(input, packed, scales, nil, rawOutput, M, K, N, groupSize)
 
 	testCases := []struct {
 		name string
-		fn   func([]float32, []uint8, []float32, []float32, int, int, int, int)
+		fn   func([]float32, []uint8, []float32, []float32, []float32, int, int, int, int)
 		act  ActivationType
 	}{
 		{"SiLU", BaseFusedInt4MatMulSiLU, ActSiLU},
@@ -305,7 +305,7 @@ func TestFusedInt4MatMulActivations(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actOutput := make([]float32, M*N)
-			tc.fn(input, packed, scales, actOutput, M, K, N, groupSize)
+			tc.fn(input, packed, scales, nil, actOutput, M, K, N, groupSize)
 
 			for i := range actOutput {
 				expected := applyActivationScalar(rawOutput[i], tc.act)

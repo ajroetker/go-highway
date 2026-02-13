@@ -135,7 +135,7 @@ func erff32(x float32) float32 {
 }
 
 // baseFusedNF4MatMulAct is the internal implementation for SME code paths.
-func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -146,19 +146,27 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, ou
 	dequantBuf := fusedActDequantBufPool.Get().([]float32)[:lanes]
 	defer fusedActDequantBufPool.Put(dequantBuf[:cap(dequantBuf)])
 
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		// Zero accumulators for this row
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -177,18 +185,14 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, ou
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			acc = applyActivationVec(acc, act)
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var quantIdx int
@@ -198,17 +202,36 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, ou
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
-			outputRow[n] = applyActivationScalar(sum, act)
+		}
+
+		// Apply bias + activation and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			acc = applyActivationVec(acc, act)
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = applyActivationScalar(val, act)
 		}
 	}
 }
 
 // baseFusedInt4MatMulAct is the internal implementation for SME code paths.
-func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -219,19 +242,27 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, o
 	dequantBuf := fusedActDequantBufPool.Get().([]float32)[:lanes]
 	defer fusedActDequantBufPool.Put(dequantBuf[:cap(dequantBuf)])
 
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Zero[float32]()
+		// Zero accumulators for this row
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			for k := 0; k < K; k++ {
-				inputVal := hwy.Set(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -250,18 +281,14 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, o
 				}
 
 				weights := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			acc = applyActivationVec(acc, act)
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var unsignedVal int
@@ -271,11 +298,30 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, o
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
-			outputRow[n] = applyActivationScalar(sum, act)
+		}
+
+		// Apply bias + activation and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			acc = applyActivationVec(acc, act)
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = applyActivationScalar(val, act)
 		}
 	}
 }

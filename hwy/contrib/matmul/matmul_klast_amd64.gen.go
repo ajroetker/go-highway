@@ -76,6 +76,10 @@ func MatMulKLastBlocked[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) 
 }
 
 func init() {
+	initMatmul_klastAll()
+}
+
+func initMatmul_klastAll() {
 	if hwy.NoSimdEnv() {
 		initMatmul_klastFallback()
 		return

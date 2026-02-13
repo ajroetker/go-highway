@@ -76,6 +76,10 @@ func Norm[T hwy.Floats](v []T) T {
 }
 
 func init() {
+	initNormAll()
+}
+
+func initNormAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initNormFallback()
 }

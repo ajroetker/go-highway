@@ -8,18 +8,22 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var FusedNF4MatMulSiLU func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulGELU func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulReLU func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedInt4MatMulSiLU func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedInt4MatMulGELU func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedInt4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedInt4MatMulReLU func(input []float32, packed []uint8, scales []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulReLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt4MatMulReLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedNF4MatMulSwiGLU func(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulSwiGLU func(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
+	initFusednf4actmatmulAll()
+}
+
+func initFusednf4actmatmulAll() {
 	if hwy.NoSimdEnv() {
 		initFusednf4actmatmulFallback()
 		return

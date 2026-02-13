@@ -40,8 +40,8 @@ var nf4LookupTable = [16]float32{
 	1.0,
 }
 
-// BaseFusedNF4MatMul performs fused NF4 dequantization + matrix multiplication.
-// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n]))
+// BaseFusedNF4MatMul performs fused NF4 dequantization + matrix multiplication + optional bias.
+// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n])) + bias[n]
 //
 // This implementation vectorizes over the N dimension, processing multiple
 // output columns simultaneously using SIMD operations.
@@ -50,10 +50,11 @@ var nf4LookupTable = [16]float32{
 //   - input: [M, K] float32 input matrix (row-major)
 //   - packed: [K, N/2] uint8 packed NF4 weights (2 values per byte, low nibble first)
 //   - scales: [K, numGroups] float32 per-group scales
+//   - bias: [N] float32 bias vector (nil for no bias)
 //   - output: [M, N] float32 output matrix (row-major, pre-allocated)
 //   - M, K, N: matrix dimensions
 //   - groupSize: number of columns per scale group
-func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -64,26 +65,28 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 	// Temporary buffer for dequantized weights (one vector width)
 	dequantBuf := make([]float32, lanes)
 
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
 	// Process each output row
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		// Process output columns in groups of lanes
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			// Initialize accumulator
-			acc := hwy.Zero[float32]()
+		// Zero accumulators for this row
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			// Accumulate over K dimension
-			for k := range K {
-				// Broadcast input[m, k]
-				inputVal := hwy.Set(inputRow[k])
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := range K {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
-				// Dequantize 'lanes' weights from packed[k, n:n+lanes]
-				baseIdx := k * N
-				scaleBase := k * numGroups
-
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -101,23 +104,15 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 
-				// Load dequantized weights into vector
 				weights := hwy.Load(dequantBuf)
-
-				// FMA: acc += input * weight
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			// Store result
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		// Handle remaining columns (scalar tail)
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := range K {
-				weightIdx := k*N + n
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var quantIdx int
@@ -127,17 +122,35 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
-			outputRow[n] = sum
+		}
+
+		// Apply bias and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }
 
-// BaseFusedInt4MatMul performs fused Int4 dequantization + matrix multiplication.
-// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n]))
+// BaseFusedInt4MatMul performs fused Int4 dequantization + matrix multiplication + optional bias.
+// output[m,n] = sum_k(input[m,k] * dequant(packed[k,n])) + bias[n]
 //
 // Int4 uses symmetric quantization: values in [0,15] map to [-8,7].
 //
@@ -145,10 +158,11 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, outpu
 //   - input: [M, K] float32 input matrix (row-major)
 //   - packed: [K, N/2] uint8 packed Int4 weights (2 values per byte, low nibble first)
 //   - scales: [K, numGroups] float32 per-group scales
+//   - bias: [N] float32 bias vector (nil for no bias)
 //   - output: [M, N] float32 output matrix (row-major, pre-allocated)
 //   - M, K, N: matrix dimensions
 //   - groupSize: number of columns per scale group
-func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, output []float32, M, K, N, groupSize int) {
+func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -159,26 +173,28 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 	// Temporary buffer for dequantized weights (one vector width)
 	dequantBuf := make([]float32, lanes)
 
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
 	// Process each output row
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		// Process output columns in groups of lanes
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			// Initialize accumulator
-			acc := hwy.Zero[float32]()
+		// Zero accumulators for this row
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			// Accumulate over K dimension
-			for k := range K {
-				// Broadcast input[m, k]
-				inputVal := hwy.Set(inputRow[k])
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := range K {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
-				// Dequantize 'lanes' weights from packed[k, n:n+lanes]
-				baseIdx := k * N
-				scaleBase := k * numGroups
-
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -197,23 +213,15 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 
-				// Load dequantized weights into vector
 				weights := hwy.Load(dequantBuf)
-
-				// FMA: acc += input * weight
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, weights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			// Store result
-			hwy.Store(acc, outputRow[n:])
-		}
-
-		// Handle remaining columns (scalar tail)
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := range K {
-				weightIdx := k*N + n
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 
 				var unsignedVal int
@@ -223,11 +231,29 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, outp
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
 
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
-			outputRow[n] = sum
+		}
+
+		// Apply bias and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }

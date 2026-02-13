@@ -59,11 +59,11 @@ func TestFusedNF4MatMulSiLUSME(t *testing.T) {
 
 	// Compute with base implementation
 	baseOutput := make([]float32, M*N)
-	BaseFusedNF4MatMulSiLU(input, packed, scales, baseOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMulSiLU(input, packed, scales, nil, baseOutput, M, K, N, groupSize)
 
 	// Compute with SME implementation via dispatch
 	smeOutput := make([]float32, M*N)
-	FusedNF4MatMulSiLU(input, packed, scales, smeOutput, M, K, N, groupSize)
+	FusedNF4MatMulSiLU(input, packed, scales, nil, smeOutput, M, K, N, groupSize)
 
 	// Verify results match (allowing for small numerical differences)
 	maxDiff := float64(0)
@@ -107,10 +107,10 @@ func TestFusedNF4MatMulGELUSME(t *testing.T) {
 	}
 
 	baseOutput := make([]float32, M*N)
-	BaseFusedNF4MatMulGELU(input, packed, scales, baseOutput, M, K, N, groupSize)
+	BaseFusedNF4MatMulGELU(input, packed, scales, nil, baseOutput, M, K, N, groupSize)
 
 	smeOutput := make([]float32, M*N)
-	FusedNF4MatMulGELU(input, packed, scales, smeOutput, M, K, N, groupSize)
+	FusedNF4MatMulGELU(input, packed, scales, nil, smeOutput, M, K, N, groupSize)
 
 	maxDiff := float64(0)
 	for i := range smeOutput {
@@ -153,10 +153,10 @@ func TestFusedInt4MatMulSiLUSME(t *testing.T) {
 	}
 
 	baseOutput := make([]float32, M*N)
-	BaseFusedInt4MatMulSiLU(input, packed, scales, baseOutput, M, K, N, groupSize)
+	BaseFusedInt4MatMulSiLU(input, packed, scales, nil, baseOutput, M, K, N, groupSize)
 
 	smeOutput := make([]float32, M*N)
-	FusedInt4MatMulSiLU(input, packed, scales, smeOutput, M, K, N, groupSize)
+	FusedInt4MatMulSiLU(input, packed, scales, nil, smeOutput, M, K, N, groupSize)
 
 	maxDiff := float64(0)
 	for i := range smeOutput {
@@ -199,10 +199,10 @@ func TestFusedInt4MatMulGELUSME(t *testing.T) {
 	}
 
 	baseOutput := make([]float32, M*N)
-	BaseFusedInt4MatMulGELU(input, packed, scales, baseOutput, M, K, N, groupSize)
+	BaseFusedInt4MatMulGELU(input, packed, scales, nil, baseOutput, M, K, N, groupSize)
 
 	smeOutput := make([]float32, M*N)
-	FusedInt4MatMulGELU(input, packed, scales, smeOutput, M, K, N, groupSize)
+	FusedInt4MatMulGELU(input, packed, scales, nil, smeOutput, M, K, N, groupSize)
 
 	maxDiff := float64(0)
 	for i := range smeOutput {
@@ -247,11 +247,11 @@ func TestParallelFusedNF4MatMulSiLUSME(t *testing.T) {
 
 	// Compute with serial dispatch
 	serialOutput := make([]float32, M*N)
-	FusedNF4MatMulSiLU(input, packed, scales, serialOutput, M, K, N, groupSize)
+	FusedNF4MatMulSiLU(input, packed, scales, nil, serialOutput, M, K, N, groupSize)
 
 	// Compute with parallel dispatch
 	parallelOutput := make([]float32, M*N)
-	ParallelFusedNF4MatMulSiLU(input, packed, scales, parallelOutput, M, K, N, groupSize)
+	ParallelFusedNF4MatMulSiLU(input, packed, scales, nil, parallelOutput, M, K, N, groupSize)
 
 	// Verify results match
 	maxDiff := float64(0)
@@ -298,7 +298,7 @@ func BenchmarkFusedNF4MatMulSiLUSME(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		FusedNF4MatMulSiLU(input, packed, scales, output, M, K, N, groupSize)
+		FusedNF4MatMulSiLU(input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }
 
@@ -333,7 +333,7 @@ func BenchmarkFusedNF4MatMulGELUSME(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		FusedNF4MatMulGELU(input, packed, scales, output, M, K, N, groupSize)
+		FusedNF4MatMulGELU(input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }
 
@@ -368,6 +368,6 @@ func BenchmarkParallelFusedNF4MatMulSiLUSME(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParallelFusedNF4MatMulSiLU(input, packed, scales, output, M, K, N, groupSize)
+		ParallelFusedNF4MatMulSiLU(input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }

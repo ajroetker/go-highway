@@ -12,6 +12,10 @@ var DecodeGroupVarint32 func(src []byte) (values [4]uint32, consumed int)
 var DecodeGroupVarint64 func(src []byte) (values [4]uint64, consumed int)
 
 func init() {
+	initGroupvarintAll()
+}
+
+func initGroupvarintAll() {
 	if hwy.NoSimdEnv() {
 		initGroupvarintFallback()
 		return

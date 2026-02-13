@@ -2,22 +2,25 @@
 
 package matmul
 
-func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []float32, output []float32, M int, K int, N int, groupSize int) {
+func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n < N; n++ {
-			acc := float32(0)
-			for k := 0; k < K; k++ {
-				inputVal := float32(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := float32(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n < N; n++ {
 				for lane := 0; lane < 1; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -27,21 +30,33 @@ func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []floa
 					dequantBuf[lane] = val * scale
 				}
 				dequantWeights := dequantBuf[0]
+				acc := accBuf[n]
 				acc = inputVal*dequantWeights + acc
+				accBuf[n] = acc
+			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				val := float32(weights[weightIdx])
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * val * scale
+			}
+		}
+		var n int
+		for n = 0; n < N; n++ {
+			acc := accBuf[n]
+			if bias != nil {
+				biasVec := bias[n]
+				acc = acc + biasVec
 			}
 			outputRow[n] = acc
 		}
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				val := float32(weights[weightIdx])
-				scale := scales[k*numGroups+groupIdx]
-				weight := val * scale
-				sum += inputRow[k] * weight
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
 			}
-			outputRow[n] = sum
+			outputRow[n] = val
 		}
 	}
 }

@@ -18,8 +18,8 @@ package matmul
 
 import "github.com/ajroetker/go-highway/hwy"
 
-// BaseFusedInt8MatMul performs fused Int8 dequantization + matrix multiplication.
-// output[m,n] = sum_k(input[m,k] * (weights[k,n] * scale[k,groupIdx]))
+// BaseFusedInt8MatMul performs fused Int8 dequantization + matrix multiplication + optional bias.
+// output[m,n] = sum_k(input[m,k] * (weights[k,n] * scale[k,groupIdx])) + bias[n]
 //
 // Int8 quantization stores weights as signed 8-bit integers with per-group scales.
 // This is more memory efficient than float32 (4x compression) while maintaining
@@ -29,10 +29,11 @@ import "github.com/ajroetker/go-highway/hwy"
 //   - input: [M, K] float32 input matrix (row-major)
 //   - weights: [K, N] int8 quantized weights (row-major)
 //   - scales: [K, numGroups] float32 per-group scales
+//   - bias: [N] float32 bias vector (nil for no bias)
 //   - output: [M, N] float32 output matrix (row-major, pre-allocated)
 //   - M, K, N: matrix dimensions
 //   - groupSize: number of columns per scale group
-func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, output []float32, M, K, N, groupSize int) {
+func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -43,31 +44,32 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, outp
 	// Temporary buffer for dequantized weights (one vector width)
 	dequantBuf := make([]float32, lanes)
 
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
 	// Process each output row
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		// Process output columns in groups of lanes
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			// Initialize accumulator
-			acc := hwy.Zero[float32]()
+		// Zero accumulators for this row
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			// Accumulate over K dimension
-			for k := 0; k < K; k++ {
-				// Broadcast input[m, k]
-				inputVal := hwy.Set(inputRow[k])
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
-				// Dequantize 'lanes' weights from weights[k, n:n+lanes]
-				baseIdx := k * N
-				scaleBase := k * numGroups
-
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 
-					// Int8 weight value
 					val := float32(weights[weightIdx])
 
 					groupIdx := colIdx / groupSize
@@ -75,30 +77,38 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, outp
 					dequantBuf[lane] = val * scale
 				}
 
-				// Load dequantized weights into vector
 				dequantWeights := hwy.Load(dequantBuf)
-
-				// FMA: acc += input * weight
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, dequantWeights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			// Store result
-			hwy.Store(acc, outputRow[n:])
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				val := float32(weights[weightIdx])
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * val * scale
+			}
 		}
 
-		// Handle remaining columns (scalar tail)
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				val := float32(weights[weightIdx])
-				scale := scales[k*numGroups+groupIdx]
-				weight := val * scale
-				sum += inputRow[k] * weight
+		// Apply bias and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
 			}
-			outputRow[n] = sum
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }
-

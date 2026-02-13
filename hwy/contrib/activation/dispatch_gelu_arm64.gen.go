@@ -180,6 +180,10 @@ func ELU[T hwy.Floats](input []T, output []T, alpha T) {
 }
 
 func init() {
+	initGeluAll()
+}
+
+func initGeluAll() {
 	if hwy.NoSimdEnv() {
 		initGeluFallback()
 		return
