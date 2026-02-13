@@ -160,9 +160,15 @@ Bits 4-0: Zn (source Z register)
 
 ## Testing
 
-Run SME tests:
+Run SME tests (no `GOEXPERIMENT=simd` needed on ARM64 — the `hwy/asm` package provides NEON/SVE/SME support via GoAT-generated assembly):
 ```bash
-GOEXPERIMENT=simd go test -v -run TestSME ./hwy/contrib/matmul/
+go test -v -run TestSME ./hwy/contrib/matmul/
+
+# Force NEON fallback (disable SME dispatch)
+HWY_NO_SME=1 go test -v ./hwy/contrib/matmul/...
+
+# Force pure Go scalar fallback (disable all SIMD)
+HWY_NO_SIMD=1 go test -v ./hwy/contrib/matmul/...
 ```
 
 All tests should pass:
@@ -185,7 +191,7 @@ GoAT-generated FMOPA assembly is **11-27% slower** than handwritten assembly on 
 | 48×48 | 389 GFLOPS | 479 GFLOPS | 19% slower |
 | 64×64 | 447 GFLOPS | 500 GFLOPS | 11% slower |
 
-Benchmarks run on Apple M4 Max with `GOEXPERIMENT=simd go`.
+Benchmarks run on Apple M4 Max.
 
 ### Root Cause: Memory Latency Hiding
 

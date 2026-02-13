@@ -26,6 +26,12 @@ GOEXPERIMENT=simd go test ./...
 # Force fallback path (for testing pure Go implementation)
 HWY_NO_SIMD=1 GOEXPERIMENT=simd go test ./...
 
+# Disable SME dispatch on ARM64 (falls back to NEON)
+HWY_NO_SME=1 go test ./...
+
+# Disable SVE dispatch on ARM64 Linux (falls back to NEON)
+HWY_NO_SVE=1 go test ./...
+
 # Run benchmarks
 GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/algo/...
 GOEXPERIMENT=simd go test -bench=. -benchmem ./hwy/contrib/math/...
@@ -77,14 +83,52 @@ When implementing a new SIMD feature:
 
 5. **Function signatures** should match: `func(src []T, m, k int, dst []T)` (src first, dst last).
 
+### Target Modes: `neon` vs `neon:asm`
+
+hwygen supports three generation modes, selected with a colon suffix on the target name:
+
+| Suffix | Mode | What it generates |
+|--------|------|-------------------|
+| *(none)* | GoSimd | Pure Go calling `asm` or `archsimd` methods |
+| `:asm` | Assembly | C source → GoAT → Go assembly + wrappers |
+| `:c` | C only | C source for inspection (not compiled) |
+
+**Use plain `neon`** (GoSimd mode) for operations that the `hwy/asm` package already supports — arithmetic, loads/stores, reductions, etc. This is the default and produces portable Go code that calls NEON intrinsics through the asm package.
+
+**Use `neon:asm`** when you need bulk assembly — the entire function is compiled from C to Go assembly via GoAT, eliminating per-vector call overhead. This is best for:
+- Compute-heavy kernels (matmul, cross-entropy loss, fused quantized ops)
+- Functions where per-vector function call overhead dominates
+- Operations that benefit from compiler auto-vectorization at `-O3`
+
+Examples from the codebase:
+```go
+// GoSimd mode — calls asm package methods per-vector
+//go:generate go run ../../../cmd/hwygen -input dense_base.go -output . -targets avx2,avx512,neon,fallback
+
+// Assembly mode — compiles entire function to NEON assembly via GoAT
+//go:generate go run ../../../cmd/hwygen -input matmul_fused_int8.go -dispatch fusedint8matmul -output . -targets avx2,avx512,neon:asm,fallback
+```
+
+The `:asm` suffix generates:
+- C source files (in `asm/c/` or kept with `-keepc`)
+- Go assembly (`.s`) via GoAT transpilation
+- `//go:noescape` wrapper functions for slice-to-pointer conversion
+- Dispatch override files (`z_c_slices_*_neon_arm64.gen.go`)
+
+SVE targets (`sve_darwin`, `sve_linux`) are always assembly-only — they have no GoSimd mode since Go's simd package does not support SVE.
+
 ## Supported Architectures
 
-| Architecture | SIMD Width | Status |
-|--------------|------------|--------|
-| AMD64 AVX2 | 256-bit | Supported |
-| AMD64 AVX-512 | 512-bit | Supported |
-| ARM64 NEON | 128-bit | Supported |
-| Pure Go | Scalar | Supported (fallback) |
+| Architecture | SIMD Width | Backend | Status |
+|--------------|------------|---------|--------|
+| AMD64 AVX2 | 256-bit | Go 1.26 `simd/archsimd` | Supported |
+| AMD64 AVX-512 | 512-bit | Go 1.26 `simd/archsimd` | Supported |
+| ARM64 NEON | 128-bit | `hwy/asm` (GoAT assembly) | Supported |
+| ARM64 SVE (Darwin) | 512-bit (fixed) | `hwy/asm` (GoAT assembly) | Supported |
+| ARM64 SVE (Linux) | Scalable | `hwy/asm` (GoAT assembly) | Supported |
+| Pure Go | Scalar | — | Supported (fallback) |
+
+ARM64 targets use the `hwy/asm` package because Go's `simd/archsimd` does not yet support NEON or SVE.
 
 ## GoAT Transpiler (C to Go Assembly)
 

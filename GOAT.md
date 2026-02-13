@@ -2,6 +2,8 @@
 
 Go assembly transpiler for C programming languages. It helps utilize optimization from C compiler in Go projects. For example, generate SIMD vectorized functions for Go (refer to [How to Use AVX512 in Golang](https://gorse.io/posts/avx512-in-golang.html)).
 
+In go-highway, GoAT is the assembly backend for all ARM64 targets (NEON, SVE, SME). Go 1.26's `simd/archsimd` package supports AVX2 and AVX-512 but does not yet support ARM NEON or SVE, so ARM64 code generation relies on GoAT to transpile C into Go assembly. The hwygen code generator integrates GoAT via the `neon:asm`, `sve_darwin`, and `sve_linux` target modes.
+
 ## Installation
 
 ```bash
