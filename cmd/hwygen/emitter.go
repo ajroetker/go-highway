@@ -614,13 +614,12 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	capPrefix := strings.Title(prefix)
 
 	// Simple init that just uses fallback
-	initGenFn := "init" + capPrefix + "_dispatchAll"
+	initGenFn := "init" + capPrefix + "All"
+	fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initGenFn)
 	fmt.Fprintf(&buf, "func %s() {\n", initGenFn)
 	fmt.Fprintf(&buf, "\t_ = hwy.NoSimdEnv // silence unused import\n")
 	fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	fmt.Fprintf(&buf, "}\n\n")
-
-	fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initGenFn)
 
 	fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 	for _, pf := range dispatchableFuncs {
