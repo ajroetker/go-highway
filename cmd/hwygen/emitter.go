@@ -425,7 +425,9 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	capPrefix := strings.Title(prefix)
 
 	// Generate init() function
-	fmt.Fprintf(&buf, "func init() {\n")
+	initGenFn := "init" + capPrefix + "All"
+	fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initGenFn)
+	fmt.Fprintf(&buf, "func %s() {\n", initGenFn)
 	fmt.Fprintf(&buf, "\tif hwy.NoSimdEnv() {\n")
 	fmt.Fprintf(&buf, "\t\tinit%sFallback()\n", capPrefix)
 	fmt.Fprintf(&buf, "\t\treturn\n")
@@ -612,10 +614,13 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	capPrefix := strings.Title(prefix)
 
 	// Simple init that just uses fallback
-	fmt.Fprintf(&buf, "func init() {\n")
+	initGenFn := "init" + capPrefix + "_dispatchAll"
+	fmt.Fprintf(&buf, "func %s() {\n", initGenFn)
 	fmt.Fprintf(&buf, "\t_ = hwy.NoSimdEnv // silence unused import\n")
 	fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	fmt.Fprintf(&buf, "}\n\n")
+
+	fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initGenFn)
 
 	fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 	for _, pf := range dispatchableFuncs {
