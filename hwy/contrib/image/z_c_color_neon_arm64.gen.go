@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	if hwy.HasSME() {
+	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
 	ForwardRCTInt32 = forwardRCTAsmS32

@@ -8,17 +8,30 @@ import "unsafe"
 // Public wrapper functions
 // CutCrossEntropyGradCF32 computes CutCrossEntropyGrad using NEON SIMD assembly.
 func CutCrossEntropyGradCF32(hiddenStates, embeddings []float32, labels []int32, gradOutput []float32, numPositions, hiddenDim, vocabSize int) {
-	if len(hiddenStates) == 0 || len(embeddings) == 0 || len(labels) == 0 || len(gradOutput) == 0 {
-		return
+	var p_hiddenStates unsafe.Pointer
+	if len(hiddenStates) > 0 {
+		p_hiddenStates = unsafe.Pointer(&hiddenStates[0])
+	}
+	var p_embeddings unsafe.Pointer
+	if len(embeddings) > 0 {
+		p_embeddings = unsafe.Pointer(&embeddings[0])
+	}
+	var p_labels unsafe.Pointer
+	if len(labels) > 0 {
+		p_labels = unsafe.Pointer(&labels[0])
+	}
+	var p_gradOutput unsafe.Pointer
+	if len(gradOutput) > 0 {
+		p_gradOutput = unsafe.Pointer(&gradOutput[0])
 	}
 	numPositionsVal := int64(numPositions)
 	hiddenDimVal := int64(hiddenDim)
 	vocabSizeVal := int64(vocabSize)
 	cutcrossentropygrad_c_f32_neon(
-		unsafe.Pointer(&hiddenStates[0]),
-		unsafe.Pointer(&embeddings[0]),
-		unsafe.Pointer(&labels[0]),
-		unsafe.Pointer(&gradOutput[0]),
+		p_hiddenStates,
+		p_embeddings,
+		p_labels,
+		p_gradOutput,
 		unsafe.Pointer(&numPositionsVal),
 		unsafe.Pointer(&hiddenDimVal),
 		unsafe.Pointer(&vocabSizeVal),
