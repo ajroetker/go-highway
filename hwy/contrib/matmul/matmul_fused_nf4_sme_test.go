@@ -47,6 +47,10 @@ func TestFusedNF4MatMulCorrectness(t *testing.T) {
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
 		{"128x512x1024", 128, 512, 1024, 128},
+		// Non-16-aligned K/N to exercise K/N padding paths
+		{"8x48x40_N_unaligned", 8, 48, 40, 16},
+		{"32x40x64_K_unaligned", 32, 40, 64, 16},
+		{"8x40x40_both_unaligned", 8, 40, 40, 16},
 	}
 
 	for _, tc := range testCases {
@@ -116,6 +120,10 @@ func TestFusedInt4MatMulCorrectness(t *testing.T) {
 		{"64x64x64", 64, 64, 64, 32},
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
+		// Non-16-aligned K/N to exercise K/N padding paths
+		{"8x48x40_N_unaligned", 8, 48, 40, 16},
+		{"32x40x64_K_unaligned", 32, 40, 64, 16},
+		{"8x40x40_both_unaligned", 8, 40, 40, 16},
 	}
 
 	for _, tc := range testCases {
@@ -303,6 +311,8 @@ func TestParallelFusedNF4MatMulCorrectness(t *testing.T) {
 		{"64x256x512", 64, 256, 512, 128},
 		{"128x512x1024", 128, 512, 1024, 128},
 		{"64x1024x2048", 64, 1024, 2048, 128},
+		// Non-16-aligned N to exercise K/N padding in parallel path
+		{"64x1024x2040_N_unaligned", 64, 1024, 2040, 128},
 	}
 
 	for _, tc := range testCases {
@@ -369,6 +379,8 @@ func TestParallelFusedInt4MatMulCorrectness(t *testing.T) {
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
 		{"64x1024x2048", 64, 1024, 2048, 128},
+		// Non-16-aligned N to exercise K/N padding in parallel path
+		{"64x1024x2040_N_unaligned", 64, 1024, 2040, 128},
 	}
 
 	for _, tc := range testCases {

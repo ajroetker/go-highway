@@ -47,6 +47,10 @@ func TestFusedInt8MatMulSMECorrectness(t *testing.T) {
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
 		{"128x512x1024", 128, 512, 1024, 128},
+		// Non-16-aligned K/N to exercise K/N padding paths
+		{"8x48x40_N_unaligned", 8, 48, 40, 16},
+		{"32x40x64_K_unaligned", 32, 40, 64, 16},
+		{"8x40x40_both_unaligned", 8, 40, 40, 16},
 	}
 
 	for _, tc := range testCases {
@@ -161,7 +165,7 @@ func TestFusedInt8MatMulSMEGroupBoundaryCrossing(t *testing.T) {
 }
 
 // TestFusedInt8MatMulSMEUnaligned verifies correctness with non-16-aligned dimensions.
-// These dimensions force the fallback path since SME requires 16-alignment.
+// With K/N padding, these now go through the SME path (padding to 16-alignment).
 func TestFusedInt8MatMulSMEUnaligned(t *testing.T) {
 	testCases := []struct {
 		name      string
@@ -215,10 +219,9 @@ func TestFusedInt8MatMulSMEUnaligned(t *testing.T) {
 				}
 			}
 
-			// When SME is active, unaligned dims fall back to scalar so tolerance
-			// can be tight. On NEON asm or other SIMD paths, FMA rounding causes
-			// small differences vs the scalar reference.
-			tolerance := float32(1e-5)
+			// With K/N padding, unaligned dims now go through SME. Allow for
+			// floating point differences due to different computation order.
+			tolerance := float32(1e-4)
 			if maxDiff > tolerance {
 				t.Errorf("Max difference: %v (tolerance: %v)", maxDiff, tolerance)
 			}
@@ -242,6 +245,8 @@ func TestParallelFusedInt8MatMulSMECorrectness(t *testing.T) {
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
 		{"64x1024x2048", 64, 1024, 2048, 128},
+		// Non-16-aligned N to exercise K/N padding in parallel path
+		{"64x1024x2040_N_unaligned", 64, 1024, 2040, 128},
 	}
 
 	for _, tc := range testCases {

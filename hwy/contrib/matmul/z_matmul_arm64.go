@@ -1499,11 +1499,10 @@ func packedMicroKernelPartialNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFlo
 }
 
 // =============================================================================
-// Fused M-padding pools and helpers for SME
+// Fused dimension-padding pools and helpers for SME
 // =============================================================================
-// When M < minDimForSME but K/N meet alignment requirements, we pad M up to
-// minDimForSME so the SME FMOPA path can be used. These pools avoid repeated
-// allocations for the padding buffers.
+// Pad M, K, and N to 16-alignment so the SME FMOPA path works with any
+// dimension values. M is also raised to minDimForSME when it is smaller.
 
 var fusedPadInputPool = sync.Pool{
 	New: func() any {
@@ -1517,44 +1516,51 @@ var fusedPadOutputPool = sync.Pool{
 	},
 }
 
-// fusedPadM pads input [M, K] → [minDimForSME, K] and provides a padded output
-// buffer when M < minDimForSME. Returns (paddedInput, paddedOutput, paddedM, origOutput).
-// If no padding is needed (M >= minDimForSME), returns the original slices with origOutput == nil.
-// Caller must defer fusedUnpadM() and pool Put calls when origOutput != nil.
-func fusedPadM(input, output []float32, M, K, N int) (pInput, pOutput []float32, pM int, origOutput []float32) {
-	if M >= minDimForSME {
-		return input, output, M, nil
+// fusedPadDims pads input [M, K] → [pM, pK] and allocates output [pM, pN].
+// pM = AlignUp(max(M, minDimForSME), 16), pK = AlignUp(K, 16), pN = AlignUp(N, 16).
+// If no padding is needed, returns the original slices with origOutput == nil.
+func fusedPadDims(input, output []float32, M, K, N int) (
+	pInput, pOutput []float32, pM, pK, pN int, origOutput []float32,
+) {
+	pM = max(M, minDimForSME)
+	pM = AlignUp(pM, 16)
+	pK = AlignUp(K, 16)
+	pN = AlignUp(N, 16)
+	if pM == M && pK == K && pN == N {
+		return input, output, M, K, N, nil
 	}
-	pM = minDimForSME
+	origOutput = output
 
+	// Pad input [M, K] → [pM, pK] using PadMatrix2D + pool
 	pInput = fusedPadInputPool.Get().([]float32)
-	inputSize := pM * K
+	inputSize := pM * pK
 	if cap(pInput) < inputSize {
 		pInput = make([]float32, inputSize)
 	} else {
 		pInput = pInput[:inputSize]
 		clear(pInput)
 	}
-	copy(pInput, input[:M*K])
+	PadMatrix2D(pInput, input, M, K, pM, pK)
 
+	// Allocate output [pM, pN] from pool
 	pOutput = fusedPadOutputPool.Get().([]float32)
-	outputSize := pM * N
+	outputSize := pM * pN
 	if cap(pOutput) < outputSize {
 		pOutput = make([]float32, outputSize)
 	} else {
 		pOutput = pOutput[:outputSize]
 	}
 
-	return pInput, pOutput, pM, output
+	return pInput, pOutput, pM, pK, pN, origOutput
 }
 
-// fusedUnpadM copies valid rows from padded output back to original output and
+// fusedUnpadDims extracts [origM, origN] from padded output [pM, pN] and
 // returns pool buffers. No-op if origOutput is nil (no padding was applied).
-func fusedUnpadM(origOutput []float32, pInput, pOutput []float32, origM, N int) {
+func fusedUnpadDims(origOutput, pInput, pOutput []float32, origM, origN, pN int) {
 	if origOutput == nil {
 		return
 	}
-	copy(origOutput[:origM*N], pOutput[:origM*N])
+	ExtractMatrix2D(origOutput, pOutput, origM, origN, pN)
 	fusedPadInputPool.Put(pInput)
 	fusedPadOutputPool.Put(pOutput)
 }
@@ -1575,22 +1581,15 @@ func fusedNF4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
-	// Check alignment for SME (16x16 tiles); K/N must be aligned and large enough.
-	if K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
-		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
-		return
-	}
-
-	// Pad M up to minDimForSME if needed for SME benefit.
+	// Pad all dimensions to 16-alignment for SME FMOPA.
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
 	defer hwy.SMEGuard()()
 
@@ -1598,17 +1597,18 @@ func fusedNF4MatMulSME(
 
 	// Get tile buffer from pool
 	tileBuf := fusedTilePool.Get().([]float32)
-	tileSize := K * 16
+	tileSize := pK * 16
 	if cap(tileBuf) < tileSize {
 		tileBuf = make([]float32, tileSize)
 	} else {
 		tileBuf = tileBuf[:tileSize]
 	}
+	clear(tileBuf)
 	defer fusedTilePool.Put(tileBuf)
 
 	// Transpose buffer for input (needed for FMOPA)
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
@@ -1616,40 +1616,42 @@ func fusedNF4MatMulSME(
 	}
 	defer transposePool32.Put(inputT)
 
-	// Transpose input: [M, K] -> [K, M]
-	transposeMatrix(input, M, K, inputT)
+	// Transpose input: [M, pK] -> [pK, M]
+	transposeMatrix(input, M, pK, inputT)
 
 	// Zero output (strided kernel writes to sub-columns, must start from zero)
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
 	// Process N in 16-column tiles using strided kernel to write directly to output
-	for nTile := 0; nTile < N; nTile += 16 {
-		nEnd := min(nTile+16, N)
-		tileN := nEnd - nTile
+	for nTile := 0; nTile < pN; nTile += 16 {
+		validN := min(16, N-nTile)
+		if validN <= 0 {
+			break
+		}
 
-		// Dequantize weight tile: [K, 16] from packed [K, N/2]
-		dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
+		// Dequantize weight tile: [K, validN] from packed [K, N/2] with stride 16
+		dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
 
-		// Strided FMOPA: writes directly to output with stride N at column offset nTile
-		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+		// Strided FMOPA: writes directly to output with stride pN at column offset nTile
+		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
 	}
 
 	// Apply bias after matmul
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 }
 
-// dequantizeNF4Tile dequantizes a K×tileN tile of NF4 weights.
-// Output is row-major: tile[k*tileN + j] = weight[k, nTile+j]
+// dequantizeNF4Tile dequantizes a K×validN tile of NF4 weights.
+// Output is row-major with tileStride: tile[k*tileStride + j] = weight[k, nTile+j]
 func dequantizeNF4Tile(
 	packed []uint8,
 	scales []float32,
 	tile []float32,
-	nTile, K, N, tileN, numGroups, groupSize int,
+	nTile, K, N, validN, tileStride, numGroups, groupSize int,
 ) {
 	for k := range K {
-		for j := range tileN {
+		for j := range validN {
 			n := nTile + j
 			weightIdx := k*N + n
 			packedIdx := weightIdx / 2
@@ -1663,7 +1665,7 @@ func dequantizeNF4Tile(
 
 			groupIdx := n / groupSize
 			scale := scales[k*numGroups+groupIdx]
-			tile[k*tileN+j] = nf4LookupTable[quantIdx] * scale
+			tile[k*tileStride+j] = nf4LookupTable[quantIdx] * scale
 		}
 	}
 }
@@ -1678,31 +1680,31 @@ func fusedInt4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
 	defer hwy.SMEGuard()()
 
 	numGroups := (N + groupSize - 1) / groupSize
 
 	tileBuf := fusedTilePool.Get().([]float32)
-	tileSize := K * 16
+	tileSize := pK * 16
 	if cap(tileBuf) < tileSize {
 		tileBuf = make([]float32, tileSize)
 	} else {
 		tileBuf = tileBuf[:tileSize]
 	}
+	clear(tileBuf)
 	defer fusedTilePool.Put(tileBuf)
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
@@ -1710,37 +1712,40 @@ func fusedInt4MatMulSME(
 	}
 	defer transposePool32.Put(inputT)
 
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 
 	// Zero output (strided kernel writes to sub-columns, must start from zero)
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
-	for nTile := 0; nTile < N; nTile += 16 {
-		nEnd := min(nTile+16, N)
-		tileN := nEnd - nTile
+	for nTile := 0; nTile < pN; nTile += 16 {
+		validN := min(16, N-nTile)
+		if validN <= 0 {
+			break
+		}
 
-		dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
+		dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
 
-		// Strided FMOPA: writes directly to output with stride N at column offset nTile
-		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+		// Strided FMOPA: writes directly to output with stride pN at column offset nTile
+		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
 	}
 
 	// Apply bias after matmul
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 }
 
-// dequantizeInt4Tile dequantizes a K×tileN tile of Int4 weights.
+// dequantizeInt4Tile dequantizes a K×validN tile of Int4 weights.
 // Int4 uses symmetric quantization: values in [0,15] map to [-8,7].
+// Output is row-major with tileStride: tile[k*tileStride + j] = weight[k, nTile+j]
 func dequantizeInt4Tile(
 	packed []uint8,
 	scales []float32,
 	tile []float32,
-	nTile, K, N, tileN, numGroups, groupSize int,
+	nTile, K, N, validN, tileStride, numGroups, groupSize int,
 ) {
 	for k := range K {
-		for j := range tileN {
+		for j := range validN {
 			n := nTile + j
 			weightIdx := k*N + n
 			packedIdx := weightIdx / 2
@@ -1754,13 +1759,13 @@ func dequantizeInt4Tile(
 
 			groupIdx := n / groupSize
 			scale := scales[k*numGroups+groupIdx]
-			tile[k*tileN+j] = float32(unsignedVal-8) * scale
+			tile[k*tileStride+j] = float32(unsignedVal-8) * scale
 		}
 	}
 }
 
 // processFusedNF4Tile processes a single N-tile for NF4 matmul.
-// inputT is the transposed input [K, M], packed is NF4 weights, output is [M, N].
+// inputT is the transposed input [pK, M], packed is NF4 weights, output is [M, pN].
 // Uses strided FMOPA to write directly to the correct columns of output.
 func processFusedNF4Tile(
 	inputT []float32,
@@ -1768,16 +1773,18 @@ func processFusedNF4Tile(
 	scales []float32,
 	output []float32,
 	tileBuf []float32,
-	nTile, M, K, N, numGroups, groupSize int,
+	nTile, M, K, N, pK, pN, numGroups, groupSize int,
 ) {
-	nEnd := min(nTile+16, N)
-	tileN := nEnd - nTile
+	validN := min(16, N-nTile)
+	if validN <= 0 {
+		return
+	}
 
-	// Dequantize weight tile: [K, tileN] from packed [K, N/2]
-	dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
+	// Dequantize weight tile: [K, validN] from packed [K, N/2] with stride 16
+	dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
 
-	// Strided FMOPA: writes directly to output with stride N at column offset nTile
-	asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+	// Strided FMOPA: writes directly to output with stride pN at column offset nTile
+	asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
 }
 
 // processFusedInt4Tile processes a single N-tile for Int4 matmul.
@@ -1788,15 +1795,17 @@ func processFusedInt4Tile(
 	scales []float32,
 	output []float32,
 	tileBuf []float32,
-	nTile, M, K, N, numGroups, groupSize int,
+	nTile, M, K, N, pK, pN, numGroups, groupSize int,
 ) {
-	nEnd := min(nTile+16, N)
-	tileN := nEnd - nTile
+	validN := min(16, N-nTile)
+	if validN <= 0 {
+		return
+	}
 
-	dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
+	dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
 
-	// Strided FMOPA: writes directly to output with stride N at column offset nTile
-	asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+	// Strided FMOPA: writes directly to output with stride pN at column offset nTile
+	asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
 }
 
 // parallelFusedNF4MatMulSME performs fused NF4 matmul with parallel N-tile processing.
@@ -1809,17 +1818,16 @@ func parallelFusedNF4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
-	numTiles := (N + 15) / 16
+	numTiles := (pN + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
 
 	// Fall back to sequential if too few tiles
@@ -1830,21 +1838,21 @@ func parallelFusedNF4MatMulSME(
 
 	// Transpose input once (shared across workers, read-only)
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
 		inputT = inputT[:inputTSize]
 	}
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
 	// Zero output (strided kernel writes to sub-columns, each tile writes independent columns)
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
 	// Setup work queue of N-tile indices
 	work := make(chan int, numTiles)
-	for nTile := 0; nTile < N; nTile += 16 {
+	for nTile := 0; nTile < pN; nTile += 16 {
 		work <- nTile
 	}
 	close(work)
@@ -1859,7 +1867,7 @@ func parallelFusedNF4MatMulSME(
 
 			// Get thread-local tile buffer from pool
 			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := K * 16
+			tileSize := pK * 16
 			if cap(tileBuf) < tileSize {
 				tileBuf = make([]float32, tileSize)
 			} else {
@@ -1870,7 +1878,7 @@ func parallelFusedNF4MatMulSME(
 
 			for nTile := range work {
 				processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, numGroups, groupSize)
+					nTile, M, K, N, pK, pN, numGroups, groupSize)
 			}
 		})
 	}
@@ -1878,7 +1886,7 @@ func parallelFusedNF4MatMulSME(
 
 	// Apply bias after matmul
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 }
 
@@ -1891,17 +1899,16 @@ func parallelFusedInt4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
-	numTiles := (N + 15) / 16
+	numTiles := (pN + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
@@ -1911,21 +1918,21 @@ func parallelFusedInt4MatMulSME(
 
 	// Transpose input once (shared across workers, read-only)
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
 		inputT = inputT[:inputTSize]
 	}
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
 	// Zero output (strided kernel writes to sub-columns, each tile writes independent columns)
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
 	// Setup work queue of N-tile indices
 	work := make(chan int, numTiles)
-	for nTile := 0; nTile < N; nTile += 16 {
+	for nTile := 0; nTile < pN; nTile += 16 {
 		work <- nTile
 	}
 	close(work)
@@ -1939,7 +1946,7 @@ func parallelFusedInt4MatMulSME(
 
 			// Get thread-local tile buffer from pool
 			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := K * 16
+			tileSize := pK * 16
 			if cap(tileBuf) < tileSize {
 				tileBuf = make([]float32, tileSize)
 			} else {
@@ -1950,7 +1957,7 @@ func parallelFusedInt4MatMulSME(
 
 			for nTile := range work {
 				processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, numGroups, groupSize)
+					nTile, M, K, N, pK, pN, numGroups, groupSize)
 			}
 		})
 	}
@@ -1958,7 +1965,7 @@ func parallelFusedInt4MatMulSME(
 
 	// Apply bias after matmul
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 }
 
@@ -1989,31 +1996,31 @@ func fusedInt8MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
 	defer hwy.SMEGuard()()
 
 	numGroups := (N + groupSize - 1) / groupSize
 
 	tileBuf := fusedInt8TilePool.Get().([]float32)
-	tileSize := K * 16
+	tileSize := pK * 16
 	if cap(tileBuf) < tileSize {
 		tileBuf = make([]float32, tileSize)
 	} else {
 		tileBuf = tileBuf[:tileSize]
 	}
+	clear(tileBuf)
 	defer fusedInt8TilePool.Put(tileBuf)
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
@@ -2021,7 +2028,7 @@ func fusedInt8MatMulSME(
 	}
 	defer transposePool32.Put(inputT)
 
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 
 	outputTileSize := M * 16
 	outputTile := fusedOutputTilePool.Get().([]float32)
@@ -2032,23 +2039,25 @@ func fusedInt8MatMulSME(
 	}
 	defer fusedOutputTilePool.Put(outputTile)
 
-	for nTile := 0; nTile < N; nTile += 16 {
-		nEnd := min(nTile+16, N)
-		tileN := nEnd - nTile
+	for nTile := 0; nTile < pN; nTile += 16 {
+		validN := min(16, N-nTile)
+		if validN <= 0 {
+			break
+		}
 
-		dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
-		asm.MultiTileMatMulFMOPAF32(inputT, tileBuf[:K*tileN], outputTile[:M*tileN], M, tileN, K)
+		dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+		asm.MultiTileMatMulFMOPAF32(inputT, tileBuf[:pK*16], outputTile[:M*16], M, 16, pK)
 
 		for m := 0; m < M; m++ {
-			for j := 0; j < tileN; j++ {
-				output[m*N+nTile+j] = outputTile[m*tileN+j]
+			for j := 0; j < 16; j++ {
+				output[m*pN+nTile+j] = outputTile[m*16+j]
 			}
 		}
 	}
 
 	// Apply bias after matmul
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 }
 
@@ -2056,16 +2065,16 @@ func dequantizeInt8Tile(
 	weights []int8,
 	scales []float32,
 	tile []float32,
-	nTile, K, N, tileN, numGroups, groupSize int,
+	nTile, K, N, validN, tileStride, numGroups, groupSize int,
 ) {
 	for k := 0; k < K; k++ {
-		for j := 0; j < tileN; j++ {
+		for j := 0; j < validN; j++ {
 			n := nTile + j
 			weightIdx := k*N + n
 			val := float32(weights[weightIdx])
 			groupIdx := n / groupSize
 			scale := scales[k*numGroups+groupIdx]
-			tile[k*tileN+j] = val * scale
+			tile[k*tileStride+j] = val * scale
 		}
 	}
 }
@@ -2077,17 +2086,19 @@ func processFusedInt8Tile(
 	output []float32,
 	tileBuf []float32,
 	outputTile []float32,
-	nTile, M, K, N, numGroups, groupSize int,
+	nTile, M, K, N, pK, pN, numGroups, groupSize int,
 ) {
-	nEnd := min(nTile+16, N)
-	tileN := nEnd - nTile
+	validN := min(16, N-nTile)
+	if validN <= 0 {
+		return
+	}
 
-	dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
-	asm.MultiTileMatMulFMOPAF32(inputT, tileBuf[:K*tileN], outputTile[:M*tileN], M, tileN, K)
+	dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+	asm.MultiTileMatMulFMOPAF32(inputT, tileBuf[:pK*16], outputTile[:M*16], M, 16, pK)
 
 	for m := 0; m < M; m++ {
-		for j := 0; j < tileN; j++ {
-			output[m*N+nTile+j] = outputTile[m*tileN+j]
+		for j := 0; j < 16; j++ {
+			output[m*pN+nTile+j] = outputTile[m*16+j]
 		}
 	}
 }
@@ -2100,17 +2111,16 @@ func parallelFusedInt8MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
-	numTiles := (N + 15) / 16
+	numTiles := (pN + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
@@ -2119,17 +2129,17 @@ func parallelFusedInt8MatMulSME(
 	}
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
 		inputT = inputT[:inputTSize]
 	}
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
 	work := make(chan int, numTiles)
-	for nTile := 0; nTile < N; nTile += 16 {
+	for nTile := 0; nTile < pN; nTile += 16 {
 		work <- nTile
 	}
 	close(work)
@@ -2141,12 +2151,13 @@ func parallelFusedInt8MatMulSME(
 			defer hwy.SMEGuard()()
 
 			tileBuf := fusedInt8TilePool.Get().([]float32)
-			tileSize := K * 16
+			tileSize := pK * 16
 			if cap(tileBuf) < tileSize {
 				tileBuf = make([]float32, tileSize)
 			} else {
 				tileBuf = tileBuf[:tileSize]
 			}
+			clear(tileBuf)
 			defer fusedInt8TilePool.Put(tileBuf)
 
 			outputTile := fusedOutputTilePool.Get().([]float32)
@@ -2160,7 +2171,7 @@ func parallelFusedInt8MatMulSME(
 
 			for nTile := range work {
 				processFusedInt8Tile(inputT, weights, scales, output, tileBuf, outputTile,
-					nTile, M, K, N, numGroups, groupSize)
+					nTile, M, K, N, pK, pN, numGroups, groupSize)
 			}
 		})
 	}
@@ -2168,7 +2179,7 @@ func parallelFusedInt8MatMulSME(
 
 	// Apply bias after matmul
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 }
 
@@ -2235,6 +2246,18 @@ func applyBiasToOutput(output []float32, bias []float32, M, N int) {
 	}
 }
 
+// applyBiasToOutputStrided adds bias[n] to every row of output where rows have
+// the given stride (which may differ from N when output is padded).
+// M rows, N valid columns per row, stride is the row stride in output.
+func applyBiasToOutputStrided(output, bias []float32, M, N, stride int) {
+	for m := 0; m < M; m++ {
+		rowStart := m * stride
+		for n := 0; n < N; n++ {
+			output[rowStart+n] += bias[n]
+		}
+	}
+}
+
 func fusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
 	fusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
 }
@@ -2252,31 +2275,31 @@ func fusedNF4MatMulActSME(
 	M, K, N, groupSize int,
 	act ActivationType,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
 	defer hwy.SMEGuard()()
 
 	numGroups := (N + groupSize - 1) / groupSize
 
 	tileBuf := fusedTilePool.Get().([]float32)
-	tileSize := K * 16
+	tileSize := pK * 16
 	if cap(tileBuf) < tileSize {
 		tileBuf = make([]float32, tileSize)
 	} else {
 		tileBuf = tileBuf[:tileSize]
 	}
+	clear(tileBuf)
 	defer fusedTilePool.Put(tileBuf)
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
@@ -2284,26 +2307,28 @@ func fusedNF4MatMulActSME(
 	}
 	defer transposePool32.Put(inputT)
 
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
-	for nTile := 0; nTile < N; nTile += 16 {
-		nEnd := min(nTile+16, N)
-		tileN := nEnd - nTile
+	for nTile := 0; nTile < pN; nTile += 16 {
+		validN := min(16, N-nTile)
+		if validN <= 0 {
+			break
+		}
 
-		dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
-		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+		dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
 	}
 
 	// Apply bias before activation
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 
 	// Apply activation to entire output
 	if act != ActNone {
-		applyActivationToTile(output, M, N, N, 0, act)
+		applyActivationToTile(output, M, N, pN, 0, act)
 	}
 }
 
@@ -2324,31 +2349,31 @@ func fusedInt4MatMulActSME(
 	M, K, N, groupSize int,
 	act ActivationType,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
 	defer hwy.SMEGuard()()
 
 	numGroups := (N + groupSize - 1) / groupSize
 
 	tileBuf := fusedTilePool.Get().([]float32)
-	tileSize := K * 16
+	tileSize := pK * 16
 	if cap(tileBuf) < tileSize {
 		tileBuf = make([]float32, tileSize)
 	} else {
 		tileBuf = tileBuf[:tileSize]
 	}
+	clear(tileBuf)
 	defer fusedTilePool.Put(tileBuf)
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
@@ -2356,49 +2381,29 @@ func fusedInt4MatMulActSME(
 	}
 	defer transposePool32.Put(inputT)
 
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
-	for nTile := 0; nTile < N; nTile += 16 {
-		nEnd := min(nTile+16, N)
-		tileN := nEnd - nTile
+	for nTile := 0; nTile < pN; nTile += 16 {
+		validN := min(16, N-nTile)
+		if validN <= 0 {
+			break
+		}
 
-		dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
-		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
+		dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
 	}
 
 	// Apply bias before activation
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 
 	// Apply activation to entire output
 	if act != ActNone {
-		applyActivationToTile(output, M, N, N, 0, act)
+		applyActivationToTile(output, M, N, pN, 0, act)
 	}
-}
-
-func processFusedNF4TileWithAct(
-	inputT []float32, packed []uint8, scales []float32, output []float32,
-	tileBuf []float32, nTile, M, K, N, numGroups, groupSize int, act ActivationType,
-) {
-	nEnd := min(nTile+16, N)
-	tileN := nEnd - nTile
-	dequantizeNF4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
-	asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
-	applyActivationToTile(output, M, tileN, N, nTile, act)
-}
-
-func processFusedInt4TileWithAct(
-	inputT []float32, packed []uint8, scales []float32, output []float32,
-	tileBuf []float32, nTile, M, K, N, numGroups, groupSize int, act ActivationType,
-) {
-	nEnd := min(nTile+16, N)
-	tileN := nEnd - nTile
-	dequantizeInt4Tile(packed, scales, tileBuf, nTile, K, N, tileN, numGroups, groupSize)
-	asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:K*tileN], output, M, tileN, K, N, nTile)
-	applyActivationToTile(output, M, tileN, N, nTile, act)
 }
 
 func parallelFusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
@@ -2413,17 +2418,16 @@ func parallelFusedNF4MatMulActSME(
 	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
-	numTiles := (N + 15) / 16
+	numTiles := (pN + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
@@ -2432,19 +2436,19 @@ func parallelFusedNF4MatMulActSME(
 	}
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
 		inputT = inputT[:inputTSize]
 	}
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
 	work := make(chan int, numTiles)
-	for nTile := 0; nTile < N; nTile += 16 {
+	for nTile := 0; nTile < pN; nTile += 16 {
 		work <- nTile
 	}
 	close(work)
@@ -2456,7 +2460,7 @@ func parallelFusedNF4MatMulActSME(
 			defer hwy.SMEGuard()()
 
 			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := K * 16
+			tileSize := pK * 16
 			if cap(tileBuf) < tileSize {
 				tileBuf = make([]float32, tileSize)
 			} else {
@@ -2467,7 +2471,7 @@ func parallelFusedNF4MatMulActSME(
 
 			for nTile := range work {
 				processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, numGroups, groupSize)
+					nTile, M, K, N, pK, pN, numGroups, groupSize)
 			}
 		})
 	}
@@ -2475,12 +2479,12 @@ func parallelFusedNF4MatMulActSME(
 
 	// Apply bias before activation
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 
 	// Apply activation to entire output
 	if act != ActNone {
-		applyActivationToTile(output, M, N, N, 0, act)
+		applyActivationToTile(output, M, N, pN, 0, act)
 	}
 }
 
@@ -2496,17 +2500,16 @@ func parallelFusedInt4MatMulActSME(
 	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
 	origM := M
-	var origOutput []float32
-	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
-	defer fusedUnpadM(origOutput, input, output, origM, N)
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
 
-	numTiles := (N + 15) / 16
+	numTiles := (pN + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
 
 	if numTiles < MinFusedParallelTiles {
@@ -2515,19 +2518,19 @@ func parallelFusedInt4MatMulActSME(
 	}
 
 	inputT := transposePool32.Get().([]float32)
-	inputTSize := M * K
+	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
 		inputT = make([]float32, inputTSize)
 	} else {
 		inputT = inputT[:inputTSize]
 	}
-	transposeMatrix(input, M, K, inputT)
+	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
-	clear(output[:M*N])
+	clear(output[:M*pN])
 
 	work := make(chan int, numTiles)
-	for nTile := 0; nTile < N; nTile += 16 {
+	for nTile := 0; nTile < pN; nTile += 16 {
 		work <- nTile
 	}
 	close(work)
@@ -2539,7 +2542,7 @@ func parallelFusedInt4MatMulActSME(
 			defer hwy.SMEGuard()()
 
 			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := K * 16
+			tileSize := pK * 16
 			if cap(tileBuf) < tileSize {
 				tileBuf = make([]float32, tileSize)
 			} else {
@@ -2550,7 +2553,7 @@ func parallelFusedInt4MatMulActSME(
 
 			for nTile := range work {
 				processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, numGroups, groupSize)
+					nTile, M, K, N, pK, pN, numGroups, groupSize)
 			}
 		})
 	}
@@ -2558,12 +2561,12 @@ func parallelFusedInt4MatMulActSME(
 
 	// Apply bias before activation
 	if bias != nil {
-		applyBiasToOutput(output, bias, M, N)
+		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 
 	// Apply activation to entire output
 	if act != ActNone {
-		applyActivationToTile(output, M, N, N, 0, act)
+		applyActivationToTile(output, M, N, pN, 0, act)
 	}
 }
 
