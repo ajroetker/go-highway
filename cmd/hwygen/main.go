@@ -51,6 +51,7 @@ var (
 	asmMode        = flag.Bool("asm", false, "Generate C code and compile to Go assembly via GOAT (supports neon, sve_darwin, sve_linux, avx2, avx512 targets)")
 	fusionMode     = flag.Bool("fusion", false, "Enable IR-based fusion optimization for cross-package function inlining and loop fusion")
 	verboseMode    = flag.Bool("v", false, "Verbose output (show fusion statistics, IR dumps, etc.)")
+	keepCMode      = flag.Bool("keepc", false, "Keep intermediate C files in a c/ subdirectory next to asm/ (for debugging)")
 )
 
 func main() {
@@ -83,6 +84,7 @@ func main() {
 		DispatchPrefix: *dispatchPrefix,
 		FusionMode:     *fusionMode,
 		Verbose:        *verboseMode,
+		KeepCFiles:     *keepCMode,
 	}
 
 	if err := gen.Run(); err != nil {

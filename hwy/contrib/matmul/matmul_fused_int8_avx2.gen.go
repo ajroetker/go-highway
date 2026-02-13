@@ -16,16 +16,19 @@ func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32,
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
 	dequantBuf := [8]float32{}
+	accBuf := make([]float32, N)
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x8(0)
-			for k := 0; k < K; k++ {
-				inputVal := archsimd.BroadcastFloat32x8(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := 0; k < K; k++ {
+			inputVal := archsimd.BroadcastFloat32x8(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -35,8 +38,21 @@ func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32,
 					dequantBuf[lane] = val * scale
 				}
 				dequantWeights := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(dequantWeights, acc)
+				acc.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				val := float32(weights[weightIdx])
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * val * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 			if bias != nil {
 				biasVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bias[n])))
 				acc = acc.Add(biasVec)
@@ -44,19 +60,11 @@ func BaseFusedInt8MatMul_avx2(input []float32, weights []int8, scales []float32,
 			acc.Store((*[8]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				val := float32(weights[weightIdx])
-				scale := scales[k*numGroups+groupIdx]
-				weight := val * scale
-				sum += inputRow[k] * weight
-			}
+			val := accBuf[n]
 			if bias != nil {
-				sum += bias[n]
+				val += bias[n]
 			}
-			outputRow[n] = sum
+			outputRow[n] = val
 		}
 	}
 }

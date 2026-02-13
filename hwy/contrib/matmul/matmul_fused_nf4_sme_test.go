@@ -41,6 +41,8 @@ func TestFusedNF4MatMulCorrectness(t *testing.T) {
 		M, K, N   int
 		groupSize int
 	}{
+		{"32x512x1024", 32, 512, 1024, 128},
+		{"32x32x32", 32, 32, 32, 16},
 		{"64x64x64", 64, 64, 64, 32},
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
@@ -109,6 +111,8 @@ func TestFusedInt4MatMulCorrectness(t *testing.T) {
 		M, K, N   int
 		groupSize int
 	}{
+		{"32x512x1024", 32, 512, 1024, 128},
+		{"32x32x32", 32, 32, 32, 16},
 		{"64x64x64", 64, 64, 64, 32},
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},

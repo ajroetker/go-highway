@@ -8,16 +8,19 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
+	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n < N; n++ {
-			acc := float32(0)
-			for k := range K {
-				inputVal := float32(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := range K {
+			inputVal := float32(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n < N; n++ {
 				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -33,19 +36,12 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := dequantBuf[0]
+				acc := accBuf[n]
 				acc = inputVal*weights + acc
+				accBuf[n] = acc
 			}
-			if bias != nil {
-				biasVec := bias[n]
-				acc = acc + biasVec
-			}
-			outputRow[n] = acc
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := range K {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var quantIdx int
 				if weightIdx%2 == 0 {
@@ -53,14 +49,27 @@ func BaseFusedNF4MatMul_fallback(input []float32, packed []uint8, scales []float
 				} else {
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
+		}
+		var n int
+		for n = 0; n < N; n++ {
+			acc := accBuf[n]
 			if bias != nil {
-				sum += bias[n]
+				biasVec := bias[n]
+				acc = acc + biasVec
 			}
-			outputRow[n] = sum
+			outputRow[n] = acc
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }
@@ -71,16 +80,19 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
+	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n < N; n++ {
-			acc := float32(0)
-			for k := range K {
-				inputVal := float32(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := range K {
+			inputVal := float32(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n < N; n++ {
 				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -96,19 +108,12 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := dequantBuf[0]
+				acc := accBuf[n]
 				acc = inputVal*weights + acc
+				accBuf[n] = acc
 			}
-			if bias != nil {
-				biasVec := bias[n]
-				acc = acc + biasVec
-			}
-			outputRow[n] = acc
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := range K {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var unsignedVal int
 				if weightIdx%2 == 0 {
@@ -116,14 +121,27 @@ func BaseFusedInt4MatMul_fallback(input []float32, packed []uint8, scales []floa
 				} else {
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
+		}
+		var n int
+		for n = 0; n < N; n++ {
+			acc := accBuf[n]
 			if bias != nil {
-				sum += bias[n]
+				biasVec := bias[n]
+				acc = acc + biasVec
 			}
-			outputRow[n] = sum
+			outputRow[n] = acc
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }

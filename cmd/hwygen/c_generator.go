@@ -213,6 +213,22 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 			cFiles = compiledFiles
 
+			// Optionally copy C files to c/ subdirectory for debugging
+			if g.KeepCFiles {
+				cDir := filepath.Join(g.OutputDir, "c")
+				if err := os.MkdirAll(cDir, 0o755); err != nil {
+					return nil, fmt.Errorf("create c directory: %w", err)
+				}
+				for _, cFile := range cFiles {
+					dst := filepath.Join(cDir, filepath.Base(cFile))
+					data, err := os.ReadFile(cFile)
+					if err == nil {
+						os.WriteFile(dst, data, 0o644)
+					}
+				}
+				fmt.Printf("  Kept %d C files in %s\n", len(cFiles), cDir)
+			}
+
 			// Clean up C and object files (Go build doesn't like them)
 			for _, cFile := range cFiles {
 				os.Remove(cFile)
@@ -1033,7 +1049,7 @@ func sveRuntimeGuard(target Target) string {
 // z_c_slices*.gen.go sorts after *_sme.go alphabetically.
 func neonSMESkipGuard(target Target) string {
 	if target.Name == "NEON" {
-		return "hwy.HasSME()"
+		return "hwy.NoSimdEnv() || hwy.HasSME()"
 	}
 	return ""
 }
@@ -1459,22 +1475,14 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		fmt.Fprintf(buf, "func %s(%s) {\n", adapterName, goSig)
 	}
 
-	// Guard against empty slices to prevent &slice[0] panic.
-	if len(sliceParams) > 0 {
-		var checks []string
-		for _, sp := range sliceParams {
-			checks = append(checks, "len("+sp+") == 0")
-		}
-		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
-		if hasReturns {
-			var zeros []string
-			for range pf.Returns {
-				zeros = append(zeros, "0")
-			}
-			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
-		} else {
-			fmt.Fprintf(buf, "\t\treturn\n")
-		}
+	// Build nil-safe pointer variables for each slice parameter.
+	// Some params (e.g. bias) may legitimately be nil — pass nil to C code
+	// which checks for NULL. Using per-param variables avoids a combined
+	// early-return that would skip computation when optional params are nil.
+	for _, sp := range sliceParams {
+		fmt.Fprintf(buf, "\tvar p_%s unsafe.Pointer\n", sp)
+		fmt.Fprintf(buf, "\tif len(%s) > 0 {\n", sp)
+		fmt.Fprintf(buf, "\t\tp_%s = unsafe.Pointer(&%s[0])\n", sp, sp)
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
@@ -1503,7 +1511,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	fmt.Fprintf(buf, "\tasm.%s(\n", asmExportedName)
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
-			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%s[0]),\n", p.Name)
+			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
 		} else if p.Type == "int" || p.Type == "int64" {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
@@ -1980,22 +1988,14 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
-	// Guard against empty slices to prevent &slice[0] panic.
-	if len(sliceParams) > 0 {
-		var checks []string
-		for _, sp := range sliceParams {
-			checks = append(checks, "len("+sp+") == 0")
-		}
-		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
-		if hasReturns {
-			var zeros []string
-			for range pf.Returns {
-				zeros = append(zeros, "0")
-			}
-			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
-		} else {
-			fmt.Fprintf(buf, "\t\treturn\n")
-		}
+	// Build nil-safe pointer variables for each slice parameter.
+	// Some params (e.g. bias) may legitimately be nil — pass nil to C code
+	// which checks for NULL. Using per-param variables avoids a combined
+	// early-return that would skip computation when optional params are nil.
+	for _, sp := range sliceParams {
+		fmt.Fprintf(buf, "\tvar p_%s unsafe.Pointer\n", sp)
+		fmt.Fprintf(buf, "\tif len(%s) > 0 {\n", sp)
+		fmt.Fprintf(buf, "\t\tp_%s = unsafe.Pointer(&%s[0])\n", sp, sp)
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
@@ -2054,7 +2054,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	// Regular params
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
-			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%s[0]),\n", p.Name)
+			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
 		} else if p.Type == "int" || p.Type == "int64" {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {

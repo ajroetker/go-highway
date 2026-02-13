@@ -41,6 +41,8 @@ func TestFusedInt8MatMulSMECorrectness(t *testing.T) {
 		M, K, N   int
 		groupSize int
 	}{
+		{"32x512x1024", 32, 512, 1024, 128},
+		{"32x32x32", 32, 32, 32, 16},
 		{"64x64x64", 64, 64, 64, 32},
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},
@@ -213,8 +215,10 @@ func TestFusedInt8MatMulSMEUnaligned(t *testing.T) {
 				}
 			}
 
-			// Should match exactly since both use fallback path
-			tolerance := float32(1e-6)
+			// When SME is active, unaligned dims fall back to scalar so tolerance
+			// can be tight. On NEON asm or other SIMD paths, FMA rounding causes
+			// small differences vs the scalar reference.
+			tolerance := float32(1e-5)
 			if maxDiff > tolerance {
 				t.Errorf("Max difference: %v (tolerance: %v)", maxDiff, tolerance)
 			}
@@ -233,6 +237,7 @@ func TestParallelFusedInt8MatMulSMECorrectness(t *testing.T) {
 		M, K, N   int
 		groupSize int
 	}{
+		{"32x512x1024", 32, 512, 1024, 128},
 		{"64x64x64", 64, 64, 64, 32},
 		{"64x128x256", 64, 128, 256, 64},
 		{"64x256x512", 64, 256, 512, 128},

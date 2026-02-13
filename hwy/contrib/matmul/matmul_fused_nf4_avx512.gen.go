@@ -16,16 +16,19 @@ func BaseFusedNF4MatMul_avx512(input []float32, packed []uint8, scales []float32
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := range K {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := range K {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -41,19 +44,12 @@ func BaseFusedNF4MatMul_avx512(input []float32, packed []uint8, scales []float32
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			}
-			if bias != nil {
-				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
-				acc = acc.Add(biasVec)
-			}
-			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := range K {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var quantIdx int
 				if weightIdx%2 == 0 {
@@ -61,14 +57,27 @@ func BaseFusedNF4MatMul_avx512(input []float32, packed []uint8, scales []float32
 				} else {
 					quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := nf4LookupTable[quantIdx] * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			if bias != nil {
-				sum += bias[n]
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
-			outputRow[n] = sum
+			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }
@@ -80,16 +89,19 @@ func BaseFusedInt4MatMul_avx512(input []float32, packed []uint8, scales []float3
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 16
 	dequantBuf := [16]float32{}
+	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.BroadcastFloat32x16(0)
-			for k := range K {
-				inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
-				baseIdx := k * N
-				scaleBase := k * numGroups
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
+		for k := range K {
+			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -105,19 +117,12 @@ func BaseFusedInt4MatMul_avx512(input []float32, packed []uint8, scales []float3
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
 				weights := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
+				acc.Store((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			}
-			if bias != nil {
-				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
-				acc = acc.Add(biasVec)
-			}
-			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
-		}
-		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := range K {
-				weightIdx := k*N + n
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
 				packedIdx := weightIdx / 2
 				var unsignedVal int
 				if weightIdx%2 == 0 {
@@ -125,14 +130,27 @@ func BaseFusedInt4MatMul_avx512(input []float32, packed []uint8, scales []float3
 				} else {
 					unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
 				}
-				scale := scales[k*numGroups+groupIdx]
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
 				weight := float32(unsignedVal-8) * scale
-				sum += inputRow[k] * weight
+				accBuf[n] += inputRow[k] * weight
 			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&accBuf[n])))
 			if bias != nil {
-				sum += bias[n]
+				biasVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bias[n])))
+				acc = acc.Add(biasVec)
 			}
-			outputRow[n] = sum
+			acc.Store((*[16]float32)(unsafe.Pointer(&outputRow[n])))
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = val
 		}
 	}
 }

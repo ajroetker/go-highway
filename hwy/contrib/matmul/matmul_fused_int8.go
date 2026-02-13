@@ -44,31 +44,32 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, bias
 	// Temporary buffer for dequantized weights (one vector width)
 	dequantBuf := make([]float32, lanes)
 
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
 	// Process each output row
 	for m := 0; m < M; m++ {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
-		// Process output columns in groups of lanes
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			// Initialize accumulator
-			acc := hwy.Zero[float32]()
+		// Zero accumulators for this row
+		for i := 0; i < N; i++ {
+			accBuf[i] = 0
+		}
 
-			// Accumulate over K dimension
-			for k := 0; k < K; k++ {
-				// Broadcast input[m, k]
-				inputVal := hwy.Set(inputRow[k])
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := 0; k < K; k++ {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
 
-				// Dequantize 'lanes' weights from weights[k, n:n+lanes]
-				baseIdx := k * N
-				scaleBase := k * numGroups
-
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
 				for lane := 0; lane < lanes; lane++ {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 
-					// Int8 weight value
 					val := float32(weights[weightIdx])
 
 					groupIdx := colIdx / groupSize
@@ -76,38 +77,38 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, bias
 					dequantBuf[lane] = val * scale
 				}
 
-				// Load dequantized weights into vector
 				dequantWeights := hwy.Load(dequantBuf)
-
-				// FMA: acc += input * weight
+				acc := hwy.Load(accBuf[n:])
 				acc = hwy.MulAdd(inputVal, dequantWeights, acc)
+				hwy.Store(acc, accBuf[n:])
 			}
 
-			// Add bias
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				val := float32(weights[weightIdx])
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * val * scale
+			}
+		}
+
+		// Apply bias and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
 			if bias != nil {
 				biasVec := hwy.Load(bias[n:])
 				acc = hwy.Add(acc, biasVec)
 			}
-
-			// Store result
 			hwy.Store(acc, outputRow[n:])
 		}
-
-		// Handle remaining columns (scalar tail)
 		for ; n < N; n++ {
-			groupIdx := n / groupSize
-			sum := float32(0)
-			for k := 0; k < K; k++ {
-				weightIdx := k*N + n
-				val := float32(weights[weightIdx])
-				scale := scales[k*numGroups+groupIdx]
-				weight := val * scale
-				sum += inputRow[k] * weight
-			}
+			val := accBuf[n]
 			if bias != nil {
-				sum += bias[n]
+				val += bias[n]
 			}
-			outputRow[n] = sum
+			outputRow[n] = val
 		}
 	}
 }

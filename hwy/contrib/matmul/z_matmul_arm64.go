@@ -1499,6 +1499,67 @@ func packedMicroKernelPartialNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFlo
 }
 
 // =============================================================================
+// Fused M-padding pools and helpers for SME
+// =============================================================================
+// When M < minDimForSME but K/N meet alignment requirements, we pad M up to
+// minDimForSME so the SME FMOPA path can be used. These pools avoid repeated
+// allocations for the padding buffers.
+
+var fusedPadInputPool = sync.Pool{
+	New: func() any {
+		return make([]float32, 0, minDimForSME*4096) // up to K=4096
+	},
+}
+
+var fusedPadOutputPool = sync.Pool{
+	New: func() any {
+		return make([]float32, 0, minDimForSME*4096) // up to N=4096
+	},
+}
+
+// fusedPadM pads input [M, K] → [minDimForSME, K] and provides a padded output
+// buffer when M < minDimForSME. Returns (paddedInput, paddedOutput, paddedM, origOutput).
+// If no padding is needed (M >= minDimForSME), returns the original slices with origOutput == nil.
+// Caller must defer fusedUnpadM() and pool Put calls when origOutput != nil.
+func fusedPadM(input, output []float32, M, K, N int) (pInput, pOutput []float32, pM int, origOutput []float32) {
+	if M >= minDimForSME {
+		return input, output, M, nil
+	}
+	pM = minDimForSME
+
+	pInput = fusedPadInputPool.Get().([]float32)
+	inputSize := pM * K
+	if cap(pInput) < inputSize {
+		pInput = make([]float32, inputSize)
+	} else {
+		pInput = pInput[:inputSize]
+		clear(pInput)
+	}
+	copy(pInput, input[:M*K])
+
+	pOutput = fusedPadOutputPool.Get().([]float32)
+	outputSize := pM * N
+	if cap(pOutput) < outputSize {
+		pOutput = make([]float32, outputSize)
+	} else {
+		pOutput = pOutput[:outputSize]
+	}
+
+	return pInput, pOutput, pM, output
+}
+
+// fusedUnpadM copies valid rows from padded output back to original output and
+// returns pool buffers. No-op if origOutput is nil (no padding was applied).
+func fusedUnpadM(origOutput []float32, pInput, pOutput []float32, origM, N int) {
+	if origOutput == nil {
+		return
+	}
+	copy(origOutput[:origM*N], pOutput[:origM*N])
+	fusedPadInputPool.Put(pInput)
+	fusedPadOutputPool.Put(pOutput)
+}
+
+// =============================================================================
 // Fused NF4/Int4 SME implementations
 // =============================================================================
 
@@ -1515,19 +1576,22 @@ func fusedNF4MatMulSME(
 	M, K, N, groupSize int,
 ) {
 	if !hwy.HasSME() {
-		// Fall back to scalar implementation
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
-	// Check alignment for SME (16x16 tiles)
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
+	// Check alignment for SME (16x16 tiles); K/N must be aligned and large enough.
+	if K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
-	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
-	// from corrupting ZA register state during SME streaming mode.
+	// Pad M up to minDimForSME if needed for SME benefit.
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
+
 	defer hwy.SMEGuard()()
 
 	numGroups := (N + groupSize - 1) / groupSize
@@ -1614,13 +1678,16 @@ func fusedInt4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
-	// Pin goroutine to OS thread and block SIGURG to prevent async preemption
-	// from corrupting ZA register state during SME streaming mode.
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
+
 	defer hwy.SMEGuard()()
 
 	numGroups := (N + groupSize - 1) / groupSize
@@ -1742,16 +1809,15 @@ func parallelFusedNF4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
-	// Check alignment for SME (16x16 tiles)
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
-		return
-	}
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	numTiles := (N + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
@@ -1825,15 +1891,15 @@ func parallelFusedInt4MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
 		return
 	}
 
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActNone)
-		return
-	}
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	numTiles := (N + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
@@ -1923,15 +1989,15 @@ func fusedInt8MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
-		return
-	}
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	defer hwy.SMEGuard()()
 
@@ -2034,15 +2100,15 @@ func parallelFusedInt8MatMulSME(
 	output []float32,
 	M, K, N, groupSize int,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
 		return
 	}
 
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		BaseFusedInt8MatMul_fallback(input, weights, scales, bias, output, M, K, N, groupSize)
-		return
-	}
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	numTiles := (N + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
@@ -2186,15 +2252,15 @@ func fusedNF4MatMulActSME(
 	M, K, N, groupSize int,
 	act ActivationType,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
 
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
-		return
-	}
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	defer hwy.SMEGuard()()
 
@@ -2258,10 +2324,15 @@ func fusedInt4MatMulActSME(
 	M, K, N, groupSize int,
 	act ActivationType,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
+
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	defer hwy.SMEGuard()()
 
@@ -2342,14 +2413,15 @@ func parallelFusedNF4MatMulActSME(
 	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
-	if !hwy.HasSME() {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
-	if K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
-		baseFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
-		return
-	}
+
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	numTiles := (N + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
@@ -2424,10 +2496,15 @@ func parallelFusedInt4MatMulActSME(
 	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
-	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || M < 64 || K < 64 || N < 64 {
+	if !hwy.HasSME() || K%16 != 0 || N%16 != 0 || K < minDimForSME || N < minDimForSME {
 		baseFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
 		return
 	}
+
+	origM := M
+	var origOutput []float32
+	input, output, M, origOutput = fusedPadM(input, output, M, K, N)
+	defer fusedUnpadM(origOutput, input, output, origM, N)
 
 	numTiles := (N + 15) / 16
 	numGroups := (N + groupSize - 1) / groupSize
