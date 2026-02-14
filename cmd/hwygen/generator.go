@@ -17,7 +17,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -213,7 +213,7 @@ func (g *Generator) Run() error {
 		for k := range hoistedMap {
 			hoistedKeys = append(hoistedKeys, k)
 		}
-		sort.Strings(hoistedKeys)
+		slices.Sort(hoistedKeys)
 		for _, k := range hoistedKeys {
 			hoistedSlice = append(hoistedSlice, hoistedMap[k])
 		}
