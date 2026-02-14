@@ -21,6 +21,16 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
+// Accelerate dispatch hooks. Set on darwin+cgo builds via accelerate_darwin.go init().
+// When non-nil, MatMulAuto/MatMulKLastAuto delegate float32/float64 to Apple's
+// cblas_sgemm/cblas_dgemm, bypassing Go's worker pool entirely.
+var (
+	accelerateSgemm  func(a, b, c []float32, m, n, k int)
+	accelerateDgemm  func(a, b, c []float64, m, n, k int)
+	accelerateSgemmT func(a, b, c []float32, m, n, k int) // B transposed
+	accelerateDgemmT func(a, b, c []float64, m, n, k int) // B transposed
+)
+
 // Size-based dispatch thresholds.
 // Tuned empirically - adjust based on benchmarks on target hardware.
 const (
@@ -73,6 +83,19 @@ const (
 //	    matmul.MatMulAuto(pool, a, b, c, m, n, k)
 //	}
 func MatMulAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+	// Dispatch float32/float64 to Apple Accelerate when available (darwin+cgo).
+	// Accelerate handles threading internally via GCD, bypassing Go scheduler overhead.
+	if accelerateSgemm != nil {
+		switch av := any(a).(type) {
+		case []float32:
+			accelerateSgemm(av, any(b).([]float32), any(c).([]float32), m, n, k)
+			return
+		case []float64:
+			accelerateDgemm(any(a).([]float64), any(b).([]float64), any(c).([]float64), m, n, k)
+			return
+		}
+	}
+
 	totalOps := m * n * k
 
 	// Very small matrices: streaming is fastest (fits in cache, no overhead).
@@ -131,6 +154,19 @@ func MatMulAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
 //
 // On ARM64 with SME, FMOPA with padding handles small M directly.
 func MatMulKLastAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+	// Dispatch float32/float64 to Apple Accelerate when available (darwin+cgo).
+	// Uses CblasTrans on B to handle K-last layout: C = A * B^T.
+	if accelerateSgemmT != nil {
+		switch av := any(a).(type) {
+		case []float32:
+			accelerateSgemmT(av, any(b).([]float32), any(c).([]float32), m, n, k)
+			return
+		case []float64:
+			accelerateDgemmT(any(a).([]float64), any(b).([]float64), any(c).([]float64), m, n, k)
+			return
+		}
+	}
+
 	totalOps := m * n * k
 
 	if totalOps < SmallMatrixThreshold {
