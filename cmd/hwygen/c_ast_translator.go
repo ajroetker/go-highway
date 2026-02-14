@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -329,7 +330,7 @@ func (t *CASTTranslator) discoverStructFields(body *ast.BlockStmt) {
 		for name := range fields {
 			names = append(names, name)
 		}
-		sort.Strings(names)
+		slices.Sort(names)
 		for _, name := range names {
 			info.fields = append(info.fields, fields[name])
 		}

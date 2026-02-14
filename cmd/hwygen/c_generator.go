@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ajroetker/go-highway/cmd/hwygen/ir"
@@ -2293,7 +2292,7 @@ func DiscoverUnifiedStructFields(pf *ParsedFunc, elemCType string) []StructField
 	for name := range discovered {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		fields = append(fields, discovered[name])
 	}
