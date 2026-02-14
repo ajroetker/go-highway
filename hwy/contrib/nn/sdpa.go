@@ -73,7 +73,7 @@ func SDPACausalAuto[T hwy.Floats](
 // When numKVHeads < numHeads, grouped-query attention is used: each KV head
 // serves numHeads/numKVHeads query heads.
 func MultiHeadSDPAAuto[T hwy.Floats](
-	pool *workerpool.Pool,
+	pool workerpool.Executor,
 	q, k, v, mask, output []T,
 	batchSize, numHeads, numKVHeads, seqLen, kvLen, headDim int,
 	maskBatchStride, maskHeadStride int,
@@ -157,7 +157,7 @@ func MultiHeadSDPAAuto[T hwy.Floats](
 //	| kvHeadStride   | kvLen*headDim            | headDim                    |
 //	| kvBatchStride  | numKVHeads*kvLen*headDim  | kvLen*numKVHeads*headDim  |
 func MultiHeadSDPAStridedAuto[T hwy.Floats](
-	pool *workerpool.Pool,
+	pool workerpool.Executor,
 	q, k, v, mask, output []T,
 	batchSize, numHeads, numKVHeads, seqLen, kvLen, headDim int,
 	qBatchStride, qHeadStride, qSeqStride int,

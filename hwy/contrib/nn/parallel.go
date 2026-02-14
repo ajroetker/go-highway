@@ -26,7 +26,7 @@ import (
 
 // ParallelSoftmax applies Softmax independently to each row of a [rows, cols]
 // matrix in parallel.
-func ParallelSoftmax[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelSoftmax[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	activation.ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		Softmax(in, out)
 	})
@@ -34,7 +34,7 @@ func ParallelSoftmax[T hwy.Floats](pool *workerpool.Pool, input, output []T, row
 
 // ParallelLogSoftmax applies LogSoftmax independently to each row of a
 // [rows, cols] matrix in parallel.
-func ParallelLogSoftmax[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelLogSoftmax[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	activation.ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		LogSoftmax(in, out)
 	})
@@ -42,7 +42,7 @@ func ParallelLogSoftmax[T hwy.Floats](pool *workerpool.Pool, input, output []T, 
 
 // ParallelSoftmaxWithTemperature applies SoftmaxWithTemperature independently to
 // each row of a [rows, cols] matrix in parallel.
-func ParallelSoftmaxWithTemperature[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int, temperature T) {
+func ParallelSoftmaxWithTemperature[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int, temperature T) {
 	activation.ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		SoftmaxWithTemperature(in, out, temperature)
 	})
@@ -55,7 +55,7 @@ func ParallelSoftmaxWithTemperature[T hwy.Floats](pool *workerpool.Pool, input, 
 // ParallelLayerNorm applies LayerNorm in parallel across normalization groups.
 // The input and output are flat slices of length numGroups*normSize, where each
 // contiguous group of normSize elements is normalized independently.
-func ParallelLayerNorm[T hwy.Floats](pool *workerpool.Pool, input, output []T, normSize int, gamma, beta []T, epsilon T) {
+func ParallelLayerNorm[T hwy.Floats](pool workerpool.Executor, input, output []T, normSize int, gamma, beta []T, epsilon T) {
 	size := min(len(input), len(output))
 	if size == 0 || normSize <= 0 {
 		return

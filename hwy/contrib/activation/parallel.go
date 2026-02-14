@@ -42,7 +42,7 @@ const (
 //
 // Falls back to sequential execution when pool is nil or the total element
 // count is below MinParallelActivationOps.
-func ParallelApplyRows[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int, fn func(input, output []T)) {
+func ParallelApplyRows[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int, fn func(input, output []T)) {
 	if pool == nil || rows*cols < MinParallelActivationOps {
 		for r := range rows {
 			off := r * cols
@@ -65,7 +65,7 @@ func ParallelApplyRows[T hwy.Floats](pool *workerpool.Pool, input, output []T, r
 
 // ParallelGELU applies GELU element-wise across a [rows, cols] matrix in
 // parallel.
-func ParallelGELU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelGELU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		GELU(in, out)
 	})
@@ -73,7 +73,7 @@ func ParallelGELU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, 
 
 // ParallelGELUApprox applies the fast approximate GELU across a [rows, cols]
 // matrix in parallel.
-func ParallelGELUApprox[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelGELUApprox[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		GELUApprox(in, out)
 	})
@@ -81,7 +81,7 @@ func ParallelGELUApprox[T hwy.Floats](pool *workerpool.Pool, input, output []T, 
 
 // ParallelReLU applies ReLU element-wise across a [rows, cols] matrix in
 // parallel.
-func ParallelReLU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelReLU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		ReLU(in, out)
 	})
@@ -89,7 +89,7 @@ func ParallelReLU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, 
 
 // ParallelSiLU applies SiLU (Swish) element-wise across a [rows, cols] matrix
 // in parallel.
-func ParallelSiLU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelSiLU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		SiLU(in, out)
 	})
@@ -97,7 +97,7 @@ func ParallelSiLU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, 
 
 // ParallelTanh applies Tanh element-wise across a [rows, cols] matrix in
 // parallel.
-func ParallelTanh[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int) {
+func ParallelTanh[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		Tanh(in, out)
 	})
@@ -105,7 +105,7 @@ func ParallelTanh[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, 
 
 // ParallelLeakyReLU applies LeakyReLU(alpha) element-wise across a
 // [rows, cols] matrix in parallel.
-func ParallelLeakyReLU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int, alpha T) {
+func ParallelLeakyReLU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int, alpha T) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		LeakyReLU(in, out, alpha)
 	})
@@ -113,7 +113,7 @@ func ParallelLeakyReLU[T hwy.Floats](pool *workerpool.Pool, input, output []T, r
 
 // ParallelELU applies ELU(alpha) element-wise across a [rows, cols] matrix in
 // parallel.
-func ParallelELU[T hwy.Floats](pool *workerpool.Pool, input, output []T, rows, cols int, alpha T) {
+func ParallelELU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int, alpha T) {
 	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
 		ELU(in, out, alpha)
 	})

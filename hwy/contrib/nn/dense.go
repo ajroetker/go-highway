@@ -31,7 +31,7 @@ import (
 //
 // This delegates to MatMulKLastAuto (which dispatches to SME/NEON/AVX as
 // appropriate) and then adds bias with SIMD.
-func DenseAuto[T hwy.Floats](pool *workerpool.Pool, x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
+func DenseAuto[T hwy.Floats](pool workerpool.Executor, x, weight, bias, output []T, batchSize, inFeatures, outFeatures int) {
 	// Matmul: output = x @ weight^T
 	matmul.MatMulKLastAuto(pool, x, weight, output, batchSize, outFeatures, inFeatures)
 
@@ -49,7 +49,7 @@ func DenseAuto[T hwy.Floats](pool *workerpool.Pool, x, weight, bias, output []T,
 //	applyActivation(output, act, batchSize*outFeatures)
 //
 // The activation is applied in-place on the output after the dense computation.
-func DenseActivationAuto[T hwy.Floats](pool *workerpool.Pool, x, weight, bias, output []T, batchSize, inFeatures, outFeatures int, act ActivationType) {
+func DenseActivationAuto[T hwy.Floats](pool workerpool.Executor, x, weight, bias, output []T, batchSize, inFeatures, outFeatures int, act ActivationType) {
 	DenseAuto(pool, x, weight, bias, output, batchSize, inFeatures, outFeatures)
 
 	if act != ActivationNone {

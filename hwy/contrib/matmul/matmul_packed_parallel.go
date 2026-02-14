@@ -44,7 +44,7 @@ const (
 //   - b: Input matrix B in row-major order (K × N)
 //   - c: Output matrix C in row-major order (M × N), will be zeroed
 //   - m, n, k: Matrix dimensions
-func ParallelPackedMatMul[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelPackedMatMul[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
 	// For small matrices or nil pool, use single-threaded version
@@ -118,7 +118,7 @@ func processStripPacked[T hwy.Floats](a, b, c []T, m, n, k, rowStart, rowEnd int
 //
 // This is more efficient when M >> N, as B packing overhead is amortized.
 // However, it requires more memory for the shared packed B buffer.
-func ParallelPackedMatMulSharedB[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelPackedMatMulSharedB[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
 	// For small matrices or nil pool, use single-threaded version

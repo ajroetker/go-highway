@@ -21,7 +21,7 @@ const (
 //
 // For large matrices, this is faster than serial SIMD transpose because transpose
 // is memory-bandwidth bound and parallelism helps saturate memory bandwidth.
-func ParallelTranspose2D[T hwy.Floats](pool *workerpool.Pool, src []T, m, k int, dst []T) {
+func ParallelTranspose2D[T hwy.Floats](pool workerpool.Executor, src []T, m, k int, dst []T) {
 	if len(src) < m*k || len(dst) < k*m {
 		return
 	}
@@ -45,7 +45,7 @@ func ParallelTranspose2D[T hwy.Floats](pool *workerpool.Pool, src []T, m, k int,
 }
 
 // TransposeAuto automatically selects the best transpose algorithm.
-func TransposeAuto[T hwy.Floats](pool *workerpool.Pool, src []T, m, k int, dst []T) {
+func TransposeAuto[T hwy.Floats](pool workerpool.Executor, src []T, m, k int, dst []T) {
 	if m*k < MinTransposeParallelOps {
 		Transpose2D(src, m, k, dst)
 	} else {
@@ -54,21 +54,21 @@ func TransposeAuto[T hwy.Floats](pool *workerpool.Pool, src []T, m, k int, dst [
 }
 
 // ParallelTranspose2DFloat32 is the non-generic version for float32.
-func ParallelTranspose2DFloat32(pool *workerpool.Pool, src []float32, m, k int, dst []float32) {
+func ParallelTranspose2DFloat32(pool workerpool.Executor, src []float32, m, k int, dst []float32) {
 	ParallelTranspose2D(pool, src, m, k, dst)
 }
 
 // ParallelTranspose2DFloat64 is the non-generic version for float64.
-func ParallelTranspose2DFloat64(pool *workerpool.Pool, src []float64, m, k int, dst []float64) {
+func ParallelTranspose2DFloat64(pool workerpool.Executor, src []float64, m, k int, dst []float64) {
 	ParallelTranspose2D(pool, src, m, k, dst)
 }
 
 // TransposeAutoFloat32 is the non-generic version for float32.
-func TransposeAutoFloat32(pool *workerpool.Pool, src []float32, m, k int, dst []float32) {
+func TransposeAutoFloat32(pool workerpool.Executor, src []float32, m, k int, dst []float32) {
 	TransposeAuto(pool, src, m, k, dst)
 }
 
 // TransposeAutoFloat64 is the non-generic version for float64.
-func TransposeAutoFloat64(pool *workerpool.Pool, src []float64, m, k int, dst []float64) {
+func TransposeAutoFloat64(pool workerpool.Executor, src []float64, m, k int, dst []float64) {
 	TransposeAuto(pool, src, m, k, dst)
 }

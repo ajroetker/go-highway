@@ -72,7 +72,7 @@ const (
 //	for _, layer := range layers {
 //	    matmul.MatMulAuto(pool, a, b, c, m, n, k)
 //	}
-func MatMulAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func MatMulAuto[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
 	// Very small matrices: streaming is fastest (fits in cache, no overhead).
@@ -130,7 +130,7 @@ func MatMulAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
 //  4. Default: ParallelMatMulKLast with coarse row striping
 //
 // On ARM64 with SME, FMOPA with padding handles small M directly.
-func MatMulKLastAuto[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func MatMulKLastAuto[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
 	if totalOps < SmallMatrixThreshold {

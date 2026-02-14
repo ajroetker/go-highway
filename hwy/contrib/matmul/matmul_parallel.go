@@ -23,7 +23,7 @@ const (
 //   - A is M x K (row-major)
 //   - B is K x N (row-major)
 //   - C is M x N (row-major)
-func ParallelMatMul[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelMatMul[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	if m*n*k < MinParallelOps {
 		BlockedMatMul(a, b, c, m, n, k)
 		return
@@ -52,7 +52,7 @@ func ParallelMatMul[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k in
 // would result in only 1 strip (no parallelism).
 //
 // Benchmarks on M4 Max show 4.3x speedup for M=11, N=1024, K=1024.
-func ParallelMatMulFineGrained[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelMatMulFineGrained[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	if m*n*k < MinParallelOps {
 		BlockedMatMul(a, b, c, m, n, k)
 		return

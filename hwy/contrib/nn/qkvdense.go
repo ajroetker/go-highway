@@ -47,7 +47,7 @@ import (
 const SmallFusedThreshold = 768 * (256 + 2*64)
 
 func QKVDenseAuto[T hwy.Floats](
-	pool *workerpool.Pool,
+	pool workerpool.Executor,
 	x, wQKV, biasQ, biasK, biasV, q, k, v []T,
 	batchSize, inFeatures, qDim, kvDim int,
 ) {

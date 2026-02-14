@@ -27,6 +27,28 @@ import (
 	"sync/atomic"
 )
 
+// Executor defines the interface for parallel work execution.
+// It provides the core parallel primitives without lifecycle management.
+type Executor interface {
+	// NumWorkers returns the number of workers available.
+	NumWorkers() int
+
+	// ParallelFor divides [0, n) into contiguous ranges and executes fn
+	// for each range using the worker pool. Blocks until all work completes.
+	ParallelFor(n int, fn func(start, end int))
+
+	// ParallelForAtomic executes fn for each index in [0, n) using atomic
+	// work stealing for load balancing. Blocks until all work completes.
+	ParallelForAtomic(n int, fn func(i int))
+
+	// ParallelForAtomicBatched executes fn for batches of indices using
+	// atomic work stealing. Blocks until all work completes.
+	ParallelForAtomicBatched(n int, batchSize int, fn func(start, end int))
+}
+
+// Compile-time check that *Pool implements Executor.
+var _ Executor = (*Pool)(nil)
+
 // Pool is a persistent worker pool that can be reused across many parallel
 // operations. Workers are spawned once at creation and reused.
 type Pool struct {

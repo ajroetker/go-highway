@@ -75,7 +75,7 @@ func getCacheParamsV2[T hwy.Floats]() CacheParams {
 //   - b: Input matrix B in row-major order (K × N)
 //   - c: Output matrix C in row-major order (M × N), will be zeroed
 //   - m, n, k: Matrix dimensions
-func ParallelPackedMatMulV2[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelPackedMatMulV2[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	totalOps := m * n * k
 
 	// For small matrices, use single-threaded version
@@ -310,12 +310,12 @@ func getLanesFloat32() int { return lanesFloat32 }
 func getLanesFloat64() int { return lanesFloat64 }
 
 // ParallelPackedMatMulV2Float32 is the non-generic version for float32.
-func ParallelPackedMatMulV2Float32(pool *workerpool.Pool, a, b, c []float32, m, n, k int) {
+func ParallelPackedMatMulV2Float32(pool workerpool.Executor, a, b, c []float32, m, n, k int) {
 	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 }
 
 // ParallelPackedMatMulV2Float64 is the non-generic version for float64.
-func ParallelPackedMatMulV2Float64(pool *workerpool.Pool, a, b, c []float64, m, n, k int) {
+func ParallelPackedMatMulV2Float64(pool workerpool.Executor, a, b, c []float64, m, n, k int) {
 	ParallelPackedMatMulV2(pool, a, b, c, m, n, k)
 }
 
@@ -328,7 +328,7 @@ func ParallelPackedMatMulV2Float64(pool *workerpool.Pool, a, b, c []float64, m, 
 //   - b: Batched input matrix B [batchSize, K, N] in row-major order
 //   - c: Batched output matrix C [batchSize, M, N] in row-major order
 //   - batchSize, m, n, k: Dimensions
-func BatchParallelPackedMatMulV2[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, batchSize, m, n, k int) {
+func BatchParallelPackedMatMulV2[T hwy.Floats](pool workerpool.Executor, a, b, c []T, batchSize, m, n, k int) {
 	totalOps := batchSize * m * n * k
 
 	// For small total work, use single-threaded version

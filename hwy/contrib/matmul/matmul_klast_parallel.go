@@ -16,7 +16,7 @@ import (
 //
 // This enables intra-example parallelism: a single large matrix multiplication
 // can utilize all CPU cores by processing independent row strips concurrently.
-func ParallelMatMulKLast[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelMatMulKLast[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	if m*n*k < MinParallelOps {
 		MatMulKLastBlocked(a, b, c, m, n, k)
 		return
@@ -40,7 +40,7 @@ func ParallelMatMulKLast[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n,
 
 // ParallelMatMulKLastFineGrained computes C = A * B^T using fine-grained
 // parallelism with a persistent worker pool. Uses atomic work stealing for load balancing.
-func ParallelMatMulKLastFineGrained[T hwy.Floats](pool *workerpool.Pool, a, b, c []T, m, n, k int) {
+func ParallelMatMulKLastFineGrained[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) {
 	if m*n*k < MinParallelOps {
 		MatMulKLastBlocked(a, b, c, m, n, k)
 		return
