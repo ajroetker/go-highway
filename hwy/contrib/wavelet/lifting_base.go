@@ -353,10 +353,10 @@ func BaseSynthesize53Core[T hwy.SignedInts](data []T, n int, low []T, sn int, hi
 	// 1. Copy subbands from data into scratch buffers.
 	// Use explicit loops instead of copy() so the C emitter emits
 	// length-dependent loops rather than fixed-lane-count loops.
-	for ci := 0; ci < sn; ci++ {
+	for ci := range sn {
 		low[ci] = data[ci]
 	}
-	for ci := 0; ci < dn; ci++ {
+	for ci := range dn {
 		high[ci] = data[sn+ci]
 	}
 
@@ -558,10 +558,10 @@ func BaseSynthesize53CoreCols[T hwy.SignedInts](colBuf []T, height int, lowBuf [
 
 	// 1. Copy subbands from colBuf into scratch buffers.
 	// colBuf layout: rows [0..sn-1] are low-pass, rows [sn..sn+dn-1] are high-pass.
-	for y := 0; y < sn; y++ {
+	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
 	}
-	for y := 0; y < dn; y++ {
+	for y := range dn {
 		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
 	}
 
@@ -697,7 +697,7 @@ func BaseSynthesize53CoreCols[T hwy.SignedInts](colBuf []T, height int, lowBuf [
 	// Output row order: low[0], high[0], low[1], high[1], ...
 	if phase == 0 {
 		minN := min(sn, dn)
-		for y := 0; y < minN; y++ {
+		for y := range minN {
 			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
 			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
 		}
@@ -707,7 +707,7 @@ func BaseSynthesize53CoreCols[T hwy.SignedInts](colBuf []T, height int, lowBuf [
 		}
 	} else {
 		minN := min(sn, dn)
-		for y := 0; y < minN; y++ {
+		for y := range minN {
 			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
 			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
 		}

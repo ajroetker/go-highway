@@ -149,17 +149,17 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, bi
 	// Accumulator buffer for one output row — fits L1 for typical N
 	accBuf := make([]float32, N)
 
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
 		// Zero accumulators for this row
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 
 		// K-outer, N-inner: sequential weight access, single input broadcast per k
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
@@ -167,7 +167,7 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, bi
 			// Vectorized N sweep
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -230,6 +230,90 @@ func baseFusedNF4MatMulAct(input []float32, packed []uint8, scales []float32, bi
 	}
 }
 
+// baseFusedInt8MatMulAct is the internal implementation for SME code paths.
+func baseFusedInt8MatMulAct(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+	if M == 0 || K == 0 || N == 0 {
+		return
+	}
+
+	numGroups := (N + groupSize - 1) / groupSize
+	lanes := hwy.Zero[float32]().NumLanes()
+
+	dequantBuf := fusedActDequantBufPool.Get().([]float32)[:lanes]
+	defer fusedActDequantBufPool.Put(dequantBuf[:cap(dequantBuf)])
+
+	// Accumulator buffer for one output row — fits L1 for typical N
+	accBuf := make([]float32, N)
+
+	for m := range M {
+		inputRow := input[m*K : (m+1)*K]
+		outputRow := output[m*N : (m+1)*N]
+
+		// Zero accumulators for this row
+		for i := range N {
+			accBuf[i] = 0
+		}
+
+		// K-outer, N-inner: sequential weight access, single input broadcast per k
+		for k := range K {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+
+			// Vectorized N sweep
+			var n int
+			for n = 0; n+lanes <= N; n += lanes {
+				for lane := range lanes {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+
+					val := float32(weights[weightIdx])
+
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = val * scale
+				}
+
+				w := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
+				acc = hwy.MulAdd(inputVal, w, acc)
+				hwy.Store(acc, accBuf[n:])
+			}
+
+			// Scalar tail
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+
+				val := float32(weights[weightIdx])
+
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				weight := val * scale
+				accBuf[n] += inputRow[k] * weight
+			}
+		}
+
+		// Apply bias + activation and store to output
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			acc = applyActivationVec(acc, act)
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			val := accBuf[n]
+			if bias != nil {
+				val += bias[n]
+			}
+			outputRow[n] = applyActivationScalar(val, act)
+		}
+	}
+}
+
 // baseFusedInt4MatMulAct is the internal implementation for SME code paths.
 func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
 	if M == 0 || K == 0 || N == 0 {
@@ -245,17 +329,17 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, b
 	// Accumulator buffer for one output row — fits L1 for typical N
 	accBuf := make([]float32, N)
 
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
 		// Zero accumulators for this row
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 
 		// K-outer, N-inner: sequential weight access, single input broadcast per k
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
@@ -263,7 +347,7 @@ func baseFusedInt4MatMulAct(input []float32, packed []uint8, scales []float32, b
 			// Vectorized N sweep
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2

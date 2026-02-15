@@ -2048,8 +2048,8 @@ func fusedInt8MatMulSME(
 		dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
 		asm.MultiTileMatMulFMOPAF32(inputT, tileBuf[:pK*16], outputTile[:M*16], M, 16, pK)
 
-		for m := 0; m < M; m++ {
-			for j := 0; j < 16; j++ {
+		for m := range M {
+			for j := range 16 {
 				output[m*pN+nTile+j] = outputTile[m*16+j]
 			}
 		}
@@ -2067,8 +2067,8 @@ func dequantizeInt8Tile(
 	tile []float32,
 	nTile, K, N, validN, tileStride, numGroups, groupSize int,
 ) {
-	for k := 0; k < K; k++ {
-		for j := 0; j < validN; j++ {
+	for k := range K {
+		for j := range validN {
 			n := nTile + j
 			weightIdx := k*N + n
 			val := float32(weights[weightIdx])
@@ -2096,8 +2096,8 @@ func processFusedInt8Tile(
 	dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
 	asm.MultiTileMatMulFMOPAF32(inputT, tileBuf[:pK*16], outputTile[:M*16], M, 16, pK)
 
-	for m := 0; m < M; m++ {
-		for j := 0; j < 16; j++ {
+	for m := range M {
+		for j := range 16 {
 			output[m*pN+nTile+j] = outputTile[m*16+j]
 		}
 	}
@@ -2184,6 +2184,160 @@ func parallelFusedInt8MatMulSME(
 }
 
 // =============================================================================
+// Fused Int8 + Activation SME Implementations
+// =============================================================================
+
+func fusedInt8MatMulActSME(
+	input []float32,
+	weights []int8,
+	scales []float32,
+	bias []float32,
+	output []float32,
+	M, K, N, groupSize int,
+	act ActivationType,
+) {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
+		baseFusedInt8MatMulAct(input, weights, scales, bias, output, M, K, N, groupSize, act)
+		return
+	}
+
+	origM := M
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
+
+	defer hwy.SMEGuard()()
+
+	numGroups := (N + groupSize - 1) / groupSize
+
+	tileBuf := fusedInt8TilePool.Get().([]float32)
+	tileSize := pK * 16
+	if cap(tileBuf) < tileSize {
+		tileBuf = make([]float32, tileSize)
+	} else {
+		tileBuf = tileBuf[:tileSize]
+	}
+	clear(tileBuf)
+	defer fusedInt8TilePool.Put(tileBuf)
+
+	inputT := transposePool32.Get().([]float32)
+	inputTSize := M * pK
+	if cap(inputT) < inputTSize {
+		inputT = make([]float32, inputTSize)
+	} else {
+		inputT = inputT[:inputTSize]
+	}
+	defer transposePool32.Put(inputT)
+
+	transposeMatrix(input, M, pK, inputT)
+
+	clear(output[:M*pN])
+
+	for nTile := 0; nTile < pN; nTile += 16 {
+		validN := min(16, N-nTile)
+		if validN <= 0 {
+			break
+		}
+
+		dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+		asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
+	}
+
+	// Apply bias before activation
+	if bias != nil {
+		applyBiasToOutputStrided(output, bias, M, N, pN)
+	}
+
+	// Apply activation to entire output
+	if act != ActNone {
+		applyActivationToTile(output, M, N, pN, 0, act)
+	}
+}
+
+func parallelFusedInt8MatMulActSME(
+	input []float32,
+	weights []int8,
+	scales []float32,
+	bias []float32,
+	output []float32,
+	M, K, N, groupSize int,
+	act ActivationType,
+) {
+	if !hwy.HasSME() || K < minDimForSME || N < minDimForSME {
+		baseFusedInt8MatMulAct(input, weights, scales, bias, output, M, K, N, groupSize, act)
+		return
+	}
+
+	origM := M
+	input, output, M, pK, pN, origOutput := fusedPadDims(input, output, M, K, N)
+	defer fusedUnpadDims(origOutput, input, output, origM, N, pN)
+
+	numTiles := (pN + 15) / 16
+	numGroups := (N + groupSize - 1) / groupSize
+
+	if numTiles < MinFusedParallelTiles {
+		fusedInt8MatMulActSME(input, weights, scales, bias, output, M, K, N, groupSize, act)
+		return
+	}
+
+	inputT := transposePool32.Get().([]float32)
+	inputTSize := M * pK
+	if cap(inputT) < inputTSize {
+		inputT = make([]float32, inputTSize)
+	} else {
+		inputT = inputT[:inputTSize]
+	}
+	transposeMatrix(input, M, pK, inputT)
+	defer transposePool32.Put(inputT)
+
+	clear(output[:M*pN])
+
+	work := make(chan int, numTiles)
+	for nTile := 0; nTile < pN; nTile += 16 {
+		work <- nTile
+	}
+	close(work)
+
+	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
+	var wg sync.WaitGroup
+	for range numWorkers {
+		wg.Go(func() {
+			defer hwy.SMEGuard()()
+
+			tileBuf := fusedInt8TilePool.Get().([]float32)
+			tileSize := pK * 16
+			if cap(tileBuf) < tileSize {
+				tileBuf = make([]float32, tileSize)
+			} else {
+				tileBuf = tileBuf[:tileSize]
+			}
+			clear(tileBuf)
+			defer fusedInt8TilePool.Put(tileBuf)
+
+			for nTile := range work {
+				validN := min(16, N-nTile)
+				if validN <= 0 {
+					continue
+				}
+
+				dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+				asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
+			}
+		})
+	}
+	wg.Wait()
+
+	// Apply bias before activation
+	if bias != nil {
+		applyBiasToOutputStrided(output, bias, M, N, pN)
+	}
+
+	// Apply activation to entire output
+	if act != ActNone {
+		applyActivationToTile(output, M, N, pN, 0, act)
+	}
+}
+
+// =============================================================================
 // Fused NF4/Int4 + Activation SME Implementations
 // =============================================================================
 
@@ -2198,34 +2352,34 @@ func applyGELUScalar(x float32) float32 {
 func applyActivationToTile(output []float32, M, tileN, stride, colOffset int, act ActivationType) {
 	switch act {
 	case ActSiLU:
-		for m := 0; m < M; m++ {
+		for m := range M {
 			rowStart := m*stride + colOffset
-			for j := 0; j < tileN; j++ {
+			for j := range tileN {
 				idx := rowStart + j
 				output[idx] = applySiLUScalar(output[idx])
 			}
 		}
 	case ActGELU:
-		for m := 0; m < M; m++ {
+		for m := range M {
 			rowStart := m*stride + colOffset
-			for j := 0; j < tileN; j++ {
+			for j := range tileN {
 				idx := rowStart + j
 				output[idx] = applyGELUScalar(output[idx])
 			}
 		}
 	case ActGELUApprox:
-		for m := 0; m < M; m++ {
+		for m := range M {
 			rowStart := m*stride + colOffset
-			for j := 0; j < tileN; j++ {
+			for j := range tileN {
 				idx := rowStart + j
 				x := output[idx]
 				output[idx] = x * sigmoidf32(1.702*x)
 			}
 		}
 	case ActReLU:
-		for m := 0; m < M; m++ {
+		for m := range M {
 			rowStart := m*stride + colOffset
-			for j := 0; j < tileN; j++ {
+			for j := range tileN {
 				idx := rowStart + j
 				if output[idx] < 0 {
 					output[idx] = 0
@@ -2238,9 +2392,9 @@ func applyActivationToTile(output []float32, M, tileN, stride, colOffset int, ac
 // applyBiasToOutput adds bias[n] to every row of output[m, n] for m in [0, M), n in [0, N).
 // output is row-major [M, N], bias has length N.
 func applyBiasToOutput(output []float32, bias []float32, M, N int) {
-	for m := 0; m < M; m++ {
+	for m := range M {
 		rowStart := m * N
-		for n := 0; n < N; n++ {
+		for n := range N {
 			output[rowStart+n] += bias[n]
 		}
 	}
@@ -2250,9 +2404,9 @@ func applyBiasToOutput(output []float32, bias []float32, M, N int) {
 // the given stride (which may differ from N when output is padded).
 // M rows, N valid columns per row, stride is the row stride in output.
 func applyBiasToOutputStrided(output, bias []float32, M, N, stride int) {
-	for m := 0; m < M; m++ {
+	for m := range M {
 		rowStart := m * stride
-		for n := 0; n < N; n++ {
+		for n := range N {
 			output[rowStart+n] += bias[n]
 		}
 	}
@@ -2602,12 +2756,14 @@ func init() {
 		FusedInt8MatMul = fusedInt8MatMulSME
 		ParallelFusedInt8MatMul = parallelFusedInt8MatMulSME
 
-		// Fused NF4/Int4 + activation SME implementations (Act variants).
+		// Fused NF4/Int4/Int8 + activation SME implementations (Act variants).
 		// ParallelFused*MatMulSiLU/GELU route through these via dispatch.go init().
 		FusedNF4MatMulAct = fusedNF4MatMulActSME
 		FusedInt4MatMulAct = fusedInt4MatMulActSME
+		FusedInt8MatMulAct = fusedInt8MatMulActSME
 		ParallelFusedNF4MatMulAct = parallelFusedNF4MatMulActSME
 		ParallelFusedInt4MatMulAct = parallelFusedInt4MatMulActSME
+		ParallelFusedInt8MatMulAct = parallelFusedInt8MatMulActSME
 		// Individual serial overrides for direct callers.
 		FusedNF4MatMulSiLU = fusedNF4MatMulSiLUSME
 		FusedNF4MatMulGELU = fusedNF4MatMulGELUSME

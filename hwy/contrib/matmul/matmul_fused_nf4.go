@@ -74,7 +74,7 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, bias 
 		outputRow := output[m*N : (m+1)*N]
 
 		// Zero accumulators for this row
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 
@@ -182,7 +182,7 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, bias
 		outputRow := output[m*N : (m+1)*N]
 
 		// Zero accumulators for this row
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 

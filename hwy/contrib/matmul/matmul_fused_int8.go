@@ -48,17 +48,17 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, bias
 	accBuf := make([]float32, N)
 
 	// Process each output row
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
 
 		// Zero accumulators for this row
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 
 		// K-outer, N-inner: sequential weight access, single input broadcast per k
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
@@ -66,7 +66,7 @@ func BaseFusedInt8MatMul(input []float32, weights []int8, scales []float32, bias
 			// Vectorized N sweep
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 

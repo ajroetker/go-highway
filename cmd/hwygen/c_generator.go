@@ -2444,8 +2444,8 @@ func groupGoParams(pf *ParsedFunc, goSliceType, elemType string) string {
 
 	for _, p := range pf.Params {
 		var paramType string
-		if strings.HasPrefix(p.Type, "[]") {
-			sliceElem := strings.TrimPrefix(p.Type, "[]")
+		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
+			sliceElem := after
 			if typeParamNames[sliceElem] {
 				// Generic slice (e.g. []T) — substitute with profile type.
 				paramType = goSliceType

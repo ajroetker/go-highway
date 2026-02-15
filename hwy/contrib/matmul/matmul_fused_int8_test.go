@@ -30,11 +30,11 @@ func referenceInt8MatMul(input []float32, weights []int8, scales []float32, M, K
 	output := make([]float32, M*N)
 	numGroups := (N + groupSize - 1) / groupSize
 
-	for m := 0; m < M; m++ {
-		for n := 0; n < N; n++ {
+	for m := range M {
+		for n := range N {
 			groupIdx := n / groupSize
 			sum := float32(0)
-			for k := 0; k < K; k++ {
+			for k := range K {
 				weightIdx := k*N + n
 				val := float32(weights[weightIdx])
 				scale := scales[k*numGroups+groupIdx]

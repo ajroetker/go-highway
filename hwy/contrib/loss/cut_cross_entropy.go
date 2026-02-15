@@ -67,7 +67,7 @@ func BaseCutCrossEntropy(
 	totalLoss := float64(0)
 	validCount := 0
 
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		if label < 0 || int(label) >= vocabSize {
 			continue // Skip padding/ignored positions
@@ -101,7 +101,8 @@ func BaseCutCrossEntropy(
 // BaseCutCrossEntropyGrad computes gradients for Cut Cross-Entropy.
 //
 // The gradient of cross-entropy loss w.r.t. hidden states is:
-//   dL/dh_i = (1/N) * (sum_v(softmax(h_i · e_v) * e_v) - e_{y_i})
+//
+//	dL/dh_i = (1/N) * (sum_v(softmax(h_i · e_v) * e_v) - e_{y_i})
 //
 // This is computed without materializing full logits by streaming through
 // vocabulary chunks, computing softmax contributions on-the-fly.
@@ -125,7 +126,7 @@ func BaseCutCrossEntropyGrad(
 
 	// Count valid positions for mean
 	validCount := 0
-	for i := 0; i < numPositions; i++ {
+	for i := range numPositions {
 		if labels[i] >= 0 && int(labels[i]) < vocabSize {
 			validCount++
 		}
@@ -138,13 +139,13 @@ func BaseCutCrossEntropyGrad(
 
 	lanes := hwy.Zero[float32]().NumLanes()
 
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		gradBase := pos * hiddenDim
 
 		if label < 0 || int(label) >= vocabSize {
 			// Zero gradient for ignored positions
-			for d := 0; d < hiddenDim; d++ {
+			for d := range hiddenDim {
 				gradOutput[gradBase+d] = 0
 			}
 			continue
@@ -207,7 +208,7 @@ func BaseCutCrossEntropyGrad(
 		}
 
 		// Add softmax-weighted embedding contributions
-		for v := 0; v < vocabSize; v++ {
+		for v := range vocabSize {
 			embOffset := v * hiddenDim
 			// Inline dot product
 			dotAcc := hwy.Zero[float32]()
@@ -243,16 +244,17 @@ func BaseCutCrossEntropyGrad(
 // streamingLogsumexp computes log(sum_v(exp(h · e_v))) without materializing all logits.
 //
 // Uses the numerically stable streaming formula:
-//   max = -inf
-//   sumExp = 0
-//   For each vocab entry v:
-//     logit = h · e_v
-//     if logit > max:
-//       sumExp = sumExp * exp(max - logit) + 1
-//       max = logit
-//     else:
-//       sumExp += exp(logit - max)
-//   logsumexp = max + log(sumExp)
+//
+//	max = -inf
+//	sumExp = 0
+//	For each vocab entry v:
+//	  logit = h · e_v
+//	  if logit > max:
+//	    sumExp = sumExp * exp(max - logit) + 1
+//	    max = logit
+//	  else:
+//	    sumExp += exp(logit - max)
+//	logsumexp = max + log(sumExp)
 //
 // This processes vocabulary in chunks for better cache locality.
 func streamingLogsumexp(
@@ -282,10 +284,7 @@ func streamingLogsumexp(
 	sumExp := float64(1.0) // exp(firstLogit - firstLogit) = 1
 
 	for vStart := 0; vStart < vocabSize; vStart += chunkSize {
-		vEnd := vStart + chunkSize
-		if vEnd > vocabSize {
-			vEnd = vocabSize
-		}
+		vEnd := min(vStart+chunkSize, vocabSize)
 
 		startV := vStart
 		// Skip first element if we're in the first chunk (already processed)
@@ -375,7 +374,7 @@ func BaseCutCrossEntropyWithLogits(
 	totalLoss := float64(0)
 	validCount := 0
 
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		if label < 0 || int(label) >= vocabSize {
 			perPositionLoss[pos] = 0
@@ -455,12 +454,9 @@ func CutCrossEntropyParallel(
 	results := make([]partialResult, numWorkers)
 	var wg sync.WaitGroup
 
-	for w := 0; w < numWorkers; w++ {
+	for w := range numWorkers {
 		startPos := w * positionsPerWorker
-		endPos := startPos + positionsPerWorker
-		if endPos > numPositions {
-			endPos = numPositions
-		}
+		endPos := min(startPos+positionsPerWorker, numPositions)
 		if startPos >= numPositions {
 			break
 		}

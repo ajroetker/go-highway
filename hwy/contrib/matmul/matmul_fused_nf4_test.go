@@ -257,8 +257,8 @@ func TestFusedNF4BiasCorrectness(t *testing.T) {
 	FusedNF4MatMul(input, packed, scales, bias, biasOutput, M, K, N, groupSize)
 
 	// Verify: biasOutput[m,n] == noBiasOutput[m,n] + bias[n]
-	for m := 0; m < M; m++ {
-		for n := 0; n < N; n++ {
+	for m := range M {
+		for n := range N {
 			idx := m*N + n
 			expected := noBiasOutput[idx] + bias[n]
 			diff := math.Abs(float64(biasOutput[idx] - expected))
@@ -306,8 +306,8 @@ func TestFusedInt4BiasCorrectness(t *testing.T) {
 	FusedInt4MatMul(input, packed, scales, bias, biasOutput, M, K, N, groupSize)
 
 	// Verify: biasOutput[m,n] == noBiasOutput[m,n] + bias[n]
-	for m := 0; m < M; m++ {
-		for n := 0; n < N; n++ {
+	for m := range M {
+		for n := range N {
 			idx := m*N + n
 			expected := noBiasOutput[idx] + bias[n]
 			diff := math.Abs(float64(biasOutput[idx] - expected))

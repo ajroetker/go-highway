@@ -39,10 +39,10 @@ func standardCrossEntropy(
 
 	// Materialize full logits matrix
 	logits := make([]float32, numPositions*vocabSize)
-	for pos := 0; pos < numPositions; pos++ {
-		for v := 0; v < vocabSize; v++ {
+	for pos := range numPositions {
+		for v := range vocabSize {
 			dot := float32(0)
-			for d := 0; d < hiddenDim; d++ {
+			for d := range hiddenDim {
 				dot += hiddenStates[pos*hiddenDim+d] * embeddings[v*hiddenDim+d]
 			}
 			logits[pos*vocabSize+v] = dot
@@ -50,7 +50,7 @@ func standardCrossEntropy(
 	}
 
 	// Compute loss for each position
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		if label < 0 || int(label) >= vocabSize {
 			continue
@@ -194,8 +194,8 @@ func TestBaseCutCrossEntropyGradBasic(t *testing.T) {
 
 	// Verify gradient via finite differences
 	eps := float32(1e-3)
-	for pos := 0; pos < numPositions; pos++ {
-		for d := 0; d < hiddenDim; d++ {
+	for pos := range numPositions {
+		for d := range hiddenDim {
 			idx := pos*hiddenDim + d
 
 			// f(x + eps)

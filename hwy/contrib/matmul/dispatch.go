@@ -200,6 +200,15 @@ var ParallelFusedNF4MatMulAct func(input []float32, packed []uint8, scales []flo
 // On other platforms, this falls back to the serial FusedInt4MatMulAct.
 var ParallelFusedInt4MatMulAct func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
 
+// FusedInt8MatMulAct performs fused Int8 dequantization + matmul + optional bias + activation.
+// Dispatches to the best available implementation for the current platform.
+var FusedInt8MatMulAct func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
+
+// ParallelFusedInt8MatMulAct performs parallel fused Int8 + optional bias + activation for large matrices.
+// On SME platforms, this uses tiled parallel execution.
+// On other platforms, this falls back to the serial FusedInt8MatMulAct.
+var ParallelFusedInt8MatMulAct func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
+
 // ParallelFusedNF4MatMulSiLU performs parallel fused NF4 + bias + SiLU for large matrices.
 var ParallelFusedNF4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
@@ -245,6 +254,20 @@ func init() {
 			FusedInt4MatMul(input, packed, scales, bias, output, M, K, N, groupSize)
 		}
 	}
+	FusedInt8MatMulAct = func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+		switch act {
+		case ActSiLU:
+			FusedInt8MatMulSiLU(input, weights, scales, bias, output, M, K, N, groupSize)
+		case ActGELU:
+			FusedInt8MatMulGELU(input, weights, scales, bias, output, M, K, N, groupSize)
+		case ActGELUApprox:
+			FusedInt8MatMulGELUApprox(input, weights, scales, bias, output, M, K, N, groupSize)
+		case ActReLU:
+			FusedInt8MatMulReLU(input, weights, scales, bias, output, M, K, N, groupSize)
+		default:
+			FusedInt8MatMul(input, weights, scales, bias, output, M, K, N, groupSize)
+		}
+	}
 
 	// Default parallel Act implementations call serial Act.
 	ParallelFusedNF4MatMulAct = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
@@ -252,6 +275,9 @@ func init() {
 	}
 	ParallelFusedInt4MatMulAct = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
 		FusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
+	}
+	ParallelFusedInt8MatMulAct = func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+		FusedInt8MatMulAct(input, weights, scales, bias, output, M, K, N, groupSize, act)
 	}
 
 	// Default non-activation parallel implementations call serial versions.

@@ -45,7 +45,7 @@ func TestFusedNF4MatMulSiLUSME(t *testing.T) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -94,7 +94,7 @@ func TestFusedNF4MatMulGELUSME(t *testing.T) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -140,7 +140,7 @@ func TestFusedInt4MatMulSiLUSME(t *testing.T) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -186,7 +186,7 @@ func TestFusedInt4MatMulGELUSME(t *testing.T) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -233,7 +233,7 @@ func TestParallelFusedNF4MatMulSiLUSME(t *testing.T) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -282,7 +282,7 @@ func BenchmarkFusedNF4MatMulSiLUSME(b *testing.B) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -296,8 +296,7 @@ func BenchmarkFusedNF4MatMulSiLUSME(b *testing.B) {
 
 	output := make([]float32, M*N)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		FusedNF4MatMulSiLU(input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }
@@ -317,7 +316,7 @@ func BenchmarkFusedNF4MatMulGELUSME(b *testing.B) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -331,8 +330,7 @@ func BenchmarkFusedNF4MatMulGELUSME(b *testing.B) {
 
 	output := make([]float32, M*N)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		FusedNF4MatMulGELU(input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }
@@ -352,7 +350,7 @@ func BenchmarkParallelFusedNF4MatMulSiLUSME(b *testing.B) {
 		input[i] = rng.Float32()*2 - 1
 	}
 
-	packedSize := (K * N + 1) / 2
+	packedSize := (K*N + 1) / 2
 	packed := make([]uint8, packedSize)
 	for i := range packed {
 		packed[i] = uint8(rng.Intn(256))
@@ -366,8 +364,7 @@ func BenchmarkParallelFusedNF4MatMulSiLUSME(b *testing.B) {
 
 	output := make([]float32, M*N)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ParallelFusedNF4MatMulSiLU(input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }
