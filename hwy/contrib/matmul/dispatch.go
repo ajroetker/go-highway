@@ -180,6 +180,11 @@ var ParallelFusedInt4MatMul func(pool workerpool.Executor, input []float32, pack
 // On other platforms, this falls back to the serial implementation.
 var ParallelFusedInt8MatMul func(pool workerpool.Executor, input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
+// ParallelInt8x8MatMul performs integer-only uint8×uint8→int32 matrix multiplication
+// with zero-point subtraction, using parallel execution across M rows.
+// On SME platforms, this is overridden in z_matmul_arm64.go init().
+var ParallelInt8x8MatMul func(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int)
+
 // FusedNF4MatMulAct performs fused NF4 dequantization + matmul + optional bias + activation.
 // Dispatches to the best available implementation for the current platform.
 // On non-SME platforms, this switches through the individual activation-specific functions.
@@ -307,6 +312,15 @@ func init() {
 		pool.ParallelFor(M, func(mStart, mEnd int) {
 			rows := mEnd - mStart
 			FusedInt8MatMul(input[mStart*K:mEnd*K], weights, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize)
+		})
+	}
+
+	// Int8x8MatMul: parallel implementation uses pool.ParallelFor across M rows.
+	// SME platforms override this in z_matmul_arm64.go init().
+	ParallelInt8x8MatMul = func(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			Int8x8MatMul(output[mStart*N:mEnd*N], a[mStart*K:mEnd*K], b, aZP, bZP, rows, K, N)
 		})
 	}
 

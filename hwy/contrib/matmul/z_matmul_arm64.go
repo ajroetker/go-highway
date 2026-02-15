@@ -2641,6 +2641,125 @@ func parallelFusedInt4MatMulActSME(
 }
 
 // =============================================================================
+// Int8x8 (uint8×uint8→int32) SME UMOPA implementation
+// =============================================================================
+
+// int8x8MatMulSME performs uint8×uint8→int32 matmul using SME UMOPA.
+//
+// Uses the identity:
+//
+//	output[m,n] = sum_k((a[m,k]-aZP)*(b[k,n]-bZP))
+//	            = UMOPA(a,b)[m,n] - aZP*colSum(b)[n] - bZP*rowSum(a)[m] + K*aZP*bZP
+//
+// where UMOPA computes the raw unsigned outer product on pre-packed panels.
+//
+// UMOPA groups uint8 inputs into 16 groups of 4:
+//
+//	ZA[i][j] += sum_{g=0..3} av[i*4+g] * bv[j*4+g]
+//
+// So data must be packed into interleaved panel format:
+//
+//	aPanel[k4*64 + row*4 + g] = a[(ti+row)*K + k4*4+g]
+//	bPanel[k4*64 + col*4 + g] = b[(k4*4+g)*N + tj+col]
+func int8x8MatMulSME(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int) {
+	if !hwy.HasSME() || M < minDimForSME || K < minDimForSME || N < minDimForSME {
+		BaseInt8x8MatMul_fallback(output, a, b, aZP, bZP, M, K, N)
+		return
+	}
+
+	// UMOPA processes K in groups of 4.
+	kGroups := (K + 3) / 4
+
+	// Compute zero-point correction terms.
+	azp32 := int32(aZP)
+	bzp32 := int32(bZP)
+	zpKTerm := int32(K) * azp32 * bzp32
+
+	// rowSumA[m] = sum_k(a[m*K+k])
+	rowSumA := make([]int32, M)
+	for m := range M {
+		var s int32
+		for k := range K {
+			s += int32(a[m*K+k])
+		}
+		rowSumA[m] = s
+	}
+
+	// colSumB[n] = sum_k(b[k*N+n])
+	colSumB := make([]int32, N)
+	for k := range K {
+		for n := range N {
+			colSumB[n] += int32(b[k*N+n])
+		}
+	}
+
+	// Allocate panel and tile buffers.
+	panelSize := kGroups * 64
+	aPanel := make([]uint8, panelSize)
+	bPanel := make([]uint8, panelSize)
+	tileOutput := make([]int32, 16*16)
+
+	defer hwy.SMEGuard()()
+
+	// Process 16×16 output tiles.
+	for ti := 0; ti < M; ti += 16 {
+		tileM := min(16, M-ti)
+
+		// Pack A panel for this tile's rows.
+		// aPanel[k4*64 + row*4 + g] = a[(ti+row)*K + k4*4+g]
+		clear(aPanel)
+		for k4 := range kGroups {
+			for row := range tileM {
+				kBase := k4 * 4
+				off := k4*64 + row*4
+				aRow := (ti + row) * K
+				remaining := min(4, K-kBase)
+				for g := range remaining {
+					aPanel[off+g] = a[aRow+kBase+g]
+				}
+			}
+		}
+
+		for tj := 0; tj < N; tj += 16 {
+			tileN := min(16, N-tj)
+
+			// Pack B panel for this tile's columns.
+			// bPanel[k4*64 + col*4 + g] = b[(k4*4+g)*N + tj+col]
+			clear(bPanel)
+			for k4 := range kGroups {
+				kBase := k4 * 4
+				remaining := min(4, K-kBase)
+				for col := range tileN {
+					off := k4*64 + col*4
+					for g := range remaining {
+						bPanel[off+g] = b[(kBase+g)*N+tj+col]
+					}
+				}
+			}
+
+			// Compute raw UMOPA tile.
+			asm.TileUMOPAU8(aPanel, bPanel, tileOutput, kGroups)
+
+			// Extract and apply zero-point corrections.
+			for m := range tileM {
+				for n := range tileN {
+					raw := tileOutput[m*16+n]
+					output[(ti+m)*N+(tj+n)] = raw - azp32*colSumB[tj+n] - bzp32*rowSumA[ti+m] + zpKTerm
+				}
+			}
+		}
+	}
+}
+
+// parallelInt8x8MatMulSME parallelizes int8x8MatMulSME across M rows.
+func parallelInt8x8MatMulSME(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int) {
+	pool.ParallelFor(M, func(mStart, mEnd int) {
+		rows := mEnd - mStart
+		int8x8MatMulSME(output[mStart*N:mEnd*N], a[mStart*K:mEnd*K], b, aZP, bZP, rows, K, N)
+	})
+}
+
+// =============================================================================
 // init() - Dispatch setup
 // =============================================================================
 
@@ -2671,6 +2790,10 @@ func init() {
 		// Fused Int8 SME implementations
 		FusedInt8MatMul = fusedInt8MatMulSME
 		ParallelFusedInt8MatMul = parallelFusedInt8MatMulSME
+
+		// Int8x8 (uint8×uint8→int32) SME UMOPA implementations
+		Int8x8MatMul = int8x8MatMulSME
+		ParallelInt8x8MatMul = parallelInt8x8MatMulSME
 
 		// Fused NF4/Int4/Int8 + activation SME implementations (Act variants).
 		// ParallelFused*MatMulSiLU/GELU route through these via dispatch.go init().
