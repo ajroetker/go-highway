@@ -246,6 +246,25 @@ var paddedBPoolBF16 = sync.Pool{
 	},
 }
 
+// Int8x8 uint8/int32 buffer pools for SME UMOPA padding
+var paddedAPoolU8 = sync.Pool{
+	New: func() any {
+		return make([]uint8, 0, 256*256)
+	},
+}
+
+var paddedBPoolU8 = sync.Pool{
+	New: func() any {
+		return make([]uint8, 0, 256*256)
+	},
+}
+
+var paddedOutputPoolI32 = sync.Pool{
+	New: func() any {
+		return make([]int32, 0, 256*256)
+	},
+}
+
 // =============================================================================
 // Helper functions
 // =============================================================================
@@ -282,6 +301,37 @@ func PadMatrix2D[T hwy.Floats](dst []T, src []T, rows, cols, paddedRows, paddedC
 // ExtractMatrix2D copies [rows, cols] from a [_, paddedCols] padded matrix into dst.
 // If cols == paddedCols, uses efficient contiguous copy; otherwise extracts row by row.
 func ExtractMatrix2D[T hwy.Floats](dst []T, src []T, rows, cols, paddedCols int) {
+	if cols == paddedCols {
+		copy(dst[:rows*cols], src[:rows*cols])
+	} else {
+		for i := range rows {
+			copy(dst[i*cols:i*cols+cols], src[i*paddedCols:i*paddedCols+cols])
+		}
+	}
+}
+
+// padMatrix2DUint8 pads a [rows, cols] uint8 matrix to [paddedRows, paddedCols].
+// Same logic as PadMatrix2D but for uint8 (not in the hwy.Floats constraint).
+func padMatrix2DUint8(dst, src []uint8, rows, cols, paddedRows, paddedCols int) {
+	if cols == paddedCols {
+		copy(dst[:rows*cols], src[:rows*cols])
+		if paddedRows > rows {
+			clear(dst[rows*cols : paddedRows*cols])
+		}
+	} else {
+		for i := range rows {
+			copy(dst[i*paddedCols:i*paddedCols+cols], src[i*cols:i*cols+cols])
+			clear(dst[i*paddedCols+cols : (i+1)*paddedCols])
+		}
+		if paddedRows > rows {
+			clear(dst[rows*paddedCols : paddedRows*paddedCols])
+		}
+	}
+}
+
+// extractMatrix2DInt32 copies [rows, cols] from a [_, paddedCols] int32 matrix into dst.
+// Same logic as ExtractMatrix2D but for int32 (not in the hwy.Floats constraint).
+func extractMatrix2DInt32(dst, src []int32, rows, cols, paddedCols int) {
 	if cols == paddedCols {
 		copy(dst[:rows*cols], src[:rows*cols])
 	} else {
@@ -2667,10 +2717,48 @@ func int8x8MatMulSME(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int) 
 		return
 	}
 
-	// UMOPA processes K in groups of 4.
-	kGroups := (K + 3) / 4
+	// Pad dimensions: M and N to 16 (tile size), K to 4 (UMOPA group size).
+	paddedM := AlignUp(M, 16)
+	paddedN := AlignUp(N, 16)
+	paddedK := AlignUp(K, 4)
 
-	// Compute zero-point correction terms.
+	// Pad A [M, K] → [paddedM, paddedK]
+	paSize := paddedM * paddedK
+	paBuf := paddedAPoolU8.Get().([]uint8)
+	if cap(paBuf) < paSize {
+		paBuf = make([]uint8, paSize)
+	} else {
+		paBuf = paBuf[:paSize]
+	}
+	padMatrix2DUint8(paBuf, a, M, K, paddedM, paddedK)
+	defer paddedAPoolU8.Put(paBuf)
+
+	// Pad B [K, N] → [paddedK, paddedN]
+	pbSize := paddedK * paddedN
+	pbBuf := paddedBPoolU8.Get().([]uint8)
+	if cap(pbBuf) < pbSize {
+		pbBuf = make([]uint8, pbSize)
+	} else {
+		pbBuf = pbBuf[:pbSize]
+	}
+	padMatrix2DUint8(pbBuf, b, K, N, paddedK, paddedN)
+	defer paddedBPoolU8.Put(pbBuf)
+
+	// Padded output [paddedM, paddedN]
+	poSize := paddedM * paddedN
+	poBuf := paddedOutputPoolI32.Get().([]int32)
+	if cap(poBuf) < poSize {
+		poBuf = make([]int32, poSize)
+	} else {
+		poBuf = poBuf[:poSize]
+	}
+	defer paddedOutputPoolI32.Put(poBuf)
+
+	// UMOPA processes K in groups of 4 — exact division after padding.
+	kGroups := paddedK / 4
+
+	// Compute zero-point correction terms over original (unpadded) data.
+	// Padded zeros don't affect sums so we use original A/B.
 	azp32 := int32(aZP)
 	bzp32 := int32(bZP)
 	zpKTerm := int32(K) * azp32 * bzp32
@@ -2701,38 +2789,28 @@ func int8x8MatMulSME(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int) 
 
 	defer hwy.SMEGuard()()
 
-	// Process 16×16 output tiles.
-	for ti := 0; ti < M; ti += 16 {
-		tileM := min(16, M-ti)
-
-		// Pack A panel for this tile's rows.
-		// aPanel[k4*64 + row*4 + g] = a[(ti+row)*K + k4*4+g]
-		clear(aPanel)
+	// Process full 16×16 output tiles (no partial-tile logic needed).
+	for ti := 0; ti < paddedM; ti += 16 {
+		// Pack A panel for this tile's rows — all 16 rows, all kGroups.
+		// aPanel[k4*64 + row*4 + g] = paBuf[(ti+row)*paddedK + k4*4+g]
 		for k4 := range kGroups {
-			for row := range tileM {
-				kBase := k4 * 4
-				off := k4*64 + row*4
-				aRow := (ti + row) * K
-				remaining := min(4, K-kBase)
-				for g := range remaining {
-					aPanel[off+g] = a[aRow+kBase+g]
-				}
+			kBase := k4 * 4
+			off := k4 * 64
+			for row := range 16 {
+				aRow := (ti + row) * paddedK
+				copy(aPanel[off+row*4:off+row*4+4], paBuf[aRow+kBase:aRow+kBase+4])
 			}
 		}
 
-		for tj := 0; tj < N; tj += 16 {
-			tileN := min(16, N-tj)
-
-			// Pack B panel for this tile's columns.
-			// bPanel[k4*64 + col*4 + g] = b[(k4*4+g)*N + tj+col]
-			clear(bPanel)
+		for tj := 0; tj < paddedN; tj += 16 {
+			// Pack B panel for this tile's columns — all 16 cols, all kGroups.
+			// bPanel[k4*64 + col*4 + g] = pbBuf[(k4*4+g)*paddedN + tj+col]
 			for k4 := range kGroups {
 				kBase := k4 * 4
-				remaining := min(4, K-kBase)
-				for col := range tileN {
-					off := k4*64 + col*4
-					for g := range remaining {
-						bPanel[off+g] = b[(kBase+g)*N+tj+col]
+				off := k4 * 64
+				for col := range 16 {
+					for g := range 4 {
+						bPanel[off+col*4+g] = pbBuf[(kBase+g)*paddedN+tj+col]
 					}
 				}
 			}
@@ -2740,15 +2818,24 @@ func int8x8MatMulSME(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int) 
 			// Compute raw UMOPA tile.
 			asm.TileUMOPAU8(aPanel, bPanel, tileOutput, kGroups)
 
-			// Extract and apply zero-point corrections.
-			for m := range tileM {
-				for n := range tileN {
-					raw := tileOutput[m*16+n]
-					output[(ti+m)*N+(tj+n)] = raw - azp32*colSumB[tj+n] - bzp32*rowSumA[ti+m] + zpKTerm
-				}
+			// Write full 16×16 tile to padded output.
+			for m := range 16 {
+				copy(poBuf[(ti+m)*paddedN+tj:(ti+m)*paddedN+tj+16], tileOutput[m*16:m*16+16])
 			}
 		}
 	}
+
+	// Apply zero-point corrections over the padded output.
+	// Padded regions (m >= M or n >= N) will be discarded by extract.
+	for m := range M {
+		for n := range N {
+			raw := poBuf[m*paddedN+n]
+			poBuf[m*paddedN+n] = raw - azp32*colSumB[n] - bzp32*rowSumA[m] + zpKTerm
+		}
+	}
+
+	// Extract [M, N] from [paddedM, paddedN].
+	extractMatrix2DInt32(output, poBuf, M, N, paddedN)
 }
 
 // parallelInt8x8MatMulSME parallelizes int8x8MatMulSME across M rows.
