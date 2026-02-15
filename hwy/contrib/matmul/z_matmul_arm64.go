@@ -24,11 +24,11 @@
 package matmul
 
 import (
-	"runtime"
 	"sync"
 
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // =============================================================================
@@ -1811,6 +1811,7 @@ func processFusedInt4Tile(
 // parallelFusedNF4MatMulSME performs fused NF4 matmul with parallel N-tile processing.
 // Shares the transposed input across workers; each worker processes independent tiles.
 func parallelFusedNF4MatMulSME(
+	pool workerpool.Executor,
 	input []float32,
 	packed []uint8,
 	scales []float32,
@@ -1850,39 +1851,26 @@ func parallelFusedNF4MatMulSME(
 	// Zero output (strided kernel writes to sub-columns, each tile writes independent columns)
 	clear(output[:M*pN])
 
-	// Setup work queue of N-tile indices
-	work := make(chan int, numTiles)
-	for nTile := 0; nTile < pN; nTile += 16 {
-		work <- nTile
-	}
-	close(work)
+	// Each worker gets a range of tile indices, does per-worker SMEGuard + tile buffer setup
+	pool.ParallelFor(numTiles, func(tileStart, tileEnd int) {
+		defer hwy.SMEGuard()()
 
-	// Launch workers
-	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Go(func() {
-			// Pin goroutine to OS thread for SME streaming mode safety
-			defer hwy.SMEGuard()()
+		tileBuf := fusedTilePool.Get().([]float32)
+		tileSize := pK * 16
+		if cap(tileBuf) < tileSize {
+			tileBuf = make([]float32, tileSize)
+		} else {
+			tileBuf = tileBuf[:tileSize]
+		}
+		clear(tileBuf)
+		defer fusedTilePool.Put(tileBuf)
 
-			// Get thread-local tile buffer from pool
-			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := pK * 16
-			if cap(tileBuf) < tileSize {
-				tileBuf = make([]float32, tileSize)
-			} else {
-				tileBuf = tileBuf[:tileSize]
-			}
-			clear(tileBuf)
-			defer fusedTilePool.Put(tileBuf)
-
-			for nTile := range work {
-				processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, pK, pN, numGroups, groupSize)
-			}
-		})
-	}
-	wg.Wait()
+		for t := tileStart; t < tileEnd; t++ {
+			nTile := t * 16
+			processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
+				nTile, M, K, N, pK, pN, numGroups, groupSize)
+		}
+	})
 
 	// Apply bias after matmul
 	if bias != nil {
@@ -1892,6 +1880,7 @@ func parallelFusedNF4MatMulSME(
 
 // parallelFusedInt4MatMulSME performs fused Int4 matmul with parallel N-tile processing.
 func parallelFusedInt4MatMulSME(
+	pool workerpool.Executor,
 	input []float32,
 	packed []uint8,
 	scales []float32,
@@ -1916,7 +1905,6 @@ func parallelFusedInt4MatMulSME(
 		return
 	}
 
-	// Transpose input once (shared across workers, read-only)
 	inputT := transposePool32.Get().([]float32)
 	inputTSize := M * pK
 	if cap(inputT) < inputTSize {
@@ -1927,43 +1915,28 @@ func parallelFusedInt4MatMulSME(
 	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
-	// Zero output (strided kernel writes to sub-columns, each tile writes independent columns)
 	clear(output[:M*pN])
 
-	// Setup work queue of N-tile indices
-	work := make(chan int, numTiles)
-	for nTile := 0; nTile < pN; nTile += 16 {
-		work <- nTile
-	}
-	close(work)
+	pool.ParallelFor(numTiles, func(tileStart, tileEnd int) {
+		defer hwy.SMEGuard()()
 
-	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Go(func() {
-			// Pin goroutine to OS thread for SME streaming mode safety
-			defer hwy.SMEGuard()()
+		tileBuf := fusedTilePool.Get().([]float32)
+		tileSize := pK * 16
+		if cap(tileBuf) < tileSize {
+			tileBuf = make([]float32, tileSize)
+		} else {
+			tileBuf = tileBuf[:tileSize]
+		}
+		clear(tileBuf)
+		defer fusedTilePool.Put(tileBuf)
 
-			// Get thread-local tile buffer from pool
-			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := pK * 16
-			if cap(tileBuf) < tileSize {
-				tileBuf = make([]float32, tileSize)
-			} else {
-				tileBuf = tileBuf[:tileSize]
-			}
-			clear(tileBuf)
-			defer fusedTilePool.Put(tileBuf)
+		for t := tileStart; t < tileEnd; t++ {
+			nTile := t * 16
+			processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
+				nTile, M, K, N, pK, pN, numGroups, groupSize)
+		}
+	})
 
-			for nTile := range work {
-				processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, pK, pN, numGroups, groupSize)
-			}
-		})
-	}
-	wg.Wait()
-
-	// Apply bias after matmul
 	if bias != nil {
 		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
@@ -2104,6 +2077,7 @@ func processFusedInt8Tile(
 }
 
 func parallelFusedInt8MatMulSME(
+	pool workerpool.Executor,
 	input []float32,
 	weights []int8,
 	scales []float32,
@@ -2138,46 +2112,35 @@ func parallelFusedInt8MatMulSME(
 	transposeMatrix(input, M, pK, inputT)
 	defer transposePool32.Put(inputT)
 
-	work := make(chan int, numTiles)
-	for nTile := 0; nTile < pN; nTile += 16 {
-		work <- nTile
-	}
-	close(work)
+	pool.ParallelFor(numTiles, func(tileStart, tileEnd int) {
+		defer hwy.SMEGuard()()
 
-	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Go(func() {
-			defer hwy.SMEGuard()()
+		tileBuf := fusedInt8TilePool.Get().([]float32)
+		tileSize := pK * 16
+		if cap(tileBuf) < tileSize {
+			tileBuf = make([]float32, tileSize)
+		} else {
+			tileBuf = tileBuf[:tileSize]
+		}
+		clear(tileBuf)
+		defer fusedInt8TilePool.Put(tileBuf)
 
-			tileBuf := fusedInt8TilePool.Get().([]float32)
-			tileSize := pK * 16
-			if cap(tileBuf) < tileSize {
-				tileBuf = make([]float32, tileSize)
-			} else {
-				tileBuf = tileBuf[:tileSize]
-			}
-			clear(tileBuf)
-			defer fusedInt8TilePool.Put(tileBuf)
+		outputTile := fusedOutputTilePool.Get().([]float32)
+		outputTileSize := M * 16
+		if cap(outputTile) < outputTileSize {
+			outputTile = make([]float32, outputTileSize)
+		} else {
+			outputTile = outputTile[:outputTileSize]
+		}
+		defer fusedOutputTilePool.Put(outputTile)
 
-			outputTile := fusedOutputTilePool.Get().([]float32)
-			outputTileSize := M * 16
-			if cap(outputTile) < outputTileSize {
-				outputTile = make([]float32, outputTileSize)
-			} else {
-				outputTile = outputTile[:outputTileSize]
-			}
-			defer fusedOutputTilePool.Put(outputTile)
+		for t := tileStart; t < tileEnd; t++ {
+			nTile := t * 16
+			processFusedInt8Tile(inputT, weights, scales, output, tileBuf, outputTile,
+				nTile, M, K, N, pK, pN, numGroups, groupSize)
+		}
+	})
 
-			for nTile := range work {
-				processFusedInt8Tile(inputT, weights, scales, output, tileBuf, outputTile,
-					nTile, M, K, N, pK, pN, numGroups, groupSize)
-			}
-		})
-	}
-	wg.Wait()
-
-	// Apply bias after matmul
 	if bias != nil {
 		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
@@ -2254,6 +2217,7 @@ func fusedInt8MatMulActSME(
 }
 
 func parallelFusedInt8MatMulActSME(
+	pool workerpool.Executor,
 	input []float32,
 	weights []int8,
 	scales []float32,
@@ -2291,40 +2255,30 @@ func parallelFusedInt8MatMulActSME(
 
 	clear(output[:M*pN])
 
-	work := make(chan int, numTiles)
-	for nTile := 0; nTile < pN; nTile += 16 {
-		work <- nTile
-	}
-	close(work)
+	pool.ParallelFor(numTiles, func(tileStart, tileEnd int) {
+		defer hwy.SMEGuard()()
 
-	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Go(func() {
-			defer hwy.SMEGuard()()
+		tileBuf := fusedInt8TilePool.Get().([]float32)
+		tileSize := pK * 16
+		if cap(tileBuf) < tileSize {
+			tileBuf = make([]float32, tileSize)
+		} else {
+			tileBuf = tileBuf[:tileSize]
+		}
+		clear(tileBuf)
+		defer fusedInt8TilePool.Put(tileBuf)
 
-			tileBuf := fusedInt8TilePool.Get().([]float32)
-			tileSize := pK * 16
-			if cap(tileBuf) < tileSize {
-				tileBuf = make([]float32, tileSize)
-			} else {
-				tileBuf = tileBuf[:tileSize]
+		for t := tileStart; t < tileEnd; t++ {
+			nTile := t * 16
+			validN := min(16, N-nTile)
+			if validN <= 0 {
+				continue
 			}
-			clear(tileBuf)
-			defer fusedInt8TilePool.Put(tileBuf)
 
-			for nTile := range work {
-				validN := min(16, N-nTile)
-				if validN <= 0 {
-					continue
-				}
-
-				dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
-				asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
-			}
-		})
-	}
-	wg.Wait()
+			dequantizeInt8Tile(weights, scales, tileBuf, nTile, K, N, validN, 16, numGroups, groupSize)
+			asm.MultiTileMatMulFMOPAF32Strided(inputT, tileBuf[:pK*16], output, M, 16, pK, pN, nTile)
+		}
+	})
 
 	// Apply bias before activation
 	if bias != nil {
@@ -2560,15 +2514,8 @@ func fusedInt4MatMulActSME(
 	}
 }
 
-func parallelFusedNF4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
-}
-
-func parallelFusedNF4MatMulGELUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedNF4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
-}
-
 func parallelFusedNF4MatMulActSME(
+	pool workerpool.Executor,
 	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
@@ -2601,56 +2548,37 @@ func parallelFusedNF4MatMulActSME(
 
 	clear(output[:M*pN])
 
-	work := make(chan int, numTiles)
-	for nTile := 0; nTile < pN; nTile += 16 {
-		work <- nTile
-	}
-	close(work)
+	pool.ParallelFor(numTiles, func(tileStart, tileEnd int) {
+		defer hwy.SMEGuard()()
 
-	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Go(func() {
-			defer hwy.SMEGuard()()
+		tileBuf := fusedTilePool.Get().([]float32)
+		tileSize := pK * 16
+		if cap(tileBuf) < tileSize {
+			tileBuf = make([]float32, tileSize)
+		} else {
+			tileBuf = tileBuf[:tileSize]
+		}
+		clear(tileBuf)
+		defer fusedTilePool.Put(tileBuf)
 
-			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := pK * 16
-			if cap(tileBuf) < tileSize {
-				tileBuf = make([]float32, tileSize)
-			} else {
-				tileBuf = tileBuf[:tileSize]
-			}
-			clear(tileBuf)
-			defer fusedTilePool.Put(tileBuf)
+		for t := tileStart; t < tileEnd; t++ {
+			nTile := t * 16
+			processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
+				nTile, M, K, N, pK, pN, numGroups, groupSize)
+		}
+	})
 
-			for nTile := range work {
-				processFusedNF4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, pK, pN, numGroups, groupSize)
-			}
-		})
-	}
-	wg.Wait()
-
-	// Apply bias before activation
 	if bias != nil {
 		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 
-	// Apply activation to entire output
 	if act != ActNone {
 		applyActivationToTile(output, M, N, pN, 0, act)
 	}
 }
 
-func parallelFusedInt4MatMulSiLUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
-}
-
-func parallelFusedInt4MatMulGELUSME(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-	parallelFusedInt4MatMulActSME(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
-}
-
 func parallelFusedInt4MatMulActSME(
+	pool workerpool.Executor,
 	input []float32, packed []uint8, scales []float32, bias []float32, output []float32,
 	M, K, N, groupSize int, act ActivationType,
 ) {
@@ -2683,42 +2611,30 @@ func parallelFusedInt4MatMulActSME(
 
 	clear(output[:M*pN])
 
-	work := make(chan int, numTiles)
-	for nTile := 0; nTile < pN; nTile += 16 {
-		work <- nTile
-	}
-	close(work)
+	pool.ParallelFor(numTiles, func(tileStart, tileEnd int) {
+		defer hwy.SMEGuard()()
 
-	numWorkers := min(runtime.GOMAXPROCS(0), numTiles)
-	var wg sync.WaitGroup
-	for range numWorkers {
-		wg.Go(func() {
-			defer hwy.SMEGuard()()
+		tileBuf := fusedTilePool.Get().([]float32)
+		tileSize := pK * 16
+		if cap(tileBuf) < tileSize {
+			tileBuf = make([]float32, tileSize)
+		} else {
+			tileBuf = tileBuf[:tileSize]
+		}
+		clear(tileBuf)
+		defer fusedTilePool.Put(tileBuf)
 
-			tileBuf := fusedTilePool.Get().([]float32)
-			tileSize := pK * 16
-			if cap(tileBuf) < tileSize {
-				tileBuf = make([]float32, tileSize)
-			} else {
-				tileBuf = tileBuf[:tileSize]
-			}
-			clear(tileBuf)
-			defer fusedTilePool.Put(tileBuf)
+		for t := tileStart; t < tileEnd; t++ {
+			nTile := t * 16
+			processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
+				nTile, M, K, N, pK, pN, numGroups, groupSize)
+		}
+	})
 
-			for nTile := range work {
-				processFusedInt4Tile(inputT, packed, scales, output, tileBuf,
-					nTile, M, K, N, pK, pN, numGroups, groupSize)
-			}
-		})
-	}
-	wg.Wait()
-
-	// Apply bias before activation
 	if bias != nil {
 		applyBiasToOutputStrided(output, bias, M, N, pN)
 	}
 
-	// Apply activation to entire output
 	if act != ActNone {
 		applyActivationToTile(output, M, N, pN, 0, act)
 	}

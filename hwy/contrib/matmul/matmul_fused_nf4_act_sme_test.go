@@ -19,9 +19,11 @@ package matmul
 import (
 	"math"
 	"math/rand"
+	"runtime"
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // testRNGActSME returns a seeded random number generator for reproducible tests.
@@ -250,8 +252,10 @@ func TestParallelFusedNF4MatMulSiLUSME(t *testing.T) {
 	FusedNF4MatMulSiLU(input, packed, scales, nil, serialOutput, M, K, N, groupSize)
 
 	// Compute with parallel dispatch
+	pool := workerpool.New(runtime.GOMAXPROCS(0))
+	defer pool.Close()
 	parallelOutput := make([]float32, M*N)
-	ParallelFusedNF4MatMulSiLU(input, packed, scales, nil, parallelOutput, M, K, N, groupSize)
+	ParallelFusedNF4MatMulSiLU(pool, input, packed, scales, nil, parallelOutput, M, K, N, groupSize)
 
 	// Verify results match
 	maxDiff := float64(0)
@@ -364,7 +368,10 @@ func BenchmarkParallelFusedNF4MatMulSiLUSME(b *testing.B) {
 
 	output := make([]float32, M*N)
 
+	pool := workerpool.New(runtime.GOMAXPROCS(0))
+	defer pool.Close()
+
 	for b.Loop() {
-		ParallelFusedNF4MatMulSiLU(input, packed, scales, nil, output, M, K, N, groupSize)
+		ParallelFusedNF4MatMulSiLU(pool, input, packed, scales, nil, output, M, K, N, groupSize)
 	}
 }

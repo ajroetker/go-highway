@@ -19,9 +19,11 @@ package matmul
 import (
 	"math"
 	"math/rand"
+	"runtime"
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // testRNGSME returns a seeded random number generator for reproducible tests.
@@ -337,7 +339,9 @@ func TestParallelFusedNF4MatMulCorrectness(t *testing.T) {
 			}
 
 			parallelOutput := make([]float32, tc.M*tc.N)
-			ParallelFusedNF4MatMul(input, packed, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
+			ParallelFusedNF4MatMul(pool, input, packed, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			seqOutput := make([]float32, tc.M*tc.N)
 			FusedNF4MatMul(input, packed, scales, nil, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
@@ -404,8 +408,10 @@ func TestParallelFusedInt4MatMulCorrectness(t *testing.T) {
 				scales[i] = rng.Float32()*2 + 0.1
 			}
 
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
 			parallelOutput := make([]float32, tc.M*tc.N)
-			ParallelFusedInt4MatMul(input, packed, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			ParallelFusedInt4MatMul(pool, input, packed, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			seqOutput := make([]float32, tc.M*tc.N)
 			FusedInt4MatMul(input, packed, scales, nil, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
@@ -517,10 +523,12 @@ func BenchmarkParallelFusedNF4MatMul(b *testing.B) {
 		output := make([]float32, sz.M*sz.N)
 
 		b.Run(sz.name+"_parallel", func(b *testing.B) {
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedNF4MatMul(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedNF4MatMul(pool, input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -576,10 +584,12 @@ func BenchmarkFusedNF4Comparison(b *testing.B) {
 		})
 
 		b.Run(sz.name+"/parallel", func(b *testing.B) {
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedNF4MatMul(input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedNF4MatMul(pool, input, packed, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")

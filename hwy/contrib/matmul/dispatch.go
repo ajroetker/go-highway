@@ -165,20 +165,20 @@ func MatMulKLastAuto[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, 
 // Dispatches to the best available implementation for the current platform.
 // On platforms with SME, this uses tiled parallel execution.
 // On other platforms, this falls back to the serial implementation.
-var ParallelFusedNF4MatMul func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedNF4MatMul func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 // ParallelFusedInt4MatMul performs fused Int4 dequantization + matrix multiplication
 // with parallel execution for large matrices.
 // Dispatches to the best available implementation for the current platform.
 // On platforms with SME, this uses tiled parallel execution.
 // On other platforms, this falls back to the serial implementation.
-var ParallelFusedInt4MatMul func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedInt4MatMul func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 // ParallelFusedInt8MatMul performs fused Int8 dequantization + matrix multiplication
 // with parallel execution for large matrices.
 // On platforms with SME, this uses tiled parallel execution.
 // On other platforms, this falls back to the serial implementation.
-var ParallelFusedInt8MatMul func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedInt8MatMul func(pool workerpool.Executor, input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 // FusedNF4MatMulAct performs fused NF4 dequantization + matmul + optional bias + activation.
 // Dispatches to the best available implementation for the current platform.
@@ -193,12 +193,12 @@ var FusedInt4MatMulAct func(input []float32, packed []uint8, scales []float32, b
 // ParallelFusedNF4MatMulAct performs parallel fused NF4 + optional bias + activation for large matrices.
 // On SME platforms, this uses tiled parallel execution.
 // On other platforms, this falls back to the serial FusedNF4MatMulAct.
-var ParallelFusedNF4MatMulAct func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
+var ParallelFusedNF4MatMulAct func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
 
 // ParallelFusedInt4MatMulAct performs parallel fused Int4 + optional bias + activation for large matrices.
 // On SME platforms, this uses tiled parallel execution.
 // On other platforms, this falls back to the serial FusedInt4MatMulAct.
-var ParallelFusedInt4MatMulAct func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
+var ParallelFusedInt4MatMulAct func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
 
 // FusedInt8MatMulAct performs fused Int8 dequantization + matmul + optional bias + activation.
 // Dispatches to the best available implementation for the current platform.
@@ -207,19 +207,19 @@ var FusedInt8MatMulAct func(input []float32, weights []int8, scales []float32, b
 // ParallelFusedInt8MatMulAct performs parallel fused Int8 + optional bias + activation for large matrices.
 // On SME platforms, this uses tiled parallel execution.
 // On other platforms, this falls back to the serial FusedInt8MatMulAct.
-var ParallelFusedInt8MatMulAct func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
+var ParallelFusedInt8MatMulAct func(pool workerpool.Executor, input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType)
 
 // ParallelFusedNF4MatMulSiLU performs parallel fused NF4 + bias + SiLU for large matrices.
-var ParallelFusedNF4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedNF4MatMulSiLU func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 // ParallelFusedNF4MatMulGELU performs parallel fused NF4 + bias + GELU for large matrices.
-var ParallelFusedNF4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedNF4MatMulGELU func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 // ParallelFusedInt4MatMulSiLU performs parallel fused Int4 + bias + SiLU for large matrices.
-var ParallelFusedInt4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedInt4MatMulSiLU func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 // ParallelFusedInt4MatMulGELU performs parallel fused Int4 + bias + GELU for large matrices.
-var ParallelFusedInt4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
+var ParallelFusedInt4MatMulGELU func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int)
 
 func init() {
 	// Default Act implementations dispatch through individual activation-specific
@@ -269,40 +269,59 @@ func init() {
 		}
 	}
 
-	// Default parallel Act implementations call serial Act.
-	ParallelFusedNF4MatMulAct = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
-		FusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
+	// Default parallel implementations use pool.ParallelFor across M rows.
+	// SME platforms override these in z_matmul_arm64.go init() with N-tile parallelism.
+	ParallelFusedNF4MatMulAct = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			FusedNF4MatMulAct(input[mStart*K:mEnd*K], packed, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize, act)
+		})
 	}
-	ParallelFusedInt4MatMulAct = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
-		FusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, act)
+	ParallelFusedInt4MatMulAct = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			FusedInt4MatMulAct(input[mStart*K:mEnd*K], packed, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize, act)
+		})
 	}
-	ParallelFusedInt8MatMulAct = func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
-		FusedInt8MatMulAct(input, weights, scales, bias, output, M, K, N, groupSize, act)
+	ParallelFusedInt8MatMulAct = func(pool workerpool.Executor, input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int, act ActivationType) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			FusedInt8MatMulAct(input[mStart*K:mEnd*K], weights, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize, act)
+		})
 	}
 
-	// Default non-activation parallel implementations call serial versions.
-	ParallelFusedNF4MatMul = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		FusedNF4MatMul(input, packed, scales, bias, output, M, K, N, groupSize)
+	// Default non-activation parallel implementations use pool.ParallelFor across M rows.
+	ParallelFusedNF4MatMul = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			FusedNF4MatMul(input[mStart*K:mEnd*K], packed, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize)
+		})
 	}
-	ParallelFusedInt4MatMul = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		FusedInt4MatMul(input, packed, scales, bias, output, M, K, N, groupSize)
+	ParallelFusedInt4MatMul = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			FusedInt4MatMul(input[mStart*K:mEnd*K], packed, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize)
+		})
 	}
-	ParallelFusedInt8MatMul = func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		FusedInt8MatMul(input, weights, scales, bias, output, M, K, N, groupSize)
+	ParallelFusedInt8MatMul = func(pool workerpool.Executor, input []float32, weights []int8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			FusedInt8MatMul(input[mStart*K:mEnd*K], weights, scales, bias, output[mStart*N:mEnd*N], rows, K, N, groupSize)
+		})
 	}
 
 	// Convenience wrappers route through Act variants.
 	// On SME, ParallelFused*MatMulAct is overridden, so these automatically get SME.
-	ParallelFusedNF4MatMulSiLU = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		ParallelFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
+	ParallelFusedNF4MatMulSiLU = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		ParallelFusedNF4MatMulAct(pool, input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
 	}
-	ParallelFusedNF4MatMulGELU = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		ParallelFusedNF4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
+	ParallelFusedNF4MatMulGELU = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		ParallelFusedNF4MatMulAct(pool, input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
 	}
-	ParallelFusedInt4MatMulSiLU = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		ParallelFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
+	ParallelFusedInt4MatMulSiLU = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		ParallelFusedInt4MatMulAct(pool, input, packed, scales, bias, output, M, K, N, groupSize, ActSiLU)
 	}
-	ParallelFusedInt4MatMulGELU = func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
-		ParallelFusedInt4MatMulAct(input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
+	ParallelFusedInt4MatMulGELU = func(pool workerpool.Executor, input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M, K, N, groupSize int) {
+		ParallelFusedInt4MatMulAct(pool, input, packed, scales, bias, output, M, K, N, groupSize, ActGELU)
 	}
 }

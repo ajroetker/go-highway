@@ -19,9 +19,11 @@ package matmul
 import (
 	"math"
 	"math/rand"
+	"runtime"
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // testRNGInt8SME returns a seeded random number generator for reproducible tests.
@@ -269,8 +271,10 @@ func TestParallelFusedInt8MatMulSMECorrectness(t *testing.T) {
 				scales[i] = rng.Float32()*0.1 + 0.01
 			}
 
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
 			parallelOutput := make([]float32, tc.M*tc.N)
-			ParallelFusedInt8MatMul(input, weights, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
+			ParallelFusedInt8MatMul(pool, input, weights, scales, nil, parallelOutput, tc.M, tc.K, tc.N, tc.groupSize)
 
 			seqOutput := make([]float32, tc.M*tc.N)
 			FusedInt8MatMul(input, weights, scales, nil, seqOutput, tc.M, tc.K, tc.N, tc.groupSize)
@@ -381,10 +385,12 @@ func BenchmarkParallelFusedInt8MatMulSME(b *testing.B) {
 		output := make([]float32, sz.M*sz.N)
 
 		b.Run(sz.name+"_parallel", func(b *testing.B) {
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedInt8MatMul(pool, input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
@@ -439,10 +445,12 @@ func BenchmarkFusedInt8Comparison(b *testing.B) {
 		})
 
 		b.Run(sz.name+"/parallel", func(b *testing.B) {
+			pool := workerpool.New(runtime.GOMAXPROCS(0))
+			defer pool.Close()
 			ops := float64(sz.M) * float64(sz.K) * float64(sz.N) * 2
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				ParallelFusedInt8MatMul(input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
+				ParallelFusedInt8MatMul(pool, input, weights, scales, nil, output, sz.M, sz.K, sz.N, sz.groupSize)
 			}
 			b.ReportMetric(ops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 			b.ReportMetric(b.Elapsed().Seconds()*1000/float64(b.N), "ms/op")
