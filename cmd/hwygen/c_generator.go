@@ -590,6 +590,10 @@ func getCElemTypes(pf *ParsedFunc) []string {
 		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
 			elemType := after
 			switch elemType {
+			case "int32":
+				return []string{"int32"}
+			case "int64":
+				return []string{"int64"}
 			case "uint64":
 				return []string{"uint64"}
 			case "uint32":
@@ -639,6 +643,7 @@ func getCProfileForFile(cFile string, target Target) *CIntrinsicProfile {
 	for _, et := range []string{
 		"float16", "hwy.Float16", "bfloat16", "hwy.BFloat16",
 		"float32", "float64",
+		"int32", "int64",
 		"uint64", "uint32", "uint8",
 	} {
 		suffix := cTypeSuffix(et)
@@ -1231,7 +1236,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				if strings.HasPrefix(p.Type, "[]") {
 					paramDefs = append(paramDefs, p.Name+" unsafe.Pointer")
 					paramNames = append(paramNames, p.Name)
-				} else if p.Type == "int" || p.Type == "int64" {
+				} else if isGoScalarIntType(p.Type) {
 					ptrName := "p" + p.Name
 					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
 					paramNames = append(paramNames, ptrName)
@@ -1250,7 +1255,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				if strings.HasPrefix(p.Type, "[]") {
 					hasSlices = true
 				}
-				if p.Type == "int" || p.Type == "int64" {
+				if isGoScalarIntType(p.Type) {
 					hasIntParams = true
 				}
 			}
@@ -1452,7 +1457,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			sliceParams = append(sliceParams, p.Name)
-		} else if p.Type == "int" || p.Type == "int64" {
+		} else if isGoScalarIntType(p.Type) {
 			intParams = append(intParams, p.Name)
 		}
 	}
@@ -1521,7 +1526,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
-		} else if p.Type == "int" || p.Type == "int64" {
+		} else if isGoScalarIntType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
 			// By-value scalar param — cast half-precision types
@@ -1822,6 +1827,19 @@ func cTypePublicSuffix(elemType string) string {
 	}
 }
 
+// isGoScalarIntType returns true for Go integer types that should be passed
+// as long* pointers through GoAT (which only accepts int64_t/long, float,
+// double, _Bool, or pointer as function arguments).
+func isGoScalarIntType(goType string) bool {
+	switch goType {
+	case "int", "int64", "int32", "int16", "int8",
+		"uint8", "uint16", "uint32":
+		return true
+	default:
+		return false
+	}
+}
+
 // goElemTypeToCType converts a Go element type to a C type.
 func goElemTypeToCType(elemType string) string {
 	switch elemType {
@@ -1940,7 +1958,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			sliceParams = append(sliceParams, p.Name)
-		} else if p.Type == "int" || p.Type == "int64" {
+		} else if isGoScalarIntType(p.Type) {
 			intParams = append(intParams, p.Name)
 		}
 	}
@@ -2064,7 +2082,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
-		} else if p.Type == "int" || p.Type == "int64" {
+		} else if isGoScalarIntType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
 			// By-value scalar element-type param (e.g., float16_t coeff).

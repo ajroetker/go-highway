@@ -441,6 +441,14 @@ func goPkgGlobalElemToCType(goType string) string {
 		return "unsigned int"
 	case "uint64":
 		return "unsigned long"
+	case "uint8", "byte":
+		return "unsigned char"
+	case "int8":
+		return "signed char"
+	case "int16":
+		return "short"
+	case "uint16":
+		return "unsigned short"
 	default:
 		return "float"
 	}
@@ -473,8 +481,10 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 				goType:    p.Type,
 				elemCType: info.structElemCType,
 			}
-		} else if p.Type == "int" || p.Type == "int64" {
-			// Int param → long pointer (GOAT convention)
+		} else if isGoScalarIntType(p.Type) {
+			// Scalar integer param → long pointer (GOAT convention).
+			// GOAT only supports int64_t/long, float, double, _Bool, or pointer
+			// as function arguments, so all integer types are passed as long*.
 			info.isInt = true
 			info.cName = "p" + p.Name
 			info.cType = "long *"
@@ -1895,17 +1905,17 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 	case "ShiftRight":
 		return t.emitHwyShiftRight(args)
 	case "Add":
-		return t.emitHwyBinaryOp(t.profile.AddFn, args)
+		return t.emitHwyBinaryOp(t.profile.AddFn, "+", args)
 	case "Sub":
-		return t.emitHwyBinaryOp(t.profile.SubFn, args)
+		return t.emitHwyBinaryOp(t.profile.SubFn, "-", args)
 	case "Mul":
-		return t.emitHwyBinaryOp(t.profile.MulFn, args)
+		return t.emitHwyBinaryOp(t.profile.MulFn, "*", args)
 	case "Div":
-		return t.emitHwyBinaryOp(t.profile.DivFn, args)
+		return t.emitHwyBinaryOp(t.profile.DivFn, "/", args)
 	case "Min":
-		return t.emitHwyBinaryOp(t.profile.MinFn, args)
+		return t.emitHwyBinaryOp(t.profile.MinFn, "", args)
 	case "Max":
-		return t.emitHwyBinaryOp(t.profile.MaxFn, args)
+		return t.emitHwyBinaryOp(t.profile.MaxFn, "", args)
 	case "Neg":
 		return t.emitHwyUnaryOp(t.profile.NegFn, args)
 	case "Abs":
@@ -1915,23 +1925,23 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 	case "ReduceSum":
 		return t.emitHwyReduceSum(args)
 	case "InterleaveLower":
-		return t.emitHwyBinaryOp(t.profile.InterleaveLowerFn, args)
+		return t.emitHwyBinaryOp(t.profile.InterleaveLowerFn, "", args)
 	case "InterleaveUpper":
-		return t.emitHwyBinaryOp(t.profile.InterleaveUpperFn, args)
+		return t.emitHwyBinaryOp(t.profile.InterleaveUpperFn, "", args)
 	case "And":
-		return t.emitHwyBinaryOp(t.profile.AndFn, args)
+		return t.emitHwyBinaryOp(t.profile.AndFn, "&", args)
 	case "Or":
-		return t.emitHwyBinaryOp(t.profile.OrFn, args)
+		return t.emitHwyBinaryOp(t.profile.OrFn, "|", args)
 	case "Xor":
-		return t.emitHwyBinaryOp(t.profile.XorFn, args)
+		return t.emitHwyBinaryOp(t.profile.XorFn, "^", args)
 	case "PopCount":
 		return t.emitHwyUnaryOp(t.profile.PopCountFn, args)
 	case "LessThan":
-		return t.emitHwyBinaryOp(t.profile.LessThanFn, args)
+		return t.emitHwyBinaryOp(t.profile.LessThanFn, "<", args)
 	case "Equal":
-		return t.emitHwyBinaryOp(t.profile.EqualFn, args)
+		return t.emitHwyBinaryOp(t.profile.EqualFn, "==", args)
 	case "GreaterThan":
-		return t.emitHwyBinaryOp(t.profile.GreaterThanFn, args)
+		return t.emitHwyBinaryOp(t.profile.GreaterThanFn, ">", args)
 	case "ReduceMin":
 		return t.emitHwyUnaryOp(t.profile.ReduceMinFn, args)
 	case "ReduceMax":
@@ -1941,7 +1951,7 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 	case "BitsFromMask":
 		return t.emitHwyUnaryOp(t.profile.BitsFromMaskFn, args)
 	case "TableLookupBytes":
-		return t.emitHwyBinaryOp(t.profile.TableLookupBytesFn, args)
+		return t.emitHwyBinaryOp(t.profile.TableLookupBytesFn, "", args)
 	case "Load4":
 		// Load4 is typically handled as a multi-assign statement; if it appears
 		// as an expression, treat it like a single load (the multi-value handling
@@ -2153,13 +2163,10 @@ func (t *CASTTranslator) emitHwyShiftRight(args []ast.Expr) string {
 // copy(dst, src) in Go copies min(len(dst), len(src)) elements.
 // We emit a for-loop since GOAT doesn't support memcpy calls directly.
 //
-// This copies exactly `lanes` elements. This is safe for:
-//   - Tail-handling buffers (which are always lanes-sized)
-//   - Image row access (where stride >= width provides padding)
-//
-// Functions that operate on bare slices without stride padding should use
-// scalar loops for tail handling instead of the copy-to-buffer pattern,
-// to avoid writing past the valid range.
+// When the destination is a slice expression with explicit bounds (e.g.
+// output[m*N:(m+1)*N]), the copy length is computed from the bounds.
+// Otherwise, it defaults to `lanes` elements, which is safe for
+// SIMD-width buffers.
 func (t *CASTTranslator) emitCopy(args []ast.Expr) {
 	if len(args) < 2 {
 		t.writef("/* copy: missing args */\n")
@@ -2177,15 +2184,27 @@ func (t *CASTTranslator) emitCopy(args []ast.Expr) {
 		src = "(" + src + ")"
 	}
 
-	// Copy lanes elements. Functions operating on bare slices should use
-	// scalar tail loops instead of this buffer pattern to avoid OOB writes.
-	t.writef("for (long _ci = 0; _ci < %d; _ci++) { %s[_ci] = %s[_ci]; }\n",
-		t.lanes, dst, src)
+	// Determine copy length: use slice bounds if available, else lanes.
+	copyLen := fmt.Sprintf("%d", t.lanes)
+	if se, ok := args[0].(*ast.SliceExpr); ok && se.Low != nil && se.High != nil {
+		lo := t.translateExpr(se.Low)
+		hi := t.translateExpr(se.High)
+		copyLen = fmt.Sprintf("(%s) - (%s)", hi, lo)
+	} else if se, ok := args[1].(*ast.SliceExpr); ok && se.Low != nil && se.High != nil {
+		lo := t.translateExpr(se.Low)
+		hi := t.translateExpr(se.High)
+		copyLen = fmt.Sprintf("(%s) - (%s)", hi, lo)
+	}
+
+	t.writef("for (long _ci = 0; _ci < %s; _ci++) { %s[_ci] = %s[_ci]; }\n",
+		copyLen, dst, src)
 }
 
 // emitHwyBinaryOp: hwy.Add(a, b) → vaddq_f32(a, b)
 // SVE: svadd_f32_x(pg, a, b) — predicate first
-func (t *CASTTranslator) emitHwyBinaryOp(fnMap map[string]string, args []ast.Expr) string {
+// fallbackOp is the C operator to use when no SIMD intrinsic is available
+// (e.g. "+" for Add, "*" for Mul). Empty string means no fallback.
+func (t *CASTTranslator) emitHwyBinaryOp(fnMap map[string]string, fallbackOp string, args []ast.Expr) string {
 	if len(args) < 2 {
 		return "/* binary op: missing args */"
 	}
@@ -2195,7 +2214,10 @@ func (t *CASTTranslator) emitHwyBinaryOp(fnMap map[string]string, args []ast.Exp
 	if fn == "" {
 		// No SIMD intrinsic available — fall back to C operator.
 		// This handles cases like int64 multiply on NEON (no vmulq_s64).
-		return fmt.Sprintf("(%s) * (%s)", a, b)
+		if fallbackOp == "" {
+			fallbackOp = "*"
+		}
+		return fmt.Sprintf("(%s) %s (%s)", a, fallbackOp, b)
 	}
 	if t.profile.NeedsPredicate {
 		return fmt.Sprintf("%s(pg, %s, %s)", fn, a, b)
