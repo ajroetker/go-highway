@@ -6,7 +6,7 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/basesynthesize53corecols_c_s64_neon_arm64.c
 
-TEXT ·synthesize53corecols_c_s64_neon(SB), $0-56
+TEXT ·synthesize53corecols_c_s64_neon(SB), $16-80
 	MOVD colBuf+0(FP), R0
 	MOVD pheight+8(FP), R1
 	MOVD lowBuf+16(FP), R2
@@ -14,27 +14,32 @@ TEXT ·synthesize53corecols_c_s64_neon(SB), $0-56
 	MOVD highBuf+32(FP), R4
 	MOVD pdn+40(FP), R5
 	MOVD pphase+48(FP), R6
-	WORD $0xf94000a8        // ldr	x8, [x5]
-	WORD $0xf94000ca        // ldr	x10, [x6]
-	WORD $0xf9400069        // ldr	x9, [x3]
-	WORD $0xf100052b        // subs	x11, x9, #1
+	MOVD plen_colBuf+56(FP), R7
+	MOVD plen_lowBuf+64(FP), R8
+	MOVD R8, 0(RSP)
+	MOVD plen_highBuf+72(FP), R8
+	MOVD R8, 8(RSP)
+	WORD $0xf94000a8             // ldr	x8, [x5]
+	WORD $0xf94000ca             // ldr	x10, [x6]
+	WORD $0xf9400069             // ldr	x9, [x3]
+	WORD $0xf100052b             // subs	x11, x9, #1
 	BLT  BB0_8
-	WORD $0xd280000e        // mov	x14, #0                         ; =0x0
-	WORD $0xb201f3ec        // mov	x12, #-6148914691236517206      ; =0xaaaaaaaaaaaaaaaa
-	WORD $0xf295556c        // movk	x12, #43691
-	WORD $0x9bcc7d6c        // umulh	x12, x11, x12
-	WORD $0xd342fd8c        // lsr	x12, x12, #2
-	WORD $0x528000cd        // mov	w13, #6                         ; =0x6
-	WORD $0x9b0dad8c        // msub	x12, x12, x13, x11
-	WORD $0x9100058d        // add	x13, x12, #1
-	WORD $0xf10019bf        // cmp	x13, #6
-	WORD $0x9a8c07ec        // csinc	x12, xzr, x12, eq
-	WORD $0xf100193f        // cmp	x9, #6
+	WORD $0xd280000e             // mov	x14, #0                         ; =0x0
+	WORD $0xb201f3ec             // mov	x12, #-6148914691236517206      ; =0xaaaaaaaaaaaaaaaa
+	WORD $0xf295556c             // movk	x12, #43691
+	WORD $0x9bcc7d6c             // umulh	x12, x11, x12
+	WORD $0xd342fd8c             // lsr	x12, x12, #2
+	WORD $0x528000cd             // mov	w13, #6                         ; =0x6
+	WORD $0x9b0dad8c             // msub	x12, x12, x13, x11
+	WORD $0x9100058d             // add	x13, x12, #1
+	WORD $0xf10019bf             // cmp	x13, #6
+	WORD $0x9a8c07ec             // csinc	x12, xzr, x12, eq
+	WORD $0xf100193f             // cmp	x9, #6
 	BLO  BB0_5
-	WORD $0xd280000e        // mov	x14, #0                         ; =0x0
-	WORD $0xcb09018f        // sub	x15, x12, x9
-	WORD $0x9100c050        // add	x16, x2, #48
-	WORD $0x9100c011        // add	x17, x0, #48
+	WORD $0xd280000e             // mov	x14, #0                         ; =0x0
+	WORD $0xcb09018f             // sub	x15, x12, x9
+	WORD $0x9100c050             // add	x16, x2, #48
+	WORD $0x9100c011             // add	x17, x0, #48
 
 BB0_3:
 	WORD $0xf85d0221 // ldur	x1, [x17, #-48]

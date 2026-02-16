@@ -21,7 +21,7 @@ func BaseCutCrossEntropy_avx2(hiddenStates []float32, embeddings []float32, labe
 	}
 	totalLoss := float64(0)
 	validCount := 0
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		if label < 0 || int(label) >= vocabSize {
 			continue
@@ -44,7 +44,7 @@ func BaseCutCrossEntropyGrad_avx2(hiddenStates []float32, embeddings []float32, 
 		return
 	}
 	validCount := 0
-	for i := 0; i < numPositions; i++ {
+	for i := range numPositions {
 		if labels[i] >= 0 && int(labels[i]) < vocabSize {
 			validCount++
 		}
@@ -54,11 +54,11 @@ func BaseCutCrossEntropyGrad_avx2(hiddenStates []float32, embeddings []float32, 
 	}
 	invN := float32(1.0 / float64(validCount))
 	lanes := 8
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		gradBase := pos * hiddenDim
 		if label < 0 || int(label) >= vocabSize {
-			for d := 0; d < hiddenDim; d++ {
+			for d := range hiddenDim {
 				gradOutput[gradBase+d] = 0
 			}
 			continue
@@ -110,7 +110,7 @@ func BaseCutCrossEntropyGrad_avx2(hiddenStates []float32, embeddings []float32, 
 		for ; d < hiddenDim; d++ {
 			gradOutput[gradBase+d] = -embeddings[labelEmbOffset+d] * invN
 		}
-		for v := 0; v < vocabSize; v++ {
+		for v := range vocabSize {
 			embOffset := v * hiddenDim
 			dotAcc := archsimd.BroadcastFloat32x8(0)
 			var di int
@@ -149,7 +149,7 @@ func BaseCutCrossEntropyWithLogits_avx2(hiddenStates []float32, embeddings []flo
 	}
 	totalLoss := float64(0)
 	validCount := 0
-	for pos := 0; pos < numPositions; pos++ {
+	for pos := range numPositions {
 		label := labels[pos]
 		if label < 0 || int(label) >= vocabSize {
 			perPositionLoss[pos] = 0

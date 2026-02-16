@@ -6,16 +6,18 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/baseliftpredict53_c_s32_neon_arm64.c
 
-TEXT ·liftpredict53_c_s32_neon(SB), $0-40
+TEXT ·liftpredict53_c_s32_neon(SB), $0-56
 	MOVD target+0(FP), R0
 	MOVD ptLen+8(FP), R1
 	MOVD neighbor+16(FP), R2
 	MOVD pnLen+24(FP), R3
 	MOVD pphase+32(FP), R4
-	WORD $0xf9400069         // ldr	x9, [x3]
-	WORD $0xf9400028         // ldr	x8, [x1]
-	WORD $0xf100011f         // cmp	x8, #0
-	WORD $0xfa401924         // ccmp	x9, #0, #4, ne
+	MOVD plen_target+40(FP), R5
+	MOVD plen_neighbor+48(FP), R6
+	WORD $0xf9400069              // ldr	x9, [x3]
+	WORD $0xf9400028              // ldr	x8, [x1]
+	WORD $0xf100011f              // cmp	x8, #0
+	WORD $0xfa401924              // ccmp	x9, #0, #4, ne
 	BNE  BB0_2
 
 BB0_1:

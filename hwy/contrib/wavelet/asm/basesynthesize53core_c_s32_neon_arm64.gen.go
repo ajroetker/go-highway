@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func synthesize53core_c_s32_neon(data, pn, low, psn, high, pdn, pphase unsafe.Pointer)
+func synthesize53core_c_s32_neon(data, pn, low, psn, high, pdn, pphase, plen_data, plen_low, plen_high unsafe.Pointer)

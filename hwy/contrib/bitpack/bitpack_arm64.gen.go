@@ -16,6 +16,10 @@ var DeltaEncode32 func(src []uint32, base uint32, dst []uint32)
 var DeltaEncode64 func(src []uint64, base uint64, dst []uint64)
 
 func init() {
+	initBitpackAll()
+}
+
+func initBitpackAll() {
 	if hwy.NoSimdEnv() {
 		initBitpackFallback()
 		return

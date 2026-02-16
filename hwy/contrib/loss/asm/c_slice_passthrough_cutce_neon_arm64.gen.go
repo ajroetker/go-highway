@@ -6,7 +6,7 @@ package asm
 import "unsafe"
 
 // CutCrossEntropyGrad_F32 calls the NEON SIMD assembly implementation.
-func CutCrossEntropyGrad_F32(hiddenStates unsafe.Pointer, embeddings unsafe.Pointer, labels unsafe.Pointer, gradOutput unsafe.Pointer, pnumPositions unsafe.Pointer, phiddenDim unsafe.Pointer, pvocabSize unsafe.Pointer) {
-	cutcrossentropygrad_c_f32_neon(hiddenStates, embeddings, labels, gradOutput, pnumPositions, phiddenDim, pvocabSize)
+func CutCrossEntropyGrad_F32(hiddenStates unsafe.Pointer, embeddings unsafe.Pointer, labels unsafe.Pointer, gradOutput unsafe.Pointer, pnumPositions unsafe.Pointer, phiddenDim unsafe.Pointer, pvocabSize unsafe.Pointer, plen_hiddenStates unsafe.Pointer, plen_embeddings unsafe.Pointer, plen_labels unsafe.Pointer, plen_gradOutput unsafe.Pointer) {
+	cutcrossentropygrad_c_f32_neon(hiddenStates, embeddings, labels, gradOutput, pnumPositions, phiddenDim, pvocabSize, plen_hiddenStates, plen_embeddings, plen_labels, plen_gradOutput)
 }
 

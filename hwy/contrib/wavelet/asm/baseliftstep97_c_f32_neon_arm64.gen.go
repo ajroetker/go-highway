@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func liftstep97_c_f32_neon(target, ptLen, neighbor, pnLen unsafe.Pointer, coeff float32, pphase unsafe.Pointer)
+func liftstep97_c_f32_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor unsafe.Pointer)

@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func scaleslice_c_f16_neon(data, pn unsafe.Pointer, scale uint16)
+func scaleslice_c_f16_neon(data, pn, pscale, plen_data unsafe.Pointer)

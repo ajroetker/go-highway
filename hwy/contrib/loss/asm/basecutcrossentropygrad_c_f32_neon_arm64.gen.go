@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func cutcrossentropygrad_c_f32_neon(hiddenStates, embeddings, labels, gradOutput, pnumPositions, phiddenDim, pvocabSize unsafe.Pointer)
+func cutcrossentropygrad_c_f32_neon(hiddenStates, embeddings, labels, gradOutput, pnumPositions, phiddenDim, pvocabSize, plen_hiddenStates, plen_embeddings, plen_labels, plen_gradOutput unsafe.Pointer)

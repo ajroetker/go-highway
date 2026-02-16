@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func liftpredict53_c_s64_neon(target, ptLen, neighbor, pnLen, pphase unsafe.Pointer)
+func liftpredict53_c_s64_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor unsafe.Pointer)

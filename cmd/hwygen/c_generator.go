@@ -1241,10 +1241,10 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
 					paramNames = append(paramNames, ptrName)
 				} else if p.Type == "T" {
-					// By-value scalar param — use concrete type
-					scalarType := slicePassthroughScalarType(elemType)
-					paramDefs = append(paramDefs, p.Name+" "+scalarType)
-					paramNames = append(paramNames, p.Name)
+					// Scalar type-parameter param — passed as pointer in GOAT
+					ptrName := "p" + p.Name
+					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
+					paramNames = append(paramNames, ptrName)
 				}
 			}
 
@@ -1518,6 +1518,18 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
 	}
 
+	// Convert scalar T params to addressable locals for unsafe.Pointer
+	for _, p := range pf.Params {
+		if p.Type == "T" {
+			goScalarType := astWrapperGoScalarType(elemType)
+			if goScalarType == "hwy.Float16" || goScalarType == "hwy.BFloat16" {
+				fmt.Fprintf(buf, "\t%sVal := uint16(%s)\n", p.Name, p.Name)
+			} else {
+				fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
+			}
+		}
+	}
+
 	// Hidden length params
 	if needsSharedLen {
 		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", sliceParams[0])
@@ -1546,13 +1558,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		} else if isGoScalarIntType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
-			// By-value scalar param — cast half-precision types
-			goScalarType := astWrapperGoScalarType(elemType)
-			if goScalarType == "hwy.Float16" || goScalarType == "hwy.BFloat16" {
-				fmt.Fprintf(buf, "\t\tuint16(%s),\n", p.Name)
-			} else {
-				fmt.Fprintf(buf, "\t\t%s,\n", p.Name)
-			}
+			// Scalar type-parameter param — passed as pointer in GOAT
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		}
 	}
 	// Hidden length pointers
@@ -2079,6 +2086,18 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
 	}
 
+	// Convert scalar T params to addressable locals for unsafe.Pointer
+	for _, p := range pf.Params {
+		if p.Type == "T" {
+			goScalarType := astWrapperGoScalarType(elemType)
+			if goScalarType == "hwy.Float16" || goScalarType == "hwy.BFloat16" {
+				fmt.Fprintf(buf, "\t%sVal := uint16(%s)\n", p.Name, p.Name)
+			} else {
+				fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
+			}
+		}
+	}
+
 	// Hidden length params
 	if needsSharedLen {
 		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", firstSlice)
@@ -2111,15 +2130,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		} else if isGoScalarIntType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
-			// By-value scalar element-type param (e.g., float16_t coeff).
-			// Cast to underlying type for asm stub compatibility
-			// (e.g., hwy.Float16 → uint16).
-			goScalarType := astWrapperGoScalarType(elemType)
-			if goScalarType == "hwy.Float16" || goScalarType == "hwy.BFloat16" {
-				fmt.Fprintf(buf, "\t\tuint16(%s),\n", p.Name)
-			} else {
-				fmt.Fprintf(buf, "\t\t%s,\n", p.Name)
-			}
+			// Scalar type-parameter param — passed as pointer in GOAT
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		}
 	}
 	// Hidden length params

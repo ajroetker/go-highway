@@ -23,12 +23,16 @@ func LiftUpdate53CS32(target []int32, tLen int, neighbor []int32, nLen, phase in
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftupdate53_c_s32_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -45,12 +49,16 @@ func LiftUpdate53CS64(target []int64, tLen int, neighbor []int64, nLen, phase in
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftupdate53_c_s64_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -67,12 +75,16 @@ func LiftPredict53CS32(target []int32, tLen int, neighbor []int32, nLen, phase i
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftpredict53_c_s32_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -89,12 +101,16 @@ func LiftPredict53CS64(target []int64, tLen int, neighbor []int64, nLen, phase i
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftpredict53_c_s64_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -111,13 +127,18 @@ func LiftStep97CF16(target []hwy.Float16, tLen int, neighbor []hwy.Float16, nLen
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	coeffVal := uint16(coeff)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftstep97_c_f16_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
-		uint16(coeff),
+		unsafe.Pointer(&coeffVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -134,13 +155,18 @@ func LiftStep97CF32(target []float32, tLen int, neighbor []float32, nLen int, co
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	coeffVal := coeff
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftstep97_c_f32_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
-		coeff,
+		unsafe.Pointer(&coeffVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -157,13 +183,18 @@ func LiftStep97CF64(target []float64, tLen int, neighbor []float64, nLen int, co
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	coeffVal := coeff
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	liftstep97_c_f64_neon(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
-		coeff,
+		unsafe.Pointer(&coeffVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -174,10 +205,13 @@ func ScaleSliceCF16(data []hwy.Float16, n int, scale hwy.Float16) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	nVal := int64(n)
+	scaleVal := uint16(scale)
+	len_dataVal := int64(len(data))
 	scaleslice_c_f16_neon(
 		p_data,
 		unsafe.Pointer(&nVal),
-		uint16(scale),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
 	)
 }
 
@@ -188,10 +222,13 @@ func ScaleSliceCF32(data []float32, n int, scale float32) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	nVal := int64(n)
+	scaleVal := scale
+	len_dataVal := int64(len(data))
 	scaleslice_c_f32_neon(
 		p_data,
 		unsafe.Pointer(&nVal),
-		scale,
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
 	)
 }
 
@@ -202,10 +239,13 @@ func ScaleSliceCF64(data []float64, n int, scale float64) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	nVal := int64(n)
+	scaleVal := scale
+	len_dataVal := int64(len(data))
 	scaleslice_c_f64_neon(
 		p_data,
 		unsafe.Pointer(&nVal),
-		scale,
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
 	)
 }
 
@@ -227,6 +267,9 @@ func Synthesize53CoreCS32(data []int32, n int, low []int32, sn int, high []int32
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_dataVal := int64(len(data))
+	len_lowVal := int64(len(low))
+	len_highVal := int64(len(high))
 	synthesize53core_c_s32_neon(
 		p_data,
 		unsafe.Pointer(&nVal),
@@ -235,6 +278,9 @@ func Synthesize53CoreCS32(data []int32, n int, low []int32, sn int, high []int32
 		p_high,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_lowVal),
+		unsafe.Pointer(&len_highVal),
 	)
 }
 
@@ -256,6 +302,9 @@ func Synthesize53CoreCS64(data []int64, n int, low []int64, sn int, high []int64
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_dataVal := int64(len(data))
+	len_lowVal := int64(len(low))
+	len_highVal := int64(len(high))
 	synthesize53core_c_s64_neon(
 		p_data,
 		unsafe.Pointer(&nVal),
@@ -264,6 +313,9 @@ func Synthesize53CoreCS64(data []int64, n int, low []int64, sn int, high []int64
 		p_high,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_lowVal),
+		unsafe.Pointer(&len_highVal),
 	)
 }
 
@@ -285,6 +337,9 @@ func Synthesize53CoreColsCS32(colBuf []int32, height int, lowBuf []int32, sn int
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_colBufVal := int64(len(colBuf))
+	len_lowBufVal := int64(len(lowBuf))
+	len_highBufVal := int64(len(highBuf))
 	synthesize53corecols_c_s32_neon(
 		p_colBuf,
 		unsafe.Pointer(&heightVal),
@@ -293,6 +348,9 @@ func Synthesize53CoreColsCS32(colBuf []int32, height int, lowBuf []int32, sn int
 		p_highBuf,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_colBufVal),
+		unsafe.Pointer(&len_lowBufVal),
+		unsafe.Pointer(&len_highBufVal),
 	)
 }
 
@@ -314,6 +372,9 @@ func Synthesize53CoreColsCS64(colBuf []int64, height int, lowBuf []int64, sn int
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_colBufVal := int64(len(colBuf))
+	len_lowBufVal := int64(len(lowBuf))
+	len_highBufVal := int64(len(highBuf))
 	synthesize53corecols_c_s64_neon(
 		p_colBuf,
 		unsafe.Pointer(&heightVal),
@@ -322,6 +383,9 @@ func Synthesize53CoreColsCS64(colBuf []int64, height int, lowBuf []int64, sn int
 		p_highBuf,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_colBufVal),
+		unsafe.Pointer(&len_lowBufVal),
+		unsafe.Pointer(&len_highBufVal),
 	)
 }
 

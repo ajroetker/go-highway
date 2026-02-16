@@ -6,7 +6,7 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/basesynthesize53corecols_c_s32_neon_arm64.c
 
-TEXT ·synthesize53corecols_c_s32_neon(SB), $0-56
+TEXT ·synthesize53corecols_c_s32_neon(SB), $16-80
 	MOVD colBuf+0(FP), R0
 	MOVD pheight+8(FP), R1
 	MOVD lowBuf+16(FP), R2
@@ -14,14 +14,19 @@ TEXT ·synthesize53corecols_c_s32_neon(SB), $0-56
 	MOVD highBuf+32(FP), R4
 	MOVD pdn+40(FP), R5
 	MOVD pphase+48(FP), R6
-	WORD $0xf94000a8        // ldr	x8, [x5]
-	WORD $0xf94000ca        // ldr	x10, [x6]
-	WORD $0xf9400069        // ldr	x9, [x3]
-	WORD $0xf100052b        // subs	x11, x9, #1
+	MOVD plen_colBuf+56(FP), R7
+	MOVD plen_lowBuf+64(FP), R8
+	MOVD R8, 0(RSP)
+	MOVD plen_highBuf+72(FP), R8
+	MOVD R8, 8(RSP)
+	WORD $0xf94000a8             // ldr	x8, [x5]
+	WORD $0xf94000ca             // ldr	x10, [x6]
+	WORD $0xf9400069             // ldr	x9, [x3]
+	WORD $0xf100052b             // subs	x11, x9, #1
 	BLT  BB0_3
-	WORD $0x9100204c        // add	x12, x2, #8
-	WORD $0x9100200d        // add	x13, x0, #8
-	WORD $0xaa0903ee        // mov	x14, x9
+	WORD $0x9100204c             // add	x12, x2, #8
+	WORD $0x9100200d             // add	x13, x0, #8
+	WORD $0xaa0903ee             // mov	x14, x9
 
 BB0_2:
 	WORD $0xb85f81af // ldur	w15, [x13, #-8]

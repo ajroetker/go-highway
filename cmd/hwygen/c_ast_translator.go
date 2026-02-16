@@ -502,6 +502,24 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 			} else {
 				info.cType = "double *"
 			}
+		} else if t.isTypeParam(p.Type) {
+			// Generic type parameter (e.g., "T" in func F[T hwy.Floats](..., coeff T)).
+			// Resolve to the concrete element type for this instantiation.
+			resolvedType := t.elemType
+			info.isInt = true // reuse isInt for pointer + dereference treatment
+			info.cName = "p" + p.Name
+			if resolvedType == "float32" {
+				info.cType = "float *"
+			} else if resolvedType == "float64" {
+				info.cType = "double *"
+			} else if isGoScalarIntType(resolvedType) {
+				info.cType = "long *"
+			} else {
+				// Exotic types (e.g., hwy.Float16 → float16_t) — use profile's
+				// scalar arithmetic type if available, else CType.
+				scalarCType := goSliceElemToCType(p.Type, t.profile)
+				info.cType = scalarCType + " *"
+			}
 		} else {
 			t.errors = append(t.errors, fmt.Sprintf("unsupported parameter type %q for param %q; "+
 				"neon:asm supports slices ([]T), generic struct pointers (*Struct[T]), "+
