@@ -32,6 +32,11 @@ func FusedNF4MatMulSiLUCF32(input []float32, packed []uint8, scales, bias, outpu
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusednf4matmulsilu_c_f32_neon(
 		p_input,
 		p_packed,
@@ -42,6 +47,11 @@ func FusedNF4MatMulSiLUCF32(input []float32, packed []uint8, scales, bias, outpu
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -71,6 +81,11 @@ func FusedNF4MatMulGELUCF32(input []float32, packed []uint8, scales, bias, outpu
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusednf4matmulgelu_c_f32_neon(
 		p_input,
 		p_packed,
@@ -81,6 +96,11 @@ func FusedNF4MatMulGELUCF32(input []float32, packed []uint8, scales, bias, outpu
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -110,6 +130,11 @@ func FusedNF4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, bias,
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusednf4matmulgeluapprox_c_f32_neon(
 		p_input,
 		p_packed,
@@ -120,6 +145,11 @@ func FusedNF4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, bias,
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -149,6 +179,11 @@ func FusedNF4MatMulReLUCF32(input []float32, packed []uint8, scales, bias, outpu
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusednf4matmulrelu_c_f32_neon(
 		p_input,
 		p_packed,
@@ -159,6 +194,11 @@ func FusedNF4MatMulReLUCF32(input []float32, packed []uint8, scales, bias, outpu
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -188,6 +228,11 @@ func FusedInt4MatMulSiLUCF32(input []float32, packed []uint8, scales, bias, outp
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusedint4matmulsilu_c_f32_neon(
 		p_input,
 		p_packed,
@@ -198,6 +243,11 @@ func FusedInt4MatMulSiLUCF32(input []float32, packed []uint8, scales, bias, outp
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -227,6 +277,11 @@ func FusedInt4MatMulGELUCF32(input []float32, packed []uint8, scales, bias, outp
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusedint4matmulgelu_c_f32_neon(
 		p_input,
 		p_packed,
@@ -237,6 +292,11 @@ func FusedInt4MatMulGELUCF32(input []float32, packed []uint8, scales, bias, outp
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -266,6 +326,11 @@ func FusedInt4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, bias
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusedint4matmulgeluapprox_c_f32_neon(
 		p_input,
 		p_packed,
@@ -276,6 +341,11 @@ func FusedInt4MatMulGELUApproxCF32(input []float32, packed []uint8, scales, bias
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -305,6 +375,11 @@ func FusedInt4MatMulReLUCF32(input []float32, packed []uint8, scales, bias, outp
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
 	fusedint4matmulrelu_c_f32_neon(
 		p_input,
 		p_packed,
@@ -315,6 +390,11 @@ func FusedInt4MatMulReLUCF32(input []float32, packed []uint8, scales, bias, outp
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -348,6 +428,12 @@ func FusedNF4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales []
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_gatePackedVal := int64(len(gatePacked))
+	len_gateScalesVal := int64(len(gateScales))
+	len_upPackedVal := int64(len(upPacked))
+	len_upScalesVal := int64(len(upScales))
+	len_outputVal := int64(len(output))
 	fusednf4matmulswiglu_c_f32_neon(
 		p_input,
 		p_gatePacked,
@@ -359,6 +445,12 @@ func FusedNF4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales []
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_gatePackedVal),
+		unsafe.Pointer(&len_gateScalesVal),
+		unsafe.Pointer(&len_upPackedVal),
+		unsafe.Pointer(&len_upScalesVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 
@@ -392,6 +484,12 @@ func FusedInt4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales [
 	KVal := int64(K)
 	NVal := int64(N)
 	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_gatePackedVal := int64(len(gatePacked))
+	len_gateScalesVal := int64(len(gateScales))
+	len_upPackedVal := int64(len(upPacked))
+	len_upScalesVal := int64(len(upScales))
+	len_outputVal := int64(len(output))
 	fusedint4matmulswiglu_c_f32_neon(
 		p_input,
 		p_gatePacked,
@@ -403,6 +501,12 @@ func FusedInt4MatMulSwiGLUCF32(input []float32, gatePacked []uint8, gateScales [
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
 		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_gatePackedVal),
+		unsafe.Pointer(&len_gateScalesVal),
+		unsafe.Pointer(&len_upPackedVal),
+		unsafe.Pointer(&len_upScalesVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 

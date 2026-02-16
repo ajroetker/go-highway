@@ -6,7 +6,7 @@ package asm
 import "unsafe"
 
 // Int8x8MatMul_S32 calls the NEON SIMD assembly implementation.
-func Int8x8MatMul_S32(output unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, paZP unsafe.Pointer, pbZP unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer) {
-	int8x8matmul_c_s32_neon(output, a, b, paZP, pbZP, pM, pK, pN)
+func Int8x8MatMul_S32(output unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, paZP unsafe.Pointer, pbZP unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, plen_output unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer) {
+	int8x8matmul_c_s32_neon(output, a, b, paZP, pbZP, pM, pK, pN, plen_output, plen_a, plen_b)
 }
 

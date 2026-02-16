@@ -20,7 +20,7 @@ func BaseFusedNF4MatMul_avx512(input []float32, packed []uint8, scales []float32
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 		for k := range K {
@@ -93,7 +93,7 @@ func BaseFusedInt4MatMul_avx512(input []float32, packed []uint8, scales []float3
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
 		for k := range K {

@@ -45,6 +45,11 @@ func int8x8MatMulPerAxisAsmS32(output []int32, a, b, aZP, bZP []uint8, M, K, N i
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
+	len_outputVal := int64(len(output))
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
+	len_aZPVal := int64(len(aZP))
+	len_bZPVal := int64(len(bZP))
 	asm.Int8x8MatMulPerAxis_S32(
 		p_output,
 		p_a,
@@ -54,6 +59,11 @@ func int8x8MatMulPerAxisAsmS32(output []int32, a, b, aZP, bZP []uint8, M, K, N i
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&len_outputVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_aZPVal),
+		unsafe.Pointer(&len_bZPVal),
 	)
 }
 

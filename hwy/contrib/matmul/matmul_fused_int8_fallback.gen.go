@@ -9,19 +9,19 @@ func BaseFusedInt8MatMul_fallback(input []float32, weights []int8, scales []floa
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := float32(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n < N; n++ {
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					val := float32(weights[weightIdx])

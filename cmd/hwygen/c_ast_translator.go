@@ -50,6 +50,7 @@ type CASTTranslator struct {
 	buf      *bytes.Buffer
 	indent   int
 	tmpCount int // counter for unique temporary variable names
+	errors   []string // translation errors collected during buildParamMap
 }
 
 // deferredAccum tracks a scalar variable being replaced by a vector accumulator
@@ -148,7 +149,11 @@ func (t *CASTTranslator) TranslateToC(pf *ParsedFunc) (string, error) {
 	t.indent = 0
 
 	// Build parameter map (this also collects required struct types)
+	t.errors = nil
 	t.buildParamMap(pf)
+	if len(t.errors) > 0 {
+		return "", fmt.Errorf("parameter mapping errors:\n  %s", strings.Join(t.errors, "\n  "))
+	}
 
 	// Discover struct fields by analyzing method calls in the function body
 	// This must happen before emitting typedefs
@@ -498,12 +503,11 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 				info.cType = "double *"
 			}
 		} else {
+			t.errors = append(t.errors, fmt.Sprintf("unsupported parameter type %q for param %q; "+
+				"neon:asm supports slices ([]T), generic struct pointers (*Struct[T]), "+
+				"scalar ints (int, int64, uint64, ...), float32, and float64", p.Type, p.Name))
 			info.cName = p.Name
-			if t.profile.ScalarArithType != "" {
-				info.cType = t.profile.ScalarArithType
-			} else {
-				info.cType = t.profile.CType
-			}
+			info.cType = "long" // placeholder to avoid cascading errors
 		}
 		t.params[p.Name] = info
 	}
@@ -512,19 +516,28 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 	// add a length parameter for the first slice. All slices are assumed same length.
 	hasExplicitSize := false
 	for _, p := range pf.Params {
-		if p.Type == "int" || p.Type == "int64" {
+		if isGoScalarIntType(p.Type) {
 			hasExplicitSize = true
 			break
 		}
 	}
+	// Always register sliceLenVars so len(slice) resolves to a C variable.
+	for _, p := range pf.Params {
+		if strings.HasPrefix(p.Type, "[]") {
+			t.sliceLenVars[p.Name] = "len_" + p.Name
+		}
+	}
+
 	if !hasExplicitSize {
+		// No explicit int params: add a single shared length parameter.
+		// All slices are assumed same length.
 		var firstSlice string
 		for _, p := range pf.Params {
 			if strings.HasPrefix(p.Type, "[]") {
 				if firstSlice == "" {
 					firstSlice = p.Name
 				}
-				// Map all slice params' len() to the same length variable
+				// Override per-slice mapping: all map to the shared variable.
 				t.sliceLenVars[p.Name] = "len_" + firstSlice
 			}
 		}
@@ -539,6 +552,23 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 				isInt:  true,
 			}
 			t.params["__len_"+firstSlice] = info
+		}
+	} else {
+		// Explicit int params exist, but len(slice) calls may still appear.
+		// Add per-slice hidden length parameters so len() resolves correctly.
+		for _, p := range pf.Params {
+			if strings.HasPrefix(p.Type, "[]") {
+				lenVarName := "len_" + p.Name
+				lenCName := "plen_" + p.Name
+				info := cParamInfo{
+					goName: lenVarName,
+					goType: "int",
+					cName:  lenCName,
+					cType:  "long *",
+					isInt:  true,
+				}
+				t.params["__len_"+p.Name] = info
+			}
 		}
 	}
 
@@ -659,10 +689,12 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 			params = append(params, info.cType+" "+info.cName)
 		}
 	}
-	// Append hidden length parameters (for functions without explicit int size params)
-	for key, info := range t.params {
-		if strings.HasPrefix(key, "__len_") {
-			params = append(params, info.cType+info.cName)
+	// Append hidden length parameters in deterministic order (matching pf.Params slice order).
+	for _, p := range pf.Params {
+		if key := "__len_" + p.Name; strings.HasPrefix(p.Type, "[]") {
+			if info, ok := t.params[key]; ok {
+				params = append(params, info.cType+info.cName)
+			}
 		}
 	}
 	// Append output pointers for return values
@@ -1750,7 +1782,9 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 				}
 			}
 			arg := t.translateExpr(e.Args[0])
-			return fmt.Sprintf("/* len(%s) */", arg)
+			// len() on a non-slice argument that has no known length mapping.
+			// Emit a C compilation error instead of silently producing broken code.
+			return fmt.Sprintf("_UNSUPPORTED_LEN_%s /* len(%s) has no C mapping */", arg, arg)
 		}
 	}
 

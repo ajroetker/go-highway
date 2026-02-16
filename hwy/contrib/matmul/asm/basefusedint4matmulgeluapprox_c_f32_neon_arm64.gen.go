@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func fusedint4matmulgeluapprox_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize unsafe.Pointer)
+func fusedint4matmulgeluapprox_c_f32_neon(input, packed, scales, bias, output, pM, pK, pN, pgroupSize, plen_input, plen_packed, plen_scales, plen_bias, plen_output unsafe.Pointer)

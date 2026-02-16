@@ -17,19 +17,19 @@ func BaseFusedInt8MatMul_avx512(input []float32, weights []int8, scales []float3
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					val := float32(weights[weightIdx])

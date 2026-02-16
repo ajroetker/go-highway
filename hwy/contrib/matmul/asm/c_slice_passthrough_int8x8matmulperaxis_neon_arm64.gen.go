@@ -6,7 +6,7 @@ package asm
 import "unsafe"
 
 // Int8x8MatMulPerAxis_S32 calls the NEON SIMD assembly implementation.
-func Int8x8MatMulPerAxis_S32(output unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, aZP unsafe.Pointer, bZP unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer) {
-	int8x8matmulperaxis_c_s32_neon(output, a, b, aZP, bZP, pM, pK, pN)
+func Int8x8MatMulPerAxis_S32(output unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, aZP unsafe.Pointer, bZP unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, plen_output unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_aZP unsafe.Pointer, plen_bZP unsafe.Pointer) {
+	int8x8matmulperaxis_c_s32_neon(output, a, b, aZP, bZP, pM, pK, pN, plen_output, plen_a, plen_b, plen_aZP, plen_bZP)
 }
 

@@ -1248,20 +1248,32 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				}
 			}
 
-			// Hidden length param (when slices exist but no explicit int params)
-			hasSlices := false
+			// Hidden length params for slice parameters.
 			hasIntParams := false
 			for _, p := range pf.Params {
-				if strings.HasPrefix(p.Type, "[]") {
-					hasSlices = true
-				}
 				if isGoScalarIntType(p.Type) {
 					hasIntParams = true
+					break
 				}
 			}
-			if hasSlices && !hasIntParams {
-				paramDefs = append(paramDefs, "plen unsafe.Pointer")
-				paramNames = append(paramNames, "plen")
+			if !hasIntParams {
+				// No explicit int params: single shared length for the first slice.
+				for _, p := range pf.Params {
+					if strings.HasPrefix(p.Type, "[]") {
+						paramDefs = append(paramDefs, "plen unsafe.Pointer")
+						paramNames = append(paramNames, "plen")
+						break
+					}
+				}
+			} else {
+				// Explicit int params exist: per-slice length params.
+				for _, p := range pf.Params {
+					if strings.HasPrefix(p.Type, "[]") {
+						plenName := "plen_" + p.Name
+						paramDefs = append(paramDefs, plenName+" unsafe.Pointer")
+						paramNames = append(paramNames, plenName)
+					}
+				}
 			}
 
 			// Return value output pointers
@@ -1462,8 +1474,9 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		}
 	}
 
-	// Determine if we need a hidden length param (no explicit int params but has slices)
-	needsHiddenLen := len(intParams) == 0 && len(sliceParams) > 0
+	// Determine hidden length param strategy.
+	needsSharedLen := len(intParams) == 0 && len(sliceParams) > 0
+	needsPerSliceLen := len(intParams) > 0 && len(sliceParams) > 0
 
 	// Determine if we have return values
 	hasReturns := len(pf.Returns) > 0
@@ -1505,9 +1518,13 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
 	}
 
-	// Hidden length param
-	if needsHiddenLen {
+	// Hidden length params
+	if needsSharedLen {
 		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", sliceParams[0])
+	} else if needsPerSliceLen {
+		for _, sp := range sliceParams {
+			fmt.Fprintf(buf, "\tlen_%sVal := int64(len(%s))\n", sp, sp)
+		}
 	}
 
 	// Output variables for return values
@@ -1538,9 +1555,13 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			}
 		}
 	}
-	// Hidden length pointer
-	if needsHiddenLen {
+	// Hidden length pointers
+	if needsSharedLen {
 		fmt.Fprintf(buf, "\t\tunsafe.Pointer(&lenVal),\n")
+	} else if needsPerSliceLen {
+		for _, sp := range sliceParams {
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&len_%sVal),\n", sp)
+		}
 	}
 	// Output pointers
 	if hasReturns {
@@ -1833,7 +1854,7 @@ func cTypePublicSuffix(elemType string) string {
 func isGoScalarIntType(goType string) bool {
 	switch goType {
 	case "int", "int64", "int32", "int16", "int8",
-		"uint8", "uint16", "uint32":
+		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr":
 		return true
 	default:
 		return false
@@ -1963,10 +1984,11 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		}
 	}
 
-	// Determine if we need a hidden length param (no explicit int params but has slices)
-	needsHiddenLen := len(intParams) == 0 && len(sliceParams) > 0
+	// Determine hidden length param strategy.
+	needsSharedLen := len(intParams) == 0 && len(sliceParams) > 0
+	needsPerSliceLen := len(intParams) > 0 && len(sliceParams) > 0
 	firstSlice := ""
-	if needsHiddenLen && len(sliceParams) > 0 {
+	if needsSharedLen && len(sliceParams) > 0 {
 		firstSlice = sliceParams[0]
 	}
 
@@ -2000,7 +2022,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 
 	// Zero-length guard for slice-only functions
-	if needsHiddenLen {
+	if needsSharedLen {
 		fmt.Fprintf(buf, "\tif len(%s) == 0 {\n", firstSlice)
 		if hasReturns {
 			// Return zero values
@@ -2057,9 +2079,13 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
 	}
 
-	// Hidden length param
-	if needsHiddenLen {
+	// Hidden length params
+	if needsSharedLen {
 		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", firstSlice)
+	} else if needsPerSliceLen {
+		for _, sp := range sliceParams {
+			fmt.Fprintf(buf, "\tlen_%sVal := int64(len(%s))\n", sp, sp)
+		}
 	}
 
 	// Output variables for return values.
@@ -2096,9 +2122,13 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			}
 		}
 	}
-	// Hidden length param
-	if needsHiddenLen {
+	// Hidden length params
+	if needsSharedLen {
 		fmt.Fprintf(buf, "\t\tunsafe.Pointer(&lenVal),\n")
+	} else if needsPerSliceLen {
+		for _, sp := range sliceParams {
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&len_%sVal),\n", sp)
+		}
 	}
 	// Output pointer params
 	if hasReturns {
