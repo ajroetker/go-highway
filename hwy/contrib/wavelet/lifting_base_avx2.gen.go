@@ -1027,10 +1027,10 @@ func BaseInterleave_avx2_Uint64(dst []uint64, low []uint64, sn int, high []uint6
 }
 
 func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, high []int32, dn int, phase int) {
-	for ci := 0; ci < sn; ci++ {
+	for ci := range sn {
 		low[ci] = data[ci]
 	}
-	for ci := 0; ci < dn; ci++ {
+	for ci := range dn {
 		high[ci] = data[sn+ci]
 	}
 	{
@@ -1197,10 +1197,10 @@ func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, h
 }
 
 func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, high []int64, dn int, phase int) {
-	for ci := 0; ci < sn; ci++ {
+	for ci := range sn {
 		low[ci] = data[ci]
 	}
-	for ci := 0; ci < dn; ci++ {
+	for ci := range dn {
 		high[ci] = data[sn+ci]
 	}
 	{
@@ -1368,10 +1368,10 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 
 func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn int, phase int) {
 	lanes := 8
-	for y := 0; y < sn; y++ {
+	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
 	}
-	for y := 0; y < dn; y++ {
+	for y := range dn {
 		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
 	}
 	{
@@ -1489,7 +1489,7 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 	}
 	if phase == 0 {
 		minN := min(sn, dn)
-		for y := 0; y < minN; y++ {
+		for y := range minN {
 			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
 			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
 		}
@@ -1498,7 +1498,7 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 		}
 	} else {
 		minN := min(sn, dn)
-		for y := 0; y < minN; y++ {
+		for y := range minN {
 			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
 			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
 		}
@@ -1514,10 +1514,10 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 
 func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn int, phase int) {
 	lanes := 4
-	for y := 0; y < sn; y++ {
+	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
 	}
-	for y := 0; y < dn; y++ {
+	for y := range dn {
 		copy(highBuf[y*lanes:y*lanes+lanes], colBuf[(sn+y)*lanes:(sn+y)*lanes+lanes])
 	}
 	{
@@ -1635,7 +1635,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 	}
 	if phase == 0 {
 		minN := min(sn, dn)
-		for y := 0; y < minN; y++ {
+		for y := range minN {
 			copy(colBuf[2*y*lanes:2*y*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
 			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
 		}
@@ -1644,7 +1644,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 		}
 	} else {
 		minN := min(sn, dn)
-		for y := 0; y < minN; y++ {
+		for y := range minN {
 			copy(colBuf[2*y*lanes:2*y*lanes+lanes], highBuf[y*lanes:y*lanes+lanes])
 			copy(colBuf[(2*y+1)*lanes:(2*y+1)*lanes+lanes], lowBuf[y*lanes:y*lanes+lanes])
 		}

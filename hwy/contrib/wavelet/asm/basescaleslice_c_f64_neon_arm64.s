@@ -6,17 +6,19 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/basescaleslice_c_f64_neon_arm64.c
 
-TEXT ·scaleslice_c_f64_neon(SB), $0-24
-	MOVD  data+0(FP), R0
-	MOVD  pn+8(FP), R1
-	FMOVD scale+16(FP), F0
-	WORD  $0xb4000320      // cbz	x0, LBB0_9
-	WORD  $0xf9400028      // ldr	x8, [x1]
-	WORD  $0xb40002e8      // cbz	x8, LBB0_9
-	WORD  $0xf100091f      // cmp	x8, #2
-	BGE   BB0_4
-	WORD  $0xd280000b      // mov	x11, #0                         ; =0x0
-	B     BB0_6
+TEXT ·scaleslice_c_f64_neon(SB), $0-32
+	MOVD data+0(FP), R0
+	MOVD pn+8(FP), R1
+	MOVD pscale+16(FP), R2
+	MOVD plen_data+24(FP), R3
+	WORD $0xb4000340          // cbz	x0, LBB0_9
+	WORD $0xf9400028          // ldr	x8, [x1]
+	WORD $0xb4000308          // cbz	x8, LBB0_9
+	WORD $0xfd400040          // ldr	d0, [x2]
+	WORD $0xf100091f          // cmp	x8, #2
+	BGE  BB0_4
+	WORD $0xd280000b          // mov	x11, #0                         ; =0x0
+	B    BB0_6
 
 BB0_4:
 	WORD $0xd280000a // mov	x10, #0                         ; =0x0

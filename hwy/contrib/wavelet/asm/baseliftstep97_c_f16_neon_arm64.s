@@ -6,25 +6,27 @@
 // flags: -march=armv8.2-a+fp16+simd -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/baseliftstep97_c_f16_neon_arm64.c
 
-TEXT ·liftstep97_c_f16_neon(SB), $0-48
-	MOVD  target+0(FP), R0
-	MOVD  ptLen+8(FP), R1
-	MOVD  neighbor+16(FP), R2
-	MOVD  pnLen+24(FP), R3
-	MOVHU coeff+32(FP), R9
-	FMOVS R9, F0
-	MOVD  pphase+40(FP), R4
-	WORD  $0xf9400069         // ldr	x9, [x3]
-	WORD  $0xf9400028         // ldr	x8, [x1]
-	WORD  $0xf100011f         // cmp	x8, #0
-	WORD  $0xfa401924         // ccmp	x9, #0, #4, ne
-	BNE   BB0_2
+TEXT ·liftstep97_c_f16_neon(SB), $0-64
+	MOVD target+0(FP), R0
+	MOVD ptLen+8(FP), R1
+	MOVD neighbor+16(FP), R2
+	MOVD pnLen+24(FP), R3
+	MOVD pcoeff+32(FP), R4
+	MOVD pphase+40(FP), R5
+	MOVD plen_target+48(FP), R6
+	MOVD plen_neighbor+56(FP), R7
+	WORD $0xf9400069              // ldr	x9, [x3]
+	WORD $0xf9400028              // ldr	x8, [x1]
+	WORD $0xf100011f              // cmp	x8, #0
+	WORD $0xfa401924              // ccmp	x9, #0, #4, ne
+	BNE  BB0_2
 
 BB0_1:
 	RET
 
 BB0_2:
-	WORD $0xf940008a // ldr	x10, [x4]
+	WORD $0x7d400080 // ldr	h0, [x4]
+	WORD $0xf94000aa // ldr	x10, [x5]
 	WORD $0xb40001ca // cbz	x10, LBB0_5
 	WORD $0xf100055f // cmp	x10, #1
 	BNE  BB0_14

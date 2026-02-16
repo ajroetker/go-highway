@@ -57,6 +57,10 @@ func MatVec[T hwy.Floats](m []T, rows int, cols int, v []T, result []T) {
 }
 
 func init() {
+	initMatvecAll()
+}
+
+func initMatvecAll() {
 	if hwy.NoSimdEnv() {
 		initMatvecFallback()
 		return

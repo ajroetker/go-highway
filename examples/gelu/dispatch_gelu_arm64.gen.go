@@ -61,6 +61,10 @@ func GELUApprox[T hwy.Floats](input []T, output []T) {
 }
 
 func init() {
+	initGeluAll()
+}
+
+func initGeluAll() {
 	if hwy.NoSimdEnv() {
 		initGeluFallback()
 		return

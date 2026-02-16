@@ -39,6 +39,9 @@ func int8x8MatMulAsmS32(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N in
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
+	len_outputVal := int64(len(output))
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
 	asm.Int8x8MatMul_S32(
 		p_output,
 		p_a,
@@ -48,6 +51,9 @@ func int8x8MatMulAsmS32(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N in
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&len_outputVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
 	)
 }
 

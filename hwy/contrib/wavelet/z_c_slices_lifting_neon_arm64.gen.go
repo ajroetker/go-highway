@@ -46,12 +46,16 @@ func liftUpdate53AsmS32(target []int32, tLen int, neighbor []int32, nLen, phase 
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftUpdate53_S32(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -67,12 +71,16 @@ func liftUpdate53AsmS64(target []int64, tLen int, neighbor []int64, nLen, phase 
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftUpdate53_S64(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -88,12 +96,16 @@ func liftPredict53AsmS32(target []int32, tLen int, neighbor []int32, nLen, phase
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftPredict53_S32(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -109,12 +121,16 @@ func liftPredict53AsmS64(target []int64, tLen int, neighbor []int64, nLen, phase
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftPredict53_S64(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -130,13 +146,18 @@ func liftStep97AsmF16(target []hwy.Float16, tLen int, neighbor []hwy.Float16, nL
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	coeffVal := uint16(coeff)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftStep97_F16(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
-		uint16(coeff),
+		unsafe.Pointer(&coeffVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -152,13 +173,18 @@ func liftStep97AsmF32(target []float32, tLen int, neighbor []float32, nLen int, 
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	coeffVal := coeff
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftStep97_F32(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
-		coeff,
+		unsafe.Pointer(&coeffVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -174,13 +200,18 @@ func liftStep97AsmF64(target []float64, tLen int, neighbor []float64, nLen int, 
 	tLenVal := int64(tLen)
 	nLenVal := int64(nLen)
 	phaseVal := int64(phase)
+	coeffVal := coeff
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
 	asm.LiftStep97_F64(
 		p_target,
 		unsafe.Pointer(&tLenVal),
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
-		coeff,
+		unsafe.Pointer(&coeffVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
 	)
 }
 
@@ -190,10 +221,13 @@ func scaleSliceAsmF16(data []hwy.Float16, n int, scale hwy.Float16) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	nVal := int64(n)
+	scaleVal := uint16(scale)
+	len_dataVal := int64(len(data))
 	asm.ScaleSlice_F16(
 		p_data,
 		unsafe.Pointer(&nVal),
-		uint16(scale),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
 	)
 }
 
@@ -203,10 +237,13 @@ func scaleSliceAsmF32(data []float32, n int, scale float32) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	nVal := int64(n)
+	scaleVal := scale
+	len_dataVal := int64(len(data))
 	asm.ScaleSlice_F32(
 		p_data,
 		unsafe.Pointer(&nVal),
-		scale,
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
 	)
 }
 
@@ -216,10 +253,13 @@ func scaleSliceAsmF64(data []float64, n int, scale float64) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	nVal := int64(n)
+	scaleVal := scale
+	len_dataVal := int64(len(data))
 	asm.ScaleSlice_F64(
 		p_data,
 		unsafe.Pointer(&nVal),
-		scale,
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
 	)
 }
 
@@ -240,6 +280,9 @@ func synthesize53CoreAsmS32(data []int32, n int, low []int32, sn int, high []int
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_dataVal := int64(len(data))
+	len_lowVal := int64(len(low))
+	len_highVal := int64(len(high))
 	asm.Synthesize53Core_S32(
 		p_data,
 		unsafe.Pointer(&nVal),
@@ -248,6 +291,9 @@ func synthesize53CoreAsmS32(data []int32, n int, low []int32, sn int, high []int
 		p_high,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_lowVal),
+		unsafe.Pointer(&len_highVal),
 	)
 }
 
@@ -268,6 +314,9 @@ func synthesize53CoreAsmS64(data []int64, n int, low []int64, sn int, high []int
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_dataVal := int64(len(data))
+	len_lowVal := int64(len(low))
+	len_highVal := int64(len(high))
 	asm.Synthesize53Core_S64(
 		p_data,
 		unsafe.Pointer(&nVal),
@@ -276,6 +325,9 @@ func synthesize53CoreAsmS64(data []int64, n int, low []int64, sn int, high []int
 		p_high,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_lowVal),
+		unsafe.Pointer(&len_highVal),
 	)
 }
 
@@ -296,6 +348,9 @@ func synthesize53CoreColsAsmS32(colBuf []int32, height int, lowBuf []int32, sn i
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_colBufVal := int64(len(colBuf))
+	len_lowBufVal := int64(len(lowBuf))
+	len_highBufVal := int64(len(highBuf))
 	asm.Synthesize53CoreCols_S32(
 		p_colBuf,
 		unsafe.Pointer(&heightVal),
@@ -304,6 +359,9 @@ func synthesize53CoreColsAsmS32(colBuf []int32, height int, lowBuf []int32, sn i
 		p_highBuf,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_colBufVal),
+		unsafe.Pointer(&len_lowBufVal),
+		unsafe.Pointer(&len_highBufVal),
 	)
 }
 
@@ -324,6 +382,9 @@ func synthesize53CoreColsAsmS64(colBuf []int64, height int, lowBuf []int64, sn i
 	snVal := int64(sn)
 	dnVal := int64(dn)
 	phaseVal := int64(phase)
+	len_colBufVal := int64(len(colBuf))
+	len_lowBufVal := int64(len(lowBuf))
+	len_highBufVal := int64(len(highBuf))
 	asm.Synthesize53CoreCols_S64(
 		p_colBuf,
 		unsafe.Pointer(&heightVal),
@@ -332,6 +393,9 @@ func synthesize53CoreColsAsmS64(colBuf []int64, height int, lowBuf []int64, sn i
 		p_highBuf,
 		unsafe.Pointer(&dnVal),
 		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_colBufVal),
+		unsafe.Pointer(&len_lowBufVal),
+		unsafe.Pointer(&len_highBufVal),
 	)
 }
 

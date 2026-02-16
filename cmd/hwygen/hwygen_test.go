@@ -1593,20 +1593,32 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 	}
 
 	// Verify function signature matches GOAT conventions:
-	// void funcname(float *a, float *b, float *c, long *pm, long *pn, long *pk)
-	if !strings.Contains(f32, "void matmul_c_f32_neon(float *a, float *b, float *c, long *pk, long *pm, long *pn)") &&
-		!strings.Contains(f32, "void matmul_c_f32_neon(float *a, float *b, float *c, long *pm, long *pn, long *pk)") {
-		// Extract the actual signature line for debugging
-		for line := range strings.SplitSeq(f32, "\n") {
-			if strings.Contains(line, "void matmul_c_f32_neon") {
-				t.Errorf("f32: unexpected function signature: %s", strings.TrimSpace(line))
-				break
+	// void funcname(float *a, float *b, float *c, long *pm, long *pn, long *pk, long *plen_a, long *plen_b, long *plen_c)
+	// (per-slice hidden len params are always appended when explicit int params exist)
+	expectedSigParts := []string{
+		"void matmul_c_f32_neon(",
+		"float *a", "float *b", "float *c",
+		"long *pm", "long *pn", "long *pk",
+		"long *plen_a", "long *plen_b", "long *plen_c",
+	}
+	for _, part := range expectedSigParts {
+		if !strings.Contains(f32, part) {
+			// Extract the actual signature line for debugging
+			for line := range strings.SplitSeq(f32, "\n") {
+				if strings.Contains(line, "void matmul_c_f32_neon") {
+					t.Errorf("f32: function signature missing %q: %s", part, strings.TrimSpace(line))
+					break
+				}
 			}
+			break
 		}
 	}
 
-	// Verify int params are dereferenced from pointers (GOAT convention)
-	for _, deref := range []string{"long k = *pk;", "long m = *pm;", "long n = *pn;"} {
+	// Verify int params and hidden len params are dereferenced from pointers (GOAT convention)
+	for _, deref := range []string{
+		"long k = *pk;", "long m = *pm;", "long n = *pn;",
+		"long len_a = *plen_a;", "long len_b = *plen_b;", "long len_c = *plen_c;",
+	} {
 		if !strings.Contains(f32, deref) {
 			t.Errorf("f32: missing param dereference: %s", deref)
 		}
@@ -4677,5 +4689,151 @@ func TestGroupGoParams_MixedSliceTypes(t *testing.T) {
 	}
 	if !strings.Contains(sig, "input []float32") {
 		t.Errorf("groupGoParams should preserve concrete []float32 type: %q", sig)
+	}
+}
+
+// TestIsGoScalarIntType verifies that uint, uint64, and uintptr are recognized as scalar int types.
+func TestIsGoScalarIntType(t *testing.T) {
+	tests := []struct {
+		goType string
+		want   bool
+	}{
+		{"int", true},
+		{"int64", true},
+		{"int32", true},
+		{"uint8", true},
+		{"uint16", true},
+		{"uint32", true},
+		{"uint", true},
+		{"uint64", true},
+		{"uintptr", true},
+		{"float32", false},
+		{"float64", false},
+		{"string", false},
+		{"complex64", false},
+	}
+	for _, tt := range tests {
+		if got := isGoScalarIntType(tt.goType); got != tt.want {
+			t.Errorf("isGoScalarIntType(%q) = %v, want %v", tt.goType, got, tt.want)
+		}
+	}
+}
+
+// TestASTTranslatorLenWithExplicitIntParams verifies that len(slice) resolves
+// correctly when the function also has explicit int parameters (Bug fix: previously
+// emitted /* len(x) */ comment placeholder that broke C parsing).
+func TestASTTranslatorLenWithExplicitIntParams(t *testing.T) {
+	src := `package testpkg
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseTestLenWithInts[T hwy.Floats](a, b []T, m, n int) {
+	lanes := hwy.Zero[T]().NumLanes()
+	for i := 0; i < len(a); i += lanes {
+		v := hwy.LoadSlice(a[i:])
+		hwy.StoreSlice(b[i:], v)
+	}
+}
+`
+	tmpFile := filepath.Join(t.TempDir(), "test_len_with_ints.go")
+	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+		t.Fatalf("write test file: %v", err)
+	}
+
+	result, err := Parse(tmpFile)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	var fn *ParsedFunc
+	for i, pf := range result.Funcs {
+		if pf.Name == "BaseTestLenWithInts" {
+			fn = &result.Funcs[i]
+			break
+		}
+	}
+	if fn == nil {
+		t.Fatal("BaseTestLenWithInts not found")
+	}
+
+	profile := GetCProfile("NEON", "float32")
+	if profile == nil {
+		t.Fatal("NEON float32 profile not found")
+	}
+
+	translator := NewCASTTranslator(profile, "float32")
+	cCode, err := translator.TranslateToC(fn)
+	if err != nil {
+		t.Fatalf("TranslateToC failed: %v", err)
+	}
+
+	t.Logf("Generated C code:\n%s", cCode)
+
+	// len(a) should resolve to len_a, not a comment placeholder
+	if strings.Contains(cCode, "/* len(") {
+		t.Error("len() emitted as comment placeholder; should resolve to C variable")
+	}
+	if !strings.Contains(cCode, "len_a") {
+		t.Error("missing len_a variable for len(a)")
+	}
+	// The hidden length parameter should appear in the signature
+	if !strings.Contains(cCode, "long *plen_a") {
+		t.Error("missing hidden length parameter plen_a in C function signature")
+	}
+	if !strings.Contains(cCode, "long *plen_b") {
+		t.Error("missing hidden length parameter plen_b in C function signature")
+	}
+}
+
+// TestASTTranslatorUnsupportedParamType verifies that an unrecognized parameter type
+// produces an error instead of silently mistyping it as the float element type.
+func TestASTTranslatorUnsupportedParamType(t *testing.T) {
+	src := `package testpkg
+
+import "github.com/ajroetker/go-highway/hwy"
+
+type MyConfig struct{ Size int }
+
+func BaseTestBadParam[T hwy.Floats](a []T, cfg MyConfig) {
+	lanes := hwy.Zero[T]().NumLanes()
+	for i := 0; i < len(a); i += lanes {
+		v := hwy.LoadSlice(a[i:])
+		hwy.StoreSlice(a[i:], v)
+	}
+}
+`
+	tmpFile := filepath.Join(t.TempDir(), "test_bad_param.go")
+	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+		t.Fatalf("write test file: %v", err)
+	}
+
+	result, err := Parse(tmpFile)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	var fn *ParsedFunc
+	for i, pf := range result.Funcs {
+		if pf.Name == "BaseTestBadParam" {
+			fn = &result.Funcs[i]
+			break
+		}
+	}
+	if fn == nil {
+		t.Fatal("BaseTestBadParam not found")
+	}
+
+	profile := GetCProfile("NEON", "float32")
+	if profile == nil {
+		t.Fatal("NEON float32 profile not found")
+	}
+
+	translator := NewCASTTranslator(profile, "float32")
+	_, err = translator.TranslateToC(fn)
+	if err == nil {
+		t.Fatal("expected error for unsupported parameter type MyConfig, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported parameter type") {
+		t.Errorf("error should mention unsupported param type, got: %v", err)
 	}
 }

@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func int8x8matmul_c_s32_neon(output, a, b, paZP, pbZP, pM, pK, pN unsafe.Pointer)
+func int8x8matmul_c_s32_neon(output, a, b, paZP, pbZP, pM, pK, pN, plen_output, plen_a, plen_b unsafe.Pointer)

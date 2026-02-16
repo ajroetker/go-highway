@@ -27,6 +27,10 @@ func CutCrossEntropyGradCF32(hiddenStates, embeddings []float32, labels []int32,
 	numPositionsVal := int64(numPositions)
 	hiddenDimVal := int64(hiddenDim)
 	vocabSizeVal := int64(vocabSize)
+	len_hiddenStatesVal := int64(len(hiddenStates))
+	len_embeddingsVal := int64(len(embeddings))
+	len_labelsVal := int64(len(labels))
+	len_gradOutputVal := int64(len(gradOutput))
 	cutcrossentropygrad_c_f32_neon(
 		p_hiddenStates,
 		p_embeddings,
@@ -35,6 +39,10 @@ func CutCrossEntropyGradCF32(hiddenStates, embeddings []float32, labels []int32,
 		unsafe.Pointer(&numPositionsVal),
 		unsafe.Pointer(&hiddenDimVal),
 		unsafe.Pointer(&vocabSizeVal),
+		unsafe.Pointer(&len_hiddenStatesVal),
+		unsafe.Pointer(&len_embeddingsVal),
+		unsafe.Pointer(&len_labelsVal),
+		unsafe.Pointer(&len_gradOutputVal),
 	)
 }
 

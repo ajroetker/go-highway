@@ -17,19 +17,19 @@ func BaseFusedNF4MatMulSiLU_fallback(input []float32, packed []uint8, scales []f
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -90,19 +90,19 @@ func BaseFusedNF4MatMulGELU_fallback(input []float32, packed []uint8, scales []f
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := float32(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n < N; n++ {
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -168,19 +168,19 @@ func BaseFusedNF4MatMulGELUApprox_fallback(input []float32, packed []uint8, scal
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -243,19 +243,19 @@ func BaseFusedNF4MatMulReLU_fallback(input []float32, packed []uint8, scales []f
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := float32(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n < N; n++ {
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -316,19 +316,19 @@ func BaseFusedInt4MatMulSiLU_fallback(input []float32, packed []uint8, scales []
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -389,19 +389,19 @@ func BaseFusedInt4MatMulGELU_fallback(input []float32, packed []uint8, scales []
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := float32(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n < N; n++ {
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -467,19 +467,19 @@ func BaseFusedInt4MatMulGELUApprox_fallback(input []float32, packed []uint8, sca
 	lanes := hwy.Zero[float32]().NumLanes()
 	dequantBuf := make([]float32, lanes)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -542,19 +542,19 @@ func BaseFusedInt4MatMulReLU_fallback(input []float32, packed []uint8, scales []
 	numGroups := (N + groupSize - 1) / groupSize
 	dequantBuf := make([]float32, 1)
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := float32(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n < N; n++ {
-				for lane := 0; lane < 1; lane++ {
+				for lane := range 1 {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -617,20 +617,20 @@ func BaseFusedNF4MatMulSwiGLU_fallback(input []float32, gatePacked []uint8, gate
 	upBuf := make([]float32, lanes)
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			gateAccBuf[i] = 0
 			upAccBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -710,20 +710,20 @@ func BaseFusedInt4MatMulSwiGLU_fallback(input []float32, gatePacked []uint8, gat
 	upBuf := make([]float32, lanes)
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			gateAccBuf[i] = 0
 			upAccBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := hwy.Set(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2

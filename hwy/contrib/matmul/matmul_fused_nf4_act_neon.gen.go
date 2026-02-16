@@ -32,19 +32,19 @@ func BaseFusedNF4MatMulSiLU_neon(input []float32, packed []uint8, scales []float
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -106,19 +106,19 @@ func BaseFusedNF4MatMulGELU_neon(input []float32, packed []uint8, scales []float
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -184,19 +184,19 @@ func BaseFusedNF4MatMulGELUApprox_neon(input []float32, packed []uint8, scales [
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -260,19 +260,19 @@ func BaseFusedNF4MatMulReLU_neon(input []float32, packed []uint8, scales []float
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -333,19 +333,19 @@ func BaseFusedInt4MatMulSiLU_neon(input []float32, packed []uint8, scales []floa
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -407,19 +407,19 @@ func BaseFusedInt4MatMulGELU_neon(input []float32, packed []uint8, scales []floa
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -485,19 +485,19 @@ func BaseFusedInt4MatMulGELUApprox_neon(input []float32, packed []uint8, scales 
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -561,19 +561,19 @@ func BaseFusedInt4MatMulReLU_neon(input []float32, packed []uint8, scales []floa
 	lanes := 4
 	dequantBuf := [4]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -636,20 +636,20 @@ func BaseFusedNF4MatMulSwiGLU_neon(input []float32, gatePacked []uint8, gateScal
 	upBuf := [4]float32{}
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			gateAccBuf[i] = 0
 			upAccBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -729,20 +729,20 @@ func BaseFusedInt4MatMulSwiGLU_neon(input []float32, gatePacked []uint8, gateSca
 	upBuf := [4]float32{}
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			gateAccBuf[i] = 0
 			upAccBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := asm.BroadcastFloat32x4(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2

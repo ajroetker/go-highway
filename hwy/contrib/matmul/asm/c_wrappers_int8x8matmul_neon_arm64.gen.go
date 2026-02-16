@@ -25,6 +25,9 @@ func Int8x8MatMulCS32(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int)
 	MVal := int64(M)
 	KVal := int64(K)
 	NVal := int64(N)
+	len_outputVal := int64(len(output))
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
 	int8x8matmul_c_s32_neon(
 		p_output,
 		p_a,
@@ -34,6 +37,9 @@ func Int8x8MatMulCS32(output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int)
 		unsafe.Pointer(&MVal),
 		unsafe.Pointer(&KVal),
 		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&len_outputVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
 	)
 }
 

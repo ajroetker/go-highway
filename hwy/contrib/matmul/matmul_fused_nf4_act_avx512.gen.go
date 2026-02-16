@@ -48,19 +48,19 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -123,19 +123,19 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -202,19 +202,19 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -279,19 +279,19 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -353,19 +353,19 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -428,19 +428,19 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -507,19 +507,19 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -584,19 +584,19 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 	lanes := 16
 	dequantBuf := [16]float32{}
 	accBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			accBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -660,20 +660,20 @@ func BaseFusedNF4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateSc
 	upBuf := [16]float32{}
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			gateAccBuf[i] = 0
 			upAccBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2
@@ -754,20 +754,20 @@ func BaseFusedInt4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateS
 	upBuf := [16]float32{}
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
-	for m := 0; m < M; m++ {
+	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
 		outputRow := output[m*N : (m+1)*N]
-		for i := 0; i < N; i++ {
+		for i := range N {
 			gateAccBuf[i] = 0
 			upAccBuf[i] = 0
 		}
-		for k := 0; k < K; k++ {
+		for k := range K {
 			inputVal := archsimd.BroadcastFloat32x16(inputRow[k])
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
 			for n = 0; n+lanes <= N; n += lanes {
-				for lane := 0; lane < lanes; lane++ {
+				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
 					packedIdx := weightIdx / 2

@@ -6,25 +6,27 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/wavelet/asm/baseliftupdate53_c_s64_neon_arm64.c
 
-TEXT ·liftupdate53_c_s64_neon(SB), $0-40
+TEXT ·liftupdate53_c_s64_neon(SB), $0-56
 	MOVD target+0(FP), R0
 	MOVD ptLen+8(FP), R1
 	MOVD neighbor+16(FP), R2
 	MOVD pnLen+24(FP), R3
 	MOVD pphase+32(FP), R4
-	WORD $0xf9400069         // ldr	x9, [x3]
-	WORD $0xf9400028         // ldr	x8, [x1]
-	WORD $0xf100011f         // cmp	x8, #0
-	WORD $0xfa401924         // ccmp	x9, #0, #4, ne
+	MOVD plen_target+40(FP), R5
+	MOVD plen_neighbor+48(FP), R6
+	WORD $0xf9400069              // ldr	x9, [x3]
+	WORD $0xf9400028              // ldr	x8, [x1]
+	WORD $0xf100011f              // cmp	x8, #0
+	WORD $0xfa401924              // ccmp	x9, #0, #4, ne
 	BEQ  BB0_21
-	WORD $0xf940008c         // ldr	x12, [x4]
-	WORD $0xb400014c         // cbz	x12, LBB0_4
-	WORD $0xd280000d         // mov	x13, #0                         ; =0x0
-	WORD $0xd100052a         // sub	x10, x9, #1
-	WORD $0xeb0a011f         // cmp	x8, x10
-	WORD $0x9a8ab10a         // csel	x10, x8, x10, lt
-	WORD $0xb27f01ab         // orr	x11, x13, #0x2
-	WORD $0xeb0a017f         // cmp	x11, x10
+	WORD $0xf940008c              // ldr	x12, [x4]
+	WORD $0xb400014c              // cbz	x12, LBB0_4
+	WORD $0xd280000d              // mov	x13, #0                         ; =0x0
+	WORD $0xd100052a              // sub	x10, x9, #1
+	WORD $0xeb0a011f              // cmp	x8, x10
+	WORD $0x9a8ab10a              // csel	x10, x8, x10, lt
+	WORD $0xb27f01ab              // orr	x11, x13, #0x2
+	WORD $0xeb0a017f              // cmp	x11, x10
 	BLE  BB0_5
 
 BB0_3:

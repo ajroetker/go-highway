@@ -57,6 +57,10 @@ func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 }
 
 func init() {
+	initSoftmaxAll()
+}
+
+func initSoftmaxAll() {
 	_ = hwy.NoSimdEnv // silence unused import
 	initSoftmaxFallback()
 }

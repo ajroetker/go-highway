@@ -6,7 +6,7 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/loss/asm/basecutcrossentropygrad_c_f32_neon_arm64.c
 
-TEXT ·cutcrossentropygrad_c_f32_neon(SB), $80-56
+TEXT ·cutcrossentropygrad_c_f32_neon(SB), $112-88
 	MOVD hiddenStates+0(FP), R0
 	MOVD embeddings+8(FP), R1
 	MOVD labels+16(FP), R2
@@ -14,17 +14,24 @@ TEXT ·cutcrossentropygrad_c_f32_neon(SB), $80-56
 	MOVD pnumPositions+32(FP), R4
 	MOVD phiddenDim+40(FP), R5
 	MOVD pvocabSize+48(FP), R6
-	WORD $0xf94000a8              // ldr	x8, [x5]
-	WORD $0xf9400089              // ldr	x9, [x4]
-	WORD $0xf94000ca              // ldr	x10, [x6]
-	WORD $0xf100013f              // cmp	x9, #0
-	WORD $0xfa401904              // ccmp	x8, #0, #4, ne
-	WORD $0xfa401944              // ccmp	x10, #0, #4, ne
-	WORD $0xfa411928              // ccmp	x9, #1, #8, ne
+	MOVD plen_hiddenStates+56(FP), R7
+	MOVD plen_embeddings+64(FP), R8
+	MOVD R8, 80(RSP)
+	MOVD plen_labels+72(FP), R8
+	MOVD R8, 88(RSP)
+	MOVD plen_gradOutput+80(FP), R8
+	MOVD R8, 96(RSP)
+	WORD $0xf94000a8                  // ldr	x8, [x5]
+	WORD $0xf9400089                  // ldr	x9, [x4]
+	WORD $0xf94000ca                  // ldr	x10, [x6]
+	WORD $0xf100013f                  // cmp	x9, #0
+	WORD $0xfa401904                  // ccmp	x8, #0, #4, ne
+	WORD $0xfa401944                  // ccmp	x10, #0, #4, ne
+	WORD $0xfa411928                  // ccmp	x9, #1, #8, ne
 	BLT  BB0_64
-	WORD $0xaa0303e7              // mov	x7, x3
-	WORD $0xd280000c              // mov	x12, #0                         ; =0x0
-	WORD $0xd280000b              // mov	x11, #0                         ; =0x0
+	WORD $0xaa0303e7                  // mov	x7, x3
+	WORD $0xd280000c                  // mov	x12, #0                         ; =0x0
+	WORD $0xd280000b                  // mov	x11, #0                         ; =0x0
 
 BB0_2:
 	WORD $0xb86b784d // ldr	w13, [x2, x11, lsl #2]

@@ -6,7 +6,7 @@ package asm
 import "unsafe"
 
 // FusedInt8MatMul_F32 calls the NEON SIMD assembly implementation.
-func FusedInt8MatMul_F32(input unsafe.Pointer, weights unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer) {
-	fusedint8matmul_c_f32_neon(input, weights, scales, bias, output, pM, pK, pN, pgroupSize)
+func FusedInt8MatMul_F32(input unsafe.Pointer, weights unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer, plen_input unsafe.Pointer, plen_weights unsafe.Pointer, plen_scales unsafe.Pointer, plen_bias unsafe.Pointer, plen_output unsafe.Pointer) {
+	fusedint8matmul_c_f32_neon(input, weights, scales, bias, output, pM, pK, pN, pgroupSize, plen_input, plen_weights, plen_scales, plen_bias, plen_output)
 }
 

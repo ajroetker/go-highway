@@ -6,7 +6,7 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/matmul/asm/baseint8x8matmulperaxis_c_s32_neon_arm64.c
 
-TEXT ·int8x8matmulperaxis_c_s32_neon(SB), $131152-64
+TEXT ·int8x8matmulperaxis_c_s32_neon(SB), $131200-104
 	MOVD output+0(FP), R0
 	MOVD a+8(FP), R1
 	MOVD b+16(FP), R2
@@ -15,37 +15,47 @@ TEXT ·int8x8matmulperaxis_c_s32_neon(SB), $131152-64
 	MOVD pM+40(FP), R5
 	MOVD pK+48(FP), R6
 	MOVD pN+56(FP), R7
-	WORD $0xf94000cc      // ldr	x12, [x6]
-	WORD $0xf94000a8      // ldr	x8, [x5]
-	WORD $0xf94000e9      // ldr	x9, [x7]
-	WORD $0xf100011f      // cmp	x8, #0
-	WORD $0xfa401984      // ccmp	x12, #0, #4, ne
-	WORD $0xfa401924      // ccmp	x9, #0, #4, ne
+	MOVD plen_output+64(FP), R8
+	MOVD R8, 80(RSP)
+	MOVD plen_a+72(FP), R8
+	MOVD R8, 88(RSP)
+	MOVD plen_b+80(FP), R8
+	MOVD R8, 96(RSP)
+	MOVD plen_aZP+88(FP), R8
+	MOVD R8, 104(RSP)
+	MOVD plen_bZP+96(FP), R8
+	MOVD R8, 112(RSP)
+	WORD $0xf94000cc            // ldr	x12, [x6]
+	WORD $0xf94000a8            // ldr	x8, [x5]
+	WORD $0xf94000e9            // ldr	x9, [x7]
+	WORD $0xf100011f            // cmp	x8, #0
+	WORD $0xfa401984            // ccmp	x12, #0, #4, ne
+	WORD $0xfa401924            // ccmp	x9, #0, #4, ne
 	BEQ  BB0_46
-	WORD $0xf80003f9      // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
-	WORD $0xa9015ff8      // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill
-	WORD $0xa90257f6      // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill
-	WORD $0xa9034ff4      // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill
-	WORD $0xa9047bfd      // stp	x29, x30, [sp, #64]             ; 16-byte Folded Spill
-	WORD $0x910103fd      // add	x29, sp, #64
-	WORD $0x914083ea      // mov	x10, sp [transformed]
-	WORD $0xf81c83aa      // stur	x10, [x29, #-56]                ; 8-byte Folded Spill
-	WORD $0x914083eb      // mov	x11, sp [transformed]
-	WORD $0xd37ef52a      // lsl	x10, x9, #2
-	WORD $0x91003d4d      // add	x13, x10, #15
-	WORD $0x927cedad      // and	x13, x13, #0xfffffffffffffff0
-	WORD $0xcb0d016b      // sub	x11, x11, x13
-	WORD $0xf100051f      // cmp	x8, #1
+	WORD $0xf80003f9            // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
+	WORD $0xa9015ff8            // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill
+	WORD $0xa90257f6            // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill
+	WORD $0xa9034ff4            // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill
+	WORD $0xa9047bfd            // stp	x29, x30, [sp, #64]             ; 16-byte Folded Spill
+	WORD $0x910103fd            // add	x29, sp, #64
+	WORD $0x914083ea            // mov	x10, sp [transformed]
+	WORD $0xf81c83aa            // stur	x10, [x29, #-56]                ; 8-byte Folded Spill
+	WORD $0x914083eb            // mov	x11, sp [transformed]
+	WORD $0xd37ef52a            // lsl	x10, x9, #2
+	WORD $0x91003d4d            // add	x13, x10, #15
+	WORD $0x927cedad            // and	x13, x13, #0xfffffffffffffff0
+	WORD $0xcb0d016b            // sub	x11, x11, x13
+	WORD $0xf100051f            // cmp	x8, #1
 	BLT  BB0_45
-	WORD $0xf100059f      // cmp	x12, #1
+	WORD $0xf100059f            // cmp	x12, #1
 	BLT  BB0_28
-	WORD $0xd280000d      // mov	x13, #0                         ; =0x0
-	WORD $0x927ce92e      // and	x14, x9, #0x7ffffffffffffff0
-	WORD $0x927e052f      // and	x15, x9, #0xc
-	WORD $0x927ef130      // and	x16, x9, #0x7ffffffffffffffc
-	WORD $0x91008171      // add	x17, x11, #32
-	WORD $0x91008006      // add	x6, x0, #32
-	WORD $0xcb1003e7      // neg	x7, x16
+	WORD $0xd280000d            // mov	x13, #0                         ; =0x0
+	WORD $0x927ce92e            // and	x14, x9, #0x7ffffffffffffff0
+	WORD $0x927e052f            // and	x15, x9, #0xc
+	WORD $0x927ef130            // and	x16, x9, #0x7ffffffffffffffc
+	WORD $0x91008171            // add	x17, x11, #32
+	WORD $0x91008006            // add	x6, x0, #32
+	WORD $0xcb1003e7            // neg	x7, x16
 	B    BB0_5
 
 BB0_4:

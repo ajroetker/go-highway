@@ -15,7 +15,7 @@ DATA CPI0_0<>+8(SB)/4, $0x02ffffff
 DATA CPI0_0<>+12(SB)/4, $0x03ffffff
 GLOBL CPI0_0<>(SB), (RODATA|NOPTR), $16
 
-TEXT ·fusedint8matmulrelu_c_f32_neon(SB), $131152-72
+TEXT ·fusedint8matmulrelu_c_f32_neon(SB), $131184-112
 	MOVD input+0(FP), R0
 	MOVD weights+8(FP), R1
 	MOVD scales+16(FP), R2
@@ -26,36 +26,46 @@ TEXT ·fusedint8matmulrelu_c_f32_neon(SB), $131152-72
 	MOVD pN+56(FP), R7
 	MOVD pgroupSize+64(FP), R8
 	MOVD R8, 64(RSP)
-	WORD $0xf94000c8           // ldr	x8, [x6]
-	WORD $0xf94000a9           // ldr	x9, [x5]
-	WORD $0xf94000ea           // ldr	x10, [x7]
-	WORD $0xf100013f           // cmp	x9, #0
-	WORD $0xfa401904           // ccmp	x8, #0, #4, ne
-	WORD $0xfa401944           // ccmp	x10, #0, #4, ne
+	MOVD plen_input+72(FP), R8
+	MOVD R8, 72(RSP)
+	MOVD plen_weights+80(FP), R8
+	MOVD R8, 80(RSP)
+	MOVD plen_scales+88(FP), R8
+	MOVD R8, 88(RSP)
+	MOVD plen_bias+96(FP), R8
+	MOVD R8, 96(RSP)
+	MOVD plen_output+104(FP), R8
+	MOVD R8, 104(RSP)
+	WORD $0xf94000c8             // ldr	x8, [x6]
+	WORD $0xf94000a9             // ldr	x9, [x5]
+	WORD $0xf94000ea             // ldr	x10, [x7]
+	WORD $0xf100013f             // cmp	x9, #0
+	WORD $0xfa401904             // ccmp	x8, #0, #4, ne
+	WORD $0xfa401944             // ccmp	x10, #0, #4, ne
 	BEQ  BB0_28
-	WORD $0xa9005ff8           // stp	x24, x23, [sp, #-64]!           ; 16-byte Folded Spill [transformed]
-	WORD $0xa90157f6           // stp	x22, x21, [sp, #16]             ; 16-byte Folded Spill
-	WORD $0xa9024ff4           // stp	x20, x19, [sp, #32]             ; 16-byte Folded Spill
-	WORD $0xa9037bfd           // stp	x29, x30, [sp, #48]             ; 16-byte Folded Spill
-	WORD $0x9100c3fd           // add	x29, sp, #48
-	WORD $0x914083e5           // mov	x5, sp [transformed]
-	WORD $0x914083ec           // mov	x12, sp [transformed]
-	WORD $0xd37ef54b           // lsl	x11, x10, #2
-	WORD $0x91003d6d           // add	x13, x11, #15
-	WORD $0x927cedad           // and	x13, x13, #0xfffffffffffffff0
-	WORD $0xcb0d018c           // sub	x12, x12, x13
-	WORD $0xf100053f           // cmp	x9, #1
+	WORD $0xa9005ff8             // stp	x24, x23, [sp, #-64]!           ; 16-byte Folded Spill [transformed]
+	WORD $0xa90157f6             // stp	x22, x21, [sp, #16]             ; 16-byte Folded Spill
+	WORD $0xa9024ff4             // stp	x20, x19, [sp, #32]             ; 16-byte Folded Spill
+	WORD $0xa9037bfd             // stp	x29, x30, [sp, #48]             ; 16-byte Folded Spill
+	WORD $0x9100c3fd             // add	x29, sp, #48
+	WORD $0x914083e5             // mov	x5, sp [transformed]
+	WORD $0x914083ec             // mov	x12, sp [transformed]
+	WORD $0xd37ef54b             // lsl	x11, x10, #2
+	WORD $0x91003d6d             // add	x13, x11, #15
+	WORD $0x927cedad             // and	x13, x13, #0xfffffffffffffff0
+	WORD $0xcb0d018c             // sub	x12, x12, x13
+	WORD $0xf100053f             // cmp	x9, #1
 	BLT  BB0_27
-	WORD $0xd280000d           // mov	x13, #0                         ; =0x0
-	WORD $0xf9400bae           // ldr	x14, [x29, #16]
-	WORD $0xf94001ce           // ldr	x14, [x14]
-	WORD $0x8b0e014f           // add	x15, x10, x14
-	WORD $0xd10005ef           // sub	x15, x15, #1
+	WORD $0xd280000d             // mov	x13, #0                         ; =0x0
+	WORD $0xf9400bae             // ldr	x14, [x29, #16]
+	WORD $0xf94001ce             // ldr	x14, [x14]
+	WORD $0x8b0e014f             // add	x15, x10, x14
+	WORD $0xd10005ef             // sub	x15, x15, #1
 	MOVD $CPI0_0<>(SB), R16
 	VLD1 (R16), [V0.B16]
-	WORD $0x2f00e401           // movi	d1, #0000000000000000
-	WORD $0x6f00e402           // movi.2d	v2, #0000000000000000
-	WORD $0x9ace0def           // sdiv	x15, x15, x14
+	WORD $0x2f00e401             // movi	d1, #0000000000000000
+	WORD $0x6f00e402             // movi.2d	v2, #0000000000000000
+	WORD $0x9ace0def             // sdiv	x15, x15, x14
 	B    BB0_4
 
 BB0_3:
