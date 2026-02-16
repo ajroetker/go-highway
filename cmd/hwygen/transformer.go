@@ -19,7 +19,7 @@ import (
 	"go/ast"
 	"go/token"
 	"maps"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -295,7 +295,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	for k := range ctx.hoistedConsts {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		hoisted = append(hoisted, ctx.hoistedConsts[k])
 	}
