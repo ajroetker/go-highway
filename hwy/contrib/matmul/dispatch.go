@@ -185,6 +185,12 @@ var ParallelFusedInt8MatMul func(pool workerpool.Executor, input []float32, weig
 // On SME platforms, this is overridden in z_matmul_arm64.go init().
 var ParallelInt8x8MatMul func(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP uint8, M, K, N int)
 
+// ParallelInt8x8MatMulPerAxis performs integer-only uint8×uint8→int32 matrix multiplication
+// with per-axis zero-point subtraction, using parallel execution across M rows.
+// aZP has length M (one per row), bZP has length N (one per column).
+// On SME platforms, this is overridden in z_matmul_arm64.go init().
+var ParallelInt8x8MatMulPerAxis func(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP []uint8, M, K, N int)
+
 // FusedNF4MatMulAct performs fused NF4 dequantization + matmul + optional bias + activation.
 // Dispatches to the best available implementation for the current platform.
 // On non-SME platforms, this switches through the individual activation-specific functions.
@@ -321,6 +327,15 @@ func init() {
 		pool.ParallelFor(M, func(mStart, mEnd int) {
 			rows := mEnd - mStart
 			Int8x8MatMul(output[mStart*N:mEnd*N], a[mStart*K:mEnd*K], b, aZP, bZP, rows, K, N)
+		})
+	}
+
+	// Int8x8MatMulPerAxis: parallel implementation with per-axis zero points.
+	// aZP is sub-sliced per row; bZP is shared (per-column, full length N).
+	ParallelInt8x8MatMulPerAxis = func(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP []uint8, M, K, N int) {
+		pool.ParallelFor(M, func(mStart, mEnd int) {
+			rows := mEnd - mStart
+			Int8x8MatMulPerAxis(output[mStart*N:mEnd*N], a[mStart*K:mEnd*K], b, aZP[mStart:mEnd], bZP, rows, K, N)
 		})
 	}
 

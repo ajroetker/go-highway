@@ -2846,6 +2846,132 @@ func parallelInt8x8MatMulSME(pool workerpool.Executor, output []int32, a, b []ui
 	})
 }
 
+// int8x8MatMulPerAxisSME performs per-axis zero-point uint8×uint8→int32 matmul using SME UMOPA.
+// Same UMOPA kernel as int8x8MatMulSME; only the zero-point correction indexes per-axis.
+func int8x8MatMulPerAxisSME(output []int32, a, b []uint8, aZP, bZP []uint8, M, K, N int) {
+	if !hwy.HasSME() || M < minDimForSME || K < minDimForSME || N < minDimForSME {
+		BaseInt8x8MatMulPerAxis_fallback(output, a, b, aZP, bZP, M, K, N)
+		return
+	}
+
+	// Pad dimensions: M and N to 16 (tile size), K to 4 (UMOPA group size).
+	paddedM := AlignUp(M, 16)
+	paddedN := AlignUp(N, 16)
+	paddedK := AlignUp(K, 4)
+
+	// Pad A [M, K] → [paddedM, paddedK]
+	paSize := paddedM * paddedK
+	paBuf := paddedAPoolU8.Get().([]uint8)
+	if cap(paBuf) < paSize {
+		paBuf = make([]uint8, paSize)
+	} else {
+		paBuf = paBuf[:paSize]
+	}
+	padMatrix2DUint8(paBuf, a, M, K, paddedM, paddedK)
+	defer paddedAPoolU8.Put(paBuf)
+
+	// Pad B [K, N] → [paddedK, paddedN]
+	pbSize := paddedK * paddedN
+	pbBuf := paddedBPoolU8.Get().([]uint8)
+	if cap(pbBuf) < pbSize {
+		pbBuf = make([]uint8, pbSize)
+	} else {
+		pbBuf = pbBuf[:pbSize]
+	}
+	padMatrix2DUint8(pbBuf, b, K, N, paddedK, paddedN)
+	defer paddedBPoolU8.Put(pbBuf)
+
+	// Padded output [paddedM, paddedN]
+	poSize := paddedM * paddedN
+	poBuf := paddedOutputPoolI32.Get().([]int32)
+	if cap(poBuf) < poSize {
+		poBuf = make([]int32, poSize)
+	} else {
+		poBuf = poBuf[:poSize]
+	}
+	defer paddedOutputPoolI32.Put(poBuf)
+
+	// UMOPA processes K in groups of 4 — exact division after padding.
+	kGroups := paddedK / 4
+	kI32 := int32(K)
+
+	// Compute row sums of A and column sums of B over original (unpadded) data.
+	rowSumA := make([]int32, M)
+	for m := range M {
+		var s int32
+		for k := range K {
+			s += int32(a[m*K+k])
+		}
+		rowSumA[m] = s
+	}
+
+	colSumB := make([]int32, N)
+	for k := range K {
+		for n := range N {
+			colSumB[n] += int32(b[k*N+n])
+		}
+	}
+
+	// Allocate panel and tile buffers.
+	panelSize := kGroups * 64
+	aPanel := make([]uint8, panelSize)
+	bPanel := make([]uint8, panelSize)
+	tileOutput := make([]int32, 16*16)
+
+	defer hwy.SMEGuard()()
+
+	// Process full 16×16 output tiles.
+	for ti := 0; ti < paddedM; ti += 16 {
+		for k4 := range kGroups {
+			kBase := k4 * 4
+			off := k4 * 64
+			for row := range 16 {
+				aRow := (ti + row) * paddedK
+				copy(aPanel[off+row*4:off+row*4+4], paBuf[aRow+kBase:aRow+kBase+4])
+			}
+		}
+
+		for tj := 0; tj < paddedN; tj += 16 {
+			for k4 := range kGroups {
+				kBase := k4 * 4
+				off := k4 * 64
+				for col := range 16 {
+					for g := range 4 {
+						bPanel[off+col*4+g] = pbBuf[(kBase+g)*paddedN+tj+col]
+					}
+				}
+			}
+
+			asm.TileUMOPAU8(aPanel, bPanel, tileOutput, kGroups)
+
+			for m := range 16 {
+				copy(poBuf[(ti+m)*paddedN+tj:(ti+m)*paddedN+tj+16], tileOutput[m*16:m*16+16])
+			}
+		}
+	}
+
+	// Apply per-axis zero-point corrections.
+	for m := range M {
+		azp := int32(aZP[m])
+		for n := range N {
+			bzp := int32(bZP[n])
+			raw := poBuf[m*paddedN+n]
+			poBuf[m*paddedN+n] = raw - azp*colSumB[n] - bzp*rowSumA[m] + kI32*azp*bzp
+		}
+	}
+
+	// Extract [M, N] from [paddedM, paddedN].
+	extractMatrix2DInt32(output, poBuf, M, N, paddedN)
+}
+
+// parallelInt8x8MatMulPerAxisSME parallelizes int8x8MatMulPerAxisSME across M rows.
+func parallelInt8x8MatMulPerAxisSME(pool workerpool.Executor, output []int32, a, b []uint8, aZP, bZP []uint8, M, K, N int) {
+	pool.ParallelFor(M, func(mStart, mEnd int) {
+		rows := mEnd - mStart
+		int8x8MatMulPerAxisSME(output[mStart*N:mEnd*N], a[mStart*K:mEnd*K], b, aZP[mStart:mEnd], bZP, rows, K, N)
+	})
+}
+
 // =============================================================================
 // init() - Dispatch setup
 // =============================================================================
@@ -2881,6 +3007,10 @@ func init() {
 		// Int8x8 (uint8×uint8→int32) SME UMOPA implementations
 		Int8x8MatMul = int8x8MatMulSME
 		ParallelInt8x8MatMul = parallelInt8x8MatMulSME
+
+		// Int8x8 per-axis zero-point SME UMOPA implementations
+		Int8x8MatMulPerAxis = int8x8MatMulPerAxisSME
+		ParallelInt8x8MatMulPerAxis = parallelInt8x8MatMulPerAxisSME
 
 		// Fused NF4/Int4/Int8 + activation SME implementations (Act variants).
 		// ParallelFused*MatMulSiLU/GELU route through these via dispatch.go init().
