@@ -39,7 +39,7 @@ func bitProductAdaptive(code, query1, query2, query3, query4 []uint64) uint32 {
 	if len(code) >= smeThreshold {
 		return asm.BitProductSME(code, query1, query2, query3, query4)
 	}
-	return asm.BitProductNEON(code, query1, query2, query3, query4)
+	return asm.BitProductCU64(code, query1, query2, query3, query4)
 }
 
 func init() {

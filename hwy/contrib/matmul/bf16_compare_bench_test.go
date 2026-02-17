@@ -7,13 +7,11 @@ import (
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy"
-	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
-// BenchmarkBF16MatMulGeneratedVsHandwritten directly compares:
-// - "Generated": hwygen neon:asm generated C code using promote-compute-demote helpers
-// - "HandWritten": hand-written C code using BFDOT instructions
-func BenchmarkBF16MatMulGeneratedVsHandwritten(b *testing.B) {
+// BenchmarkBF16MatMulGenerated benchmarks the hwygen-generated BF16 matmul
+// using widened f32 accumulators via promote-compute-demote helpers.
+func BenchmarkBF16MatMulGenerated(b *testing.B) {
 	if !hwy.HasARMBF16() {
 		b.Skip("requires ARMv8.6-A BF16 extension")
 	}
@@ -28,20 +26,11 @@ func BenchmarkBF16MatMulGeneratedVsHandwritten(b *testing.B) {
 		}
 		flops := float64(2 * n * n * n)
 
-		b.Run(fmt.Sprintf("Generated/%d", n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			c := make([]hwy.BFloat16, n*n)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				matMulAsmBF16(a, bb, c, n, n, n)
-			}
-			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
-		})
-
-		b.Run(fmt.Sprintf("HandWritten/%d", n), func(b *testing.B) {
-			c := make([]hwy.BFloat16, n*n)
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				asm.MatMulNEONBF16(a, bb, c, n, n, n)
 			}
 			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds()/1e9, "GFLOPS")
 		})
@@ -81,29 +70,19 @@ func TestBF16GeneratedMatMulCorrectness(b *testing.T) {
 			cGen := make([]hwy.BFloat16, n*n)
 			matMulAsmBF16(a, bb, cGen, n, n, n)
 
-			// Hand-written path
-			cHW := make([]hwy.BFloat16, n*n)
-			asm.MatMulNEONBF16(a, bb, cHW, n, n, n)
-
-			// Compare both against reference
-			maxErrGen := float32(0)
-			maxErrHW := float32(0)
+			// Compare against reference
+			maxErr := float32(0)
 			for i := range cf {
 				genVal := hwy.BFloat16ToFloat32(cGen[i])
-				hwVal := hwy.BFloat16ToFloat32(cHW[i])
-				errGen := abs32(genVal - cf[i])
-				errHW := abs32(hwVal - cf[i])
-				if errGen > maxErrGen {
-					maxErrGen = errGen
-				}
-				if errHW > maxErrHW {
-					maxErrHW = errHW
+				err := abs32(genVal - cf[i])
+				if err > maxErr {
+					maxErr = err
 				}
 			}
 
 			// BF16 has ~7-bit mantissa, so relative errors up to ~1% are expected
 			// For accumulated matmul errors can be larger
-			t.Logf("n=%d: generated max_err=%.6f, handwritten max_err=%.6f", n, maxErrGen, maxErrHW)
+			t.Logf("n=%d: generated max_err=%.6f", n, maxErr)
 		})
 	}
 }

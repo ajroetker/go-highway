@@ -377,14 +377,14 @@ func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 // matmulNEONBF16 uses ARM NEON for bfloat16 matrix multiplication.
-// Uses hand-written assembly with BFDOT bf16 instructions.
+// Uses hwygen-generated assembly with widened f32 accumulators.
 func matmulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
 		BaseMatMul_neon_BFloat16(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulNEONBF16(a, b, c, m, n, k)
+	matMulAsmBF16(a, b, c, m, n, k)
 }
 
 // =============================================================================
@@ -979,15 +979,16 @@ func blockedMatMulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 // blockedMatMulNEONBF16 uses NEON for blocked bfloat16 matmul.
+// Uses hwygen-generated block kernels with widened f32 accumulators.
 func blockedMatMulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	totalOps := m * n * k
 	const blockedThreshold = 128 * 128 * 128 // 2M ops
 	const minMForBlocked = 48                // BlockSize
 
 	if totalOps < blockedThreshold || m < minMForBlocked {
-		asm.MatMulNEONBF16(a, b, c, m, n, k)
+		matMulAsmBF16(a, b, c, m, n, k)
 	} else {
-		asm.BlockedMatMulNEONBF16(a, b, c, m, n, k)
+		BaseBlockedMatMul_neon_BFloat16(a, b, c, m, n, k)
 	}
 }
 
@@ -1524,17 +1525,6 @@ func packedMicroKernelNEONF16(packedA []hwy.Float16, packedB []hwy.Float16, c []
 
 func packedMicroKernelPartialNEONF16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
 	packedMicroKernelPartialAsmF16(packedA, packedB, c, n, ir, jr, kc, mr, nr, activeRows, activeCols)
-}
-
-// packedMicroKernelNEONBF16 wraps the GOAT-generated NEON BF16 micro-kernel.
-func packedMicroKernelNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONBF16(packedA, packedB, c[cOffset:], kc, n, mr, nr)
-}
-
-func packedMicroKernelPartialNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONBF16(packedA, packedB, c[cOffset:], kc, n, activeRows, activeCols)
 }
 
 // =============================================================================
@@ -3126,9 +3116,4 @@ func init() {
 		PackedMicroKernelPartialFloat16 = packedMicroKernelPartialNEONF16
 	}
 
-	// BF16: Requires ARMv8.6-A BF16 extension
-	if hasNEON && hwy.HasARMBF16() && !hwy.HasSME() {
-		PackedMicroKernelBFloat16 = packedMicroKernelNEONBF16
-		PackedMicroKernelPartialBFloat16 = packedMicroKernelPartialNEONBF16
-	}
 }

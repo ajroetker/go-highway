@@ -1239,7 +1239,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				if strings.HasPrefix(p.Type, "[]") {
 					paramDefs = append(paramDefs, p.Name+" unsafe.Pointer")
 					paramNames = append(paramNames, p.Name)
-				} else if isGoScalarIntType(p.Type) {
+				} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 					ptrName := "p" + p.Name
 					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
 					paramNames = append(paramNames, ptrName)
@@ -1254,7 +1254,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 			// Hidden length params for slice parameters.
 			hasIntParams := false
 			for _, p := range pf.Params {
-				if isGoScalarIntType(p.Type) {
+				if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 					hasIntParams = true
 					break
 				}
@@ -1469,17 +1469,21 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	// Classify params.
 	var sliceParams []string
 	var intParams []string
+	var floatParams []string
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			sliceParams = append(sliceParams, p.Name)
 		} else if isGoScalarIntType(p.Type) {
 			intParams = append(intParams, p.Name)
+		} else if isGoScalarFloatType(p.Type) {
+			floatParams = append(floatParams, p.Name)
 		}
 	}
+	hasScalarParams := len(intParams) > 0 || len(floatParams) > 0
 
 	// Determine hidden length param strategy.
-	needsSharedLen := len(intParams) == 0 && len(sliceParams) > 0
-	needsPerSliceLen := len(intParams) > 0 && len(sliceParams) > 0
+	needsSharedLen := !hasScalarParams && len(sliceParams) > 0
+	needsPerSliceLen := hasScalarParams && len(sliceParams) > 0
 
 	// Determine if we have return values
 	hasReturns := len(pf.Returns) > 0
@@ -1530,6 +1534,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			} else {
 				fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 			}
+		} else if isGoScalarFloatType(p.Type) {
+			fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 		}
 	}
 
@@ -1558,7 +1564,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
-		} else if isGoScalarIntType(p.Type) {
+		} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
 			// Scalar type-parameter param — passed as pointer in GOAT
@@ -1878,6 +1884,15 @@ func isGoScalarIntType(goType string) bool {
 	}
 }
 
+func isGoScalarFloatType(goType string) bool {
+	switch goType {
+	case "float32", "float64":
+		return true
+	default:
+		return false
+	}
+}
+
 // goElemTypeToCType converts a Go element type to a C type.
 func goElemTypeToCType(elemType string) string {
 	switch elemType {
@@ -2000,10 +2015,17 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			intParams = append(intParams, p.Name)
 		}
 	}
+	hasScalarParams := len(intParams) > 0
+	for _, p := range pf.Params {
+		if isGoScalarFloatType(p.Type) {
+			hasScalarParams = true
+			break
+		}
+	}
 
 	// Determine hidden length param strategy.
-	needsSharedLen := len(intParams) == 0 && len(sliceParams) > 0
-	needsPerSliceLen := len(intParams) > 0 && len(sliceParams) > 0
+	needsSharedLen := !hasScalarParams && len(sliceParams) > 0
+	needsPerSliceLen := hasScalarParams && len(sliceParams) > 0
 	firstSlice := ""
 	if needsSharedLen && len(sliceParams) > 0 {
 		firstSlice = sliceParams[0]
@@ -2105,6 +2127,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			} else {
 				fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 			}
+		} else if isGoScalarFloatType(p.Type) {
+			fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 		}
 	}
 
@@ -2137,7 +2161,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
-		} else if isGoScalarIntType(p.Type) {
+		} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
 			// Scalar type-parameter param — passed as pointer in GOAT
