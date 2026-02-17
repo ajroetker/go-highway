@@ -19,15 +19,19 @@ func initBlockkernelNeonCAsm() {
 		return
 	}
 	BlockMulAddFloat16 = blockMulAddAsmF16
+	BlockMulAddBFloat16 = blockMulAddAsmBF16
 	BlockMulAddFloat32 = blockMulAddAsmF32
 	BlockMulAddFloat64 = blockMulAddAsmF64
 	BlockMulAdd2Float16 = blockMulAdd2AsmF16
+	BlockMulAdd2BFloat16 = blockMulAdd2AsmBF16
 	BlockMulAdd2Float32 = blockMulAdd2AsmF32
 	BlockMulAdd2Float64 = blockMulAdd2AsmF64
 	BlockMulAddRegBlockedFloat16 = blockMulAddRegBlockedAsmF16
+	BlockMulAddRegBlockedBFloat16 = blockMulAddRegBlockedAsmBF16
 	BlockMulAddRegBlockedFloat32 = blockMulAddRegBlockedAsmF32
 	BlockMulAddRegBlockedFloat64 = blockMulAddRegBlockedAsmF64
 	BlockMulAdd4Float16 = blockMulAdd4AsmF16
+	BlockMulAdd4BFloat16 = blockMulAdd4AsmBF16
 	BlockMulAdd4Float32 = blockMulAdd4AsmF32
 	BlockMulAdd4Float64 = blockMulAdd4AsmF64
 }
@@ -50,6 +54,34 @@ func blockMulAddAsmF16(aT, b, c []hwy.Float16, blockDim int) {
 	len_bVal := int64(len(b))
 	len_cVal := int64(len(c))
 	asm.BlockMulAdd_F16(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+func blockMulAddAsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	asm.BlockMulAdd_BF16(
 		p_aT,
 		p_b,
 		p_c,
@@ -144,6 +176,34 @@ func blockMulAdd2AsmF16(aT, b, c []hwy.Float16, blockDim int) {
 	)
 }
 
+func blockMulAdd2AsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	asm.BlockMulAdd2_BF16(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
 func blockMulAdd2AsmF32(aT, b, c []float32, blockDim int) {
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
@@ -228,6 +288,34 @@ func blockMulAddRegBlockedAsmF16(aT, b, c []hwy.Float16, blockDim int) {
 	)
 }
 
+func blockMulAddRegBlockedAsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	asm.BlockMulAddRegBlocked_BF16(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
 func blockMulAddRegBlockedAsmF32(aT, b, c []float32, blockDim int) {
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
@@ -302,6 +390,34 @@ func blockMulAdd4AsmF16(aT, b, c []hwy.Float16, blockDim int) {
 	len_bVal := int64(len(b))
 	len_cVal := int64(len(c))
 	asm.BlockMulAdd4_F16(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+func blockMulAdd4AsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	asm.BlockMulAdd4_BF16(
 		p_aT,
 		p_b,
 		p_c,

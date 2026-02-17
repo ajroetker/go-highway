@@ -18,9 +18,9 @@ var MatMulFloat64 func(a []float64, b []float64, c []float64, m int, n int, k in
 //   - B is K x N (row-major)
 //   - C is M x N (row-major)
 //
-// Uses the "broadcast A, stream B" algorithm which is efficient for SIMD:
-// For each row i of C and each column k of A, broadcast A[i,k] and
-// multiply with the corresponding row of B, accumulating into C.
+// Uses register-blocked accumulators: the J dimension is tiled into groups
+// of 4 vector widths, with accumulators held in registers across the full
+// K loop. This eliminates K-1 redundant loads and stores of C per element.
 //
 // This function is designed for code generation by hwygen.
 // It will be specialized for AVX2, AVX-512, NEON, and fallback targets.

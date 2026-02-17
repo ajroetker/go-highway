@@ -55,6 +55,18 @@ func (e *CEmitter) EmitC(pf *ParsedFunc, outPath string) (string, error) {
 	fmt.Fprintf(&buf, "// %s for %s\n\n", pf.Name, targetLabel)
 	fmt.Fprintf(&buf, "%s\n\n", include)
 
+	// Emit inline helper functions required by this profile (e.g., bf16
+	// promote/demote, BF16 arithmetic wrappers). These must appear before
+	// the main function that references them.
+	if e.profile != nil && len(e.profile.InlineHelpers) > 0 {
+		fmt.Fprintf(&buf, "#ifndef GOAT_PARSER\n")
+		for _, helper := range e.profile.InlineHelpers {
+			buf.WriteString(helper)
+			buf.WriteString("\n\n")
+		}
+		fmt.Fprintf(&buf, "#endif\n\n")
+	}
+
 	// Generate the function.
 	// For promoted-math profiles (f16/bf16), dispatch math functions through
 	// the promoted path which wraps f32 computation with promote/demote.

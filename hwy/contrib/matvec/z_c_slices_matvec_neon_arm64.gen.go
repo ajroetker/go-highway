@@ -19,6 +19,7 @@ func initMatvecNeonCAsm() {
 		return
 	}
 	MatVecFloat16 = matVecAsmF16
+	MatVecBFloat16 = matVecAsmBF16
 	MatVecFloat32 = matVecAsmF32
 	MatVecFloat64 = matVecAsmF64
 }
@@ -42,6 +43,36 @@ func matVecAsmF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
 	len_vVal := int64(len(v))
 	len_resultVal := int64(len(result))
 	asm.MatVec_F16(
+		p_m,
+		unsafe.Pointer(&rowsVal),
+		unsafe.Pointer(&colsVal),
+		p_v,
+		p_result,
+		unsafe.Pointer(&len_mVal),
+		unsafe.Pointer(&len_vVal),
+		unsafe.Pointer(&len_resultVal),
+	)
+}
+
+func matVecAsmBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
+	var p_m unsafe.Pointer
+	if len(m) > 0 {
+		p_m = unsafe.Pointer(&m[0])
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	var p_result unsafe.Pointer
+	if len(result) > 0 {
+		p_result = unsafe.Pointer(&result[0])
+	}
+	rowsVal := int64(rows)
+	colsVal := int64(cols)
+	len_mVal := int64(len(m))
+	len_vVal := int64(len(v))
+	len_resultVal := int64(len(result))
+	asm.MatVec_BF16(
 		p_m,
 		unsafe.Pointer(&rowsVal),
 		unsafe.Pointer(&colsVal),

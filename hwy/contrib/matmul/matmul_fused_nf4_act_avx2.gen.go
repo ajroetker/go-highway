@@ -30,7 +30,8 @@ func BaseFusedNF4MatMulSiLU_avx2(input []float32, packed []uint8, scales []float
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -43,7 +44,39 @@ func BaseFusedNF4MatMulSiLU_avx2(input []float32, packed []uint8, scales []float
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var quantIdx int
+					if weightIdx%2 == 0 {
+						quantIdx = int(packed[packedIdx] & 0x0F)
+					} else {
+						quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -104,7 +137,8 @@ func BaseFusedNF4MatMulGELU_avx2(input []float32, packed []uint8, scales []float
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -117,7 +151,39 @@ func BaseFusedNF4MatMulGELU_avx2(input []float32, packed []uint8, scales []float
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var quantIdx int
+					if weightIdx%2 == 0 {
+						quantIdx = int(packed[packedIdx] & 0x0F)
+					} else {
+						quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -182,7 +248,8 @@ func BaseFusedNF4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales [
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -195,7 +262,39 @@ func BaseFusedNF4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales [
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var quantIdx int
+					if weightIdx%2 == 0 {
+						quantIdx = int(packed[packedIdx] & 0x0F)
+					} else {
+						quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -258,7 +357,8 @@ func BaseFusedNF4MatMulReLU_avx2(input []float32, packed []uint8, scales []float
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -271,7 +371,39 @@ func BaseFusedNF4MatMulReLU_avx2(input []float32, packed []uint8, scales []float
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var quantIdx int
+					if weightIdx%2 == 0 {
+						quantIdx = int(packed[packedIdx] & 0x0F)
+					} else {
+						quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -331,7 +463,8 @@ func BaseFusedInt4MatMulSiLU_avx2(input []float32, packed []uint8, scales []floa
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -344,7 +477,39 @@ func BaseFusedInt4MatMulSiLU_avx2(input []float32, packed []uint8, scales []floa
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var unsignedVal int
+					if weightIdx%2 == 0 {
+						unsignedVal = int(packed[packedIdx] & 0x0F)
+					} else {
+						unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = float32(unsignedVal-8) * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -405,7 +570,8 @@ func BaseFusedInt4MatMulGELU_avx2(input []float32, packed []uint8, scales []floa
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -418,7 +584,39 @@ func BaseFusedInt4MatMulGELU_avx2(input []float32, packed []uint8, scales []floa
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var unsignedVal int
+					if weightIdx%2 == 0 {
+						unsignedVal = int(packed[packedIdx] & 0x0F)
+					} else {
+						unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = float32(unsignedVal-8) * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -483,7 +681,8 @@ func BaseFusedInt4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales 
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -496,7 +695,39 @@ func BaseFusedInt4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales 
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var unsignedVal int
+					if weightIdx%2 == 0 {
+						unsignedVal = int(packed[packedIdx] & 0x0F)
+					} else {
+						unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = float32(unsignedVal-8) * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -559,7 +790,8 @@ func BaseFusedInt4MatMulReLU_avx2(input []float32, packed []uint8, scales []floa
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	dequantBuf := [8]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -572,7 +804,39 @@ func BaseFusedInt4MatMulReLU_avx2(input []float32, packed []uint8, scales []floa
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var unsignedVal int
+					if weightIdx%2 == 0 {
+						unsignedVal = int(packed[packedIdx] & 0x0F)
+					} else {
+						unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = float32(unsignedVal-8) * scale
+				}
+				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0 = inputVal.MulAdd(w0, acc0)
+				acc1 = inputVal.MulAdd(w1, acc1)
+				acc2 = inputVal.MulAdd(w2, acc2)
+				acc3 = inputVal.MulAdd(w3, acc3)
+				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -632,8 +896,9 @@ func BaseFusedNF4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateScal
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	gateBuf := [8]float32{}
-	upBuf := [8]float32{}
+	tileN := 4 * lanes
+	gateBuf := make([]float32, tileN)
+	upBuf := make([]float32, tileN)
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
 	for m := range M {
@@ -648,7 +913,63 @@ func BaseFusedNF4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateScal
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					groupIdx := colIdx / groupSize
+					var gateQuantIdx int
+					if weightIdx%2 == 0 {
+						gateQuantIdx = int(gatePacked[packedIdx] & 0x0F)
+					} else {
+						gateQuantIdx = int((gatePacked[packedIdx] >> 4) & 0x0F)
+					}
+					gateScale := gateScales[scaleBase+groupIdx]
+					gateBuf[lane] = nf4LookupTable[gateQuantIdx] * gateScale
+					var upQuantIdx int
+					if weightIdx%2 == 0 {
+						upQuantIdx = int(upPacked[packedIdx] & 0x0F)
+					} else {
+						upQuantIdx = int((upPacked[packedIdx] >> 4) & 0x0F)
+					}
+					upScale := upScales[scaleBase+groupIdx]
+					upBuf[lane] = nf4LookupTable[upQuantIdx] * upScale
+				}
+				gw0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[0])))
+				gw1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[lanes])))
+				gw2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[2*lanes])))
+				gw3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[3*lanes])))
+				uw0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[0])))
+				uw1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[lanes])))
+				uw2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[2*lanes])))
+				uw3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[3*lanes])))
+				ga0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				ga1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+lanes])))
+				ga2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+2*lanes])))
+				ga3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+3*lanes])))
+				ua0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n])))
+				ua1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n+lanes])))
+				ua2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n+2*lanes])))
+				ua3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n+3*lanes])))
+				ga0 = inputVal.MulAdd(gw0, ga0)
+				ga1 = inputVal.MulAdd(gw1, ga1)
+				ga2 = inputVal.MulAdd(gw2, ga2)
+				ga3 = inputVal.MulAdd(gw3, ga3)
+				ua0 = inputVal.MulAdd(uw0, ua0)
+				ua1 = inputVal.MulAdd(uw1, ua1)
+				ua2 = inputVal.MulAdd(uw2, ua2)
+				ua3 = inputVal.MulAdd(uw3, ua3)
+				ga0.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				ga1.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+lanes])))
+				ga2.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+2*lanes])))
+				ga3.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+3*lanes])))
+				ua0.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n])))
+				ua1.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n+lanes])))
+				ua2.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n+2*lanes])))
+				ua3.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -725,8 +1046,9 @@ func BaseFusedInt4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateSca
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 8
-	gateBuf := [8]float32{}
-	upBuf := [8]float32{}
+	tileN := 4 * lanes
+	gateBuf := make([]float32, tileN)
+	upBuf := make([]float32, tileN)
 	gateAccBuf := make([]float32, N)
 	upAccBuf := make([]float32, N)
 	for m := range M {
@@ -741,7 +1063,63 @@ func BaseFusedInt4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateSca
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					groupIdx := colIdx / groupSize
+					var gateUnsigned int
+					if weightIdx%2 == 0 {
+						gateUnsigned = int(gatePacked[packedIdx] & 0x0F)
+					} else {
+						gateUnsigned = int((gatePacked[packedIdx] >> 4) & 0x0F)
+					}
+					gateScale := gateScales[scaleBase+groupIdx]
+					gateBuf[lane] = float32(gateUnsigned-8) * gateScale
+					var upUnsigned int
+					if weightIdx%2 == 0 {
+						upUnsigned = int(upPacked[packedIdx] & 0x0F)
+					} else {
+						upUnsigned = int((upPacked[packedIdx] >> 4) & 0x0F)
+					}
+					upScale := upScales[scaleBase+groupIdx]
+					upBuf[lane] = float32(upUnsigned-8) * upScale
+				}
+				gw0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[0])))
+				gw1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[lanes])))
+				gw2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[2*lanes])))
+				gw3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateBuf[3*lanes])))
+				uw0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[0])))
+				uw1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[lanes])))
+				uw2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[2*lanes])))
+				uw3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upBuf[3*lanes])))
+				ga0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				ga1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+lanes])))
+				ga2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+2*lanes])))
+				ga3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+3*lanes])))
+				ua0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n])))
+				ua1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n+lanes])))
+				ua2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n+2*lanes])))
+				ua3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&upAccBuf[n+3*lanes])))
+				ga0 = inputVal.MulAdd(gw0, ga0)
+				ga1 = inputVal.MulAdd(gw1, ga1)
+				ga2 = inputVal.MulAdd(gw2, ga2)
+				ga3 = inputVal.MulAdd(gw3, ga3)
+				ua0 = inputVal.MulAdd(uw0, ua0)
+				ua1 = inputVal.MulAdd(uw1, ua1)
+				ua2 = inputVal.MulAdd(uw2, ua2)
+				ua3 = inputVal.MulAdd(uw3, ua3)
+				ga0.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n])))
+				ga1.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+lanes])))
+				ga2.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+2*lanes])))
+				ga3.Store((*[8]float32)(unsafe.Pointer(&gateAccBuf[n+3*lanes])))
+				ua0.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n])))
+				ua1.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n+lanes])))
+				ua2.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n+2*lanes])))
+				ua3.Store((*[8]float32)(unsafe.Pointer(&upAccBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx

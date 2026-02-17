@@ -376,3 +376,25 @@ func NegMulAddBF16(a, b, c Vec[BFloat16]) Vec[BFloat16] {
 func NegMulSubBF16(a, b, c Vec[BFloat16]) Vec[BFloat16] {
 	return NegBF16(AddBF16(MulBF16(a, b), c))
 }
+
+// DotAccumulate computes pairwise dot-product accumulation of BF16 vectors
+// into float32 accumulators. For each pair of adjacent elements:
+//
+//	acc[i] += a[2i]*b[2i] + a[2i+1]*b[2i+1]
+//
+// On hardware with BFDOT (NEON) or VDPBF16PS (AVX-512), this maps to a
+// single instruction. The accumulator is float32, not BFloat16, which avoids
+// precision loss during accumulation.
+//
+// The a and b slices contain BFloat16 values; acc contains float32 accumulators.
+// len(acc) must be >= len(a)/2 (each accumulator covers 2 BF16 elements).
+func DotAccumulate(a, b []BFloat16, acc []float32) {
+	n := min(len(a), len(b))
+	for i := 0; i+1 < n; i += 2 {
+		af0 := BFloat16ToFloat32(a[i])
+		bf0 := BFloat16ToFloat32(b[i])
+		af1 := BFloat16ToFloat32(a[i+1])
+		bf1 := BFloat16ToFloat32(b[i+1])
+		acc[i/2] += af0*bf0 + af1*bf1
+	}
+}

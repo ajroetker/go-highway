@@ -122,3 +122,4 @@ func BenchmarkParallelMatMulBFloat16(b *testing.B) {
 		})
 	}
 }
+

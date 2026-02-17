@@ -19,6 +19,7 @@ func initMatmulNeonCAsm() {
 		return
 	}
 	MatMulFloat16 = matMulAsmF16
+	MatMulBFloat16 = matMulAsmBF16
 	MatMulFloat32 = matMulAsmF32
 	MatMulFloat64 = matMulAsmF64
 }
@@ -43,6 +44,38 @@ func matMulAsmF16(a, b, c []hwy.Float16, m, n, k int) {
 	len_bVal := int64(len(b))
 	len_cVal := int64(len(c))
 	asm.MatMul_F16(
+		p_a,
+		p_b,
+		p_c,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+func matMulAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	asm.MatMul_BF16(
 		p_a,
 		p_b,
 		p_c,

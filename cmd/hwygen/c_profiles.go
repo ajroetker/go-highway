@@ -85,6 +85,23 @@ type CIntrinsicProfile struct {
 	ReduceMinFn map[string]string // vminvq_f32
 	ReduceMaxFn map[string]string // vmaxvq_f32
 
+	// Dot-product accumulation: BFDOT (NEON BF16), VDPBF16PS (AVX-512 BF16).
+	// hwy.DotAccumulate(a, b, acc) → vbfdotq_f32(acc, a, b)
+	// Returns a wider accumulator type (float32), not the narrow element type.
+	DotAccFn     map[string]string // "q": "vbfdotq_f32", "zmm": "_mm512_dpbf16_ps"
+	DotAccType   map[string]string // return type: "q": "float32x4_t", "zmm": "__m512"
+
+	// Accumulator widening: keep accumulators in a wider type (e.g., f32 for BF16)
+	// to avoid promote/demote round-trips on every FMA iteration.
+	// When enabled, hwy.Zero[T]() in := assignments emits two widened halves
+	// (e.g., float32x4_t acc_lo, acc_hi), hwy.MulAdd promotes inputs and uses
+	// native f32 FMA, and hwy.Store demotes+combines once at store time.
+	WidenAccumulators bool   // Enable widened accumulator optimization
+	WidenedAccZero    string // Zero init expr: "vdupq_n_f32(0.0f)"
+	WidenedAccType    string // Widened type: "float32x4_t"
+	WidenedFmaFn      string // Native FMA on widened type: "vfmaq_f32"
+	WidenedAddFn      string // Native Add on widened type: "vaddq_f32"
+
 	// InlineHelpers contains C helper function source code that should be
 	// emitted at the top of generated C files (before main functions).
 	// Used for complex intrinsic sequences like NEON popcount chains.
@@ -105,6 +122,14 @@ type CIntrinsicProfile struct {
 	// from CType. For example, NEON f16 uses "float16_t" for scalar arithmetic
 	// but "unsigned short" as CType (for pointer signatures).
 	ScalarArithType string
+
+	// PointerElemType overrides the C type used for slice/array pointer parameters
+	// in generated function signatures. When empty, defaults to ScalarArithType
+	// (if set) or CType. This is needed when ScalarArithType has a different size
+	// than the actual element. For example, BF16 uses ScalarArithType="float"
+	// (4 bytes) for scalar arithmetic, but elements are 2 bytes, so
+	// PointerElemType="unsigned short" ensures correct array stride.
+	PointerElemType string
 	PromoteFn    string // e.g., "vcvt_f32_f16" -- called as PromoteFn(narrowVec)
 	DemoteFn     string // fmt.Sprintf template, e.g., "vcvt_f16_f32(%s)" or "_mm256_cvtps_ph(%s, 0)"
 
@@ -470,66 +495,79 @@ func neonBF16Profile() *CIntrinsicProfile {
 		CType:      "unsigned short",
 		VecTypes: map[string]string{
 			"q":      "bfloat16x8_t",
-			"d":      "uint16x4_t",
 			"wide":   "float32x4_t", // promoted f32 vector for math computations
 			"half":   "uint16x4_t",  // demoted half for bf16 recombine
-			"scalar": "uint16x4_t",
+			"scalar": "bfloat16x8_t",
 		},
 		Tiers: []CLoopTier{
 			{Name: "q", Lanes: 8, Unroll: 4, IsScalar: false},
 			{Name: "q", Lanes: 8, Unroll: 1, IsScalar: false},
-			{Name: "d", Lanes: 4, Unroll: 1, IsScalar: false},
 			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
 		},
 		LoadFn: map[string]string{
 			"q":      "vld1q_bf16",
-			"d":      "vld1_u16",
-			"scalar": "vld1_dup_u16",
+			"scalar": "vld1q_bf16", // load full vector even for scalar tail (masked by loop bound)
 		},
 		StoreFn: map[string]string{
 			"q":      "vst1q_bf16",
-			"d":      "vst1_u16",
-			"scalar": "vst1_lane_u16",
+			"scalar": "vst1q_bf16",
 		},
-		// BF16 has no native arithmetic intrinsics; the CEmitter must generate
-		// inline promote-compute-demote sequences. These entries represent the
-		// *compute* step which operates on promoted float32 values.
-		AddFn:  map[string]string{"q": "vaddq_f32"},
-		SubFn:  map[string]string{"q": "vsubq_f32"},
-		MulFn:  map[string]string{"q": "vmulq_f32"},
-		DivFn:  map[string]string{"q": "vdivq_f32"},
-		FmaFn:  map[string]string{"q": "vfmaq_f32"},
-		NegFn:  map[string]string{"q": "vnegq_f32"},
-		AbsFn:  map[string]string{"q": "vabsq_f32"},
-		SqrtFn: map[string]string{"q": "vsqrtq_f32"},
-		MinFn:  map[string]string{"q": "vminq_f32"},
-		MaxFn:  map[string]string{"q": "vmaxq_f32"},
+		// BF16 arithmetic uses inline helpers that handle promote-compute-demote.
+		// Each helper takes/returns bfloat16x8_t, so they compose correctly.
+		AddFn:  map[string]string{"q": "bf16_add_q"},
+		SubFn:  map[string]string{"q": "bf16_sub_q"},
+		MulFn:  map[string]string{"q": "bf16_mul_q"},
+		DivFn:  map[string]string{"q": "bf16_div_q"},
+		FmaFn:  map[string]string{"q": "bf16_fma_q"},
+		NegFn:  map[string]string{"q": "bf16_neg_q"},
+		AbsFn:  map[string]string{"q": "bf16_abs_q"},
+		SqrtFn: map[string]string{"q": "bf16_sqrt_q"},
+		MinFn:  map[string]string{"q": "bf16_min_q"},
+		MaxFn:  map[string]string{"q": "bf16_max_q"},
 		DupFn: map[string]string{
-			"q":      "vld1q_dup_bf16",
-			"d":      "vld1_dup_u16",
-			"scalar": "vld1_dup_u16",
+			"q":      "bf16_dup_q",
+			"scalar": "bf16_dup_q",
 		},
 		GetLaneFn: map[string]string{
-			"q":      "vgetq_lane_bf16",
-			"d":      "vget_lane_u16",
-			"scalar": "vst1_lane_u16",
+			"q": "vgetq_lane_bf16",
 		},
 
-		// Promote: vshll_n_u16(vget_low_u16(vreinterpretq_u16_bf16(x)), 16)
-		//          then vreinterpretq_f32_u32
-		// Demote:  round-to-nearest-even + vmovn_u32 + vcombine_u16
-		//          then vreinterpretq_bf16_u16
-		InlineHelpers:  append(neonF32MathHelpers, scalarF64MathHelpers...), // bf16 promotes to f32 for transcendentals; f64 scalars for stdmath
-		MathStrategy:   "promoted",
-		PromoteFn:      "vshll_n_u16(..., 16) + vreinterpretq_f32_u32",
-		DemoteFn:       "round_bias_vmovn_bf16(%s)", // placeholder: inline bf16 demote sequence
-		SplitPromoteLo: "vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(vreinterpretq_u16_bf16(%s)), 16))",  // %s = narrow vector variable
-		SplitPromoteHi: "vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(vreinterpretq_u16_bf16(%s)), 16))", // %s = narrow vector variable
-		CombineFn:      "vreinterpretq_bf16_u16(vcombine_u16(%s, %s))",                                       // %s = lo half, %s = hi half
-		CastExpr:       "(bfloat16_t*)",
-		FmaArgOrder:    "acc_first",
-		GoatTarget:     "arm64",
-		GoatExtraFlags: []string{"-march=armv8.6-a+bf16+simd"},
+		ReduceSumFn: map[string]string{"q": "bf16_reducesum_q"},
+		ReduceMinFn: map[string]string{"q": "bf16_reducemin_q"},
+		ReduceMaxFn: map[string]string{"q": "bf16_reducemax_q"},
+
+		LessThanFn:    map[string]string{"q": "bf16_lt_q"},
+		EqualFn:       map[string]string{"q": "bf16_eq_q"},
+		GreaterThanFn: map[string]string{"q": "bf16_gt_q"},
+		IfThenElseFn:  map[string]string{"q": "bf16_ifelse_q"},
+		MaskType:      map[string]string{"q": "uint16x8_t"},
+
+		DotAccFn:   map[string]string{"q": "vbfdotq_f32"},
+		DotAccType: map[string]string{"q": "float32x4_t"},
+
+		ScalarArithType: "float",
+		PointerElemType: "unsigned short", // BF16 elements are 2 bytes, not 4 (float)
+		ScalarPromote:   "bf16_scalar_to_f32",
+		ScalarDemote:    "f32_scalar_to_bf16",
+		InlineHelpers:   append(neonBF16ArithHelpers, append(neonF32MathHelpers, scalarF64MathHelpers...)...),
+		MathStrategy:    "promoted",
+		PromoteFn:       "bf16_promote_lo",
+		DemoteFn:        "bf16_demote_half(%s)",
+		SplitPromoteLo:  "bf16_promote_lo(%s)",
+		SplitPromoteHi:  "bf16_promote_hi(%s)",
+		CombineFn:       "bf16_combine(%s, %s)",
+		CastExpr:        "(bfloat16_t*)",
+		NativeArithmetic: true, // Inline helpers provide full SIMD arithmetic via promote-compute-demote
+		FmaArgOrder:      "acc_first",
+
+		WidenAccumulators: true,
+		WidenedAccZero:    "vdupq_n_f32(0.0f)",
+		WidenedAccType:    "float32x4_t",
+		WidenedFmaFn:      "vfmaq_f32",
+		WidenedAddFn:      "vaddq_f32",
+
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv8.6-a+bf16+simd"},
 	}
 }
 
@@ -719,17 +757,12 @@ func avx512BF16Profile() *CIntrinsicProfile {
 		Include:    "#include <immintrin.h>",
 		CType:      "unsigned short",
 		VecTypes: map[string]string{
-			"zmm":         "__m512bh",  // Storage: 32 x bf16 in ZMM
-			"zmm_compute": "__m512",    // Compute: 16 x f32 in ZMM
-			"ymm":         "__m256bh",  // Storage: 16 x bf16 in YMM
-			"ymm_compute": "__m256",    // Compute: 8 x f32 in YMM
-			"wide":        "__m512",    // Promoted f32 vector for math computations
-			"scalar":      "unsigned int",
+			"zmm":    "__m256i",  // Storage: 16 x bf16 in YMM-width (256 bits)
+			"wide":   "__m512",   // Promoted f32 vector for math computations
+			"scalar": "__m256i",
 		},
 		Tiers: []CLoopTier{
-			// Main loop processes 32 bf16 = 2x16 f32 after promotion
-			{Name: "zmm", Lanes: 32, Unroll: 4, IsScalar: false},
-			// Single ZMM processes 16 bf16 via one zmm of f32
+			{Name: "zmm", Lanes: 16, Unroll: 4, IsScalar: false},
 			{Name: "zmm", Lanes: 16, Unroll: 1, IsScalar: false},
 			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
 		},
@@ -741,30 +774,49 @@ func avx512BF16Profile() *CIntrinsicProfile {
 			"zmm":    "_mm256_storeu_si256",  // Store 16 bf16 as __m256i
 			"scalar": "*(unsigned short*)",
 		},
-		// All arithmetic is done after promotion to float32.
-		AddFn:  map[string]string{"zmm": "_mm256_add_ps", "zmm_wide": "_mm512_add_ps"},
-		SubFn:  map[string]string{"zmm": "_mm256_sub_ps", "zmm_wide": "_mm512_sub_ps"},
-		MulFn:  map[string]string{"zmm": "_mm256_mul_ps", "zmm_wide": "_mm512_mul_ps"},
-		DivFn:  map[string]string{"zmm": "_mm256_div_ps", "zmm_wide": "_mm512_div_ps"},
-		FmaFn:  map[string]string{"zmm": "_mm256_fmadd_ps", "zmm_wide": "_mm512_fmadd_ps"},
-		NegFn:  map[string]string{"zmm": "_mm256_sub_ps(zero, x)"},
-		AbsFn:  map[string]string{"zmm": "_mm256_andnot_ps(signmask, x)"},
-		SqrtFn: map[string]string{"zmm": "_mm256_sqrt_ps"},
-		MinFn:  map[string]string{"zmm": "_mm256_min_ps"},
-		MaxFn:  map[string]string{"zmm": "_mm256_max_ps"},
-		DupFn:  map[string]string{"zmm": "_mm256_set1_ps"},
+		// BF16 arithmetic uses inline helpers that handle promote-compute-demote.
+		// Each helper takes/returns __m256i (16 bf16), so they compose correctly.
+		AddFn:  map[string]string{"zmm": "avx512_bf16_add"},
+		SubFn:  map[string]string{"zmm": "avx512_bf16_sub"},
+		MulFn:  map[string]string{"zmm": "avx512_bf16_mul"},
+		DivFn:  map[string]string{"zmm": "avx512_bf16_div"},
+		FmaFn:  map[string]string{"zmm": "avx512_bf16_fma"},
+		NegFn:  map[string]string{"zmm": "avx512_bf16_neg"},
+		AbsFn:  map[string]string{"zmm": "avx512_bf16_abs"},
+		SqrtFn: map[string]string{"zmm": "avx512_bf16_sqrt"},
+		MinFn:  map[string]string{"zmm": "avx512_bf16_min"},
+		MaxFn:  map[string]string{"zmm": "avx512_bf16_max"},
+		DupFn:  map[string]string{"zmm": "avx512_bf16_dup"},
 		GetLaneFn: map[string]string{
 			"zmm": "_mm_cvtss_f32(_mm256_castps256_ps128(x))",
 		},
 
-		// Promote: unpack u16->u32 with zero extend, shift left 16, reinterpret as f32
-		// Demote: _mm512_cvtneps_pbh (VCVTNEPS2BF16)
-		MathStrategy:   "promoted",
-		PromoteFn:      "unpacklo/hi_epi16 + slli_epi32(16)",
-		DemoteFn:       "_mm512_cvtneps_pbh(%s)",
-		FmaArgOrder:    "acc_last",
-		GoatTarget:     "amd64",
-		GoatExtraFlags: []string{"-mavx512bf16", "-mavx512f", "-mavx512vl"},
+		ReduceSumFn: map[string]string{"zmm": "avx512_bf16_reducesum"},
+		ReduceMinFn: map[string]string{"zmm": "avx512_bf16_reducemin"},
+		ReduceMaxFn: map[string]string{"zmm": "avx512_bf16_reducemax"},
+
+		LessThanFn:    map[string]string{"zmm": "avx512_bf16_lt"},
+		EqualFn:       map[string]string{"zmm": "avx512_bf16_eq"},
+		GreaterThanFn: map[string]string{"zmm": "avx512_bf16_gt"},
+		IfThenElseFn:  map[string]string{"zmm": "avx512_bf16_ifelse"},
+		MaskType:      map[string]string{"zmm": "__mmask16"},
+
+		DotAccFn:   map[string]string{"zmm": "_mm512_dpbf16_ps"},
+		DotAccType: map[string]string{"zmm": "__m512"},
+
+		ScalarArithType:  "float",
+		PointerElemType:  "unsigned short", // BF16 elements are 2 bytes, not 4 (float)
+		ScalarPromote:    "bf16_scalar_to_f32",
+		ScalarDemote:     "f32_scalar_to_bf16",
+		InlineHelpers:    avx512BF16ArithHelpers,
+		MathStrategy:     "promoted",
+		NativeArithmetic: true, // Inline helpers provide full SIMD arithmetic via promote-compute-demote
+		PromoteFn:        "avx512_bf16_promote",
+		DemoteFn:         "avx512_bf16_demote(%s)",
+		CastExpr:         "(__m256i*)",
+		FmaArgOrder:      "acc_last",
+		GoatTarget:       "amd64",
+		GoatExtraFlags:   []string{"-mavx512bf16", "-mavx512f", "-mavx512vl"},
 	}
 }
 
@@ -1242,4 +1294,273 @@ func sveLinuxF64Profile() *CIntrinsicProfile {
 		NeedsPredicate:   true,
 		PredicateDecl:    "svptrue_b64()",
 	}
+}
+
+// ---------------------------------------------------------------------------
+// NEON BF16 arithmetic helpers (static inline, inlined by clang at -O3)
+// ---------------------------------------------------------------------------
+// BFloat16 has NO native SIMD arithmetic on NEON. All ops use:
+//   promote bfloat16x8_t → 2×float32x4_t → compute → demote → bfloat16x8_t
+//
+// Promotion: shift left 16 (u16→u32 zero extend, then reinterpret as f32).
+// Demotion: round-to-nearest-even bias, then narrow to u16.
+
+var neonBF16ArithHelpers = []string{
+	// --- Promote/Demote primitives ---
+	`static inline float32x4_t bf16_promote_lo(bfloat16x8_t v) {
+    uint16x4_t lo = vget_low_u16(vreinterpretq_u16_bf16(v));
+    uint32x4_t wide = vshll_n_u16(lo, 16);
+    return vreinterpretq_f32_u32(wide);
+}`,
+	`static inline float32x4_t bf16_promote_hi(bfloat16x8_t v) {
+    uint16x4_t hi = vget_high_u16(vreinterpretq_u16_bf16(v));
+    uint32x4_t wide = vshll_n_u16(hi, 16);
+    return vreinterpretq_f32_u32(wide);
+}`,
+	// Demote f32→bf16 (4 lanes) with round-to-nearest-even.
+	`static inline uint16x4_t bf16_demote_half(float32x4_t v) {
+    uint32x4_t bits = vreinterpretq_u32_f32(v);
+    uint32x4_t lsb = vshrq_n_u32(bits, 16);
+    lsb = vandq_u32(lsb, vdupq_n_u32(1));
+    uint32x4_t bias = vaddq_u32(vdupq_n_u32(0x7FFF), lsb);
+    bits = vaddq_u32(bits, bias);
+    return vshrn_n_u32(bits, 16);
+}`,
+	`static inline bfloat16x8_t bf16_combine(uint16x4_t lo, uint16x4_t hi) {
+    return vreinterpretq_bf16_u16(vcombine_u16(lo, hi));
+}`,
+
+	// --- Binary ops (take/return bfloat16x8_t) ---
+	`static inline bfloat16x8_t bf16_add_q(bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vaddq_f32(a_lo, b_lo)),
+                        bf16_demote_half(vaddq_f32(a_hi, b_hi)));
+}`,
+	`static inline bfloat16x8_t bf16_sub_q(bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vsubq_f32(a_lo, b_lo)),
+                        bf16_demote_half(vsubq_f32(a_hi, b_hi)));
+}`,
+	`static inline bfloat16x8_t bf16_mul_q(bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vmulq_f32(a_lo, b_lo)),
+                        bf16_demote_half(vmulq_f32(a_hi, b_hi)));
+}`,
+	`static inline bfloat16x8_t bf16_div_q(bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vdivq_f32(a_lo, b_lo)),
+                        bf16_demote_half(vdivq_f32(a_hi, b_hi)));
+}`,
+	`static inline bfloat16x8_t bf16_min_q(bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vminq_f32(a_lo, b_lo)),
+                        bf16_demote_half(vminq_f32(a_hi, b_hi)));
+}`,
+	`static inline bfloat16x8_t bf16_max_q(bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vmaxq_f32(a_lo, b_lo)),
+                        bf16_demote_half(vmaxq_f32(a_hi, b_hi)));
+}`,
+
+	// --- FMA: acc + a*b (acc_first convention) ---
+	`static inline bfloat16x8_t bf16_fma_q(bfloat16x8_t acc, bfloat16x8_t a, bfloat16x8_t b) {
+    float32x4_t acc_lo = bf16_promote_lo(acc), acc_hi = bf16_promote_hi(acc);
+    float32x4_t a_lo = bf16_promote_lo(a), a_hi = bf16_promote_hi(a);
+    float32x4_t b_lo = bf16_promote_lo(b), b_hi = bf16_promote_hi(b);
+    return bf16_combine(bf16_demote_half(vfmaq_f32(acc_lo, a_lo, b_lo)),
+                        bf16_demote_half(vfmaq_f32(acc_hi, a_hi, b_hi)));
+}`,
+
+	// --- Unary ops ---
+	`static inline bfloat16x8_t bf16_neg_q(bfloat16x8_t v) {
+    uint16x8_t bits = vreinterpretq_u16_bf16(v);
+    bits = veorq_u16(bits, vdupq_n_u16(0x8000));
+    return vreinterpretq_bf16_u16(bits);
+}`,
+	`static inline bfloat16x8_t bf16_abs_q(bfloat16x8_t v) {
+    uint16x8_t bits = vreinterpretq_u16_bf16(v);
+    bits = vandq_u16(bits, vdupq_n_u16(0x7FFF));
+    return vreinterpretq_bf16_u16(bits);
+}`,
+	`static inline bfloat16x8_t bf16_sqrt_q(bfloat16x8_t v) {
+    float32x4_t lo = bf16_promote_lo(v), hi = bf16_promote_hi(v);
+    return bf16_combine(bf16_demote_half(vsqrtq_f32(lo)),
+                        bf16_demote_half(vsqrtq_f32(hi)));
+}`,
+
+	// --- Broadcast / Zero ---
+	`static inline bfloat16x8_t bf16_zero_q(void) {
+    return vreinterpretq_bf16_u16(vdupq_n_u16(0));
+}`,
+	`static inline bfloat16x8_t bf16_dup_q(unsigned short val) {
+    return vreinterpretq_bf16_u16(vdupq_n_u16(val));
+}`,
+
+	// --- Reductions (return float) ---
+	`static inline float bf16_reducesum_q(bfloat16x8_t v) {
+    float32x4_t lo = bf16_promote_lo(v);
+    float32x4_t hi = bf16_promote_hi(v);
+    return vaddvq_f32(vaddq_f32(lo, hi));
+}`,
+	`static inline float bf16_reducemin_q(bfloat16x8_t v) {
+    float32x4_t lo = bf16_promote_lo(v);
+    float32x4_t hi = bf16_promote_hi(v);
+    return vminvq_f32(vminq_f32(lo, hi));
+}`,
+	`static inline float bf16_reducemax_q(bfloat16x8_t v) {
+    float32x4_t lo = bf16_promote_lo(v);
+    float32x4_t hi = bf16_promote_hi(v);
+    return vmaxvq_f32(vmaxq_f32(lo, hi));
+}`,
+
+	// --- Comparisons (return uint16x8_t mask) ---
+	`static inline uint16x8_t bf16_lt_q(bfloat16x8_t a, bfloat16x8_t b) {
+    uint32x4_t m_lo = vcltq_f32(bf16_promote_lo(a), bf16_promote_lo(b));
+    uint32x4_t m_hi = vcltq_f32(bf16_promote_hi(a), bf16_promote_hi(b));
+    return vcombine_u16(vmovn_u32(m_lo), vmovn_u32(m_hi));
+}`,
+	`static inline uint16x8_t bf16_eq_q(bfloat16x8_t a, bfloat16x8_t b) {
+    uint32x4_t m_lo = vceqq_f32(bf16_promote_lo(a), bf16_promote_lo(b));
+    uint32x4_t m_hi = vceqq_f32(bf16_promote_hi(a), bf16_promote_hi(b));
+    return vcombine_u16(vmovn_u32(m_lo), vmovn_u32(m_hi));
+}`,
+	`static inline uint16x8_t bf16_gt_q(bfloat16x8_t a, bfloat16x8_t b) {
+    uint32x4_t m_lo = vcgtq_f32(bf16_promote_lo(a), bf16_promote_lo(b));
+    uint32x4_t m_hi = vcgtq_f32(bf16_promote_hi(a), bf16_promote_hi(b));
+    return vcombine_u16(vmovn_u32(m_lo), vmovn_u32(m_hi));
+}`,
+	// IfThenElse operates on bit patterns — no promotion needed.
+	`static inline bfloat16x8_t bf16_ifelse_q(uint16x8_t mask, bfloat16x8_t yes, bfloat16x8_t no) {
+    return vreinterpretq_bf16_u16(vbslq_u16(mask,
+        vreinterpretq_u16_bf16(yes), vreinterpretq_u16_bf16(no)));
+}`,
+
+	// --- Scalar promote/demote (for scalar tail arithmetic) ---
+	`static inline float bf16_scalar_to_f32(unsigned short v) {
+    unsigned int bits = (unsigned int)v << 16;
+    float f;
+    __builtin_memcpy(&f, &bits, 4);
+    return f;
+}`,
+	`static inline unsigned short f32_scalar_to_bf16(float f) {
+    unsigned int bits;
+    __builtin_memcpy(&bits, &f, 4);
+    unsigned int lsb = (bits >> 16) & 1;
+    bits += 0x7FFF + lsb;
+    return (unsigned short)(bits >> 16);
+}`,
+}
+
+// ---------------------------------------------------------------------------
+// AVX-512 BF16 arithmetic helpers (static inline, inlined by clang at -O3)
+// ---------------------------------------------------------------------------
+// AVX-512 BF16 stores 16 bf16 values in a __m256i (256 bits).
+// Compute uses __m512 (16 x float32). Hardware VCVTNEPS2BF16 for demotion.
+
+var avx512BF16ArithHelpers = []string{
+	// --- Promote/Demote primitives ---
+	`static inline __m512 avx512_bf16_promote(__m256i v) {
+    __m512i wide = _mm512_cvtepu16_epi32(v);
+    wide = _mm512_slli_epi32(wide, 16);
+    return _mm512_castsi512_ps(wide);
+}`,
+	// VCVTNEPS2BF16: hardware round-to-nearest-even demotion.
+	`static inline __m256i avx512_bf16_demote(__m512 v) {
+    return (__m256i)_mm512_cvtneps_pbh(v);
+}`,
+
+	// --- Binary ops (take/return __m256i) ---
+	`static inline __m256i avx512_bf16_add(__m256i a, __m256i b) {
+    return avx512_bf16_demote(_mm512_add_ps(avx512_bf16_promote(a), avx512_bf16_promote(b)));
+}`,
+	`static inline __m256i avx512_bf16_sub(__m256i a, __m256i b) {
+    return avx512_bf16_demote(_mm512_sub_ps(avx512_bf16_promote(a), avx512_bf16_promote(b)));
+}`,
+	`static inline __m256i avx512_bf16_mul(__m256i a, __m256i b) {
+    return avx512_bf16_demote(_mm512_mul_ps(avx512_bf16_promote(a), avx512_bf16_promote(b)));
+}`,
+	`static inline __m256i avx512_bf16_div(__m256i a, __m256i b) {
+    return avx512_bf16_demote(_mm512_div_ps(avx512_bf16_promote(a), avx512_bf16_promote(b)));
+}`,
+	`static inline __m256i avx512_bf16_min(__m256i a, __m256i b) {
+    return avx512_bf16_demote(_mm512_min_ps(avx512_bf16_promote(a), avx512_bf16_promote(b)));
+}`,
+	`static inline __m256i avx512_bf16_max(__m256i a, __m256i b) {
+    return avx512_bf16_demote(_mm512_max_ps(avx512_bf16_promote(a), avx512_bf16_promote(b)));
+}`,
+
+	// --- FMA: a*b + acc (acc_last convention for AVX) ---
+	`static inline __m256i avx512_bf16_fma(__m256i a, __m256i b, __m256i acc) {
+    __m512 af = avx512_bf16_promote(a);
+    __m512 bf = avx512_bf16_promote(b);
+    __m512 cf = avx512_bf16_promote(acc);
+    return avx512_bf16_demote(_mm512_fmadd_ps(af, bf, cf));
+}`,
+
+	// --- Unary ops ---
+	`static inline __m256i avx512_bf16_neg(__m256i v) {
+    return _mm256_xor_si256(v, _mm256_set1_epi16((short)0x8000));
+}`,
+	`static inline __m256i avx512_bf16_abs(__m256i v) {
+    return _mm256_and_si256(v, _mm256_set1_epi16(0x7FFF));
+}`,
+	`static inline __m256i avx512_bf16_sqrt(__m256i v) {
+    return avx512_bf16_demote(_mm512_sqrt_ps(avx512_bf16_promote(v)));
+}`,
+
+	// --- Broadcast / Zero ---
+	`static inline __m256i avx512_bf16_zero(void) {
+    return _mm256_setzero_si256();
+}`,
+	`static inline __m256i avx512_bf16_dup(unsigned short val) {
+    return _mm256_set1_epi16((short)val);
+}`,
+
+	// --- Reductions (return float) ---
+	`static inline float avx512_bf16_reducesum(__m256i v) {
+    return _mm512_reduce_add_ps(avx512_bf16_promote(v));
+}`,
+	`static inline float avx512_bf16_reducemin(__m256i v) {
+    return _mm512_reduce_min_ps(avx512_bf16_promote(v));
+}`,
+	`static inline float avx512_bf16_reducemax(__m256i v) {
+    return _mm512_reduce_max_ps(avx512_bf16_promote(v));
+}`,
+
+	// --- Comparisons (return __mmask16) ---
+	`static inline __mmask16 avx512_bf16_lt(__m256i a, __m256i b) {
+    return _mm512_cmp_ps_mask(avx512_bf16_promote(a), avx512_bf16_promote(b), _CMP_LT_OQ);
+}`,
+	`static inline __mmask16 avx512_bf16_eq(__m256i a, __m256i b) {
+    return _mm512_cmp_ps_mask(avx512_bf16_promote(a), avx512_bf16_promote(b), _CMP_EQ_OQ);
+}`,
+	`static inline __mmask16 avx512_bf16_gt(__m256i a, __m256i b) {
+    return _mm512_cmp_ps_mask(avx512_bf16_promote(a), avx512_bf16_promote(b), _CMP_GT_OQ);
+}`,
+	// IfThenElse: mask-based blend on the u16 bit patterns.
+	`static inline __m256i avx512_bf16_ifelse(__mmask16 mask, __m256i yes, __m256i no) {
+    return _mm256_mask_blend_epi16(mask, no, yes);
+}`,
+
+	// --- Scalar promote/demote (for scalar tail arithmetic) ---
+	// Same implementation as NEON — scalar bf16↔f32 is architecture-independent.
+	`static inline float bf16_scalar_to_f32(unsigned short v) {
+    unsigned int bits = (unsigned int)v << 16;
+    float f;
+    __builtin_memcpy(&f, &bits, 4);
+    return f;
+}`,
+	`static inline unsigned short f32_scalar_to_bf16(float f) {
+    unsigned int bits;
+    __builtin_memcpy(&bits, &f, 4);
+    unsigned int lsb = (bits >> 16) & 1;
+    bits += 0x7FFF + lsb;
+    return (unsigned short)(bits >> 16);
+}`,
 }

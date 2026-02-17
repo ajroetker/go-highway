@@ -41,6 +41,37 @@ func MatCF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
 	)
 }
 
+// MatCBF16 computes MatVec using NEON SIMD assembly.
+func MatCBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
+	var p_m unsafe.Pointer
+	if len(m) > 0 {
+		p_m = unsafe.Pointer(&m[0])
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	var p_result unsafe.Pointer
+	if len(result) > 0 {
+		p_result = unsafe.Pointer(&result[0])
+	}
+	rowsVal := int64(rows)
+	colsVal := int64(cols)
+	len_mVal := int64(len(m))
+	len_vVal := int64(len(v))
+	len_resultVal := int64(len(result))
+	matvec_c_bf16_neon(
+		p_m,
+		unsafe.Pointer(&rowsVal),
+		unsafe.Pointer(&colsVal),
+		p_v,
+		p_result,
+		unsafe.Pointer(&len_mVal),
+		unsafe.Pointer(&len_vVal),
+		unsafe.Pointer(&len_resultVal),
+	)
+}
+
 // MatCF32 computes MatVec using NEON SIMD assembly.
 func MatCF32(m []float32, rows, cols int, v, result []float32) {
 	var p_m unsafe.Pointer

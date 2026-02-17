@@ -38,6 +38,11 @@ type CASTTranslator struct {
 	// Used to emit struct typedefs for any generic struct pointer parameters.
 	requiredStructTypes map[string]structTypeInfo
 
+	// Widened accumulator tracking: variables that are kept in a wider type
+	// (e.g., f32 for BF16) to avoid promote/demote round-trips per FMA.
+	// Maps variable name → true. Each widened var "x" becomes "x_lo"/"x_hi" in C.
+	widenedVars map[string]bool
+
 	// Generic type parameter names (e.g., {"T": true}).
 	// Used to resolve type conversions like T(2) to the concrete C type.
 	typeParamNames map[string]bool
@@ -84,6 +89,39 @@ func (t *CASTTranslator) deferredAccumsOrdered() []deferredAccum {
 	return accums
 }
 
+// isWidenedVar checks if an AST expression refers to a widened accumulator variable.
+func (t *CASTTranslator) isWidenedVar(expr ast.Expr) (string, bool) {
+	if id, ok := expr.(*ast.Ident); ok {
+		return id.Name, t.widenedVars[id.Name]
+	}
+	return "", false
+}
+
+// isHwyCall checks if an expression is a call to hwy.<fnName> (with optional
+// type parameters) and returns the call expression if so.
+func isHwyCall(expr ast.Expr, fnName string) (*ast.CallExpr, bool) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return nil, false
+	}
+	fun := call.Fun
+	if idx, ok := fun.(*ast.IndexExpr); ok {
+		fun = idx.X
+	}
+	if idx, ok := fun.(*ast.IndexListExpr); ok {
+		fun = idx.X
+	}
+	sel := extractSelectorExpr(fun)
+	if sel == nil {
+		return nil, false
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	if !ok || pkg.Name != "hwy" {
+		return nil, false
+	}
+	return call, sel.Sel.Name == fnName
+}
+
 // structTypeInfo tracks information about a generic struct type used as a parameter.
 type structTypeInfo struct {
 	goType    string        // Original Go type, e.g. "*Image[T]"
@@ -96,7 +134,8 @@ type cVarInfo struct {
 	cType    string // "float32x4_t", "float", "long", "float *"
 	isVector bool
 	isPtr    bool
-	arrayLen string // for vector arrays: the C length expression (e.g. "lanes")
+	arrayLen  string // for vector arrays: the C length expression (e.g. "lanes")
+	isWidened bool   // true if widened accumulator (varname_lo/varname_hi pair in C)
 }
 
 // cParamInfo tracks function parameter translation details.
@@ -122,6 +161,7 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 		vars:                make(map[string]cVarInfo),
 		params:              make(map[string]cParamInfo),
 		sliceLenVars:        make(map[string]string),
+		widenedVars:         make(map[string]bool),
 		requiredStructTypes: make(map[string]structTypeInfo),
 		buf:                 &bytes.Buffer{},
 	}
@@ -173,6 +213,7 @@ func (t *CASTTranslator) TranslateToC(pf *ParsedFunc) (string, error) {
 	t.buf.Reset()
 	t.vars = make(map[string]cVarInfo)
 	t.params = make(map[string]cParamInfo)
+	t.widenedVars = make(map[string]bool)
 	t.requiredStructTypes = make(map[string]structTypeInfo)
 	t.typeParamNames = make(map[string]bool)
 	for _, tp := range pf.TypeParams {
@@ -752,6 +793,9 @@ func goSliceElemToCType(elemType string, profile *CIntrinsicProfile) string {
 	case "uint16":
 		return "unsigned short"
 	case "T":
+		if profile.PointerElemType != "" {
+			return profile.PointerElemType
+		}
 		if profile.ScalarArithType != "" {
 			return profile.ScalarArithType
 		}
@@ -1184,6 +1228,76 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 
+	// Extract raw LHS identifier for widened accumulator handling.
+	// Must happen before translateExpr(lhs) which would materialize widened vars.
+	var lhsIdent string
+	if id, ok := lhs.(*ast.Ident); ok {
+		lhsIdent = id.Name
+	}
+
+	// Widened accumulator: acc := hwy.Zero[T]() → two f32 halves
+	if lhsIdent != "" && s.Tok == token.DEFINE && t.profile.WidenAccumulators {
+		if _, ok := isHwyCall(rhs, "Zero"); ok {
+			wideType := t.profile.WidenedAccType
+			zeroExpr := t.profile.WidenedAccZero
+			t.widenedVars[lhsIdent] = true
+			t.vars[lhsIdent] = cVarInfo{cType: wideType, isVector: true, isWidened: true}
+			t.writef("%s %s_lo = %s;\n", wideType, lhsIdent, zeroExpr)
+			t.writef("%s %s_hi = %s;\n", wideType, lhsIdent, zeroExpr)
+			return
+		}
+	}
+
+	// Widened accumulator: acc = hwy.MulAdd(a, b, acc) → two f32 FMAs
+	if lhsIdent != "" && s.Tok == token.ASSIGN && t.widenedVars[lhsIdent] {
+		if call, ok := isHwyCall(rhs, "MulAdd"); ok && len(call.Args) >= 3 {
+			a := t.translateExpr(call.Args[0])
+			b := t.translateExpr(call.Args[1])
+			fmaFn := t.profile.WidenedFmaFn
+			proLo := t.profile.SplitPromoteLo
+			proHi := t.profile.SplitPromoteHi
+			t.writef("%s_lo = %s(%s_lo, %s, %s);\n", lhsIdent, fmaFn, lhsIdent,
+				fmt.Sprintf(proLo, a), fmt.Sprintf(proLo, b))
+			t.writef("%s_hi = %s(%s_hi, %s, %s);\n", lhsIdent, fmaFn, lhsIdent,
+				fmt.Sprintf(proHi, a), fmt.Sprintf(proHi, b))
+			return
+		}
+	}
+
+	// Widened accumulator: v = hwy.Add(v, acc) → promote+add on widened halves
+	if lhsIdent != "" && s.Tok == token.ASSIGN {
+		if call, ok := isHwyCall(rhs, "Add"); ok && len(call.Args) >= 2 {
+			wName, narrowIdx := "", -1
+			for i, arg := range call.Args {
+				if n, isW := t.isWidenedVar(arg); isW {
+					wName = n
+					_ = i
+				} else {
+					narrowIdx = i
+				}
+			}
+			if wName != "" && narrowIdx >= 0 {
+				narrow := t.translateExpr(call.Args[narrowIdx])
+				addFn := t.profile.WidenedAddFn
+				proLo, proHi := t.profile.SplitPromoteLo, t.profile.SplitPromoteHi
+				if t.widenedVars[lhsIdent] {
+					// LHS is also widened: update halves directly (avoid demote+combine round-trip)
+					t.writef("%s_lo = %s(%s, %s_lo);\n", lhsIdent, addFn, fmt.Sprintf(proLo, narrow), wName)
+					t.writef("%s_hi = %s(%s, %s_hi);\n", lhsIdent, addFn, fmt.Sprintf(proHi, narrow), wName)
+				} else {
+					// LHS is a normal (narrow) variable: demote+combine
+					lo := fmt.Sprintf("%s(%s, %s_lo)", addFn, fmt.Sprintf(proLo, narrow), wName)
+					hi := fmt.Sprintf("%s(%s, %s_hi)", addFn, fmt.Sprintf(proHi, narrow), wName)
+					dLo := fmt.Sprintf(t.profile.DemoteFn, lo)
+					dHi := fmt.Sprintf(t.profile.DemoteFn, hi)
+					combined := fmt.Sprintf(t.profile.CombineFn, dLo, dHi)
+					t.writef("%s = %s;\n", lhsIdent, combined)
+				}
+				return
+			}
+		}
+	}
+
 	lhsName := t.translateExpr(lhs)
 
 	switch s.Tok {
@@ -1225,9 +1339,14 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 
 	case token.ASSIGN: // =
 		rhsStr := t.translateExpr(rhs)
-		// Vector arrays (e.g. float32x4_t rows[lanes]) can't be directly
-		// assigned in C. Emit an element-wise copy loop instead.
-		if vi, ok := t.vars[lhsName]; ok && vi.isVector && vi.isPtr && vi.arrayLen != "" {
+		// Promoted-type array element writes need demotion (e.g., BF16
+		// unsigned short ← float). The RHS is a scalar value that must
+		// be converted back to the storage type.
+		if t.profile.ScalarDemote != "" && t.isPromotedArrayIndexExpr(lhs) {
+			t.writef("%s = %s(%s);\n", lhsName, t.profile.ScalarDemote, rhsStr)
+		} else if vi, ok := t.vars[lhsName]; ok && vi.isVector && vi.isPtr && vi.arrayLen != "" {
+			// Vector arrays (e.g. float32x4_t rows[lanes]) can't be directly
+			// assigned in C. Emit an element-wise copy loop instead.
 			t.writef("for (int _ci = 0; _ci < %s; _ci++) %s[_ci] = %s[_ci];\n", vi.arrayLen, lhsName, rhsStr)
 		} else {
 			t.writef("%s = %s;\n", lhsName, rhsStr)
@@ -1248,16 +1367,39 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 				}
 			}
 		}
-		rhsStr := t.translateExpr(rhs)
-		t.writef("%s += %s;\n", lhsName, rhsStr)
+		// Promoted-type array compound assignment: decompose into
+		// promote → compute → demote. E.g., BF16 scalar tail:
+		//   cRow[j] += aip * bRow[j]
+		// becomes:
+		//   cRow[j] = f32_scalar_to_bf16(bf16_scalar_to_f32(cRow[j]) + bf16_scalar_to_f32(aip) * bf16_scalar_to_f32(bRow[j]))
+		if t.profile.ScalarDemote != "" && t.isPromotedArrayIndexExpr(lhs) {
+			rhsStr := t.translatePromotedExpr(rhs)
+			promotedLhs := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, lhsName)
+			t.writef("%s = %s(%s + %s);\n", lhsName, t.profile.ScalarDemote, promotedLhs, rhsStr)
+		} else {
+			rhsStr := t.translateExpr(rhs)
+			t.writef("%s += %s;\n", lhsName, rhsStr)
+		}
 
 	case token.SUB_ASSIGN: // -=
-		rhsStr := t.translateExpr(rhs)
-		t.writef("%s -= %s;\n", lhsName, rhsStr)
+		if t.profile.ScalarDemote != "" && t.isPromotedArrayIndexExpr(lhs) {
+			rhsStr := t.translatePromotedExpr(rhs)
+			promotedLhs := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, lhsName)
+			t.writef("%s = %s(%s - %s);\n", lhsName, t.profile.ScalarDemote, promotedLhs, rhsStr)
+		} else {
+			rhsStr := t.translateExpr(rhs)
+			t.writef("%s -= %s;\n", lhsName, rhsStr)
+		}
 
 	case token.MUL_ASSIGN: // *=
-		rhsStr := t.translateExpr(rhs)
-		t.writef("%s *= %s;\n", lhsName, rhsStr)
+		if t.profile.ScalarDemote != "" && t.isPromotedArrayIndexExpr(lhs) {
+			rhsStr := t.translatePromotedExpr(rhs)
+			promotedLhs := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, lhsName)
+			t.writef("%s = %s(%s * %s);\n", lhsName, t.profile.ScalarDemote, promotedLhs, rhsStr)
+		} else {
+			rhsStr := t.translateExpr(rhs)
+			t.writef("%s *= %s;\n", lhsName, rhsStr)
+		}
 
 	case token.OR_ASSIGN: // |=
 		rhsStr := t.translateExpr(rhs)
@@ -1801,6 +1943,13 @@ func (t *CASTTranslator) translateExpr(expr ast.Expr) string {
 		if e.Name == "nil" {
 			return "0"
 		}
+		// Widened accumulator fallback: materialize as demote+combine
+		// for any context not explicitly optimized (e.g., passing to unknown func).
+		if t.widenedVars[e.Name] {
+			lo := fmt.Sprintf(t.profile.DemoteFn, e.Name+"_lo")
+			hi := fmt.Sprintf(t.profile.DemoteFn, e.Name+"_hi")
+			return fmt.Sprintf(t.profile.CombineFn, lo, hi)
+		}
 		return e.Name
 	case *ast.BasicLit:
 		return t.translateBasicLit(e)
@@ -2087,6 +2236,87 @@ func (t *CASTTranslator) translateIndexExpr(e *ast.IndexExpr) string {
 	return fmt.Sprintf("%s[%s]", x, idx)
 }
 
+// isPromotedArray returns true if expr is an identifier for a slice/pointer
+// whose element type is PointerElemType and the profile has scalar
+// promote/demote functions. This indicates array elements need explicit
+// promote/demote for scalar arithmetic (e.g., BF16 unsigned short ↔ float).
+func (t *CASTTranslator) isPromotedArray(expr ast.Expr) bool {
+	if t.profile.ScalarPromote == "" || t.profile.PointerElemType == "" {
+		return false
+	}
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	name := ident.Name
+	if info, ok := t.vars[name]; ok && info.isPtr {
+		elemType := strings.TrimSuffix(strings.TrimSpace(info.cType), "*")
+		return strings.TrimSpace(elemType) == t.profile.PointerElemType
+	}
+	if info, ok := t.params[name]; ok && info.isSlice {
+		elemType := strings.TrimSuffix(strings.TrimSpace(info.cType), "*")
+		return strings.TrimSpace(elemType) == t.profile.PointerElemType
+	}
+	return false
+}
+
+// isPromotedArrayIndexExpr returns true if expr is an IndexExpr into a
+// promoted-type array (see isPromotedArray).
+func (t *CASTTranslator) isPromotedArrayIndexExpr(expr ast.Expr) bool {
+	ie, ok := expr.(*ast.IndexExpr)
+	if !ok {
+		return false
+	}
+	return t.isPromotedArray(ie.X)
+}
+
+// isPromotedScalarVar returns true if the identifier refers to a local variable
+// whose C type matches the profile's PointerElemType (i.e., it holds a raw
+// promoted-type value like an unsigned short BF16 bit pattern).
+func (t *CASTTranslator) isPromotedScalarVar(expr ast.Expr) bool {
+	if t.profile.ScalarPromote == "" || t.profile.PointerElemType == "" {
+		return false
+	}
+	ident, ok := expr.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	if info, ok := t.vars[ident.Name]; ok {
+		return info.cType == t.profile.PointerElemType
+	}
+	return false
+}
+
+// translatePromotedExpr translates an expression while wrapping promoted-type
+// leaf values (array elements and scalar variables) with ScalarPromote.
+// This is used for scalar tail arithmetic where values stored as unsigned short
+// (BF16 bit patterns) need to be promoted to float for computation.
+func (t *CASTTranslator) translatePromotedExpr(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.BinaryExpr:
+		left := t.translatePromotedExpr(e.X)
+		right := t.translatePromotedExpr(e.Y)
+		return left + " " + e.Op.String() + " " + right
+	case *ast.IndexExpr:
+		x := t.translateExpr(e.X)
+		idx := t.translateExpr(e.Index)
+		result := fmt.Sprintf("%s[%s]", x, idx)
+		if t.isPromotedArray(e.X) {
+			return fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, result)
+		}
+		return result
+	case *ast.Ident:
+		if t.isPromotedScalarVar(e) {
+			return fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, e.Name)
+		}
+		return t.translateExpr(e)
+	case *ast.ParenExpr:
+		return "(" + t.translatePromotedExpr(e.X) + ")"
+	default:
+		return t.translateExpr(expr)
+	}
+}
+
 // translateSliceExpr translates slice expressions to C pointer arithmetic.
 // c[i*n : (i+1)*n] → c + i*n   (as a pointer alias)
 // bRow[j:]          → bRow + j  (as a pointer argument)
@@ -2233,6 +2463,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		return t.lanesExpr()
 	case "GetLane":
 		return t.emitHwyGetLane(args)
+	case "DotAccumulate":
+		return t.emitHwyDotAccumulate(args)
 	default:
 		// Unknown hwy call — emit as-is
 		var argStrs []string
@@ -2267,6 +2499,51 @@ func (t *CASTTranslator) emitHwyStore(args []ast.Expr) {
 		t.writef("/* Store: missing args */\n")
 		return
 	}
+
+	// Pattern 4: hwy.Store(hwy.Add(vC, acc), dst) with widened acc → promote+add+store
+	if addCall, ok := isHwyCall(args[0], "Add"); ok && len(addCall.Args) >= 2 {
+		wName, narrowIdx := "", -1
+		for i, arg := range addCall.Args {
+			if n, isW := t.isWidenedVar(arg); isW {
+				wName = n
+				_ = i
+			} else {
+				narrowIdx = i
+			}
+		}
+		if wName != "" && narrowIdx >= 0 {
+			narrow := t.translateExpr(addCall.Args[narrowIdx])
+			ptr := t.translateExpr(args[1])
+			if t.profile.CastExpr != "" {
+				ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+			}
+			addFn := t.profile.WidenedAddFn
+			proLo, proHi := t.profile.SplitPromoteLo, t.profile.SplitPromoteHi
+			lo := fmt.Sprintf("%s(%s, %s_lo)", addFn, fmt.Sprintf(proLo, narrow), wName)
+			hi := fmt.Sprintf("%s(%s, %s_hi)", addFn, fmt.Sprintf(proHi, narrow), wName)
+			dLo := fmt.Sprintf(t.profile.DemoteFn, lo)
+			dHi := fmt.Sprintf(t.profile.DemoteFn, hi)
+			combined := fmt.Sprintf(t.profile.CombineFn, dLo, dHi)
+			storeFn := t.profile.StoreFn[t.tier]
+			t.writef("%s(%s, %s);\n", storeFn, ptr, combined)
+			return
+		}
+	}
+
+	// Pattern 3: hwy.Store(acc, dst) where acc is widened → combine+demote+store
+	if name, ok := t.isWidenedVar(args[0]); ok {
+		ptr := t.translateExpr(args[1])
+		if t.profile.CastExpr != "" {
+			ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+		}
+		lo := fmt.Sprintf(t.profile.DemoteFn, name+"_lo")
+		hi := fmt.Sprintf(t.profile.DemoteFn, name+"_hi")
+		combined := fmt.Sprintf(t.profile.CombineFn, lo, hi)
+		storeFn := t.profile.StoreFn[t.tier]
+		t.writef("%s(%s, %s);\n", storeFn, ptr, combined)
+		return
+	}
+
 	storeFn := t.profile.StoreFn[t.tier]
 	vec := t.translateExpr(args[0])
 	ptr := t.translateExpr(args[1])
@@ -2310,7 +2587,18 @@ func (t *CASTTranslator) emitHwySet(args []ast.Expr) string {
 }
 
 // emitHwyZero: hwy.Zero[T]() → vdupq_n_f32(0.0f) or vdupq_n_u64(0) for integers
+// BF16: uses dedicated bf16_zero_q() / avx512_bf16_zero() helpers.
 func (t *CASTTranslator) emitHwyZero() string {
+	// BF16 has dedicated zero helpers that avoid type mismatch with DupFn.
+	if t.elemType == "hwy.BFloat16" || t.elemType == "bfloat16" {
+		switch t.profile.TargetName {
+		case "AVX512":
+			return "avx512_bf16_zero()"
+		default:
+			return "bf16_zero_q()"
+		}
+	}
+
 	dupFn := t.profile.DupFn[t.tier]
 	var zero string
 	switch t.elemType {
@@ -2592,6 +2880,24 @@ func (t *CASTTranslator) emitHwySlideUpLanes(args []ast.Expr) string {
 	// Fallback placeholder for AVX / non-literal offsets
 	offset := t.translateExpr(offsetExpr)
 	return fmt.Sprintf("/* SlideUpLanes: fallback for offset=%s */", offset)
+}
+
+// emitHwyDotAccumulate: hwy.DotAccumulate(a, b, acc) → vbfdotq_f32(acc, a, b)
+// BFDOT/VDPBF16PS: pairwise dot-product accumulation of BF16 into F32.
+// Both NEON and AVX-512 use (acc, a, b) argument order.
+func (t *CASTTranslator) emitHwyDotAccumulate(args []ast.Expr) string {
+	if len(args) < 3 {
+		return "/* DotAccumulate: missing args */"
+	}
+	fn := t.profile.DotAccFn[t.tier]
+	if fn == "" {
+		return "/* DotAccumulate: no intrinsic for this target */"
+	}
+	a := t.translateExpr(args[0])
+	b := t.translateExpr(args[1])
+	acc := t.translateExpr(args[2])
+	// Both NEON (vbfdotq_f32) and AVX-512 (_mm512_dpbf16_ps) use (acc, a, b)
+	return fmt.Sprintf("%s(%s, %s, %s)", fn, acc, a, b)
 }
 
 // translateLoad4Assign handles: a, b, c, d := hwy.Load4(slice[off:])
@@ -3020,6 +3326,12 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 					maskType = mt
 				}
 				return cVarInfo{cType: maskType, isVector: true}
+			case "DotAccumulate":
+				// DotAccumulate returns the wide accumulator type (float32x4_t / __m512)
+				if accType, ok := t.profile.DotAccType[t.tier]; ok {
+					return cVarInfo{cType: accType, isVector: true}
+				}
+				return cVarInfo{cType: vecType, isVector: true}
 			case "MaxLanes", "GetLane":
 				return cVarInfo{cType: "long"}
 			}

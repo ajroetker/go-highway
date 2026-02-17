@@ -10,6 +10,11 @@ func MatVec_F16(m unsafe.Pointer, prows unsafe.Pointer, pcols unsafe.Pointer, v 
 	matvec_c_f16_neon(m, prows, pcols, v, result, plen_m, plen_v, plen_result)
 }
 
+// MatVec_BF16 calls the NEON SIMD assembly implementation.
+func MatVec_BF16(m unsafe.Pointer, prows unsafe.Pointer, pcols unsafe.Pointer, v unsafe.Pointer, result unsafe.Pointer, plen_m unsafe.Pointer, plen_v unsafe.Pointer, plen_result unsafe.Pointer) {
+	matvec_c_bf16_neon(m, prows, pcols, v, result, plen_m, plen_v, plen_result)
+}
+
 // MatVec_F32 calls the NEON SIMD assembly implementation.
 func MatVec_F32(m unsafe.Pointer, prows unsafe.Pointer, pcols unsafe.Pointer, v unsafe.Pointer, result unsafe.Pointer, plen_m unsafe.Pointer, plen_v unsafe.Pointer, plen_result unsafe.Pointer) {
 	matvec_c_f32_neon(m, prows, pcols, v, result, plen_m, plen_v, plen_result)

@@ -22,22 +22,49 @@ func BaseBlockMulAdd_neon_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy.Flo
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := 8
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat16x8(uint16(aik))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
-				vA.MulAddAcc(vB, &vC)
-				vC.StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat16x8()
+			acc1 := asm.ZeroFloat16x8()
+			acc2 := asm.ZeroFloat16x8()
+			acc3 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat16x8(uint16(aik))
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0])), &acc0)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0])), &acc1)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0])), &acc2)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0])), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat16x8(uint16(aik))
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0])), &acc)
 			}
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -53,22 +80,49 @@ func BaseBlockMulAdd_neon_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := 8
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastBFloat16x8(uint16(aik))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
-				vA.MulAddAcc(vB, &vC)
-				vC.StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroBFloat16x8()
+			acc1 := asm.ZeroBFloat16x8()
+			acc2 := asm.ZeroBFloat16x8()
+			acc3 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastBFloat16x8(uint16(aik))
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0])), &acc0)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0])), &acc1)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0])), &acc2)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0])), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastBFloat16x8(uint16(aik))
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0])), &acc)
 			}
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -84,22 +138,49 @@ func BaseBlockMulAdd_neon(aT []float32, b []float32, c []float32, blockDim int) 
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := 4
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat32x4(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
-				vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
-				vA.MulAddAcc(vB, &vC)
-				vC.Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat32x4()
+			acc1 := asm.ZeroFloat32x4()
+			acc2 := asm.ZeroFloat32x4()
+			acc3 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat32x4(aik)
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j]))), &acc0)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+lanes]))), &acc1)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+2*lanes]))), &acc2)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+3*lanes]))), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc0).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC.Add(acc1).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC.Add(acc2).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+			vC.Add(acc3).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat32x4(aik)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[k*blockDim+j]))), &acc)
 			}
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -115,22 +196,49 @@ func BaseBlockMulAdd_neon_Float64(aT []float64, b []float64, c []float64, blockD
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := 2
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat64x2(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
-				vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
-				vA.MulAddAcc(vB, &vC)
-				vC.Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat64x2()
+			acc1 := asm.ZeroFloat64x2()
+			acc2 := asm.ZeroFloat64x2()
+			acc3 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat64x2(aik)
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j]))), &acc0)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+lanes]))), &acc1)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+2*lanes]))), &acc2)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+3*lanes]))), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc0).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC.Add(acc1).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC.Add(acc2).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+			vC.Add(acc3).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat64x2(aik)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[k*blockDim+j]))), &acc)
 			}
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum float64
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -146,48 +254,126 @@ func BaseBlockMulAdd2_neon_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		panic("BlockMulAdd2: C slice too short")
 	}
 	lanes := 8
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := asm.BroadcastFloat16x8(uint16(a0k))
-			vA1 := asm.BroadcastFloat16x8(uint16(a1k))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC0 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j:][0]))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.StorePtr(unsafe.Pointer(&c[cRow0Start+j:][0]))
-				vC1 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j:][0]))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.StorePtr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroFloat16x8()
+			acc01 := asm.ZeroFloat16x8()
+			acc02 := asm.ZeroFloat16x8()
+			acc03 := asm.ZeroFloat16x8()
+			acc10 := asm.ZeroFloat16x8()
+			acc11 := asm.ZeroFloat16x8()
+			acc12 := asm.ZeroFloat16x8()
+			acc13 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := asm.BroadcastFloat16x8(uint16(a0k))
+				vA1 := asm.BroadcastFloat16x8(uint16(a1k))
+				bRowStart := k * blockDim
+				vB0 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
+				vB1 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0]))
+				vB2 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0]))
+				vB3 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0]))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] = hwy.Float32ToFloat16(c[cRow0Start+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1Start+j] = hwy.Float32ToFloat16(c[cRow1Start+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC.Add(acc00).StorePtr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j+lanes:][0]))
+			vC.Add(acc01).StorePtr(unsafe.Pointer(&c[cRow0Start+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j+2*lanes:][0]))
+			vC.Add(acc02).StorePtr(unsafe.Pointer(&c[cRow0Start+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j+3*lanes:][0]))
+			vC.Add(acc03).StorePtr(unsafe.Pointer(&c[cRow0Start+j+3*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+			vC.Add(acc10).StorePtr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j+lanes:][0]))
+			vC.Add(acc11).StorePtr(unsafe.Pointer(&c[cRow1Start+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j+2*lanes:][0]))
+			vC.Add(acc12).StorePtr(unsafe.Pointer(&c[cRow1Start+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j+3*lanes:][0]))
+			vC.Add(acc13).StorePtr(unsafe.Pointer(&c[cRow1Start+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroFloat16x8()
+			acc1 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i]))
+				vA1 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+1]))
+				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0]))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
 			}
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+			}
+			c[cRow0Start+j] = hwy.Float32ToFloat16(c[cRow0Start+j].Float32() + sum0)
+			c[cRow1Start+j] = hwy.Float32ToFloat16(c[cRow1Start+j].Float32() + sum1)
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat16x8(uint16(aik))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
-				vA.MulAddAcc(vB, &vC)
-				vC.StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat16x8()
+			acc1 := asm.ZeroFloat16x8()
+			acc2 := asm.ZeroFloat16x8()
+			acc3 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat16x8(uint16(aik))
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0])), &acc0)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0])), &acc1)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0])), &acc2)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0])), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				asm.BroadcastFloat16x8(uint16(aT[k*blockDim+i])).MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0])), &acc)
 			}
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -203,48 +389,126 @@ func BaseBlockMulAdd2_neon_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		panic("BlockMulAdd2: C slice too short")
 	}
 	lanes := 8
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := asm.BroadcastBFloat16x8(uint16(a0k))
-			vA1 := asm.BroadcastBFloat16x8(uint16(a1k))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC0 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j:][0]))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.StorePtr(unsafe.Pointer(&c[cRow0Start+j:][0]))
-				vC1 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j:][0]))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.StorePtr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroBFloat16x8()
+			acc01 := asm.ZeroBFloat16x8()
+			acc02 := asm.ZeroBFloat16x8()
+			acc03 := asm.ZeroBFloat16x8()
+			acc10 := asm.ZeroBFloat16x8()
+			acc11 := asm.ZeroBFloat16x8()
+			acc12 := asm.ZeroBFloat16x8()
+			acc13 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := asm.BroadcastBFloat16x8(uint16(a0k))
+				vA1 := asm.BroadcastBFloat16x8(uint16(a1k))
+				bRowStart := k * blockDim
+				vB0 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
+				vB1 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0]))
+				vB2 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0]))
+				vB3 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0]))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] = hwy.Float32ToBFloat16(c[cRow0Start+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1Start+j] = hwy.Float32ToBFloat16(c[cRow1Start+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC.Add(acc00).StorePtr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j+lanes:][0]))
+			vC.Add(acc01).StorePtr(unsafe.Pointer(&c[cRow0Start+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j+2*lanes:][0]))
+			vC.Add(acc02).StorePtr(unsafe.Pointer(&c[cRow0Start+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j+3*lanes:][0]))
+			vC.Add(acc03).StorePtr(unsafe.Pointer(&c[cRow0Start+j+3*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+			vC.Add(acc10).StorePtr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j+lanes:][0]))
+			vC.Add(acc11).StorePtr(unsafe.Pointer(&c[cRow1Start+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j+2*lanes:][0]))
+			vC.Add(acc12).StorePtr(unsafe.Pointer(&c[cRow1Start+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j+3*lanes:][0]))
+			vC.Add(acc13).StorePtr(unsafe.Pointer(&c[cRow1Start+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroBFloat16x8()
+			acc1 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i]))
+				vA1 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+1]))
+				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0]))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
 			}
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRow0Start+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRow1Start+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+			}
+			c[cRow0Start+j] = hwy.Float32ToBFloat16(c[cRow0Start+j].Float32() + sum0)
+			c[cRow1Start+j] = hwy.Float32ToBFloat16(c[cRow1Start+j].Float32() + sum1)
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastBFloat16x8(uint16(aik))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
-				vA.MulAddAcc(vB, &vC)
-				vC.StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroBFloat16x8()
+			acc1 := asm.ZeroBFloat16x8()
+			acc2 := asm.ZeroBFloat16x8()
+			acc3 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastBFloat16x8(uint16(aik))
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0])), &acc0)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0])), &acc1)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0])), &acc2)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0])), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				asm.BroadcastBFloat16x8(uint16(aT[k*blockDim+i])).MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0])), &acc)
 			}
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -260,48 +524,126 @@ func BaseBlockMulAdd2_neon(aT []float32, b []float32, c []float32, blockDim int)
 		panic("BlockMulAdd2: C slice too short")
 	}
 	lanes := 4
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := asm.BroadcastFloat32x4(a0k)
-			vA1 := asm.BroadcastFloat32x4(a1k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
-				vC0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j])))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.Store((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j])))
-				vC1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j])))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.Store((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroFloat32x4()
+			acc01 := asm.ZeroFloat32x4()
+			acc02 := asm.ZeroFloat32x4()
+			acc03 := asm.ZeroFloat32x4()
+			acc10 := asm.ZeroFloat32x4()
+			acc11 := asm.ZeroFloat32x4()
+			acc12 := asm.ZeroFloat32x4()
+			acc13 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := asm.BroadcastFloat32x4(a0k)
+				vA1 := asm.BroadcastFloat32x4(a1k)
+				bRowStart := k * blockDim
+				vB0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
+				vB1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+lanes])))
+				vB2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+2*lanes])))
+				vB3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+3*lanes])))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += a0k * b[bRowStart+j]
-				c[cRow1Start+j] += a1k * b[bRowStart+j]
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC.Add(acc00).Store((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j+lanes])))
+			vC.Add(acc01).Store((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j+2*lanes])))
+			vC.Add(acc02).Store((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j+3*lanes])))
+			vC.Add(acc03).Store((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j+3*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j])))
+			vC.Add(acc10).Store((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j+lanes])))
+			vC.Add(acc11).Store((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j+2*lanes])))
+			vC.Add(acc12).Store((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j+3*lanes])))
+			vC.Add(acc13).Store((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroFloat32x4()
+			acc1 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat32x4(aT[aTRowK+i])
+				vA1 := asm.BroadcastFloat32x4(aT[aTRowK+i+1])
+				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[k*blockDim+j])))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
 			}
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC.Add(acc0).Store((*[4]float32)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j])))
+			vC.Add(acc1).Store((*[4]float32)(unsafe.Pointer(&c[cRow1Start+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+			}
+			c[cRow0Start+j] += sum0
+			c[cRow1Start+j] += sum1
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat32x4(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
-				vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
-				vA.MulAddAcc(vB, &vC)
-				vC.Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat32x4()
+			acc1 := asm.ZeroFloat32x4()
+			acc2 := asm.ZeroFloat32x4()
+			acc3 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat32x4(aik)
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j]))), &acc0)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+lanes]))), &acc1)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+2*lanes]))), &acc2)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+3*lanes]))), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc0).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC.Add(acc1).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC.Add(acc2).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+			vC.Add(acc3).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				asm.BroadcastFloat32x4(aT[k*blockDim+i]).MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[k*blockDim+j]))), &acc)
 			}
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -317,48 +659,126 @@ func BaseBlockMulAdd2_neon_Float64(aT []float64, b []float64, c []float64, block
 		panic("BlockMulAdd2: C slice too short")
 	}
 	lanes := 2
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := asm.BroadcastFloat64x2(a0k)
-			vA1 := asm.BroadcastFloat64x2(a1k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
-				vC0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j])))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.Store((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j])))
-				vC1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j])))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.Store((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroFloat64x2()
+			acc01 := asm.ZeroFloat64x2()
+			acc02 := asm.ZeroFloat64x2()
+			acc03 := asm.ZeroFloat64x2()
+			acc10 := asm.ZeroFloat64x2()
+			acc11 := asm.ZeroFloat64x2()
+			acc12 := asm.ZeroFloat64x2()
+			acc13 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := asm.BroadcastFloat64x2(a0k)
+				vA1 := asm.BroadcastFloat64x2(a1k)
+				bRowStart := k * blockDim
+				vB0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
+				vB1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+lanes])))
+				vB2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+2*lanes])))
+				vB3 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+3*lanes])))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += a0k * b[bRowStart+j]
-				c[cRow1Start+j] += a1k * b[bRowStart+j]
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC.Add(acc00).Store((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j+lanes])))
+			vC.Add(acc01).Store((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j+2*lanes])))
+			vC.Add(acc02).Store((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j+3*lanes])))
+			vC.Add(acc03).Store((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j+3*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j])))
+			vC.Add(acc10).Store((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j+lanes])))
+			vC.Add(acc11).Store((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j+2*lanes])))
+			vC.Add(acc12).Store((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j+3*lanes])))
+			vC.Add(acc13).Store((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroFloat64x2()
+			acc1 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat64x2(aT[aTRowK+i])
+				vA1 := asm.BroadcastFloat64x2(aT[aTRowK+i+1])
+				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[k*blockDim+j])))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
 			}
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC.Add(acc0).Store((*[2]float64)(unsafe.Pointer(&c[cRow0Start+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j])))
+			vC.Add(acc1).Store((*[2]float64)(unsafe.Pointer(&c[cRow1Start+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float64
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+			}
+			c[cRow0Start+j] += sum0
+			c[cRow1Start+j] += sum1
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat64x2(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
-				vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
-				vA.MulAddAcc(vB, &vC)
-				vC.Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat64x2()
+			acc1 := asm.ZeroFloat64x2()
+			acc2 := asm.ZeroFloat64x2()
+			acc3 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat64x2(aik)
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j]))), &acc0)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+lanes]))), &acc1)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+2*lanes]))), &acc2)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+3*lanes]))), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc0).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC.Add(acc1).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC.Add(acc2).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+			vC.Add(acc3).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				asm.BroadcastFloat64x2(aT[k*blockDim+i]).MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[k*blockDim+j]))), &acc)
 			}
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum float64
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -942,63 +1362,174 @@ func BaseBlockMulAdd4_neon_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		panic("BlockMulAdd4: C slice too short")
 	}
 	lanes := 8
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := asm.BroadcastFloat16x8(uint16(a0k))
-			vA1 := asm.BroadcastFloat16x8(uint16(a1k))
-			vA2 := asm.BroadcastFloat16x8(uint16(a2k))
-			vA3 := asm.BroadcastFloat16x8(uint16(a3k))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC0 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j:][0]))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.StorePtr(unsafe.Pointer(&c[cRow0+j:][0]))
-				vC1 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j:][0]))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.StorePtr(unsafe.Pointer(&c[cRow1+j:][0]))
-				vC2 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j:][0]))
-				vA2.MulAddAcc(vB, &vC2)
-				vC2.StorePtr(unsafe.Pointer(&c[cRow2+j:][0]))
-				vC3 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j:][0]))
-				vA3.MulAddAcc(vB, &vC3)
-				vC3.StorePtr(unsafe.Pointer(&c[cRow3+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroFloat16x8()
+			acc01 := asm.ZeroFloat16x8()
+			acc02 := asm.ZeroFloat16x8()
+			acc03 := asm.ZeroFloat16x8()
+			acc10 := asm.ZeroFloat16x8()
+			acc11 := asm.ZeroFloat16x8()
+			acc12 := asm.ZeroFloat16x8()
+			acc13 := asm.ZeroFloat16x8()
+			acc20 := asm.ZeroFloat16x8()
+			acc21 := asm.ZeroFloat16x8()
+			acc22 := asm.ZeroFloat16x8()
+			acc23 := asm.ZeroFloat16x8()
+			acc30 := asm.ZeroFloat16x8()
+			acc31 := asm.ZeroFloat16x8()
+			acc32 := asm.ZeroFloat16x8()
+			acc33 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i]))
+				vA1 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+1]))
+				vA2 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+2]))
+				vA3 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+3]))
+				bRowStart := k * blockDim
+				vB0 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
+				vB1 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0]))
+				vB2 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0]))
+				vB3 := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0]))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
+				vA2.MulAddAcc(vB0, &acc20)
+				vA2.MulAddAcc(vB1, &acc21)
+				vA2.MulAddAcc(vB2, &acc22)
+				vA2.MulAddAcc(vB3, &acc23)
+				vA3.MulAddAcc(vB0, &acc30)
+				vA3.MulAddAcc(vB1, &acc31)
+				vA3.MulAddAcc(vB2, &acc32)
+				vA3.MulAddAcc(vB3, &acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] = hwy.Float32ToFloat16(c[cRow0+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1+j] = hwy.Float32ToFloat16(c[cRow1+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
-				c[cRow2+j] = hwy.Float32ToFloat16(c[cRow2+j].Float32() + a2k.Float32()*b[bRowStart+j].Float32())
-				c[cRow3+j] = hwy.Float32ToFloat16(c[cRow3+j].Float32() + a3k.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC.Add(acc00).StorePtr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j+lanes:][0]))
+			vC.Add(acc01).StorePtr(unsafe.Pointer(&c[cRow0+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j+2*lanes:][0]))
+			vC.Add(acc02).StorePtr(unsafe.Pointer(&c[cRow0+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j+3*lanes:][0]))
+			vC.Add(acc03).StorePtr(unsafe.Pointer(&c[cRow0+j+3*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC.Add(acc10).StorePtr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j+lanes:][0]))
+			vC.Add(acc11).StorePtr(unsafe.Pointer(&c[cRow1+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j+2*lanes:][0]))
+			vC.Add(acc12).StorePtr(unsafe.Pointer(&c[cRow1+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j+3*lanes:][0]))
+			vC.Add(acc13).StorePtr(unsafe.Pointer(&c[cRow1+j+3*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC.Add(acc20).StorePtr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j+lanes:][0]))
+			vC.Add(acc21).StorePtr(unsafe.Pointer(&c[cRow2+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j+2*lanes:][0]))
+			vC.Add(acc22).StorePtr(unsafe.Pointer(&c[cRow2+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j+3*lanes:][0]))
+			vC.Add(acc23).StorePtr(unsafe.Pointer(&c[cRow2+j+3*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j:][0]))
+			vC.Add(acc30).StorePtr(unsafe.Pointer(&c[cRow3+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j+lanes:][0]))
+			vC.Add(acc31).StorePtr(unsafe.Pointer(&c[cRow3+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j+2*lanes:][0]))
+			vC.Add(acc32).StorePtr(unsafe.Pointer(&c[cRow3+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j+3*lanes:][0]))
+			vC.Add(acc33).StorePtr(unsafe.Pointer(&c[cRow3+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroFloat16x8()
+			acc1 := asm.ZeroFloat16x8()
+			acc2 := asm.ZeroFloat16x8()
+			acc3 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i]))
+				vA1 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+1]))
+				vA2 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+2]))
+				vA3 := asm.BroadcastFloat16x8(uint16(aT[aTRowK+i+3]))
+				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0]))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRow3+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+				sum2 += aT[aTRowK+i+2].Float32() * bkj.Float32()
+				sum3 += aT[aTRowK+i+3].Float32() * bkj.Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToFloat16(c[cRow0+j].Float32() + sum0)
+			c[cRow1+j] = hwy.Float32ToFloat16(c[cRow1+j].Float32() + sum1)
+			c[cRow2+j] = hwy.Float32ToFloat16(c[cRow2+j].Float32() + sum2)
+			c[cRow3+j] = hwy.Float32ToFloat16(c[cRow3+j].Float32() + sum3)
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat16x8(uint16(aik))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
-				vA.MulAddAcc(vB, &vC)
-				vC.StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat16x8()
+			acc1 := asm.ZeroFloat16x8()
+			acc2 := asm.ZeroFloat16x8()
+			acc3 := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat16x8(uint16(aik))
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0])), &acc0)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0])), &acc1)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0])), &acc2)
+				vA.MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0])), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC = asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat16x8()
+			for k := range blockDim {
+				asm.BroadcastFloat16x8(uint16(aT[k*blockDim+i])).MulAddAcc(asm.LoadFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0])), &acc)
 			}
+			vC := asm.LoadFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -1014,63 +1545,174 @@ func BaseBlockMulAdd4_neon_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		panic("BlockMulAdd4: C slice too short")
 	}
 	lanes := 8
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := asm.BroadcastBFloat16x8(uint16(a0k))
-			vA1 := asm.BroadcastBFloat16x8(uint16(a1k))
-			vA2 := asm.BroadcastBFloat16x8(uint16(a2k))
-			vA3 := asm.BroadcastBFloat16x8(uint16(a3k))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC0 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j:][0]))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.StorePtr(unsafe.Pointer(&c[cRow0+j:][0]))
-				vC1 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j:][0]))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.StorePtr(unsafe.Pointer(&c[cRow1+j:][0]))
-				vC2 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j:][0]))
-				vA2.MulAddAcc(vB, &vC2)
-				vC2.StorePtr(unsafe.Pointer(&c[cRow2+j:][0]))
-				vC3 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j:][0]))
-				vA3.MulAddAcc(vB, &vC3)
-				vC3.StorePtr(unsafe.Pointer(&c[cRow3+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroBFloat16x8()
+			acc01 := asm.ZeroBFloat16x8()
+			acc02 := asm.ZeroBFloat16x8()
+			acc03 := asm.ZeroBFloat16x8()
+			acc10 := asm.ZeroBFloat16x8()
+			acc11 := asm.ZeroBFloat16x8()
+			acc12 := asm.ZeroBFloat16x8()
+			acc13 := asm.ZeroBFloat16x8()
+			acc20 := asm.ZeroBFloat16x8()
+			acc21 := asm.ZeroBFloat16x8()
+			acc22 := asm.ZeroBFloat16x8()
+			acc23 := asm.ZeroBFloat16x8()
+			acc30 := asm.ZeroBFloat16x8()
+			acc31 := asm.ZeroBFloat16x8()
+			acc32 := asm.ZeroBFloat16x8()
+			acc33 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i]))
+				vA1 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+1]))
+				vA2 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+2]))
+				vA3 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+3]))
+				bRowStart := k * blockDim
+				vB0 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
+				vB1 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0]))
+				vB2 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0]))
+				vB3 := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0]))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
+				vA2.MulAddAcc(vB0, &acc20)
+				vA2.MulAddAcc(vB1, &acc21)
+				vA2.MulAddAcc(vB2, &acc22)
+				vA2.MulAddAcc(vB3, &acc23)
+				vA3.MulAddAcc(vB0, &acc30)
+				vA3.MulAddAcc(vB1, &acc31)
+				vA3.MulAddAcc(vB2, &acc32)
+				vA3.MulAddAcc(vB3, &acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] = hwy.Float32ToBFloat16(c[cRow0+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1+j] = hwy.Float32ToBFloat16(c[cRow1+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
-				c[cRow2+j] = hwy.Float32ToBFloat16(c[cRow2+j].Float32() + a2k.Float32()*b[bRowStart+j].Float32())
-				c[cRow3+j] = hwy.Float32ToBFloat16(c[cRow3+j].Float32() + a3k.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC.Add(acc00).StorePtr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j+lanes:][0]))
+			vC.Add(acc01).StorePtr(unsafe.Pointer(&c[cRow0+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j+2*lanes:][0]))
+			vC.Add(acc02).StorePtr(unsafe.Pointer(&c[cRow0+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j+3*lanes:][0]))
+			vC.Add(acc03).StorePtr(unsafe.Pointer(&c[cRow0+j+3*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC.Add(acc10).StorePtr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j+lanes:][0]))
+			vC.Add(acc11).StorePtr(unsafe.Pointer(&c[cRow1+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j+2*lanes:][0]))
+			vC.Add(acc12).StorePtr(unsafe.Pointer(&c[cRow1+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j+3*lanes:][0]))
+			vC.Add(acc13).StorePtr(unsafe.Pointer(&c[cRow1+j+3*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC.Add(acc20).StorePtr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j+lanes:][0]))
+			vC.Add(acc21).StorePtr(unsafe.Pointer(&c[cRow2+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j+2*lanes:][0]))
+			vC.Add(acc22).StorePtr(unsafe.Pointer(&c[cRow2+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j+3*lanes:][0]))
+			vC.Add(acc23).StorePtr(unsafe.Pointer(&c[cRow2+j+3*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j:][0]))
+			vC.Add(acc30).StorePtr(unsafe.Pointer(&c[cRow3+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j+lanes:][0]))
+			vC.Add(acc31).StorePtr(unsafe.Pointer(&c[cRow3+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j+2*lanes:][0]))
+			vC.Add(acc32).StorePtr(unsafe.Pointer(&c[cRow3+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j+3*lanes:][0]))
+			vC.Add(acc33).StorePtr(unsafe.Pointer(&c[cRow3+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroBFloat16x8()
+			acc1 := asm.ZeroBFloat16x8()
+			acc2 := asm.ZeroBFloat16x8()
+			acc3 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i]))
+				vA1 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+1]))
+				vA2 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+2]))
+				vA3 := asm.BroadcastBFloat16x8(uint16(aT[aTRowK+i+3]))
+				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0]))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRow0+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRow1+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRow2+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRow3+j:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRow3+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+				sum2 += aT[aTRowK+i+2].Float32() * bkj.Float32()
+				sum3 += aT[aTRowK+i+3].Float32() * bkj.Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToBFloat16(c[cRow0+j].Float32() + sum0)
+			c[cRow1+j] = hwy.Float32ToBFloat16(c[cRow1+j].Float32() + sum1)
+			c[cRow2+j] = hwy.Float32ToBFloat16(c[cRow2+j].Float32() + sum2)
+			c[cRow3+j] = hwy.Float32ToBFloat16(c[cRow3+j].Float32() + sum3)
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastBFloat16x8(uint16(aik))
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0]))
-				vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
-				vA.MulAddAcc(vB, &vC)
-				vC.StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroBFloat16x8()
+			acc1 := asm.ZeroBFloat16x8()
+			acc2 := asm.ZeroBFloat16x8()
+			acc3 := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastBFloat16x8(uint16(aik))
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j:][0])), &acc0)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+lanes:][0])), &acc1)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+2*lanes:][0])), &acc2)
+				vA.MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[bRowStart+j+3*lanes:][0])), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc0).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC.Add(acc1).StorePtr(unsafe.Pointer(&c[cRowStart+j+lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC.Add(acc2).StorePtr(unsafe.Pointer(&c[cRowStart+j+2*lanes:][0]))
+			vC = asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+			vC.Add(acc3).StorePtr(unsafe.Pointer(&c[cRowStart+j+3*lanes:][0]))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroBFloat16x8()
+			for k := range blockDim {
+				asm.BroadcastBFloat16x8(uint16(aT[k*blockDim+i])).MulAddAcc(asm.LoadBFloat16x8Ptr(unsafe.Pointer(&b[k*blockDim+j:][0])), &acc)
 			}
+			vC := asm.LoadBFloat16x8Ptr(unsafe.Pointer(&c[cRowStart+j:][0]))
+			vC.Add(acc).StorePtr(unsafe.Pointer(&c[cRowStart+j:][0]))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -1086,63 +1728,174 @@ func BaseBlockMulAdd4_neon(aT []float32, b []float32, c []float32, blockDim int)
 		panic("BlockMulAdd4: C slice too short")
 	}
 	lanes := 4
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := asm.BroadcastFloat32x4(a0k)
-			vA1 := asm.BroadcastFloat32x4(a1k)
-			vA2 := asm.BroadcastFloat32x4(a2k)
-			vA3 := asm.BroadcastFloat32x4(a3k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
-				vC0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0+j])))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.Store((*[4]float32)(unsafe.Pointer(&c[cRow0+j])))
-				vC1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1+j])))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.Store((*[4]float32)(unsafe.Pointer(&c[cRow1+j])))
-				vC2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow2+j])))
-				vA2.MulAddAcc(vB, &vC2)
-				vC2.Store((*[4]float32)(unsafe.Pointer(&c[cRow2+j])))
-				vC3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow3+j])))
-				vA3.MulAddAcc(vB, &vC3)
-				vC3.Store((*[4]float32)(unsafe.Pointer(&c[cRow3+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroFloat32x4()
+			acc01 := asm.ZeroFloat32x4()
+			acc02 := asm.ZeroFloat32x4()
+			acc03 := asm.ZeroFloat32x4()
+			acc10 := asm.ZeroFloat32x4()
+			acc11 := asm.ZeroFloat32x4()
+			acc12 := asm.ZeroFloat32x4()
+			acc13 := asm.ZeroFloat32x4()
+			acc20 := asm.ZeroFloat32x4()
+			acc21 := asm.ZeroFloat32x4()
+			acc22 := asm.ZeroFloat32x4()
+			acc23 := asm.ZeroFloat32x4()
+			acc30 := asm.ZeroFloat32x4()
+			acc31 := asm.ZeroFloat32x4()
+			acc32 := asm.ZeroFloat32x4()
+			acc33 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat32x4(aT[aTRowK+i])
+				vA1 := asm.BroadcastFloat32x4(aT[aTRowK+i+1])
+				vA2 := asm.BroadcastFloat32x4(aT[aTRowK+i+2])
+				vA3 := asm.BroadcastFloat32x4(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
+				vB1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+lanes])))
+				vB2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+2*lanes])))
+				vB3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+3*lanes])))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
+				vA2.MulAddAcc(vB0, &acc20)
+				vA2.MulAddAcc(vB1, &acc21)
+				vA2.MulAddAcc(vB2, &acc22)
+				vA2.MulAddAcc(vB3, &acc23)
+				vA3.MulAddAcc(vB0, &acc30)
+				vA3.MulAddAcc(vB1, &acc31)
+				vA3.MulAddAcc(vB2, &acc32)
+				vA3.MulAddAcc(vB3, &acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] += a0k * b[bRowStart+j]
-				c[cRow1+j] += a1k * b[bRowStart+j]
-				c[cRow2+j] += a2k * b[bRowStart+j]
-				c[cRow3+j] += a3k * b[bRowStart+j]
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0+j])))
+			vC.Add(acc00).Store((*[4]float32)(unsafe.Pointer(&c[cRow0+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0+j+lanes])))
+			vC.Add(acc01).Store((*[4]float32)(unsafe.Pointer(&c[cRow0+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0+j+2*lanes])))
+			vC.Add(acc02).Store((*[4]float32)(unsafe.Pointer(&c[cRow0+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0+j+3*lanes])))
+			vC.Add(acc03).Store((*[4]float32)(unsafe.Pointer(&c[cRow0+j+3*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1+j])))
+			vC.Add(acc10).Store((*[4]float32)(unsafe.Pointer(&c[cRow1+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1+j+lanes])))
+			vC.Add(acc11).Store((*[4]float32)(unsafe.Pointer(&c[cRow1+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1+j+2*lanes])))
+			vC.Add(acc12).Store((*[4]float32)(unsafe.Pointer(&c[cRow1+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1+j+3*lanes])))
+			vC.Add(acc13).Store((*[4]float32)(unsafe.Pointer(&c[cRow1+j+3*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow2+j])))
+			vC.Add(acc20).Store((*[4]float32)(unsafe.Pointer(&c[cRow2+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow2+j+lanes])))
+			vC.Add(acc21).Store((*[4]float32)(unsafe.Pointer(&c[cRow2+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow2+j+2*lanes])))
+			vC.Add(acc22).Store((*[4]float32)(unsafe.Pointer(&c[cRow2+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow2+j+3*lanes])))
+			vC.Add(acc23).Store((*[4]float32)(unsafe.Pointer(&c[cRow2+j+3*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow3+j])))
+			vC.Add(acc30).Store((*[4]float32)(unsafe.Pointer(&c[cRow3+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow3+j+lanes])))
+			vC.Add(acc31).Store((*[4]float32)(unsafe.Pointer(&c[cRow3+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow3+j+2*lanes])))
+			vC.Add(acc32).Store((*[4]float32)(unsafe.Pointer(&c[cRow3+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow3+j+3*lanes])))
+			vC.Add(acc33).Store((*[4]float32)(unsafe.Pointer(&c[cRow3+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroFloat32x4()
+			acc1 := asm.ZeroFloat32x4()
+			acc2 := asm.ZeroFloat32x4()
+			acc3 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat32x4(aT[aTRowK+i])
+				vA1 := asm.BroadcastFloat32x4(aT[aTRowK+i+1])
+				vA2 := asm.BroadcastFloat32x4(aT[aTRowK+i+2])
+				vA3 := asm.BroadcastFloat32x4(aT[aTRowK+i+3])
+				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[k*blockDim+j])))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow0+j])))
+			vC.Add(acc0).Store((*[4]float32)(unsafe.Pointer(&c[cRow0+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow1+j])))
+			vC.Add(acc1).Store((*[4]float32)(unsafe.Pointer(&c[cRow1+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow2+j])))
+			vC.Add(acc2).Store((*[4]float32)(unsafe.Pointer(&c[cRow2+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRow3+j])))
+			vC.Add(acc3).Store((*[4]float32)(unsafe.Pointer(&c[cRow3+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+				sum2 += aT[aTRowK+i+2] * bkj
+				sum3 += aT[aTRowK+i+3] * bkj
+			}
+			c[cRow0+j] += sum0
+			c[cRow1+j] += sum1
+			c[cRow2+j] += sum2
+			c[cRow3+j] += sum3
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat32x4(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j])))
-				vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
-				vA.MulAddAcc(vB, &vC)
-				vC.Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat32x4()
+			acc1 := asm.ZeroFloat32x4()
+			acc2 := asm.ZeroFloat32x4()
+			acc3 := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat32x4(aik)
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j]))), &acc0)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+lanes]))), &acc1)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+2*lanes]))), &acc2)
+				vA.MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[bRowStart+j+3*lanes]))), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc0).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC.Add(acc1).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC.Add(acc2).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC = asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+			vC.Add(acc3).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat32x4()
+			for k := range blockDim {
+				asm.BroadcastFloat32x4(aT[k*blockDim+i]).MulAddAcc(asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&b[k*blockDim+j]))), &acc)
 			}
+			vC := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc).Store((*[4]float32)(unsafe.Pointer(&c[cRowStart+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -1158,63 +1911,174 @@ func BaseBlockMulAdd4_neon_Float64(aT []float64, b []float64, c []float64, block
 		panic("BlockMulAdd4: C slice too short")
 	}
 	lanes := 2
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := asm.BroadcastFloat64x2(a0k)
-			vA1 := asm.BroadcastFloat64x2(a1k)
-			vA2 := asm.BroadcastFloat64x2(a2k)
-			vA3 := asm.BroadcastFloat64x2(a3k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
-				vC0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0+j])))
-				vA0.MulAddAcc(vB, &vC0)
-				vC0.Store((*[2]float64)(unsafe.Pointer(&c[cRow0+j])))
-				vC1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1+j])))
-				vA1.MulAddAcc(vB, &vC1)
-				vC1.Store((*[2]float64)(unsafe.Pointer(&c[cRow1+j])))
-				vC2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow2+j])))
-				vA2.MulAddAcc(vB, &vC2)
-				vC2.Store((*[2]float64)(unsafe.Pointer(&c[cRow2+j])))
-				vC3 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow3+j])))
-				vA3.MulAddAcc(vB, &vC3)
-				vC3.Store((*[2]float64)(unsafe.Pointer(&c[cRow3+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := asm.ZeroFloat64x2()
+			acc01 := asm.ZeroFloat64x2()
+			acc02 := asm.ZeroFloat64x2()
+			acc03 := asm.ZeroFloat64x2()
+			acc10 := asm.ZeroFloat64x2()
+			acc11 := asm.ZeroFloat64x2()
+			acc12 := asm.ZeroFloat64x2()
+			acc13 := asm.ZeroFloat64x2()
+			acc20 := asm.ZeroFloat64x2()
+			acc21 := asm.ZeroFloat64x2()
+			acc22 := asm.ZeroFloat64x2()
+			acc23 := asm.ZeroFloat64x2()
+			acc30 := asm.ZeroFloat64x2()
+			acc31 := asm.ZeroFloat64x2()
+			acc32 := asm.ZeroFloat64x2()
+			acc33 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat64x2(aT[aTRowK+i])
+				vA1 := asm.BroadcastFloat64x2(aT[aTRowK+i+1])
+				vA2 := asm.BroadcastFloat64x2(aT[aTRowK+i+2])
+				vA3 := asm.BroadcastFloat64x2(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
+				vB1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+lanes])))
+				vB2 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+2*lanes])))
+				vB3 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+3*lanes])))
+				vA0.MulAddAcc(vB0, &acc00)
+				vA0.MulAddAcc(vB1, &acc01)
+				vA0.MulAddAcc(vB2, &acc02)
+				vA0.MulAddAcc(vB3, &acc03)
+				vA1.MulAddAcc(vB0, &acc10)
+				vA1.MulAddAcc(vB1, &acc11)
+				vA1.MulAddAcc(vB2, &acc12)
+				vA1.MulAddAcc(vB3, &acc13)
+				vA2.MulAddAcc(vB0, &acc20)
+				vA2.MulAddAcc(vB1, &acc21)
+				vA2.MulAddAcc(vB2, &acc22)
+				vA2.MulAddAcc(vB3, &acc23)
+				vA3.MulAddAcc(vB0, &acc30)
+				vA3.MulAddAcc(vB1, &acc31)
+				vA3.MulAddAcc(vB2, &acc32)
+				vA3.MulAddAcc(vB3, &acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] += a0k * b[bRowStart+j]
-				c[cRow1+j] += a1k * b[bRowStart+j]
-				c[cRow2+j] += a2k * b[bRowStart+j]
-				c[cRow3+j] += a3k * b[bRowStart+j]
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0+j])))
+			vC.Add(acc00).Store((*[2]float64)(unsafe.Pointer(&c[cRow0+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0+j+lanes])))
+			vC.Add(acc01).Store((*[2]float64)(unsafe.Pointer(&c[cRow0+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0+j+2*lanes])))
+			vC.Add(acc02).Store((*[2]float64)(unsafe.Pointer(&c[cRow0+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0+j+3*lanes])))
+			vC.Add(acc03).Store((*[2]float64)(unsafe.Pointer(&c[cRow0+j+3*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1+j])))
+			vC.Add(acc10).Store((*[2]float64)(unsafe.Pointer(&c[cRow1+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1+j+lanes])))
+			vC.Add(acc11).Store((*[2]float64)(unsafe.Pointer(&c[cRow1+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1+j+2*lanes])))
+			vC.Add(acc12).Store((*[2]float64)(unsafe.Pointer(&c[cRow1+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1+j+3*lanes])))
+			vC.Add(acc13).Store((*[2]float64)(unsafe.Pointer(&c[cRow1+j+3*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow2+j])))
+			vC.Add(acc20).Store((*[2]float64)(unsafe.Pointer(&c[cRow2+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow2+j+lanes])))
+			vC.Add(acc21).Store((*[2]float64)(unsafe.Pointer(&c[cRow2+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow2+j+2*lanes])))
+			vC.Add(acc22).Store((*[2]float64)(unsafe.Pointer(&c[cRow2+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow2+j+3*lanes])))
+			vC.Add(acc23).Store((*[2]float64)(unsafe.Pointer(&c[cRow2+j+3*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow3+j])))
+			vC.Add(acc30).Store((*[2]float64)(unsafe.Pointer(&c[cRow3+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow3+j+lanes])))
+			vC.Add(acc31).Store((*[2]float64)(unsafe.Pointer(&c[cRow3+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow3+j+2*lanes])))
+			vC.Add(acc32).Store((*[2]float64)(unsafe.Pointer(&c[cRow3+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow3+j+3*lanes])))
+			vC.Add(acc33).Store((*[2]float64)(unsafe.Pointer(&c[cRow3+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := asm.ZeroFloat64x2()
+			acc1 := asm.ZeroFloat64x2()
+			acc2 := asm.ZeroFloat64x2()
+			acc3 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := asm.BroadcastFloat64x2(aT[aTRowK+i])
+				vA1 := asm.BroadcastFloat64x2(aT[aTRowK+i+1])
+				vA2 := asm.BroadcastFloat64x2(aT[aTRowK+i+2])
+				vA3 := asm.BroadcastFloat64x2(aT[aTRowK+i+3])
+				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[k*blockDim+j])))
+				vA0.MulAddAcc(vB, &acc0)
+				vA1.MulAddAcc(vB, &acc1)
+				vA2.MulAddAcc(vB, &acc2)
+				vA3.MulAddAcc(vB, &acc3)
 			}
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow0+j])))
+			vC.Add(acc0).Store((*[2]float64)(unsafe.Pointer(&c[cRow0+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow1+j])))
+			vC.Add(acc1).Store((*[2]float64)(unsafe.Pointer(&c[cRow1+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow2+j])))
+			vC.Add(acc2).Store((*[2]float64)(unsafe.Pointer(&c[cRow2+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRow3+j])))
+			vC.Add(acc3).Store((*[2]float64)(unsafe.Pointer(&c[cRow3+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float64
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+				sum2 += aT[aTRowK+i+2] * bkj
+				sum3 += aT[aTRowK+i+3] * bkj
+			}
+			c[cRow0+j] += sum0
+			c[cRow1+j] += sum1
+			c[cRow2+j] += sum2
+			c[cRow3+j] += sum3
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := asm.BroadcastFloat64x2(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j])))
-				vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
-				vA.MulAddAcc(vB, &vC)
-				vC.Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := asm.ZeroFloat64x2()
+			acc1 := asm.ZeroFloat64x2()
+			acc2 := asm.ZeroFloat64x2()
+			acc3 := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := asm.BroadcastFloat64x2(aik)
+				bRowStart := k * blockDim
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j]))), &acc0)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+lanes]))), &acc1)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+2*lanes]))), &acc2)
+				vA.MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[bRowStart+j+3*lanes]))), &acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc0).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC.Add(acc1).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC.Add(acc2).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+2*lanes])))
+			vC = asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+			vC.Add(acc3).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j+3*lanes])))
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := asm.ZeroFloat64x2()
+			for k := range blockDim {
+				asm.BroadcastFloat64x2(aT[k*blockDim+i]).MulAddAcc(asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&b[k*blockDim+j]))), &acc)
 			}
+			vC := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+			vC.Add(acc).Store((*[2]float64)(unsafe.Pointer(&c[cRowStart+j])))
+		}
+		for ; j < blockDim; j++ {
+			var sum float64
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
