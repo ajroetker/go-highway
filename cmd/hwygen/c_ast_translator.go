@@ -2043,10 +2043,10 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 			if cName, ok := mathFuncToC[name]; ok {
 				if len(e.Args) == 1 {
 					arg := t.translateExpr(e.Args[0])
-					// Use GOAT-safe inline polynomial helpers when available.
-					// expf/erff are C library calls that GOAT can't link, so
-					// both contrib/math Base*Vec and stdmath (Exp, Erf) route
-					// through _v_/_s_ helpers. Sqrt/Abs/Max/Min map to HW
+					// Use GOAT-safe inline helpers when available.
+					// expf/erff/sqrtf are C library calls that GOAT can't link,
+					// so both contrib/math Base*Vec and stdmath (Exp, Erf, Sqrt)
+					// route through _v_/_s_ helpers. Abs/Max/Min map to HW
 					// instructions and are not in goatSafeMathHelper.
 					if goatSafeMathHelper[cName] {
 						// stdmath (Go's math package) always operates on float64,

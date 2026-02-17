@@ -20,6 +20,7 @@ package main
 var goatSafeMathHelper = map[string]bool{
 	"exp":     true,
 	"log":     true,
+	"sqrt":    true,
 	"sigmoid": true,
 	"erf":     true,
 	"pow":     true,
@@ -127,6 +128,14 @@ var neonF32MathHelpers = []string{
     p = vfmaq_f32(vdupq_n_f32(0.9999964239f), p, f);
     /* result = p + e * ln(2) */
     return vfmaq_f32(p, e, ln2);
+}`,
+	// NEON vectorized sqrt(x) using hardware vsqrt instruction.
+	`static inline float32x4_t _v_sqrt_f32(float32x4_t x) {
+    return vsqrtq_f32(x);
+}`,
+	// Scalar sqrt(x) using hardware fsqrt instruction.
+	`static inline float _s_sqrt_f32(float x) {
+    return __builtin_sqrtf(x);
 }`,
 	// Scalar exp(x) using Horner's polynomial.
 	`static inline float _s_exp_f32(float x) {
@@ -262,6 +271,10 @@ var scalarF64MathHelpers = []string{
     p = p * f + 0.9999999999;
     p = p * f;
     return p + e * 0.6931471805599453;
+}`,
+	// Scalar sqrt(x) using hardware fsqrt instruction for double.
+	`static inline double _s_sqrt_f64(double x) {
+    return __builtin_sqrt(x);
 }`,
 }
 
@@ -429,5 +442,13 @@ var neonF64MathHelpers = []string{
 	// Scalar pow(base, exp) = exp(exp * log(base)) for double.
 	`static inline double _s_pow_f64(double base, double exponent) {
     return _s_exp_f64(exponent * _s_log_f64(base));
+}`,
+	// NEON vectorized sqrt(x) using hardware vsqrt instruction for double.
+	`static inline float64x2_t _v_sqrt_f64(float64x2_t x) {
+    return vsqrtq_f64(x);
+}`,
+	// Scalar sqrt(x) using hardware fsqrt instruction for double.
+	`static inline double _s_sqrt_f64(double x) {
+    return __builtin_sqrt(x);
 }`,
 }
