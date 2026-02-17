@@ -30,6 +30,11 @@ func ForwardICT_F16(r, g, b, outY, outCb, outCr unsafe.Pointer) {
 	forwardict_c_f16_neon(r, g, b, outY, outCb, outCr)
 }
 
+// ForwardICT_BF16 calls the NEON SIMD assembly implementation.
+func ForwardICT_BF16(r, g, b, outY, outCb, outCr unsafe.Pointer) {
+	forwardict_c_bf16_neon(r, g, b, outY, outCb, outCr)
+}
+
 // ForwardICT_F32 calls the NEON SIMD assembly implementation.
 func ForwardICT_F32(r, g, b, outY, outCb, outCr unsafe.Pointer) {
 	forwardict_c_f32_neon(r, g, b, outY, outCb, outCr)
@@ -43,6 +48,11 @@ func ForwardICT_F64(r, g, b, outY, outCb, outCr unsafe.Pointer) {
 // InverseICT_F16 calls the NEON SIMD assembly implementation.
 func InverseICT_F16(y, cb, cr, outR, outG, outB unsafe.Pointer) {
 	inverseict_c_f16_neon(y, cb, cr, outR, outG, outB)
+}
+
+// InverseICT_BF16 calls the NEON SIMD assembly implementation.
+func InverseICT_BF16(y, cb, cr, outR, outG, outB unsafe.Pointer) {
+	inverseict_c_bf16_neon(y, cb, cr, outR, outG, outB)
 }
 
 // InverseICT_F32 calls the NEON SIMD assembly implementation.

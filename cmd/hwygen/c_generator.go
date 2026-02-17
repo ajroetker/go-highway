@@ -999,11 +999,20 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 			// Assembly name: forwardict_c_f32_neon
 			asmName := cAsmFuncName(pf.Name, elemType, targetSuffix)
 
-			// Build param list: one unsafe.Pointer per struct param
+			// Build param list: unsafe.Pointer per parameter.
+			// Struct pointer params keep their Go name; scalar params
+			// (type-parameter T, int, float) get a "p" prefix to match
+			// the GOAT calling convention (passed as pointers).
+			typeParamNames := make(map[string]bool, len(pf.TypeParams))
+			for _, tp := range pf.TypeParams {
+				typeParamNames[tp.Name] = true
+			}
 			var paramNames []string
 			for _, p := range pf.Params {
 				if isGenericStructPtr(p.Type) {
 					paramNames = append(paramNames, p.Name)
+				} else if typeParamNames[p.Type] || isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
+					paramNames = append(paramNames, "p"+p.Name)
 				}
 			}
 
@@ -1016,7 +1025,11 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 		}
 	}
 
-	filename := filepath.Join(asmDir, fmt.Sprintf("c_struct_wrappers_%s_%s.gen.go", targetSuffix, archSuffix))
+	dispPrefix := g.DispatchPrefix
+	if dispPrefix == "" {
+		dispPrefix = "dispatch"
+	}
+	filename := filepath.Join(asmDir, fmt.Sprintf("c_struct_wrappers_%s_%s_%s.gen.go", dispPrefix, targetSuffix, archSuffix))
 	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("write struct asm passthrough: %w", err)
 	}
@@ -1691,10 +1704,21 @@ func typeNameToDispatchSuffix(elemType string) string {
 func emitZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string, target Target) {
 	adapterName := buildAdapterFuncName(pf.Name, elemType)
 
-	// Build parameter list with specialized types
+	// Build set of type parameter names for generic substitution.
+	typeParamNames := make(map[string]bool, len(pf.TypeParams))
+	for _, tp := range pf.TypeParams {
+		typeParamNames[tp.Name] = true
+	}
+
+	// Build parameter list with specialized types.
+	// Struct pointer types: *Image[T] → *Image[float32]
+	// Type parameter types: T → float32 (or hwy.Float16, etc.)
 	var params []string
 	for _, p := range pf.Params {
 		paramType := specializeStructPtrType(p.Type, elemType)
+		if typeParamNames[p.Type] {
+			paramType = goTypeName(elemType)
+		}
 		params = append(params, p.Name+" "+paramType)
 	}
 	paramList := strings.Join(params, ", ")
@@ -1741,12 +1765,16 @@ func emitZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string, targe
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
-	// Call the asm/ exported function
+	// Call the asm/ exported function, passing struct pointers and scalar
+	// params. Scalar params are passed as unsafe.Pointer(&param) to match
+	// the GOAT calling convention (all scalars passed as pointers).
 	asmExportedName := structAsmExportedName(pf.Name, elemType)
 	fmt.Fprintf(buf, "\tasm.%s(\n", asmExportedName)
 	for _, p := range pf.Params {
 		if isGenericStructPtr(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&c%s),\n", p.Name)
+		} else if typeParamNames[p.Type] || isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%s),\n", p.Name)
 		}
 	}
 	fmt.Fprintf(buf, "\t)\n")

@@ -2438,6 +2438,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		return t.emitHwyBinaryOp(t.profile.EqualFn, "==", args)
 	case "GreaterThan":
 		return t.emitHwyBinaryOp(t.profile.GreaterThanFn, ">", args)
+	case "GreaterEqual":
+		return t.emitHwyBinaryOp(t.profile.GreaterEqualFn, ">=", args)
 	case "ReduceMin":
 		return t.emitHwyUnaryOp(t.profile.ReduceMinFn, args)
 	case "ReduceMax":
@@ -2465,6 +2467,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		return t.emitHwyGetLane(args)
 	case "DotAccumulate":
 		return t.emitHwyDotAccumulate(args)
+	case "Pow":
+		return t.emitHwyPow(args)
 	default:
 		// Unknown hwy call — emit as-is
 		var argStrs []string
@@ -2900,6 +2904,63 @@ func (t *CASTTranslator) emitHwyDotAccumulate(args []ast.Expr) string {
 	return fmt.Sprintf("%s(%s, %s, %s)", fn, acc, a, b)
 }
 
+// emitHwyPow handles hwy.Pow(base, exp) → _v_pow_f32/f64 or promoted split.
+// For native types (f32, f64), emits _v_pow_<prec>(base, exp) using the
+// GOAT-safe inline helpers (exp(exp * log(base))).
+// For promoted types (f16, bf16), emits split-promote → _v_pow_f32 → combine.
+func (t *CASTTranslator) emitHwyPow(args []ast.Expr) string {
+	if len(args) < 2 {
+		return "/* Pow: missing args */"
+	}
+	base := t.translateExpr(args[0])
+	exp := t.translateExpr(args[1])
+	baseInfo := t.inferType(args[0])
+
+	// For promoted types (f16, bf16), split-promote → compute in f32 → combine
+	if t.profile.MathStrategy == "promoted" && baseInfo.isVector && t.profile.SplitPromoteLo != "" {
+		proLo := t.profile.SplitPromoteLo
+		proHi := t.profile.SplitPromoteHi
+		demoteFn := t.profile.DemoteFn
+		combineFn := t.profile.CombineFn
+
+		baseLo := fmt.Sprintf(proLo, base)
+		baseHi := fmt.Sprintf(proHi, base)
+		expLo := fmt.Sprintf(proLo, exp)
+		expHi := fmt.Sprintf(proHi, exp)
+
+		lo := fmt.Sprintf("_v_pow_f32(%s, %s)", baseLo, expLo)
+		hi := fmt.Sprintf("_v_pow_f32(%s, %s)", baseHi, expHi)
+
+		dLo := fmt.Sprintf(demoteFn, lo)
+		dHi := fmt.Sprintf(demoteFn, hi)
+
+		return fmt.Sprintf(combineFn, dLo, dHi)
+	}
+
+	// For promoted scalar (e.g., bf16 scalar tail)
+	if t.profile.MathStrategy == "promoted" && !baseInfo.isVector && t.profile.ScalarPromote != "" {
+		pBase := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, base)
+		pExp := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, exp)
+		result := fmt.Sprintf("_s_pow_f32(%s, %s)", pBase, pExp)
+		if t.profile.ScalarDemote != "" {
+			return fmt.Sprintf("%s(%s)", t.profile.ScalarDemote, result)
+		}
+		return result
+	}
+
+	// For native types (f32, f64), use direct GOAT-safe helpers
+	suffix := goatMathSuffix(t.elemType)
+	if suffix != "" {
+		if baseInfo.isVector {
+			return fmt.Sprintf("_v_pow%s(%s, %s)", suffix, base, exp)
+		}
+		return fmt.Sprintf("_s_pow%s(%s, %s)", suffix, base, exp)
+	}
+
+	// Fallback
+	return fmt.Sprintf("pow(%s, %s)", base, exp)
+}
+
 // translateLoad4Assign handles: a, b, c, d := hwy.Load4(slice[off:])
 // On NEON (VecX4Type populated): emits vld1q_u64_x4 + .val[i] destructuring.
 // On AVX (VecX4Type nil): emits 4 individual loads with ptr + i*lanes offsets.
@@ -3295,7 +3356,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 				"Min", "Max", "Neg", "Abs", "Sqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount", "TableLookupBytes",
-				"IfThenElse", "SlideUpLanes":
+				"IfThenElse", "SlideUpLanes", "Pow":
 				return cVarInfo{cType: vecType, isVector: true}
 			case "ReduceMin", "ReduceMax":
 				// ReduceMin/Max return a scalar
@@ -3319,7 +3380,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 					maskType = mt
 				}
 				return cVarInfo{cType: maskType, isVector: true}
-			case "Equal", "GreaterThan":
+			case "Equal", "GreaterThan", "GreaterEqual":
 				// Comparison ops return a mask vector
 				maskType := vecType
 				if mt, ok := t.profile.MaskType[t.tier]; ok {

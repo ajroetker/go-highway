@@ -70,7 +70,8 @@ type CIntrinsicProfile struct {
 	// Comparison (returns mask type)
 	LessThanFn    map[string]string // vcltq_f32, _mm256_cmp_ps
 	EqualFn       map[string]string // vceqq_f32, _mm256_cmp_ps
-	GreaterThanFn map[string]string // vcgtq_f32, _mm256_cmp_ps
+	GreaterThanFn    map[string]string // vcgtq_f32, _mm256_cmp_ps
+	GreaterEqualFn   map[string]string // vcgeq_f32, _mm256_cmp_ps
 
 	// Conditional select
 	IfThenElseFn map[string]string // vbslq_f32, _mm256_blendv_ps
@@ -276,6 +277,7 @@ func neonF32Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"q": "vcltq_f32"},
 		EqualFn:           map[string]string{"q": "vceqq_f32"},
 		GreaterThanFn:     map[string]string{"q": "vcgtq_f32"},
+		GreaterEqualFn:    map[string]string{"q": "vcgeq_f32"},
 		IfThenElseFn:      map[string]string{"q": "vbslq_f32"},
 		MaskType:          map[string]string{"q": "uint32x4_t"},
 		ReduceMinFn:       map[string]string{"q": "vminvq_f32"},
@@ -344,6 +346,7 @@ func neonF64Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"q": "vcltq_f64"},
 		EqualFn:           map[string]string{"q": "vceqq_f64"},
 		GreaterThanFn:     map[string]string{"q": "vcgtq_f64"},
+		GreaterEqualFn:    map[string]string{"q": "vcgeq_f64"},
 		IfThenElseFn:      map[string]string{"q": "vbslq_f64"},
 		MaskType:          map[string]string{"q": "uint64x2_t"},
 		ReduceMinFn:       map[string]string{"q": "vminvq_f64"},
@@ -457,6 +460,7 @@ func neonF16Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"q": "vcltq_f16", "d": "vclt_f16"},
 		EqualFn:           map[string]string{"q": "vceqq_f16", "d": "vceq_f16"},
 		GreaterThanFn:     map[string]string{"q": "vcgtq_f16", "d": "vcgt_f16"},
+		GreaterEqualFn:    map[string]string{"q": "vcgeq_f16", "d": "vcge_f16"},
 		IfThenElseFn:      map[string]string{"q": "vbslq_u16", "d": "vbsl_u16"},
 		MaskType:          map[string]string{"q": "uint16x8_t", "d": "uint16x4_t"},
 		ReduceMinFn:       map[string]string{"q": "vminvq_f16"},
@@ -536,11 +540,12 @@ func neonBF16Profile() *CIntrinsicProfile {
 		ReduceMinFn: map[string]string{"q": "bf16_reducemin_q"},
 		ReduceMaxFn: map[string]string{"q": "bf16_reducemax_q"},
 
-		LessThanFn:    map[string]string{"q": "bf16_lt_q"},
-		EqualFn:       map[string]string{"q": "bf16_eq_q"},
-		GreaterThanFn: map[string]string{"q": "bf16_gt_q"},
-		IfThenElseFn:  map[string]string{"q": "bf16_ifelse_q"},
-		MaskType:      map[string]string{"q": "uint16x8_t"},
+		LessThanFn:     map[string]string{"q": "bf16_lt_q"},
+		EqualFn:        map[string]string{"q": "bf16_eq_q"},
+		GreaterThanFn:  map[string]string{"q": "bf16_gt_q"},
+		GreaterEqualFn: map[string]string{"q": "bf16_ge_q"},
+		IfThenElseFn:   map[string]string{"q": "bf16_ifelse_q"},
+		MaskType:       map[string]string{"q": "uint16x8_t"},
 
 		DotAccFn:   map[string]string{"q": "vbfdotq_f32"},
 		DotAccType: map[string]string{"q": "float32x4_t"},
@@ -795,11 +800,12 @@ func avx512BF16Profile() *CIntrinsicProfile {
 		ReduceMinFn: map[string]string{"zmm": "avx512_bf16_reducemin"},
 		ReduceMaxFn: map[string]string{"zmm": "avx512_bf16_reducemax"},
 
-		LessThanFn:    map[string]string{"zmm": "avx512_bf16_lt"},
-		EqualFn:       map[string]string{"zmm": "avx512_bf16_eq"},
-		GreaterThanFn: map[string]string{"zmm": "avx512_bf16_gt"},
-		IfThenElseFn:  map[string]string{"zmm": "avx512_bf16_ifelse"},
-		MaskType:      map[string]string{"zmm": "__mmask16"},
+		LessThanFn:     map[string]string{"zmm": "avx512_bf16_lt"},
+		EqualFn:        map[string]string{"zmm": "avx512_bf16_eq"},
+		GreaterThanFn:  map[string]string{"zmm": "avx512_bf16_gt"},
+		GreaterEqualFn: map[string]string{"zmm": "avx512_bf16_ge"},
+		IfThenElseFn:   map[string]string{"zmm": "avx512_bf16_ifelse"},
+		MaskType:       map[string]string{"zmm": "__mmask16"},
 
 		DotAccFn:   map[string]string{"zmm": "_mm512_dpbf16_ps"},
 		DotAccType: map[string]string{"zmm": "__m512"},
@@ -1111,6 +1117,7 @@ func sveDarwinF32Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"sve": "svcmplt_f32"},
 		EqualFn:           map[string]string{"sve": "svcmpeq_f32"},
 		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f32"},
+		GreaterEqualFn:    map[string]string{"sve": "svcmpge_f32"},
 		IfThenElseFn:      map[string]string{"sve": "svsel_f32"},
 		MaskType:          map[string]string{"sve": "svbool_t"},
 
@@ -1170,6 +1177,7 @@ func sveDarwinF64Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"sve": "svcmplt_f64"},
 		EqualFn:           map[string]string{"sve": "svcmpeq_f64"},
 		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f64"},
+		GreaterEqualFn:    map[string]string{"sve": "svcmpge_f64"},
 		IfThenElseFn:      map[string]string{"sve": "svsel_f64"},
 		MaskType:          map[string]string{"sve": "svbool_t"},
 
@@ -1228,6 +1236,7 @@ func sveLinuxF32Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"sve": "svcmplt_f32"},
 		EqualFn:           map[string]string{"sve": "svcmpeq_f32"},
 		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f32"},
+		GreaterEqualFn:    map[string]string{"sve": "svcmpge_f32"},
 		IfThenElseFn:      map[string]string{"sve": "svsel_f32"},
 		MaskType:          map[string]string{"sve": "svbool_t"},
 
@@ -1283,6 +1292,7 @@ func sveLinuxF64Profile() *CIntrinsicProfile {
 		LessThanFn:        map[string]string{"sve": "svcmplt_f64"},
 		EqualFn:           map[string]string{"sve": "svcmpeq_f64"},
 		GreaterThanFn:     map[string]string{"sve": "svcmpgt_f64"},
+		GreaterEqualFn:    map[string]string{"sve": "svcmpge_f64"},
 		IfThenElseFn:      map[string]string{"sve": "svsel_f64"},
 		MaskType:          map[string]string{"sve": "svbool_t"},
 
@@ -1433,6 +1443,11 @@ var neonBF16ArithHelpers = []string{
 	`static inline uint16x8_t bf16_gt_q(bfloat16x8_t a, bfloat16x8_t b) {
     uint32x4_t m_lo = vcgtq_f32(bf16_promote_lo(a), bf16_promote_lo(b));
     uint32x4_t m_hi = vcgtq_f32(bf16_promote_hi(a), bf16_promote_hi(b));
+    return vcombine_u16(vmovn_u32(m_lo), vmovn_u32(m_hi));
+}`,
+	`static inline uint16x8_t bf16_ge_q(bfloat16x8_t a, bfloat16x8_t b) {
+    uint32x4_t m_lo = vcgeq_f32(bf16_promote_lo(a), bf16_promote_lo(b));
+    uint32x4_t m_hi = vcgeq_f32(bf16_promote_hi(a), bf16_promote_hi(b));
     return vcombine_u16(vmovn_u32(m_lo), vmovn_u32(m_hi));
 }`,
 	// IfThenElse operates on bit patterns — no promotion needed.

@@ -22,6 +22,7 @@ var goatSafeMathHelper = map[string]bool{
 	"log":     true,
 	"sigmoid": true,
 	"erf":     true,
+	"pow":     true,
 }
 
 // goatMathSuffix returns the precision suffix for GOAT-safe math helpers
@@ -181,6 +182,14 @@ var neonF32MathHelpers = []string{
     p = p * f + 0.9999964239f;
     p = p * f;
     return p + e * 0.6931471805599453f;
+}`,
+	// NEON vectorized pow(base, exp) = exp(exp * log(base)).
+	`static inline float32x4_t _v_pow_f32(float32x4_t base, float32x4_t exponent) {
+    return _v_exp_f32(vmulq_f32(exponent, _v_log_f32(base)));
+}`,
+	// Scalar pow(base, exp) = exp(exp * log(base)).
+	`static inline float _s_pow_f32(float base, float exponent) {
+    return _s_exp_f32(exponent * _s_log_f32(base));
 }`,
 }
 
@@ -412,5 +421,13 @@ var neonF64MathHelpers = []string{
     p = p * f + 0.9999999999;
     p = p * f;
     return p + e * 0.6931471805599453;
+}`,
+	// NEON vectorized pow(base, exp) = exp(exp * log(base)) for double.
+	`static inline float64x2_t _v_pow_f64(float64x2_t base, float64x2_t exponent) {
+    return _v_exp_f64(vmulq_f64(exponent, _v_log_f64(base)));
+}`,
+	// Scalar pow(base, exp) = exp(exp * log(base)) for double.
+	`static inline double _s_pow_f64(double base, double exponent) {
+    return _s_exp_f64(exponent * _s_log_f64(base));
 }`,
 }

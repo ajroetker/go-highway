@@ -3283,9 +3283,9 @@ func TestTranslateVarintFindEnds(t *testing.T) {
 	}
 }
 
-// TestBenchmarkRaBitQASTvsHandwritten benchmarks the AST-generated NEON rabitq
-// assembly against the existing hand-written NEON rabitq assembly.
-func TestBenchmarkRaBitQASTvsHandwritten(t *testing.T) {
+// TestBenchmarkRaBitQASTvsScalar benchmarks the AST-generated NEON rabitq
+// assembly against the scalar Go implementation.
+func TestBenchmarkRaBitQASTvsScalar(t *testing.T) {
 	if runtime.GOARCH != "arm64" {
 		t.Skip("correctness test requires arm64 to execute generated NEON assembly")
 	}
@@ -3351,52 +3351,7 @@ func TestBenchmarkRaBitQASTvsHandwritten(t *testing.T) {
 		}
 	}
 
-	// Step 2: Copy the hand-written NEON assembly from asm/ directory
-	asmDir := filepath.Join("..", "..", "hwy", "contrib", "rabitq", "asm")
-	for _, suffix := range []string{".s", ".go"} {
-		src := filepath.Join(asmDir, "rabitq_neon_arm64"+suffix)
-		dst := filepath.Join(tmpDir, "rabitq_neon_arm64"+suffix)
-		data, err := os.ReadFile(src)
-		if err != nil {
-			t.Fatalf("read %s: %v", src, err)
-		}
-		if suffix == ".go" {
-			data = []byte(strings.Replace(string(data), "package asm", "package rabitqbench", 1))
-		}
-		if err := os.WriteFile(dst, data, 0644); err != nil {
-			t.Fatalf("write %s: %v", dst, err)
-		}
-	}
-
-	// Step 3: Write a wrapper for the hand-written asm function
-	handwrittenWrapper := `package rabitqbench
-
-import "unsafe"
-
-// BitProductHandwritten wraps the hand-written NEON rabitq assembly.
-func BitProductHandwritten(code, q1, q2, q3, q4 []uint64) uint32 {
-	if len(code) == 0 {
-		return 0
-	}
-	l := int64(len(code))
-	var sum uint64
-	rabitq_bit_product_neon(
-		unsafe.Pointer(&code[0]),
-		unsafe.Pointer(&q1[0]),
-		unsafe.Pointer(&q2[0]),
-		unsafe.Pointer(&q3[0]),
-		unsafe.Pointer(&q4[0]),
-		unsafe.Pointer(&sum),
-		unsafe.Pointer(&l),
-	)
-	return uint32(sum)
-}
-`
-	if err := os.WriteFile(filepath.Join(tmpDir, "handwritten_wrapper.go"), []byte(handwrittenWrapper), 0644); err != nil {
-		t.Fatalf("write handwritten wrapper: %v", err)
-	}
-
-	// Step 4: Write go.mod
+	// Step 2: Write go.mod
 	goModContent := `module rabitqbench
 
 go 1.26
@@ -3405,7 +3360,7 @@ go 1.26
 		t.Fatalf("write go.mod: %v", err)
 	}
 
-	// Step 5: Write the benchmark test
+	// Step 3: Write the benchmark test
 	benchContent := `package rabitqbench
 
 import (
@@ -3445,12 +3400,8 @@ func TestBitProductCorrectness(t *testing.T) {
 		}
 		expected := bitProductScalar(code, q1, q2, q3, q4)
 		gotAST := BitProductCU64(code, q1, q2, q3, q4)
-		gotHW := BitProductHandwritten(code, q1, q2, q3, q4)
 		if gotAST != expected {
 			t.Errorf("AST n=%d: got %d, want %d", n, gotAST, expected)
-		}
-		if gotHW != expected {
-			t.Errorf("Handwritten n=%d: got %d, want %d", n, gotHW, expected)
 		}
 	}
 }
@@ -3480,13 +3431,6 @@ func BenchmarkBitProduct(b *testing.B) {
 			}
 		})
 
-		b.Run(fmt.Sprintf("Handwritten/%d", n), func(b *testing.B) {
-			b.SetBytes(int64(n * 5 * 8))
-			for i := 0; i < b.N; i++ {
-				BitProductHandwritten(code, q1, q2, q3, q4)
-			}
-		})
-
 		b.Run(fmt.Sprintf("Scalar/%d", n), func(b *testing.B) {
 			b.SetBytes(int64(n * 5 * 8))
 			for i := 0; i < b.N; i++ {
@@ -3508,7 +3452,7 @@ func BenchmarkBitProduct(b *testing.B) {
 	}
 	t.Logf("Package files: %v", files)
 
-	// Step 6: Run correctness test first
+	// Step 4: Run correctness test first
 	goBin := filepath.Join(goRoot(), "bin", "go")
 	cmd := exec.Command(goBin, "test", "-v", "-run=TestBitProductCorrectness", "./...")
 	cmd.Dir = tmpDir
@@ -3519,7 +3463,7 @@ func BenchmarkBitProduct(b *testing.B) {
 		t.Fatalf("correctness test failed: %v\n%s", err, string(output))
 	}
 
-	// Step 7: Run benchmarks
+	// Step 5: Run benchmarks
 	cmd = exec.Command(goBin, "test", "-bench=BenchmarkBitProduct", "-benchmem", "-count=1", "./...")
 	cmd.Dir = tmpDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
