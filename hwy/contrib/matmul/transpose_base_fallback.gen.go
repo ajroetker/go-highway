@@ -19,8 +19,7 @@ func BaseTranspose2DStrided_fallback_Float16(src []hwy.Float16, rowStart int, ro
 				for r_1 := range lanes {
 					rows_1[r_1] = hwy.Load(src[(i+r_1)*k+j:])
 				}
-				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]hwy.Vec[hwy.Float16], lanes)
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -72,8 +71,7 @@ func BaseTranspose2DStrided_fallback_BFloat16(src []hwy.BFloat16, rowStart int, 
 				for r_1 := range lanes {
 					rows_1[r_1] = hwy.Load(src[(i+r_1)*k+j:])
 				}
-				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]hwy.Vec[hwy.BFloat16], lanes)
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -124,8 +122,7 @@ func BaseTranspose2DStrided_fallback(src []float32, rowStart int, rowEnd int, k 
 				for r_1 := range 1 {
 					rows_1[r_1] = src[(i+r_1)*k+j]
 				}
-				for level_1 := 0; (1 << level_1) < 1; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := 1 / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]float32, 1)
 					for i_1 := 0; i_1 < 1; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -176,8 +173,7 @@ func BaseTranspose2DStrided_fallback_Float64(src []float64, rowStart int, rowEnd
 				for r_1 := range 1 {
 					rows_1[r_1] = src[(i+r_1)*k+j]
 				}
-				for level_1 := 0; (1 << level_1) < 1; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := 1 / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]float64, 1)
 					for i_1 := 0; i_1 < 1; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -228,8 +224,7 @@ func BaseTranspose2D_fallback_Float16(src []hwy.Float16, m int, k int, dst []hwy
 				for r_1 := range lanes {
 					rows_1[r_1] = hwy.Load(src[(i+r_1)*k+j:])
 				}
-				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]hwy.Vec[hwy.Float16], lanes)
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -273,8 +268,7 @@ func BaseTranspose2D_fallback_BFloat16(src []hwy.BFloat16, m int, k int, dst []h
 				for r_1 := range lanes {
 					rows_1[r_1] = hwy.Load(src[(i+r_1)*k+j:])
 				}
-				for level_1 := 0; (1 << level_1) < lanes; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]hwy.Vec[hwy.BFloat16], lanes)
 					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -317,8 +311,7 @@ func BaseTranspose2D_fallback(src []float32, m int, k int, dst []float32) {
 				for r_1 := range 1 {
 					rows_1[r_1] = src[(i+r_1)*k+j]
 				}
-				for level_1 := 0; (1 << level_1) < 1; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := 1 / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]float32, 1)
 					for i_1 := 0; i_1 < 1; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {
@@ -361,8 +354,7 @@ func BaseTranspose2D_fallback_Float64(src []float64, m int, k int, dst []float64
 				for r_1 := range 1 {
 					rows_1[r_1] = src[(i+r_1)*k+j]
 				}
-				for level_1 := 0; (1 << level_1) < 1; level_1++ {
-					stride_1 := 1 << level_1
+				for stride_1 := 1 / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := make([]float64, 1)
 					for i_1 := 0; i_1 < 1; i_1 += 2 * stride_1 {
 						for j_1 := range stride_1 {

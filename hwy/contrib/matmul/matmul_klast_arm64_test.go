@@ -48,7 +48,7 @@ func BenchmarkMatMulKLastNEONvsSME(b *testing.B) {
 			b.SetBytes(int64((m*k + n*k + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				asm.MatMulKLastNEONF32(a, bMat, c, m, n, k)
+				matMulKLastAsmF32(a, bMat, c, m, n, k)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()

@@ -29,7 +29,7 @@ func TestQuantizeAffineRoundTrip(t *testing.T) {
 	// Dequantize and check error.
 	maxErr := float32(0)
 	rangeVal := float32(3.0) // max - min = 2.0 - (-1.0) = 3.0
-	for i := 0; i < size; i++ {
+	for i := range size {
 		dequant := scale * (float32(quantized[i]) - float32(zp))
 		err := float32(math.Abs(float64(dequant - input[i])))
 		if err > maxErr {

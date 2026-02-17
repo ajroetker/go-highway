@@ -90,7 +90,8 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 
 	totalFuncs := len(vecFuncs) + len(sliceFuncs) + len(astFuncs)
 	if totalFuncs == 0 {
-		return nil, fmt.Errorf("no C-eligible functions found")
+		fmt.Println("No C-eligible functions found; all functions will use GoSimd path")
+		return nil, nil
 	}
 
 	fmt.Printf("Found %d C-eligible functions:\n", totalFuncs)
@@ -185,6 +186,8 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				emitter := NewCEmitter(g.PackageOut, elemType, target)
 				emitter.profile = profile
 				emitter.packageGlobals = result.PackageGlobals
+				emitter.packageConsts = result.PackageConsts
+				emitter.allFuncs = result.AllFuncs
 				cFile, err := emitter.EmitASTTranslatedC(&pf, cOutputDir)
 				if err != nil {
 					return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
@@ -1620,14 +1623,21 @@ func (g *Generator) resolveAsmImportPath() (string, error) {
 // E.g., BaseForwardICT + float32 → ForwardICT_F32
 func structAsmExportedName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
 	return name + "_" + cTypePublicSuffix(elemType)
 }
 
 // buildDispatchVarName builds the dispatch variable name from a base function name.
 // For generic functions: BaseForwardICT + float32 → ForwardICTFloat32
 // For non-generic functions: BaseFusedInt8MatMul + float32 → FusedInt8MatMul (no suffix)
+// Unexported functions stay unexported: basePackedMicroKernelGeneral → packedMicroKernelGeneralFloat16
 func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
+	private := len(baseName) > 0 && baseName[0] >= 'a' && baseName[0] <= 'z'
 	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
+	if private {
+		name = makeUnexported(name)
+	}
 	if isGeneric {
 		return name + typeNameToDispatchSuffix(elemType)
 	}
@@ -1638,6 +1648,7 @@ func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
 // E.g., BaseForwardICT + float32 → forwardICTAsmF32
 func buildAdapterFuncName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
 	// Lowercase first letter
 	if len(name) > 0 {
 		name = strings.ToLower(name[:1]) + name[1:]
@@ -1794,11 +1805,10 @@ func buildCPublicName(baseName, elemType string) string {
 }
 
 // cAsmFuncName creates the assembly function name.
-// BaseExpVec, float32, neon -> exp_c_f32_neon
+// BaseMatMul, float32, neon -> matmul_c_f32_neon
 func cAsmFuncName(baseName, elemType, targetSuffix string) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimSuffix(name, "Vec")
-	name = strings.ToLower(name)
+	name := strings.ToLower(baseName)
+	name = strings.TrimPrefix(name, "base")
 
 	return name + "_c_" + cTypeSuffix(elemType) + "_" + targetSuffix
 }

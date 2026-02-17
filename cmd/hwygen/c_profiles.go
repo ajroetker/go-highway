@@ -7,8 +7,9 @@ package main
 type CIntrinsicProfile struct {
 	ElemType   string // "float32", "float64", "float16", "bfloat16"
 	TargetName string // "NEON", "AVX2", "AVX512"
-	Include    string // "#include <arm_neon.h>" or "#include <immintrin.h>"
-	CType      string // "float", "double", "unsigned short"
+	Include          string   // "#include <arm_neon.h>" or "#include <immintrin.h>"
+	PolyfillDefines  []string // #define macros for missing intrinsics (emitted after #include)
+	CType            string   // "float", "double", "unsigned short"
 
 	// VecTypes maps tier name to C vector type.
 	// For simple profiles (f32/f64), there is typically one main vector type.
@@ -344,7 +345,12 @@ func neonF16Profile() *CIntrinsicProfile {
 		ElemType:   "hwy.Float16",
 		TargetName: "NEON",
 		Include:    "#include <arm_neon.h>",
-		CType:      "unsigned short",
+		PolyfillDefines: []string{
+			// vaddvq_f16 is not available on all targets (requires Armv8.4-A+).
+			// Polyfill: promote to f32, horizontal sum, demote back to f16.
+			"#define vaddvq_f16(v) ((__fp16)vaddvq_f32(vaddq_f32(vcvt_f32_f16(vget_low_f16(v)), vcvt_f32_f16(vget_high_f16(v)))))",
+		},
+		CType: "unsigned short",
 		VecTypes: map[string]string{
 			"q":      "float16x8_t",
 			"d":      "float16x4_t",

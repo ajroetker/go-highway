@@ -47,10 +47,21 @@ type CASTTranslator struct {
 	packageGlobals    map[string]*PackageGlobal // name → global
 	referencedGlobals map[string]bool           // globals actually used in function body
 
+	// Package-level integer constants (e.g., BlockSize = 48).
+	// Set via SetPackageConsts before TranslateToC.
+	packageConsts    map[string]string // name → value
+	referencedConsts map[string]bool   // consts actually used in function body
+
 	buf      *bytes.Buffer
 	indent   int
 	tmpCount int // counter for unique temporary variable names
 	errors   []string // translation errors collected during buildParamMap
+
+	// helperMode generates a C function with a simple calling convention:
+	// ints/floats passed by value (not pointers), direct return values,
+	// no hidden slice length params, and the original Go function name.
+	// Used for sibling helper functions called from the main GOAT function.
+	helperMode bool
 }
 
 // deferredAccum tracks a scalar variable being replaced by a vector accumulator
@@ -85,6 +96,7 @@ type cVarInfo struct {
 	cType    string // "float32x4_t", "float", "long", "float *"
 	isVector bool
 	isPtr    bool
+	arrayLen string // for vector arrays: the C length expression (e.g. "lanes")
 }
 
 // cParamInfo tracks function parameter translation details.
@@ -125,6 +137,15 @@ func (t *CASTTranslator) SetPackageGlobals(globals []PackageGlobal) {
 	}
 }
 
+// SetPackageConsts provides the translator with package-level integer constants
+// (e.g., BlockSize = 48). Referenced constants are emitted as #define macros.
+func (t *CASTTranslator) SetPackageConsts(consts []PackageConst) {
+	t.packageConsts = make(map[string]string, len(consts))
+	for _, c := range consts {
+		t.packageConsts[c.Name] = c.Value
+	}
+}
+
 // primaryTier returns the first non-scalar tier name and its lane count.
 func primaryTier(p *CIntrinsicProfile) (string, int) {
 	for _, t := range p.Tiers {
@@ -134,6 +155,17 @@ func primaryTier(p *CIntrinsicProfile) (string, int) {
 	}
 	// Fallback
 	return "q", 4
+}
+
+// TranslateToCHelper translates a ParsedFunc to C as an inline helper function.
+// Unlike TranslateToC, helper mode uses a simple calling convention: ints/floats
+// by value (not pointers), direct return values, no hidden slice length params,
+// and the original Go function name. This matches how callers emit calls to
+// sibling functions in the same C file.
+func (t *CASTTranslator) TranslateToCHelper(pf *ParsedFunc) (string, error) {
+	t.helperMode = true
+	defer func() { t.helperMode = false }()
+	return t.TranslateToC(pf)
 }
 
 // TranslateToC translates a ParsedFunc to GOAT-compatible C source code.
@@ -161,11 +193,16 @@ func (t *CASTTranslator) TranslateToC(pf *ParsedFunc) (string, error) {
 		t.discoverStructFields(pf.Body)
 	}
 
-	// Discover referenced package-level globals and emit as static const
+	// Discover referenced package-level globals and constants
 	t.referencedGlobals = make(map[string]bool)
 	if pf.Body != nil && len(t.packageGlobals) > 0 {
 		t.discoverReferencedGlobals(pf.Body)
 	}
+	t.referencedConsts = make(map[string]bool)
+	if pf.Body != nil && len(t.packageConsts) > 0 {
+		t.discoverReferencedConsts(pf.Body)
+	}
+	t.emitPackageLevelDefines()
 	t.emitStaticConstGlobals()
 
 	// Emit struct typedefs if needed
@@ -431,6 +468,47 @@ func (t *CASTTranslator) emitStaticConstGlobals() {
 	}
 }
 
+// discoverReferencedConsts walks the function body to find identifiers
+// matching known package-level constants (e.g., BlockSize).
+func (t *CASTTranslator) discoverReferencedConsts(body *ast.BlockStmt) {
+	ast.Inspect(body, func(n ast.Node) bool {
+		ident, ok := n.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if _, known := t.packageConsts[ident.Name]; !known {
+			return true
+		}
+		// Skip if shadowed by local variable or parameter
+		if _, isVar := t.vars[ident.Name]; isVar {
+			return true
+		}
+		if _, isParam := t.params[ident.Name]; isParam {
+			return true
+		}
+		t.referencedConsts[ident.Name] = true
+		return true
+	})
+}
+
+// emitPackageLevelDefines emits #define macros for referenced package-level constants.
+func (t *CASTTranslator) emitPackageLevelDefines() {
+	if len(t.referencedConsts) == 0 {
+		return
+	}
+
+	names := make([]string, 0, len(t.referencedConsts))
+	for name := range t.referencedConsts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		t.writefRaw("#define %s %s\n", name, t.packageConsts[name])
+	}
+	t.buf.WriteString("\n")
+}
+
 // goPkgGlobalElemToCType maps Go element types to C types for static const arrays.
 func goPkgGlobalElemToCType(goType string) string {
 	switch goType {
@@ -487,38 +565,72 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 				elemCType: info.structElemCType,
 			}
 		} else if isGoScalarIntType(p.Type) {
-			// Scalar integer param → long pointer (GOAT convention).
-			// GOAT only supports int64_t/long, float, double, _Bool, or pointer
-			// as function arguments, so all integer types are passed as long*.
-			info.isInt = true
-			info.cName = "p" + p.Name
-			info.cType = "long *"
-		} else if p.Type == "float32" || p.Type == "float64" {
-			// Scalar float param → passed as pointer in GOAT
-			info.isInt = true // reuse isInt to get pointer + dereference treatment
-			info.cName = "p" + p.Name
-			if p.Type == "float32" {
-				info.cType = "float *"
+			if t.helperMode {
+				// Helper mode: pass ints by value
+				info.isInt = false
+				info.cName = p.Name
+				info.cType = "long"
 			} else {
-				info.cType = "double *"
+				// Scalar integer param → long pointer (GOAT convention).
+				// GOAT only supports int64_t/long, float, double, _Bool, or pointer
+				// as function arguments, so all integer types are passed as long*.
+				info.isInt = true
+				info.cName = "p" + p.Name
+				info.cType = "long *"
+			}
+		} else if p.Type == "float32" || p.Type == "float64" {
+			if t.helperMode {
+				// Helper mode: pass floats by value
+				info.isInt = false
+				info.cName = p.Name
+				if p.Type == "float32" {
+					info.cType = "float"
+				} else {
+					info.cType = "double"
+				}
+			} else {
+				// Scalar float param → passed as pointer in GOAT
+				info.isInt = true // reuse isInt to get pointer + dereference treatment
+				info.cName = "p" + p.Name
+				if p.Type == "float32" {
+					info.cType = "float *"
+				} else {
+					info.cType = "double *"
+				}
 			}
 		} else if t.isTypeParam(p.Type) {
 			// Generic type parameter (e.g., "T" in func F[T hwy.Floats](..., coeff T)).
 			// Resolve to the concrete element type for this instantiation.
 			resolvedType := t.elemType
-			info.isInt = true // reuse isInt for pointer + dereference treatment
-			info.cName = "p" + p.Name
-			if resolvedType == "float32" {
-				info.cType = "float *"
-			} else if resolvedType == "float64" {
-				info.cType = "double *"
-			} else if isGoScalarIntType(resolvedType) {
-				info.cType = "long *"
+			if t.helperMode {
+				// Helper mode: pass by value
+				info.isInt = false
+				info.cName = p.Name
+				if resolvedType == "float32" {
+					info.cType = "float"
+				} else if resolvedType == "float64" {
+					info.cType = "double"
+				} else if isGoScalarIntType(resolvedType) {
+					info.cType = "long"
+				} else {
+					scalarCType := goSliceElemToCType(p.Type, t.profile)
+					info.cType = scalarCType
+				}
 			} else {
-				// Exotic types (e.g., hwy.Float16 → float16_t) — use profile's
-				// scalar arithmetic type if available, else CType.
-				scalarCType := goSliceElemToCType(p.Type, t.profile)
-				info.cType = scalarCType + " *"
+				info.isInt = true // reuse isInt for pointer + dereference treatment
+				info.cName = "p" + p.Name
+				if resolvedType == "float32" {
+					info.cType = "float *"
+				} else if resolvedType == "float64" {
+					info.cType = "double *"
+				} else if isGoScalarIntType(resolvedType) {
+					info.cType = "long *"
+				} else {
+					// Exotic types (e.g., hwy.Float16 → float16_t) — use profile's
+					// scalar arithmetic type if available, else CType.
+					scalarCType := goSliceElemToCType(p.Type, t.profile)
+					info.cType = scalarCType + " *"
+				}
 			}
 		} else {
 			t.errors = append(t.errors, fmt.Sprintf("unsupported parameter type %q for param %q; "+
@@ -544,6 +656,12 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 		if strings.HasPrefix(p.Type, "[]") {
 			t.sliceLenVars[p.Name] = "len_" + p.Name
 		}
+	}
+
+	// In helper mode, skip hidden length params and output pointers — helpers
+	// use a simple C calling convention with direct params and return values.
+	if t.helperMode {
+		return
 	}
 
 	if !hasExplicitSize {
@@ -696,8 +814,13 @@ func cTypeShortSuffix(cType string) string {
 
 // emitFuncSignature emits: void funcname(float *a, float *b, ..., long *pm, long *pn, ...)
 // If the Go function has return values, they are appended as output pointers.
+// In helperMode, uses the original Go function name, passes ints by value,
+// and emits a return type instead of void + output pointers.
 func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 	funcName := t.cFuncName(pf.Name)
+	if t.helperMode {
+		funcName = pf.Name
+	}
 	var params []string
 	for _, p := range pf.Params {
 		info := t.params[p.Name]
@@ -707,31 +830,41 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 			params = append(params, info.cType+" "+info.cName)
 		}
 	}
-	// Append hidden length parameters in deterministic order (matching pf.Params slice order).
-	for _, p := range pf.Params {
-		if key := "__len_" + p.Name; strings.HasPrefix(p.Type, "[]") {
-			if info, ok := t.params[key]; ok {
+
+	if !t.helperMode {
+		// Append hidden length parameters in deterministic order (matching pf.Params slice order).
+		for _, p := range pf.Params {
+			if key := "__len_" + p.Name; strings.HasPrefix(p.Type, "[]") {
+				if info, ok := t.params[key]; ok {
+					params = append(params, info.cType+info.cName)
+				}
+			}
+		}
+		// Append output pointers for return values
+		for _, ret := range pf.Returns {
+			name := ret.Name
+			if name == "" {
+				name = "result"
+			}
+			info := t.params["__return_"+name]
+			if strings.HasSuffix(info.cType, "*") {
 				params = append(params, info.cType+info.cName)
+			} else {
+				params = append(params, info.cType+" "+info.cName)
 			}
 		}
 	}
-	// Append output pointers for return values
-	for _, ret := range pf.Returns {
-		name := ret.Name
-		if name == "" {
-			name = "result"
-		}
-		info := t.params["__return_"+name]
-		if strings.HasSuffix(info.cType, "*") {
-			params = append(params, info.cType+info.cName)
-		} else {
-			params = append(params, info.cType+" "+info.cName)
-		}
+
+	// Determine return type
+	retType := "void"
+	if t.helperMode && len(pf.Returns) > 0 {
+		retType = "long" // Go int return → C long
 	}
+
 	if t.profile.FuncAttrs != "" {
-		t.writef("void %s(%s) %s {\n", funcName, strings.Join(params, ", "), t.profile.FuncAttrs)
+		t.writef("%s %s(%s) %s {\n", retType, funcName, strings.Join(params, ", "), t.profile.FuncAttrs)
 	} else {
-		t.writef("void %s(%s) {\n", funcName, strings.Join(params, ", "))
+		t.writef("%s %s(%s) {\n", retType, funcName, strings.Join(params, ", "))
 	}
 }
 
@@ -1067,7 +1200,7 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 			if len(parts) == 2 {
 				vecType := parts[0]
 				arrLen := parts[1]
-				t.vars[lhsName] = cVarInfo{cType: vecType, isVector: true, isPtr: true}
+				t.vars[lhsName] = cVarInfo{cType: vecType, isVector: true, isPtr: true, arrayLen: arrLen}
 				t.writef("%s %s[%s];\n", vecType, lhsName, arrLen)
 				return
 			}
@@ -1092,7 +1225,13 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 
 	case token.ASSIGN: // =
 		rhsStr := t.translateExpr(rhs)
-		t.writef("%s = %s;\n", lhsName, rhsStr)
+		// Vector arrays (e.g. float32x4_t rows[lanes]) can't be directly
+		// assigned in C. Emit an element-wise copy loop instead.
+		if vi, ok := t.vars[lhsName]; ok && vi.isVector && vi.isPtr && vi.arrayLen != "" {
+			t.writef("for (int _ci = 0; _ci < %s; _ci++) %s[_ci] = %s[_ci];\n", vi.arrayLen, lhsName, rhsStr)
+		} else {
+			t.writef("%s = %s;\n", lhsName, rhsStr)
+		}
 
 	case token.ADD_ASSIGN: // +=
 		// Check for deferred popcount accumulation rewrite
@@ -1374,10 +1513,28 @@ func (t *CASTTranslator) translateForPost(stmt ast.Stmt) string {
 			lhs := t.translateExpr(s.Lhs[0])
 			rhs := t.translateExpr(s.Rhs[0])
 			switch s.Tok {
-			case token.ADD_ASSIGN:
-				return fmt.Sprintf("%s += %s", lhs, rhs)
 			case token.ASSIGN:
 				return fmt.Sprintf("%s = %s", lhs, rhs)
+			case token.ADD_ASSIGN:
+				return fmt.Sprintf("%s += %s", lhs, rhs)
+			case token.SUB_ASSIGN:
+				return fmt.Sprintf("%s -= %s", lhs, rhs)
+			case token.MUL_ASSIGN:
+				return fmt.Sprintf("%s *= %s", lhs, rhs)
+			case token.QUO_ASSIGN:
+				return fmt.Sprintf("%s /= %s", lhs, rhs)
+			case token.REM_ASSIGN:
+				return fmt.Sprintf("%s %%= %s", lhs, rhs)
+			case token.AND_ASSIGN:
+				return fmt.Sprintf("%s &= %s", lhs, rhs)
+			case token.OR_ASSIGN:
+				return fmt.Sprintf("%s |= %s", lhs, rhs)
+			case token.XOR_ASSIGN:
+				return fmt.Sprintf("%s ^= %s", lhs, rhs)
+			case token.SHL_ASSIGN:
+				return fmt.Sprintf("%s <<= %s", lhs, rhs)
+			case token.SHR_ASSIGN:
+				return fmt.Sprintf("%s >>= %s", lhs, rhs)
 			}
 		}
 	case *ast.IncDecStmt:
@@ -1391,6 +1548,7 @@ func (t *CASTTranslator) translateForPost(stmt ast.Stmt) string {
 }
 
 // translateRangeStmt translates `for i := range m` to `for (long i = 0; i < m; i++)`.
+// Also handles `for i := range s[:n]` → `for (i = 0; i < n; i++)`.
 func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 	// `for i := range m` → key is i, X is m
 	if s.Key == nil {
@@ -1398,7 +1556,21 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 	}
 
 	iter := t.translateExpr(s.Key)
-	rangeOver := t.translateExpr(s.X)
+
+	// For `for i := range s[:high]` or `for i := range s[low:high]`,
+	// use the slice length (high - low) as the range limit.
+	var rangeOver string
+	if se, ok := s.X.(*ast.SliceExpr); ok && se.High != nil {
+		high := t.translateExpr(se.High)
+		if se.Low != nil {
+			low := t.translateExpr(se.Low)
+			rangeOver = fmt.Sprintf("(%s) - (%s)", high, low)
+		} else {
+			rangeOver = high
+		}
+	} else {
+		rangeOver = t.translateExpr(s.X)
+	}
 
 	// Register the iterator variable
 	t.vars[iter] = cVarInfo{cType: "long"}
@@ -1449,29 +1621,50 @@ func (t *CASTTranslator) translateExprStmt(s *ast.ExprStmt) {
 	t.writef("%s;\n", expr)
 }
 
-// translateDeclStmt handles `var j int`.
+// translateDeclStmt handles `var j int` and `const blockSize = 64`.
 func (t *CASTTranslator) translateDeclStmt(s *ast.DeclStmt) {
 	genDecl, ok := s.Decl.(*ast.GenDecl)
-	if !ok || genDecl.Tok != token.VAR {
+	if !ok {
 		return
 	}
 
-	for _, spec := range genDecl.Specs {
-		valueSpec, ok := spec.(*ast.ValueSpec)
-		if !ok {
-			continue
+	switch genDecl.Tok {
+	case token.CONST:
+		// Local const declarations → C const or #define
+		for _, spec := range genDecl.Specs {
+			valueSpec, ok := spec.(*ast.ValueSpec)
+			if !ok || len(valueSpec.Values) == 0 {
+				continue
+			}
+			for i, name := range valueSpec.Names {
+				if i >= len(valueSpec.Values) {
+					break
+				}
+				val := t.translateExpr(valueSpec.Values[i])
+				// Infer type from value
+				varInfo := t.inferType(valueSpec.Values[i])
+				t.vars[name.Name] = varInfo
+				t.writef("const %s = %s;\n", cDeclVar(varInfo.cType, name.Name), val)
+			}
 		}
+	case token.VAR:
+		for _, spec := range genDecl.Specs {
+			valueSpec, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
 
-		goType := exprToString(valueSpec.Type)
-		cType := t.goTypeToCType(goType)
-		isVec := strings.HasPrefix(goType, "hwy.Vec[") || strings.HasPrefix(goType, "hwy.Mask[")
-		for _, name := range valueSpec.Names {
-			t.vars[name.Name] = cVarInfo{cType: cType, isVector: isVec}
-			// Go zero-initializes all declared variables; emit = 0 for scalar types
-			if isScalarCType(cType) {
-				t.writef("%s = 0;\n", cDeclVar(cType, name.Name))
-			} else {
-				t.writef("%s;\n", cDeclVar(cType, name.Name))
+			goType := exprToString(valueSpec.Type)
+			cType := t.goTypeToCType(goType)
+			isVec := strings.HasPrefix(goType, "hwy.Vec[") || strings.HasPrefix(goType, "hwy.Mask[")
+			for _, name := range valueSpec.Names {
+				t.vars[name.Name] = cVarInfo{cType: cType, isVector: isVec}
+				// Go zero-initializes all declared variables; emit = 0 for scalar types
+				if isScalarCType(cType) {
+					t.writef("%s = 0;\n", cDeclVar(cType, name.Name))
+				} else {
+					t.writef("%s;\n", cDeclVar(cType, name.Name))
+				}
 			}
 		}
 	}
@@ -1525,9 +1718,23 @@ func (t *CASTTranslator) translateIncDecStmt(s *ast.IncDecStmt) {
 }
 
 // translateReturnStmt handles `return expr` → `*pout_name = expr; return;`
+// In helperMode, emits `return expr;` directly.
 func (t *CASTTranslator) translateReturnStmt(s *ast.ReturnStmt) {
 	if len(s.Results) == 0 {
 		t.writef("return;\n")
+		return
+	}
+
+	// Helper mode: direct return
+	if t.helperMode {
+		if len(s.Results) == 1 {
+			expr := t.translateExpr(s.Results[0])
+			t.writef("return %s;\n", expr)
+		} else {
+			// Multiple returns not supported in helper mode — emit first
+			expr := t.translateExpr(s.Results[0])
+			t.writef("return %s;\n", expr)
+		}
 		return
 	}
 
@@ -1806,12 +2013,19 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		}
 	}
 
-	// Check for min() calls → ternary or built-in
+	// Check for min()/max() calls → ternary
 	if ident, ok := e.Fun.(*ast.Ident); ok && ident.Name == "min" {
 		if len(e.Args) == 2 {
 			a := t.translateExpr(e.Args[0])
 			b := t.translateExpr(e.Args[1])
 			return fmt.Sprintf("((%s) < (%s) ? (%s) : (%s))", a, b, a, b)
+		}
+	}
+	if ident, ok := e.Fun.(*ast.Ident); ok && ident.Name == "max" {
+		if len(e.Args) == 2 {
+			a := t.translateExpr(e.Args[0])
+			b := t.translateExpr(e.Args[1])
+			return fmt.Sprintf("((%s) > (%s) ? (%s) : (%s))", a, b, a, b)
 		}
 	}
 
@@ -2712,6 +2926,16 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		if info, ok := t.params[e.Name]; ok {
 			if info.isSlice {
 				return cVarInfo{cType: info.cType, isPtr: true}
+			}
+			if info.isInt {
+				// GOAT pointer-wrapped param: dereferenced value is in t.vars.
+				// If we reach here, use long as the dereferenced type.
+				return cVarInfo{cType: "long"}
+			}
+			// Helper mode: param is by value with its actual C type.
+			// Non-pointer types (long, float, double) are returned directly.
+			if !strings.HasSuffix(info.cType, "*") {
+				return cVarInfo{cType: info.cType}
 			}
 			return cVarInfo{cType: t.profile.CType}
 		}

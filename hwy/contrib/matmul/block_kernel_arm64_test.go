@@ -20,8 +20,6 @@ import (
 	"math"
 	"math/rand"
 	"testing"
-
-	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
 // TestBlockMulAddNEONF32 tests the hand-written NEON assembly version.
@@ -50,7 +48,7 @@ func TestBlockMulAddNEONF32(t *testing.T) {
 
 			aT := transposeBlock(a, blockDim)
 			referenceBlockMulAdd(aT, b, expected, blockDim)
-			asm.BlockMulAddNEONF32(aT, b, c, blockDim)
+			blockMulAddAsmF32(aT, b, c, blockDim)
 
 			var maxErr float32
 			for i := range c {
@@ -96,7 +94,7 @@ func TestBlockMulAddNEONF64(t *testing.T) {
 
 			aT := transposeBlockFloat64(a, blockDim)
 			referenceBlockMulAddFloat64(aT, b, expected, blockDim)
-			asm.BlockMulAddNEONF64(aT, b, c, blockDim)
+			blockMulAddAsmF64(aT, b, c, blockDim)
 
 			var maxErr float64
 			for i := range c {
@@ -167,7 +165,7 @@ func BenchmarkBlockMulAddNEONF32(b *testing.B) {
 		b.Run(sizeStr(blockDim)+"/NEON", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				asm.BlockMulAddNEONF32(aT, bMat, c, blockDim)
+				blockMulAddAsmF32(aT, bMat, c, blockDim)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()

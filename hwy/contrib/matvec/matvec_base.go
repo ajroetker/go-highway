@@ -14,7 +14,7 @@
 
 package matvec
 
-//go:generate go run ../../../cmd/hwygen -input matvec_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input matvec_base.go -dispatch matvec -output . -targets avx2,avx512,neon:asm,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 
