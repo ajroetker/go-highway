@@ -133,10 +133,17 @@ func TestFusedInt8MatMulFallbackCorrectness(t *testing.T) {
 	// Run reference
 	refOutput := referenceInt8MatMul(input, weights, scales, M, K, N, groupSize)
 
-	// Should be identical
+	// Compare with tolerance — the fallback uses SIMD tiling which
+	// accumulates in a different order than the scalar reference,
+	// producing float32 rounding differences.
+	tolerance := float32(1e-4)
 	for i := range fallbackOutput {
-		if fallbackOutput[i] != refOutput[i] {
-			t.Errorf("Mismatch at index %d: fallback=%v ref=%v", i, fallbackOutput[i], refOutput[i])
+		diff := fallbackOutput[i] - refOutput[i]
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff > tolerance {
+			t.Errorf("Mismatch at index %d: fallback=%v ref=%v diff=%v", i, fallbackOutput[i], refOutput[i], diff)
 			return
 		}
 	}
