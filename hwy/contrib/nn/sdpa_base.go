@@ -49,7 +49,43 @@ func BaseSDPA[T hwy.Floats](
 		sOff := i * kvLen
 
 		// Step 1: Q[i,:] @ K^T -> scores[i,:], scaled
-		for j := range kvLen {
+		// 4x unroll across kvLen: share Q vector load across 4 K rows
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			scores[sOff+j] = s0 * scale
+			scores[sOff+j+1] = s1 * scale
+			scores[sOff+j+2] = s2 * scale
+			scores[sOff+j+3] = s3 * scale
+		}
+		// Remainder: 1 at a time
+		for ; j < kvLen; j++ {
 			kOff := j * headDim
 			acc := hwy.Zero[T]()
 			p := 0
@@ -112,31 +148,45 @@ func BaseSDPA[T hwy.Floats](
 			scores[sOff+si] = scores[sOff+si] * invSum
 		}
 
-		// Step 2: scores[i,:] @ V -> output[i,:] via axpy accumulation
+		// Step 2: scores[i,:] @ V -> output[i,:] via register-tiled accumulation
+		// Tile headDim into 4*lanes strips; accumulators stay in registers across full kvLen loop
 		oOff := i * headDim
-		// Zero output row
+		tileD := 4 * lanes
 		d := 0
-		vZero := hwy.Zero[T]()
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
+			}
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		// Remainder: single accumulator per remaining vector strip
 		for ; d+lanes <= headDim; d += lanes {
-			hwy.Store(vZero, output[oOff+d:])
+			acc := hwy.Zero[T]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
 		}
+		// Scalar tail
 		for ; d < headDim; d++ {
-			output[oOff+d] = 0
-		}
-		// Accumulate: output[i,:] += scores[i,j] * v[j,:]
-		for j := range kvLen {
-			vOff := j * headDim
-			s := scores[sOff+j]
-			vS := hwy.Set(s)
-			d = 0
-			for ; d+lanes <= headDim; d += lanes {
-				vV := hwy.Load(v[vOff+d:])
-				vO := hwy.Load(output[oOff+d:])
-				hwy.Store(hwy.MulAdd(vS, vV, vO), output[oOff+d:])
+			var sum T
+			for j := range kvLen {
+				sum += scores[sOff+j] * v[j*headDim+d]
 			}
-			for ; d < headDim; d++ {
-				output[oOff+d] += s * v[vOff+d]
-			}
+			output[oOff+d] = sum
 		}
 	}
 }
@@ -164,7 +214,43 @@ func BaseSDPACausal[T hwy.Floats](
 		causalEnd := i + offset + 1 // attend to positions [0, causalEnd)
 
 		// Step 1: Q[i,:] @ K^T -> scores[i,:], scaled, with causal mask
-		for j := range kvLen {
+		// 4x unroll across kvLen while all 4 entries are within causal window
+		j := 0
+		for ; j+4 <= kvLen && j+4 <= causalEnd; j += 4 {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			scores[sOff+j] = s0 * scale
+			scores[sOff+j+1] = s1 * scale
+			scores[sOff+j+2] = s2 * scale
+			scores[sOff+j+3] = s3 * scale
+		}
+		// Remainder: 1 at a time (handles causal boundary and tail)
+		for ; j < kvLen; j++ {
 			if j >= causalEnd {
 				scores[sOff+j] = negInf
 				continue
@@ -217,29 +303,42 @@ func BaseSDPACausal[T hwy.Floats](
 			scores[sOff+si] = scores[sOff+si] * invSum
 		}
 
-		// Step 2: scores[i,:] @ V -> output[i,:] via axpy accumulation
+		// Step 2: scores[i,:] @ V -> output[i,:] via register-tiled accumulation
 		oOff := i * headDim
+		tileD := 4 * lanes
 		d := 0
-		vZero := hwy.Zero[T]()
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
+			}
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
 		for ; d+lanes <= headDim; d += lanes {
-			hwy.Store(vZero, output[oOff+d:])
+			acc := hwy.Zero[T]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
 		}
 		for ; d < headDim; d++ {
-			output[oOff+d] = 0
-		}
-		for j := range kvLen {
-			vOff := j * headDim
-			s := scores[sOff+j]
-			vS := hwy.Set(s)
-			d = 0
-			for ; d+lanes <= headDim; d += lanes {
-				vV := hwy.Load(v[vOff+d:])
-				vO := hwy.Load(output[oOff+d:])
-				hwy.Store(hwy.MulAdd(vS, vV, vO), output[oOff+d:])
+			var sum T
+			for j := range kvLen {
+				sum += scores[sOff+j] * v[j*headDim+d]
 			}
-			for ; d < headDim; d++ {
-				output[oOff+d] += s * v[vOff+d]
-			}
+			output[oOff+d] = sum
 		}
 	}
 }
