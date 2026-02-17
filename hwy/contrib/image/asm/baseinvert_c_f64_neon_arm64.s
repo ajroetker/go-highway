@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/baseinvert_c_f64_neon_arm64.c
 
 TEXT ·invert_c_f64_neon(SB), $131088-24
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD pmaxVal+16(FP), R2
 	WORD $0xb4000e60        // cbz	x0, LBB0_28

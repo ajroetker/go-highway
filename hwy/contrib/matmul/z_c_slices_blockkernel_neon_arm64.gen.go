@@ -18,22 +18,26 @@ func initBlockkernelNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	BlockMulAddFloat16 = blockMulAddAsmF16
-	BlockMulAddBFloat16 = blockMulAddAsmBF16
 	BlockMulAddFloat32 = blockMulAddAsmF32
 	BlockMulAddFloat64 = blockMulAddAsmF64
-	BlockMulAdd2Float16 = blockMulAdd2AsmF16
-	BlockMulAdd2BFloat16 = blockMulAdd2AsmBF16
 	BlockMulAdd2Float32 = blockMulAdd2AsmF32
 	BlockMulAdd2Float64 = blockMulAdd2AsmF64
-	BlockMulAddRegBlockedFloat16 = blockMulAddRegBlockedAsmF16
-	BlockMulAddRegBlockedBFloat16 = blockMulAddRegBlockedAsmBF16
 	BlockMulAddRegBlockedFloat32 = blockMulAddRegBlockedAsmF32
 	BlockMulAddRegBlockedFloat64 = blockMulAddRegBlockedAsmF64
-	BlockMulAdd4Float16 = blockMulAdd4AsmF16
-	BlockMulAdd4BFloat16 = blockMulAdd4AsmBF16
 	BlockMulAdd4Float32 = blockMulAdd4AsmF32
 	BlockMulAdd4Float64 = blockMulAdd4AsmF64
+	if hwy.HasARMFP16() {
+		BlockMulAddFloat16 = blockMulAddAsmF16
+		BlockMulAdd2Float16 = blockMulAdd2AsmF16
+		BlockMulAddRegBlockedFloat16 = blockMulAddRegBlockedAsmF16
+		BlockMulAdd4Float16 = blockMulAdd4AsmF16
+	}
+	if hwy.HasARMBF16() {
+		BlockMulAddBFloat16 = blockMulAddAsmBF16
+		BlockMulAdd2BFloat16 = blockMulAdd2AsmBF16
+		BlockMulAddRegBlockedBFloat16 = blockMulAddRegBlockedAsmBF16
+		BlockMulAdd4BFloat16 = blockMulAdd4AsmBF16
+	}
 }
 
 func blockMulAddAsmF16(aT, b, c []hwy.Float16, blockDim int) {

@@ -792,8 +792,10 @@ var reservedAsmNames = map[string]string{
 }
 
 // fixReservedAsmNames renames reserved parameter names in GoAT-generated files.
-// It replaces patterns like "g+" (parameter references) and "g " (in func decls)
-// with safe alternatives.
+// It replaces patterns like " g+" (parameter references) and "g " (in func decls)
+// with safe alternatives. Replacements are word-boundary-aware to avoid
+// corrupting longer names that contain the reserved name as a substring
+// (e.g., "img" should not be rewritten to "imgv" when renaming "g" → "gv").
 func fixReservedAsmNames(filename string) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -806,25 +808,27 @@ func fixReservedAsmNames(filename string) error {
 	content := string(data)
 	modified := false
 	for reserved, replacement := range reservedAsmNames {
-		// Replace parameter references in .s files: "g+8(FP)" → "gv+8(FP)"
-		old := reserved + "+"
-		new := replacement + "+"
+		// Replace parameter references in .s files: " g+8(FP)" → " gv+8(FP)"
+		// Use " g+" (space prefix) to avoid matching substrings like "img+".
+		// Assembly parameter names always follow a space after the instruction.
+		old := " " + reserved + "+"
+		new := " " + replacement + "+"
 		if strings.Contains(content, old) {
 			content = strings.ReplaceAll(content, old, new)
 			modified = true
 		}
-		// Replace parameter names in .go func declarations: ", g " or ", g," → ", gv " or ", gv,"
-		old = ", " + reserved + " "
-		new = ", " + replacement + " "
-		if strings.Contains(content, old) {
-			content = strings.ReplaceAll(content, old, new)
-			modified = true
-		}
-		old = ", " + reserved + ","
-		new = ", " + replacement + ","
-		if strings.Contains(content, old) {
-			content = strings.ReplaceAll(content, old, new)
-			modified = true
+		// Replace parameter names in .go func declarations.
+		// Handle first parameter "(g," or "(g ", and middle/later ", g " or ", g,".
+		for _, pair := range [][2]string{
+			{"(" + reserved + ",", "(" + replacement + ","},
+			{"(" + reserved + " ", "(" + replacement + " "},
+			{", " + reserved + " ", ", " + replacement + " "},
+			{", " + reserved + ",", ", " + replacement + ","},
+		} {
+			if strings.Contains(content, pair[0]) {
+				content = strings.ReplaceAll(content, pair[0], pair[1])
+				modified = true
+			}
 		}
 	}
 
@@ -1076,6 +1080,70 @@ func neonSMESkipGuard(target Target) string {
 	return ""
 }
 
+// elemTypeFeatureGuard returns the runtime feature guard expression for ARM64
+// element types that require optional CPU extensions. Returns empty string for
+// universally-supported types (f32, f64, integers).
+// Float16 requires FEAT_FP16 (ARMv8.2-A+), BFloat16 requires FEAT_BF16 (ARMv8.6-A+).
+func elemTypeFeatureGuard(elemType string) string {
+	if isFloat16Type(elemType) {
+		return "hwy.HasARMFP16()"
+	}
+	if isBFloat16Type(elemType) {
+		return "hwy.HasARMBF16()"
+	}
+	return ""
+}
+
+// dispatchAssignment pairs a dispatch variable with its adapter function name.
+type dispatchAssignment struct {
+	dispatchVar string
+	adapterName string
+}
+
+// emitGuardedDispatchAssignments writes dispatch variable assignments to buf,
+// grouping half-precision types behind runtime feature guards. Universally
+// supported types (f32, f64, integers) are emitted directly; Float16 assignments
+// are wrapped in `if hwy.HasARMFP16() { ... }` and BFloat16 in
+// `if hwy.HasARMBF16() { ... }` to prevent SIGILL on hardware lacking those
+// extensions.
+func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, target Target) {
+	// Collect assignments grouped by feature guard.
+	guardedAssignments := make(map[string][]dispatchAssignment)
+	for _, pf := range funcs {
+		for _, elemType := range getCElemTypes(&pf) {
+			profile := GetCProfile(target.Name, elemType)
+			if profile == nil {
+				continue
+			}
+			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+				continue
+			}
+			dv := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
+			an := buildAdapterFuncName(pf.Name, elemType)
+			guard := elemTypeFeatureGuard(elemType)
+			guardedAssignments[guard] = append(guardedAssignments[guard], dispatchAssignment{dv, an})
+		}
+	}
+
+	// Emit unguarded assignments first (f32, f64, integers, etc.).
+	for _, a := range guardedAssignments[""] {
+		fmt.Fprintf(buf, "\t%s = %s\n", a.dispatchVar, a.adapterName)
+	}
+
+	// Emit guarded blocks in a stable order.
+	for _, guard := range []string{"hwy.HasARMFP16()", "hwy.HasARMBF16()"} {
+		assignments := guardedAssignments[guard]
+		if len(assignments) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "\tif %s {\n", guard)
+		for _, a := range assignments {
+			fmt.Fprintf(buf, "\t\t%s = %s\n", a.dispatchVar, a.adapterName)
+		}
+		fmt.Fprintf(buf, "\t}\n")
+	}
+}
+
 // emitZCDispatch generates a z_c_*.gen.go file in the parent package that
 // overrides dispatch variables with assembly implementations. It creates adapter
 // functions that convert generic struct pointers (e.g., *Image[T]) to C-compatible
@@ -1159,20 +1227,7 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		for _, pf := range funcs {
-			for _, elemType := range getCElemTypes(&pf) {
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue
-				}
-				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-					continue
-				}
-				dispatchVar := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
-				adapterName := buildAdapterFuncName(pf.Name, elemType)
-				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
-			}
-		}
+		emitGuardedDispatchAssignments(&buf, funcs, target)
 		fmt.Fprintf(&buf, "}\n\n")
 	}
 
@@ -1424,20 +1479,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		for _, pf := range funcs {
-			for _, elemType := range getCElemTypes(&pf) {
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue
-				}
-				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-					continue
-				}
-				dispatchVar := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
-				adapterName := buildAdapterFuncName(pf.Name, elemType)
-				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
-			}
-		}
+		emitGuardedDispatchAssignments(&buf, funcs, target)
 		fmt.Fprintf(&buf, "}\n\n")
 	}
 

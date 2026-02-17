@@ -18,10 +18,14 @@ func initMatvecNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	MatVecFloat16 = matVecAsmF16
-	MatVecBFloat16 = matVecAsmBF16
 	MatVecFloat32 = matVecAsmF32
 	MatVecFloat64 = matVecAsmF64
+	if hwy.HasARMFP16() {
+		MatVecFloat16 = matVecAsmF16
+	}
+	if hwy.HasARMBF16() {
+		MatVecBFloat16 = matVecAsmBF16
+	}
 }
 
 func matVecAsmF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {

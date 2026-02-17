@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/baseabs_c_bf16_neon_arm64.c
 
 TEXT ·abs_c_bf16_neon(SB), $131088-16
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	WORD $0xb4001860   // cbz	x0, LBB0_40
 	WORD $0xb4001841   // cbz	x1, LBB0_40

@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/baseoffset_c_f32_neon_arm64.c
 
 TEXT ·offset_c_f32_neon(SB), $131104-24
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD poffset+16(FP), R2
 	WORD $0xb4001420        // cbz	x0, LBB0_40

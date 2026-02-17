@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/basebrightnesscontrast_c_f16_neon_arm64.c
 
 TEXT ·brightnesscontrast_c_f16_neon(SB), $131104-32
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD pscale+16(FP), R2
 	MOVD poffset+24(FP), R3

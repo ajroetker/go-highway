@@ -18,10 +18,14 @@ func initMatmulNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	MatMulFloat16 = matMulAsmF16
-	MatMulBFloat16 = matMulAsmBF16
 	MatMulFloat32 = matMulAsmF32
 	MatMulFloat64 = matMulAsmF64
+	if hwy.HasARMFP16() {
+		MatMulFloat16 = matMulAsmF16
+	}
+	if hwy.HasARMBF16() {
+		MatMulBFloat16 = matMulAsmBF16
+	}
 }
 
 func matMulAsmF16(a, b, c []hwy.Float16, m, n, k int) {

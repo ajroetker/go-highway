@@ -18,46 +18,50 @@ func initPointopsNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	BrightnessContrastFloat16 = brightnessContrastAsmF16
-	BrightnessContrastBFloat16 = brightnessContrastAsmBF16
 	BrightnessContrastFloat32 = brightnessContrastAsmF32
 	BrightnessContrastFloat64 = brightnessContrastAsmF64
-	ClampImageFloat16 = clampImageAsmF16
-	ClampImageBFloat16 = clampImageAsmBF16
 	ClampImageFloat32 = clampImageAsmF32
 	ClampImageFloat64 = clampImageAsmF64
-	ThresholdFloat16 = thresholdAsmF16
-	ThresholdBFloat16 = thresholdAsmBF16
 	ThresholdFloat32 = thresholdAsmF32
 	ThresholdFloat64 = thresholdAsmF64
-	InvertFloat16 = invertAsmF16
-	InvertBFloat16 = invertAsmBF16
 	InvertFloat32 = invertAsmF32
 	InvertFloat64 = invertAsmF64
-	AbsFloat16 = absAsmF16
-	AbsBFloat16 = absAsmBF16
 	AbsFloat32 = absAsmF32
 	AbsFloat64 = absAsmF64
-	ScaleFloat16 = scaleAsmF16
-	ScaleBFloat16 = scaleAsmBF16
 	ScaleFloat32 = scaleAsmF32
 	ScaleFloat64 = scaleAsmF64
-	OffsetFloat16 = offsetAsmF16
-	OffsetBFloat16 = offsetAsmBF16
 	OffsetFloat32 = offsetAsmF32
 	OffsetFloat64 = offsetAsmF64
-	GammaFloat16 = gammaAsmF16
-	GammaBFloat16 = gammaAsmBF16
 	GammaFloat32 = gammaAsmF32
 	GammaFloat64 = gammaAsmF64
-	MinImageFloat16 = minImageAsmF16
-	MinImageBFloat16 = minImageAsmBF16
 	MinImageFloat32 = minImageAsmF32
 	MinImageFloat64 = minImageAsmF64
-	MaxImageFloat16 = maxImageAsmF16
-	MaxImageBFloat16 = maxImageAsmBF16
 	MaxImageFloat32 = maxImageAsmF32
 	MaxImageFloat64 = maxImageAsmF64
+	if hwy.HasARMFP16() {
+		BrightnessContrastFloat16 = brightnessContrastAsmF16
+		ClampImageFloat16 = clampImageAsmF16
+		ThresholdFloat16 = thresholdAsmF16
+		InvertFloat16 = invertAsmF16
+		AbsFloat16 = absAsmF16
+		ScaleFloat16 = scaleAsmF16
+		OffsetFloat16 = offsetAsmF16
+		GammaFloat16 = gammaAsmF16
+		MinImageFloat16 = minImageAsmF16
+		MaxImageFloat16 = maxImageAsmF16
+	}
+	if hwy.HasARMBF16() {
+		BrightnessContrastBFloat16 = brightnessContrastAsmBF16
+		ClampImageBFloat16 = clampImageAsmBF16
+		ThresholdBFloat16 = thresholdAsmBF16
+		InvertBFloat16 = invertAsmBF16
+		AbsBFloat16 = absAsmBF16
+		ScaleBFloat16 = scaleAsmBF16
+		OffsetBFloat16 = offsetAsmBF16
+		GammaBFloat16 = gammaAsmBF16
+		MinImageBFloat16 = minImageAsmBF16
+		MaxImageBFloat16 = maxImageAsmBF16
+	}
 }
 
 func brightnessContrastAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16, offset hwy.Float16) {

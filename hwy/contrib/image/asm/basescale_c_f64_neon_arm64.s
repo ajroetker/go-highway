@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/basescale_c_f64_neon_arm64.c
 
 TEXT ·scale_c_f64_neon(SB), $131088-24
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD pscale+16(FP), R2
 	WORD $0xb4000e40       // cbz	x0, LBB0_28

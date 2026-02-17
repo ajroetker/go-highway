@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/basethreshold_c_f64_neon_arm64.c
 
 TEXT ·threshold_c_f64_neon(SB), $131088-40
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD pthreshold+16(FP), R2
 	MOVD pbelow+24(FP), R3

@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/baseclampimage_c_bf16_neon_arm64.c
 
 TEXT ·clampimage_c_bf16_neon(SB), $131088-32
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD pminVal+16(FP), R2
 	MOVD pmaxVal+24(FP), R3

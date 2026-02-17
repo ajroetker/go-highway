@@ -7,7 +7,7 @@
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/image/asm/basegamma_c_f64_neon_arm64.c
 
 TEXT ·gamma_c_f64_neon(SB), $131264-24
-	MOVD imgv+0(FP), R0
+	MOVD img+0(FP), R0
 	MOVD out+8(FP), R1
 	MOVD pgamma+16(FP), R2
 	WORD $0xb4002f80       // cbz	x0, LBB0_28

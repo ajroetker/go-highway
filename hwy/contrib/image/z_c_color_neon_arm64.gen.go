@@ -22,14 +22,18 @@ func initColorNeonCAsm() {
 	ForwardRCTInt64 = forwardRCTAsmS64
 	InverseRCTInt32 = inverseRCTAsmS32
 	InverseRCTInt64 = inverseRCTAsmS64
-	ForwardICTFloat16 = forwardICTAsmF16
-	ForwardICTBFloat16 = forwardICTAsmBF16
 	ForwardICTFloat32 = forwardICTAsmF32
 	ForwardICTFloat64 = forwardICTAsmF64
-	InverseICTFloat16 = inverseICTAsmF16
-	InverseICTBFloat16 = inverseICTAsmBF16
 	InverseICTFloat32 = inverseICTAsmF32
 	InverseICTFloat64 = inverseICTAsmF64
+	if hwy.HasARMFP16() {
+		ForwardICTFloat16 = forwardICTAsmF16
+		InverseICTFloat16 = inverseICTAsmF16
+	}
+	if hwy.HasARMBF16() {
+		ForwardICTBFloat16 = forwardICTAsmBF16
+		InverseICTBFloat16 = inverseICTAsmBF16
+	}
 }
 
 func forwardRCTAsmS32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
