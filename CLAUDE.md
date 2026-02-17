@@ -135,7 +135,6 @@ ARM64 targets use the `hwy/asm` package because Go's `simd/archsimd` does not ye
 See [GOAT.md](GOAT.md) for the C-to-Go assembly transpiler documentation.
 
 Key limitations to be aware of:
-- No `else` clauses - rewrite using multiple `if` statements
 - No `__builtin_*` functions - use polynomial approximations instead
 - No `static inline` helper functions - inline code directly
 - No `union` type punning

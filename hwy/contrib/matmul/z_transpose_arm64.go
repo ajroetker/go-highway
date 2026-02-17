@@ -62,7 +62,7 @@ func init() {
 	// For small matrices, use pure scalar (hwygen SIMD has lane mismatch issues)
 	Transpose2DFloat32 = func(src []float32, m, k int, dst []float32) {
 		if m >= minSizeForNEONTranspose && k >= minSizeForNEONTranspose {
-			asm.TransposeNEONF32(src, m, k, dst)
+			transpose2DAsmF32(src, m, k, dst)
 		} else {
 			transposeScalar(src, m, k, dst)
 		}
@@ -70,7 +70,7 @@ func init() {
 
 	Transpose2DFloat64 = func(src []float64, m, k int, dst []float64) {
 		if m >= minSizeForNEONTranspose && k >= minSizeForNEONTranspose {
-			asm.TransposeNEONF64(src, m, k, dst)
+			transpose2DAsmF64(src, m, k, dst)
 		} else {
 			transposeScalar(src, m, k, dst)
 		}
@@ -78,7 +78,7 @@ func init() {
 
 	Transpose2DFloat16 = func(src []hwy.Float16, m, k int, dst []hwy.Float16) {
 		if m >= minSizeForNEONTranspose && k >= minSizeForNEONTranspose {
-			asm.TransposeNEONF16(src, m, k, dst)
+			transpose2DAsmF16(src, m, k, dst)
 		} else {
 			transposeScalar(src, m, k, dst)
 		}
@@ -96,7 +96,7 @@ func init() {
 	Transpose2DStridedFloat32 = func(src []float32, rowStart, rowEnd, k, dstM int, dst []float32) {
 		numRows := rowEnd - rowStart
 		if numRows >= minSizeForNEONTranspose && k >= minSizeForNEONTranspose {
-			asm.TransposeStridedNEONF32(src, rowStart, rowEnd, k, dstM, dst)
+			transpose2DStridedAsmF32(src, rowStart, rowEnd, k, dstM, dst)
 		} else {
 			transposeStridedScalar(src, rowStart, rowEnd, k, dstM, dst)
 		}
@@ -105,7 +105,7 @@ func init() {
 	Transpose2DStridedFloat64 = func(src []float64, rowStart, rowEnd, k, dstM int, dst []float64) {
 		numRows := rowEnd - rowStart
 		if numRows >= minSizeForNEONTranspose && k >= minSizeForNEONTranspose {
-			asm.TransposeStridedNEONF64(src, rowStart, rowEnd, k, dstM, dst)
+			transpose2DStridedAsmF64(src, rowStart, rowEnd, k, dstM, dst)
 		} else {
 			transposeStridedScalar(src, rowStart, rowEnd, k, dstM, dst)
 		}
@@ -114,7 +114,7 @@ func init() {
 	Transpose2DStridedFloat16 = func(src []hwy.Float16, rowStart, rowEnd, k, dstM int, dst []hwy.Float16) {
 		numRows := rowEnd - rowStart
 		if numRows >= minSizeForNEONTranspose && k >= minSizeForNEONTranspose {
-			asm.TransposeStridedNEONF16(src, rowStart, rowEnd, k, dstM, dst)
+			transpose2DStridedAsmF16(src, rowStart, rowEnd, k, dstM, dst)
 		} else {
 			transposeStridedScalar(src, rowStart, rowEnd, k, dstM, dst)
 		}

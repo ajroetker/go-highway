@@ -120,6 +120,12 @@ type PackageGlobal struct {
 	Values   []string // raw Go literal values, e.g., ["-1.0", "0.0", "0.07958..."]
 }
 
+// PackageConst represents a package-level integer constant (e.g., BlockSize = 48).
+type PackageConst struct {
+	Name  string // e.g., "BlockSize"
+	Value string // raw literal value, e.g., "48"
+}
+
 // ParseResult contains all parsed information from a source file.
 type ParseResult struct {
 	Funcs              []ParsedFunc
@@ -130,6 +136,7 @@ type ParseResult struct {
 	FileSet            *token.FileSet    // For converting positions to line numbers
 	Imports            map[string]string // map[local_name]import_path (e.g., "math" -> "math", "stdmath" -> "math")
 	PackageGlobals     []PackageGlobal   // package-level array variables from all files in the package
+	PackageConsts      []PackageConst    // package-level integer constants from all files in the package
 }
 
 // Parse parses a Go source file and extracts functions with hwy operations.
@@ -281,6 +288,9 @@ func Parse(filename string) (*ParseResult, error) {
 
 	// Scan sibling .go files for package-level array variables (e.g., nf4LookupTable)
 	result.PackageGlobals = scanPackageGlobals(filename)
+
+	// Scan sibling .go files for package-level integer constants (e.g., BlockSize)
+	result.PackageConsts = scanPackageConsts(filename)
 
 	return result, nil
 }
@@ -1121,4 +1131,55 @@ func extractLiteralValue(expr ast.Expr) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// scanPackageConsts scans all .go files in the same directory for package-level
+// integer constants (e.g., `const BlockSize = 48`).
+func scanPackageConsts(filename string) []PackageConst {
+	dir := filepath.Dir(filename)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	var consts []PackageConst
+	fset := token.NewFileSet()
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") {
+			continue
+		}
+		if strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, ".gen.go") {
+			continue
+		}
+
+		path := filepath.Join(dir, name)
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			continue
+		}
+
+		for _, decl := range file.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.CONST {
+				continue
+			}
+			for _, spec := range genDecl.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok || len(vs.Names) != 1 || len(vs.Values) != 1 {
+					continue
+				}
+				val, ok := extractLiteralValue(vs.Values[0])
+				if !ok {
+					continue
+				}
+				consts = append(consts, PackageConst{
+					Name:  vs.Names[0].Name,
+					Value: val,
+				})
+			}
+		}
+	}
+	return consts
 }

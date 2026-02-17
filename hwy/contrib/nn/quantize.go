@@ -53,7 +53,7 @@ func QuantizeAffine(input []float32, output []uint8, size int) (scale float32, z
 			scale = minVal / -float32(zp) // won't be used meaningfully
 			scale = 1.0
 		}
-		for i := 0; i < size; i++ {
+		for i := range size {
 			output[i] = 0
 		}
 		return scale, zp
@@ -72,7 +72,7 @@ func QuantizeAffine(input []float32, output []uint8, size int) (scale float32, z
 	zp = uint8(zpClamped)
 
 	// Quantize.
-	for i := 0; i < size; i++ {
+	for i := range size {
 		v := math.Round(float64(input[i]*invScale + float32(zp)))
 		if v < 0 {
 			v = 0
@@ -93,7 +93,7 @@ func QuantizeAffine(input []float32, output []uint8, size int) (scale float32, z
 // The combinedScale is typically the product of the quantization scales
 // of the two matrices that were multiplied (e.g., qScale * kScale * attentionScale).
 func DequantizeInt32ToFloat32(input []int32, output []float32, size int, combinedScale float32) {
-	for i := 0; i < size; i++ {
+	for i := range size {
 		output[i] = combinedScale * float32(input[i])
 	}
 }

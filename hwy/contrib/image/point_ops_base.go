@@ -18,7 +18,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-//go:generate go run ../../../cmd/hwygen -input point_ops_base.go -output . -targets avx2,avx512,neon,fallback -dispatch pointops
+//go:generate go run ../../../cmd/hwygen -input point_ops_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch pointops
 
 // BaseBrightnessContrast applies linear transformation: out = in * scale + offset.
 // This is the fundamental point operation for adjusting image brightness and contrast.

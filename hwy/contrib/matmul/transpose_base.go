@@ -16,7 +16,7 @@ package matmul
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input transpose_base.go -output . -targets avx2,avx512,neon,fallback -dispatch transpose
+//go:generate go run ../../../cmd/hwygen -input transpose_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch transpose
 
 // BaseTranspose2DStrided transposes rows [rowStart, rowEnd) of an M×K matrix to K×M.
 // dstM is the stride in the destination (typically the full M dimension).
@@ -54,9 +54,9 @@ func transposeBlockSIMDStrided[T hwy.Floats](src, dst []T, startI, startJ, k, ds
 		rows[r] = hwy.Load(src[(startI+r)*k+startJ:])
 	}
 
-	// In-register transpose using butterfly pattern
-	for level := 0; (1 << level) < lanes; level++ {
-		stride := 1 << level
+	// In-register transpose using butterfly pattern.
+	// Strides descend from lanes/2 to 1 for correct transpose permutation.
+	for stride := lanes / 2; stride >= 1; stride /= 2 {
 		newRows := make([]hwy.Vec[T], lanes)
 		for i := 0; i < lanes; i += 2 * stride {
 			for j := range stride {
@@ -129,11 +129,10 @@ func transposeBlockSIMD[T hwy.Floats](src, dst []T, startI, startJ, m, k, lanes 
 		rows[r] = hwy.Load(src[(startI+r)*k+startJ:])
 	}
 
-	// In-register transpose using butterfly pattern with InterleaveLower/Upper
-	// For 4 lanes: 2 levels of interleave
-	// For 8 lanes: 3 levels of interleave
-	for level := 0; (1 << level) < lanes; level++ {
-		stride := 1 << level
+	// In-register transpose using butterfly pattern with InterleaveLower/Upper.
+	// Strides descend from lanes/2 to 1 so that element-granularity ZIP
+	// produces the correct transpose permutation (not bit-reversal).
+	for stride := lanes / 2; stride >= 1; stride /= 2 {
 		newRows := make([]hwy.Vec[T], lanes)
 		for i := 0; i < lanes; i += 2 * stride {
 			for j := range stride {

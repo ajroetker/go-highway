@@ -26,57 +26,6 @@ import (
 
 //go:generate go tool goat ../c/transpose_neon_arm64.c -O3 --target arm64 -e="-march=armv8.2-a+fp16"
 
-// TransposeNEONF32 transposes M×K float32 matrix to K×M using NEON.
-func TransposeNEONF32(src []float32, m, k int, dst []float32) {
-	if m == 0 || k == 0 {
-		return
-	}
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	mVal, kVal := int64(m), int64(k)
-	transpose_neon_f32(
-		unsafe.Pointer(&src[0]),
-		unsafe.Pointer(&dst[0]),
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-	)
-}
-
-// TransposeNEONF64 transposes M×K float64 matrix to K×M using NEON.
-func TransposeNEONF64(src []float64, m, k int, dst []float64) {
-	if m == 0 || k == 0 {
-		return
-	}
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	mVal, kVal := int64(m), int64(k)
-	transpose_neon_f64(
-		unsafe.Pointer(&src[0]),
-		unsafe.Pointer(&dst[0]),
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-	)
-}
-
-// TransposeNEONF16 transposes M×K float16 matrix to K×M using NEON.
-func TransposeNEONF16(src []hwy.Float16, m, k int, dst []hwy.Float16) {
-	if m == 0 || k == 0 {
-		return
-	}
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	mVal, kVal := int64(m), int64(k)
-	transpose_neon_f16(
-		unsafe.Pointer(&src[0]),
-		unsafe.Pointer(&dst[0]),
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-	)
-}
-
 // TransposeNEONBF16 transposes M×K bfloat16 matrix to K×M using NEON.
 func TransposeNEONBF16(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
 	if m == 0 || k == 0 {

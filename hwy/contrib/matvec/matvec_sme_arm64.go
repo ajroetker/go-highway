@@ -55,7 +55,12 @@ func matvec_sme_f32(mt, v, result unsafe.Pointer, rows, cols int64)
 //go:noescape
 func matvec_sme_f64(mt, v, result unsafe.Pointer, rows, cols int64)
 
-// Transpose buffer pools to avoid allocations
+// alignUp rounds m up to the next multiple of tileSize.
+func alignUp(m, tileSize int) int {
+	return (m + tileSize - 1) / tileSize * tileSize
+}
+
+// Buffer pools to avoid allocations
 var matvecTransposePool = sync.Pool{
 	New: func() any {
 		return make([]float32, 0, 256*256)
@@ -65,6 +70,30 @@ var matvecTransposePool = sync.Pool{
 var matvecTransposePool64 = sync.Pool{
 	New: func() any {
 		return make([]float64, 0, 256*256)
+	},
+}
+
+var matvecPadPool = sync.Pool{
+	New: func() any {
+		return make([]float32, 0, 256*256)
+	},
+}
+
+var matvecPadPool64 = sync.Pool{
+	New: func() any {
+		return make([]float64, 0, 256*256)
+	},
+}
+
+var matvecResultPool = sync.Pool{
+	New: func() any {
+		return make([]float32, 0, 256)
+	},
+}
+
+var matvecResultPool64 = sync.Pool{
+	New: func() any {
+		return make([]float64, 0, 256)
 	},
 }
 
@@ -90,24 +119,48 @@ func transposeForMatVec64(m []float64, rows, cols int, mt []float64) {
 // matvecSME uses ARM SME FMOPA instruction for matrix-vector multiplication.
 // Uses outer product accumulate with ZA tiles.
 // Pre-transposes M for contiguous column access, enabling fast vector loads.
+// Non-aligned row counts are handled by padding up to the tile size.
 func matvecSME(m []float32, rows, cols int, v, result []float32) {
-	// For non-aligned row sizes (16-element tiles), fall back to NEON
-	if rows%16 != 0 {
-		matvecNEON(m, rows, cols, v, result)
-		return
-	}
+	// Bounds check: ensure slices are large enough
+	_ = m[rows*cols-1]
+	_ = v[cols-1]
+	_ = result[rows-1]
+
+	const tileSize = 16
+	paddedRows := alignUp(rows, tileSize)
 
 	// SME is faster for medium-sized matrices (64-192)
 	// For smaller matrices, streaming mode overhead dominates
 	// For larger matrices, transpose cost makes NEON faster
-	if rows < minDimForSMEMatVec || cols < minDimForSMEMatVec ||
-		rows > maxDimForSMEMatVec || cols > maxDimForSMEMatVec {
-		matvecNEON(m, rows, cols, v, result)
+	if paddedRows < minDimForSMEMatVec || cols < minDimForSMEMatVec ||
+		paddedRows > maxDimForSMEMatVec || cols > maxDimForSMEMatVec {
+		matVecAsmF32(m, rows, cols, v, result)
 		return
 	}
 
+	needsPad := paddedRows != rows
+
+	// Prepare M: [rows, cols] → [paddedRows, cols] if needed
+	smeM := m
+	smeRows := rows
+	if needsPad {
+		padSize := paddedRows * cols
+		padBuf := matvecPadPool.Get().([]float32)
+		if cap(padBuf) < padSize {
+			padBuf = make([]float32, padSize)
+		} else {
+			padBuf = padBuf[:padSize]
+		}
+		// Copy original rows, zero-pad extra rows
+		copy(padBuf[:rows*cols], m[:rows*cols])
+		clear(padBuf[rows*cols : paddedRows*cols])
+		smeM = padBuf
+		smeRows = paddedRows
+		defer matvecPadPool.Put(padBuf)
+	}
+
 	// Get transpose buffer from pool
-	mtSize := rows * cols
+	mtSize := smeRows * cols
 	mtBuf := matvecTransposePool.Get().([]float32)
 	if cap(mtBuf) < mtSize {
 		mtBuf = make([]float32, mtSize)
@@ -115,17 +168,36 @@ func matvecSME(m []float32, rows, cols int, v, result []float32) {
 		mtBuf = mtBuf[:mtSize]
 	}
 
-	// Transpose M (rows×cols) to MT (cols×rows) for contiguous column access
-	transposeForMatVec(m, rows, cols, mtBuf)
+	// Transpose M (smeRows×cols) to MT (cols×smeRows) for contiguous column access
+	transposeForMatVec(smeM, smeRows, cols, mtBuf)
 
-	// Call SME FMOPA with transposed M
-	matvec_sme_f32(
-		unsafe.Pointer(unsafe.SliceData(mtBuf)),
-		unsafe.Pointer(unsafe.SliceData(v)),
-		unsafe.Pointer(unsafe.SliceData(result)),
-		int64(rows),
-		int64(cols),
-	)
+	if needsPad {
+		// Use padded result buffer for SME, then copy back
+		resBuf := matvecResultPool.Get().([]float32)
+		if cap(resBuf) < smeRows {
+			resBuf = make([]float32, smeRows)
+		} else {
+			resBuf = resBuf[:smeRows]
+		}
+		matvec_sme_f32(
+			unsafe.Pointer(unsafe.SliceData(mtBuf)),
+			unsafe.Pointer(unsafe.SliceData(v)),
+			unsafe.Pointer(unsafe.SliceData(resBuf)),
+			int64(smeRows),
+			int64(cols),
+		)
+		copy(result[:rows], resBuf[:rows])
+		matvecResultPool.Put(resBuf)
+	} else {
+		// Call SME FMOPA with transposed M directly
+		matvec_sme_f32(
+			unsafe.Pointer(unsafe.SliceData(mtBuf)),
+			unsafe.Pointer(unsafe.SliceData(v)),
+			unsafe.Pointer(unsafe.SliceData(result)),
+			int64(smeRows),
+			int64(cols),
+		)
+	}
 
 	// Return buffer to pool
 	matvecTransposePool.Put(mtBuf)
@@ -133,24 +205,47 @@ func matvecSME(m []float32, rows, cols int, v, result []float32) {
 
 // matvecSME64 uses ARM SME FMOPA instruction for float64 matrix-vector multiplication.
 // Uses 8×8 tiles for float64.
+// Non-aligned row counts are handled by padding up to the tile size.
 func matvecSME64(m []float64, rows, cols int, v, result []float64) {
-	// For non-aligned row sizes (8-element tiles for float64), fall back to NEON
-	if rows%8 != 0 {
-		matvecNEON64(m, rows, cols, v, result)
-		return
-	}
+	// Bounds check: ensure slices are large enough
+	_ = m[rows*cols-1]
+	_ = v[cols-1]
+	_ = result[rows-1]
+
+	const tileSize = 8
+	paddedRows := alignUp(rows, tileSize)
 
 	// SME is faster for medium-sized matrices (64-192)
 	// For smaller matrices, streaming mode overhead dominates
 	// For larger matrices, transpose cost makes NEON faster
-	if rows < minDimForSMEMatVec || cols < minDimForSMEMatVec ||
-		rows > maxDimForSMEMatVec || cols > maxDimForSMEMatVec {
-		matvecNEON64(m, rows, cols, v, result)
+	if paddedRows < minDimForSMEMatVec || cols < minDimForSMEMatVec ||
+		paddedRows > maxDimForSMEMatVec || cols > maxDimForSMEMatVec {
+		matVecAsmF64(m, rows, cols, v, result)
 		return
 	}
 
+	needsPad := paddedRows != rows
+
+	// Prepare M: [rows, cols] → [paddedRows, cols] if needed
+	smeM := m
+	smeRows := rows
+	if needsPad {
+		padSize := paddedRows * cols
+		padBuf := matvecPadPool64.Get().([]float64)
+		if cap(padBuf) < padSize {
+			padBuf = make([]float64, padSize)
+		} else {
+			padBuf = padBuf[:padSize]
+		}
+		copy(padBuf[:rows*cols], m[:rows*cols])
+		clear(padBuf[rows*cols : paddedRows*cols])
+		smeM = padBuf
+		smeRows = paddedRows
+		defer matvecPadPool64.Put(padBuf)
+	}
+
 	// Get transpose buffer from pool
-	mtSize := rows * cols
+	mtSize := smeRows * cols
 	mtBuf := matvecTransposePool64.Get().([]float64)
 	if cap(mtBuf) < mtSize {
 		mtBuf = make([]float64, mtSize)
@@ -158,17 +253,36 @@ func matvecSME64(m []float64, rows, cols int, v, result []float64) {
 		mtBuf = mtBuf[:mtSize]
 	}
 
-	// Transpose M (rows×cols) to MT (cols×rows) for contiguous column access
-	transposeForMatVec64(m, rows, cols, mtBuf)
+	// Transpose M (smeRows×cols) to MT (cols×smeRows) for contiguous column access
+	transposeForMatVec64(smeM, smeRows, cols, mtBuf)
 
-	// Call SME FMOPA with transposed M
-	matvec_sme_f64(
-		unsafe.Pointer(unsafe.SliceData(mtBuf)),
-		unsafe.Pointer(unsafe.SliceData(v)),
-		unsafe.Pointer(unsafe.SliceData(result)),
-		int64(rows),
-		int64(cols),
-	)
+	if needsPad {
+		// Use padded result buffer for SME, then copy back
+		resBuf := matvecResultPool64.Get().([]float64)
+		if cap(resBuf) < smeRows {
+			resBuf = make([]float64, smeRows)
+		} else {
+			resBuf = resBuf[:smeRows]
+		}
+		matvec_sme_f64(
+			unsafe.Pointer(unsafe.SliceData(mtBuf)),
+			unsafe.Pointer(unsafe.SliceData(v)),
+			unsafe.Pointer(unsafe.SliceData(resBuf)),
+			int64(smeRows),
+			int64(cols),
+		)
+		copy(result[:rows], resBuf[:rows])
+		matvecResultPool64.Put(resBuf)
+	} else {
+		// Call SME FMOPA with transposed M directly
+		matvec_sme_f64(
+			unsafe.Pointer(unsafe.SliceData(mtBuf)),
+			unsafe.Pointer(unsafe.SliceData(v)),
+			unsafe.Pointer(unsafe.SliceData(result)),
+			int64(smeRows),
+			int64(cols),
+		)
+	}
 
 	// Return buffer to pool
 	matvecTransposePool64.Put(mtBuf)

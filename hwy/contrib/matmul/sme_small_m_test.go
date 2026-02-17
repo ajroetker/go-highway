@@ -58,7 +58,7 @@ func BenchmarkSMEvsNEONSmallM(b *testing.B) {
 			c := make([]float32, m*n)
 			b.ResetTimer()
 			for range b.N {
-				asm.MatMulNEONF32(a, bMat, c, m, n, k)
+				matMulAsmF32(a, bMat, c, m, n, k)
 			}
 		})
 

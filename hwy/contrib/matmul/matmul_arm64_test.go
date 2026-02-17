@@ -54,7 +54,7 @@ func BenchmarkMatMulNEONvsSME(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				asm.MatMulNEONF32(a, bMat, c, m, n, k)
+				matMulAsmF32(a, bMat, c, m, n, k)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()
@@ -136,7 +136,7 @@ func BenchmarkBlockedMatMulNEONvsSME(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				asm.BlockedMatMulNEONF32(a, bMat, c, m, n, k)
+				blockedMatMulAsmF32(a, bMat, c, m, n, k)
 			}
 			b.StopTimer()
 			elapsed := b.Elapsed().Seconds()

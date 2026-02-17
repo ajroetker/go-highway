@@ -36,13 +36,9 @@ var BlockMulAdd4Float64 func(aT []float64, b []float64, c []float64, blockDim in
 //
 //	C += (A^T)^T * B = A * B
 //
-// This layout is optimal for SIMD:
-//   - A^T[k, i:i+lanes] gives us A[i:i+lanes, k] (contiguous in A^T)
-//   - B[k, j:j+lanes] gives us B[k, j:j+lanes] (contiguous in B)
-//
-// For standard matmul C = A * B where you have A and B:
-//  1. Transpose A to get A^T
-//  2. Call BaseBlockMulAdd(A^T, B, C, blockDim)
+// Uses register-blocked accumulators: the J dimension is tiled into groups
+// of 4 vector widths, with accumulators held in registers across the full
+// K loop. This eliminates K-1 redundant loads and stores of C per element.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAdd[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
@@ -60,8 +56,8 @@ func BlockMulAdd[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 
 // BlockMulAdd2 computes C += A * B processing 2 rows of C at a time.
 //
-// Loop unrolling improves performance by reusing B loads and increasing ILP.
-// Same semantics as BaseBlockMulAdd but with 2-way row unrolling.
+// Uses register-blocked accumulators with 2-way row unrolling (2 rows × 4 column strips = 8 accumulators).
+// Same semantics as BaseBlockMulAdd but with better ILP from processing 2 rows simultaneously.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAdd2[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
@@ -106,12 +102,9 @@ func BlockMulAddRegBlocked[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 
 // BlockMulAdd4 computes C += A * B processing 4 rows of C at a time.
 //
-// 4-way loop unrolling for maximum performance on large blocks.
-// Same semantics as BaseBlockMulAdd but with 4-way row unrolling.
-//
-// With aT layout, A[i,k], A[i+1,k], A[i+2,k], A[i+3,k] are consecutive
-// in memory: aT[k*blockDim+i], aT[k*blockDim+i+1], etc.
-// This provides excellent cache locality compared to the old interface.
+// Uses register-blocked accumulators with 4-way row unrolling
+// (4 rows × 4 column strips = 16 accumulators). Reuses B vector loads
+// across all 4 rows for maximum throughput.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {

@@ -1410,9 +1410,9 @@ func TestASTTranslatorMatMul(t *testing.T) {
 		t.Error("missing vdupq_n_f32(0.0f) for hwy.Zero")
 	}
 
-	// Verify hwy.Set → vdupq_n_f32
-	if !strings.Contains(cCode, "vdupq_n_f32(aip)") {
-		t.Error("missing vdupq_n_f32(aip) for hwy.Set")
+	// Verify hwy.Set → vdupq_n_f32 (now inlines a[i*k+p])
+	if !strings.Contains(cCode, "vdupq_n_f32(a[i * k + p])") {
+		t.Error("missing vdupq_n_f32(a[i * k + p]) for hwy.Set")
 	}
 
 	// Verify hwy.Load → vld1q_f32
@@ -1426,8 +1426,9 @@ func TestASTTranslatorMatMul(t *testing.T) {
 	}
 
 	// Verify hwy.MulAdd → vfmaq_f32 with accumulator-first arg order (NEON)
-	if !strings.Contains(cCode, "vfmaq_f32(vC, vA, vB)") {
-		t.Errorf("missing vfmaq_f32(vC, vA, vB) for hwy.MulAdd with NEON acc-first order\n\nGenerated C:\n%s", cCode)
+	// New pattern uses register accumulators: vfmaq_f32(acc0, vA, ...)
+	if !strings.Contains(cCode, "vfmaq_f32(acc0, vA,") {
+		t.Errorf("missing vfmaq_f32(acc0, vA, ...) for hwy.MulAdd with NEON acc-first order\n\nGenerated C:\n%s", cCode)
 	}
 
 	// Verify nested for loops are preserved
@@ -1436,12 +1437,12 @@ func TestASTTranslatorMatMul(t *testing.T) {
 		t.Errorf("expected at least 5 for loops (got %d) — matmul needs nested loops", forCount)
 	}
 
-	// Verify scalar tail loop is preserved
-	if !strings.Contains(cCode, "cRow[j] = 0") {
-		t.Error("missing scalar zeroing tail: cRow[j] = 0")
+	// Verify scalar tail loop is preserved (j-outer/p-inner with sum accumulator)
+	if !strings.Contains(cCode, "cRow[j] = sum") {
+		t.Error("missing scalar store tail: cRow[j] = sum")
 	}
-	if !strings.Contains(cCode, "cRow[j] += aip * bRow[j]") {
-		t.Error("missing scalar FMA tail: cRow[j] += aip * bRow[j]")
+	if !strings.Contains(cCode, "sum += a[i * k + p] * b[p * n + j]") {
+		t.Error("missing scalar FMA tail: sum += a[i * k + p] * b[p * n + j]")
 	}
 
 	// Verify pointer alias: cRow := c[i*n : (i+1)*n] → float *cRow = c + i * n;
@@ -1638,8 +1639,9 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 	}
 
 	// Verify FMA uses NEON accumulator-first order: vfmaq_f32(acc, a, b)
-	if !strings.Contains(f32, "vfmaq_f32(vC, vA, vB)") {
-		t.Error("f32: FMA should use NEON acc-first order: vfmaq_f32(vC, vA, vB)")
+	// New pattern uses register accumulators: vfmaq_f32(acc0, vA, ...)
+	if !strings.Contains(f32, "vfmaq_f32(acc0, vA,") {
+		t.Error("f32: FMA should use NEON acc-first order: vfmaq_f32(acc0, vA, ...)")
 	}
 
 	// Verify hwy.Zero[T]() → vdupq_n_f32(0.0f) (zero vector broadcast)
@@ -1647,9 +1649,9 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 		t.Error("f32: missing vdupq_n_f32(0.0f) for hwy.Zero")
 	}
 
-	// Verify hwy.Set(aip) → vdupq_n_f32(aip) (scalar broadcast)
-	if !strings.Contains(f32, "vdupq_n_f32(aip)") {
-		t.Error("f32: missing vdupq_n_f32(aip) for hwy.Set")
+	// Verify hwy.Set → vdupq_n_f32 (now inlines a[i*k+p])
+	if !strings.Contains(f32, "vdupq_n_f32(a[i * k + p])") {
+		t.Error("f32: missing vdupq_n_f32(a[i * k + p]) for hwy.Set")
 	}
 
 	// Verify .NumLanes() was replaced with the constant 4 (NEON f32 lane count)
@@ -1663,12 +1665,12 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 		t.Errorf("f32: expected at least 5 for loops for matmul, got %d", forCount)
 	}
 
-	// Verify scalar tail loops are preserved
-	if !strings.Contains(f32, "cRow[j] = 0;") {
-		t.Error("f32: missing scalar zeroing tail: cRow[j] = 0;")
+	// Verify scalar tail loops are preserved (j-outer/p-inner with sum accumulator)
+	if !strings.Contains(f32, "cRow[j] = sum;") {
+		t.Error("f32: missing scalar store tail: cRow[j] = sum;")
 	}
-	if !strings.Contains(f32, "cRow[j] += aip * bRow[j];") {
-		t.Error("f32: missing scalar FMA tail: cRow[j] += aip * bRow[j];")
+	if !strings.Contains(f32, "sum += a[i * k + p] * b[p * n + j];") {
+		t.Error("f32: missing scalar FMA tail: sum += a[i * k + p] * b[p * n + j];")
 	}
 
 	// Verify slice aliases become pointer arithmetic
@@ -1837,9 +1839,10 @@ func TestASTCWrapperGeneration(t *testing.T) {
 	if !strings.Contains(wrapper, "MatMulCF16") {
 		t.Error("wrapper: f16 wrapper should be generated for NEON f16 (NativeArithmetic=true)")
 	}
-	// bf16 still uses promoted math without native arithmetic, so no wrapper
-	if strings.Contains(wrapper, "MatMulCBF16") {
-		t.Error("wrapper: bf16 wrapper should not be generated for promoted-math types")
+	// NEON bf16 now has NativeArithmetic=true (inline helpers provide full
+	// SIMD arithmetic via promote-compute-demote), so its wrapper SHOULD be generated.
+	if !strings.Contains(wrapper, "MatMulCBF16") {
+		t.Error("wrapper: bf16 wrapper should be generated for NEON bf16 (NativeArithmetic=true)")
 	}
 }
 
@@ -2736,7 +2739,7 @@ func TestBenchmarkASTvsHandwritten(t *testing.T) {
 		dst := filepath.Join(genAsmDir, "matmul_neon_f16_arm64"+suffix)
 		data, err := os.ReadFile(src)
 		if err != nil {
-			t.Fatalf("read %s: %v", src, err)
+			t.Skipf("hand-written assembly not found (removed in favor of generated): %v", err)
 		}
 		if err := os.WriteFile(dst, data, 0644); err != nil {
 			t.Fatalf("write %s: %v", dst, err)
@@ -3280,9 +3283,9 @@ func TestTranslateVarintFindEnds(t *testing.T) {
 	}
 }
 
-// TestBenchmarkRaBitQASTvsHandwritten benchmarks the AST-generated NEON rabitq
-// assembly against the existing hand-written NEON rabitq assembly.
-func TestBenchmarkRaBitQASTvsHandwritten(t *testing.T) {
+// TestBenchmarkRaBitQASTvsScalar benchmarks the AST-generated NEON rabitq
+// assembly against the scalar Go implementation.
+func TestBenchmarkRaBitQASTvsScalar(t *testing.T) {
 	if runtime.GOARCH != "arm64" {
 		t.Skip("correctness test requires arm64 to execute generated NEON assembly")
 	}
@@ -3348,52 +3351,7 @@ func TestBenchmarkRaBitQASTvsHandwritten(t *testing.T) {
 		}
 	}
 
-	// Step 2: Copy the hand-written NEON assembly from asm/ directory
-	asmDir := filepath.Join("..", "..", "hwy", "contrib", "rabitq", "asm")
-	for _, suffix := range []string{".s", ".go"} {
-		src := filepath.Join(asmDir, "rabitq_neon_arm64"+suffix)
-		dst := filepath.Join(tmpDir, "rabitq_neon_arm64"+suffix)
-		data, err := os.ReadFile(src)
-		if err != nil {
-			t.Fatalf("read %s: %v", src, err)
-		}
-		if suffix == ".go" {
-			data = []byte(strings.Replace(string(data), "package asm", "package rabitqbench", 1))
-		}
-		if err := os.WriteFile(dst, data, 0644); err != nil {
-			t.Fatalf("write %s: %v", dst, err)
-		}
-	}
-
-	// Step 3: Write a wrapper for the hand-written asm function
-	handwrittenWrapper := `package rabitqbench
-
-import "unsafe"
-
-// BitProductHandwritten wraps the hand-written NEON rabitq assembly.
-func BitProductHandwritten(code, q1, q2, q3, q4 []uint64) uint32 {
-	if len(code) == 0 {
-		return 0
-	}
-	l := int64(len(code))
-	var sum uint64
-	rabitq_bit_product_neon(
-		unsafe.Pointer(&code[0]),
-		unsafe.Pointer(&q1[0]),
-		unsafe.Pointer(&q2[0]),
-		unsafe.Pointer(&q3[0]),
-		unsafe.Pointer(&q4[0]),
-		unsafe.Pointer(&sum),
-		unsafe.Pointer(&l),
-	)
-	return uint32(sum)
-}
-`
-	if err := os.WriteFile(filepath.Join(tmpDir, "handwritten_wrapper.go"), []byte(handwrittenWrapper), 0644); err != nil {
-		t.Fatalf("write handwritten wrapper: %v", err)
-	}
-
-	// Step 4: Write go.mod
+	// Step 2: Write go.mod
 	goModContent := `module rabitqbench
 
 go 1.26
@@ -3402,7 +3360,7 @@ go 1.26
 		t.Fatalf("write go.mod: %v", err)
 	}
 
-	// Step 5: Write the benchmark test
+	// Step 3: Write the benchmark test
 	benchContent := `package rabitqbench
 
 import (
@@ -3442,12 +3400,8 @@ func TestBitProductCorrectness(t *testing.T) {
 		}
 		expected := bitProductScalar(code, q1, q2, q3, q4)
 		gotAST := BitProductCU64(code, q1, q2, q3, q4)
-		gotHW := BitProductHandwritten(code, q1, q2, q3, q4)
 		if gotAST != expected {
 			t.Errorf("AST n=%d: got %d, want %d", n, gotAST, expected)
-		}
-		if gotHW != expected {
-			t.Errorf("Handwritten n=%d: got %d, want %d", n, gotHW, expected)
 		}
 	}
 }
@@ -3477,13 +3431,6 @@ func BenchmarkBitProduct(b *testing.B) {
 			}
 		})
 
-		b.Run(fmt.Sprintf("Handwritten/%d", n), func(b *testing.B) {
-			b.SetBytes(int64(n * 5 * 8))
-			for i := 0; i < b.N; i++ {
-				BitProductHandwritten(code, q1, q2, q3, q4)
-			}
-		})
-
 		b.Run(fmt.Sprintf("Scalar/%d", n), func(b *testing.B) {
 			b.SetBytes(int64(n * 5 * 8))
 			for i := 0; i < b.N; i++ {
@@ -3505,7 +3452,7 @@ func BenchmarkBitProduct(b *testing.B) {
 	}
 	t.Logf("Package files: %v", files)
 
-	// Step 6: Run correctness test first
+	// Step 4: Run correctness test first
 	goBin := filepath.Join(goRoot(), "bin", "go")
 	cmd := exec.Command(goBin, "test", "-v", "-run=TestBitProductCorrectness", "./...")
 	cmd.Dir = tmpDir
@@ -3516,7 +3463,7 @@ func BenchmarkBitProduct(b *testing.B) {
 		t.Fatalf("correctness test failed: %v\n%s", err, string(output))
 	}
 
-	// Step 7: Run benchmarks
+	// Step 5: Run benchmarks
 	cmd = exec.Command(goBin, "test", "-bench=BenchmarkBitProduct", "-benchmem", "-count=1", "./...")
 	cmd.Dir = tmpDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
@@ -4118,8 +4065,9 @@ func TestASTTranslatorF16NEON(t *testing.T) {
 	}
 
 	// Verify FMA: vfmaq_f16(acc, a, b) — NEON acc-first
-	if !strings.Contains(cCode, "vfmaq_f16(vC, vA, vB)") {
-		t.Error("missing vfmaq_f16(vC, vA, vB) for hwy.MulAdd with NEON f16")
+	// New pattern uses register accumulators: vfmaq_f16(acc0, vA, ...)
+	if !strings.Contains(cCode, "vfmaq_f16(acc0, vA,") {
+		t.Error("missing vfmaq_f16(acc0, vA, ...) for hwy.MulAdd with NEON f16")
 	}
 
 	// Verify Zero uses dup with 0.0 (not 0.0f for f16)
@@ -4835,5 +4783,302 @@ func BaseTestBadParam[T hwy.Floats](a []T, cfg MyConfig) {
 	}
 	if !strings.Contains(err.Error(), "unsupported parameter type") {
 		t.Errorf("error should mention unsupported param type, got: %v", err)
+	}
+}
+
+// TestBF16ProfileMaps validates that the NEON and AVX-512 BF16 profiles have
+// correct arithmetic helper mappings (not raw F32 intrinsics) and all required
+// fields for comparison ops, reductions, and DotAccumulate.
+func TestBF16ProfileMaps(t *testing.T) {
+	t.Run("NEON_BF16", func(t *testing.T) {
+		profile := GetCProfile("NEON", "hwy.BFloat16")
+		if profile == nil {
+			t.Fatal("NEON BF16 profile not found")
+		}
+
+		// Arithmetic should use bf16_*_q helpers, NOT raw f32 intrinsics
+		arithChecks := map[string]string{
+			"AddFn":  profile.AddFn["q"],
+			"SubFn":  profile.SubFn["q"],
+			"MulFn":  profile.MulFn["q"],
+			"DivFn":  profile.DivFn["q"],
+			"FmaFn":  profile.FmaFn["q"],
+			"NegFn":  profile.NegFn["q"],
+			"AbsFn":  profile.AbsFn["q"],
+			"SqrtFn": profile.SqrtFn["q"],
+			"MinFn":  profile.MinFn["q"],
+			"MaxFn":  profile.MaxFn["q"],
+		}
+		for name, fn := range arithChecks {
+			if !strings.HasPrefix(fn, "bf16_") {
+				t.Errorf("%s = %q, want bf16_* helper (got raw intrinsic)", name, fn)
+			}
+		}
+
+		// DupFn should be bf16_dup_q (not vld1q_dup_bf16 which takes a pointer)
+		if dup := profile.DupFn["q"]; dup != "bf16_dup_q" {
+			t.Errorf("DupFn = %q, want %q", dup, "bf16_dup_q")
+		}
+
+		// Reductions should return float (via ScalarArithType)
+		if profile.ScalarArithType != "float" {
+			t.Errorf("ScalarArithType = %q, want %q", profile.ScalarArithType, "float")
+		}
+		if fn := profile.ReduceSumFn["q"]; fn != "bf16_reducesum_q" {
+			t.Errorf("ReduceSumFn = %q, want %q", fn, "bf16_reducesum_q")
+		}
+		if fn := profile.ReduceMinFn["q"]; fn != "bf16_reducemin_q" {
+			t.Errorf("ReduceMinFn = %q, want %q", fn, "bf16_reducemin_q")
+		}
+		if fn := profile.ReduceMaxFn["q"]; fn != "bf16_reducemax_q" {
+			t.Errorf("ReduceMaxFn = %q, want %q", fn, "bf16_reducemax_q")
+		}
+
+		// Comparison maps should be populated
+		if fn := profile.LessThanFn["q"]; fn != "bf16_lt_q" {
+			t.Errorf("LessThanFn = %q, want %q", fn, "bf16_lt_q")
+		}
+		if fn := profile.EqualFn["q"]; fn != "bf16_eq_q" {
+			t.Errorf("EqualFn = %q, want %q", fn, "bf16_eq_q")
+		}
+		if fn := profile.GreaterThanFn["q"]; fn != "bf16_gt_q" {
+			t.Errorf("GreaterThanFn = %q, want %q", fn, "bf16_gt_q")
+		}
+		if fn := profile.IfThenElseFn["q"]; fn != "bf16_ifelse_q" {
+			t.Errorf("IfThenElseFn = %q, want %q", fn, "bf16_ifelse_q")
+		}
+		if mt := profile.MaskType["q"]; mt != "uint16x8_t" {
+			t.Errorf("MaskType = %q, want %q", mt, "uint16x8_t")
+		}
+
+		// DotAccumulate
+		if fn := profile.DotAccFn["q"]; fn != "vbfdotq_f32" {
+			t.Errorf("DotAccFn = %q, want %q", fn, "vbfdotq_f32")
+		}
+		if ty := profile.DotAccType["q"]; ty != "float32x4_t" {
+			t.Errorf("DotAccType = %q, want %q", ty, "float32x4_t")
+		}
+
+		// InlineHelpers must contain bf16 promote/demote primitives
+		helpers := strings.Join(profile.InlineHelpers, "\n")
+		for _, expect := range []string{
+			"bf16_promote_lo",
+			"bf16_promote_hi",
+			"bf16_demote_half",
+			"bf16_combine",
+			"bf16_zero_q",
+			"bf16_add_q",
+			"bf16_fma_q",
+			"bf16_lt_q",
+			"bf16_ifelse_q",
+			"vshll_n_u16", // underlying intrinsic in promote helpers
+		} {
+			if !strings.Contains(helpers, expect) {
+				t.Errorf("InlineHelpers missing %q", expect)
+			}
+		}
+
+		// No "d" tier arithmetic (BF16 has no native d-register ops)
+		if _, ok := profile.AddFn["d"]; ok {
+			t.Error("BF16 should NOT have d-tier arithmetic")
+		}
+	})
+
+	t.Run("AVX512_BF16", func(t *testing.T) {
+		profile := GetCProfile("AVX512", "hwy.BFloat16")
+		if profile == nil {
+			t.Fatal("AVX512 BF16 profile not found")
+		}
+
+		// Arithmetic should use avx512_bf16_* helpers
+		arithChecks := map[string]string{
+			"AddFn":  profile.AddFn["zmm"],
+			"SubFn":  profile.SubFn["zmm"],
+			"MulFn":  profile.MulFn["zmm"],
+			"DivFn":  profile.DivFn["zmm"],
+			"FmaFn":  profile.FmaFn["zmm"],
+			"NegFn":  profile.NegFn["zmm"],
+			"AbsFn":  profile.AbsFn["zmm"],
+			"SqrtFn": profile.SqrtFn["zmm"],
+			"MinFn":  profile.MinFn["zmm"],
+			"MaxFn":  profile.MaxFn["zmm"],
+		}
+		for name, fn := range arithChecks {
+			if !strings.HasPrefix(fn, "avx512_bf16_") {
+				t.Errorf("%s = %q, want avx512_bf16_* helper", name, fn)
+			}
+		}
+
+		// ScalarArithType = "float"
+		if profile.ScalarArithType != "float" {
+			t.Errorf("ScalarArithType = %q, want %q", profile.ScalarArithType, "float")
+		}
+
+		// DotAccumulate
+		if fn := profile.DotAccFn["zmm"]; fn != "_mm512_dpbf16_ps" {
+			t.Errorf("DotAccFn = %q, want %q", fn, "_mm512_dpbf16_ps")
+		}
+
+		// Comparisons
+		if fn := profile.LessThanFn["zmm"]; fn != "avx512_bf16_lt" {
+			t.Errorf("LessThanFn = %q, want %q", fn, "avx512_bf16_lt")
+		}
+		if mt := profile.MaskType["zmm"]; mt != "__mmask16" {
+			t.Errorf("MaskType = %q, want %q", mt, "__mmask16")
+		}
+
+		// VecType for zmm tier is __m256i (16 bf16 packed as u16)
+		if vt := profile.VecTypes["zmm"]; vt != "__m256i" {
+			t.Errorf("VecTypes[zmm] = %q, want %q", vt, "__m256i")
+		}
+
+		// PromoteFn should be a callable function, not a placeholder
+		if profile.PromoteFn != "avx512_bf16_promote" {
+			t.Errorf("PromoteFn = %q, want %q", profile.PromoteFn, "avx512_bf16_promote")
+		}
+
+		// InlineHelpers must contain avx512_bf16 helpers
+		helpers := strings.Join(profile.InlineHelpers, "\n")
+		for _, expect := range []string{
+			"avx512_bf16_promote",
+			"avx512_bf16_demote",
+			"avx512_bf16_add",
+			"avx512_bf16_fma",
+			"avx512_bf16_zero",
+			"avx512_bf16_lt",
+			"_mm512_cvtneps_pbh",  // hardware BF16 demote intrinsic
+			"_mm512_cvtepu16_epi32", // promote via zero extend
+		} {
+			if !strings.Contains(helpers, expect) {
+				t.Errorf("InlineHelpers missing %q", expect)
+			}
+		}
+	})
+}
+
+// TestBF16ASTTranslatorZero verifies that emitHwyZero generates the correct
+// bf16_zero_q() / avx512_bf16_zero() calls instead of DupFn(0).
+func TestBF16ASTTranslatorZero(t *testing.T) {
+	tests := []struct {
+		target   string
+		elemType string
+		want     string
+	}{
+		{"NEON", "hwy.BFloat16", "bf16_zero_q()"},
+		{"AVX512", "hwy.BFloat16", "avx512_bf16_zero()"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.target+"_"+tt.elemType, func(t *testing.T) {
+			profile := GetCProfile(tt.target, tt.elemType)
+			if profile == nil {
+				t.Skipf("profile %s:%s not found", tt.target, tt.elemType)
+			}
+
+			translator := NewCASTTranslator(profile, tt.elemType)
+			got := translator.emitHwyZero()
+			if got != tt.want {
+				t.Errorf("emitHwyZero() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestBF16ASTTranslatorDotAccumulate verifies that DotAccumulate emits the
+// correct BFDOT / VDPBF16PS intrinsic calls.
+func TestBF16ASTTranslatorDotAccumulate(t *testing.T) {
+	tests := []struct {
+		target      string
+		wantContain string
+	}{
+		{"NEON", "vbfdotq_f32"},
+		{"AVX512", "_mm512_dpbf16_ps"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.target, func(t *testing.T) {
+			profile := GetCProfile(tt.target, "hwy.BFloat16")
+			if profile == nil {
+				t.Skipf("profile %s:hwy.BFloat16 not found", tt.target)
+			}
+
+			translator := NewCASTTranslator(profile, "hwy.BFloat16")
+			// Simulate hwy.DotAccumulate(a, b, acc) with synthetic AST nodes
+			fn := profile.DotAccFn[translator.tier]
+			if fn == "" {
+				t.Fatalf("DotAccFn not set for tier %q", translator.tier)
+			}
+			if fn != tt.wantContain {
+				t.Errorf("DotAccFn = %q, want %q", fn, tt.wantContain)
+			}
+		})
+	}
+}
+
+// TestBF16CEmitterInlineHelpers verifies that BF16 inline helpers are emitted
+// in the generated C file for both the Vec→Vec path and AST-translated path.
+func TestBF16CEmitterInlineHelpers(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	inputFile := filepath.Join(tmpDir, "exp_base.go")
+	content := `package testbf16
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
+	return hwy.Mul(x, x)
+}
+`
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("write input file: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	bf16Path := filepath.Join(tmpDir, "baseexpvec_c_bf16_neon_arm64.c")
+	bf16Content, err := os.ReadFile(bf16Path)
+	if err != nil {
+		t.Fatalf("read bf16 C file: %v", err)
+	}
+	bf16 := string(bf16Content)
+
+	// Verify inline helpers are present
+	for _, expect := range []string{
+		"bf16_promote_lo",
+		"bf16_promote_hi",
+		"bf16_demote_half",
+		"bf16_combine",
+	} {
+		if !strings.Contains(bf16, expect) {
+			t.Errorf("bf16 C file missing helper function %q", expect)
+		}
+	}
+
+	// Verify helpers appear before the main function body
+	helperIdx := strings.Index(bf16, "bf16_promote_lo")
+	funcIdx := strings.Index(bf16, "void exp_c_bf16_neon")
+	if helperIdx < 0 {
+		t.Fatal("bf16_promote_lo not found in output")
+	}
+	if funcIdx < 0 {
+		t.Fatal("main function not found in output")
+	}
+	if helperIdx > funcIdx {
+		t.Error("inline helpers should appear before the main function")
+	}
+
+	// Verify the main function uses the helper functions (not raw intrinsics)
+	if !strings.Contains(bf16, "bf16_promote_lo(") {
+		t.Error("main function should call bf16_promote_lo()")
+	}
+	if !strings.Contains(bf16, "bf16_promote_hi(") {
+		t.Error("main function should call bf16_promote_hi()")
 	}
 }

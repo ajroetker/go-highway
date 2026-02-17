@@ -16,7 +16,8 @@ func BaseFusedNF4MatMul_neon(input []float32, packed []uint8, scales []float32, 
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 4
-	dequantBuf := [4]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -29,7 +30,39 @@ func BaseFusedNF4MatMul_neon(input []float32, packed []uint8, scales []float32, 
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var quantIdx int
+					if weightIdx%2 == 0 {
+						quantIdx = int(packed[packedIdx] & 0x0F)
+					} else {
+						quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
+				}
+				w0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				inputVal.MulAddAcc(w0, &acc0)
+				inputVal.MulAddAcc(w1, &acc1)
+				inputVal.MulAddAcc(w2, &acc2)
+				inputVal.MulAddAcc(w3, &acc3)
+				acc0.Store((*[4]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[4]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[4]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[4]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -89,7 +122,8 @@ func BaseFusedInt4MatMul_neon(input []float32, packed []uint8, scales []float32,
 	}
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := 4
-	dequantBuf := [4]float32{}
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
 	accBuf := make([]float32, N)
 	for m := range M {
 		inputRow := input[m*K : (m+1)*K]
@@ -102,7 +136,39 @@ func BaseFusedInt4MatMul_neon(input []float32, packed []uint8, scales []float32,
 			baseIdx := k * N
 			scaleBase := k * numGroups
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+					var unsignedVal int
+					if weightIdx%2 == 0 {
+						unsignedVal = int(packed[packedIdx] & 0x0F)
+					} else {
+						unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = float32(unsignedVal-8) * scale
+				}
+				w0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				inputVal.MulAddAcc(w0, &acc0)
+				inputVal.MulAddAcc(w1, &acc1)
+				inputVal.MulAddAcc(w2, &acc2)
+				inputVal.MulAddAcc(w3, &acc3)
+				acc0.Store((*[4]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.Store((*[4]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.Store((*[4]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.Store((*[4]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+			}
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx

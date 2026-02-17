@@ -90,7 +90,8 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 
 	totalFuncs := len(vecFuncs) + len(sliceFuncs) + len(astFuncs)
 	if totalFuncs == 0 {
-		return nil, fmt.Errorf("no C-eligible functions found")
+		fmt.Println("No C-eligible functions found; all functions will use GoSimd path")
+		return nil, nil
 	}
 
 	fmt.Printf("Found %d C-eligible functions:\n", totalFuncs)
@@ -185,6 +186,8 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				emitter := NewCEmitter(g.PackageOut, elemType, target)
 				emitter.profile = profile
 				emitter.packageGlobals = result.PackageGlobals
+				emitter.packageConsts = result.PackageConsts
+				emitter.allFuncs = result.AllFuncs
 				cFile, err := emitter.EmitASTTranslatedC(&pf, cOutputDir)
 				if err != nil {
 					return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
@@ -789,8 +792,10 @@ var reservedAsmNames = map[string]string{
 }
 
 // fixReservedAsmNames renames reserved parameter names in GoAT-generated files.
-// It replaces patterns like "g+" (parameter references) and "g " (in func decls)
-// with safe alternatives.
+// It replaces patterns like " g+" (parameter references) and "g " (in func decls)
+// with safe alternatives. Replacements are word-boundary-aware to avoid
+// corrupting longer names that contain the reserved name as a substring
+// (e.g., "img" should not be rewritten to "imgv" when renaming "g" → "gv").
 func fixReservedAsmNames(filename string) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -803,25 +808,27 @@ func fixReservedAsmNames(filename string) error {
 	content := string(data)
 	modified := false
 	for reserved, replacement := range reservedAsmNames {
-		// Replace parameter references in .s files: "g+8(FP)" → "gv+8(FP)"
-		old := reserved + "+"
-		new := replacement + "+"
+		// Replace parameter references in .s files: " g+8(FP)" → " gv+8(FP)"
+		// Use " g+" (space prefix) to avoid matching substrings like "img+".
+		// Assembly parameter names always follow a space after the instruction.
+		old := " " + reserved + "+"
+		new := " " + replacement + "+"
 		if strings.Contains(content, old) {
 			content = strings.ReplaceAll(content, old, new)
 			modified = true
 		}
-		// Replace parameter names in .go func declarations: ", g " or ", g," → ", gv " or ", gv,"
-		old = ", " + reserved + " "
-		new = ", " + replacement + " "
-		if strings.Contains(content, old) {
-			content = strings.ReplaceAll(content, old, new)
-			modified = true
-		}
-		old = ", " + reserved + ","
-		new = ", " + replacement + ","
-		if strings.Contains(content, old) {
-			content = strings.ReplaceAll(content, old, new)
-			modified = true
+		// Replace parameter names in .go func declarations.
+		// Handle first parameter "(g," or "(g ", and middle/later ", g " or ", g,".
+		for _, pair := range [][2]string{
+			{"(" + reserved + ",", "(" + replacement + ","},
+			{"(" + reserved + " ", "(" + replacement + " "},
+			{", " + reserved + " ", ", " + replacement + " "},
+			{", " + reserved + ",", ", " + replacement + ","},
+		} {
+			if strings.Contains(content, pair[0]) {
+				content = strings.ReplaceAll(content, pair[0], pair[1])
+				modified = true
+			}
 		}
 	}
 
@@ -996,11 +1003,20 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 			// Assembly name: forwardict_c_f32_neon
 			asmName := cAsmFuncName(pf.Name, elemType, targetSuffix)
 
-			// Build param list: one unsafe.Pointer per struct param
+			// Build param list: unsafe.Pointer per parameter.
+			// Struct pointer params keep their Go name; scalar params
+			// (type-parameter T, int, float) get a "p" prefix to match
+			// the GOAT calling convention (passed as pointers).
+			typeParamNames := make(map[string]bool, len(pf.TypeParams))
+			for _, tp := range pf.TypeParams {
+				typeParamNames[tp.Name] = true
+			}
 			var paramNames []string
 			for _, p := range pf.Params {
 				if isGenericStructPtr(p.Type) {
 					paramNames = append(paramNames, p.Name)
+				} else if typeParamNames[p.Type] || isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
+					paramNames = append(paramNames, "p"+p.Name)
 				}
 			}
 
@@ -1013,7 +1029,11 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 		}
 	}
 
-	filename := filepath.Join(asmDir, fmt.Sprintf("c_struct_wrappers_%s_%s.gen.go", targetSuffix, archSuffix))
+	dispPrefix := g.DispatchPrefix
+	if dispPrefix == "" {
+		dispPrefix = "dispatch"
+	}
+	filename := filepath.Join(asmDir, fmt.Sprintf("c_struct_wrappers_%s_%s_%s.gen.go", dispPrefix, targetSuffix, archSuffix))
 	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("write struct asm passthrough: %w", err)
 	}
@@ -1058,6 +1078,70 @@ func neonSMESkipGuard(target Target) string {
 		return "hwy.NoSimdEnv() || hwy.HasSME()"
 	}
 	return ""
+}
+
+// elemTypeFeatureGuard returns the runtime feature guard expression for ARM64
+// element types that require optional CPU extensions. Returns empty string for
+// universally-supported types (f32, f64, integers).
+// Float16 requires FEAT_FP16 (ARMv8.2-A+), BFloat16 requires FEAT_BF16 (ARMv8.6-A+).
+func elemTypeFeatureGuard(elemType string) string {
+	if isFloat16Type(elemType) {
+		return "hwy.HasARMFP16()"
+	}
+	if isBFloat16Type(elemType) {
+		return "hwy.HasARMBF16()"
+	}
+	return ""
+}
+
+// dispatchAssignment pairs a dispatch variable with its adapter function name.
+type dispatchAssignment struct {
+	dispatchVar string
+	adapterName string
+}
+
+// emitGuardedDispatchAssignments writes dispatch variable assignments to buf,
+// grouping half-precision types behind runtime feature guards. Universally
+// supported types (f32, f64, integers) are emitted directly; Float16 assignments
+// are wrapped in `if hwy.HasARMFP16() { ... }` and BFloat16 in
+// `if hwy.HasARMBF16() { ... }` to prevent SIGILL on hardware lacking those
+// extensions.
+func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, target Target) {
+	// Collect assignments grouped by feature guard.
+	guardedAssignments := make(map[string][]dispatchAssignment)
+	for _, pf := range funcs {
+		for _, elemType := range getCElemTypes(&pf) {
+			profile := GetCProfile(target.Name, elemType)
+			if profile == nil {
+				continue
+			}
+			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+				continue
+			}
+			dv := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
+			an := buildAdapterFuncName(pf.Name, elemType)
+			guard := elemTypeFeatureGuard(elemType)
+			guardedAssignments[guard] = append(guardedAssignments[guard], dispatchAssignment{dv, an})
+		}
+	}
+
+	// Emit unguarded assignments first (f32, f64, integers, etc.).
+	for _, a := range guardedAssignments[""] {
+		fmt.Fprintf(buf, "\t%s = %s\n", a.dispatchVar, a.adapterName)
+	}
+
+	// Emit guarded blocks in a stable order.
+	for _, guard := range []string{"hwy.HasARMFP16()", "hwy.HasARMBF16()"} {
+		assignments := guardedAssignments[guard]
+		if len(assignments) == 0 {
+			continue
+		}
+		fmt.Fprintf(buf, "\tif %s {\n", guard)
+		for _, a := range assignments {
+			fmt.Fprintf(buf, "\t\t%s = %s\n", a.dispatchVar, a.adapterName)
+		}
+		fmt.Fprintf(buf, "\t}\n")
+	}
 }
 
 // emitZCDispatch generates a z_c_*.gen.go file in the parent package that
@@ -1143,20 +1227,7 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		for _, pf := range funcs {
-			for _, elemType := range getCElemTypes(&pf) {
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue
-				}
-				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-					continue
-				}
-				dispatchVar := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
-				adapterName := buildAdapterFuncName(pf.Name, elemType)
-				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
-			}
-		}
+		emitGuardedDispatchAssignments(&buf, funcs, target)
 		fmt.Fprintf(&buf, "}\n\n")
 	}
 
@@ -1236,7 +1307,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				if strings.HasPrefix(p.Type, "[]") {
 					paramDefs = append(paramDefs, p.Name+" unsafe.Pointer")
 					paramNames = append(paramNames, p.Name)
-				} else if isGoScalarIntType(p.Type) {
+				} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 					ptrName := "p" + p.Name
 					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
 					paramNames = append(paramNames, ptrName)
@@ -1251,7 +1322,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 			// Hidden length params for slice parameters.
 			hasIntParams := false
 			for _, p := range pf.Params {
-				if isGoScalarIntType(p.Type) {
+				if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 					hasIntParams = true
 					break
 				}
@@ -1408,20 +1479,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		for _, pf := range funcs {
-			for _, elemType := range getCElemTypes(&pf) {
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue
-				}
-				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-					continue
-				}
-				dispatchVar := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
-				adapterName := buildAdapterFuncName(pf.Name, elemType)
-				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchVar, adapterName)
-			}
-		}
+		emitGuardedDispatchAssignments(&buf, funcs, target)
 		fmt.Fprintf(&buf, "}\n\n")
 	}
 
@@ -1466,17 +1524,21 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	// Classify params.
 	var sliceParams []string
 	var intParams []string
+	var floatParams []string
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			sliceParams = append(sliceParams, p.Name)
 		} else if isGoScalarIntType(p.Type) {
 			intParams = append(intParams, p.Name)
+		} else if isGoScalarFloatType(p.Type) {
+			floatParams = append(floatParams, p.Name)
 		}
 	}
+	hasScalarParams := len(intParams) > 0 || len(floatParams) > 0
 
 	// Determine hidden length param strategy.
-	needsSharedLen := len(intParams) == 0 && len(sliceParams) > 0
-	needsPerSliceLen := len(intParams) > 0 && len(sliceParams) > 0
+	needsSharedLen := !hasScalarParams && len(sliceParams) > 0
+	needsPerSliceLen := hasScalarParams && len(sliceParams) > 0
 
 	// Determine if we have return values
 	hasReturns := len(pf.Returns) > 0
@@ -1527,6 +1589,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			} else {
 				fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 			}
+		} else if isGoScalarFloatType(p.Type) {
+			fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 		}
 	}
 
@@ -1555,7 +1619,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
-		} else if isGoScalarIntType(p.Type) {
+		} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
 			// Scalar type-parameter param — passed as pointer in GOAT
@@ -1620,14 +1684,21 @@ func (g *Generator) resolveAsmImportPath() (string, error) {
 // E.g., BaseForwardICT + float32 → ForwardICT_F32
 func structAsmExportedName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
 	return name + "_" + cTypePublicSuffix(elemType)
 }
 
 // buildDispatchVarName builds the dispatch variable name from a base function name.
 // For generic functions: BaseForwardICT + float32 → ForwardICTFloat32
 // For non-generic functions: BaseFusedInt8MatMul + float32 → FusedInt8MatMul (no suffix)
+// Unexported functions stay unexported: basePackedMicroKernelGeneral → packedMicroKernelGeneralFloat16
 func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
+	private := len(baseName) > 0 && baseName[0] >= 'a' && baseName[0] <= 'z'
 	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
+	if private {
+		name = makeUnexported(name)
+	}
 	if isGeneric {
 		return name + typeNameToDispatchSuffix(elemType)
 	}
@@ -1638,6 +1709,7 @@ func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
 // E.g., BaseForwardICT + float32 → forwardICTAsmF32
 func buildAdapterFuncName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
 	// Lowercase first letter
 	if len(name) > 0 {
 		name = strings.ToLower(name[:1]) + name[1:]
@@ -1674,10 +1746,21 @@ func typeNameToDispatchSuffix(elemType string) string {
 func emitZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string, target Target) {
 	adapterName := buildAdapterFuncName(pf.Name, elemType)
 
-	// Build parameter list with specialized types
+	// Build set of type parameter names for generic substitution.
+	typeParamNames := make(map[string]bool, len(pf.TypeParams))
+	for _, tp := range pf.TypeParams {
+		typeParamNames[tp.Name] = true
+	}
+
+	// Build parameter list with specialized types.
+	// Struct pointer types: *Image[T] → *Image[float32]
+	// Type parameter types: T → float32 (or hwy.Float16, etc.)
 	var params []string
 	for _, p := range pf.Params {
 		paramType := specializeStructPtrType(p.Type, elemType)
+		if typeParamNames[p.Type] {
+			paramType = goTypeName(elemType)
+		}
 		params = append(params, p.Name+" "+paramType)
 	}
 	paramList := strings.Join(params, ", ")
@@ -1724,12 +1807,16 @@ func emitZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string, targe
 		fmt.Fprintf(buf, "\t}\n")
 	}
 
-	// Call the asm/ exported function
+	// Call the asm/ exported function, passing struct pointers and scalar
+	// params. Scalar params are passed as unsafe.Pointer(&param) to match
+	// the GOAT calling convention (all scalars passed as pointers).
 	asmExportedName := structAsmExportedName(pf.Name, elemType)
 	fmt.Fprintf(buf, "\tasm.%s(\n", asmExportedName)
 	for _, p := range pf.Params {
 		if isGenericStructPtr(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&c%s),\n", p.Name)
+		} else if typeParamNames[p.Type] || isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
+			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%s),\n", p.Name)
 		}
 	}
 	fmt.Fprintf(buf, "\t)\n")
@@ -1794,11 +1881,10 @@ func buildCPublicName(baseName, elemType string) string {
 }
 
 // cAsmFuncName creates the assembly function name.
-// BaseExpVec, float32, neon -> exp_c_f32_neon
+// BaseMatMul, float32, neon -> matmul_c_f32_neon
 func cAsmFuncName(baseName, elemType, targetSuffix string) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimSuffix(name, "Vec")
-	name = strings.ToLower(name)
+	name := strings.ToLower(baseName)
+	name = strings.TrimPrefix(name, "base")
 
 	return name + "_c_" + cTypeSuffix(elemType) + "_" + targetSuffix
 }
@@ -1862,6 +1948,15 @@ func isGoScalarIntType(goType string) bool {
 	switch goType {
 	case "int", "int64", "int32", "int16", "int8",
 		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr":
+		return true
+	default:
+		return false
+	}
+}
+
+func isGoScalarFloatType(goType string) bool {
+	switch goType {
+	case "float32", "float64":
 		return true
 	default:
 		return false
@@ -1990,10 +2085,17 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			intParams = append(intParams, p.Name)
 		}
 	}
+	hasScalarParams := len(intParams) > 0
+	for _, p := range pf.Params {
+		if isGoScalarFloatType(p.Type) {
+			hasScalarParams = true
+			break
+		}
+	}
 
 	// Determine hidden length param strategy.
-	needsSharedLen := len(intParams) == 0 && len(sliceParams) > 0
-	needsPerSliceLen := len(intParams) > 0 && len(sliceParams) > 0
+	needsSharedLen := !hasScalarParams && len(sliceParams) > 0
+	needsPerSliceLen := hasScalarParams && len(sliceParams) > 0
 	firstSlice := ""
 	if needsSharedLen && len(sliceParams) > 0 {
 		firstSlice = sliceParams[0]
@@ -2095,6 +2197,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			} else {
 				fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 			}
+		} else if isGoScalarFloatType(p.Type) {
+			fmt.Fprintf(buf, "\t%sVal := %s\n", p.Name, p.Name)
 		}
 	}
 
@@ -2127,7 +2231,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	for _, p := range pf.Params {
 		if strings.HasPrefix(p.Type, "[]") {
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
-		} else if isGoScalarIntType(p.Type) {
+		} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		} else if p.Type == "T" {
 			// Scalar type-parameter param — passed as pointer in GOAT

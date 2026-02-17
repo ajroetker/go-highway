@@ -14,7 +14,7 @@
 
 package matmul
 
-//go:generate go run ../../../cmd/hwygen -input matmul_base.go -dispatch matmul -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input matmul_base.go -dispatch matmul -output . -targets avx2,avx512,neon:asm,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 
@@ -62,9 +62,9 @@ func matmulScalar64(a, b, c []float64, m, n, k int) {
 //   - B is K x N (row-major)
 //   - C is M x N (row-major)
 //
-// Uses the "broadcast A, stream B" algorithm which is efficient for SIMD:
-// For each row i of C and each column k of A, broadcast A[i,k] and
-// multiply with the corresponding row of B, accumulating into C.
+// Uses register-blocked accumulators: the J dimension is tiled into groups
+// of 4 vector widths, with accumulators held in registers across the full
+// K loop. This eliminates K-1 redundant loads and stores of C per element.
 //
 // This function is designed for code generation by hwygen.
 // It will be specialized for AVX2, AVX-512, NEON, and fallback targets.
@@ -79,40 +79,51 @@ func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 		panic("matmul: C slice too short")
 	}
 
+	lanes := hwy.Zero[T]().NumLanes()
+	tileJ := 4 * lanes
+
 	// For each row i of C
 	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 
-		// Zero the C row using SIMD
-		vZero := hwy.Zero[T]()
-		lanes := vZero.NumLanes()
+		// Tiled J loop — 4 accumulators held in registers across full K loop
 		var j int
-		for j = 0; j+lanes <= n; j += lanes {
-			hwy.Store(vZero, cRow[j:])
+		for j = 0; j+tileJ <= n; j += tileJ {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for p := range k {
+				vA := hwy.Set(a[i*k+p])
+				bRow := b[p*n:]
+				acc0 = hwy.MulAdd(vA, hwy.Load(bRow[j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(bRow[j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(bRow[j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(bRow[j+3*lanes:]), acc3)
+			}
+			hwy.Store(acc0, cRow[j:])
+			hwy.Store(acc1, cRow[j+lanes:])
+			hwy.Store(acc2, cRow[j+2*lanes:])
+			hwy.Store(acc3, cRow[j+3*lanes:])
 		}
-		// Scalar tail for zeroing
+
+		// Remainder: single accumulator per remaining vector strip
+		for ; j+lanes <= n; j += lanes {
+			acc := hwy.Zero[T]()
+			for p := range k {
+				vA := hwy.Set(a[i*k+p])
+				acc = hwy.MulAdd(vA, hwy.Load(b[p*n+j:]), acc)
+			}
+			hwy.Store(acc, cRow[j:])
+		}
+
+		// Scalar tail
 		for ; j < n; j++ {
-			cRow[j] = 0
-		}
-
-		// Accumulate A[i,:] * B into C[i,:]
-		// For each column p of A (= row p of B)
-		for p := range k {
-			aip := a[i*k+p]
-			vA := hwy.Set(aip) // Broadcast A[i,p]
-			bRow := b[p*n : (p+1)*n]
-
-			// Vectorized multiply-add: C[i,j:j+lanes] += A[i,p] * B[p,j:j+lanes]
-			for j = 0; j+lanes <= n; j += lanes {
-				vB := hwy.Load(bRow[j:])
-				vC := hwy.Load(cRow[j:])
-				vC = hwy.MulAdd(vA, vB, vC) // C += A * B
-				hwy.Store(vC, cRow[j:])
+			var sum T
+			for p := range k {
+				sum += a[i*k+p] * b[p*n+j]
 			}
-			// Scalar tail
-			for ; j < n; j++ {
-				cRow[j] += aip * bRow[j]
-			}
+			cRow[j] = sum
 		}
 	}
 }

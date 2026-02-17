@@ -2,7 +2,7 @@
 
 package matmul
 
-//go:generate go run ../../../cmd/hwygen -input block_kernel.go -dispatch blockkernel -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input block_kernel.go -dispatch blockkernel -output . -targets avx2,avx512,neon:asm,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 
@@ -17,13 +17,9 @@ import "github.com/ajroetker/go-highway/hwy"
 //
 //	C += (A^T)^T * B = A * B
 //
-// This layout is optimal for SIMD:
-//   - A^T[k, i:i+lanes] gives us A[i:i+lanes, k] (contiguous in A^T)
-//   - B[k, j:j+lanes] gives us B[k, j:j+lanes] (contiguous in B)
-//
-// For standard matmul C = A * B where you have A and B:
-//  1. Transpose A to get A^T
-//  2. Call BaseBlockMulAdd(A^T, B, C, blockDim)
+// Uses register-blocked accumulators: the J dimension is tiled into groups
+// of 4 vector widths, with accumulators held in registers across the full
+// K loop. This eliminates K-1 redundant loads and stores of C per element.
 func BaseBlockMulAdd[T hwy.Floats](aT, b, c []T, blockDim int) {
 	if len(aT) < blockDim*blockDim {
 		panic("BlockMulAdd: aT slice too short")
@@ -36,42 +32,65 @@ func BaseBlockMulAdd[T hwy.Floats](aT, b, c []T, blockDim int) {
 	}
 
 	lanes := hwy.Zero[T]().NumLanes()
+	tileJ := 4 * lanes
 
-	// Process one row of C at a time
-	// C[i, j] = sum_k A[i,k] * B[k,j] = sum_k aT[k,i] * B[k,j]
 	for i := range blockDim {
 		cRowStart := i * blockDim
 
-		// Accumulate contributions from all k values
-		for k := range blockDim {
-			// A[i,k] = aT[k,i] (transposed access)
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik) // Broadcast A[i,k]
-
-			// B[k,:] is contiguous (row k of B)
-			bRowStart := k * blockDim
-
-			// Vectorized accumulation: C[i,j] += A[i,k] * B[k,j]
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		// Tiled J loop — 4 accumulators held in registers across full K loop
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
+			// Add accumulators to existing C (this is +=)
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
 
-			// Scalar tail
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+		// Remainder: single accumulator per remaining vector strip
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[T]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				acc = hwy.MulAdd(vA, hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+
+		// Scalar tail
+		for ; j < blockDim; j++ {
+			var sum T
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
 
 // BaseBlockMulAdd2 computes C += A * B processing 2 rows of C at a time.
 //
-// Loop unrolling improves performance by reusing B loads and increasing ILP.
-// Same semantics as BaseBlockMulAdd but with 2-way row unrolling.
+// Uses register-blocked accumulators with 2-way row unrolling (2 rows × 4 column strips = 8 accumulators).
+// Same semantics as BaseBlockMulAdd but with better ILP from processing 2 rows simultaneously.
 func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 	if len(aT) < blockDim*blockDim {
 		panic("BlockMulAdd2: aT slice too short")
@@ -84,6 +103,7 @@ func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 	}
 
 	lanes := hwy.Zero[T]().NumLanes()
+	tileJ := 4 * lanes
 
 	// Process 2 rows of C at a time
 	var i int
@@ -91,54 +111,129 @@ func BaseBlockMulAdd2[T hwy.Floats](aT, b, c []T, blockDim int) {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
 
-		for k := range blockDim {
-			// A[i,k] = aT[k,i], A[i+1,k] = aT[k,i+1]
-			// These are consecutive in aT (same row k, columns i and i+1)
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := hwy.Set(a0k)
-			vA1 := hwy.Set(a1k)
-
-			bRowStart := k * blockDim
-
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-
-				vC0 := hwy.Load(c[cRow0Start+j:])
-				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0Start+j:])
-
-				vC1 := hwy.Load(c[cRow1Start+j:])
-				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1Start+j:])
+		// Tiled J loop — 8 accumulators (2 rows × 4 strips)
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[T]()
+			acc01 := hwy.Zero[T]()
+			acc02 := hwy.Zero[T]()
+			acc03 := hwy.Zero[T]()
+			acc10 := hwy.Zero[T]()
+			acc11 := hwy.Zero[T]()
+			acc12 := hwy.Zero[T]()
+			acc13 := hwy.Zero[T]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := hwy.Set(a0k)
+				vA1 := hwy.Set(a1k)
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
 			}
+			// Add accumulators to existing C
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow0Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0Start+j+lanes:])
+			vC = hwy.Load(c[cRow0Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow0Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0Start+j+3*lanes:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1Start+j:])
+			vC = hwy.Load(c[cRow1Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1Start+j+lanes:])
+			vC = hwy.Load(c[cRow1Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow1Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1Start+j+3*lanes:])
+		}
 
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += a0k * b[bRowStart+j]
-				c[cRow1Start+j] += a1k * b[bRowStart+j]
+		// Remainder: single accumulator per remaining vector strip
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
 			}
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1Start+j:])
+		}
+
+		// Scalar tail
+		for ; j < blockDim; j++ {
+			var sum0, sum1 T
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+			}
+			c[cRow0Start+j] += sum0
+			c[cRow1Start+j] += sum1
 		}
 	}
 
 	// Handle odd row if blockDim is odd
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[T]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum T
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -337,12 +432,9 @@ func BaseBlockMulAddRegBlocked[T hwy.Floats](aT, b, c []T, blockDim int) {
 
 // BaseBlockMulAdd4 computes C += A * B processing 4 rows of C at a time.
 //
-// 4-way loop unrolling for maximum performance on large blocks.
-// Same semantics as BaseBlockMulAdd but with 4-way row unrolling.
-//
-// With aT layout, A[i,k], A[i+1,k], A[i+2,k], A[i+3,k] are consecutive
-// in memory: aT[k*blockDim+i], aT[k*blockDim+i+1], etc.
-// This provides excellent cache locality compared to the old interface.
+// Uses register-blocked accumulators with 4-way row unrolling
+// (4 rows × 4 column strips = 16 accumulators). Reuses B vector loads
+// across all 4 rows for maximum throughput.
 func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 	if len(aT) < blockDim*blockDim {
 		panic("BlockMulAdd4: aT slice too short")
@@ -355,6 +447,7 @@ func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 	}
 
 	lanes := hwy.Zero[T]().NumLanes()
+	tileJ := 4 * lanes
 
 	// Process 4 rows of C at a time
 	var i int
@@ -364,69 +457,181 @@ func BaseBlockMulAdd4[T hwy.Floats](aT, b, c []T, blockDim int) {
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
 
-		for k := range blockDim {
-			// A[i+r, k] = aT[k, i+r] - consecutive in memory!
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
+		// Tiled J loop — 16 accumulators (4 rows × 4 strips)
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			// 16 accumulators: row r, strip s = acc_rs
+			acc00 := hwy.Zero[T]()
+			acc01 := hwy.Zero[T]()
+			acc02 := hwy.Zero[T]()
+			acc03 := hwy.Zero[T]()
+			acc10 := hwy.Zero[T]()
+			acc11 := hwy.Zero[T]()
+			acc12 := hwy.Zero[T]()
+			acc13 := hwy.Zero[T]()
+			acc20 := hwy.Zero[T]()
+			acc21 := hwy.Zero[T]()
+			acc22 := hwy.Zero[T]()
+			acc23 := hwy.Zero[T]()
+			acc30 := hwy.Zero[T]()
+			acc31 := hwy.Zero[T]()
+			acc32 := hwy.Zero[T]()
+			acc33 := hwy.Zero[T]()
 
-			vA0 := hwy.Set(a0k)
-			vA1 := hwy.Set(a1k)
-			vA2 := hwy.Set(a2k)
-			vA3 := hwy.Set(a3k)
-
-			bRowStart := k * blockDim
-
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-
-				vC0 := hwy.Load(c[cRow0+j:])
-				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0+j:])
-
-				vC1 := hwy.Load(c[cRow1+j:])
-				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1+j:])
-
-				vC2 := hwy.Load(c[cRow2+j:])
-				vC2 = hwy.MulAdd(vA2, vB, vC2)
-				hwy.Store(vC2, c[cRow2+j:])
-
-				vC3 := hwy.Load(c[cRow3+j:])
-				vC3 = hwy.MulAdd(vA3, vB, vC3)
-				hwy.Store(vC3, c[cRow3+j:])
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
+				acc20 = hwy.MulAdd(vA2, vB0, acc20)
+				acc21 = hwy.MulAdd(vA2, vB1, acc21)
+				acc22 = hwy.MulAdd(vA2, vB2, acc22)
+				acc23 = hwy.MulAdd(vA2, vB3, acc23)
+				acc30 = hwy.MulAdd(vA3, vB0, acc30)
+				acc31 = hwy.MulAdd(vA3, vB1, acc31)
+				acc32 = hwy.MulAdd(vA3, vB2, acc32)
+				acc33 = hwy.MulAdd(vA3, vB3, acc33)
 			}
 
-			for ; j < blockDim; j++ {
-				c[cRow0+j] += a0k * b[bRowStart+j]
-				c[cRow1+j] += a1k * b[bRowStart+j]
-				c[cRow2+j] += a2k * b[bRowStart+j]
-				c[cRow3+j] += a3k * b[bRowStart+j]
+			// Add accumulators to existing C
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0+j:])
+			vC = hwy.Load(c[cRow0+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0+j+lanes:])
+			vC = hwy.Load(c[cRow0+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0+j+2*lanes:])
+			vC = hwy.Load(c[cRow0+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0+j+3*lanes:])
+
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1+j:])
+			vC = hwy.Load(c[cRow1+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1+j+lanes:])
+			vC = hwy.Load(c[cRow1+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1+j+2*lanes:])
+			vC = hwy.Load(c[cRow1+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1+j+3*lanes:])
+
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc20), c[cRow2+j:])
+			vC = hwy.Load(c[cRow2+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc21), c[cRow2+j+lanes:])
+			vC = hwy.Load(c[cRow2+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc22), c[cRow2+j+2*lanes:])
+			vC = hwy.Load(c[cRow2+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc23), c[cRow2+j+3*lanes:])
+
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc30), c[cRow3+j:])
+			vC = hwy.Load(c[cRow3+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc31), c[cRow3+j+lanes:])
+			vC = hwy.Load(c[cRow3+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc32), c[cRow3+j+2*lanes:])
+			vC = hwy.Load(c[cRow3+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc33), c[cRow3+j+3*lanes:])
+		}
+
+		// Remainder: single vector strip, 4 rows
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
+				acc2 = hwy.MulAdd(vA2, vB, acc2)
+				acc3 = hwy.MulAdd(vA3, vB, acc3)
 			}
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0+j:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1+j:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRow2+j:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRow3+j:])
+		}
+
+		// Scalar tail
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 T
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+				sum2 += aT[aTRowK+i+2] * bkj
+				sum3 += aT[aTRowK+i+3] * bkj
+			}
+			c[cRow0+j] += sum0
+			c[cRow1+j] += sum1
+			c[cRow2+j] += sum2
+			c[cRow3+j] += sum3
 		}
 	}
 
 	// Handle remaining rows (0-3 rows)
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[T]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum T
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }

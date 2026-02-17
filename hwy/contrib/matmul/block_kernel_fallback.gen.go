@@ -17,22 +17,49 @@ func BaseBlockMulAdd_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hwy
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				acc = hwy.MulAdd(vA, hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -48,22 +75,49 @@ func BaseBlockMulAdd_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c []
 		panic("BlockMulAdd: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				acc = hwy.MulAdd(vA, hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -78,22 +132,50 @@ func BaseBlockMulAdd_fallback(aT []float32, b []float32, c []float32, blockDim i
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAdd: C slice too short")
 	}
+	lanes := hwy.Zero[float32]().NumLanes()
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := float32(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC := c[cRowStart+j]
-				vC = vA*vB + vC
-				c[cRowStart+j] = vC
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[float32]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				acc = hwy.MulAdd(vA, hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -108,22 +190,50 @@ func BaseBlockMulAdd_fallback_Float64(aT []float64, b []float64, c []float64, bl
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAdd: C slice too short")
 	}
+	lanes := hwy.Zero[float64]().NumLanes()
+	tileJ := 4 * lanes
 	for i := range blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := float64(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC := c[cRowStart+j]
-				vC = vA*vB + vC
-				c[cRowStart+j] = vC
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[float64]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				acc = hwy.MulAdd(vA, hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float64
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -139,48 +249,126 @@ func BaseBlockMulAdd2_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 		panic("BlockMulAdd2: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := hwy.Set(a0k)
-			vA1 := hwy.Set(a1k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC0 := hwy.Load(c[cRow0Start+j:])
-				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0Start+j:])
-				vC1 := hwy.Load(c[cRow1Start+j:])
-				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1Start+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[hwy.Float16]()
+			acc01 := hwy.Zero[hwy.Float16]()
+			acc02 := hwy.Zero[hwy.Float16]()
+			acc03 := hwy.Zero[hwy.Float16]()
+			acc10 := hwy.Zero[hwy.Float16]()
+			acc11 := hwy.Zero[hwy.Float16]()
+			acc12 := hwy.Zero[hwy.Float16]()
+			acc13 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := hwy.Set(a0k)
+				vA1 := hwy.Set(a1k)
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] = hwy.Float32ToFloat16(c[cRow0Start+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1Start+j] = hwy.Float32ToFloat16(c[cRow1Start+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow0Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0Start+j+lanes:])
+			vC = hwy.Load(c[cRow0Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow0Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0Start+j+3*lanes:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1Start+j:])
+			vC = hwy.Load(c[cRow1Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1Start+j+lanes:])
+			vC = hwy.Load(c[cRow1Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow1Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1Start+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
 			}
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1Start+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+			}
+			c[cRow0Start+j] = hwy.Float32ToFloat16(c[cRow0Start+j].Float32() + sum0)
+			c[cRow1Start+j] = hwy.Float32ToFloat16(c[cRow1Start+j].Float32() + sum1)
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -196,48 +384,126 @@ func BaseBlockMulAdd2_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 		panic("BlockMulAdd2: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := hwy.Set(a0k)
-			vA1 := hwy.Set(a1k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC0 := hwy.Load(c[cRow0Start+j:])
-				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0Start+j:])
-				vC1 := hwy.Load(c[cRow1Start+j:])
-				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1Start+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[hwy.BFloat16]()
+			acc01 := hwy.Zero[hwy.BFloat16]()
+			acc02 := hwy.Zero[hwy.BFloat16]()
+			acc03 := hwy.Zero[hwy.BFloat16]()
+			acc10 := hwy.Zero[hwy.BFloat16]()
+			acc11 := hwy.Zero[hwy.BFloat16]()
+			acc12 := hwy.Zero[hwy.BFloat16]()
+			acc13 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := hwy.Set(a0k)
+				vA1 := hwy.Set(a1k)
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] = hwy.Float32ToBFloat16(c[cRow0Start+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1Start+j] = hwy.Float32ToBFloat16(c[cRow1Start+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow0Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0Start+j+lanes:])
+			vC = hwy.Load(c[cRow0Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow0Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0Start+j+3*lanes:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1Start+j:])
+			vC = hwy.Load(c[cRow1Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1Start+j+lanes:])
+			vC = hwy.Load(c[cRow1Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow1Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1Start+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
 			}
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1Start+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+			}
+			c[cRow0Start+j] = hwy.Float32ToBFloat16(c[cRow0Start+j].Float32() + sum0)
+			c[cRow1Start+j] = hwy.Float32ToBFloat16(c[cRow1Start+j].Float32() + sum1)
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -252,48 +518,127 @@ func BaseBlockMulAdd2_fallback(aT []float32, b []float32, c []float32, blockDim 
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAdd2: C slice too short")
 	}
+	lanes := hwy.Zero[float32]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := float32(a0k)
-			vA1 := float32(a1k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC0 := c[cRow0Start+j]
-				vC0 = vA0*vB + vC0
-				c[cRow0Start+j] = vC0
-				vC1 := c[cRow1Start+j]
-				vC1 = vA1*vB + vC1
-				c[cRow1Start+j] = vC1
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[float32]()
+			acc01 := hwy.Zero[float32]()
+			acc02 := hwy.Zero[float32]()
+			acc03 := hwy.Zero[float32]()
+			acc10 := hwy.Zero[float32]()
+			acc11 := hwy.Zero[float32]()
+			acc12 := hwy.Zero[float32]()
+			acc13 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := hwy.Set(a0k)
+				vA1 := hwy.Set(a1k)
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += a0k * b[bRowStart+j]
-				c[cRow1Start+j] += a1k * b[bRowStart+j]
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow0Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0Start+j+lanes:])
+			vC = hwy.Load(c[cRow0Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow0Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0Start+j+3*lanes:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1Start+j:])
+			vC = hwy.Load(c[cRow1Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1Start+j+lanes:])
+			vC = hwy.Load(c[cRow1Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow1Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1Start+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
 			}
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1Start+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+			}
+			c[cRow0Start+j] += sum0
+			c[cRow1Start+j] += sum1
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := float32(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC := c[cRowStart+j]
-				vC = vA*vB + vC
-				c[cRowStart+j] = vC
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[float32]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -308,48 +653,127 @@ func BaseBlockMulAdd2_fallback_Float64(aT []float64, b []float64, c []float64, b
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAdd2: C slice too short")
 	}
+	lanes := hwy.Zero[float64]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+1 < blockDim; i += 2 {
 		cRow0Start := i * blockDim
 		cRow1Start := (i + 1) * blockDim
-		for k := range blockDim {
-			a0k := aT[k*blockDim+i]
-			a1k := aT[k*blockDim+i+1]
-			vA0 := float64(a0k)
-			vA1 := float64(a1k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC0 := c[cRow0Start+j]
-				vC0 = vA0*vB + vC0
-				c[cRow0Start+j] = vC0
-				vC1 := c[cRow1Start+j]
-				vC1 = vA1*vB + vC1
-				c[cRow1Start+j] = vC1
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[float64]()
+			acc01 := hwy.Zero[float64]()
+			acc02 := hwy.Zero[float64]()
+			acc03 := hwy.Zero[float64]()
+			acc10 := hwy.Zero[float64]()
+			acc11 := hwy.Zero[float64]()
+			acc12 := hwy.Zero[float64]()
+			acc13 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				a0k := aT[aTRowK+i]
+				a1k := aT[aTRowK+i+1]
+				vA0 := hwy.Set(a0k)
+				vA1 := hwy.Set(a1k)
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0Start+j] += a0k * b[bRowStart+j]
-				c[cRow1Start+j] += a1k * b[bRowStart+j]
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow0Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0Start+j+lanes:])
+			vC = hwy.Load(c[cRow0Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow0Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0Start+j+3*lanes:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1Start+j:])
+			vC = hwy.Load(c[cRow1Start+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1Start+j+lanes:])
+			vC = hwy.Load(c[cRow1Start+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1Start+j+2*lanes:])
+			vC = hwy.Load(c[cRow1Start+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1Start+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
 			}
+			vC := hwy.Load(c[cRow0Start+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0Start+j:])
+			vC = hwy.Load(c[cRow1Start+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1Start+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1 float64
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+			}
+			c[cRow0Start+j] += sum0
+			c[cRow1Start+j] += sum1
 		}
 	}
 	if i < blockDim {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := float64(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC := c[cRowStart+j]
-				vC = vA*vB + vC
-				c[cRowStart+j] = vC
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[float64]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float64
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -933,63 +1357,174 @@ func BaseBlockMulAdd4_fallback_Float16(aT []hwy.Float16, b []hwy.Float16, c []hw
 		panic("BlockMulAdd4: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := hwy.Set(a0k)
-			vA1 := hwy.Set(a1k)
-			vA2 := hwy.Set(a2k)
-			vA3 := hwy.Set(a3k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC0 := hwy.Load(c[cRow0+j:])
-				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0+j:])
-				vC1 := hwy.Load(c[cRow1+j:])
-				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1+j:])
-				vC2 := hwy.Load(c[cRow2+j:])
-				vC2 = hwy.MulAdd(vA2, vB, vC2)
-				hwy.Store(vC2, c[cRow2+j:])
-				vC3 := hwy.Load(c[cRow3+j:])
-				vC3 = hwy.MulAdd(vA3, vB, vC3)
-				hwy.Store(vC3, c[cRow3+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[hwy.Float16]()
+			acc01 := hwy.Zero[hwy.Float16]()
+			acc02 := hwy.Zero[hwy.Float16]()
+			acc03 := hwy.Zero[hwy.Float16]()
+			acc10 := hwy.Zero[hwy.Float16]()
+			acc11 := hwy.Zero[hwy.Float16]()
+			acc12 := hwy.Zero[hwy.Float16]()
+			acc13 := hwy.Zero[hwy.Float16]()
+			acc20 := hwy.Zero[hwy.Float16]()
+			acc21 := hwy.Zero[hwy.Float16]()
+			acc22 := hwy.Zero[hwy.Float16]()
+			acc23 := hwy.Zero[hwy.Float16]()
+			acc30 := hwy.Zero[hwy.Float16]()
+			acc31 := hwy.Zero[hwy.Float16]()
+			acc32 := hwy.Zero[hwy.Float16]()
+			acc33 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
+				acc20 = hwy.MulAdd(vA2, vB0, acc20)
+				acc21 = hwy.MulAdd(vA2, vB1, acc21)
+				acc22 = hwy.MulAdd(vA2, vB2, acc22)
+				acc23 = hwy.MulAdd(vA2, vB3, acc23)
+				acc30 = hwy.MulAdd(vA3, vB0, acc30)
+				acc31 = hwy.MulAdd(vA3, vB1, acc31)
+				acc32 = hwy.MulAdd(vA3, vB2, acc32)
+				acc33 = hwy.MulAdd(vA3, vB3, acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] = hwy.Float32ToFloat16(c[cRow0+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1+j] = hwy.Float32ToFloat16(c[cRow1+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
-				c[cRow2+j] = hwy.Float32ToFloat16(c[cRow2+j].Float32() + a2k.Float32()*b[bRowStart+j].Float32())
-				c[cRow3+j] = hwy.Float32ToFloat16(c[cRow3+j].Float32() + a3k.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0+j:])
+			vC = hwy.Load(c[cRow0+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0+j+lanes:])
+			vC = hwy.Load(c[cRow0+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0+j+2*lanes:])
+			vC = hwy.Load(c[cRow0+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0+j+3*lanes:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1+j:])
+			vC = hwy.Load(c[cRow1+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1+j+lanes:])
+			vC = hwy.Load(c[cRow1+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1+j+2*lanes:])
+			vC = hwy.Load(c[cRow1+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1+j+3*lanes:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc20), c[cRow2+j:])
+			vC = hwy.Load(c[cRow2+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc21), c[cRow2+j+lanes:])
+			vC = hwy.Load(c[cRow2+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc22), c[cRow2+j+2*lanes:])
+			vC = hwy.Load(c[cRow2+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc23), c[cRow2+j+3*lanes:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc30), c[cRow3+j:])
+			vC = hwy.Load(c[cRow3+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc31), c[cRow3+j+lanes:])
+			vC = hwy.Load(c[cRow3+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc32), c[cRow3+j+2*lanes:])
+			vC = hwy.Load(c[cRow3+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc33), c[cRow3+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
+				acc2 = hwy.MulAdd(vA2, vB, acc2)
+				acc3 = hwy.MulAdd(vA3, vB, acc3)
 			}
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0+j:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1+j:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRow2+j:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRow3+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+				sum2 += aT[aTRowK+i+2].Float32() * bkj.Float32()
+				sum3 += aT[aTRowK+i+3].Float32() * bkj.Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToFloat16(c[cRow0+j].Float32() + sum0)
+			c[cRow1+j] = hwy.Float32ToFloat16(c[cRow1+j].Float32() + sum1)
+			c[cRow2+j] = hwy.Float32ToFloat16(c[cRow2+j].Float32() + sum2)
+			c[cRow3+j] = hwy.Float32ToFloat16(c[cRow3+j].Float32() + sum3)
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[hwy.Float16]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -1005,63 +1540,174 @@ func BaseBlockMulAdd4_fallback_BFloat16(aT []hwy.BFloat16, b []hwy.BFloat16, c [
 		panic("BlockMulAdd4: C slice too short")
 	}
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := hwy.Set(a0k)
-			vA1 := hwy.Set(a1k)
-			vA2 := hwy.Set(a2k)
-			vA3 := hwy.Set(a3k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC0 := hwy.Load(c[cRow0+j:])
-				vC0 = hwy.MulAdd(vA0, vB, vC0)
-				hwy.Store(vC0, c[cRow0+j:])
-				vC1 := hwy.Load(c[cRow1+j:])
-				vC1 = hwy.MulAdd(vA1, vB, vC1)
-				hwy.Store(vC1, c[cRow1+j:])
-				vC2 := hwy.Load(c[cRow2+j:])
-				vC2 = hwy.MulAdd(vA2, vB, vC2)
-				hwy.Store(vC2, c[cRow2+j:])
-				vC3 := hwy.Load(c[cRow3+j:])
-				vC3 = hwy.MulAdd(vA3, vB, vC3)
-				hwy.Store(vC3, c[cRow3+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[hwy.BFloat16]()
+			acc01 := hwy.Zero[hwy.BFloat16]()
+			acc02 := hwy.Zero[hwy.BFloat16]()
+			acc03 := hwy.Zero[hwy.BFloat16]()
+			acc10 := hwy.Zero[hwy.BFloat16]()
+			acc11 := hwy.Zero[hwy.BFloat16]()
+			acc12 := hwy.Zero[hwy.BFloat16]()
+			acc13 := hwy.Zero[hwy.BFloat16]()
+			acc20 := hwy.Zero[hwy.BFloat16]()
+			acc21 := hwy.Zero[hwy.BFloat16]()
+			acc22 := hwy.Zero[hwy.BFloat16]()
+			acc23 := hwy.Zero[hwy.BFloat16]()
+			acc30 := hwy.Zero[hwy.BFloat16]()
+			acc31 := hwy.Zero[hwy.BFloat16]()
+			acc32 := hwy.Zero[hwy.BFloat16]()
+			acc33 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
+				acc20 = hwy.MulAdd(vA2, vB0, acc20)
+				acc21 = hwy.MulAdd(vA2, vB1, acc21)
+				acc22 = hwy.MulAdd(vA2, vB2, acc22)
+				acc23 = hwy.MulAdd(vA2, vB3, acc23)
+				acc30 = hwy.MulAdd(vA3, vB0, acc30)
+				acc31 = hwy.MulAdd(vA3, vB1, acc31)
+				acc32 = hwy.MulAdd(vA3, vB2, acc32)
+				acc33 = hwy.MulAdd(vA3, vB3, acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] = hwy.Float32ToBFloat16(c[cRow0+j].Float32() + a0k.Float32()*b[bRowStart+j].Float32())
-				c[cRow1+j] = hwy.Float32ToBFloat16(c[cRow1+j].Float32() + a1k.Float32()*b[bRowStart+j].Float32())
-				c[cRow2+j] = hwy.Float32ToBFloat16(c[cRow2+j].Float32() + a2k.Float32()*b[bRowStart+j].Float32())
-				c[cRow3+j] = hwy.Float32ToBFloat16(c[cRow3+j].Float32() + a3k.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0+j:])
+			vC = hwy.Load(c[cRow0+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0+j+lanes:])
+			vC = hwy.Load(c[cRow0+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0+j+2*lanes:])
+			vC = hwy.Load(c[cRow0+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0+j+3*lanes:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1+j:])
+			vC = hwy.Load(c[cRow1+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1+j+lanes:])
+			vC = hwy.Load(c[cRow1+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1+j+2*lanes:])
+			vC = hwy.Load(c[cRow1+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1+j+3*lanes:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc20), c[cRow2+j:])
+			vC = hwy.Load(c[cRow2+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc21), c[cRow2+j+lanes:])
+			vC = hwy.Load(c[cRow2+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc22), c[cRow2+j+2*lanes:])
+			vC = hwy.Load(c[cRow2+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc23), c[cRow2+j+3*lanes:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc30), c[cRow3+j:])
+			vC = hwy.Load(c[cRow3+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc31), c[cRow3+j+lanes:])
+			vC = hwy.Load(c[cRow3+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc32), c[cRow3+j+2*lanes:])
+			vC = hwy.Load(c[cRow3+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc33), c[cRow3+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
+				acc2 = hwy.MulAdd(vA2, vB, acc2)
+				acc3 = hwy.MulAdd(vA3, vB, acc3)
 			}
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0+j:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1+j:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRow2+j:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRow3+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i].Float32() * bkj.Float32()
+				sum1 += aT[aTRowK+i+1].Float32() * bkj.Float32()
+				sum2 += aT[aTRowK+i+2].Float32() * bkj.Float32()
+				sum3 += aT[aTRowK+i+3].Float32() * bkj.Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToBFloat16(c[cRow0+j].Float32() + sum0)
+			c[cRow1+j] = hwy.Float32ToBFloat16(c[cRow1+j].Float32() + sum1)
+			c[cRow2+j] = hwy.Float32ToBFloat16(c[cRow2+j].Float32() + sum2)
+			c[cRow3+j] = hwy.Float32ToBFloat16(c[cRow3+j].Float32() + sum3)
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := hwy.Set(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j+lanes <= blockDim; j += lanes {
-				vB := hwy.Load(b[bRowStart+j:])
-				vC := hwy.Load(c[cRowStart+j:])
-				vC = hwy.MulAdd(vA, vB, vC)
-				hwy.Store(vC, c[cRowStart+j:])
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + aik.Float32()*b[bRowStart+j].Float32())
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[hwy.BFloat16]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i].Float32() * b[k*blockDim+j].Float32()
+			}
+			c[cRowStart+j] = hwy.Float32ToBFloat16(c[cRowStart+j].Float32() + sum)
 		}
 	}
 }
@@ -1076,63 +1722,175 @@ func BaseBlockMulAdd4_fallback(aT []float32, b []float32, c []float32, blockDim 
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAdd4: C slice too short")
 	}
+	lanes := hwy.Zero[float32]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := float32(a0k)
-			vA1 := float32(a1k)
-			vA2 := float32(a2k)
-			vA3 := float32(a3k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC0 := c[cRow0+j]
-				vC0 = vA0*vB + vC0
-				c[cRow0+j] = vC0
-				vC1 := c[cRow1+j]
-				vC1 = vA1*vB + vC1
-				c[cRow1+j] = vC1
-				vC2 := c[cRow2+j]
-				vC2 = vA2*vB + vC2
-				c[cRow2+j] = vC2
-				vC3 := c[cRow3+j]
-				vC3 = vA3*vB + vC3
-				c[cRow3+j] = vC3
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[float32]()
+			acc01 := hwy.Zero[float32]()
+			acc02 := hwy.Zero[float32]()
+			acc03 := hwy.Zero[float32]()
+			acc10 := hwy.Zero[float32]()
+			acc11 := hwy.Zero[float32]()
+			acc12 := hwy.Zero[float32]()
+			acc13 := hwy.Zero[float32]()
+			acc20 := hwy.Zero[float32]()
+			acc21 := hwy.Zero[float32]()
+			acc22 := hwy.Zero[float32]()
+			acc23 := hwy.Zero[float32]()
+			acc30 := hwy.Zero[float32]()
+			acc31 := hwy.Zero[float32]()
+			acc32 := hwy.Zero[float32]()
+			acc33 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
+				acc20 = hwy.MulAdd(vA2, vB0, acc20)
+				acc21 = hwy.MulAdd(vA2, vB1, acc21)
+				acc22 = hwy.MulAdd(vA2, vB2, acc22)
+				acc23 = hwy.MulAdd(vA2, vB3, acc23)
+				acc30 = hwy.MulAdd(vA3, vB0, acc30)
+				acc31 = hwy.MulAdd(vA3, vB1, acc31)
+				acc32 = hwy.MulAdd(vA3, vB2, acc32)
+				acc33 = hwy.MulAdd(vA3, vB3, acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] += a0k * b[bRowStart+j]
-				c[cRow1+j] += a1k * b[bRowStart+j]
-				c[cRow2+j] += a2k * b[bRowStart+j]
-				c[cRow3+j] += a3k * b[bRowStart+j]
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0+j:])
+			vC = hwy.Load(c[cRow0+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0+j+lanes:])
+			vC = hwy.Load(c[cRow0+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0+j+2*lanes:])
+			vC = hwy.Load(c[cRow0+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0+j+3*lanes:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1+j:])
+			vC = hwy.Load(c[cRow1+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1+j+lanes:])
+			vC = hwy.Load(c[cRow1+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1+j+2*lanes:])
+			vC = hwy.Load(c[cRow1+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1+j+3*lanes:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc20), c[cRow2+j:])
+			vC = hwy.Load(c[cRow2+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc21), c[cRow2+j+lanes:])
+			vC = hwy.Load(c[cRow2+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc22), c[cRow2+j+2*lanes:])
+			vC = hwy.Load(c[cRow2+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc23), c[cRow2+j+3*lanes:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc30), c[cRow3+j:])
+			vC = hwy.Load(c[cRow3+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc31), c[cRow3+j+lanes:])
+			vC = hwy.Load(c[cRow3+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc32), c[cRow3+j+2*lanes:])
+			vC = hwy.Load(c[cRow3+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc33), c[cRow3+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
+				acc2 = hwy.MulAdd(vA2, vB, acc2)
+				acc3 = hwy.MulAdd(vA3, vB, acc3)
 			}
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0+j:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1+j:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRow2+j:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRow3+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float32
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+				sum2 += aT[aTRowK+i+2] * bkj
+				sum3 += aT[aTRowK+i+3] * bkj
+			}
+			c[cRow0+j] += sum0
+			c[cRow1+j] += sum1
+			c[cRow2+j] += sum2
+			c[cRow3+j] += sum3
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := float32(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC := c[cRowStart+j]
-				vC = vA*vB + vC
-				c[cRowStart+j] = vC
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[float32]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float32
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }
@@ -1147,63 +1905,175 @@ func BaseBlockMulAdd4_fallback_Float64(aT []float64, b []float64, c []float64, b
 	if len(c) < blockDim*blockDim {
 		panic("BlockMulAdd4: C slice too short")
 	}
+	lanes := hwy.Zero[float64]().NumLanes()
+	tileJ := 4 * lanes
 	var i int
 	for i = 0; i+3 < blockDim; i += 4 {
 		cRow0 := i * blockDim
 		cRow1 := (i + 1) * blockDim
 		cRow2 := (i + 2) * blockDim
 		cRow3 := (i + 3) * blockDim
-		for k := range blockDim {
-			aTRowK := k * blockDim
-			a0k := aT[aTRowK+i]
-			a1k := aT[aTRowK+i+1]
-			a2k := aT[aTRowK+i+2]
-			a3k := aT[aTRowK+i+3]
-			vA0 := float64(a0k)
-			vA1 := float64(a1k)
-			vA2 := float64(a2k)
-			vA3 := float64(a3k)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC0 := c[cRow0+j]
-				vC0 = vA0*vB + vC0
-				c[cRow0+j] = vC0
-				vC1 := c[cRow1+j]
-				vC1 = vA1*vB + vC1
-				c[cRow1+j] = vC1
-				vC2 := c[cRow2+j]
-				vC2 = vA2*vB + vC2
-				c[cRow2+j] = vC2
-				vC3 := c[cRow3+j]
-				vC3 = vA3*vB + vC3
-				c[cRow3+j] = vC3
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc00 := hwy.Zero[float64]()
+			acc01 := hwy.Zero[float64]()
+			acc02 := hwy.Zero[float64]()
+			acc03 := hwy.Zero[float64]()
+			acc10 := hwy.Zero[float64]()
+			acc11 := hwy.Zero[float64]()
+			acc12 := hwy.Zero[float64]()
+			acc13 := hwy.Zero[float64]()
+			acc20 := hwy.Zero[float64]()
+			acc21 := hwy.Zero[float64]()
+			acc22 := hwy.Zero[float64]()
+			acc23 := hwy.Zero[float64]()
+			acc30 := hwy.Zero[float64]()
+			acc31 := hwy.Zero[float64]()
+			acc32 := hwy.Zero[float64]()
+			acc33 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				bRowStart := k * blockDim
+				vB0 := hwy.Load(b[bRowStart+j:])
+				vB1 := hwy.Load(b[bRowStart+j+lanes:])
+				vB2 := hwy.Load(b[bRowStart+j+2*lanes:])
+				vB3 := hwy.Load(b[bRowStart+j+3*lanes:])
+				acc00 = hwy.MulAdd(vA0, vB0, acc00)
+				acc01 = hwy.MulAdd(vA0, vB1, acc01)
+				acc02 = hwy.MulAdd(vA0, vB2, acc02)
+				acc03 = hwy.MulAdd(vA0, vB3, acc03)
+				acc10 = hwy.MulAdd(vA1, vB0, acc10)
+				acc11 = hwy.MulAdd(vA1, vB1, acc11)
+				acc12 = hwy.MulAdd(vA1, vB2, acc12)
+				acc13 = hwy.MulAdd(vA1, vB3, acc13)
+				acc20 = hwy.MulAdd(vA2, vB0, acc20)
+				acc21 = hwy.MulAdd(vA2, vB1, acc21)
+				acc22 = hwy.MulAdd(vA2, vB2, acc22)
+				acc23 = hwy.MulAdd(vA2, vB3, acc23)
+				acc30 = hwy.MulAdd(vA3, vB0, acc30)
+				acc31 = hwy.MulAdd(vA3, vB1, acc31)
+				acc32 = hwy.MulAdd(vA3, vB2, acc32)
+				acc33 = hwy.MulAdd(vA3, vB3, acc33)
 			}
-			for ; j < blockDim; j++ {
-				c[cRow0+j] += a0k * b[bRowStart+j]
-				c[cRow1+j] += a1k * b[bRowStart+j]
-				c[cRow2+j] += a2k * b[bRowStart+j]
-				c[cRow3+j] += a3k * b[bRowStart+j]
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc00), c[cRow0+j:])
+			vC = hwy.Load(c[cRow0+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc01), c[cRow0+j+lanes:])
+			vC = hwy.Load(c[cRow0+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc02), c[cRow0+j+2*lanes:])
+			vC = hwy.Load(c[cRow0+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc03), c[cRow0+j+3*lanes:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc10), c[cRow1+j:])
+			vC = hwy.Load(c[cRow1+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc11), c[cRow1+j+lanes:])
+			vC = hwy.Load(c[cRow1+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc12), c[cRow1+j+2*lanes:])
+			vC = hwy.Load(c[cRow1+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc13), c[cRow1+j+3*lanes:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc20), c[cRow2+j:])
+			vC = hwy.Load(c[cRow2+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc21), c[cRow2+j+lanes:])
+			vC = hwy.Load(c[cRow2+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc22), c[cRow2+j+2*lanes:])
+			vC = hwy.Load(c[cRow2+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc23), c[cRow2+j+3*lanes:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc30), c[cRow3+j:])
+			vC = hwy.Load(c[cRow3+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc31), c[cRow3+j+lanes:])
+			vC = hwy.Load(c[cRow3+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc32), c[cRow3+j+2*lanes:])
+			vC = hwy.Load(c[cRow3+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc33), c[cRow3+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				vA0 := hwy.Set(aT[aTRowK+i])
+				vA1 := hwy.Set(aT[aTRowK+i+1])
+				vA2 := hwy.Set(aT[aTRowK+i+2])
+				vA3 := hwy.Set(aT[aTRowK+i+3])
+				vB := hwy.Load(b[k*blockDim+j:])
+				acc0 = hwy.MulAdd(vA0, vB, acc0)
+				acc1 = hwy.MulAdd(vA1, vB, acc1)
+				acc2 = hwy.MulAdd(vA2, vB, acc2)
+				acc3 = hwy.MulAdd(vA3, vB, acc3)
 			}
+			vC := hwy.Load(c[cRow0+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRow0+j:])
+			vC = hwy.Load(c[cRow1+j:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRow1+j:])
+			vC = hwy.Load(c[cRow2+j:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRow2+j:])
+			vC = hwy.Load(c[cRow3+j:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRow3+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum0, sum1, sum2, sum3 float64
+			for k := range blockDim {
+				aTRowK := k * blockDim
+				bkj := b[k*blockDim+j]
+				sum0 += aT[aTRowK+i] * bkj
+				sum1 += aT[aTRowK+i+1] * bkj
+				sum2 += aT[aTRowK+i+2] * bkj
+				sum3 += aT[aTRowK+i+3] * bkj
+			}
+			c[cRow0+j] += sum0
+			c[cRow1+j] += sum1
+			c[cRow2+j] += sum2
+			c[cRow3+j] += sum3
 		}
 	}
 	for ; i < blockDim; i++ {
 		cRowStart := i * blockDim
-		for k := range blockDim {
-			aik := aT[k*blockDim+i]
-			vA := float64(aik)
-			bRowStart := k * blockDim
-			var j int
-			for j = 0; j < blockDim; j++ {
-				vB := b[bRowStart+j]
-				vC := c[cRowStart+j]
-				vC = vA*vB + vC
-				c[cRowStart+j] = vC
+		var j int
+		for j = 0; j+tileJ <= blockDim; j += tileJ {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			for k := range blockDim {
+				aik := aT[k*blockDim+i]
+				vA := hwy.Set(aik)
+				bRowStart := k * blockDim
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRowStart+j+3*lanes:]), acc3)
 			}
-			for ; j < blockDim; j++ {
-				c[cRowStart+j] += aik * b[bRowStart+j]
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc0), c[cRowStart+j:])
+			vC = hwy.Load(c[cRowStart+j+lanes:])
+			hwy.Store(hwy.Add(vC, acc1), c[cRowStart+j+lanes:])
+			vC = hwy.Load(c[cRowStart+j+2*lanes:])
+			hwy.Store(hwy.Add(vC, acc2), c[cRowStart+j+2*lanes:])
+			vC = hwy.Load(c[cRowStart+j+3*lanes:])
+			hwy.Store(hwy.Add(vC, acc3), c[cRowStart+j+3*lanes:])
+		}
+		for ; j+lanes <= blockDim; j += lanes {
+			acc := hwy.Zero[float64]()
+			for k := range blockDim {
+				acc = hwy.MulAdd(hwy.Set(aT[k*blockDim+i]), hwy.Load(b[k*blockDim+j:]), acc)
 			}
+			vC := hwy.Load(c[cRowStart+j:])
+			hwy.Store(hwy.Add(vC, acc), c[cRowStart+j:])
+		}
+		for ; j < blockDim; j++ {
+			var sum float64
+			for k := range blockDim {
+				sum += aT[k*blockDim+i] * b[k*blockDim+j]
+			}
+			c[cRowStart+j] += sum
 		}
 	}
 }

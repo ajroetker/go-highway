@@ -16,6 +16,8 @@
 
 // RaBitQ SME Operations for Apple Silicon M4+
 // Uses SME assembly which requires streaming mode (smstart/smstop).
+//
+//go:generate go tool goat ../c/rabitq_sme_arm64.c -O3 --target arm64 -march=armv9-a+sme
 package asm
 
 import (

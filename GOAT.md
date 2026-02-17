@@ -94,7 +94,7 @@ goat src/code.c -o ./asm -O3 -t arm64 --target-os linux -I /path/to/arm64/includ
 - C functions must have void return types
 - `uint64_t` from the header <stdint.h> is not supported
 - C source file names should not begin with `_`.
-- **`else` clauses in conditionals are not supported** - The parser fails with "expected `}`" errors when encountering `else`. Rewrite code to avoid `else` by using multiple `if` statements or initializing values before conditionally updating them.
+- **`else` clauses are fully supported** - GOAT compiles C via clang, so `if/else` works correctly. Clang often auto-vectorizes simple if/else into branchless select instructions (e.g., `fcsel`, `fcmgt` + `and`).
 - **Single-line `if` statements with braces are not supported** - `if (x) { y; }` on one line causes parser errors. Use multi-line format instead:
   ```c
   // BAD: causes "expected }" error

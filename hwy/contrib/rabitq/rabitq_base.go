@@ -14,7 +14,7 @@
 
 package rabitq
 
-//go:generate go run ../../../cmd/hwygen -input rabitq_base.go -output . -targets avx2,avx512,neon,fallback -dispatch rabitq
+//go:generate go run ../../../cmd/hwygen -input rabitq_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch rabitq
 
 import (
 	"math"

@@ -363,29 +363,28 @@ func matmulNEON(a, b, c []float32, m, n, k int) {
 		return
 	}
 
-	asm.MatMulNEONF32(a, b, c, m, n, k)
+	matMulAsmF32(a, b, c, m, n, k)
 }
 
 // matmulNEONF16 uses ARM NEON for float16 matrix multiplication.
-// Uses hand-written assembly with FMLA f16 instructions.
 func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
 		BaseMatMul_neon_Float16(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulNEONF16(a, b, c, m, n, k)
+	matMulAsmF16(a, b, c, m, n, k)
 }
 
 // matmulNEONBF16 uses ARM NEON for bfloat16 matrix multiplication.
-// Uses hand-written assembly with BFDOT bf16 instructions.
+// Uses hwygen-generated assembly with widened f32 accumulators.
 func matmulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
 		BaseMatMul_neon_BFloat16(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulNEONBF16(a, b, c, m, n, k)
+	matMulAsmBF16(a, b, c, m, n, k)
 }
 
 // =============================================================================
@@ -730,7 +729,7 @@ func matmulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 func blockMulAddFMOPAWrapper(aT, b, c []float32, blockDim int) {
 	// FMOPA requires blockDim to be multiple of 16 (tile size for f32)
 	if blockDim%16 != 0 || blockDim < 16 {
-		asm.BlockMulAddNEONF32(aT, b, c, blockDim)
+		blockMulAddAsmF32(aT, b, c, blockDim)
 		return
 	}
 	asm.BlockMulAddFMOPAF32(aT, b, c, blockDim)
@@ -741,7 +740,7 @@ func blockMulAddFMOPAWrapper(aT, b, c []float32, blockDim int) {
 func blockMulAddFMOPAWrapper64(aT, b, c []float64, blockDim int) {
 	// FMOPA f64 requires blockDim to be multiple of 8 (tile size for f64)
 	if blockDim%8 != 0 || blockDim < 8 {
-		asm.BlockMulAddNEONF64(aT, b, c, blockDim)
+		blockMulAddAsmF64(aT, b, c, blockDim)
 		return
 	}
 	asm.BlockMulAddFMOPAF64(aT, b, c, blockDim)
@@ -764,7 +763,7 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	// Check total padded ops rather than individual dimensions — SME with padding
 	// is faster than NEON even at M=1 when N*K is large enough (e.g. 512x512).
 	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
-		asm.MatMulNEONF32(a, b, c, m, n, k)
+		matMulAsmF32(a, b, c, m, n, k)
 		return
 	}
 
@@ -856,7 +855,7 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	// For small matrices, use streaming NEON (SME streaming mode has overhead).
 	// See minOpsForBlockedSME comment in blockedMatMulFMOPA.
 	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
-		asm.MatMulNEONF64(a, b, c, m, n, k)
+		matMulAsmF64(a, b, c, m, n, k)
 		return
 	}
 
@@ -947,9 +946,9 @@ func blockedMatMulNEON(a, b, c []float32, m, n, k int) {
 	const minMForBlocked = 48 // BlockSize
 
 	if totalOps < blockedThreshold || m < minMForBlocked {
-		asm.MatMulNEONF32(a, b, c, m, n, k)
+		matMulAsmF32(a, b, c, m, n, k)
 	} else {
-		asm.BlockedMatMulNEONF32(a, b, c, m, n, k)
+		blockedMatMulAsmF32(a, b, c, m, n, k)
 	}
 }
 
@@ -960,9 +959,9 @@ func blockedMatMulNEON64(a, b, c []float64, m, n, k int) {
 	const minMForBlocked = 48                // BlockSize
 
 	if totalOps < blockedThreshold || m < minMForBlocked {
-		asm.MatMulNEONF64(a, b, c, m, n, k)
+		matMulAsmF64(a, b, c, m, n, k)
 	} else {
-		asm.BlockedMatMulNEONF64(a, b, c, m, n, k)
+		blockedMatMulAsmF64(a, b, c, m, n, k)
 	}
 }
 
@@ -973,22 +972,23 @@ func blockedMatMulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 	const minMForBlocked = 48                // BlockSize
 
 	if totalOps < blockedThreshold || m < minMForBlocked {
-		asm.MatMulNEONF16(a, b, c, m, n, k)
+		matMulAsmF16(a, b, c, m, n, k)
 	} else {
-		asm.BlockedMatMulNEONF16(a, b, c, m, n, k)
+		blockedMatMulAsmF16(a, b, c, m, n, k)
 	}
 }
 
 // blockedMatMulNEONBF16 uses NEON for blocked bfloat16 matmul.
+// Uses hwygen-generated block kernels with widened f32 accumulators.
 func blockedMatMulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	totalOps := m * n * k
 	const blockedThreshold = 128 * 128 * 128 // 2M ops
 	const minMForBlocked = 48                // BlockSize
 
 	if totalOps < blockedThreshold || m < minMForBlocked {
-		asm.MatMulNEONBF16(a, b, c, m, n, k)
+		matMulAsmBF16(a, b, c, m, n, k)
 	} else {
-		asm.BlockedMatMulNEONBF16(a, b, c, m, n, k)
+		BaseBlockedMatMul_neon_BFloat16(a, b, c, m, n, k)
 	}
 }
 
@@ -1019,7 +1019,7 @@ func matmulKLastNEON(a, b, c []float32, m, n, k int) {
 		BaseMatMulKLast(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulKLastNEONF32(a, b, c, m, n, k)
+	matMulKLastAsmF32(a, b, c, m, n, k)
 }
 
 // matmulKLastNEONF64 uses ARM NEON for float64 KLast matrix multiplication.
@@ -1028,7 +1028,7 @@ func matmulKLastNEONF64(a, b, c []float64, m, n, k int) {
 		BaseMatMulKLast(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulKLastNEONF64(a, b, c, m, n, k)
+	matMulKLastAsmF64(a, b, c, m, n, k)
 }
 
 // matmulKLastNEONF16 uses ARM NEON for float16 KLast matrix multiplication.
@@ -1038,7 +1038,7 @@ func matmulKLastNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 		BaseMatMulKLast(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulKLastNEONF16(a, b, c, m, n, k)
+	matMulKLastAsmF16(a, b, c, m, n, k)
 }
 
 // matmulKLastNEONBF16 uses ARM NEON for bfloat16 KLast matrix multiplication.
@@ -1079,7 +1079,7 @@ func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
 
 	// For small matrices, NEON is faster (transpose + streaming mode overhead)
 	if paddedM < minDimForSMEKLast || paddedN < minDimForSMEKLast || paddedK < minDimForSMEKLast {
-		asm.MatMulKLastNEONF32(a, b, c, m, n, k)
+		matMulKLastAsmF32(a, b, c, m, n, k)
 		return
 	}
 
@@ -1197,7 +1197,7 @@ func matmulKLastFMOPA64(a, b, c []float64, m, n, k int) {
 	paddedK := AlignUp(k, tileSize)
 
 	if paddedM < minDimForSMEKLast || paddedN < minDimForSMEKLast || paddedK < minDimForSMEKLast {
-		asm.MatMulKLastNEONF64(a, b, c, m, n, k)
+		matMulKLastAsmF64(a, b, c, m, n, k)
 		return
 	}
 
@@ -1300,7 +1300,7 @@ func matmulKLastFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 	paddedK := AlignUp(k, tileSize)
 
 	if paddedM < minDimForSMEKLast || paddedN < minDimForSMEKLast || paddedK < minDimForSMEKLast {
-		asm.MatMulKLastNEONF16(a, b, c, m, n, k)
+		matMulKLastAsmF16(a, b, c, m, n, k)
 		return
 	}
 
@@ -1502,50 +1502,29 @@ func matmulKLastFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 // Packed Micro-Kernel NEON implementations
 // =============================================================================
 
-// packedMicroKernelNEONF32 wraps the GOAT-generated NEON micro-kernel.
-// It adapts the signature to match the dispatched interface.
+// packedMicroKernelNEONF32 wraps the generated NEON micro-kernel.
 func packedMicroKernelNEONF32(packedA []float32, packedB []float32, c []float32, n, ir, jr, kc, mr, nr int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONF32(packedA, packedB, c[cOffset:], kc, n, mr, nr)
+	packedMicroKernelAsmF32(packedA, packedB, c, n, ir, jr, kc, mr, nr)
 }
 
-// packedMicroKernelPartialNEONF32 handles edge micro-tiles with partial rows/columns.
 func packedMicroKernelPartialNEONF32(packedA []float32, packedB []float32, c []float32, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONF32(packedA, packedB, c[cOffset:], kc, n, activeRows, activeCols)
+	packedMicroKernelPartialAsmF32(packedA, packedB, c, n, ir, jr, kc, mr, nr, activeRows, activeCols)
 }
 
-// packedMicroKernelNEONF64 wraps the GOAT-generated NEON micro-kernel for float64.
 func packedMicroKernelNEONF64(packedA []float64, packedB []float64, c []float64, n, ir, jr, kc, mr, nr int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONF64(packedA, packedB, c[cOffset:], kc, n, mr, nr)
+	packedMicroKernelAsmF64(packedA, packedB, c, n, ir, jr, kc, mr, nr)
 }
 
 func packedMicroKernelPartialNEONF64(packedA []float64, packedB []float64, c []float64, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONF64(packedA, packedB, c[cOffset:], kc, n, activeRows, activeCols)
+	packedMicroKernelPartialAsmF64(packedA, packedB, c, n, ir, jr, kc, mr, nr, activeRows, activeCols)
 }
 
-// packedMicroKernelNEONF16 wraps the GOAT-generated NEON FP16 micro-kernel.
 func packedMicroKernelNEONF16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n, ir, jr, kc, mr, nr int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONF16(packedA, packedB, c[cOffset:], kc, n, mr, nr)
+	packedMicroKernelAsmF16(packedA, packedB, c, n, ir, jr, kc, mr, nr)
 }
 
 func packedMicroKernelPartialNEONF16(packedA []hwy.Float16, packedB []hwy.Float16, c []hwy.Float16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONF16(packedA, packedB, c[cOffset:], kc, n, activeRows, activeCols)
-}
-
-// packedMicroKernelNEONBF16 wraps the GOAT-generated NEON BF16 micro-kernel.
-func packedMicroKernelNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONBF16(packedA, packedB, c[cOffset:], kc, n, mr, nr)
-}
-
-func packedMicroKernelPartialNEONBF16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
-	cOffset := ir*n + jr
-	asm.PackedMicroKernelNEONBF16(packedA, packedB, c[cOffset:], kc, n, activeRows, activeCols)
+	packedMicroKernelPartialAsmF16(packedA, packedB, c, n, ir, jr, kc, mr, nr, activeRows, activeCols)
 }
 
 // =============================================================================
@@ -3137,9 +3116,4 @@ func init() {
 		PackedMicroKernelPartialFloat16 = packedMicroKernelPartialNEONF16
 	}
 
-	// BF16: Requires ARMv8.6-A BF16 extension
-	if hasNEON && hwy.HasARMBF16() && !hwy.HasSME() {
-		PackedMicroKernelBFloat16 = packedMicroKernelNEONBF16
-		PackedMicroKernelPartialBFloat16 = packedMicroKernelPartialNEONBF16
-	}
 }

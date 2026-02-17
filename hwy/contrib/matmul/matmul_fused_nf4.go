@@ -14,7 +14,7 @@
 
 package matmul
 
-//go:generate go run ../../../cmd/hwygen -input matmul_fused_nf4.go -dispatch matmul_fused_n4 -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input matmul_fused_nf4.go -dispatch matmul_fused_n4 -output . -targets avx2,avx512,neon:asm,fallback
 
 import "github.com/ajroetker/go-highway/hwy"
 
@@ -61,9 +61,10 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, bias 
 
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
+	tileN := 4 * lanes
 
-	// Temporary buffer for dequantized weights (one vector width)
-	dequantBuf := make([]float32, lanes)
+	// Temporary buffer for dequantized weights (4 vector widths)
+	dequantBuf := make([]float32, tileN)
 
 	// Accumulator buffer for one output row — fits L1 for typical N
 	accBuf := make([]float32, N)
@@ -84,9 +85,46 @@ func BaseFusedNF4MatMul(input []float32, packed []uint8, scales []float32, bias 
 			baseIdx := k * N
 			scaleBase := k * numGroups
 
-			// Vectorized N sweep
+			// Tiled N sweep — 4 vectors at a time for ILP
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+
+					var quantIdx int
+					if weightIdx%2 == 0 {
+						quantIdx = int(packed[packedIdx] & 0x0F)
+					} else {
+						quantIdx = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
+				}
+
+				w0 := hwy.Load(dequantBuf[0:])
+				w1 := hwy.Load(dequantBuf[lanes:])
+				w2 := hwy.Load(dequantBuf[2*lanes:])
+				w3 := hwy.Load(dequantBuf[3*lanes:])
+				acc0 := hwy.Load(accBuf[n:])
+				acc1 := hwy.Load(accBuf[n+lanes:])
+				acc2 := hwy.Load(accBuf[n+2*lanes:])
+				acc3 := hwy.Load(accBuf[n+3*lanes:])
+				acc0 = hwy.MulAdd(inputVal, w0, acc0)
+				acc1 = hwy.MulAdd(inputVal, w1, acc1)
+				acc2 = hwy.MulAdd(inputVal, w2, acc2)
+				acc3 = hwy.MulAdd(inputVal, w3, acc3)
+				hwy.Store(acc0, accBuf[n:])
+				hwy.Store(acc1, accBuf[n+lanes:])
+				hwy.Store(acc2, accBuf[n+2*lanes:])
+				hwy.Store(acc3, accBuf[n+3*lanes:])
+			}
+
+			// Remainder: single vector
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
@@ -169,9 +207,10 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, bias
 
 	numGroups := (N + groupSize - 1) / groupSize
 	lanes := hwy.Zero[float32]().NumLanes()
+	tileN := 4 * lanes
 
-	// Temporary buffer for dequantized weights (one vector width)
-	dequantBuf := make([]float32, lanes)
+	// Temporary buffer for dequantized weights (4 vector widths)
+	dequantBuf := make([]float32, tileN)
 
 	// Accumulator buffer for one output row — fits L1 for typical N
 	accBuf := make([]float32, N)
@@ -192,9 +231,47 @@ func BaseFusedInt4MatMul(input []float32, packed []uint8, scales []float32, bias
 			baseIdx := k * N
 			scaleBase := k * numGroups
 
-			// Vectorized N sweep
+			// Tiled N sweep — 4 vectors at a time for ILP
 			var n int
-			for n = 0; n+lanes <= N; n += lanes {
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					packedIdx := weightIdx / 2
+
+					var unsignedVal int
+					if weightIdx%2 == 0 {
+						unsignedVal = int(packed[packedIdx] & 0x0F)
+					} else {
+						unsignedVal = int((packed[packedIdx] >> 4) & 0x0F)
+					}
+
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					// Convert from [0,15] to [-8,7]
+					dequantBuf[lane] = float32(unsignedVal-8) * scale
+				}
+
+				w0 := hwy.Load(dequantBuf[0:])
+				w1 := hwy.Load(dequantBuf[lanes:])
+				w2 := hwy.Load(dequantBuf[2*lanes:])
+				w3 := hwy.Load(dequantBuf[3*lanes:])
+				acc0 := hwy.Load(accBuf[n:])
+				acc1 := hwy.Load(accBuf[n+lanes:])
+				acc2 := hwy.Load(accBuf[n+2*lanes:])
+				acc3 := hwy.Load(accBuf[n+3*lanes:])
+				acc0 = hwy.MulAdd(inputVal, w0, acc0)
+				acc1 = hwy.MulAdd(inputVal, w1, acc1)
+				acc2 = hwy.MulAdd(inputVal, w2, acc2)
+				acc3 = hwy.MulAdd(inputVal, w3, acc3)
+				hwy.Store(acc0, accBuf[n:])
+				hwy.Store(acc1, accBuf[n+lanes:])
+				hwy.Store(acc2, accBuf[n+2*lanes:])
+				hwy.Store(acc3, accBuf[n+3*lanes:])
+			}
+
+			// Remainder: single vector
+			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
 					colIdx := n + lane
 					weightIdx := baseIdx + colIdx
