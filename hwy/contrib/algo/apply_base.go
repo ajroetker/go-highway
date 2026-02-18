@@ -16,7 +16,7 @@ package algo
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input apply_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input apply_base.go -output . -targets avx2,avx512,neon:asm,fallback
 
 // BaseApply transforms input slice to output slice using the provided vector function.
 // Tail elements are handled via buffer-based SIMD processing - no scalar fallback needed.

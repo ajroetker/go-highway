@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input normalize_base.go -output . -targets avx2,avx512,neon,fallback -dispatch normalize
+//go:generate go run ../../../cmd/hwygen -input normalize_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch normalize
 
 import (
 	stdmath "math"

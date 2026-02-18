@@ -16,7 +16,7 @@ package algo
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input copy_base.go -output . -targets avx2,avx512,neon,fallback -dispatch copy
+//go:generate go run ../../../cmd/hwygen -input copy_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch copy
 
 // BaseCopyIf conditionally copies elements from src to dst based on a predicate.
 // The predicate receives a vector and returns a mask indicating which elements to copy.

@@ -1881,10 +1881,9 @@ func emitCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuffix 
 }
 
 // buildCPublicName creates the public function name.
-// BaseExpVec -> ExpCF32, BaseGELU -> GELUCF32
+// BaseExpVec -> ExpVecCF32, BaseGELU -> GELUCF32
 func buildCPublicName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimSuffix(name, "Vec")
 
 	typeSuffix := cTypePublicSuffix(elemType)
 

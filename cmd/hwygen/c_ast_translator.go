@@ -1427,6 +1427,37 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 	lhs := s.Lhs[0]
 	rhs := s.Rhs[0]
 
+	// Check for vec.Data() — store vector to stack buffer for element access.
+	// Pattern: valsData := maxVals.Data()
+	// Emits: float valsData[4]; vst1q_f32(valsData, maxVals);
+	if call, ok := rhs.(*ast.CallExpr); ok {
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Data" && len(call.Args) == 0 {
+			if vecIdent, ok := sel.X.(*ast.Ident); ok {
+				vecInfo := t.inferType(sel.X)
+				if vecInfo.isVector {
+					lhsName := t.translateExpr(lhs)
+					vecType := t.profile.VecTypes[t.tier]
+					storeFn := t.profile.StoreFn[t.tier]
+					lanes := t.lanes
+					cType := t.profile.CType
+					if t.profile.ScalarArithType != "" {
+						cType = t.profile.ScalarArithType
+					}
+					// Declare a stack buffer and store the vector into it
+					t.vars[lhsName] = cVarInfo{cType: cType, isPtr: true}
+					_ = vecType
+					t.writef("%s %s[%d];\n", cType, lhsName, lanes)
+					ptr := lhsName
+					if t.profile.CastExpr != "" {
+						ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+					}
+					t.writef("%s(%s, %s);\n", storeFn, ptr, vecIdent.Name)
+					return
+				}
+			}
+		}
+	}
+
 	// Check for hwy.GetLane with variable index — requires store-to-stack pattern
 	if call, ok := rhs.(*ast.CallExpr); ok {
 		if sel := extractSelectorExpr(call.Fun); sel != nil {
@@ -1462,6 +1493,16 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 
+	// Widened accumulator re-init: acc = hwy.Zero[T]() → reset both halves
+	if lhsIdent != "" && s.Tok == token.ASSIGN && t.widenedVars[lhsIdent] {
+		if _, ok := isHwyCall(rhs, "Zero"); ok {
+			zeroExpr := t.profile.WidenedAccZero
+			t.writef("%s_lo = %s;\n", lhsIdent, zeroExpr)
+			t.writef("%s_hi = %s;\n", lhsIdent, zeroExpr)
+			return
+		}
+	}
+
 	// Widened accumulator: acc = hwy.MulAdd(a, b, acc) → two f32 FMAs
 	if lhsIdent != "" && s.Tok == token.ASSIGN && t.widenedVars[lhsIdent] {
 		if call, ok := isHwyCall(rhs, "MulAdd"); ok && len(call.Args) >= 3 {
@@ -1481,14 +1522,28 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 	// Widened accumulator: v = hwy.Add(v, acc) → promote+add on widened halves
 	if lhsIdent != "" && s.Tok == token.ASSIGN {
 		if call, ok := isHwyCall(rhs, "Add"); ok && len(call.Args) >= 2 {
+			wName0, isW0 := t.isWidenedVar(call.Args[0])
+			wName1, isW1 := t.isWidenedVar(call.Args[1])
+
+			if isW0 && isW1 && t.widenedVars[lhsIdent] {
+				// Both args are widened accumulators: add halves directly
+				addFn := t.profile.WidenedAddFn
+				t.writef("%s_lo = %s(%s_lo, %s_lo);\n", lhsIdent, addFn, wName0, wName1)
+				t.writef("%s_hi = %s(%s_hi, %s_hi);\n", lhsIdent, addFn, wName0, wName1)
+				return
+			}
+
 			wName, narrowIdx := "", -1
-			for i, arg := range call.Args {
-				if n, isW := t.isWidenedVar(arg); isW {
-					wName = n
-					_ = i
-				} else {
-					narrowIdx = i
-				}
+			if isW0 {
+				wName = wName0
+			}
+			if isW1 {
+				wName = wName1
+			}
+			if !isW0 {
+				narrowIdx = 0
+			} else if !isW1 {
+				narrowIdx = 1
 			}
 			if wName != "" && narrowIdx >= 0 {
 				narrow := t.translateExpr(call.Args[narrowIdx])
@@ -1929,6 +1984,14 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 		}
 	} else {
 		rangeOver = t.translateExpr(s.X)
+		// When ranging over a slice parameter, use the length variable
+		// instead of the pointer. E.g., `for i := range v` where v is
+		// a slice parameter should use `len_v`, not `v` (which is a pointer in C).
+		if ident, ok := s.X.(*ast.Ident); ok {
+			if lenVar, ok := t.sliceLenVars[ident.Name]; ok {
+				rangeOver = lenVar
+			}
+		}
 	}
 
 	// Register the iterator variable
@@ -2183,8 +2246,11 @@ func (t *CASTTranslator) translateExpr(expr ast.Expr) string {
 
 	switch e := expr.(type) {
 	case *ast.Ident:
-		if e.Name == "nil" {
+		if e.Name == "nil" || e.Name == "false" {
 			return "0"
+		}
+		if e.Name == "true" {
+			return "1"
 		}
 		// Widened accumulator fallback: materialize as demote+combine
 		// for any context not explicitly optimized (e.g., passing to unknown func).
@@ -2794,6 +2860,26 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		return t.emitHwyDotAccumulate(args)
 	case "Pow":
 		return t.emitHwyPow(args)
+	case "Iota":
+		return t.emitHwyIota()
+	case "FindFirstTrue":
+		return t.emitHwyUnaryScalarOp(t.profile.FindFirstTrueFn, args)
+	case "CountTrue":
+		return t.emitHwyUnaryScalarOp(t.profile.CountTrueFn, args)
+	case "AllTrue":
+		return t.emitHwyUnaryScalarOp(t.profile.AllTrueFn, args)
+	case "AllFalse":
+		return t.emitHwyUnaryScalarOp(t.profile.AllFalseFn, args)
+	case "FirstN":
+		return t.emitHwyFirstN(args)
+	case "MaskAnd":
+		return t.emitHwyBinaryOp(t.profile.MaskAndFn, "&", args)
+	case "MaskOr":
+		return t.emitHwyBinaryOp(t.profile.MaskOrFn, "|", args)
+	case "MaskAndNot":
+		return t.emitHwyMaskAndNot(args)
+	case "CompressStore":
+		return t.emitHwyCompressStore(args)
 	default:
 		// Unknown hwy call — emit as-is
 		var argStrs []string
@@ -3324,6 +3410,79 @@ func (t *CASTTranslator) emitHwyPow(args []ast.Expr) string {
 	return fmt.Sprintf("pow(%s, %s)", base, exp)
 }
 
+// emitHwyIota: hwy.Iota[T]() → hwy_iota_f32() or hwy_iota_f64()
+func (t *CASTTranslator) emitHwyIota() string {
+	iotaFn := t.profile.IotaFn[t.tier]
+	if iotaFn == "" {
+		return "/* Iota: not supported for this profile */"
+	}
+	return fmt.Sprintf("%s()", iotaFn)
+}
+
+// emitHwyUnaryScalarOp emits a unary operation that returns a scalar (long).
+// Used for AllTrue, AllFalse, FindFirstTrue, CountTrue.
+func (t *CASTTranslator) emitHwyUnaryScalarOp(fnMap map[string]string, args []ast.Expr) string {
+	if len(args) < 1 {
+		return "/* unary scalar op: missing args */"
+	}
+	fn := fnMap[t.tier]
+	if fn == "" {
+		return fmt.Sprintf("/* unary scalar op: not supported for tier %s */", t.tier)
+	}
+	arg := t.translateExpr(args[0])
+	return fmt.Sprintf("%s(%s)", fn, arg)
+}
+
+// emitHwyFirstN: hwy.FirstN[T](n) → hwy_first_n_u32(n)
+func (t *CASTTranslator) emitHwyFirstN(args []ast.Expr) string {
+	if len(args) < 1 {
+		return "/* FirstN: missing args */"
+	}
+	fn := t.profile.FirstNFn[t.tier]
+	if fn == "" {
+		return "/* FirstN: not supported for this profile */"
+	}
+	n := t.translateExpr(args[0])
+	return fmt.Sprintf("%s(%s)", fn, n)
+}
+
+// emitHwyMaskAndNot: hwy.MaskAndNot(a, b) → vbicq_u32(b, a)
+// Note: hwy.MaskAndNot(mask, notMask) returns mask AND (NOT notMask),
+// but NEON vbic(a, b) = a AND (NOT b), so args are swapped.
+func (t *CASTTranslator) emitHwyMaskAndNot(args []ast.Expr) string {
+	if len(args) < 2 {
+		return "/* MaskAndNot: missing args */"
+	}
+	fn := t.profile.MaskAndNotFn[t.tier]
+	if fn == "" {
+		return "/* MaskAndNot: not supported for this profile */"
+	}
+	a := t.translateExpr(args[0])
+	b := t.translateExpr(args[1])
+	// hwy.MaskAndNot(mask, notMask) = notMask AND NOT mask
+	// vbicq(a, b) = a AND NOT b
+	// So: vbicq(notMask, mask)
+	return fmt.Sprintf("%s(%s, %s)", fn, b, a)
+}
+
+// emitHwyCompressStore: hwy.CompressStore(vec, mask, slice[off:]) → hwy_compress_store_f32(vec, mask, ptr)
+func (t *CASTTranslator) emitHwyCompressStore(args []ast.Expr) string {
+	if len(args) < 3 {
+		return "/* CompressStore: missing args */"
+	}
+	fn := t.profile.CompressStoreFn[t.tier]
+	if fn == "" {
+		return "/* CompressStore: not supported for this profile */"
+	}
+	vec := t.translateExpr(args[0])
+	mask := t.translateExpr(args[1])
+	ptr := t.translateExpr(args[2])
+	if t.profile.CastExpr != "" {
+		ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+	}
+	return fmt.Sprintf("%s(%s, %s, %s)", fn, vec, mask, ptr)
+}
+
 // translateLoad4Assign handles: a, b, c, d := hwy.Load4(slice[off:])
 // On NEON (VecX4Type populated): emits vld1q_u64_x4 + .val[i] destructuring.
 // On AVX (VecX4Type nil): emits 4 individual loads with ptr + i*lanes offsets.
@@ -3754,6 +3913,10 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		}
 		return cVarInfo{cType: t.profile.CType}
 	case *ast.Ident:
+		// Boolean literals → long
+		if e.Name == "true" || e.Name == "false" {
+			return cVarInfo{cType: "long"}
+		}
 		// Variable reference — look up its type
 		if info, ok := t.vars[e.Name]; ok {
 			return info
@@ -3864,8 +4027,22 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 				"Min", "Max", "Neg", "Abs", "Sqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount",
-				"IfThenElse", "SlideUpLanes", "Pow":
+				"IfThenElse", "SlideUpLanes", "Pow",
+				"Iota":
 				return cVarInfo{cType: vecType, isVector: true}
+			case "MaskAnd", "MaskOr", "MaskAndNot", "FirstN":
+				// Mask operations return a mask vector
+				maskType := vecType
+				if mt, ok := t.profile.MaskType[t.tier]; ok {
+					maskType = mt
+				}
+				return cVarInfo{cType: maskType, isVector: true}
+			case "FindFirstTrue", "CountTrue":
+				return cVarInfo{cType: "long"}
+			case "AllTrue", "AllFalse":
+				return cVarInfo{cType: "long"}
+			case "CompressStore":
+				return cVarInfo{cType: "long"}
 			case "TableLookupBytes":
 				// TableLookupBytes always operates on bytes, returns uint8x16_t
 				return cVarInfo{cType: "uint8x16_t", isVector: true}
@@ -4041,6 +4218,8 @@ func (t *CASTTranslator) goTypeToCType(goType string) string {
 		return "short"
 	case "int8":
 		return "signed char"
+	case "bool":
+		return "long"
 	case "T":
 		if t.profile.ScalarArithType != "" {
 			return t.profile.ScalarArithType
@@ -4157,6 +4336,19 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 		return false
 	}
 
+	// Reject functions with function, interface, or generic type parameters — these
+	// can't be translated to C (no vtable/dispatch).
+	for _, p := range pf.Params {
+		if strings.HasPrefix(p.Type, "func(") {
+			return false
+		}
+		// Reject single-letter uppercase type parameters (e.g., P Predicate[T])
+		// which indicate generic interface constraints that can't be translated.
+		if len(p.Type) == 1 && p.Type[0] >= 'A' && p.Type[0] <= 'Z' && p.Type != "T" {
+			return false
+		}
+	}
+
 	// Must have int params (indicates a multi-dimensional function, not a simple
 	// array transform). This distinguishes matmul/transpose from GELU/softmax.
 	// OR must use integer SIMD ops (And, PopCount, BitsFromMask, LessThan, etc.)
@@ -4185,6 +4377,11 @@ func hasIntegerSIMDOps(pf *ParsedFunc) bool {
 		"LessThan": true, "TableLookupBytes": true,
 		"IfThenElse": true, "LoadSlice": true,
 		"Load4": true,
+		"FindFirstTrue": true, "CountTrue": true,
+		"Iota": true,
+		"CompressStore": true, "FirstN": true,
+		"MaskAnd": true, "MaskOr": true, "MaskAndNot": true,
+		"AllTrue": true, "AllFalse": true,
 	}
 	for _, call := range pf.HwyCalls {
 		if call.Package == "hwy" && intOps[call.FuncName] {

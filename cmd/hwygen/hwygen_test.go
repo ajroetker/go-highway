@@ -1138,7 +1138,7 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	f32 := string(f32Content)
 
 	// Verify function signature uses float pointers
-	if !strings.Contains(f32, "void exp_c_f32_neon(float *input, float *result, long *len)") {
+	if !strings.Contains(f32, "void expvec_c_f32_neon(float *input, float *result, long *len)") {
 		t.Error("f32: expected float pointer signature")
 	}
 
@@ -1180,7 +1180,7 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	f16 := string(f16Content)
 
 	// Verify function signature uses unsigned short (f16 storage type)
-	if !strings.Contains(f16, "void exp_c_f16_neon(unsigned short *input, unsigned short *result, long *len)") {
+	if !strings.Contains(f16, "void expvec_c_f16_neon(unsigned short *input, unsigned short *result, long *len)") {
 		t.Error("f16: expected unsigned short pointer signature")
 	}
 
@@ -1232,7 +1232,7 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	bf16 := string(bf16Content)
 
 	// Verify bf16 function signature
-	if !strings.Contains(bf16, "void exp_c_bf16_neon(unsigned short *input, unsigned short *result, long *len)") {
+	if !strings.Contains(bf16, "void expvec_c_bf16_neon(unsigned short *input, unsigned short *result, long *len)") {
 		t.Error("bf16: expected unsigned short pointer signature")
 	}
 
@@ -2288,10 +2288,11 @@ func TestTranslateIntegerProfiles(t *testing.T) {
 	if len(u64Profile.InlineHelpers) == 0 {
 		t.Error("uint64 profile should have inline helpers for popcount")
 	}
-	if !strings.Contains(u64Profile.InlineHelpers[0], "neon_popcnt_u64") {
+	u64AllHelpers := strings.Join(u64Profile.InlineHelpers, "\n")
+	if !strings.Contains(u64AllHelpers, "neon_popcnt_u64") {
 		t.Error("uint64 popcount helper should contain neon_popcnt_u64")
 	}
-	if !strings.Contains(u64Profile.InlineHelpers[0], "vcntq_u8") {
+	if !strings.Contains(u64AllHelpers, "vcntq_u8") {
 		t.Error("uint64 popcount helper should use vcntq_u8")
 	}
 
@@ -4290,9 +4291,9 @@ func BaseMathOps(data []float32, n int) {
 
 	t.Logf("Generated C code:\n%s", cCode)
 
-	// Verify sqrtf for float32
-	if !strings.Contains(cCode, "sqrtf(") {
-		t.Error("missing sqrtf() for stdmath.Sqrt with float32")
+	// Verify GOAT-safe sqrt helper (stdmath.Sqrt always uses f64 for precision)
+	if !strings.Contains(cCode, "_s_sqrt_f64(") {
+		t.Error("missing _s_sqrt_f64() for stdmath.Sqrt (always float64)")
 	}
 
 	// Verify GOAT-safe exp helper (stdmath.Exp always uses f64 for precision)
@@ -5063,7 +5064,7 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 
 	// Verify helpers appear before the main function body
 	helperIdx := strings.Index(bf16, "bf16_promote_lo")
-	funcIdx := strings.Index(bf16, "void exp_c_bf16_neon")
+	funcIdx := strings.Index(bf16, "void expvec_c_bf16_neon")
 	if helperIdx < 0 {
 		t.Fatal("bf16_promote_lo not found in output")
 	}
