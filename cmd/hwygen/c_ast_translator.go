@@ -2078,10 +2078,12 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 							return fmt.Sprintf("_s_%s%s(%s)", cName, suffix, arg)
 						}
 					}
+					// Use __builtin_ prefix to avoid <math.h> dependency in GOAT C code.
+					// At -O3, clang maps __builtin_sqrt to hardware fsqrt on ARM64.
 					if t.elemType == "float64" {
-						return fmt.Sprintf("%s(%s)", cName, arg)
+						return fmt.Sprintf("__builtin_%s(%s)", cName, arg)
 					}
-					return fmt.Sprintf("%sf(%s)", cName, arg)
+					return fmt.Sprintf("__builtin_%sf(%s)", cName, arg)
 				}
 			}
 
@@ -2442,6 +2444,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		return t.emitHwyUnaryOp(t.profile.AbsFn, args)
 	case "Sqrt":
 		return t.emitHwyUnaryOp(t.profile.SqrtFn, args)
+	case "RSqrt", "InvSqrt":
+		return t.emitHwyUnaryOp(t.profile.RSqrtFn, args)
 	case "ReduceSum":
 		return t.emitHwyReduceSum(args)
 	case "InterleaveLower":
@@ -3389,10 +3393,11 @@ func (t *CASTTranslator) goTypeConvToCType(name string) string {
 // Special cases (multi-arg, composite, non-standard naming) are handled in the switch.
 var mathFuncToC = map[string]string{
 	// stdmath
-	"Sqrt": "sqrt",
-	"Exp":  "exp",
-	"Log":  "log",
-	"Erf":  "erf",
+	"Sqrt":  "sqrt",
+	"RSqrt": "rsqrt",
+	"Exp":   "exp",
+	"Log":   "log",
+	"Erf":   "erf",
 	// contrib/math Vec wrappers
 	"BaseExpVec":   "exp",
 	"BaseExp2Vec":  "exp2",
@@ -3532,7 +3537,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
 			switch sel.Sel.Name {
 			case "Load", "Load4", "Zero", "Set", "Const", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
-				"Min", "Max", "Neg", "Abs", "Sqrt", "ShiftRight",
+				"Min", "Max", "Neg", "Abs", "Sqrt", "RSqrt", "InvSqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount", "TableLookupBytes",
 				"IfThenElse", "SlideUpLanes", "Pow":
@@ -3606,7 +3611,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 				return cVarInfo{cType: "unsigned int"}
 			case "Float32frombits":
 				return cVarInfo{cType: "float"}
-			case "Sqrt", "Exp", "Log", "Erf", "Abs":
+			case "Sqrt", "RSqrt", "Exp", "Log", "Erf", "Abs":
 				if t.elemType == "float64" {
 					return cVarInfo{cType: "double"}
 				}

@@ -6,9 +6,10 @@ package nn
 
 import (
 	stdmath "math"
+	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
-	"github.com/ajroetker/go-highway/hwy/contrib/algo"
+	"github.com/ajroetker/go-highway/hwy/asm"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
@@ -23,18 +24,36 @@ func BaseSoftmax_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]hwy.Float16, size)
-	for i := range size {
-		shifted[i] = hwy.Float32ToFloat16(input[i].Float32() - maxVal.Float32())
+	vMax := hwy.Set(maxVal)
+	vSum := hwy.Zero[hwy.Float16]()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.SubF16(x, vMax)
+		expVal := math.BaseExpVec_neon_Float16(shifted)
+		hwy.Store(expVal, output[ii:])
+		vSum = hwy.AddF16(vSum, expVal)
+		x1 := hwy.Load(input[ii+8:])
+		shifted1 := hwy.SubF16(x1, vMax)
+		expVal1 := math.BaseExpVec_neon_Float16(shifted1)
+		hwy.Store(expVal1, output[ii+8:])
+		vSum = hwy.AddF16(vSum, expVal1)
 	}
-	algo.BaseApply_neon_Float16(shifted, output, math.BaseExpVec_neon_Float16)
-	var expSum float32
-	for i := range size {
-		expSum += output[i].Float32()
+	expSum := hwy.ReduceSumF16(vSum)
+	for ; ii < size; ii++ {
+		expVal := hwy.Float32ToFloat16(float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32()))))
+		output[ii] = hwy.Float32ToFloat16(expVal.Float32())
+		expSum += expVal.Float32()
 	}
 	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
-	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
+	vInvSum := hwy.Set(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := hwy.Load(output[ii:])
+		hwy.Store(hwy.MulF16(v, vInvSum), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToFloat16(output[ii].Float32() * invSum.Float32())
 	}
 }
 
@@ -49,18 +68,36 @@ func BaseSoftmax_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]hwy.BFloat16, size)
-	for i := range size {
-		shifted[i] = hwy.Float32ToBFloat16(input[i].Float32() - maxVal.Float32())
+	vMax := hwy.Set(maxVal)
+	vSum := hwy.Zero[hwy.BFloat16]()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.SubBF16(x, vMax)
+		expVal := math.BaseExpVec_neon_BFloat16(shifted)
+		hwy.Store(expVal, output[ii:])
+		vSum = hwy.AddBF16(vSum, expVal)
+		x1 := hwy.Load(input[ii+8:])
+		shifted1 := hwy.SubBF16(x1, vMax)
+		expVal1 := math.BaseExpVec_neon_BFloat16(shifted1)
+		hwy.Store(expVal1, output[ii+8:])
+		vSum = hwy.AddBF16(vSum, expVal1)
 	}
-	algo.BaseApply_neon_BFloat16(shifted, output, math.BaseExpVec_neon_BFloat16)
-	var expSum float32
-	for i := range size {
-		expSum += output[i].Float32()
+	expSum := hwy.ReduceSumBF16(vSum)
+	for ; ii < size; ii++ {
+		expVal := hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32()))))
+		output[ii] = hwy.Float32ToBFloat16(expVal.Float32())
+		expSum += expVal.Float32()
 	}
 	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
-	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
+	vInvSum := hwy.Set(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := hwy.Load(output[ii:])
+		hwy.Store(hwy.MulBF16(v, vInvSum), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToBFloat16(output[ii].Float32() * invSum.Float32())
 	}
 }
 
@@ -75,18 +112,36 @@ func BaseSoftmax_neon(input []float32, output []float32) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]float32, size)
-	for i := range size {
-		shifted[i] = input[i] - maxVal
+	vMax := asm.BroadcastFloat32x4(maxVal)
+	vSum := asm.ZeroFloat32x4()
+	lanes := 4
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_neon(shifted)
+		expVal.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_neon(shifted1)
+		expVal1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+		vSum = vSum.Add(expVal1)
 	}
-	algo.BaseApply_neon(shifted, output, math.BaseExpVec_neon)
-	var expSum float32
-	for i := range size {
-		expSum += output[i]
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		expVal := float32(stdmath.Exp(float64(input[ii] - maxVal)))
+		output[ii] = expVal
+		expSum += expVal
 	}
 	invSum := float32(1.0) / expSum
-	for i := range size {
-		output[i] = output[i] * invSum
+	vInvSum := asm.BroadcastFloat32x4(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] *= invSum
 	}
 }
 
@@ -101,18 +156,36 @@ func BaseSoftmax_neon_Float64(input []float64, output []float64) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]float64, size)
-	for i := range size {
-		shifted[i] = input[i] - maxVal
+	vMax := asm.BroadcastFloat64x2(maxVal)
+	vSum := asm.ZeroFloat64x2()
+	lanes := 2
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_neon_Float64(shifted)
+		expVal.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_neon_Float64(shifted1)
+		expVal1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+		vSum = vSum.Add(expVal1)
 	}
-	algo.BaseApply_neon_Float64(shifted, output, math.BaseExpVec_neon_Float64)
-	var expSum float64
-	for i := range size {
-		expSum += output[i]
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		expVal := float64(stdmath.Exp(float64(input[ii] - maxVal)))
+		output[ii] = expVal
+		expSum += expVal
 	}
 	invSum := float64(1.0) / expSum
-	for i := range size {
-		output[i] = output[i] * invSum
+	vInvSum := asm.BroadcastFloat64x2(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] *= invSum
 	}
 }
 
@@ -143,19 +216,33 @@ func BaseLogSoftmax_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]hwy.Float16, size)
-	expVals := make([]hwy.Float16, size)
-	for i := range size {
-		shifted[i] = hwy.Float32ToFloat16(input[i].Float32() - maxVal.Float32())
+	vMax := hwy.Set(maxVal)
+	vSum := hwy.Zero[hwy.Float16]()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.SubF16(x, vMax)
+		expVal := math.BaseExpVec_neon_Float16(shifted)
+		vSum = hwy.AddF16(vSum, expVal)
+		x1 := hwy.Load(input[ii+8:])
+		shifted1 := hwy.SubF16(x1, vMax)
+		expVal1 := math.BaseExpVec_neon_Float16(shifted1)
+		vSum = hwy.AddF16(vSum, expVal1)
 	}
-	algo.BaseApply_neon_Float16(shifted, expVals, math.BaseExpVec_neon_Float16)
-	var expSum float32
-	for i := range size {
-		expSum += expVals[i].Float32()
+	expSum := hwy.ReduceSumF16(vSum)
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
 	}
 	logSumExp := hwy.Float32ToFloat16(float32(stdmath.Log(float64(expSum))))
-	for i := range size {
-		output[i] = hwy.Float32ToFloat16(shifted[i].Float32() - logSumExp.Float32())
+	offset := hwy.Float32ToFloat16(maxVal.Float32() + logSumExp.Float32())
+	vOffset := hwy.Set(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		hwy.Store(hwy.SubF16(x, vOffset), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToFloat16(input[ii].Float32() - offset.Float32())
 	}
 }
 
@@ -170,19 +257,33 @@ func BaseLogSoftmax_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]hwy.BFloat16, size)
-	expVals := make([]hwy.BFloat16, size)
-	for i := range size {
-		shifted[i] = hwy.Float32ToBFloat16(input[i].Float32() - maxVal.Float32())
+	vMax := hwy.Set(maxVal)
+	vSum := hwy.Zero[hwy.BFloat16]()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.SubBF16(x, vMax)
+		expVal := math.BaseExpVec_neon_BFloat16(shifted)
+		vSum = hwy.AddBF16(vSum, expVal)
+		x1 := hwy.Load(input[ii+8:])
+		shifted1 := hwy.SubBF16(x1, vMax)
+		expVal1 := math.BaseExpVec_neon_BFloat16(shifted1)
+		vSum = hwy.AddBF16(vSum, expVal1)
 	}
-	algo.BaseApply_neon_BFloat16(shifted, expVals, math.BaseExpVec_neon_BFloat16)
-	var expSum float32
-	for i := range size {
-		expSum += expVals[i].Float32()
+	expSum := hwy.ReduceSumBF16(vSum)
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
 	}
 	logSumExp := hwy.Float32ToBFloat16(float32(stdmath.Log(float64(expSum))))
-	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(shifted[i].Float32() - logSumExp.Float32())
+	offset := hwy.Float32ToBFloat16(maxVal.Float32() + logSumExp.Float32())
+	vOffset := hwy.Set(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		hwy.Store(hwy.SubBF16(x, vOffset), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToBFloat16(input[ii].Float32() - offset.Float32())
 	}
 }
 
@@ -197,19 +298,33 @@ func BaseLogSoftmax_neon(input []float32, output []float32) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]float32, size)
-	expVals := make([]float32, size)
-	for i := range size {
-		shifted[i] = input[i] - maxVal
+	vMax := asm.BroadcastFloat32x4(maxVal)
+	vSum := asm.ZeroFloat32x4()
+	lanes := 4
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_neon(shifted)
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_neon(shifted1)
+		vSum = vSum.Add(expVal1)
 	}
-	algo.BaseApply_neon(shifted, expVals, math.BaseExpVec_neon)
-	var expSum float32
-	for i := range size {
-		expSum += expVals[i]
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii] - maxVal)))
 	}
 	logSumExp := float32(stdmath.Log(float64(expSum)))
-	for i := range size {
-		output[i] = shifted[i] - logSumExp
+	offset := maxVal + logSumExp
+	vOffset := asm.BroadcastFloat32x4(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		x.Sub(vOffset).Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] = input[ii] - offset
 	}
 }
 
@@ -224,19 +339,33 @@ func BaseLogSoftmax_neon_Float64(input []float64, output []float64) {
 			maxVal = input[i]
 		}
 	}
-	shifted := make([]float64, size)
-	expVals := make([]float64, size)
-	for i := range size {
-		shifted[i] = input[i] - maxVal
+	vMax := asm.BroadcastFloat64x2(maxVal)
+	vSum := asm.ZeroFloat64x2()
+	lanes := 2
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_neon_Float64(shifted)
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_neon_Float64(shifted1)
+		vSum = vSum.Add(expVal1)
 	}
-	algo.BaseApply_neon_Float64(shifted, expVals, math.BaseExpVec_neon_Float64)
-	var expSum float64
-	for i := range size {
-		expSum += expVals[i]
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		expSum += float64(stdmath.Exp(float64(input[ii] - maxVal)))
 	}
 	logSumExp := float64(stdmath.Log(float64(expSum)))
-	for i := range size {
-		output[i] = shifted[i] - logSumExp
+	offset := maxVal + logSumExp
+	vOffset := asm.BroadcastFloat64x2(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		x.Sub(vOffset).Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] = input[ii] - offset
 	}
 }
 
@@ -356,18 +485,38 @@ func BaseSoftmaxWithTemperature_neon_Float16(input []hwy.Float16, output []hwy.F
 		}
 	}
 	invTemp := hwy.Float32ToFloat16(float32(1.0) / temperature.Float32())
-	shifted := make([]hwy.Float16, size)
-	for i := range size {
-		shifted[i] = hwy.Float32ToFloat16((input[i].Float32() - maxVal.Float32()) * invTemp.Float32())
+	vMax := hwy.Set(maxVal)
+	vInvTemp := hwy.Set(invTemp)
+	vSum := hwy.Zero[hwy.Float16]()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.MulF16(hwy.SubF16(x, vMax), vInvTemp)
+		expVal := math.BaseExpVec_neon_Float16(shifted)
+		hwy.Store(expVal, output[ii:])
+		vSum = hwy.AddF16(vSum, expVal)
+		x1 := hwy.Load(input[ii+8:])
+		shifted1 := hwy.MulF16(hwy.SubF16(x1, vMax), vInvTemp)
+		expVal1 := math.BaseExpVec_neon_Float16(shifted1)
+		hwy.Store(expVal1, output[ii+8:])
+		vSum = hwy.AddF16(vSum, expVal1)
 	}
-	algo.BaseApply_neon_Float16(shifted, output, math.BaseExpVec_neon_Float16)
-	var expSum float32
-	for i := range size {
-		expSum += output[i].Float32()
+	expSum := hwy.ReduceSumF16(vSum)
+	for ; ii < size; ii++ {
+		shifted := hwy.Float32ToFloat16((input[ii].Float32() - maxVal.Float32()) * invTemp.Float32())
+		expVal := hwy.Float32ToFloat16(float32(stdmath.Exp(float64(shifted.Float32()))))
+		output[ii] = hwy.Float32ToFloat16(expVal.Float32())
+		expSum += expVal.Float32()
 	}
 	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
-	for i := range size {
-		output[i] = hwy.Float32ToFloat16(output[i].Float32() * invSum.Float32())
+	vInvSum := hwy.Set(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := hwy.Load(output[ii:])
+		hwy.Store(hwy.MulF16(v, vInvSum), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToFloat16(output[ii].Float32() * invSum.Float32())
 	}
 }
 
@@ -383,18 +532,38 @@ func BaseSoftmaxWithTemperature_neon_BFloat16(input []hwy.BFloat16, output []hwy
 		}
 	}
 	invTemp := hwy.Float32ToBFloat16(float32(1.0) / temperature.Float32())
-	shifted := make([]hwy.BFloat16, size)
-	for i := range size {
-		shifted[i] = hwy.Float32ToBFloat16((input[i].Float32() - maxVal.Float32()) * invTemp.Float32())
+	vMax := hwy.Set(maxVal)
+	vInvTemp := hwy.Set(invTemp)
+	vSum := hwy.Zero[hwy.BFloat16]()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.MulBF16(hwy.SubBF16(x, vMax), vInvTemp)
+		expVal := math.BaseExpVec_neon_BFloat16(shifted)
+		hwy.Store(expVal, output[ii:])
+		vSum = hwy.AddBF16(vSum, expVal)
+		x1 := hwy.Load(input[ii+8:])
+		shifted1 := hwy.MulBF16(hwy.SubBF16(x1, vMax), vInvTemp)
+		expVal1 := math.BaseExpVec_neon_BFloat16(shifted1)
+		hwy.Store(expVal1, output[ii+8:])
+		vSum = hwy.AddBF16(vSum, expVal1)
 	}
-	algo.BaseApply_neon_BFloat16(shifted, output, math.BaseExpVec_neon_BFloat16)
-	var expSum float32
-	for i := range size {
-		expSum += output[i].Float32()
+	expSum := hwy.ReduceSumBF16(vSum)
+	for ; ii < size; ii++ {
+		shifted := hwy.Float32ToBFloat16((input[ii].Float32() - maxVal.Float32()) * invTemp.Float32())
+		expVal := hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(shifted.Float32()))))
+		output[ii] = hwy.Float32ToBFloat16(expVal.Float32())
+		expSum += expVal.Float32()
 	}
 	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
-	for i := range size {
-		output[i] = hwy.Float32ToBFloat16(output[i].Float32() * invSum.Float32())
+	vInvSum := hwy.Set(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := hwy.Load(output[ii:])
+		hwy.Store(hwy.MulBF16(v, vInvSum), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToBFloat16(output[ii].Float32() * invSum.Float32())
 	}
 }
 
@@ -410,18 +579,38 @@ func BaseSoftmaxWithTemperature_neon(input []float32, output []float32, temperat
 		}
 	}
 	invTemp := float32(1.0) / temperature
-	shifted := make([]float32, size)
-	for i := range size {
-		shifted[i] = (input[i] - maxVal) * invTemp
+	vMax := asm.BroadcastFloat32x4(maxVal)
+	vInvTemp := asm.BroadcastFloat32x4(invTemp)
+	vSum := asm.ZeroFloat32x4()
+	lanes := 4
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax).Mul(vInvTemp)
+		expVal := math.BaseExpVec_neon(shifted)
+		expVal.Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&input[ii+4])))
+		shifted1 := x1.Sub(vMax).Mul(vInvTemp)
+		expVal1 := math.BaseExpVec_neon(shifted1)
+		expVal1.Store((*[4]float32)(unsafe.Pointer(&output[ii+4])))
+		vSum = vSum.Add(expVal1)
 	}
-	algo.BaseApply_neon(shifted, output, math.BaseExpVec_neon)
-	var expSum float32
-	for i := range size {
-		expSum += output[i]
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		shifted := (input[ii] - maxVal) * invTemp
+		expVal := float32(stdmath.Exp(float64(shifted)))
+		output[ii] = expVal
+		expSum += expVal
 	}
 	invSum := float32(1.0) / expSum
-	for i := range size {
-		output[i] = output[i] * invSum
+	vInvSum := asm.BroadcastFloat32x4(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).Store((*[4]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] *= invSum
 	}
 }
 
@@ -437,17 +626,37 @@ func BaseSoftmaxWithTemperature_neon_Float64(input []float64, output []float64, 
 		}
 	}
 	invTemp := float64(1.0) / temperature
-	shifted := make([]float64, size)
-	for i := range size {
-		shifted[i] = (input[i] - maxVal) * invTemp
+	vMax := asm.BroadcastFloat64x2(maxVal)
+	vInvTemp := asm.BroadcastFloat64x2(invTemp)
+	vSum := asm.ZeroFloat64x2()
+	lanes := 2
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax).Mul(vInvTemp)
+		expVal := math.BaseExpVec_neon_Float64(shifted)
+		expVal.Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&input[ii+2])))
+		shifted1 := x1.Sub(vMax).Mul(vInvTemp)
+		expVal1 := math.BaseExpVec_neon_Float64(shifted1)
+		expVal1.Store((*[2]float64)(unsafe.Pointer(&output[ii+2])))
+		vSum = vSum.Add(expVal1)
 	}
-	algo.BaseApply_neon_Float64(shifted, output, math.BaseExpVec_neon_Float64)
-	var expSum float64
-	for i := range size {
-		expSum += output[i]
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		shifted := (input[ii] - maxVal) * invTemp
+		expVal := float64(stdmath.Exp(float64(shifted)))
+		output[ii] = expVal
+		expSum += expVal
 	}
 	invSum := float64(1.0) / expSum
-	for i := range size {
-		output[i] = output[i] * invSum
+	vInvSum := asm.BroadcastFloat64x2(invSum)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).Store((*[2]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] *= invSum
 	}
 }

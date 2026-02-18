@@ -26,6 +26,7 @@ var goatSafeMathHelper = map[string]bool{
 	"sin":     true,
 	"cos":     true,
 	"tanh":    true,
+	"rsqrt":   true,
 }
 
 // goatMathSuffix returns the precision suffix for GOAT-safe math helpers
@@ -216,6 +217,17 @@ var neonF32MathHelpers = []string{
 	// Scalar tanh(x) = 2*sigmoid(2*x) - 1.
 	`static inline float _s_tanh_f32(float x) {
     return 2.0f * _s_sigmoid_f32(2.0f * x) - 1.0f;
+}`,
+	// NEON vectorized rsqrt(x) = 1/sqrt(x) using vrsqrte + 2 Newton-Raphson steps.
+	`static inline float32x4_t _v_rsqrt_f32(float32x4_t x) {
+    float32x4_t est = vrsqrteq_f32(x);
+    est = vmulq_f32(est, vrsqrtsq_f32(vmulq_f32(x, est), est));
+    est = vmulq_f32(est, vrsqrtsq_f32(vmulq_f32(x, est), est));
+    return est;
+}`,
+	// Scalar rsqrt(x) = 1/sqrt(x). Uses __builtin_sqrtf to avoid <math.h> dependency.
+	`static inline float _s_rsqrt_f32(float x) {
+    return 1.0f / __builtin_sqrtf(x);
 }`,
 	// NEON vectorized sin(x) using range reduction to [-pi/4, pi/4] + Chebyshev polynomial.
 	// Octant selection via vbslq_f32 for branchless quadrant handling.
@@ -626,6 +638,18 @@ var neonF64MathHelpers = []string{
 	// Scalar tanh(x) = 2*sigmoid(2*x) - 1 for double.
 	`static inline double _s_tanh_f64(double x) {
     return 2.0 * _s_sigmoid_f64(2.0 * x) - 1.0;
+}`,
+	// NEON vectorized rsqrt(x) = 1/sqrt(x) using vrsqrte + 3 Newton-Raphson steps for double precision.
+	`static inline float64x2_t _v_rsqrt_f64(float64x2_t x) {
+    float64x2_t est = vrsqrteq_f64(x);
+    est = vmulq_f64(est, vrsqrtsq_f64(vmulq_f64(x, est), est));
+    est = vmulq_f64(est, vrsqrtsq_f64(vmulq_f64(x, est), est));
+    est = vmulq_f64(est, vrsqrtsq_f64(vmulq_f64(x, est), est));
+    return est;
+}`,
+	// Scalar rsqrt(x) = 1/sqrt(x) for double. Uses __builtin_sqrt to avoid <math.h> dependency.
+	`static inline double _s_rsqrt_f64(double x) {
+    return 1.0 / __builtin_sqrt(x);
 }`,
 	// NEON vectorized sin(x) using range reduction + Chebyshev for double.
 	`static inline float64x2_t _v_sin_f64(float64x2_t x) {

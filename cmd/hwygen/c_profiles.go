@@ -31,6 +31,7 @@ type CIntrinsicProfile struct {
 	NegFn     map[string]string
 	AbsFn     map[string]string
 	SqrtFn    map[string]string
+	RSqrtFn   map[string]string
 	MinFn     map[string]string
 	MaxFn     map[string]string
 	DupFn     map[string]string // Broadcast scalar to all lanes
@@ -263,6 +264,7 @@ func neonF32Profile() *CIntrinsicProfile {
 		NegFn:     map[string]string{"q": "vnegq_f32"},
 		AbsFn:     map[string]string{"q": "vabsq_f32"},
 		SqrtFn:    map[string]string{"q": "vsqrtq_f32"},
+		RSqrtFn:   map[string]string{"q": "_v_rsqrt_f32"},
 		MinFn:     map[string]string{"q": "vminq_f32"},
 		MaxFn:     map[string]string{"q": "vmaxq_f32"},
 		DupFn:     map[string]string{"q": "vdupq_n_f32"},
@@ -332,6 +334,7 @@ func neonF64Profile() *CIntrinsicProfile {
 		NegFn:     map[string]string{"q": "vnegq_f64"},
 		AbsFn:     map[string]string{"q": "vabsq_f64"},
 		SqrtFn:    map[string]string{"q": "vsqrtq_f64"},
+		RSqrtFn:   map[string]string{"q": "_v_rsqrt_f64"},
 		MinFn:     map[string]string{"q": "vminq_f64"},
 		MaxFn:     map[string]string{"q": "vmaxq_f64"},
 		DupFn:     map[string]string{"q": "vdupq_n_f64"},

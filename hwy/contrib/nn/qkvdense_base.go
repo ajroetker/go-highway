@@ -16,7 +16,7 @@ package nn
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input qkvdense_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input qkvdense_base.go -output . -targets avx2,avx512,neon:asm,fallback
 
 // BaseQKVDense computes a fused QKV projection: a single matmul against stacked
 // Q/K/V weights, then splits and adds per-segment biases.
