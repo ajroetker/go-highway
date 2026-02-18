@@ -1758,6 +1758,14 @@ func (t *CASTTranslator) translateExprStmt(s *ast.ExprStmt) {
 		}
 	}
 
+	// Check for BaseApply(in, out, mathFunc) → inline the load-transform-store loop
+	if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "BaseApply" {
+		if len(call.Args) == 3 {
+			t.emitInlinedBaseApply(call.Args)
+			return
+		}
+	}
+
 	// Generic function call
 	expr := t.translateExpr(s.X)
 	t.writef("%s;\n", expr)
@@ -2961,6 +2969,131 @@ func (t *CASTTranslator) emitHwyPow(args []ast.Expr) string {
 	return fmt.Sprintf("pow(%s, %s)", base, exp)
 }
 
+// emitInlinedBaseApply inlines a BaseApply(in, out, math.FooVec) call as a
+// load→math→store C loop. This eliminates per-vector function call overhead
+// by compiling the entire loop into GOAT assembly.
+//
+// For native types (f32, f64): straightforward load → math → store.
+// For promoted types (f16, bf16): split-promote → f32 math → demote → combine → store.
+func (t *CASTTranslator) emitInlinedBaseApply(args []ast.Expr) {
+	// Extract math function name from args[2] (e.g., math.BaseExpVec → "exp")
+	mathCName := ""
+	if sel, ok := args[2].(*ast.SelectorExpr); ok {
+		if cName, ok := mathFuncToC[sel.Sel.Name]; ok {
+			mathCName = cName
+		}
+	}
+	// Also handle generic form: math.BaseExpVec[T]
+	if indexExpr, ok := args[2].(*ast.IndexExpr); ok {
+		if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
+			if cName, ok := mathFuncToC[sel.Sel.Name]; ok {
+				mathCName = cName
+			}
+		}
+	}
+	if mathCName == "" {
+		t.writef("/* emitInlinedBaseApply: could not resolve math function */\n")
+		return
+	}
+
+	// Get param names for in, out
+	inName := t.translateExpr(args[0])
+	outName := t.translateExpr(args[1])
+
+	// Get length variable names from sliceLenVars (handles shared length optimization
+	// where all slices map to a single length variable like "len_in").
+	inLen := t.sliceLenVars[inName]
+	outLen := t.sliceLenVars[outName]
+	if inLen == "" {
+		inLen = "len_" + inName
+	}
+	if outLen == "" {
+		outLen = "len_" + outName
+	}
+
+	lanes := t.lanes
+	vecType := t.profile.VecTypes[t.tier]
+	loadFn := t.profile.LoadFn[t.tier]
+	storeFn := t.profile.StoreFn[t.tier]
+	suffix := goatMathSuffix(t.elemType)
+	castExpr := t.profile.CastExpr
+
+	t.writef("{\n")
+	t.indent++
+	t.writef("long n = (%s < %s) ? %s : %s;\n", inLen, outLen, inLen, outLen)
+	t.writef("long i = 0;\n")
+
+	if t.profile.MathStrategy == "promoted" && t.profile.SplitPromoteLo != "" {
+		// Promoted path (f16, bf16): split-promote → f32 math → demote → combine
+		proLo := t.profile.SplitPromoteLo
+		proHi := t.profile.SplitPromoteHi
+		demoteFn := t.profile.DemoteFn
+		combineFn := t.profile.CombineFn
+
+		t.writef("for (; i + %d <= n; i += %d) {\n", lanes, lanes)
+		t.indent++
+		loadPtr := fmt.Sprintf("%s + i", inName)
+		if castExpr != "" {
+			loadPtr = fmt.Sprintf("%s(%s + i)", castExpr, inName)
+		}
+		t.writef("%s narrow = %s(%s);\n", vecType, loadFn, loadPtr)
+		t.writef("float32x4_t lo = %s;\n", fmt.Sprintf(proLo, "narrow"))
+		t.writef("float32x4_t hi = %s;\n", fmt.Sprintf(proHi, "narrow"))
+		t.writef("lo = _v_%s_f32(lo);\n", mathCName)
+		t.writef("hi = _v_%s_f32(hi);\n", mathCName)
+		dLo := fmt.Sprintf(demoteFn, "lo")
+		dHi := fmt.Sprintf(demoteFn, "hi")
+		t.writef("%s result = %s;\n", vecType, fmt.Sprintf(combineFn, dLo, dHi))
+		storePtr := fmt.Sprintf("%s + i", outName)
+		if castExpr != "" {
+			storePtr = fmt.Sprintf("%s(%s + i)", castExpr, outName)
+		}
+		t.writef("%s(%s, result);\n", storeFn, storePtr)
+		t.indent--
+		t.writef("}\n")
+		// Scalar tail with promotion/demotion
+		scalarPromote := t.profile.ScalarPromote
+		scalarDemote := t.profile.ScalarDemote
+		t.writef("for (; i < n; i++) {\n")
+		t.indent++
+		if scalarPromote != "" && scalarDemote != "" {
+			t.writef("%s[i] = %s(_s_%s_f32(%s(%s[i])));\n",
+				outName, scalarDemote, mathCName, scalarPromote, inName)
+		} else {
+			// Fallback: direct scalar (shouldn't happen for promoted types)
+			t.writef("%s[i] = _s_%s%s(%s[i]);\n", outName, mathCName, suffix, inName)
+		}
+		t.indent--
+		t.writef("}\n")
+	} else {
+		// Native path (f32, f64): direct load → math → store
+		t.writef("for (; i + %d <= n; i += %d) {\n", lanes, lanes)
+		t.indent++
+		loadPtr := fmt.Sprintf("%s + i", inName)
+		if castExpr != "" {
+			loadPtr = fmt.Sprintf("%s(%s + i)", castExpr, inName)
+		}
+		t.writef("%s x = %s(%s);\n", vecType, loadFn, loadPtr)
+		t.writef("x = _v_%s%s(x);\n", mathCName, suffix)
+		storePtr := fmt.Sprintf("%s + i", outName)
+		if castExpr != "" {
+			storePtr = fmt.Sprintf("%s(%s + i)", castExpr, outName)
+		}
+		t.writef("%s(%s, x);\n", storeFn, storePtr)
+		t.indent--
+		t.writef("}\n")
+		// Scalar tail
+		t.writef("for (; i < n; i++) {\n")
+		t.indent++
+		t.writef("%s[i] = _s_%s%s(%s[i]);\n", outName, mathCName, suffix, inName)
+		t.indent--
+		t.writef("}\n")
+	}
+
+	t.indent--
+	t.writef("}\n")
+}
+
 // translateLoad4Assign handles: a, b, c, d := hwy.Load4(slice[off:])
 // On NEON (VecX4Type populated): emits vld1q_u64_x4 + .val[i] destructuring.
 // On AVX (VecX4Type nil): emits 4 individual loads with ptr + i*lanes offsets.
@@ -3228,8 +3361,9 @@ var mathFuncToC = map[string]string{
 	"BaseCoshVec":  "cosh",
 	"BaseAsinhVec": "asinh",
 	"BaseAcoshVec": "acosh",
-	"BaseAtanhVec": "atanh",
-	"BaseErfVec":   "erf",
+	"BaseAtanhVec":    "atanh",
+	"BaseSigmoidVec": "sigmoid",
+	"BaseErfVec":     "erf",
 }
 
 // bitsOnesCountToBuiltin maps Go math/bits popcount functions to GCC builtins.
@@ -3611,6 +3745,19 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 		return false
 	}
 
+	// Must NOT be a composite math function (those use the template path)
+	if mathOpFromFuncName(pf.Name) != "" {
+		return false
+	}
+
+	// BaseApply wrappers (e.g., BaseExpTransform) are eligible —
+	// the BaseApply call will be inlined at translation time.
+	// Check this before hasHwyOps because these wrappers don't contain
+	// direct hwy.* calls (the SIMD ops are inside BaseApply itself).
+	if isBaseApplyWrapper(pf) {
+		return true
+	}
+
 	// Must use hwy.* operations
 	hasHwyOps := false
 	for _, call := range pf.HwyCalls {
@@ -3620,11 +3767,6 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 		}
 	}
 	if !hasHwyOps {
-		return false
-	}
-
-	// Must NOT be a composite math function (those use the template path)
-	if mathOpFromFuncName(pf.Name) != "" {
 		return false
 	}
 
@@ -3645,6 +3787,20 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 
 	// Also eligible if the function uses integer-specific SIMD operations
 	return hasIntegerSIMDOps(pf)
+}
+
+// isBaseApplyWrapper returns true if the function's HwyCalls include a call to
+// BaseApply. These are thin wrappers like BaseExpTransform that delegate all
+// SIMD work to BaseApply(in, out, math.FooVec). They don't contain hwy.* ops
+// directly, but are eligible for AST translation because the translator will
+// inline the BaseApply call into a load→math→store C loop.
+func isBaseApplyWrapper(pf *ParsedFunc) bool {
+	for _, call := range pf.HwyCalls {
+		if call.FuncName == "BaseApply" {
+			return true
+		}
+	}
+	return false
 }
 
 // hasIntegerSIMDOps returns true if the function uses SIMD operations that

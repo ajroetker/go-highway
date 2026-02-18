@@ -138,7 +138,7 @@ Key limitations to be aware of:
 - No `__builtin_*` functions - use polynomial approximations instead
 - No `static inline` helper functions - inline code directly
 - No `union` type punning
-- C functions must have `void` return types
+- Supported return types: `void`, `long`, `float`, `double`, `_Bool`
 - Arguments must be `int64_t`, `long`, `float`, `double`, `_Bool`, or pointer
 
 For ARM64 NEON code generation, see the GOAT.md section on SME/SVE support and macOS compatibility issues.
