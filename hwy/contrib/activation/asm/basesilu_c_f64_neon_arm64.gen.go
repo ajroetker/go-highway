@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func silu_c_f64_neon(input, output, len unsafe.Pointer)
+func silu_c_f64_neon(input, output, plen_input unsafe.Pointer)

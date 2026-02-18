@@ -6,160 +6,85 @@
 // flags: -march=armv8.6-a+bf16+simd -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/activation/asm/baseleakyrelu_c_bf16_neon_arm64.c
 
-TEXT ·leakyrelu_c_bf16_neon(SB), $0-24
+TEXT ·leakyrelu_c_bf16_neon(SB), $0-32
 	MOVD input+0(FP), R0
 	MOVD output+8(FP), R1
-	MOVD len+16(FP), R2
-	WORD $0xf9400048      // ldr	x8, [x2]
-	WORD $0xf100811f      // cmp	x8, #32
-	BLT  BB0_5
-	WORD $0x91008009      // add	x9, x0, #32
-	WORD $0x9100802b      // add	x11, x1, #32
-	WORD $0x528003ea      // mov	w10, #31                        ; =0x1f
-	WORD $0x529ae14c      // mov	w12, #55050                     ; =0xd70a
-	WORD $0x72a7846c      // movk	w12, #15395, lsl #16
-	WORD $0x4e040d80      // dup.4s	v0, w12
-	WORD $0x4f000421      // movi.4s	v1, #1
-	WORD $0x4f03c7e2      // movi.4s	v2, #127, msl #8
+	MOVD palpha+16(FP), R2
+	MOVD plen_input+24(FP), R3
+	WORD $0xf9400068           // ldr	x8, [x3]
+	WORD $0xb40007e8           // cbz	x8, LBB0_10
+	WORD $0xf100211f           // cmp	x8, #8
+	BGE  BB0_3
+	WORD $0xd280000c           // mov	x12, #0                         ; =0x0
+	B    BB0_5
 
-BB0_2:
-	WORD $0xad7f1123 // ldp	q3, q4, [x9, #-32]
-	WORD $0xacc21925 // ldp	q5, q6, [x9], #64
-	WORD $0x2e613867 // shll.4s	v7, v3, #16
-	WORD $0x6e613863 // shll2.4s	v3, v3, #16
-	WORD $0x6e20dcf0 // fmul.4s	v16, v7, v0
-	WORD $0x4e30f4e7 // fmax.4s	v7, v7, v16
-	WORD $0x6e20dc70 // fmul.4s	v16, v3, v0
-	WORD $0x4e30f463 // fmax.4s	v3, v3, v16
-	WORD $0x6f300470 // ushr.4s	v16, v3, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb08463 // add.4s	v3, v3, v16
-	WORD $0x6f3004f0 // ushr.4s	v16, v7, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb084e7 // add.4s	v7, v7, v16
-	WORD $0x0e6240e7 // addhn.4h	v7, v7, v2
-	WORD $0x4e624067 // addhn2.8h	v7, v3, v2
-	WORD $0x2e613883 // shll.4s	v3, v4, #16
-	WORD $0x6e613884 // shll2.4s	v4, v4, #16
-	WORD $0x6e20dc70 // fmul.4s	v16, v3, v0
-	WORD $0x4e30f463 // fmax.4s	v3, v3, v16
-	WORD $0x6e20dc90 // fmul.4s	v16, v4, v0
-	WORD $0x4e30f484 // fmax.4s	v4, v4, v16
-	WORD $0x6f300490 // ushr.4s	v16, v4, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb08484 // add.4s	v4, v4, v16
-	WORD $0x6f300470 // ushr.4s	v16, v3, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb08463 // add.4s	v3, v3, v16
-	WORD $0x0e624063 // addhn.4h	v3, v3, v2
-	WORD $0x4e624083 // addhn2.8h	v3, v4, v2
-	WORD $0x2e6138a4 // shll.4s	v4, v5, #16
-	WORD $0x6e6138a5 // shll2.4s	v5, v5, #16
-	WORD $0x6e20dc90 // fmul.4s	v16, v4, v0
-	WORD $0x4e30f484 // fmax.4s	v4, v4, v16
-	WORD $0x6e20dcb0 // fmul.4s	v16, v5, v0
-	WORD $0x4e30f4a5 // fmax.4s	v5, v5, v16
-	WORD $0x6f3004b0 // ushr.4s	v16, v5, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb084a5 // add.4s	v5, v5, v16
-	WORD $0x6f300490 // ushr.4s	v16, v4, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb08484 // add.4s	v4, v4, v16
-	WORD $0x0e624084 // addhn.4h	v4, v4, v2
-	WORD $0x4e6240a4 // addhn2.8h	v4, v5, v2
-	WORD $0x2e6138c5 // shll.4s	v5, v6, #16
-	WORD $0x6e6138c6 // shll2.4s	v6, v6, #16
-	WORD $0x6e20dcb0 // fmul.4s	v16, v5, v0
-	WORD $0x4e30f4a5 // fmax.4s	v5, v5, v16
-	WORD $0x6e20dcd0 // fmul.4s	v16, v6, v0
-	WORD $0x4e30f4c6 // fmax.4s	v6, v6, v16
-	WORD $0x6f3004d0 // ushr.4s	v16, v6, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb084c6 // add.4s	v6, v6, v16
-	WORD $0x6f3004b0 // ushr.4s	v16, v5, #16
-	WORD $0x4e211e10 // and.16b	v16, v16, v1
-	WORD $0x4eb084a5 // add.4s	v5, v5, v16
-	WORD $0x0e6240a5 // addhn.4h	v5, v5, v2
-	WORD $0x4e6240c5 // addhn2.8h	v5, v6, v2
-	WORD $0xad3f0d67 // stp	q7, q3, [x11, #-32]
-	WORD $0xac821564 // stp	q4, q5, [x11], #64
-	WORD $0x9100814a // add	x10, x10, #32
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_2
-	WORD $0xd1007d49 // sub	x9, x10, #31
-	WORD $0xb240092a // orr	x10, x9, #0x7
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_6
-
-BB0_4:
-	WORD $0xaa0903ec // mov	x12, x9
-	B    BB0_8
-
-BB0_5:
+BB0_3:
 	WORD $0xd2800009 // mov	x9, #0                          ; =0x0
-	WORD $0xb240092a // orr	x10, x9, #0x7
-	WORD $0xeb08015f // cmp	x10, x8
-	BGE  BB0_4
-
-BB0_6:
-	WORD $0xd37ff92b // lsl	x11, x9, #1
-	WORD $0x8b0b000a // add	x10, x0, x11
-	WORD $0x8b0b002b // add	x11, x1, x11
-	WORD $0x529ae14c // mov	w12, #55050                     ; =0xd70a
-	WORD $0x72a7846c // movk	w12, #15395, lsl #16
-	WORD $0x4e040d80 // dup.4s	v0, w12
+	WORD $0x0d40c440 // ld1r.4h	{ v0 }, [x2]
+	WORD $0x2e613800 // shll.4s	v0, v0, #16
 	WORD $0x4f000421 // movi.4s	v1, #1
 	WORD $0x4f03c7e2 // movi.4s	v2, #127, msl #8
+	WORD $0x6f06e583 // movi.2d	v3, #0xffff0000ffff0000
+	WORD $0xaa0103ea // mov	x10, x1
+	WORD $0xaa0003eb // mov	x11, x0
 
-BB0_7:
-	WORD $0x3cc10543 // ldr	q3, [x10], #16
-	WORD $0x2e613864 // shll.4s	v4, v3, #16
-	WORD $0x6e613863 // shll2.4s	v3, v3, #16
-	WORD $0x6e20dc85 // fmul.4s	v5, v4, v0
-	WORD $0x4e25f484 // fmax.4s	v4, v4, v5
-	WORD $0x6e20dc65 // fmul.4s	v5, v3, v0
-	WORD $0x4e25f463 // fmax.4s	v3, v3, v5
-	WORD $0x6f300465 // ushr.4s	v5, v3, #16
-	WORD $0x4e211ca5 // and.16b	v5, v5, v1
-	WORD $0x4ea58463 // add.4s	v3, v3, v5
-	WORD $0x6f300485 // ushr.4s	v5, v4, #16
-	WORD $0x4e211ca5 // and.16b	v5, v5, v1
-	WORD $0x4ea58484 // add.4s	v4, v4, v5
-	WORD $0x0e624084 // addhn.4h	v4, v4, v2
-	WORD $0x4e624064 // addhn2.8h	v4, v3, v2
-	WORD $0x3c810564 // str	q4, [x11], #16
+BB0_4:
+	WORD $0x3cc10564 // ldr	q4, [x11], #16
+	WORD $0x2e613885 // shll.4s	v5, v4, #16
+	WORD $0x6e613884 // shll2.4s	v4, v4, #16
+	WORD $0x6e25dc06 // fmul.4s	v6, v0, v5
+	WORD $0x6f3004c7 // ushr.4s	v7, v6, #16
+	WORD $0x4ea284c6 // add.4s	v6, v6, v2
+	WORD $0x4e211ce7 // and.16b	v7, v7, v1
+	WORD $0x4ea784c6 // add.4s	v6, v6, v7
+	WORD $0x6e24dc07 // fmul.4s	v7, v0, v4
+	WORD $0x6f3004f0 // ushr.4s	v16, v7, #16
+	WORD $0x4e211e10 // and.16b	v16, v16, v1
+	WORD $0x4ea284e7 // add.4s	v7, v7, v2
+	WORD $0x4e231cc6 // and.16b	v6, v6, v3
+	WORD $0x4eb084e7 // add.4s	v7, v7, v16
+	WORD $0x4e231ce7 // and.16b	v7, v7, v3
+	WORD $0x4e26f4a5 // fmax.4s	v5, v5, v6
+	WORD $0x4e27f484 // fmax.4s	v4, v4, v7
+	WORD $0x6f300486 // ushr.4s	v6, v4, #16
+	WORD $0x4e211cc6 // and.16b	v6, v6, v1
+	WORD $0x4ea68484 // add.4s	v4, v4, v6
+	WORD $0x6f3004a6 // ushr.4s	v6, v5, #16
+	WORD $0x4e211cc6 // and.16b	v6, v6, v1
+	WORD $0x4ea684a5 // add.4s	v5, v5, v6
+	WORD $0x0e6240a5 // addhn.4h	v5, v5, v2
+	WORD $0x4e624085 // addhn2.8h	v5, v4, v2
+	WORD $0x3c810545 // str	q5, [x10], #16
 	WORD $0x9100212c // add	x12, x9, #8
-	WORD $0x91003d2d // add	x13, x9, #15
+	WORD $0x9100412d // add	x13, x9, #16
 	WORD $0xaa0c03e9 // mov	x9, x12
 	WORD $0xeb0801bf // cmp	x13, x8
-	BLT  BB0_7
+	BLE  BB0_4
 
-BB0_8:
+BB0_5:
 	WORD $0xeb0c0108 // subs	x8, x8, x12
-	BLE  BB0_11
+	BLE  BB0_10
 	WORD $0xd37ff98a // lsl	x10, x12, #1
 	WORD $0x8b0a0029 // add	x9, x1, x10
 	WORD $0x8b0a000a // add	x10, x0, x10
-	WORD $0x529ae14b // mov	w11, #55050                     ; =0xd70a
-	WORD $0x72a7846b // movk	w11, #15395, lsl #16
-	WORD $0x4e040d60 // dup.4s	v0, w11
-	WORD $0x4f000421 // movi.4s	v1, #1
-	WORD $0x4f03c7e2 // movi.4s	v2, #127, msl #8
+	WORD $0x528fffeb // mov	w11, #32767                     ; =0x7fff
+	B    BB0_8
+
+BB0_7:
+	WORD $0x7800252c // strh	w12, [x9], #2
+	WORD $0xf1000508 // subs	x8, x8, #1
+	BEQ  BB0_10
+
+BB0_8:
+	WORD $0x7840254c // ldrh	w12, [x10], #2
+	WORD $0x34ffff8c // cbz	w12, LBB0_7
+	WORD $0x1e230180 // ucvtf	s0, w12
+	WORD $0x1e26000c // fmov	w12, s0
+	WORD $0x5310418d // ubfx	w13, w12, #16, #1
+	WORD $0x0b0d018c // add	w12, w12, w13
+	WORD $0x0b0b018c // add	w12, w12, w11
+	WORD $0x53107d8c // lsr	w12, w12, #16
+	B    BB0_7
 
 BB0_10:
-	WORD $0x0ddfc543 // ld1r.4h	{ v3 }, [x10], #2
-	WORD $0x2e613863 // shll.4s	v3, v3, #16
-	WORD $0x6e20dc64 // fmul.4s	v4, v3, v0
-	WORD $0x4e24f463 // fmax.4s	v3, v3, v4
-	WORD $0x6f300464 // ushr.4s	v4, v3, #16
-	WORD $0x4e211c84 // and.16b	v4, v4, v1
-	WORD $0x4ea48463 // add.4s	v3, v3, v4
-	WORD $0x0e624063 // addhn.4h	v3, v3, v2
-	WORD $0x2e613863 // shll.4s	v3, v3, #16
-	WORD $0x1e38006b // fcvtzs	w11, s3
-	WORD $0x7800252b // strh	w11, [x9], #2
-	WORD $0xf1000508 // subs	x8, x8, #1
-	BNE  BB0_10
-
-BB0_11:
 	RET

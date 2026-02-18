@@ -1294,21 +1294,33 @@ func TestIsASTCEligible(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "GELU composite (not eligible - has math op name)",
+			name: "GELU activation (eligible via AST translator)",
 			pf: ParsedFunc{
-				Name: "BaseGELUVec",
+				Name: "BaseGELU",
 				Params: []Param{
 					{Name: "input", Type: "[]T"},
 					{Name: "output", Type: "[]T"},
 				},
 				HwyCalls: []HwyCall{{Package: "hwy", FuncName: "Load"}},
 			},
-			want: false,
+			want: true,
 		},
 		{
-			name: "slice func without int params (not eligible)",
+			name: "slice func without int params (eligible via AST translator)",
 			pf: ParsedFunc{
 				Name: "BaseSoftmax",
+				Params: []Param{
+					{Name: "input", Type: "[]T"},
+					{Name: "output", Type: "[]T"},
+				},
+				HwyCalls: []HwyCall{{Package: "hwy", FuncName: "Load"}},
+			},
+			want: true,
+		},
+		{
+			name: "math composite Vec (not eligible - has math op name)",
+			pf: ParsedFunc{
+				Name: "BaseExpVecWrapper",
 				Params: []Param{
 					{Name: "input", Type: "[]T"},
 					{Name: "output", Type: "[]T"},

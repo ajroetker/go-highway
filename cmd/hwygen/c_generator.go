@@ -74,21 +74,18 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 	}
 
 	// Collect all eligible functions
-	var vecFuncs []ParsedFunc   // Vec→Vec functions
-	var sliceFuncs []ParsedFunc // Slice→Slice functions (composite like GELU)
-	var astFuncs []ParsedFunc   // Functions for AST translation (matmul, transpose, etc.)
+	var vecFuncs []ParsedFunc // Vec→Vec functions
+	var astFuncs []ParsedFunc // Functions for AST translation (matmul, activation, etc.)
 
 	for _, pf := range result.Funcs {
 		if IsASTCEligible(&pf) {
 			astFuncs = append(astFuncs, pf)
 		} else if IsCEligible(&pf) {
 			vecFuncs = append(vecFuncs, pf)
-		} else if IsSliceFunction(&pf) {
-			sliceFuncs = append(sliceFuncs, pf)
 		}
 	}
 
-	totalFuncs := len(vecFuncs) + len(sliceFuncs) + len(astFuncs)
+	totalFuncs := len(vecFuncs) + len(astFuncs)
 	if totalFuncs == 0 {
 		fmt.Println("No C-eligible functions found; all functions will use GoSimd path")
 		return nil, nil
@@ -97,19 +94,6 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 	fmt.Printf("Found %d C-eligible functions:\n", totalFuncs)
 	for _, pf := range vecFuncs {
 		fmt.Printf("  - %s (Vec→Vec)\n", pf.Name)
-	}
-	for _, pf := range sliceFuncs {
-		fmt.Printf("  - %s (Slice→Slice)\n", pf.Name)
-	}
-
-	// If fusion mode is enabled, use IR-based generation for slice functions
-	if g.FusionMode && len(sliceFuncs) > 0 {
-		fmt.Println("\nUsing IR-based fusion optimization...")
-		if err := g.runFusionCMode(result, sliceFuncs, targets); err != nil {
-			return nil, fmt.Errorf("fusion mode: %w", err)
-		}
-		// Continue with non-slice functions using standard path
-		sliceFuncs = nil
 	}
 	for _, pf := range astFuncs {
 		fmt.Printf("  - %s (AST→C)\n", pf.Name)
@@ -152,25 +136,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 		}
 
-		// Generate C code for Slice→Slice (composite) functions
-		for _, pf := range sliceFuncs {
-			elemTypes := getCElemTypes(&pf)
-			for _, elemType := range elemTypes {
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue // No profile for this target/type combo
-				}
-				emitter := NewCEmitter(g.PackageOut, elemType, target)
-				emitter.profile = profile
-				cFile, err := emitter.EmitCompositeC(&pf, cOutputDir)
-				if err != nil {
-					return nil, fmt.Errorf("emit composite C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
-				}
-				cFiles = append(cFiles, cFile)
-			}
-		}
-
-		// Generate C code for AST-translated functions (matmul, transpose, etc.)
+		// Generate C code for AST-translated functions (matmul, activation, etc.)
 		for _, pf := range astFuncs {
 			elemTypes := getCElemTypes(&pf)
 			for _, elemType := range elemTypes {
@@ -240,9 +206,8 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 
 			// Separate struct-ptr and non-struct functions
-			allFuncs := make([]ParsedFunc, 0, len(vecFuncs)+len(sliceFuncs)+len(astFuncs))
+			allFuncs := make([]ParsedFunc, 0, len(vecFuncs)+len(astFuncs))
 			allFuncs = append(allFuncs, vecFuncs...)
-			allFuncs = append(allFuncs, sliceFuncs...)
 			allFuncs = append(allFuncs, astFuncs...)
 
 			var structFuncs, nonStructFuncs []ParsedFunc
@@ -273,19 +238,17 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				}
 			}
 
-			// Non-struct AST-translated functions (slice+int params) and
-			// composite slice functions (without scalar T params) also need
-			// ASM adapter + wiring.
+			// Non-struct AST-translated functions (slice+int params) need
+			// ASM adapter + wiring. Exclude functions with scalar T params
+			// (e.g., LeakyReLU, ELU) since emitSliceZCAdapterFunc doesn't
+			// handle T params in the adapter body yet.
 			var nonStructASTFuncs []ParsedFunc
-			var compositeSliceFuncs []ParsedFunc
 			for _, f := range nonStructFuncs {
-				if IsASTCEligible(&f) {
+				if IsASTCEligible(&f) && !hasScalarTypeParams(&f) {
 					nonStructASTFuncs = append(nonStructASTFuncs, f)
-				} else if IsSliceFunction(&f) && !hasScalarTypeParams(&f) {
-					compositeSliceFuncs = append(compositeSliceFuncs, f)
 				}
 			}
-			allSliceDispatchFuncs := append(nonStructASTFuncs, compositeSliceFuncs...)
+			allSliceDispatchFuncs := nonStructASTFuncs
 			if len(allSliceDispatchFuncs) > 0 {
 				if err := g.emitSliceAsmPassthrough(allSliceDispatchFuncs, target, cOutputDir); err != nil {
 					return nil, fmt.Errorf("emit slice asm passthrough for %s: %w", target.Name, err)
@@ -659,15 +622,11 @@ func hasScalarTypeParams(pf *ParsedFunc) bool {
 
 // shouldSkipPromotedType returns true if the given function/type combo should
 // be skipped because the C profile requires promoted math and the function's
-// C code doesn't handle promotion internally. Composite slice functions
-// handle promotion via the promote-compute-demote pattern in their generated
-// C code, so they are never skipped.
+// C code doesn't handle promotion internally. AST-translated functions
+// handle promotion via the split-promote-compute-combine pattern in
+// their generated C code when NativeArithmetic is true.
 func shouldSkipPromotedType(pf *ParsedFunc, profile *CIntrinsicProfile) bool {
 	if profile.MathStrategy != "promoted" || profile.NativeArithmetic {
-		return false
-	}
-	// Composite slice functions handle promotion in their C code
-	if IsSliceFunction(pf) && !IsASTCEligible(pf) {
 		return false
 	}
 	return true

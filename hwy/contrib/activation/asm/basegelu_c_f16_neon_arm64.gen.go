@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func gelu_c_f16_neon(input, output, len unsafe.Pointer)
+func gelu_c_f16_neon(input, output, plen_input unsafe.Pointer)

@@ -6,122 +6,50 @@
 // flags: -march=armv8.2-a+fp16+simd -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/activation/asm/baseleakyrelu_c_f16_neon_arm64.c
 
-TEXT ·leakyrelu_c_f16_neon(SB), $0-24
+TEXT ·leakyrelu_c_f16_neon(SB), $0-32
 	MOVD input+0(FP), R0
 	MOVD output+8(FP), R1
-	MOVD len+16(FP), R2
-	WORD $0xf9400048      // ldr	x8, [x2]
-	WORD $0xf100811f      // cmp	x8, #32
-	BLT  BB0_5
-	WORD $0x91008029      // add	x9, x1, #32
-	WORD $0x9100800b      // add	x11, x0, #32
-	WORD $0x528003ea      // mov	w10, #31                        ; =0x1f
-	WORD $0x529ae14c      // mov	w12, #55050                     ; =0xd70a
-	WORD $0x72a7846c      // movk	w12, #15395, lsl #16
-	WORD $0x4e040d80      // dup.4s	v0, w12
+	MOVD palpha+16(FP), R2
+	MOVD plen_input+24(FP), R3
+	WORD $0xf9400068           // ldr	x8, [x3]
+	WORD $0xb40003c8           // cbz	x8, LBB0_8
+	WORD $0x7d400040           // ldr	h0, [x2]
+	WORD $0xf100211f           // cmp	x8, #8
+	BGE  BB0_3
+	WORD $0xd280000c           // mov	x12, #0                         ; =0x0
+	B    BB0_5
 
-BB0_2:
-	WORD $0xad7f0961 // ldp	q1, q2, [x11, #-32]
-	WORD $0xacc21163 // ldp	q3, q4, [x11], #64
-	WORD $0x0e217825 // fcvtl	v5.4s, v1.4h
-	WORD $0x4e217821 // fcvtl2	v1.4s, v1.8h
-	WORD $0x6e20dca6 // fmul.4s	v6, v5, v0
-	WORD $0x4e26f4a5 // fmax.4s	v5, v5, v6
-	WORD $0x6e20dc26 // fmul.4s	v6, v1, v0
-	WORD $0x4e26f421 // fmax.4s	v1, v1, v6
-	WORD $0x0e2168a5 // fcvtn	v5.4h, v5.4s
-	WORD $0x4e216825 // fcvtn2	v5.8h, v1.4s
-	WORD $0x0e217841 // fcvtl	v1.4s, v2.4h
-	WORD $0x4e217842 // fcvtl2	v2.4s, v2.8h
-	WORD $0x6e20dc26 // fmul.4s	v6, v1, v0
-	WORD $0x4e26f421 // fmax.4s	v1, v1, v6
-	WORD $0x6e20dc46 // fmul.4s	v6, v2, v0
-	WORD $0x4e26f442 // fmax.4s	v2, v2, v6
-	WORD $0x0e216821 // fcvtn	v1.4h, v1.4s
-	WORD $0x4e216841 // fcvtn2	v1.8h, v2.4s
-	WORD $0x0e217862 // fcvtl	v2.4s, v3.4h
-	WORD $0x4e217863 // fcvtl2	v3.4s, v3.8h
-	WORD $0x6e20dc46 // fmul.4s	v6, v2, v0
-	WORD $0x4e26f442 // fmax.4s	v2, v2, v6
-	WORD $0x6e20dc66 // fmul.4s	v6, v3, v0
-	WORD $0x4e26f463 // fmax.4s	v3, v3, v6
-	WORD $0x0e216842 // fcvtn	v2.4h, v2.4s
-	WORD $0x4e216862 // fcvtn2	v2.8h, v3.4s
-	WORD $0x0e217883 // fcvtl	v3.4s, v4.4h
-	WORD $0x4e217884 // fcvtl2	v4.4s, v4.8h
-	WORD $0x6e20dc66 // fmul.4s	v6, v3, v0
-	WORD $0x4e26f463 // fmax.4s	v3, v3, v6
-	WORD $0x6e20dc86 // fmul.4s	v6, v4, v0
-	WORD $0x4e26f484 // fmax.4s	v4, v4, v6
-	WORD $0x0e216863 // fcvtn	v3.4h, v3.4s
-	WORD $0x4e216883 // fcvtn2	v3.8h, v4.4s
-	WORD $0xad3f0525 // stp	q5, q1, [x9, #-32]
-	WORD $0xac820d22 // stp	q2, q3, [x9], #64
-	WORD $0x9100814a // add	x10, x10, #32
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_2
-	WORD $0xd1007d49 // sub	x9, x10, #31
-	WORD $0xb240092a // orr	x10, x9, #0x7
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_6
+BB0_3:
+	WORD $0xd280000b // mov	x11, #0                         ; =0x0
+	WORD $0xaa0103e9 // mov	x9, x1
+	WORD $0xaa0003ea // mov	x10, x0
 
 BB0_4:
-	WORD $0xaa0903ec // mov	x12, x9
-	B    BB0_8
+	WORD $0x3cc10541 // ldr	q1, [x10], #16
+	WORD $0x4f009022 // fmul.8h	v2, v1, v0[0]
+	WORD $0x4e423421 // fmax.8h	v1, v1, v2
+	WORD $0x3c810521 // str	q1, [x9], #16
+	WORD $0x9100216c // add	x12, x11, #8
+	WORD $0x9100416d // add	x13, x11, #16
+	WORD $0xaa0c03eb // mov	x11, x12
+	WORD $0xeb0801bf // cmp	x13, x8
+	BLE  BB0_4
 
 BB0_5:
-	WORD $0xd2800009 // mov	x9, #0                          ; =0x0
-	WORD $0xb240092a // orr	x10, x9, #0x7
-	WORD $0xeb08015f // cmp	x10, x8
-	BGE  BB0_4
-
-BB0_6:
-	WORD $0xd37ff92b // lsl	x11, x9, #1
-	WORD $0x8b0b000a // add	x10, x0, x11
-	WORD $0x8b0b002b // add	x11, x1, x11
-	WORD $0x529ae14c // mov	w12, #55050                     ; =0xd70a
-	WORD $0x72a7846c // movk	w12, #15395, lsl #16
-	WORD $0x4e040d80 // dup.4s	v0, w12
-
-BB0_7:
-	WORD $0x3cc10541 // ldr	q1, [x10], #16
-	WORD $0x0e217822 // fcvtl	v2.4s, v1.4h
-	WORD $0x4e217821 // fcvtl2	v1.4s, v1.8h
-	WORD $0x6e20dc43 // fmul.4s	v3, v2, v0
-	WORD $0x4e23f442 // fmax.4s	v2, v2, v3
-	WORD $0x6e20dc23 // fmul.4s	v3, v1, v0
-	WORD $0x4e23f421 // fmax.4s	v1, v1, v3
-	WORD $0x0e216842 // fcvtn	v2.4h, v2.4s
-	WORD $0x4e216822 // fcvtn2	v2.8h, v1.4s
-	WORD $0x3c810562 // str	q2, [x11], #16
-	WORD $0x9100212c // add	x12, x9, #8
-	WORD $0x91003d2d // add	x13, x9, #15
-	WORD $0xaa0c03e9 // mov	x9, x12
-	WORD $0xeb0801bf // cmp	x13, x8
-	BLT  BB0_7
-
-BB0_8:
 	WORD $0xeb0c0108 // subs	x8, x8, x12
-	BLE  BB0_11
+	BLE  BB0_8
 	WORD $0xd37ff98a // lsl	x10, x12, #1
 	WORD $0x8b0a0029 // add	x9, x1, x10
 	WORD $0x8b0a000a // add	x10, x0, x10
-	WORD $0x529ae14b // mov	w11, #55050                     ; =0xd70a
-	WORD $0x72a7846b // movk	w11, #15395, lsl #16
-	WORD $0x4e040d60 // dup.4s	v0, w11
 
-BB0_10:
-	WORD $0x7840254b // ldrh	w11, [x10], #2
-	WORD $0x1ee30161 // ucvtf	h1, w11
-	WORD $0x0e020421 // dup.4h	v1, v1[0]
-	WORD $0x0e217821 // fcvtl	v1.4s, v1.4h
-	WORD $0x6e20dc22 // fmul.4s	v2, v1, v0
-	WORD $0x4e22f421 // fmax.4s	v1, v1, v2
-	WORD $0x0e216821 // fcvtn	v1.4h, v1.4s
-	WORD $0x1ef8002b // fcvtzs	w11, h1
-	WORD $0x7800252b // strh	w11, [x9], #2
+BB0_7:
+	WORD $0x7c402541 // ldr	h1, [x10], #2
+	WORD $0x1ee10802 // fmul	h2, h0, h1
+	WORD $0x1ee02028 // fcmp	h1, #0.0
+	WORD $0x1ee2cc21 // fcsel	h1, h1, h2, gt
+	WORD $0x7c002521 // str	h1, [x9], #2
 	WORD $0xf1000508 // subs	x8, x8, #1
-	BNE  BB0_10
+	BNE  BB0_7
 
-BB0_11:
+BB0_8:
 	RET

@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func leakyrelu_c_bf16_neon(input, output, len unsafe.Pointer)
+func leakyrelu_c_bf16_neon(input, output, palpha, plen_input unsafe.Pointer)

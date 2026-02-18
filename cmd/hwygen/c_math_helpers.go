@@ -26,6 +26,7 @@ var goatSafeMathHelper = map[string]bool{
 	"sigmoid": true,
 	"erf":     true,
 	"pow":     true,
+	"tanh":    true,
 }
 
 // goatMathSuffix returns the precision suffix for GOAT-safe math helpers
@@ -202,6 +203,17 @@ var neonF32MathHelpers = []string{
 	`static inline float _s_pow_f32(float base, float exponent) {
     return _s_exp_f32(exponent * _s_log_f32(base));
 }`,
+	// NEON vectorized tanh(x) = 2*sigmoid(2x) - 1.
+	`static inline float32x4_t _v_tanh_f32(float32x4_t x) {
+    float32x4_t two = vdupq_n_f32(2.0f);
+    float32x4_t one = vdupq_n_f32(1.0f);
+    float32x4_t sig2x = _v_sigmoid_f32(vmulq_f32(two, x));
+    return vsubq_f32(vmulq_f32(two, sig2x), one);
+}`,
+	// Scalar tanh(x) = 2*sigmoid(2x) - 1.
+	`static inline float _s_tanh_f32(float x) {
+    return 2.0f * _s_sigmoid_f32(2.0f * x) - 1.0f;
+}`,
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +289,10 @@ var scalarF64MathHelpers = []string{
 	// Scalar sqrt(x) using hardware fsqrt instruction for double.
 	`static inline double _s_sqrt_f64(double x) {
     return __builtin_sqrt(x);
+}`,
+	// Scalar tanh(x) = 2*sigmoid(2x) - 1 for double.
+	`static inline double _s_tanh_f64(double x) {
+    return 2.0 * _s_sigmoid_f64(2.0 * x) - 1.0;
 }`,
 }
 
@@ -452,6 +468,17 @@ var neonF64MathHelpers = []string{
 	// Scalar sqrt(x) using hardware fsqrt instruction for double.
 	`static inline double _s_sqrt_f64(double x) {
     return __builtin_sqrt(x);
+}`,
+	// NEON vectorized tanh(x) = 2*sigmoid(2x) - 1 for double.
+	`static inline float64x2_t _v_tanh_f64(float64x2_t x) {
+    float64x2_t two = vdupq_n_f64(2.0);
+    float64x2_t one = vdupq_n_f64(1.0);
+    float64x2_t sig2x = _v_sigmoid_f64(vmulq_f64(two, x));
+    return vsubq_f64(vmulq_f64(two, sig2x), one);
+}`,
+	// Scalar tanh(x) = 2*sigmoid(2x) - 1 for double.
+	`static inline double _s_tanh_f64(double x) {
+    return 2.0 * _s_sigmoid_f64(2.0 * x) - 1.0;
 }`,
 }
 

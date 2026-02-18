@@ -2407,6 +2407,20 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 						}
 						if suffix != "" {
 							argInfo := t.inferType(e.Args[0])
+							// Promoted vector: split narrow → two f32 halves → compute → recombine
+							if t.profile.MathStrategy == "promoted" && argInfo.isVector && t.profile.SplitPromoteLo != "" {
+								lo := fmt.Sprintf("_v_%s_f32(%s)", cName, fmt.Sprintf(t.profile.SplitPromoteLo, arg))
+								hi := fmt.Sprintf("_v_%s_f32(%s)", cName, fmt.Sprintf(t.profile.SplitPromoteHi, arg))
+								return fmt.Sprintf(t.profile.CombineFn, fmt.Sprintf(t.profile.DemoteFn, lo), fmt.Sprintf(t.profile.DemoteFn, hi))
+							}
+							// Promoted scalar: promote → compute → demote
+							if t.profile.MathStrategy == "promoted" && !argInfo.isVector && t.profile.ScalarPromote != "" {
+								result := fmt.Sprintf("_s_%s_f32(%s(%s))", cName, t.profile.ScalarPromote, arg)
+								if t.profile.ScalarDemote != "" {
+									return fmt.Sprintf("%s(%s)", t.profile.ScalarDemote, result)
+								}
+								return result
+							}
 							if argInfo.isVector {
 								return fmt.Sprintf("_v_%s%s(%s)", cName, suffix, arg)
 							}
@@ -2464,6 +2478,20 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 					// Use GOAT-safe inline helpers for all precisions.
 					if suffix := goatMathSuffix(t.elemType); suffix != "" {
 						argInfo := t.inferType(e.Args[0])
+						// Promoted vector: split narrow → two f32 halves → compute → recombine
+						if t.profile.MathStrategy == "promoted" && argInfo.isVector && t.profile.SplitPromoteLo != "" {
+							lo := fmt.Sprintf("_v_sigmoid_f32(%s)", fmt.Sprintf(t.profile.SplitPromoteLo, arg))
+							hi := fmt.Sprintf("_v_sigmoid_f32(%s)", fmt.Sprintf(t.profile.SplitPromoteHi, arg))
+							return fmt.Sprintf(t.profile.CombineFn, fmt.Sprintf(t.profile.DemoteFn, lo), fmt.Sprintf(t.profile.DemoteFn, hi))
+						}
+						// Promoted scalar: promote → compute → demote
+						if t.profile.MathStrategy == "promoted" && !argInfo.isVector && t.profile.ScalarPromote != "" {
+							result := fmt.Sprintf("_s_sigmoid_f32(%s(%s))", t.profile.ScalarPromote, arg)
+							if t.profile.ScalarDemote != "" {
+								return fmt.Sprintf("%s(%s)", t.profile.ScalarDemote, result)
+							}
+							return result
+						}
 						if argInfo.isVector {
 							return fmt.Sprintf("_v_sigmoid%s(%s)", suffix, arg)
 						}
@@ -2880,6 +2908,18 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		return t.emitHwyMaskAndNot(args)
 	case "CompressStore":
 		return t.emitHwyCompressStore(args)
+	case "Const":
+		// Const[T](val) is an alias for Set(ConstValue[T](val))
+		return t.emitHwySet(args)
+	case "Greater":
+		// Greater is an alias for GreaterThan
+		return t.emitHwyBinaryOp(t.profile.GreaterThanFn, ">", args)
+	case "Merge":
+		// Merge(a, b, mask) → IfThenElse(mask, a, b) with reordered args
+		if len(args) >= 3 {
+			return t.emitHwyIfThenElse([]ast.Expr{args[2], args[0], args[1]})
+		}
+		return "/* Merge: missing args */"
 	default:
 		// Unknown hwy call — emit as-is
 		var argStrs []string
@@ -3737,6 +3777,7 @@ var mathFuncToC = map[string]string{
 	"Exp":  "exp",
 	"Log":  "log",
 	"Erf":  "erf",
+	"Tanh": "tanh",
 	// contrib/math Vec wrappers
 	"BaseExpVec":   "exp",
 	"BaseExp2Vec":  "exp2",
@@ -4023,11 +4064,11 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 			}
 
 			switch sel.Sel.Name {
-			case "Load", "Load4", "Zero", "Set", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
+			case "Load", "Load4", "Zero", "Set", "Const", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
 				"Min", "Max", "Neg", "Abs", "Sqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount",
-				"IfThenElse", "SlideUpLanes", "Pow",
+				"IfThenElse", "Merge", "SlideUpLanes", "Pow",
 				"Iota":
 				return cVarInfo{cType: vecType, isVector: true}
 			case "MaskAnd", "MaskOr", "MaskAndNot", "FirstN":
@@ -4068,7 +4109,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 					maskType = mt
 				}
 				return cVarInfo{cType: maskType, isVector: true}
-			case "Equal", "GreaterThan", "GreaterEqual":
+			case "Equal", "Greater", "GreaterThan", "GreaterEqual":
 				// Comparison ops return a mask vector
 				maskType := vecType
 				if mt, ok := t.profile.MaskType[t.tier]; ok {
@@ -4349,44 +4390,9 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 		}
 	}
 
-	// Must have int params (indicates a multi-dimensional function, not a simple
-	// array transform). This distinguishes matmul/transpose from GELU/softmax.
-	// OR must use integer SIMD ops (And, PopCount, BitsFromMask, LessThan, etc.)
-	hasIntParam := false
-	for _, p := range pf.Params {
-		if p.Type == "int" || p.Type == "int64" {
-			hasIntParam = true
-			break
-		}
-	}
-
-	if hasIntParam {
-		return true
-	}
-
-	// Also eligible if the function uses integer-specific SIMD operations
-	return hasIntegerSIMDOps(pf)
+	// All remaining slice-based functions with hwy ops are eligible.
+	// This includes activation functions (GELU, ReLU, etc.), matmul, transpose,
+	// and bitwise operations.
+	return true
 }
 
-// hasIntegerSIMDOps returns true if the function uses SIMD operations that
-// indicate integer/bitwise processing (RaBitQ, varint, etc.)
-func hasIntegerSIMDOps(pf *ParsedFunc) bool {
-	intOps := map[string]bool{
-		"And": true, "Or": true, "Xor": true,
-		"PopCount": true, "BitsFromMask": true,
-		"LessThan": true, "TableLookupBytes": true,
-		"IfThenElse": true, "LoadSlice": true,
-		"Load4": true,
-		"FindFirstTrue": true, "CountTrue": true,
-		"Iota": true,
-		"CompressStore": true, "FirstN": true,
-		"MaskAnd": true, "MaskOr": true, "MaskAndNot": true,
-		"AllTrue": true, "AllFalse": true,
-	}
-	for _, call := range pf.HwyCalls {
-		if call.Package == "hwy" && intOps[call.FuncName] {
-			return true
-		}
-	}
-	return false
-}

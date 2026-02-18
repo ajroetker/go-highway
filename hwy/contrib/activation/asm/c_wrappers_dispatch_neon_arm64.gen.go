@@ -3,258 +3,614 @@
 
 package asm
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/ajroetker/go-highway/hwy"
+)
 
 // Public wrapper functions
-// GELUCF16 computes BaseGELU for entire arrays using NEON SIMD.
-func GELUCF16(input, output []uint16) {
+// GELUCF16 computes GELU using NEON SIMD assembly.
+func GELUCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	gelu_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	gelu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUCBF16 computes BaseGELU for entire arrays using NEON SIMD.
-func GELUCBF16(input, output []uint16) {
+// GELUCBF16 computes GELU using NEON SIMD assembly.
+func GELUCBF16(input, output []hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	gelu_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	gelu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUCF32 computes BaseGELU for entire arrays using NEON SIMD.
+// GELUCF32 computes GELU using NEON SIMD assembly.
 func GELUCF32(input, output []float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	gelu_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	gelu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUCF64 computes BaseGELU for entire arrays using NEON SIMD.
+// GELUCF64 computes GELU using NEON SIMD assembly.
 func GELUCF64(input, output []float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	gelu_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	gelu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUApproxCF16 computes BaseGELUApprox for entire arrays using NEON SIMD.
-func GELUApproxCF16(input, output []uint16) {
+// GELUApproxCF16 computes GELUApprox using NEON SIMD assembly.
+func GELUApproxCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	geluapprox_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	geluapprox_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUApproxCBF16 computes BaseGELUApprox for entire arrays using NEON SIMD.
-func GELUApproxCBF16(input, output []uint16) {
+// GELUApproxCBF16 computes GELUApprox using NEON SIMD assembly.
+func GELUApproxCBF16(input, output []hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	geluapprox_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	geluapprox_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUApproxCF32 computes BaseGELUApprox for entire arrays using NEON SIMD.
+// GELUApproxCF32 computes GELUApprox using NEON SIMD assembly.
 func GELUApproxCF32(input, output []float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	geluapprox_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	geluapprox_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// GELUApproxCF64 computes BaseGELUApprox for entire arrays using NEON SIMD.
+// GELUApproxCF64 computes GELUApprox using NEON SIMD assembly.
 func GELUApproxCF64(input, output []float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	geluapprox_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	geluapprox_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ReLUCF16 computes BaseReLU for entire arrays using NEON SIMD.
-func ReLUCF16(input, output []uint16) {
+// ReLUCF16 computes ReLU using NEON SIMD assembly.
+func ReLUCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	relu_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	relu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ReLUCBF16 computes BaseReLU for entire arrays using NEON SIMD.
-func ReLUCBF16(input, output []uint16) {
+// ReLUCBF16 computes ReLU using NEON SIMD assembly.
+func ReLUCBF16(input, output []hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	relu_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	relu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ReLUCF32 computes BaseReLU for entire arrays using NEON SIMD.
+// ReLUCF32 computes ReLU using NEON SIMD assembly.
 func ReLUCF32(input, output []float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	relu_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	relu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ReLUCF64 computes BaseReLU for entire arrays using NEON SIMD.
+// ReLUCF64 computes ReLU using NEON SIMD assembly.
 func ReLUCF64(input, output []float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	relu_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	relu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// SiLUCF16 computes BaseSiLU for entire arrays using NEON SIMD.
-func SiLUCF16(input, output []uint16) {
+// SiLUCF16 computes SiLU using NEON SIMD assembly.
+func SiLUCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	silu_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	silu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// SiLUCBF16 computes BaseSiLU for entire arrays using NEON SIMD.
-func SiLUCBF16(input, output []uint16) {
+// SiLUCBF16 computes SiLU using NEON SIMD assembly.
+func SiLUCBF16(input, output []hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	silu_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	silu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// SiLUCF32 computes BaseSiLU for entire arrays using NEON SIMD.
+// SiLUCF32 computes SiLU using NEON SIMD assembly.
 func SiLUCF32(input, output []float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	silu_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	silu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// SiLUCF64 computes BaseSiLU for entire arrays using NEON SIMD.
+// SiLUCF64 computes SiLU using NEON SIMD assembly.
 func SiLUCF64(input, output []float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	silu_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	silu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// LeakyReLUCF16 computes BaseLeakyReLU for entire arrays using NEON SIMD.
-func LeakyReLUCF16(input, output []uint16) {
+// LeakyReLUCF16 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	leakyrelu_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	leakyrelu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// LeakyReLUCBF16 computes BaseLeakyReLU for entire arrays using NEON SIMD.
-func LeakyReLUCBF16(input, output []uint16) {
+// LeakyReLUCBF16 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	leakyrelu_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	leakyrelu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// LeakyReLUCF32 computes BaseLeakyReLU for entire arrays using NEON SIMD.
-func LeakyReLUCF32(input, output []float32) {
+// LeakyReLUCF32 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCF32(input, output []float32, alpha float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	leakyrelu_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	leakyrelu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// LeakyReLUCF64 computes BaseLeakyReLU for entire arrays using NEON SIMD.
-func LeakyReLUCF64(input, output []float64) {
+// LeakyReLUCF64 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCF64(input, output []float64, alpha float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	leakyrelu_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	leakyrelu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// TanhCF16 computes BaseTanh for entire arrays using NEON SIMD.
-func TanhCF16(input, output []uint16) {
+// TanhCF16 computes Tanh using NEON SIMD assembly.
+func TanhCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	tanh_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	tanh_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// TanhCBF16 computes BaseTanh for entire arrays using NEON SIMD.
-func TanhCBF16(input, output []uint16) {
+// TanhCBF16 computes Tanh using NEON SIMD assembly.
+func TanhCBF16(input, output []hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	tanh_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	tanh_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// TanhCF32 computes BaseTanh for entire arrays using NEON SIMD.
+// TanhCF32 computes Tanh using NEON SIMD assembly.
 func TanhCF32(input, output []float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	tanh_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	tanh_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// TanhCF64 computes BaseTanh for entire arrays using NEON SIMD.
+// TanhCF64 computes Tanh using NEON SIMD assembly.
 func TanhCF64(input, output []float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	tanh_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	tanh_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ELUCF16 computes BaseELU for entire arrays using NEON SIMD.
-func ELUCF16(input, output []uint16) {
+// ELUCF16 computes ELU using NEON SIMD assembly.
+func ELUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	elu_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	elu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ELUCBF16 computes BaseELU for entire arrays using NEON SIMD.
-func ELUCBF16(input, output []uint16) {
+// ELUCBF16 computes ELU using NEON SIMD assembly.
+func ELUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	elu_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	elu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ELUCF32 computes BaseELU for entire arrays using NEON SIMD.
-func ELUCF32(input, output []float32) {
+// ELUCF32 computes ELU using NEON SIMD assembly.
+func ELUCF32(input, output []float32, alpha float32) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	elu_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	elu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// ELUCF64 computes BaseELU for entire arrays using NEON SIMD.
-func ELUCF64(input, output []float64) {
+// ELUCF64 computes ELU using NEON SIMD assembly.
+func ELUCF64(input, output []float64, alpha float64) {
 	if len(input) == 0 {
 		return
 	}
-	n := int64(len(input))
-	elu_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&output[0]), unsafe.Pointer(&n))
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	elu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
