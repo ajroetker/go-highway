@@ -74,21 +74,18 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 	}
 
 	// Collect all eligible functions
-	var vecFuncs []ParsedFunc   // Vec→Vec functions
-	var sliceFuncs []ParsedFunc // Slice→Slice functions (composite like GELU)
-	var astFuncs []ParsedFunc   // Functions for AST translation (matmul, transpose, etc.)
+	var vecFuncs []ParsedFunc // Vec→Vec functions
+	var astFuncs []ParsedFunc // Functions for AST translation (matmul, activation, etc.)
 
 	for _, pf := range result.Funcs {
 		if IsASTCEligible(&pf) {
 			astFuncs = append(astFuncs, pf)
 		} else if IsCEligible(&pf) {
 			vecFuncs = append(vecFuncs, pf)
-		} else if IsSliceFunction(&pf) {
-			sliceFuncs = append(sliceFuncs, pf)
 		}
 	}
 
-	totalFuncs := len(vecFuncs) + len(sliceFuncs) + len(astFuncs)
+	totalFuncs := len(vecFuncs) + len(astFuncs)
 	if totalFuncs == 0 {
 		fmt.Println("No C-eligible functions found; all functions will use GoSimd path")
 		return nil, nil
@@ -97,19 +94,6 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 	fmt.Printf("Found %d C-eligible functions:\n", totalFuncs)
 	for _, pf := range vecFuncs {
 		fmt.Printf("  - %s (Vec→Vec)\n", pf.Name)
-	}
-	for _, pf := range sliceFuncs {
-		fmt.Printf("  - %s (Slice→Slice)\n", pf.Name)
-	}
-
-	// If fusion mode is enabled, use IR-based generation for slice functions
-	if g.FusionMode && len(sliceFuncs) > 0 {
-		fmt.Println("\nUsing IR-based fusion optimization...")
-		if err := g.runFusionCMode(result, sliceFuncs, targets); err != nil {
-			return nil, fmt.Errorf("fusion mode: %w", err)
-		}
-		// Continue with non-slice functions using standard path
-		sliceFuncs = nil
 	}
 	for _, pf := range astFuncs {
 		fmt.Printf("  - %s (AST→C)\n", pf.Name)
@@ -152,25 +136,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 		}
 
-		// Generate C code for Slice→Slice (composite) functions
-		for _, pf := range sliceFuncs {
-			elemTypes := getCElemTypes(&pf)
-			for _, elemType := range elemTypes {
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue // No profile for this target/type combo
-				}
-				emitter := NewCEmitter(g.PackageOut, elemType, target)
-				emitter.profile = profile
-				cFile, err := emitter.EmitCompositeC(&pf, cOutputDir)
-				if err != nil {
-					return nil, fmt.Errorf("emit composite C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
-				}
-				cFiles = append(cFiles, cFile)
-			}
-		}
-
-		// Generate C code for AST-translated functions (matmul, transpose, etc.)
+		// Generate C code for AST-translated functions (matmul, activation, etc.)
 		for _, pf := range astFuncs {
 			elemTypes := getCElemTypes(&pf)
 			for _, elemType := range elemTypes {
@@ -240,9 +206,8 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 
 			// Separate struct-ptr and non-struct functions
-			allFuncs := make([]ParsedFunc, 0, len(vecFuncs)+len(sliceFuncs)+len(astFuncs))
+			allFuncs := make([]ParsedFunc, 0, len(vecFuncs)+len(astFuncs))
 			allFuncs = append(allFuncs, vecFuncs...)
-			allFuncs = append(allFuncs, sliceFuncs...)
 			allFuncs = append(allFuncs, astFuncs...)
 
 			var structFuncs, nonStructFuncs []ParsedFunc
@@ -273,31 +238,34 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				}
 			}
 
-			// Non-struct AST-translated functions (slice+int params) also need
-			// ASM adapter + wiring.
+			// Non-struct AST-translated functions (slice+int params) need
+			// ASM adapter + wiring. Exclude functions with scalar T params
+			// (e.g., LeakyReLU, ELU) since emitSliceZCAdapterFunc doesn't
+			// handle T params in the adapter body yet.
 			var nonStructASTFuncs []ParsedFunc
 			for _, f := range nonStructFuncs {
-				if IsASTCEligible(&f) {
+				if IsASTCEligible(&f) && !hasScalarTypeParams(&f) {
 					nonStructASTFuncs = append(nonStructASTFuncs, f)
 				}
 			}
-			if len(nonStructASTFuncs) > 0 {
-				if err := g.emitSliceAsmPassthrough(nonStructASTFuncs, target, cOutputDir); err != nil {
+			allSliceDispatchFuncs := nonStructASTFuncs
+			if len(allSliceDispatchFuncs) > 0 {
+				if err := g.emitSliceAsmPassthrough(allSliceDispatchFuncs, target, cOutputDir); err != nil {
 					return nil, fmt.Errorf("emit slice asm passthrough for %s: %w", target.Name, err)
 				}
-				if err := g.emitZCDispatchForSlices(nonStructASTFuncs, target); err != nil {
+				if err := g.emitZCDispatchForSlices(allSliceDispatchFuncs, target); err != nil {
 					return nil, fmt.Errorf("emit asm adapter for slices %s: %w", target.Name, err)
 				}
 			}
 
 			// Collect adapter info for all ASM-eligible functions
-			for _, pf := range append(structFuncs, nonStructASTFuncs...) {
+			for _, pf := range append(structFuncs, allSliceDispatchFuncs...) {
 				for _, elemType := range getCElemTypes(&pf) {
 					profile := GetCProfile(target.Name, elemType)
 					if profile == nil {
 						continue
 					}
-					if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+					if shouldSkipPromotedType(&pf, profile) {
 						continue
 					}
 					allAdapters = append(allAdapters, AsmAdapterInfo{
@@ -639,6 +607,31 @@ func IsSliceFunction(pf *ParsedFunc) bool {
 	return mathOpFromFuncName(pf.Name) != ""
 }
 
+// hasScalarTypeParams returns true if the function has any scalar parameters
+// of type T (e.g., the alpha parameter in LeakyReLU/ELU). Functions with
+// scalar T params cannot be wired via dispatch because the C function signature
+// doesn't include those parameters (they use hardcoded constants instead).
+func hasScalarTypeParams(pf *ParsedFunc) bool {
+	for _, p := range pf.Params {
+		if p.Type == "T" {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldSkipPromotedType returns true if the given function/type combo should
+// be skipped because the C profile requires promoted math and the function's
+// C code doesn't handle promotion internally. AST-translated functions
+// handle promotion via the split-promote-compute-combine pattern in
+// their generated C code when NativeArithmetic is true.
+func shouldSkipPromotedType(pf *ParsedFunc, profile *CIntrinsicProfile) bool {
+	if profile.MathStrategy != "promoted" || profile.NativeArithmetic {
+		return false
+	}
+	return true
+}
+
 // getCProfileForFile determines the CIntrinsicProfile for a generated C file
 // based on its filename convention.
 func getCProfileForFile(cFile string, target Target) *CIntrinsicProfile {
@@ -898,7 +891,7 @@ func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir s
 			for _, et := range getCElemTypes(&pf) {
 				if isHalfPrecisionType(et) {
 					profile := GetCProfile(target.Name, et)
-					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					if profile != nil && !shouldSkipPromotedType(&pf, profile) {
 						needsHwy = true
 						break
 					}
@@ -1115,7 +1108,7 @@ func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, targe
 			if profile == nil {
 				continue
 			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
 			dv := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
@@ -1180,7 +1173,7 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 			for _, et := range getCElemTypes(&pf) {
 				if isHalfPrecisionType(et) {
 					profile := GetCProfile(target.Name, et)
-					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					if profile != nil && !shouldSkipPromotedType(&pf, profile) {
 						needsHwy = true
 						break
 					}
@@ -1288,7 +1281,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 			if profile == nil {
 				continue
 			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
 
@@ -1432,7 +1425,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			for _, et := range getCElemTypes(&pf) {
 				if isHalfPrecisionType(et) {
 					profile := GetCProfile(target.Name, et)
-					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					if profile != nil && !shouldSkipPromotedType(&pf, profile) {
 						needsHwy = true
 						break
 					}
@@ -1490,7 +1483,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			if profile == nil {
 				continue
 			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
 			emitSliceZCAdapterFunc(&buf, &pf, elemType)
@@ -1603,14 +1596,20 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		}
 	}
 
-	// Output variables for return values
+	// Output variables for return values.
+	// Array returns use the actual type; scalars use int64 for GOAT convention.
 	if hasReturns {
 		for _, ret := range pf.Returns {
 			name := ret.Name
 			if name == "" {
 				name = "result"
 			}
-			fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			goType := goReturnTypeForWrapper(ret.Type, elemType)
+			if isGoArrayType(goType) {
+				fmt.Fprintf(buf, "\tvar out_%s %s\n", name, goType)
+			} else {
+				fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			}
 		}
 	}
 
@@ -1646,7 +1645,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	}
 	fmt.Fprintf(buf, "\t)\n")
 
-	// Return with type narrowing from int64 to actual return type
+	// Return with type narrowing from int64 to actual return type.
+	// Array returns are already the correct type, no conversion needed.
 	if hasReturns {
 		var retExprs []string
 		for _, ret := range pf.Returns {
@@ -1655,7 +1655,11 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 				name = "result"
 			}
 			goType := goReturnTypeForWrapper(ret.Type, elemType)
-			retExprs = append(retExprs, goType+"(out_"+name+")")
+			if isGoArrayType(goType) {
+				retExprs = append(retExprs, "out_"+name)
+			} else {
+				retExprs = append(retExprs, goType+"(out_"+name+")")
+			}
 		}
 		fmt.Fprintf(buf, "\treturn %s\n", strings.Join(retExprs, ", "))
 	}
@@ -1870,10 +1874,9 @@ func emitCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuffix 
 }
 
 // buildCPublicName creates the public function name.
-// BaseExpVec -> ExpCF32, BaseGELU -> GELUCF32
+// BaseExpVec -> ExpVecCF32, BaseGELU -> GELUCF32
 func buildCPublicName(baseName, elemType string) string {
 	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimSuffix(name, "Vec")
 
 	typeSuffix := cTypePublicSuffix(elemType)
 
@@ -1947,7 +1950,8 @@ func cTypePublicSuffix(elemType string) string {
 func isGoScalarIntType(goType string) bool {
 	switch goType {
 	case "int", "int64", "int32", "int16", "int8",
-		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr":
+		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr",
+		"byte": // byte is an alias for uint8
 		return true
 	default:
 		return false
@@ -2053,6 +2057,21 @@ func goReturnTypeForWrapper(goType, elemType string) string {
 	}
 }
 
+// isGoArrayType returns true if goType is a fixed-size Go array type (e.g., [4]uint32).
+func isGoArrayType(goType string) bool {
+	return len(goType) >= 3 && goType[0] == '[' && goType[1] != ']'
+}
+
+// goReturnZeroValue returns the zero-value literal for a Go return type.
+// For scalar types returns "0", for array types returns e.g. "[4]uint32{}".
+func goReturnZeroValue(goType, elemType string) string {
+	rt := goReturnTypeForWrapper(goType, elemType)
+	if isGoArrayType(rt) {
+		return rt + "{}"
+	}
+	return "0"
+}
+
 // emitASTCWrapperFunc generates a wrapper function for an AST-translated function
 // with arbitrary parameters (multiple slices + int dimensions).
 //
@@ -2136,8 +2155,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		if hasReturns {
 			// Return zero values
 			var zeros []string
-			for range pf.Returns {
-				zeros = append(zeros, "0")
+			for _, ret := range pf.Returns {
+				zeros = append(zeros, goReturnZeroValue(ret.Type, elemType))
 			}
 			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
 		} else {
@@ -2168,8 +2187,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
 		if hasReturns {
 			var zeros []string
-			for range pf.Returns {
-				zeros = append(zeros, "0")
+			for _, ret := range pf.Returns {
+				zeros = append(zeros, goReturnZeroValue(ret.Type, elemType))
 			}
 			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
 		} else {
@@ -2214,13 +2233,20 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	// Output variables for return values.
 	// GOAT always uses 64-bit (long *) for output pointers, so we declare
 	// int64 variables and cast to the actual return type.
+	// Array returns (e.g., [4]uint32) use the actual type since the C code
+	// writes directly through the output pointer.
 	if hasReturns {
 		for _, ret := range pf.Returns {
 			name := ret.Name
 			if name == "" {
 				name = "result"
 			}
-			fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			goType := goReturnTypeForWrapper(ret.Type, elemType)
+			if isGoArrayType(goType) {
+				fmt.Fprintf(buf, "\tvar out_%s %s\n", name, goType)
+			} else {
+				fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			}
 		}
 	}
 
@@ -2258,7 +2284,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 	fmt.Fprintf(buf, "\t)\n")
 
-	// Return with type narrowing from int64 to actual return type
+	// Return with type narrowing from int64 to actual return type.
+	// Array returns are already the correct type, so no conversion needed.
 	if hasReturns {
 		var retExprs []string
 		for _, ret := range pf.Returns {
@@ -2267,8 +2294,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 				name = "result"
 			}
 			goType := goReturnTypeForWrapper(ret.Type, elemType)
-			if goType == "int64" || goType == "int" {
-				retExprs = append(retExprs, goType+"(out_"+name+")")
+			if isGoArrayType(goType) {
+				retExprs = append(retExprs, "out_"+name)
 			} else {
 				retExprs = append(retExprs, goType+"(out_"+name+")")
 			}

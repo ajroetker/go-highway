@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input reduce_base.go -output . -targets avx2,avx512,neon,fallback -dispatch reduce
+//go:generate go run ../../../cmd/hwygen -input reduce_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch reduce
 
 import "github.com/ajroetker/go-highway/hwy"
 

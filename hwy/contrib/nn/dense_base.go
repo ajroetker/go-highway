@@ -16,7 +16,7 @@ package nn
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input dense_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input dense_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch dense
 
 // BaseDense computes a dense (fully-connected) layer: output = x @ weight^T + bias.
 //

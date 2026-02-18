@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input argmax_base.go -output . -targets avx2,avx512,neon,fallback -dispatch argmax
+//go:generate go run ../../../cmd/hwygen -input argmax_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch argmax
 
 import (
 	"github.com/ajroetker/go-highway/hwy"

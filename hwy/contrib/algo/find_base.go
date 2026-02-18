@@ -16,7 +16,7 @@ package algo
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input find_base.go -output . -targets avx2,avx512,neon,fallback -dispatch find
+//go:generate go run ../../../cmd/hwygen -input find_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch find
 
 // BaseFind returns the index of the first element equal to value, or -1 if not found.
 // Uses SIMD comparison for efficient searching.

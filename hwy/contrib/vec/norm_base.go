@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input norm_base.go -output . -targets avx2,avx512,neon,fallback -dispatch norm
+//go:generate go run ../../../cmd/hwygen -input norm_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch norm
 
 import (
 	"math"

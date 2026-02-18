@@ -14,7 +14,7 @@
 
 package bitpack
 
-//go:generate go run ../../../cmd/hwygen -input bitpack_base.go -output . -targets avx2,avx512,neon,fallback -dispatch bitpack
+//go:generate go run ../../../cmd/hwygen -input bitpack_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch bitpack
 
 import (
 	"github.com/ajroetker/go-highway/hwy"

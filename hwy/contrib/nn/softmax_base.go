@@ -18,11 +18,10 @@ import (
 	stdmath "math"
 
 	"github.com/ajroetker/go-highway/hwy"
-	"github.com/ajroetker/go-highway/hwy/contrib/algo"
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-//go:generate go run ../../../cmd/hwygen -input softmax_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input softmax_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch softmax
 
 // BaseSoftmax computes the softmax function over the input slice.
 //
@@ -40,30 +39,41 @@ func BaseSoftmax[T hwy.Floats](input, output []T) {
 
 	// Step 1: Find the maximum value for numerical stability
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
-	// Step 2: Subtract max from input (for numerical stability)
-	shifted := make([]T, size)
-	for i := range size {
-		shifted[i] = input[i] - maxVal
+	// Step 2: Compute exp(input - max) -> output, and accumulate sum
+	lanes := hwy.MaxLanes[T]()
+	vMax := hwy.Set(maxVal)
+	sumAcc := hwy.Zero[T]()
+	i := 0
+	for ; i+lanes <= size; i += lanes {
+		x := hwy.LoadSlice(input[i:])
+		shifted := hwy.Sub(x, vMax)
+		expVal := math.BaseExpVec(shifted)
+		hwy.StoreSlice(expVal, output[i:])
+		sumAcc = hwy.Add(sumAcc, expVal)
+	}
+	expSum := hwy.ReduceSum(sumAcc)
+	for ; i < size; i++ {
+		val := T(stdmath.Exp(float64(input[i] - maxVal)))
+		output[i] = val
+		expSum += val
 	}
 
-	// Step 3: Compute exp(shifted) using SIMD via BaseApply
-	algo.BaseApply(shifted, output, math.BaseExpVec[T])
-
-	// Step 4: Compute sum of exponentials
-	var expSum T
-	for i := range size {
-		expSum += output[i]
-	}
-
-	// Step 5: Normalize by dividing by sum
+	// Step 3: Normalize by dividing by sum
 	invSum := T(1.0) / expSum
-	for i := range size {
+	vInvSum := hwy.Set(invSum)
+	i = 0
+	for ; i+lanes <= size; i += lanes {
+		x := hwy.LoadSlice(output[i:])
+		result := hwy.Mul(x, vInvSum)
+		hwy.StoreSlice(result, output[i:])
+	}
+	for ; i < size; i++ {
 		output[i] = output[i] * invSum
 	}
 }
@@ -87,32 +97,39 @@ func BaseLogSoftmax[T hwy.Floats](input, output []T) {
 
 	// Step 1: Find the maximum value for numerical stability
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
-	// Step 2: Compute shifted values and their exp
-	shifted := make([]T, size)
-	expVals := make([]T, size)
-	for i := range size {
-		shifted[i] = input[i] - maxVal
+	// Step 2: Compute sum of exp(input - max) using SIMD (no temp allocation needed)
+	lanes := hwy.MaxLanes[T]()
+	vMax := hwy.Set(maxVal)
+	sumAcc := hwy.Zero[T]()
+	i := 0
+	for ; i+lanes <= size; i += lanes {
+		x := hwy.LoadSlice(input[i:])
+		shifted := hwy.Sub(x, vMax)
+		sumAcc = hwy.Add(sumAcc, math.BaseExpVec(shifted))
+	}
+	expSum := hwy.ReduceSum(sumAcc)
+	for ; i < size; i++ {
+		expSum += T(stdmath.Exp(float64(input[i] - maxVal)))
 	}
 
-	// Step 3: Compute exp(shifted) using SIMD
-	algo.BaseApply(shifted, expVals, math.BaseExpVec[T])
-
-	// Step 4: Compute sum of exponentials
-	var expSum T
-	for i := range size {
-		expSum += expVals[i]
-	}
-
-	// Step 5: Compute log_softmax = shifted - log(sum_exp)
+	// Step 3: Compute log_softmax = (input - max) - log(sum_exp)
 	logSumExp := T(stdmath.Log(float64(expSum)))
-	for i := range size {
-		output[i] = shifted[i] - logSumExp
+	vLogSumExp := hwy.Set(logSumExp)
+	i = 0
+	for ; i+lanes <= size; i += lanes {
+		x := hwy.LoadSlice(input[i:])
+		shifted := hwy.Sub(x, vMax)
+		result := hwy.Sub(shifted, vLogSumExp)
+		hwy.StoreSlice(result, output[i:])
+	}
+	for ; i < size; i++ {
+		output[i] = (input[i] - maxVal) - logSumExp
 	}
 }
 
@@ -130,9 +147,9 @@ func BaseSoftmaxScalar[T hwy.Floats](input, output []T) {
 
 	// Find max
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
@@ -166,30 +183,43 @@ func BaseSoftmaxWithTemperature[T hwy.Floats](input, output []T, temperature T) 
 
 	// Step 1: Find the maximum value
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
-	// Step 2: Compute (x - max) / temperature
+	// Step 2: Compute exp((input - max) / temperature) -> output, and sum
+	lanes := hwy.MaxLanes[T]()
 	invTemp := T(1.0) / temperature
-	shifted := make([]T, size)
-	for i := range size {
-		shifted[i] = (input[i] - maxVal) * invTemp
+	vMax := hwy.Set(maxVal)
+	vInvTemp := hwy.Set(invTemp)
+	sumAcc := hwy.Zero[T]()
+	i := 0
+	for ; i+lanes <= size; i += lanes {
+		x := hwy.LoadSlice(input[i:])
+		shifted := hwy.Mul(hwy.Sub(x, vMax), vInvTemp)
+		expVal := math.BaseExpVec(shifted)
+		hwy.StoreSlice(expVal, output[i:])
+		sumAcc = hwy.Add(sumAcc, expVal)
+	}
+	expSum := hwy.ReduceSum(sumAcc)
+	for ; i < size; i++ {
+		val := T(stdmath.Exp(float64((input[i] - maxVal) * invTemp)))
+		output[i] = val
+		expSum += val
 	}
 
-	// Step 3: Compute exp(shifted) using SIMD
-	algo.BaseApply(shifted, output, math.BaseExpVec[T])
-
-	// Step 4: Compute sum and normalize
-	var expSum T
-	for i := range size {
-		expSum += output[i]
-	}
-
+	// Step 3: Normalize by dividing by sum
 	invSum := T(1.0) / expSum
-	for i := range size {
+	vInvSum := hwy.Set(invSum)
+	i = 0
+	for ; i+lanes <= size; i += lanes {
+		x := hwy.LoadSlice(output[i:])
+		result := hwy.Mul(x, vInvSum)
+		hwy.StoreSlice(result, output[i:])
+	}
+	for ; i < size; i++ {
 		output[i] = output[i] * invSum
 	}
 }

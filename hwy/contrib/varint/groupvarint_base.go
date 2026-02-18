@@ -14,7 +14,7 @@
 
 package varint
 
-//go:generate go run ../../../cmd/hwygen -input groupvarint_base.go -output . -targets avx2,avx512,neon,fallback -dispatch groupvarint
+//go:generate go run ../../../cmd/hwygen -input groupvarint_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch groupvarint
 
 import "github.com/ajroetker/go-highway/hwy"
 

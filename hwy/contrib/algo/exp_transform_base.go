@@ -19,7 +19,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-//go:generate go run ../../../cmd/hwygen -input exp_transform_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input exp_transform_base.go -output . -targets avx2,avx512,neon:asm,fallback
 
 // BaseExpTransform applies exp(x) to each element using SIMD.
 // Uses Apply for loop and buffer-based tail handling - no scalar fallback needed.

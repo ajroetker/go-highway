@@ -1,5 +1,7 @@
 package main
 
+import "slices"
+
 // CIntrinsicProfile defines the complete set of C intrinsics and metadata
 // for a specific target architecture + element type combination.
 // The CEmitter uses these profiles to generate correct GOAT-compatible C code
@@ -85,6 +87,26 @@ type CIntrinsicProfile struct {
 	// Reduction min/max
 	ReduceMinFn map[string]string // vminvq_f32
 	ReduceMaxFn map[string]string // vmaxvq_f32
+
+	// Mask logical operations
+	MaskAndFn    map[string]string // vandq_u32
+	MaskOrFn     map[string]string // vorrq_u32
+	MaskAndNotFn map[string]string // vbicq_u32 (a AND NOT b)
+
+	// Mask query operations (return scalar long)
+	AllTrueFn       map[string]string // inline helper
+	AllFalseFn      map[string]string // inline helper
+	FindFirstTrueFn map[string]string // inline helper
+	CountTrueFn     map[string]string // inline helper
+
+	// Mask creation
+	FirstNFn map[string]string // inline helper: mask with first N lanes true
+
+	// Vector creation
+	IotaFn map[string]string // inline helper: vector {0, 1, 2, ...}
+
+	// Compress store (stream compaction)
+	CompressStoreFn map[string]string // inline helper
 
 	// Dot-product accumulation: BFDOT (NEON BF16), VDPBF16PS (AVX-512 BF16).
 	// hwy.DotAccumulate(a, b, acc) → vbfdotq_f32(acc, a, b)
@@ -283,7 +305,19 @@ func neonF32Profile() *CIntrinsicProfile {
 		ReduceMinFn:       map[string]string{"q": "vminvq_f32"},
 		ReduceMaxFn:       map[string]string{"q": "vmaxvq_f32"},
 
-		InlineHelpers: append([]string{
+		MaskAndFn:    map[string]string{"q": "vandq_u32"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u32"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u32"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u32"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u32"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u32"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u32"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u32"},
+		IotaFn:          map[string]string{"q": "hwy_iota_f32"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_f32"},
+
+		InlineHelpers: slices.Concat([]string{
 			`static inline unsigned int float_to_bits(float f) {
     unsigned int bits;
     __builtin_memcpy(&bits, &f, 4);
@@ -294,7 +328,7 @@ func neonF32Profile() *CIntrinsicProfile {
     __builtin_memcpy(&f, &bits, 4);
     return f;
 }`,
-		}, append(neonF32MathHelpers, scalarF64MathHelpers...)...),
+		}, neonF32MathHelpers, scalarF64MathHelpers, neonF32MaskHelpers),
 
 		MathStrategy:   "native",
 		FmaArgOrder:    "acc_first",
@@ -352,7 +386,19 @@ func neonF64Profile() *CIntrinsicProfile {
 		ReduceMinFn:       map[string]string{"q": "vminvq_f64"},
 		ReduceMaxFn:       map[string]string{"q": "vmaxvq_f64"},
 
-		InlineHelpers: neonF64MathHelpers,
+		MaskAndFn:    map[string]string{"q": "vandq_u64"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u64"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u64"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u64"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u64"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u64"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u64"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u64"},
+		IotaFn:          map[string]string{"q": "hwy_iota_f64"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_f64"},
+
+		InlineHelpers: slices.Concat(neonF64MathHelpers, neonF64MaskHelpers),
 
 		MathStrategy:   "native",
 		FmaArgOrder:    "acc_first",
@@ -461,14 +507,26 @@ func neonF16Profile() *CIntrinsicProfile {
 		EqualFn:           map[string]string{"q": "vceqq_f16", "d": "vceq_f16"},
 		GreaterThanFn:     map[string]string{"q": "vcgtq_f16", "d": "vcgt_f16"},
 		GreaterEqualFn:    map[string]string{"q": "vcgeq_f16", "d": "vcge_f16"},
-		IfThenElseFn:      map[string]string{"q": "vbslq_u16", "d": "vbsl_u16"},
+		IfThenElseFn:      map[string]string{"q": "vbslq_f16", "d": "vbsl_f16"},
 		MaskType:          map[string]string{"q": "uint16x8_t", "d": "uint16x4_t"},
 		ReduceMinFn:       map[string]string{"q": "vminvq_f16"},
 		ReduceMaxFn:       map[string]string{"q": "vmaxvq_f16"},
 
+		MaskAndFn:    map[string]string{"q": "vandq_u16"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u16"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u16"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u16"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u16"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u16"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u16"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u16"},
+		IotaFn:          map[string]string{"q": "hwy_iota_f16"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_f16"},
+
 		NativeArithmetic: true,
 		ScalarArithType:  "float16_t",
-		InlineHelpers:    append(neonF32MathHelpers, scalarF64MathHelpers...), // f16 promotes to f32 for transcendentals; f64 scalars for stdmath
+		InlineHelpers:    slices.Concat(neonF32MathHelpers, scalarF64MathHelpers, neonF16MaskHelpers),
 		MathStrategy:     "promoted",
 		PromoteFn:      "vcvt_f32_f16",
 		DemoteFn:       "vcvt_f16_f32(%s)",
@@ -550,11 +608,23 @@ func neonBF16Profile() *CIntrinsicProfile {
 		DotAccFn:   map[string]string{"q": "vbfdotq_f32"},
 		DotAccType: map[string]string{"q": "float32x4_t"},
 
+		MaskAndFn:    map[string]string{"q": "vandq_u16"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u16"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u16"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u16"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u16"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u16"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u16"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u16"},
+		IotaFn:          map[string]string{"q": "hwy_iota_bf16"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_f16"}, // reuse f16 compress_store (same lane layout)
+
 		ScalarArithType: "float",
 		PointerElemType: "unsigned short", // BF16 elements are 2 bytes, not 4 (float)
 		ScalarPromote:   "bf16_scalar_to_f32",
 		ScalarDemote:    "f32_scalar_to_bf16",
-		InlineHelpers:   append(neonBF16ArithHelpers, append(neonF32MathHelpers, scalarF64MathHelpers...)...),
+		InlineHelpers:   slices.Concat(neonBF16ArithHelpers, neonF32MathHelpers, scalarF64MathHelpers, neonF16MaskHelpers, neonBF16MaskHelpers),
 		MathStrategy:    "promoted",
 		PromoteFn:       "bf16_promote_lo",
 		DemoteFn:        "bf16_demote_half(%s)",
@@ -851,12 +921,18 @@ func neonUint64Profile() *CIntrinsicProfile {
 		VecX4Type: map[string]string{"q": "uint64x2x4_t"},
 
 		SlideUpExtFn: map[string]string{"q": "vextq_u64"},
+		SubFn:        map[string]string{"q": "vsubq_u64"},
+		MinFn:        map[string]string{"q": "hwy_min_u64"},
+		MaxFn:        map[string]string{"q": "hwy_max_u64"},
 		AndFn:        map[string]string{"q": "vandq_u64"},
 		OrFn:         map[string]string{"q": "vorrq_u64"},
 		XorFn:        map[string]string{"q": "veorq_u64"},
 		PopCountFn:   map[string]string{"q": "neon_popcnt_u64"},
+		GetLaneFn:    map[string]string{"q": "vgetq_lane_u64"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_u64"},
+		ReduceMinFn: map[string]string{"q": "hwy_reducemin_u64"},
+		ReduceMaxFn: map[string]string{"q": "hwy_reducemax_u64"},
 
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_u64"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_u64"},
@@ -868,11 +944,30 @@ func neonUint64Profile() *CIntrinsicProfile {
 		AccAddFn:          map[string]string{"q": "vaddq_u32"},
 		AccReduceFn:       map[string]string{"q": "vaddvq_u32"},
 
+		EqualFn:       map[string]string{"q": "vceqq_u64"},
+		LessThanFn:    map[string]string{"q": "vcltq_u64"},
+		GreaterThanFn: map[string]string{"q": "vcgtq_u64"},
+		GreaterEqualFn: map[string]string{"q": "vcgeq_u64"},
+		IfThenElseFn:  map[string]string{"q": "vbslq_u64"},
+		MaskType:      map[string]string{"q": "uint64x2_t"},
+
+		MaskAndFn:    map[string]string{"q": "vandq_u64"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u64"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u64"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u64"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u64"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u64"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u64"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u64"},
+		IotaFn:          map[string]string{"q": "hwy_iota_u64"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_u64"},
+
 		MathStrategy:   "native",
 		GoatTarget:     "arm64",
 		GoatExtraFlags: []string{"-march=armv8-a+simd+fp"},
 
-		InlineHelpers: []string{
+		InlineHelpers: slices.Concat(neonU64MaskHelpers, neonU64MaxMinHelpers, []string{
 			`static inline uint64x2_t neon_popcnt_u64(uint64x2_t v) {
     uint8x16_t bytes = vreinterpretq_u8_u64(v);
     uint8x16_t counts = vcntq_u8(bytes);
@@ -888,7 +983,7 @@ func neonUint64Profile() *CIntrinsicProfile {
     uint32x4_t quads = vpaddlq_u16(pairs);
     return quads;
 }`,
-		},
+		}),
 	}
 }
 
@@ -968,20 +1063,48 @@ func neonUint32Profile() *CIntrinsicProfile {
 		VecX4Type: map[string]string{"q": "uint32x4x4_t"},
 
 		SlideUpExtFn: map[string]string{"q": "vextq_u32"},
+		SubFn:        map[string]string{"q": "vsubq_u32"},
 		AndFn:        map[string]string{"q": "vandq_u32"},
 		OrFn:         map[string]string{"q": "vorrq_u32"},
 		XorFn:        map[string]string{"q": "veorq_u32"},
 
+		MinFn:   map[string]string{"q": "vminq_u32"},
+		MaxFn:   map[string]string{"q": "vmaxq_u32"},
+
 		ReduceSumFn: map[string]string{"q": "vaddvq_u32"},
+		ReduceMinFn: map[string]string{"q": "vminvq_u32"},
+		ReduceMaxFn: map[string]string{"q": "vmaxvq_u32"},
+
 		LessThanFn:  map[string]string{"q": "vcltq_u32"},
+		EqualFn:     map[string]string{"q": "vceqq_u32"},
+		GreaterThanFn: map[string]string{"q": "vcgtq_u32"},
+		GreaterEqualFn: map[string]string{"q": "vcgeq_u32"},
+		IfThenElseFn: map[string]string{"q": "vbslq_u32"},
 		MaskType:    map[string]string{"q": "uint32x4_t"},
+		GetLaneFn:   map[string]string{"q": "vgetq_lane_u32"},
 
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_u32"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_u32"},
 
+		TableLookupBytesFn: map[string]string{"q": "vqtbl1q_u8"},
+
+		MaskAndFn:    map[string]string{"q": "vandq_u32"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u32"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u32"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u32"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u32"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u32"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u32"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u32"},
+		IotaFn:          map[string]string{"q": "hwy_iota_u32"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_u32"},
+
 		MathStrategy:   "native",
 		GoatTarget:     "arm64",
 		GoatExtraFlags: []string{"-march=armv8-a+simd+fp"},
+
+		InlineHelpers: neonU32MaskHelpers,
 	}
 }
 
@@ -1024,10 +1147,31 @@ func neonInt32Profile() *CIntrinsicProfile {
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_s32"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_s32"},
 
+		EqualFn:       map[string]string{"q": "vceqq_s32"},
+		LessThanFn:    map[string]string{"q": "vcltq_s32"},
+		GreaterThanFn: map[string]string{"q": "vcgtq_s32"},
+		GreaterEqualFn: map[string]string{"q": "vcgeq_s32"},
+		IfThenElseFn:  map[string]string{"q": "vbslq_s32"},
+		MaskType:      map[string]string{"q": "uint32x4_t"},
+
+		MaskAndFn:    map[string]string{"q": "vandq_u32"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u32"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u32"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u32"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u32"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u32"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u32"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u32"},
+		IotaFn:          map[string]string{"q": "hwy_iota_s32"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_s32"},
+
 		MathStrategy:     "native",
 		NativeArithmetic: true,
 		GoatTarget:       "arm64",
 		GoatExtraFlags:   []string{"-march=armv8-a+simd+fp"},
+
+		InlineHelpers: neonS32MaskHelpers,
 	}
 }
 
@@ -1054,6 +1198,8 @@ func neonInt64Profile() *CIntrinsicProfile {
 		SubFn:   map[string]string{"q": "vsubq_s64"},
 		NegFn:   map[string]string{"q": "vnegq_s64"},
 		AbsFn:   map[string]string{"q": "vabsq_s64"},
+		MinFn:   map[string]string{"q": "hwy_min_s64"},
+		MaxFn:   map[string]string{"q": "hwy_max_s64"},
 		DupFn:   map[string]string{"q": "vdupq_n_s64"},
 
 		AndFn: map[string]string{"q": "vandq_s64"},
@@ -1061,14 +1207,37 @@ func neonInt64Profile() *CIntrinsicProfile {
 		XorFn: map[string]string{"q": "veorq_s64"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_s64"},
+		ReduceMinFn: map[string]string{"q": "hwy_reducemin_s64"},
+		ReduceMaxFn: map[string]string{"q": "hwy_reducemax_s64"},
 
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_s64"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_s64"},
+
+		EqualFn:       map[string]string{"q": "vceqq_s64"},
+		LessThanFn:    map[string]string{"q": "vcltq_s64"},
+		GreaterThanFn: map[string]string{"q": "vcgtq_s64"},
+		GreaterEqualFn: map[string]string{"q": "vcgeq_s64"},
+		IfThenElseFn:  map[string]string{"q": "vbslq_s64"},
+		MaskType:      map[string]string{"q": "uint64x2_t"},
+
+		MaskAndFn:    map[string]string{"q": "vandq_u64"},
+		MaskOrFn:     map[string]string{"q": "vorrq_u64"},
+		MaskAndNotFn: map[string]string{"q": "vbicq_u64"},
+
+		AllTrueFn:       map[string]string{"q": "hwy_all_true_u64"},
+		AllFalseFn:      map[string]string{"q": "hwy_all_false_u64"},
+		FindFirstTrueFn: map[string]string{"q": "hwy_find_first_true_u64"},
+		CountTrueFn:     map[string]string{"q": "hwy_count_true_u64"},
+		FirstNFn:        map[string]string{"q": "hwy_first_n_u64"},
+		IotaFn:          map[string]string{"q": "hwy_iota_s64"},
+		CompressStoreFn: map[string]string{"q": "hwy_compress_store_s64"},
 
 		MathStrategy:     "native",
 		NativeArithmetic: true,
 		GoatTarget:       "arm64",
 		GoatExtraFlags:   []string{"-march=armv8-a+simd+fp"},
+
+		InlineHelpers: slices.Concat(neonS64MaskHelpers, neonS64MaxMinHelpers),
 	}
 }
 

@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input batch_base.go -output . -targets avx2,avx512,neon,fallback -dispatch batch
+//go:generate go run ../../../cmd/hwygen -input batch_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch batch
 
 import "github.com/ajroetker/go-highway/hwy"
 

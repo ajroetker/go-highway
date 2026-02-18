@@ -1,5 +1,7 @@
 package main
 
+import "slices"
+
 // GOAT-safe inline C math helpers.
 //
 // GOAT (C-to-Go-assembly transpiler) cannot handle external function calls
@@ -20,9 +22,11 @@ package main
 var goatSafeMathHelper = map[string]bool{
 	"exp":     true,
 	"log":     true,
+	"sqrt":    true,
 	"sigmoid": true,
 	"erf":     true,
 	"pow":     true,
+	"tanh":    true,
 }
 
 // goatMathSuffix returns the precision suffix for GOAT-safe math helpers
@@ -128,6 +132,14 @@ var neonF32MathHelpers = []string{
     /* result = p + e * ln(2) */
     return vfmaq_f32(p, e, ln2);
 }`,
+	// NEON vectorized sqrt(x) using hardware vsqrt instruction.
+	`static inline float32x4_t _v_sqrt_f32(float32x4_t x) {
+    return vsqrtq_f32(x);
+}`,
+	// Scalar sqrt(x) using hardware fsqrt instruction.
+	`static inline float _s_sqrt_f32(float x) {
+    return __builtin_sqrtf(x);
+}`,
 	// Scalar exp(x) using Horner's polynomial.
 	`static inline float _s_exp_f32(float x) {
     if (x > 88.0f) return 1.0f / 0.0f;
@@ -190,6 +202,17 @@ var neonF32MathHelpers = []string{
 	// Scalar pow(base, exp) = exp(exp * log(base)).
 	`static inline float _s_pow_f32(float base, float exponent) {
     return _s_exp_f32(exponent * _s_log_f32(base));
+}`,
+	// NEON vectorized tanh(x) = 2*sigmoid(2x) - 1.
+	`static inline float32x4_t _v_tanh_f32(float32x4_t x) {
+    float32x4_t two = vdupq_n_f32(2.0f);
+    float32x4_t one = vdupq_n_f32(1.0f);
+    float32x4_t sig2x = _v_sigmoid_f32(vmulq_f32(two, x));
+    return vsubq_f32(vmulq_f32(two, sig2x), one);
+}`,
+	// Scalar tanh(x) = 2*sigmoid(2x) - 1.
+	`static inline float _s_tanh_f32(float x) {
+    return 2.0f * _s_sigmoid_f32(2.0f * x) - 1.0f;
 }`,
 }
 
@@ -262,6 +285,14 @@ var scalarF64MathHelpers = []string{
     p = p * f + 0.9999999999;
     p = p * f;
     return p + e * 0.6931471805599453;
+}`,
+	// Scalar sqrt(x) using hardware fsqrt instruction for double.
+	`static inline double _s_sqrt_f64(double x) {
+    return __builtin_sqrt(x);
+}`,
+	// Scalar tanh(x) = 2*sigmoid(2x) - 1 for double.
+	`static inline double _s_tanh_f64(double x) {
+    return 2.0 * _s_sigmoid_f64(2.0 * x) - 1.0;
 }`,
 }
 
@@ -430,4 +461,297 @@ var neonF64MathHelpers = []string{
 	`static inline double _s_pow_f64(double base, double exponent) {
     return _s_exp_f64(exponent * _s_log_f64(base));
 }`,
+	// NEON vectorized sqrt(x) using hardware vsqrt instruction for double.
+	`static inline float64x2_t _v_sqrt_f64(float64x2_t x) {
+    return vsqrtq_f64(x);
+}`,
+	// Scalar sqrt(x) using hardware fsqrt instruction for double.
+	`static inline double _s_sqrt_f64(double x) {
+    return __builtin_sqrt(x);
+}`,
+	// NEON vectorized tanh(x) = 2*sigmoid(2x) - 1 for double.
+	`static inline float64x2_t _v_tanh_f64(float64x2_t x) {
+    float64x2_t two = vdupq_n_f64(2.0);
+    float64x2_t one = vdupq_n_f64(1.0);
+    float64x2_t sig2x = _v_sigmoid_f64(vmulq_f64(two, x));
+    return vsubq_f64(vmulq_f64(two, sig2x), one);
+}`,
+	// Scalar tanh(x) = 2*sigmoid(2x) - 1 for double.
+	`static inline double _s_tanh_f64(double x) {
+    return 2.0 * _s_sigmoid_f64(2.0 * x) - 1.0;
+}`,
 }
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for float16 (8 lanes, uint16x8_t mask)
+// ---------------------------------------------------------------------------
+
+var neonF16MaskHelpers = []string{
+	`static inline float16x8_t hwy_iota_f16(void) {
+    float16x8_t v = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0};
+    return v;
+}`,
+	`static inline long hwy_all_true_u16(uint16x8_t mask) {
+    return vminvq_u16(mask) != 0;
+}`,
+	`static inline long hwy_all_false_u16(uint16x8_t mask) {
+    return vmaxvq_u16(mask) == 0;
+}`,
+	`static inline long hwy_find_first_true_u16(uint16x8_t mask) {
+    if (vgetq_lane_u16(mask, 0)) return 0;
+    if (vgetq_lane_u16(mask, 1)) return 1;
+    if (vgetq_lane_u16(mask, 2)) return 2;
+    if (vgetq_lane_u16(mask, 3)) return 3;
+    if (vgetq_lane_u16(mask, 4)) return 4;
+    if (vgetq_lane_u16(mask, 5)) return 5;
+    if (vgetq_lane_u16(mask, 6)) return 6;
+    if (vgetq_lane_u16(mask, 7)) return 7;
+    return -1;
+}`,
+	`static inline long hwy_count_true_u16(uint16x8_t mask) {
+    uint16x8_t bits = vshrq_n_u16(mask, 15);
+    return (long)vaddvq_u16(bits);
+}`,
+	`static inline uint16x8_t hwy_first_n_u16(long n) {
+    uint16x8_t iota = {0, 1, 2, 3, 4, 5, 6, 7};
+    return vcltq_u16(iota, vdupq_n_u16((unsigned short)n));
+}`,
+	`static inline long hwy_compress_store_f16(float16x8_t v, uint16x8_t mask, float16_t *dst) {
+    long count = 0;
+    if (vgetq_lane_u16(mask, 0)) { dst[count++] = vgetq_lane_f16(v, 0); }
+    if (vgetq_lane_u16(mask, 1)) { dst[count++] = vgetq_lane_f16(v, 1); }
+    if (vgetq_lane_u16(mask, 2)) { dst[count++] = vgetq_lane_f16(v, 2); }
+    if (vgetq_lane_u16(mask, 3)) { dst[count++] = vgetq_lane_f16(v, 3); }
+    if (vgetq_lane_u16(mask, 4)) { dst[count++] = vgetq_lane_f16(v, 4); }
+    if (vgetq_lane_u16(mask, 5)) { dst[count++] = vgetq_lane_f16(v, 5); }
+    if (vgetq_lane_u16(mask, 6)) { dst[count++] = vgetq_lane_f16(v, 6); }
+    if (vgetq_lane_u16(mask, 7)) { dst[count++] = vgetq_lane_f16(v, 7); }
+    return count;
+}`,
+}
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for bfloat16 (8 lanes, uint16x8_t mask)
+// ---------------------------------------------------------------------------
+
+var neonBF16MaskHelpers = []string{
+	// BF16 iota creates {0,1,2,...,7} as bfloat16 values via promotion from f32
+	`static inline bfloat16x8_t hwy_iota_bf16(void) {
+    float32x4_t lo = {0.0f, 1.0f, 2.0f, 3.0f};
+    float32x4_t hi = {4.0f, 5.0f, 6.0f, 7.0f};
+    return vcombine_bf16(vcvt_bf16_f32(lo), vcvt_bf16_f32(hi));
+}`,
+	// BF16 comparison returns uint16x8_t so we reuse the u16 mask helpers
+}
+
+// ---------------------------------------------------------------------------
+// Shared NEON mask query helpers for uint32x4_t masks
+// (used by f32, s32, u32 profiles — comparison results are always unsigned)
+// ---------------------------------------------------------------------------
+
+var neonU32MaskQueryHelpers = []string{
+	`static inline long hwy_all_true_u32(uint32x4_t mask) {
+    return vminvq_u32(mask) != 0;
+}`,
+	`static inline long hwy_all_false_u32(uint32x4_t mask) {
+    return vmaxvq_u32(mask) == 0;
+}`,
+	`static inline long hwy_find_first_true_u32(uint32x4_t mask) {
+    if (vgetq_lane_u32(mask, 0)) return 0;
+    if (vgetq_lane_u32(mask, 1)) return 1;
+    if (vgetq_lane_u32(mask, 2)) return 2;
+    if (vgetq_lane_u32(mask, 3)) return 3;
+    return -1;
+}`,
+	`static inline long hwy_count_true_u32(uint32x4_t mask) {
+    uint32x4_t bits = vshrq_n_u32(mask, 31);
+    return (long)vaddvq_u32(bits);
+}`,
+	`static inline uint32x4_t hwy_first_n_u32(long n) {
+    uint32x4_t iota = {0, 1, 2, 3};
+    return vcltq_u32(iota, vdupq_n_u32((unsigned int)n));
+}`,
+}
+
+// ---------------------------------------------------------------------------
+// Shared NEON mask query helpers for uint64x2_t masks
+// (used by f64, s64, u64 profiles)
+// ---------------------------------------------------------------------------
+
+var neonU64MaskQueryHelpers = []string{
+	`static inline long hwy_all_true_u64(uint64x2_t mask) {
+    return (vgetq_lane_u64(mask, 0) != 0) && (vgetq_lane_u64(mask, 1) != 0);
+}`,
+	`static inline long hwy_all_false_u64(uint64x2_t mask) {
+    return (vgetq_lane_u64(mask, 0) == 0) && (vgetq_lane_u64(mask, 1) == 0);
+}`,
+	`static inline long hwy_find_first_true_u64(uint64x2_t mask) {
+    if (vgetq_lane_u64(mask, 0)) return 0;
+    if (vgetq_lane_u64(mask, 1)) return 1;
+    return -1;
+}`,
+	`static inline long hwy_count_true_u64(uint64x2_t mask) {
+    long count = 0;
+    if (vgetq_lane_u64(mask, 0)) count++;
+    if (vgetq_lane_u64(mask, 1)) count++;
+    return count;
+}`,
+	`static inline uint64x2_t hwy_first_n_u64(long n) {
+    uint64x2_t iota = {0, 1};
+    return vcltq_u64(iota, vdupq_n_u64((unsigned long)n));
+}`,
+}
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for float32 (4 lanes, uint32x4_t mask)
+// ---------------------------------------------------------------------------
+
+var neonF32MaskHelpers = slices.Concat(neonU32MaskQueryHelpers, []string{
+	`static inline float32x4_t hwy_iota_f32(void) {
+    float32x4_t v = {0.0f, 1.0f, 2.0f, 3.0f};
+    return v;
+}`,
+	`static inline long hwy_compress_store_f32(float32x4_t v, uint32x4_t mask, float *dst) {
+    long count = 0;
+    if (vgetq_lane_u32(mask, 0)) { dst[count++] = vgetq_lane_f32(v, 0); }
+    if (vgetq_lane_u32(mask, 1)) { dst[count++] = vgetq_lane_f32(v, 1); }
+    if (vgetq_lane_u32(mask, 2)) { dst[count++] = vgetq_lane_f32(v, 2); }
+    if (vgetq_lane_u32(mask, 3)) { dst[count++] = vgetq_lane_f32(v, 3); }
+    return count;
+}`,
+})
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for float64 (2 lanes, uint64x2_t mask)
+// ---------------------------------------------------------------------------
+
+var neonF64MaskHelpers = slices.Concat(neonU64MaskQueryHelpers, []string{
+	`static inline float64x2_t hwy_iota_f64(void) {
+    float64x2_t v = {0.0, 1.0};
+    return v;
+}`,
+	`static inline long hwy_compress_store_f64(float64x2_t v, uint64x2_t mask, double *dst) {
+    long count = 0;
+    if (vgetq_lane_u64(mask, 0)) { dst[count++] = vgetq_lane_f64(v, 0); }
+    if (vgetq_lane_u64(mask, 1)) { dst[count++] = vgetq_lane_f64(v, 1); }
+    return count;
+}`,
+})
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for int32 (4 lanes, uint32x4_t mask)
+// ---------------------------------------------------------------------------
+
+var neonS32MaskHelpers = slices.Concat(neonU32MaskQueryHelpers, []string{
+	`static inline int32x4_t hwy_iota_s32(void) {
+    int32x4_t v = {0, 1, 2, 3};
+    return v;
+}`,
+	`static inline long hwy_compress_store_s32(int32x4_t v, uint32x4_t mask, int *dst) {
+    long count = 0;
+    if (vgetq_lane_u32(mask, 0)) { dst[count++] = vgetq_lane_s32(v, 0); }
+    if (vgetq_lane_u32(mask, 1)) { dst[count++] = vgetq_lane_s32(v, 1); }
+    if (vgetq_lane_u32(mask, 2)) { dst[count++] = vgetq_lane_s32(v, 2); }
+    if (vgetq_lane_u32(mask, 3)) { dst[count++] = vgetq_lane_s32(v, 3); }
+    return count;
+}`,
+})
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for uint32 (4 lanes, uint32x4_t mask)
+// ---------------------------------------------------------------------------
+
+var neonU32MaskHelpers = slices.Concat(neonU32MaskQueryHelpers, []string{
+	`static inline uint32x4_t hwy_iota_u32(void) {
+    uint32x4_t v = {0, 1, 2, 3};
+    return v;
+}`,
+	`static inline long hwy_compress_store_u32(uint32x4_t v, uint32x4_t mask, unsigned int *dst) {
+    long count = 0;
+    if (vgetq_lane_u32(mask, 0)) { dst[count++] = vgetq_lane_u32(v, 0); }
+    if (vgetq_lane_u32(mask, 1)) { dst[count++] = vgetq_lane_u32(v, 1); }
+    if (vgetq_lane_u32(mask, 2)) { dst[count++] = vgetq_lane_u32(v, 2); }
+    if (vgetq_lane_u32(mask, 3)) { dst[count++] = vgetq_lane_u32(v, 3); }
+    return count;
+}`,
+})
+
+// ---------------------------------------------------------------------------
+// NEON max/min helpers for 64-bit integers (no native NEON horizontal max/min)
+// ---------------------------------------------------------------------------
+
+var neonS64MaxMinHelpers = []string{
+	`static inline int64x2_t hwy_max_s64(int64x2_t a, int64x2_t b) {
+    uint64x2_t mask = vcgtq_s64(a, b);
+    return vbslq_s64(mask, a, b);
+}`,
+	`static inline int64x2_t hwy_min_s64(int64x2_t a, int64x2_t b) {
+    uint64x2_t mask = vcltq_s64(a, b);
+    return vbslq_s64(mask, a, b);
+}`,
+	`static inline long hwy_reducemax_s64(int64x2_t v) {
+    long a = vgetq_lane_s64(v, 0);
+    long b = vgetq_lane_s64(v, 1);
+    return a > b ? a : b;
+}`,
+	`static inline long hwy_reducemin_s64(int64x2_t v) {
+    long a = vgetq_lane_s64(v, 0);
+    long b = vgetq_lane_s64(v, 1);
+    return a < b ? a : b;
+}`,
+}
+
+var neonU64MaxMinHelpers = []string{
+	`static inline uint64x2_t hwy_max_u64(uint64x2_t a, uint64x2_t b) {
+    uint64x2_t mask = vcgtq_u64(a, b);
+    return vbslq_u64(mask, a, b);
+}`,
+	`static inline uint64x2_t hwy_min_u64(uint64x2_t a, uint64x2_t b) {
+    uint64x2_t mask = vcltq_u64(a, b);
+    return vbslq_u64(mask, a, b);
+}`,
+	`static inline unsigned long hwy_reducemax_u64(uint64x2_t v) {
+    unsigned long a = vgetq_lane_u64(v, 0);
+    unsigned long b = vgetq_lane_u64(v, 1);
+    return a > b ? a : b;
+}`,
+	`static inline unsigned long hwy_reducemin_u64(uint64x2_t v) {
+    unsigned long a = vgetq_lane_u64(v, 0);
+    unsigned long b = vgetq_lane_u64(v, 1);
+    return a < b ? a : b;
+}`,
+}
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for int64 (2 lanes, uint64x2_t mask)
+// ---------------------------------------------------------------------------
+
+var neonS64MaskHelpers = slices.Concat(neonU64MaskQueryHelpers, []string{
+	`static inline int64x2_t hwy_iota_s64(void) {
+    int64x2_t v = {0, 1};
+    return v;
+}`,
+	`static inline long hwy_compress_store_s64(int64x2_t v, uint64x2_t mask, long *dst) {
+    long count = 0;
+    if (vgetq_lane_u64(mask, 0)) { dst[count++] = vgetq_lane_s64(v, 0); }
+    if (vgetq_lane_u64(mask, 1)) { dst[count++] = vgetq_lane_s64(v, 1); }
+    return count;
+}`,
+})
+
+// ---------------------------------------------------------------------------
+// NEON mask/iota helpers for uint64 (2 lanes, uint64x2_t mask)
+// ---------------------------------------------------------------------------
+
+var neonU64MaskHelpers = slices.Concat(neonU64MaskQueryHelpers, []string{
+	`static inline uint64x2_t hwy_iota_u64(void) {
+    uint64x2_t v = {0, 1};
+    return v;
+}`,
+	`static inline long hwy_compress_store_u64(uint64x2_t v, uint64x2_t mask, unsigned long *dst) {
+    long count = 0;
+    if (vgetq_lane_u64(mask, 0)) { dst[count++] = vgetq_lane_u64(v, 0); }
+    if (vgetq_lane_u64(mask, 1)) { dst[count++] = vgetq_lane_u64(v, 1); }
+    return count;
+}`,
+})

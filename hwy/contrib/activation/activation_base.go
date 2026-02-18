@@ -21,7 +21,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-//go:generate go run ../../../cmd/hwygen -input activation_base.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../../cmd/hwygen -input activation_base.go -output . -targets avx2,avx512,neon:asm,fallback
 
 // BaseGELU computes the Gaussian Error Linear Unit activation function.
 //

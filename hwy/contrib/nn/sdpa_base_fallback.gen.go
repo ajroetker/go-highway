@@ -6,57 +6,144 @@ import (
 	stdmath "math"
 
 	"github.com/ajroetker/go-highway/hwy"
+	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
 func BaseSDPA_fallback_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.Float16, mask []hwy.Float16, scores []hwy.Float16, output []hwy.Float16, seqLen int, kvLen int, headDim int, scale hwy.Float16) {
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[hwy.Float16]()
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := range kvLen {
-			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
 			}
-			scores[sOff+j] = hwy.Float32ToFloat16(float32(sum * float64(scale.Float32())))
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp.Float32() * k[kOff0+p].Float32()
+				s1 += qp.Float32() * k[kOff1+p].Float32()
+				s2 += qp.Float32() * k[kOff2+p].Float32()
+				s3 += qp.Float32() * k[kOff3+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToFloat16(s0 * scale.Float32())
+			scores[sOff+j+1] = hwy.Float32ToFloat16(s1 * scale.Float32())
+			scores[sOff+j+2] = hwy.Float32ToFloat16(s2 * scale.Float32())
+			scores[sOff+j+3] = hwy.Float32ToFloat16(s3 * scale.Float32())
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := hwy.Zero[hwy.Float16]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
+			}
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < headDim; p++ {
+				sum += q[qOff+p].Float32() * k[kOff+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToFloat16(sum * scale.Float32())
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := range kvLen {
-				scores[sOff+j] = hwy.Float32ToFloat16(scores[sOff+j].Float32() + mask[mOff+j].Float32())
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				s := hwy.Load(scores[sOff+si:])
+				m := hwy.Load(mask[mOff+si:])
+				hwy.Store(hwy.Add(s, m), scores[sOff+si:])
+			}
+			for ; si < kvLen; si++ {
+				scores[sOff+si] = hwy.Float32ToFloat16(scores[sOff+si].Float32() + mask[mOff+si].Float32())
 			}
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si].Float32() > maxVal.Float32() {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(sRow[si].Float32() - maxVal.Float32()))))
-				expSum += float64(sRow[si].Float32())
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToFloat16(float32(float64(sRow[si].Float32()) * invSum))
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j].Float32() > maxVal.Float32() {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[hwy.Float16]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback_Float16(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc).Float32()
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(scores[sOff+si].Float32() - maxVal.Float32()))))
+			expSum += scores[sOff+si].Float32()
+		}
+		invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToFloat16(scores[sOff+si].Float32() * invSum.Float32())
+		}
 		oOff := i * headDim
-		for d := range headDim {
-			var sum float64
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
 			for j := range kvLen {
-				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
 			}
-			output[oOff+d] = hwy.Float32ToFloat16(float32(sum))
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[hwy.Float16]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
+			var sum float32
+			for j := range kvLen {
+				sum += scores[sOff+j].Float32() * v[j*headDim+d].Float32()
+			}
+			output[oOff+d] = hwy.Float32ToFloat16(sum)
 		}
 	}
 }
@@ -65,51 +152,137 @@ func BaseSDPA_fallback_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.BFlo
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := range kvLen {
-			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
 			}
-			scores[sOff+j] = hwy.Float32ToBFloat16(float32(sum * float64(scale.Float32())))
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp.Float32() * k[kOff0+p].Float32()
+				s1 += qp.Float32() * k[kOff1+p].Float32()
+				s2 += qp.Float32() * k[kOff2+p].Float32()
+				s3 += qp.Float32() * k[kOff3+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToBFloat16(s0 * scale.Float32())
+			scores[sOff+j+1] = hwy.Float32ToBFloat16(s1 * scale.Float32())
+			scores[sOff+j+2] = hwy.Float32ToBFloat16(s2 * scale.Float32())
+			scores[sOff+j+3] = hwy.Float32ToBFloat16(s3 * scale.Float32())
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := hwy.Zero[hwy.BFloat16]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
+			}
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < headDim; p++ {
+				sum += q[qOff+p].Float32() * k[kOff+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToBFloat16(sum * scale.Float32())
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := range kvLen {
-				scores[sOff+j] = hwy.Float32ToBFloat16(scores[sOff+j].Float32() + mask[mOff+j].Float32())
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				s := hwy.Load(scores[sOff+si:])
+				m := hwy.Load(mask[mOff+si:])
+				hwy.Store(hwy.Add(s, m), scores[sOff+si:])
+			}
+			for ; si < kvLen; si++ {
+				scores[sOff+si] = hwy.Float32ToBFloat16(scores[sOff+si].Float32() + mask[mOff+si].Float32())
 			}
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si].Float32() > maxVal.Float32() {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(sRow[si].Float32() - maxVal.Float32()))))
-				expSum += float64(sRow[si].Float32())
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToBFloat16(float32(float64(sRow[si].Float32()) * invSum))
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j].Float32() > maxVal.Float32() {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[hwy.BFloat16]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback_BFloat16(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc).Float32()
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(scores[sOff+si].Float32() - maxVal.Float32()))))
+			expSum += scores[sOff+si].Float32()
+		}
+		invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToBFloat16(scores[sOff+si].Float32() * invSum.Float32())
+		}
 		oOff := i * headDim
-		for d := range headDim {
-			var sum float64
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
 			for j := range kvLen {
-				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
 			}
-			output[oOff+d] = hwy.Float32ToBFloat16(float32(sum))
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[hwy.BFloat16]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
+			var sum float32
+			for j := range kvLen {
+				sum += scores[sOff+j].Float32() * v[j*headDim+d].Float32()
+			}
+			output[oOff+d] = hwy.Float32ToBFloat16(sum)
 		}
 	}
 }
@@ -118,51 +291,137 @@ func BaseSDPA_fallback(q []float32, k []float32, v []float32, mask []float32, sc
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[float32]()
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := range kvLen {
-			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p]) * float64(k[kOff+p])
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
 			}
-			scores[sOff+j] = float32(sum * float64(scale))
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			scores[sOff+j] = s0 * scale
+			scores[sOff+j+1] = s1 * scale
+			scores[sOff+j+2] = s2 * scale
+			scores[sOff+j+3] = s3 * scale
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := hwy.Zero[float32]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
+			}
+			sum := hwy.ReduceSum(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			scores[sOff+j] = sum * scale
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := range kvLen {
-				scores[sOff+j] += mask[mOff+j]
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				s := hwy.Load(scores[sOff+si:])
+				m := hwy.Load(mask[mOff+si:])
+				hwy.Store(hwy.Add(s, m), scores[sOff+si:])
+			}
+			for ; si < kvLen; si++ {
+				scores[sOff+si] += mask[mOff+si]
 			}
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si] > maxVal {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = float32(stdmath.Exp(float64(sRow[si] - maxVal)))
-				expSum += float64(sRow[si])
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = float32(float64(sRow[si]) * invSum)
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j] > maxVal {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[float32]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc)
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = float32(stdmath.Exp(float64(scores[sOff+si] - maxVal)))
+			expSum += scores[sOff+si]
+		}
+		invSum := float32(1.0) / expSum
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = scores[sOff+si] * invSum
+		}
 		oOff := i * headDim
-		for d := range headDim {
-			var sum float64
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
 			for j := range kvLen {
-				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
 			}
-			output[oOff+d] = float32(sum)
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[float32]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
+			var sum float32
+			for j := range kvLen {
+				sum += scores[sOff+j] * v[j*headDim+d]
+			}
+			output[oOff+d] = sum
 		}
 	}
 }
@@ -171,51 +430,137 @@ func BaseSDPA_fallback_Float64(q []float64, k []float64, v []float64, mask []flo
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[float64]()
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
-		for j := range kvLen {
-			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p]) * float64(k[kOff+p])
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
 			}
-			scores[sOff+j] = float64(sum * float64(scale))
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			scores[sOff+j] = s0 * scale
+			scores[sOff+j+1] = s1 * scale
+			scores[sOff+j+2] = s2 * scale
+			scores[sOff+j+3] = s3 * scale
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := hwy.Zero[float64]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
+			}
+			sum := hwy.ReduceSum(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			scores[sOff+j] = sum * scale
 		}
 		if mask != nil {
 			mOff := i * kvLen
-			for j := range kvLen {
-				scores[sOff+j] += mask[mOff+j]
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				s := hwy.Load(scores[sOff+si:])
+				m := hwy.Load(mask[mOff+si:])
+				hwy.Store(hwy.Add(s, m), scores[sOff+si:])
+			}
+			for ; si < kvLen; si++ {
+				scores[sOff+si] += mask[mOff+si]
 			}
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si] > maxVal {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = float64(stdmath.Exp(float64(sRow[si] - maxVal)))
-				expSum += float64(sRow[si])
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = float64(float64(sRow[si]) * invSum)
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j] > maxVal {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[float64]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback_Float64(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc)
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = float64(stdmath.Exp(float64(scores[sOff+si] - maxVal)))
+			expSum += scores[sOff+si]
+		}
+		invSum := float64(1.0) / expSum
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = scores[sOff+si] * invSum
+		}
 		oOff := i * headDim
-		for d := range headDim {
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
+			}
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[float64]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
 			var sum float64
 			for j := range kvLen {
-				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
+				sum += scores[sOff+j] * v[j*headDim+d]
 			}
-			output[oOff+d] = float64(sum)
+			output[oOff+d] = sum
 		}
 	}
 }
@@ -224,52 +569,132 @@ func BaseSDPACausal_fallback_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.F
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[hwy.Float16]()
 	negInf := hwy.Float32ToFloat16(float32(stdmath.Inf(-1)))
 	offset := kvLen - seqLen
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := range kvLen {
+		j := 0
+		for ; j+4 <= kvLen && j+4 <= causalEnd; j += 4 {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp.Float32() * k[kOff0+p].Float32()
+				s1 += qp.Float32() * k[kOff1+p].Float32()
+				s2 += qp.Float32() * k[kOff2+p].Float32()
+				s3 += qp.Float32() * k[kOff3+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToFloat16(s0 * scale.Float32())
+			scores[sOff+j+1] = hwy.Float32ToFloat16(s1 * scale.Float32())
+			scores[sOff+j+2] = hwy.Float32ToFloat16(s2 * scale.Float32())
+			scores[sOff+j+3] = hwy.Float32ToFloat16(s3 * scale.Float32())
+		}
+		for ; j < kvLen; j++ {
 			if j >= causalEnd {
 				scores[sOff+j] = hwy.Float32ToFloat16(negInf.Float32())
 				continue
 			}
 			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
+			acc := hwy.Zero[hwy.Float16]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
 			}
-			scores[sOff+j] = hwy.Float32ToFloat16(float32(sum * float64(scale.Float32())))
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < headDim; p++ {
+				sum += q[qOff+p].Float32() * k[kOff+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToFloat16(sum * scale.Float32())
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si].Float32() > maxVal.Float32() {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(sRow[si].Float32() - maxVal.Float32()))))
-				expSum += float64(sRow[si].Float32())
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToFloat16(float32(float64(sRow[si].Float32()) * invSum))
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j].Float32() > maxVal.Float32() {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[hwy.Float16]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback_Float16(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc).Float32()
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(scores[sOff+si].Float32() - maxVal.Float32()))))
+			expSum += scores[sOff+si].Float32()
+		}
+		invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToFloat16(scores[sOff+si].Float32() * invSum.Float32())
+		}
 		oOff := i * headDim
-		for d := range headDim {
-			var sum float64
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
 			for j := range kvLen {
-				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
 			}
-			output[oOff+d] = hwy.Float32ToFloat16(float32(sum))
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[hwy.Float16]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
+			var sum float32
+			for j := range kvLen {
+				sum += scores[sOff+j].Float32() * v[j*headDim+d].Float32()
+			}
+			output[oOff+d] = hwy.Float32ToFloat16(sum)
 		}
 	}
 }
@@ -278,52 +703,132 @@ func BaseSDPACausal_fallback_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, v []hw
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	negInf := hwy.Float32ToBFloat16(float32(stdmath.Inf(-1)))
 	offset := kvLen - seqLen
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := range kvLen {
+		j := 0
+		for ; j+4 <= kvLen && j+4 <= causalEnd; j += 4 {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp.Float32() * k[kOff0+p].Float32()
+				s1 += qp.Float32() * k[kOff1+p].Float32()
+				s2 += qp.Float32() * k[kOff2+p].Float32()
+				s3 += qp.Float32() * k[kOff3+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToBFloat16(s0 * scale.Float32())
+			scores[sOff+j+1] = hwy.Float32ToBFloat16(s1 * scale.Float32())
+			scores[sOff+j+2] = hwy.Float32ToBFloat16(s2 * scale.Float32())
+			scores[sOff+j+3] = hwy.Float32ToBFloat16(s3 * scale.Float32())
+		}
+		for ; j < kvLen; j++ {
 			if j >= causalEnd {
 				scores[sOff+j] = hwy.Float32ToBFloat16(negInf.Float32())
 				continue
 			}
 			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p].Float32()) * float64(k[kOff+p].Float32())
+			acc := hwy.Zero[hwy.BFloat16]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
 			}
-			scores[sOff+j] = hwy.Float32ToBFloat16(float32(sum * float64(scale.Float32())))
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < headDim; p++ {
+				sum += q[qOff+p].Float32() * k[kOff+p].Float32()
+			}
+			scores[sOff+j] = hwy.Float32ToBFloat16(sum * scale.Float32())
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si].Float32() > maxVal.Float32() {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(sRow[si].Float32() - maxVal.Float32()))))
-				expSum += float64(sRow[si].Float32())
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = hwy.Float32ToBFloat16(float32(float64(sRow[si].Float32()) * invSum))
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j].Float32() > maxVal.Float32() {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[hwy.BFloat16]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback_BFloat16(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc).Float32()
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(scores[sOff+si].Float32() - maxVal.Float32()))))
+			expSum += scores[sOff+si].Float32()
+		}
+		invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = hwy.Float32ToBFloat16(scores[sOff+si].Float32() * invSum.Float32())
+		}
 		oOff := i * headDim
-		for d := range headDim {
-			var sum float64
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
 			for j := range kvLen {
-				sum += float64(scores[sOff+j].Float32()) * float64(v[j*headDim+d].Float32())
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
 			}
-			output[oOff+d] = hwy.Float32ToBFloat16(float32(sum))
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[hwy.BFloat16]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
+			var sum float32
+			for j := range kvLen {
+				sum += scores[sOff+j].Float32() * v[j*headDim+d].Float32()
+			}
+			output[oOff+d] = hwy.Float32ToBFloat16(sum)
 		}
 	}
 }
@@ -332,52 +837,132 @@ func BaseSDPACausal_fallback(q []float32, k []float32, v []float32, scores []flo
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[float32]()
 	negInf := float32(stdmath.Inf(-1))
 	offset := kvLen - seqLen
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := range kvLen {
+		j := 0
+		for ; j+4 <= kvLen && j+4 <= causalEnd; j += 4 {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			scores[sOff+j] = s0 * scale
+			scores[sOff+j+1] = s1 * scale
+			scores[sOff+j+2] = s2 * scale
+			scores[sOff+j+3] = s3 * scale
+		}
+		for ; j < kvLen; j++ {
 			if j >= causalEnd {
 				scores[sOff+j] = negInf
 				continue
 			}
 			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p]) * float64(k[kOff+p])
+			acc := hwy.Zero[float32]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
 			}
-			scores[sOff+j] = float32(sum * float64(scale))
+			sum := hwy.ReduceSum(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			scores[sOff+j] = sum * scale
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si] > maxVal {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = float32(stdmath.Exp(float64(sRow[si] - maxVal)))
-				expSum += float64(sRow[si])
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = float32(float64(sRow[si]) * invSum)
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j] > maxVal {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[float32]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc)
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = float32(stdmath.Exp(float64(scores[sOff+si] - maxVal)))
+			expSum += scores[sOff+si]
+		}
+		invSum := float32(1.0) / expSum
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = scores[sOff+si] * invSum
+		}
 		oOff := i * headDim
-		for d := range headDim {
-			var sum float64
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[float32]()
+			acc1 := hwy.Zero[float32]()
+			acc2 := hwy.Zero[float32]()
+			acc3 := hwy.Zero[float32]()
 			for j := range kvLen {
-				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
 			}
-			output[oOff+d] = float32(sum)
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[float32]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
+			var sum float32
+			for j := range kvLen {
+				sum += scores[sOff+j] * v[j*headDim+d]
+			}
+			output[oOff+d] = sum
 		}
 	}
 }
@@ -386,52 +971,132 @@ func BaseSDPACausal_fallback_Float64(q []float64, k []float64, v []float64, scor
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
 	}
+	lanes := hwy.MaxLanes[float64]()
 	negInf := float64(stdmath.Inf(-1))
 	offset := kvLen - seqLen
 	for i := range seqLen {
 		qOff := i * headDim
 		sOff := i * kvLen
 		causalEnd := i + offset + 1
-		for j := range kvLen {
+		j := 0
+		for ; j+4 <= kvLen && j+4 <= causalEnd; j += 4 {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			scores[sOff+j] = s0 * scale
+			scores[sOff+j+1] = s1 * scale
+			scores[sOff+j+2] = s2 * scale
+			scores[sOff+j+3] = s3 * scale
+		}
+		for ; j < kvLen; j++ {
 			if j >= causalEnd {
 				scores[sOff+j] = negInf
 				continue
 			}
 			kOff := j * headDim
-			var sum float64
-			for p := range headDim {
-				sum += float64(q[qOff+p]) * float64(k[kOff+p])
+			acc := hwy.Zero[float64]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
 			}
-			scores[sOff+j] = float64(sum * float64(scale))
+			sum := hwy.ReduceSum(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			scores[sOff+j] = sum * scale
 		}
-		{
-			sRow := scores[sOff : sOff+kvLen]
-			maxVal := sRow[0]
-			for si := 1; si < kvLen; si++ {
-				if sRow[si] > maxVal {
-					maxVal = sRow[si]
-				}
-			}
-			var expSum float64
-			for si := range sRow {
-				sRow[si] = float64(stdmath.Exp(float64(sRow[si] - maxVal)))
-				expSum += float64(sRow[si])
-			}
-			invSum := 1.0 / expSum
-			for si := range sRow {
-				sRow[si] = float64(float64(sRow[si]) * invSum)
+		maxVal := scores[sOff]
+		for j := 1; j < kvLen; j++ {
+			if scores[sOff+j] > maxVal {
+				maxVal = scores[sOff+j]
 			}
 		}
-	}
-	for i := range seqLen {
-		sOff := i * kvLen
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[float64]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec_fallback_Float64(shifted)
+			hwy.Store(expVal, scores[sOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc)
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = float64(stdmath.Exp(float64(scores[sOff+si] - maxVal)))
+			expSum += scores[sOff+si]
+		}
+		invSum := float64(1.0) / expSum
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(scores[sOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), scores[sOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			scores[sOff+si] = scores[sOff+si] * invSum
+		}
 		oOff := i * headDim
-		for d := range headDim {
+		tileD := 4 * lanes
+		d := 0
+		for ; d+tileD <= headDim; d += tileD {
+			acc0 := hwy.Zero[float64]()
+			acc1 := hwy.Zero[float64]()
+			acc2 := hwy.Zero[float64]()
+			acc3 := hwy.Zero[float64]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				vRow := v[j*headDim:]
+				acc0 = hwy.MulAdd(vS, hwy.Load(vRow[d:]), acc0)
+				acc1 = hwy.MulAdd(vS, hwy.Load(vRow[d+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vS, hwy.Load(vRow[d+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vS, hwy.Load(vRow[d+3*lanes:]), acc3)
+			}
+			hwy.Store(acc0, output[oOff+d:])
+			hwy.Store(acc1, output[oOff+d+lanes:])
+			hwy.Store(acc2, output[oOff+d+2*lanes:])
+			hwy.Store(acc3, output[oOff+d+3*lanes:])
+		}
+		for ; d+lanes <= headDim; d += lanes {
+			acc := hwy.Zero[float64]()
+			for j := range kvLen {
+				vS := hwy.Set(scores[sOff+j])
+				acc = hwy.MulAdd(vS, hwy.Load(v[j*headDim+d:]), acc)
+			}
+			hwy.Store(acc, output[oOff+d:])
+		}
+		for ; d < headDim; d++ {
 			var sum float64
 			for j := range kvLen {
-				sum += float64(scores[sOff+j]) * float64(v[j*headDim+d])
+				sum += scores[sOff+j] * v[j*headDim+d]
 			}
-			output[oOff+d] = float64(sum)
+			output[oOff+d] = sum
 		}
 	}
 }

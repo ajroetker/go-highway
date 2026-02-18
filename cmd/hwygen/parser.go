@@ -114,16 +114,49 @@ type ConditionalBlock struct {
 // PackageGlobal represents a package-level variable with a fixed-size array type
 // and constant initializers. Used to emit `static const` in generated C code.
 type PackageGlobal struct {
-	Name     string   // e.g., "nf4LookupTable"
-	ElemType string   // e.g., "float32"
-	Size     int      // e.g., 16
-	Values   []string // raw Go literal values, e.g., ["-1.0", "0.0", "0.07958..."]
+	Name      string   // e.g., "nf4LookupTable"
+	ElemType  string   // e.g., "float32" or "maskedVByte12Lookup" (struct name)
+	Size      int      // e.g., 16 (outer dimension)
+	InnerSize int      // inner dimension for 2D arrays (0 for 1D)
+	Values    []string // raw Go literal values (flattened for 2D: Size*InnerSize elements; for struct arrays: Size*FlatSize)
+	IsStruct  bool             // true when element type is a struct
+	StructDef *PackageStruct   // struct definition (non-nil when IsStruct)
 }
 
 // PackageConst represents a package-level integer constant (e.g., BlockSize = 48).
 type PackageConst struct {
 	Name  string // e.g., "BlockSize"
 	Value string // raw literal value, e.g., "48"
+}
+
+// PackageStruct represents a package-level struct type definition.
+// Used to emit C struct typedefs and evaluate struct-typed globals in init().
+type PackageStruct struct {
+	Name   string               // e.g., "maskedVByte12Lookup"
+	Fields []PackageStructField // ordered fields
+}
+
+// FlatSize returns the total number of scalar values in one struct instance.
+// Scalar fields count as 1; array fields count as ArraySize.
+func (ps *PackageStruct) FlatSize() int {
+	n := 0
+	for _, f := range ps.Fields {
+		if f.IsArray {
+			n += f.ArraySize
+		} else {
+			n++
+		}
+	}
+	return n
+}
+
+// PackageStructField represents a single field in a PackageStruct.
+type PackageStructField struct {
+	Name      string // e.g., "numValues"
+	Type      string // e.g., "uint8" or "[4]uint8"
+	ElemType  string // e.g., "uint8" (base element type for both scalar and array)
+	IsArray   bool   // true for [4]uint8
+	ArraySize int    // 4 for [4]uint8, 0 for scalar
 }
 
 // ParseResult contains all parsed information from a source file.
@@ -137,6 +170,7 @@ type ParseResult struct {
 	Imports            map[string]string // map[local_name]import_path (e.g., "math" -> "math", "stdmath" -> "math")
 	PackageGlobals     []PackageGlobal   // package-level array variables from all files in the package
 	PackageConsts      []PackageConst    // package-level integer constants from all files in the package
+	PackageStructs     []PackageStruct   // package-level struct type definitions from all files in the package
 }
 
 // Parse parses a Go source file and extracts functions with hwy operations.
@@ -286,8 +320,11 @@ func Parse(filename string) (*ParseResult, error) {
 		}
 	}
 
+	// Scan sibling .go files for package-level struct types (needed before globals)
+	result.PackageStructs = scanPackageStructs(filename)
+
 	// Scan sibling .go files for package-level array variables (e.g., nf4LookupTable)
-	result.PackageGlobals = scanPackageGlobals(filename)
+	result.PackageGlobals = scanPackageGlobals(filename, result.PackageStructs)
 
 	// Scan sibling .go files for package-level integer constants (e.g., BlockSize)
 	result.PackageConsts = scanPackageConsts(filename)
@@ -1013,11 +1050,20 @@ func GetTypeSuffix(elemType string) string {
 // scanPackageGlobals scans all .go files in the same directory as filename
 // for package-level var declarations with fixed-size array types and constant
 // initializers. These are emitted as static const arrays in generated C code.
-func scanPackageGlobals(filename string) []PackageGlobal {
+// For uninitialized arrays (populated by init()), evaluates the init() functions
+// to compute values at code-generation time.
+// knownStructs provides struct type definitions so struct-typed arrays are recognized.
+func scanPackageGlobals(filename string, knownStructs []PackageStruct) []PackageGlobal {
 	dir := filepath.Dir(filename)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
+	}
+
+	// Build struct lookup map
+	structMap := make(map[string]*PackageStruct, len(knownStructs))
+	for i := range knownStructs {
+		structMap[knownStructs[i].Name] = &knownStructs[i]
 	}
 
 	var globals []PackageGlobal
@@ -1045,34 +1091,61 @@ func scanPackageGlobals(filename string) []PackageGlobal {
 				continue
 			}
 			for _, spec := range genDecl.Specs {
-				if pg := extractPackageGlobal(spec); pg != nil {
+				if pg := extractPackageGlobal(spec, structMap); pg != nil {
 					globals = append(globals, *pg)
 				}
 			}
 		}
 	}
+
+	// Evaluate init() functions to compute values for uninitialized globals
+	globals = evaluateInitGlobals(filename, globals)
+
 	return globals
 }
 
 // extractPackageGlobal checks if a ValueSpec is a fixed-size array var with
 // constant initializers and returns a PackageGlobal, or nil.
-func extractPackageGlobal(spec ast.Spec) *PackageGlobal {
+// Also handles uninitialized arrays (values filled later by init() evaluator).
+// structMap provides known struct types for struct-typed array elements.
+func extractPackageGlobal(spec ast.Spec, structMap map[string]*PackageStruct) *PackageGlobal {
 	vs, ok := spec.(*ast.ValueSpec)
-	if !ok || len(vs.Names) != 1 || len(vs.Values) != 1 {
+	if !ok || len(vs.Names) != 1 {
 		return nil
 	}
 
-	comp, ok := vs.Values[0].(*ast.CompositeLit)
-	if !ok {
-		return nil
+	// Case 1: Initialized array — var table = [N]T{v1, v2, ...}
+	if len(vs.Values) == 1 {
+		comp, ok := vs.Values[0].(*ast.CompositeLit)
+		if !ok {
+			return nil
+		}
+		arrType, ok := comp.Type.(*ast.ArrayType)
+		if !ok || arrType.Len == nil {
+			return nil
+		}
+		return extractArrayGlobal(vs.Names[0].Name, arrType, comp.Elts, structMap)
 	}
 
-	arrType, ok := comp.Type.(*ast.ArrayType)
-	if !ok || arrType.Len == nil {
-		return nil // skip slices (no length)
+	// Case 2: Uninitialized array — var table [N]T  or  var table [N][M]T
+	// (no values; will be filled by init() evaluator)
+	if len(vs.Values) == 0 && vs.Type != nil {
+		arrType, ok := vs.Type.(*ast.ArrayType)
+		if !ok || arrType.Len == nil {
+			return nil
+		}
+		return extractArrayGlobal(vs.Names[0].Name, arrType, nil, structMap)
 	}
 
-	// Extract array length
+	return nil
+}
+
+// extractArrayGlobal extracts a PackageGlobal from an array type declaration.
+// Handles both 1D ([N]T) and 2D ([N][M]T) arrays, and struct-typed arrays.
+// If elts is nil, the values are left empty (to be computed by init() evaluator).
+// structMap provides known struct types for struct-typed array elements.
+func extractArrayGlobal(name string, arrType *ast.ArrayType, elts []ast.Expr, structMap map[string]*PackageStruct) *PackageGlobal {
+	// Extract outer array length
 	lenLit, ok := arrType.Len.(*ast.BasicLit)
 	if !ok || lenLit.Kind != token.INT {
 		return nil
@@ -1082,34 +1155,80 @@ func extractPackageGlobal(spec ast.Spec) *PackageGlobal {
 		return nil
 	}
 
-	// Extract element type
-	elemIdent, ok := arrType.Elt.(*ast.Ident)
-	if !ok {
-		return nil
+	// Check for 2D array: [N][M]T
+	var innerSize int
+	var elemType string
+	if innerArr, ok := arrType.Elt.(*ast.ArrayType); ok && innerArr.Len != nil {
+		// 2D array
+		innerLenLit, ok := innerArr.Len.(*ast.BasicLit)
+		if !ok || innerLenLit.Kind != token.INT {
+			return nil
+		}
+		innerSize, err = strconv.Atoi(innerLenLit.Value)
+		if err != nil {
+			return nil
+		}
+		elemIdent, ok := innerArr.Elt.(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		elemType = elemIdent.Name
+	} else {
+		// 1D array — element type could be numeric or struct
+		elemIdent, ok := arrType.Elt.(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		elemType = elemIdent.Name
 	}
-	elemType := elemIdent.Name
-	// Only support numeric types
-	switch elemType {
-	case "float32", "float64", "int32", "int64", "int", "uint32", "uint64":
-	default:
+
+	// Check for struct-typed array element
+	if sd, isStruct := structMap[elemType]; isStruct {
+		// Struct array — values will be flattened: Size * FlatSize
+		return &PackageGlobal{
+			Name:      name,
+			ElemType:  elemType,
+			Size:      size,
+			IsStruct:  true,
+			StructDef: sd,
+		}
+	}
+
+	// Only support numeric types for non-struct arrays
+	if !isSupportedGlobalElemType(elemType) {
 		return nil
 	}
 
-	// Extract values
-	values := make([]string, 0, len(comp.Elts))
-	for _, elt := range comp.Elts {
-		val, ok := extractLiteralValue(elt)
-		if !ok {
-			return nil // bail if any element isn't a simple literal
+	// Extract values if provided
+	var values []string
+	if elts != nil {
+		values = make([]string, 0, len(elts))
+		for _, elt := range elts {
+			val, ok := extractLiteralValue(elt)
+			if !ok {
+				return nil
+			}
+			values = append(values, val)
 		}
-		values = append(values, val)
 	}
 
 	return &PackageGlobal{
-		Name:     vs.Names[0].Name,
-		ElemType: elemType,
-		Size:     size,
-		Values:   values,
+		Name:      name,
+		ElemType:  elemType,
+		Size:      size,
+		InnerSize: innerSize,
+		Values:    values,
+	}
+}
+
+// isSupportedGlobalElemType returns true if the element type can be emitted as a C global.
+func isSupportedGlobalElemType(elemType string) bool {
+	switch elemType {
+	case "float32", "float64", "int32", "int64", "int",
+		"uint32", "uint64", "uint8", "byte", "int8", "uint16", "int16":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1131,6 +1250,130 @@ func extractLiteralValue(expr ast.Expr) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// scanPackageStructs scans all .go files in the same directory as filename
+// for package-level struct type definitions. These are needed to recognize
+// struct-typed array globals and to emit C struct typedefs.
+func scanPackageStructs(filename string) []PackageStruct {
+	dir := filepath.Dir(filename)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	var structs []PackageStruct
+	fset := token.NewFileSet()
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") {
+			continue
+		}
+		if strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, ".gen.go") {
+			continue
+		}
+
+		path := filepath.Join(dir, name)
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			continue
+		}
+
+		for _, decl := range file.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range genDecl.Specs {
+				ts, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				st, ok := ts.Type.(*ast.StructType)
+				if !ok || st.Fields == nil {
+					continue
+				}
+
+				ps := extractPackageStruct(ts.Name.Name, st)
+				if ps != nil {
+					structs = append(structs, *ps)
+				}
+			}
+		}
+	}
+
+	return structs
+}
+
+// extractPackageStruct extracts a PackageStruct from a struct type spec.
+// Only includes structs whose fields are all simple numeric types or
+// fixed-size arrays of numeric types.
+func extractPackageStruct(name string, st *ast.StructType) *PackageStruct {
+	var fields []PackageStructField
+	for _, field := range st.Fields.List {
+		if len(field.Names) == 0 {
+			// Embedded field — not supported
+			return nil
+		}
+		for _, fname := range field.Names {
+			psf := extractStructField(fname.Name, field.Type)
+			if psf == nil {
+				return nil // unsupported field type
+			}
+			fields = append(fields, *psf)
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return &PackageStruct{Name: name, Fields: fields}
+}
+
+// extractStructField extracts a PackageStructField from a field type expression.
+// Supports scalar numeric types (uint8, int32, etc.) and fixed-size arrays of them.
+func extractStructField(name string, typeExpr ast.Expr) *PackageStructField {
+	switch t := typeExpr.(type) {
+	case *ast.Ident:
+		// Scalar field: uint8, int32, etc.
+		if !isSupportedGlobalElemType(t.Name) {
+			return nil
+		}
+		return &PackageStructField{
+			Name:     name,
+			Type:     t.Name,
+			ElemType: t.Name,
+		}
+	case *ast.ArrayType:
+		// Array field: [4]uint8, etc.
+		if t.Len == nil {
+			return nil // slice, not array
+		}
+		lenLit, ok := t.Len.(*ast.BasicLit)
+		if !ok || lenLit.Kind != token.INT {
+			return nil
+		}
+		arrSize, err := strconv.Atoi(lenLit.Value)
+		if err != nil || arrSize <= 0 {
+			return nil
+		}
+		elemIdent, ok := t.Elt.(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		if !isSupportedGlobalElemType(elemIdent.Name) {
+			return nil
+		}
+		return &PackageStructField{
+			Name:      name,
+			Type:      "[" + lenLit.Value + "]" + elemIdent.Name,
+			ElemType:  elemIdent.Name,
+			IsArray:   true,
+			ArraySize: arrSize,
+		}
+	default:
+		return nil
+	}
 }
 
 // scanPackageConsts scans all .go files in the same directory for package-level
