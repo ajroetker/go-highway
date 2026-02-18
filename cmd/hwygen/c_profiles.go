@@ -851,10 +851,12 @@ func neonUint64Profile() *CIntrinsicProfile {
 		VecX4Type: map[string]string{"q": "uint64x2x4_t"},
 
 		SlideUpExtFn: map[string]string{"q": "vextq_u64"},
+		SubFn:        map[string]string{"q": "vsubq_u64"},
 		AndFn:        map[string]string{"q": "vandq_u64"},
 		OrFn:         map[string]string{"q": "vorrq_u64"},
 		XorFn:        map[string]string{"q": "veorq_u64"},
 		PopCountFn:   map[string]string{"q": "neon_popcnt_u64"},
+		GetLaneFn:    map[string]string{"q": "vgetq_lane_u64"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_u64"},
 
@@ -968,6 +970,7 @@ func neonUint32Profile() *CIntrinsicProfile {
 		VecX4Type: map[string]string{"q": "uint32x4x4_t"},
 
 		SlideUpExtFn: map[string]string{"q": "vextq_u32"},
+		SubFn:        map[string]string{"q": "vsubq_u32"},
 		AndFn:        map[string]string{"q": "vandq_u32"},
 		OrFn:         map[string]string{"q": "vorrq_u32"},
 		XorFn:        map[string]string{"q": "veorq_u32"},
@@ -975,9 +978,12 @@ func neonUint32Profile() *CIntrinsicProfile {
 		ReduceSumFn: map[string]string{"q": "vaddvq_u32"},
 		LessThanFn:  map[string]string{"q": "vcltq_u32"},
 		MaskType:    map[string]string{"q": "uint32x4_t"},
+		GetLaneFn:   map[string]string{"q": "vgetq_lane_u32"},
 
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_u32"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_u32"},
+
+		TableLookupBytesFn: map[string]string{"q": "vqtbl1q_u8"},
 
 		MathStrategy:   "native",
 		GoatTarget:     "arm64",

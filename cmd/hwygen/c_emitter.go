@@ -1828,6 +1828,18 @@ func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator,
 		// same C compilation unit.
 		emittedHelpers[name] = true
 
+		// Register which parameters of this helper are slices, so the
+		// caller can append len_<name> arguments automatically.
+		var sliceIndices []int
+		for i, p := range helper.Params {
+			if strings.HasPrefix(p.Type, "[]") {
+				sliceIndices = append(sliceIndices, i)
+			}
+		}
+		if len(sliceIndices) > 0 {
+			translator.helperSliceParams[name] = sliceIndices
+		}
+
 		// Recursively collect helpers called by this helper first (dependency order)
 		e.collectHelperCode(helper, translator, emittedHelpers, helperCodes)
 

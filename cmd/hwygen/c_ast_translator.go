@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -49,8 +50,9 @@ type CASTTranslator struct {
 
 	// Package-level array globals (e.g., nf4LookupTable).
 	// Set via SetPackageGlobals before TranslateToC.
-	packageGlobals    map[string]*PackageGlobal // name → global
-	referencedGlobals map[string]bool           // globals actually used in function body
+	packageGlobals    map[string]*PackageGlobal  // name → global
+	referencedGlobals map[string]bool            // globals actually used in function body
+	packageStructs    map[string]*PackageStruct  // struct type name → def (from struct-typed globals)
 
 	// Package-level integer constants (e.g., BlockSize = 48).
 	// Set via SetPackageConsts before TranslateToC.
@@ -62,11 +64,21 @@ type CASTTranslator struct {
 	tmpCount int // counter for unique temporary variable names
 	errors   []string // translation errors collected during buildParamMap
 
+	// returnOrder stores return parameter map keys in declaration order
+	// (matching pf.Returns), so translateReturnStmt assigns results correctly.
+	returnOrder  []string // e.g., ["__return_values", "__return_consumed"]
+	returnParams []Param  // original Go return params for type inspection
+
 	// helperMode generates a C function with a simple calling convention:
 	// ints/floats passed by value (not pointers), direct return values,
 	// no hidden slice length params, and the original Go function name.
 	// Used for sibling helper functions called from the main GOAT function.
 	helperMode bool
+
+	// helperSliceParams maps helper function name → list of param indices
+	// that are slices. When calling a helper, the translator appends the
+	// corresponding len_<name> variables for each slice argument.
+	helperSliceParams map[string][]int
 }
 
 // deferredAccum tracks a scalar variable being replaced by a vector accumulator
@@ -131,11 +143,14 @@ type structTypeInfo struct {
 
 // cVarInfo tracks the C type of a local variable.
 type cVarInfo struct {
-	cType    string // "float32x4_t", "float", "long", "float *"
-	isVector bool
-	isPtr    bool
-	arrayLen  string // for vector arrays: the C length expression (e.g. "lanes")
-	isWidened bool   // true if widened accumulator (varname_lo/varname_hi pair in C)
+	cType         string // "float32x4_t", "float", "long", "float *"
+	isVector      bool
+	isPtr         bool
+	isArray       bool   // true for fixed-size C arrays (e.g., unsigned char result[16])
+	arrayLen      string // for vector arrays: the C length expression (e.g. "lanes")
+	isWidened     bool   // true if widened accumulator (varname_lo/varname_hi pair in C)
+	isStructPtr   bool   // true for local variables pointing to struct (e.g., &structArray[idx])
+	structPtrType string // struct type name in C (e.g., "maskedVByte12Lookup")
 }
 
 // cParamInfo tracks function parameter translation details.
@@ -163,6 +178,7 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 		sliceLenVars:        make(map[string]string),
 		widenedVars:         make(map[string]bool),
 		requiredStructTypes: make(map[string]structTypeInfo),
+		helperSliceParams:   make(map[string][]int),
 		buf:                 &bytes.Buffer{},
 	}
 }
@@ -172,8 +188,13 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 // as static const arrays in the generated C file.
 func (t *CASTTranslator) SetPackageGlobals(globals []PackageGlobal) {
 	t.packageGlobals = make(map[string]*PackageGlobal, len(globals))
+	t.packageStructs = make(map[string]*PackageStruct)
 	for i := range globals {
 		t.packageGlobals[globals[i].Name] = &globals[i]
+		// Collect struct type definitions from struct-typed globals
+		if globals[i].IsStruct && globals[i].StructDef != nil {
+			t.packageStructs[globals[i].StructDef.Name] = globals[i].StructDef
+		}
 	}
 }
 
@@ -255,6 +276,13 @@ func (t *CASTTranslator) TranslateToC(pf *ParsedFunc) (string, error) {
 	// Emit int parameter dereferences
 	t.indent = 1
 	t.emitParamDerefs()
+
+	// Emit local variable declarations for named return values.
+	// In Go, named return values are like pre-declared local variables initialized to zero.
+	// In C, the return statement writes them to output pointer parameters.
+	if !t.helperMode {
+		t.emitNamedReturnDecls(pf)
+	}
 
 	// Translate function body
 	if pf.Body != nil {
@@ -486,27 +514,144 @@ func (t *CASTTranslator) emitStaticConstGlobals() {
 	}
 	sort.Strings(names)
 
+	// Emit struct typedefs for any struct-typed globals (before the arrays)
+	emittedStructs := make(map[string]bool)
 	for _, name := range names {
 		pg := t.packageGlobals[name]
+		if pg.IsStruct && pg.StructDef != nil && !emittedStructs[pg.StructDef.Name] {
+			t.emitPackageStructTypedef(pg.StructDef)
+			emittedStructs[pg.StructDef.Name] = true
+		}
+	}
+
+	for _, name := range names {
+		pg := t.packageGlobals[name]
+		if len(pg.Values) == 0 {
+			// No values computed — skip (init() evaluator didn't produce values)
+			continue
+		}
+
+		if pg.IsStruct && pg.StructDef != nil {
+			t.emitStructArrayGlobal(pg)
+			continue
+		}
+
 		cElemType := goPkgGlobalElemToCType(pg.ElemType)
 		suffix := ""
 		if pg.ElemType == "float32" {
 			suffix = "f"
 		}
 
-		t.writefRaw("static const %s %s[%d] = { ", cElemType, pg.Name, pg.Size)
-		for i, val := range pg.Values {
-			if i > 0 {
-				t.buf.WriteString(", ")
+		if pg.InnerSize > 0 {
+			// 2D array: static const T name[N][M] = { {v0, v1, ...}, {vM, ...}, ... };
+			t.writefRaw("static const %s %s[%d][%d] = {\n", cElemType, pg.Name, pg.Size, pg.InnerSize)
+			for i := range pg.Size {
+				t.buf.WriteString("    { ")
+				for j := range pg.InnerSize {
+					if j > 0 {
+						t.buf.WriteString(", ")
+					}
+					idx := i*pg.InnerSize + j
+					if idx < len(pg.Values) {
+						t.buf.WriteString(pg.Values[idx])
+					} else {
+						t.buf.WriteString("0")
+					}
+					if suffix != "" {
+						t.buf.WriteString(suffix)
+					}
+				}
+				if i < pg.Size-1 {
+					t.buf.WriteString(" },\n")
+				} else {
+					t.buf.WriteString(" }\n")
+				}
 			}
-			// Ensure float literals have the proper suffix
-			t.buf.WriteString(val)
-			if suffix != "" && !strings.HasSuffix(val, suffix) {
-				t.buf.WriteString(suffix)
+			t.buf.WriteString("};\n\n")
+		} else {
+			// 1D array: static const T name[N] = { v0, v1, ... };
+			t.writefRaw("static const %s %s[%d] = { ", cElemType, pg.Name, pg.Size)
+			for i, val := range pg.Values {
+				if i > 0 {
+					t.buf.WriteString(", ")
+				}
+				t.buf.WriteString(val)
+				if suffix != "" && !strings.HasSuffix(val, suffix) {
+					t.buf.WriteString(suffix)
+				}
+			}
+			t.buf.WriteString(" };\n\n")
+		}
+	}
+}
+
+// emitPackageStructTypedef emits a C typedef for a package-level struct type.
+// Example: typedef struct { unsigned char numValues; unsigned char bytesConsumed; unsigned char valueEnds[4]; } maskedVByte12Lookup;
+func (t *CASTTranslator) emitPackageStructTypedef(sd *PackageStruct) {
+	t.writefRaw("typedef struct {\n")
+	for _, f := range sd.Fields {
+		cType := goPkgGlobalElemToCType(f.ElemType)
+		if f.IsArray {
+			t.writefRaw("    %s %s[%d];\n", cType, f.Name, f.ArraySize)
+		} else {
+			t.writefRaw("    %s %s;\n", cType, f.Name)
+		}
+	}
+	t.writefRaw("} %s;\n\n", sd.Name)
+}
+
+// emitStructArrayGlobal emits a static const struct array global.
+// Values are stored flattened: for each element, fields in declaration order,
+// with array fields expanded inline.
+func (t *CASTTranslator) emitStructArrayGlobal(pg *PackageGlobal) {
+	sd := pg.StructDef
+	flatSize := sd.FlatSize()
+
+	t.writefRaw("static const %s %s[%d] = {\n", sd.Name, pg.Name, pg.Size)
+	for i := range pg.Size {
+		base := i * flatSize
+		t.buf.WriteString("    { ")
+		first := true
+		for _, f := range sd.Fields {
+			if f.IsArray {
+				if !first {
+					t.buf.WriteString(", ")
+				}
+				t.buf.WriteString("{ ")
+				for j := range f.ArraySize {
+					if j > 0 {
+						t.buf.WriteString(", ")
+					}
+					idx := base
+					if idx < len(pg.Values) {
+						t.buf.WriteString(pg.Values[idx])
+					} else {
+						t.buf.WriteString("0")
+					}
+					base++
+				}
+				t.buf.WriteString(" }")
+				first = false
+			} else {
+				if !first {
+					t.buf.WriteString(", ")
+				}
+				if base < len(pg.Values) {
+					t.buf.WriteString(pg.Values[base])
+				} else {
+					t.buf.WriteString("0")
+				}
+				base++
+				first = false
 			}
 		}
-		t.buf.WriteString(" };\n\n")
+		if i < pg.Size-1 {
+			t.buf.WriteString(" },\n")
+		} else {
+			t.buf.WriteString(" }\n")
+		}
 	}
+	t.buf.WriteString("};\n\n")
 }
 
 // discoverReferencedConsts walks the function body to find identifiers
@@ -673,6 +818,11 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 					info.cType = scalarCType + " *"
 				}
 			}
+		} else if strings.HasPrefix(p.Type, "*") && isGoScalarIntType(p.Type[1:]) {
+			// Pointer-to-scalar-int param (e.g. *int, *int64) — used by helper
+			// functions that modify counters by reference.
+			info.cName = p.Name
+			info.cType = goPkgGlobalElemToCType(p.Type[1:]) + " *"
 		} else {
 			t.errors = append(t.errors, fmt.Sprintf("unsupported parameter type %q for param %q; "+
 				"neon:asm supports slices ([]T), generic struct pointers (*Struct[T]), "+
@@ -699,9 +849,21 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 		}
 	}
 
-	// In helper mode, skip hidden length params and output pointers — helpers
-	// use a simple C calling convention with direct params and return values.
+	// In helper mode, add explicit length params for slices (so len(s) resolves)
+	// but skip output pointer handling — helpers return values directly.
 	if t.helperMode {
+		for _, p := range pf.Params {
+			if strings.HasPrefix(p.Type, "[]") {
+				lenVarName := "len_" + p.Name
+				info := cParamInfo{
+					goName: lenVarName,
+					goType: "int",
+					cName:  lenVarName,
+					cType:  "long",
+				}
+				t.params["__len_"+p.Name] = info
+			}
+		}
 		return
 	}
 
@@ -753,6 +915,8 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 	// GOAT requires all pointer dereferences to be 64-bit (long/unsigned long),
 	// so we always use "long *" for output pointers. The Go wrapper handles
 	// narrowing (e.g., int64 → uint32).
+	t.returnOrder = nil
+	t.returnParams = nil
 	for _, ret := range pf.Returns {
 		name := ret.Name
 		if name == "" {
@@ -765,7 +929,10 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 			cType:  "long *",
 			isInt:  false, // not dereferenced at top - handled by return stmt
 		}
-		t.params["__return_"+name] = info
+		key := "__return_" + name
+		t.params[key] = info
+		t.returnOrder = append(t.returnOrder, key)
+		t.returnParams = append(t.returnParams, ret)
 	}
 }
 
@@ -875,15 +1042,20 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 		}
 	}
 
-	if !t.helperMode {
-		// Append hidden length parameters in deterministic order (matching pf.Params slice order).
-		for _, p := range pf.Params {
-			if key := "__len_" + p.Name; strings.HasPrefix(p.Type, "[]") {
-				if info, ok := t.params[key]; ok {
+	// Append hidden length parameters in deterministic order (matching pf.Params slice order).
+	// In helper mode, length params are plain values; otherwise they are pointers.
+	for _, p := range pf.Params {
+		if key := "__len_" + p.Name; strings.HasPrefix(p.Type, "[]") {
+			if info, ok := t.params[key]; ok {
+				if strings.HasSuffix(info.cType, "*") {
 					params = append(params, info.cType+info.cName)
+				} else {
+					params = append(params, info.cType+" "+info.cName)
 				}
 			}
 		}
+	}
+	if !t.helperMode {
 		// Append output pointers for return values
 		for _, ret := range pf.Returns {
 			name := ret.Name
@@ -931,6 +1103,48 @@ func (t *CASTTranslator) lanesExpr() string {
 		}
 	}
 	return fmt.Sprintf("%d", t.lanes)
+}
+
+// emitNamedReturnDecls emits local variable declarations for named return values.
+// In Go, named return values are pre-declared and zero-initialized. In C, we emit
+// them as local variables and the return statement writes them to output pointers.
+// Array-typed returns (e.g., [4]uint32) are aliased to the output pointer.
+func (t *CASTTranslator) emitNamedReturnDecls(pf *ParsedFunc) {
+	for _, ret := range pf.Returns {
+		if ret.Name == "" {
+			continue
+		}
+		// Check for fixed-size array return types like [4]uint32
+		if elemType, size := parseGoArrayType(ret.Type); size > 0 {
+			cElem := t.goTypeToCType(elemType)
+			poutName := "pout_" + ret.Name
+			// Alias the output pointer as the array variable
+			t.writef("%s *%s = (%s *)%s;\n", cElem, ret.Name, cElem, poutName)
+			t.vars[ret.Name] = cVarInfo{cType: cElem + " *", isPtr: true}
+			continue
+		}
+		cType := t.goTypeToCType(ret.Type)
+		t.writef("%s %s = 0;\n", cType, ret.Name)
+		t.vars[ret.Name] = cVarInfo{cType: cType}
+	}
+}
+
+// parseGoArrayType parses Go array type strings like "[4]uint32" and returns
+// the element type and size. Returns ("", 0) if not an array type.
+func parseGoArrayType(goType string) (elemType string, size int) {
+	if len(goType) < 3 || goType[0] != '[' {
+		return "", 0
+	}
+	closeBracket := strings.Index(goType, "]")
+	if closeBracket < 2 {
+		return "", 0
+	}
+	sizeStr := goType[1:closeBracket]
+	n, err := strconv.Atoi(sizeStr)
+	if err != nil || n <= 0 {
+		return "", 0
+	}
+	return goType[closeBracket+1:], n
 }
 
 // emitParamDerefs emits: long m = *pm; for each pointer-passed parameter.
@@ -1681,6 +1895,9 @@ func (t *CASTTranslator) translateForPost(stmt ast.Stmt) string {
 		}
 	case *ast.IncDecStmt:
 		name := t.translateExpr(s.X)
+		if _, isStar := s.X.(*ast.StarExpr); isStar {
+			name = "(" + name + ")"
+		}
 		if s.Tok == token.INC {
 			return name + "++"
 		}
@@ -1796,6 +2013,19 @@ func (t *CASTTranslator) translateDeclStmt(s *ast.DeclStmt) {
 				continue
 			}
 
+			// Check for fixed-size array types: var result [16]uint8
+			if arrType, ok := valueSpec.Type.(*ast.ArrayType); ok && arrType.Len != nil {
+				elemGoType := exprToString(arrType.Elt)
+				elemCType := t.goTypeToCType(elemGoType)
+				size := exprToString(arrType.Len)
+				for _, name := range valueSpec.Names {
+					t.vars[name.Name] = cVarInfo{cType: elemCType, isArray: true, arrayLen: size}
+					// Go zero-initializes arrays; emit = {0} in C
+					t.writef("%s %s[%s] = {0};\n", elemCType, name.Name, size)
+				}
+				continue
+			}
+
 			goType := exprToString(valueSpec.Type)
 			cType := t.goTypeToCType(goType)
 			isVec := strings.HasPrefix(goType, "hwy.Vec[") || strings.HasPrefix(goType, "hwy.Mask[")
@@ -1850,8 +2080,13 @@ func (t *CASTTranslator) translateIfStmt(s *ast.IfStmt) {
 }
 
 // translateIncDecStmt handles i++ and i--.
+// For pointer dereferences (*p), wraps in parens: (*p)++ instead of *p++,
+// because C's postfix ++ binds tighter than unary *.
 func (t *CASTTranslator) translateIncDecStmt(s *ast.IncDecStmt) {
 	name := t.translateExpr(s.X)
+	if _, isStar := s.X.(*ast.StarExpr); isStar {
+		name = "(" + name + ")"
+	}
 	if s.Tok == token.INC {
 		t.writef("%s++;\n", name)
 	} else {
@@ -1880,28 +2115,36 @@ func (t *CASTTranslator) translateReturnStmt(s *ast.ReturnStmt) {
 		return
 	}
 
-	// Collect return parameter names from the params map
-	var retNames []string
-	for key := range t.params {
-		if strings.HasPrefix(key, "__return_") {
-			retNames = append(retNames, key)
+	// Use declaration-order return names (not alphabetical) so that
+	// s.Results[i] maps to the correct output pointer.
+	for i, result := range s.Results {
+		if i >= len(t.returnOrder) {
+			break
 		}
-	}
-	// Sort for stable output
-	for i := range retNames {
-		for j := i + 1; j < len(retNames); j++ {
-			if retNames[i] > retNames[j] {
-				retNames[i], retNames[j] = retNames[j], retNames[i]
+		retKey := t.returnOrder[i]
+		info := t.params[retKey]
+
+		// Check if this return is an array type (e.g., [4]uint32).
+		// Array returns are aliased to the output pointer in emitNamedReturnDecls,
+		// so we handle them specially.
+		if i < len(t.returnParams) {
+			if _, arrSize := parseGoArrayType(t.returnParams[i].Type); arrSize > 0 {
+				// If the return expression is a zero-valued composite literal,
+				// zero the output buffer. If it's the named return variable
+				// itself, the data is already written through the pointer alias.
+				if compLit, ok := result.(*ast.CompositeLit); ok && len(compLit.Elts) == 0 {
+					for j := range arrSize {
+						t.writef("((%s)[%d]) = 0;\n", info.goName, j)
+					}
+				}
+				// Named return variable (e.g., "return values, totalLen"):
+				// skip — data already in output buffer via pointer alias.
+				continue
 			}
 		}
-	}
 
-	for i, result := range s.Results {
 		expr := t.translateExpr(result)
-		if i < len(retNames) {
-			info := t.params[retNames[i]]
-			t.writef("*%s = %s;\n", info.cName, expr)
-		}
+		t.writef("*%s = %s;\n", info.cName, expr)
 	}
 	t.writef("return;\n")
 }
@@ -1969,6 +2212,18 @@ func (t *CASTTranslator) translateExpr(expr ast.Expr) string {
 		return t.translateUnaryExpr(e)
 	case *ast.StarExpr:
 		return "*" + t.translateExpr(e.X)
+	case *ast.CompositeLit:
+		// Handle composite literals like [4]uint32{}, [16]uint8{0}
+		if len(e.Elts) == 0 {
+			// Zero-valued composite literal — emit 0
+			return "0"
+		}
+		// Non-empty composite literal: emit as C array initializer
+		var elts []string
+		for _, elt := range e.Elts {
+			elts = append(elts, t.translateExpr(elt))
+		}
+		return "{ " + strings.Join(elts, ", ") + " }"
 	default:
 		return exprToString(expr)
 	}
@@ -2008,7 +2263,12 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 	// Check for hwy.Func(...) or hwy.Func[T](...)
 	if sel := extractSelectorExpr(e.Fun); sel != nil {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
-			return t.translateHwyCall(sel.Sel.Name, e.Args)
+			// Extract explicit type parameter from generic calls like hwy.LoadSlice[uint8](...)
+			var hwyTypeParam string
+			if idx, ok := e.Fun.(*ast.IndexExpr); ok {
+				hwyTypeParam = exprToString(idx.Index)
+			}
+			return t.translateHwyCall(sel.Sel.Name, e.Args, hwyTypeParam)
 		}
 	}
 
@@ -2022,6 +2282,7 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 	}
 
 	// Check for bits.OnesCount* → __builtin_popcount*
+	// Check for bits.Len32/Len64 → bit-length via __builtin_clz
 	if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "bits" {
 			if builtinFn := bitsOnesCountToBuiltin(sel.Sel.Name); builtinFn != "" {
@@ -2029,6 +2290,28 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 					arg := t.translateExpr(e.Args[0])
 					return fmt.Sprintf("%s(%s)", builtinFn, arg)
 				}
+			}
+			if builtinExpr := bitsLenToBuiltin(sel.Sel.Name); builtinExpr != "" {
+				if len(e.Args) == 1 {
+					arg := t.translateExpr(e.Args[0])
+					return fmt.Sprintf(builtinExpr, arg, arg)
+				}
+			}
+		}
+	}
+
+	// Check for unsafe.Slice((*T)(unsafe.Pointer(&arr[0])), N) → (C_T *)arr
+	// This pattern reinterprets a slice's memory as a different element type.
+	if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
+		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "unsafe" && sel.Sel.Name == "Slice" {
+			if len(e.Args) == 2 {
+				return t.translateUnsafeSlice(e.Args[0], e.Args[1])
+			}
+		}
+		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "unsafe" && sel.Sel.Name == "Pointer" {
+			// unsafe.Pointer(&x) → &x (the C address-of is the same concept)
+			if len(e.Args) == 1 {
+				return t.translateExpr(e.Args[0])
 			}
 		}
 	}
@@ -2201,11 +2484,25 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		}
 	}
 
-	// Generic call - just translate arguments
+	// Generic call - just translate arguments.
+	// For known helper functions with slice params, append len_<name> args.
 	fun := t.translateExpr(e.Fun)
 	var args []string
 	for _, arg := range e.Args {
 		args = append(args, t.translateExpr(arg))
+	}
+	if ident, ok := e.Fun.(*ast.Ident); ok {
+		if sliceIndices, ok := t.helperSliceParams[ident.Name]; ok {
+			for _, idx := range sliceIndices {
+				if idx < len(e.Args) {
+					if argIdent, ok := e.Args[idx].(*ast.Ident); ok {
+						if lenVar, ok := t.sliceLenVars[argIdent.Name]; ok {
+							args = append(args, lenVar)
+						}
+					}
+				}
+			}
+		}
 	}
 	return fmt.Sprintf("%s(%s)", fun, strings.Join(args, ", "))
 }
@@ -2340,6 +2637,10 @@ func (t *CASTTranslator) translateSelectorExpr(e *ast.SelectorExpr) string {
 			// Use -> for struct pointer field access
 			return x + "->" + e.Sel.Name
 		}
+		// Check if X refers to a local struct pointer variable
+		if vi, exists := t.vars[ident.Name]; exists && vi.isStructPtr {
+			return x + "->" + e.Sel.Name
+		}
 	}
 
 	return x + "." + e.Sel.Name
@@ -2377,6 +2678,11 @@ func (t *CASTTranslator) translateStructMethodCall(structName, methodName string
 // translateUnaryExpr translates unary expressions.
 func (t *CASTTranslator) translateUnaryExpr(e *ast.UnaryExpr) string {
 	operand := t.translateExpr(e.X)
+	// In Go, unary ^ is bitwise complement (NOT). In C, the complement
+	// operator is ~ (C's ^ is binary XOR only).
+	if e.Op == token.XOR {
+		return "~" + operand
+	}
 	return e.Op.String() + operand
 }
 
@@ -2385,7 +2691,16 @@ func (t *CASTTranslator) translateUnaryExpr(e *ast.UnaryExpr) string {
 // ---------------------------------------------------------------------------
 
 // translateHwyCall maps hwy.FuncName to the appropriate C intrinsic.
-func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) string {
+func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, typeParam string) string {
+	// When an explicit type parameter differs from the profile's element type,
+	// use byte-level NEON intrinsics. This handles patterns like
+	// hwy.LoadSlice[uint8](...) on a uint32 profile.
+	if typeParam != "" && typeParam != t.profile.ElemType {
+		if byteExpr := t.emitHwyByteOverride(funcName, args, typeParam); byteExpr != "" {
+			return byteExpr
+		}
+	}
+
 	switch funcName {
 	case "Load":
 		return t.emitHwyLoad(args)
@@ -2460,6 +2775,16 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 	case "LoadSlice":
 		return t.emitHwyLoad(args) // same semantics as Load for C
 	case "StoreSlice":
+		// Check if the vector argument is a byte vector (uint8x16_t) and use
+		// the byte store intrinsic instead of the profile's store.
+		if len(args) >= 1 {
+			vecInfo := t.inferType(args[0])
+			if vecInfo.cType == "uint8x16_t" {
+				vec := t.translateExpr(args[0])
+				ptr := t.translateExpr(args[1])
+				return fmt.Sprintf("vst1q_u8(%s, %s)", ptr, vec)
+			}
+		}
 		return t.emitHwyStoreExpr(args) // same semantics as Store for C
 	case "MaxLanes", "NumLanes":
 		return t.lanesExpr()
@@ -2477,6 +2802,44 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		}
 		return fmt.Sprintf("hwy_%s(%s)", strings.ToLower(funcName), strings.Join(argStrs, ", "))
 	}
+}
+
+// emitHwyByteOverride handles hwy calls with an explicit type parameter that
+// differs from the profile's element type (e.g., hwy.LoadSlice[uint8] on a
+// uint32 profile). It uses byte-level NEON intrinsics and returns the C
+// expression, or "" if this override doesn't apply.
+func (t *CASTTranslator) emitHwyByteOverride(funcName string, args []ast.Expr, typeParam string) string {
+	// Map Go type → NEON load/store/vec type
+	type byteIntrinsics struct {
+		vecType string
+		loadFn  string
+		storeFn string
+	}
+	byteMap := map[string]byteIntrinsics{
+		"uint8": {"uint8x16_t", "vld1q_u8", "vst1q_u8"},
+		"byte":  {"uint8x16_t", "vld1q_u8", "vst1q_u8"},
+	}
+	bi, ok := byteMap[typeParam]
+	if !ok {
+		return ""
+	}
+
+	switch funcName {
+	case "LoadSlice", "Load":
+		if len(args) < 1 {
+			return "/* LoadSlice: missing args */"
+		}
+		ptr := t.translateExpr(args[0])
+		return fmt.Sprintf("%s(%s)", bi.loadFn, ptr)
+	case "StoreSlice", "Store":
+		if len(args) < 2 {
+			return "/* StoreSlice: missing args */"
+		}
+		vec := t.translateExpr(args[0])
+		ptr := t.translateExpr(args[1])
+		return fmt.Sprintf("%s(%s, %s)", bi.storeFn, ptr, vec)
+	}
+	return ""
 }
 
 // emitHwyLoad: hwy.Load(slice[off:]) → vld1q_f32(ptr + off)
@@ -3250,6 +3613,98 @@ func bitsOnesCountToBuiltin(funcName string) string {
 	}
 }
 
+// bitsLenToBuiltin maps Go math/bits Len* functions to GCC builtin expressions.
+// The returned format string has two %s placeholders for the argument (used twice:
+// once for the zero check, once in the clz call).
+// bits.Len32(x) = number of bits required to represent x (0 for x==0).
+// In C: x == 0 ? 0 : (32 - __builtin_clz(x))
+func bitsLenToBuiltin(funcName string) string {
+	switch funcName {
+	case "Len64":
+		return "((%s) == 0 ? 0 : (64 - __builtin_clzll(%s)))"
+	case "Len32":
+		return "((%s) == 0 ? 0 : (32 - __builtin_clz(%s)))"
+	case "Len16":
+		return "((%s) == 0 ? 0 : (32 - __builtin_clz((unsigned int)(%s))))"
+	case "Len8":
+		return "((%s) == 0 ? 0 : (32 - __builtin_clz((unsigned int)(%s))))"
+	case "Len":
+		return "((%s) == 0 ? 0 : (64 - __builtin_clzll(%s)))"
+	default:
+		return ""
+	}
+}
+
+// translateUnsafeSlice handles unsafe.Slice((*T)(unsafe.Pointer(&arr[0])), N).
+// This common Go pattern reinterprets a slice's backing memory as a different type.
+// In C, this is just a pointer cast: (C_T *)arr.
+func (t *CASTTranslator) translateUnsafeSlice(ptrArg, _ ast.Expr) string {
+	// The pointer argument is typically (*T)(unsafe.Pointer(&arr[0])):
+	//   CallExpr{ Fun: (*T), Args: [unsafe.Pointer(&arr[0])] }
+	// We need to extract the target type T and the source array name.
+
+	// Extract C type from the type-conversion expression.
+	// Pattern: (*uint8)(unsafe.Pointer(&values[0]))
+	// The outer call is a type conversion: (*uint8)(...)
+	if outerCall, ok := ptrArg.(*ast.CallExpr); ok {
+		// Get the target pointer type from the Fun expression
+		if starExpr, ok := outerCall.Fun.(*ast.ParenExpr); ok {
+			if star, ok := starExpr.X.(*ast.StarExpr); ok {
+				targetType := exprToString(star.X)
+				cType := t.goTypeToCType(targetType)
+
+				// Extract the source pointer from inside unsafe.Pointer(&arr[0])
+				if len(outerCall.Args) == 1 {
+					srcPtr := t.extractUnsafePointerArg(outerCall.Args[0])
+					if srcPtr != "" {
+						return fmt.Sprintf("(%s *)(%s)", cType, srcPtr)
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback: just translate both args
+	ptr := t.translateExpr(ptrArg)
+	return ptr
+}
+
+// extractUnsafePointerArg extracts the underlying pointer from unsafe.Pointer(&arr[0]).
+// Returns the C expression for the base pointer, or "" if the pattern is unrecognized.
+func (t *CASTTranslator) extractUnsafePointerArg(expr ast.Expr) string {
+	// unsafe.Pointer(&arr[0]) → the arg is a CallExpr calling unsafe.Pointer
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return ""
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	if !ok || pkg.Name != "unsafe" || sel.Sel.Name != "Pointer" {
+		return ""
+	}
+	if len(call.Args) != 1 {
+		return ""
+	}
+
+	// The arg should be &arr[0]
+	unary, ok := call.Args[0].(*ast.UnaryExpr)
+	if !ok || unary.Op != token.AND {
+		return ""
+	}
+
+	// arr[0]
+	idx, ok := unary.X.(*ast.IndexExpr)
+	if !ok {
+		return ""
+	}
+
+	// Return just the array/slice name (arr)
+	return t.translateExpr(idx.X)
+}
+
 // ---------------------------------------------------------------------------
 // Type inference
 // ---------------------------------------------------------------------------
@@ -3272,6 +3727,19 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		if baseType := t.inferPtrType(e.X); baseType != "" {
 			elemType := strings.TrimSuffix(strings.TrimSpace(baseType), "*")
 			return cVarInfo{cType: strings.TrimSpace(elemType)}
+		}
+		// Check if base is a package global array — for 2D arrays like [256][4]uint8,
+		// indexing by the first dimension yields a pointer to the inner element type.
+		if ident, ok := e.X.(*ast.Ident); ok && t.packageGlobals != nil {
+			if pg, ok := t.packageGlobals[ident.Name]; ok {
+				cElem := t.goTypeToCType(pg.ElemType)
+				if pg.InnerSize > 0 {
+					// 2D array: first index yields pointer to inner row
+					return cVarInfo{cType: cElem + " *", isPtr: true}
+				}
+				// 1D array: index yields scalar element
+				return cVarInfo{cType: cElem}
+			}
 		}
 		return cVarInfo{cType: t.profile.CType}
 	case *ast.ParenExpr:
@@ -3308,7 +3776,7 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		}
 		return cVarInfo{cType: t.profile.CType}
 	case *ast.SelectorExpr:
-		// Field access — check for Image struct fields
+		// Field access — check for Image struct fields (parameters)
 		if ident, ok := e.X.(*ast.Ident); ok {
 			if info, ok := t.params[ident.Name]; ok && info.isStructPtr {
 				switch e.Sel.Name {
@@ -3318,8 +3786,36 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 					return cVarInfo{cType: info.structElemCType + " *", isPtr: true}
 				}
 			}
+			// Check for local struct pointer variables
+			if vi, ok := t.vars[ident.Name]; ok && vi.isStructPtr {
+				if sd, ok := t.packageStructs[vi.structPtrType]; ok {
+					for _, f := range sd.Fields {
+						if f.Name == e.Sel.Name {
+							cType := goPkgGlobalElemToCType(f.ElemType)
+							return cVarInfo{cType: cType}
+						}
+					}
+				}
+			}
 		}
 		return cVarInfo{cType: t.profile.CType}
+	case *ast.UnaryExpr:
+		if e.Op == token.AND {
+			// &structArray[idx] → const StructType *
+			if idxExpr, ok := e.X.(*ast.IndexExpr); ok {
+				if ident, ok := idxExpr.X.(*ast.Ident); ok && t.packageGlobals != nil {
+					if pg, ok := t.packageGlobals[ident.Name]; ok && pg.IsStruct && pg.StructDef != nil {
+						return cVarInfo{
+							cType:         "const " + pg.StructDef.Name + " *",
+							isPtr:         true,
+							isStructPtr:   true,
+							structPtrType: pg.StructDef.Name,
+						}
+					}
+				}
+			}
+		}
+		return t.inferType(e.X)
 	default:
 		return cVarInfo{cType: t.profile.CType}
 	}
@@ -3351,13 +3847,28 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 	// Check for hwy.Func calls
 	if sel := extractSelectorExpr(e.Fun); sel != nil {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
+			// Check for explicit type parameter that overrides the profile's vector type.
+			// e.g., hwy.LoadSlice[uint8](...) on a uint32 profile → uint8x16_t
+			if idx, ok := e.Fun.(*ast.IndexExpr); ok {
+				typeParam := exprToString(idx.Index)
+				if typeParam != "" && typeParam != t.profile.ElemType {
+					switch typeParam {
+					case "uint8", "byte":
+						return cVarInfo{cType: "uint8x16_t", isVector: true}
+					}
+				}
+			}
+
 			switch sel.Sel.Name {
 			case "Load", "Load4", "Zero", "Set", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
 				"Min", "Max", "Neg", "Abs", "Sqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
-				"And", "Or", "Xor", "PopCount", "TableLookupBytes",
+				"And", "Or", "Xor", "PopCount",
 				"IfThenElse", "SlideUpLanes", "Pow":
 				return cVarInfo{cType: vecType, isVector: true}
+			case "TableLookupBytes":
+				// TableLookupBytes always operates on bytes, returns uint8x16_t
+				return cVarInfo{cType: "uint8x16_t", isVector: true}
 			case "ReduceMin", "ReduceMax":
 				// ReduceMin/Max return a scalar
 				if t.profile.ScalarArithType != "" {
@@ -3403,6 +3914,20 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 	if sel, ok := e.Fun.(*ast.SelectorExpr); ok {
 		if sel.Sel.Name == "NumLanes" || sel.Sel.Name == "NumElements" {
 			return cVarInfo{cType: "long"}
+		}
+		// Check for unsafe.Slice((*T)(unsafe.Pointer(&arr[0])), N) → T *
+		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "unsafe" && sel.Sel.Name == "Slice" {
+			if len(e.Args) >= 1 {
+				if outerCall, ok := e.Args[0].(*ast.CallExpr); ok {
+					if parenExpr, ok := outerCall.Fun.(*ast.ParenExpr); ok {
+						if star, ok := parenExpr.X.(*ast.StarExpr); ok {
+							targetType := exprToString(star.X)
+							cType := t.goTypeToCType(targetType)
+							return cVarInfo{cType: cType + " *", isPtr: true}
+						}
+					}
+				}
+			}
 		}
 		// Check for struct method calls (e.g., Row(), Width(), etc.)
 		if ident, ok := sel.X.(*ast.Ident); ok {
@@ -3525,6 +4050,10 @@ func (t *CASTTranslator) goTypeToCType(goType string) string {
 		if after, ok := strings.CutPrefix(goType, "[]"); ok {
 			elemType := after
 			return goSliceElemToCType(elemType, t.profile) + " *"
+		}
+		// Fixed-size array types like [4]uint32 → element C type
+		if elemType, _ := parseGoArrayType(goType); elemType != "" {
+			return t.goTypeToCType(elemType)
 		}
 		// hwy.Vec[T] → the profile's primary vector type (e.g., int32x4_t, float32x4_t)
 		if goType == "hwy.Vec[T]" || strings.HasPrefix(goType, "hwy.Vec[") {

@@ -1603,14 +1603,20 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		}
 	}
 
-	// Output variables for return values
+	// Output variables for return values.
+	// Array returns use the actual type; scalars use int64 for GOAT convention.
 	if hasReturns {
 		for _, ret := range pf.Returns {
 			name := ret.Name
 			if name == "" {
 				name = "result"
 			}
-			fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			goType := goReturnTypeForWrapper(ret.Type, elemType)
+			if isGoArrayType(goType) {
+				fmt.Fprintf(buf, "\tvar out_%s %s\n", name, goType)
+			} else {
+				fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			}
 		}
 	}
 
@@ -1646,7 +1652,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	}
 	fmt.Fprintf(buf, "\t)\n")
 
-	// Return with type narrowing from int64 to actual return type
+	// Return with type narrowing from int64 to actual return type.
+	// Array returns are already the correct type, no conversion needed.
 	if hasReturns {
 		var retExprs []string
 		for _, ret := range pf.Returns {
@@ -1655,7 +1662,11 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 				name = "result"
 			}
 			goType := goReturnTypeForWrapper(ret.Type, elemType)
-			retExprs = append(retExprs, goType+"(out_"+name+")")
+			if isGoArrayType(goType) {
+				retExprs = append(retExprs, "out_"+name)
+			} else {
+				retExprs = append(retExprs, goType+"(out_"+name+")")
+			}
 		}
 		fmt.Fprintf(buf, "\treturn %s\n", strings.Join(retExprs, ", "))
 	}
@@ -1947,7 +1958,8 @@ func cTypePublicSuffix(elemType string) string {
 func isGoScalarIntType(goType string) bool {
 	switch goType {
 	case "int", "int64", "int32", "int16", "int8",
-		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr":
+		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr",
+		"byte": // byte is an alias for uint8
 		return true
 	default:
 		return false
@@ -2053,6 +2065,21 @@ func goReturnTypeForWrapper(goType, elemType string) string {
 	}
 }
 
+// isGoArrayType returns true if goType is a fixed-size Go array type (e.g., [4]uint32).
+func isGoArrayType(goType string) bool {
+	return len(goType) >= 3 && goType[0] == '[' && goType[1] != ']'
+}
+
+// goReturnZeroValue returns the zero-value literal for a Go return type.
+// For scalar types returns "0", for array types returns e.g. "[4]uint32{}".
+func goReturnZeroValue(goType, elemType string) string {
+	rt := goReturnTypeForWrapper(goType, elemType)
+	if isGoArrayType(rt) {
+		return rt + "{}"
+	}
+	return "0"
+}
+
 // emitASTCWrapperFunc generates a wrapper function for an AST-translated function
 // with arbitrary parameters (multiple slices + int dimensions).
 //
@@ -2136,8 +2163,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		if hasReturns {
 			// Return zero values
 			var zeros []string
-			for range pf.Returns {
-				zeros = append(zeros, "0")
+			for _, ret := range pf.Returns {
+				zeros = append(zeros, goReturnZeroValue(ret.Type, elemType))
 			}
 			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
 		} else {
@@ -2168,8 +2195,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		fmt.Fprintf(buf, "\tif %s {\n", strings.Join(checks, " || "))
 		if hasReturns {
 			var zeros []string
-			for range pf.Returns {
-				zeros = append(zeros, "0")
+			for _, ret := range pf.Returns {
+				zeros = append(zeros, goReturnZeroValue(ret.Type, elemType))
 			}
 			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
 		} else {
@@ -2214,13 +2241,20 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	// Output variables for return values.
 	// GOAT always uses 64-bit (long *) for output pointers, so we declare
 	// int64 variables and cast to the actual return type.
+	// Array returns (e.g., [4]uint32) use the actual type since the C code
+	// writes directly through the output pointer.
 	if hasReturns {
 		for _, ret := range pf.Returns {
 			name := ret.Name
 			if name == "" {
 				name = "result"
 			}
-			fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			goType := goReturnTypeForWrapper(ret.Type, elemType)
+			if isGoArrayType(goType) {
+				fmt.Fprintf(buf, "\tvar out_%s %s\n", name, goType)
+			} else {
+				fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+			}
 		}
 	}
 
@@ -2258,7 +2292,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 	fmt.Fprintf(buf, "\t)\n")
 
-	// Return with type narrowing from int64 to actual return type
+	// Return with type narrowing from int64 to actual return type.
+	// Array returns are already the correct type, so no conversion needed.
 	if hasReturns {
 		var retExprs []string
 		for _, ret := range pf.Returns {
@@ -2267,8 +2302,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 				name = "result"
 			}
 			goType := goReturnTypeForWrapper(ret.Type, elemType)
-			if goType == "int64" || goType == "int" {
-				retExprs = append(retExprs, goType+"(out_"+name+")")
+			if isGoArrayType(goType) {
+				retExprs = append(retExprs, "out_"+name)
 			} else {
 				retExprs = append(retExprs, goType+"(out_"+name+")")
 			}

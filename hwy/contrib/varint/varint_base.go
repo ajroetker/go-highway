@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate go run ../../../cmd/hwygen -input varint_base.go -output . -targets avx2,avx512,neon,fallback -dispatch varint
+//go:generate go run ../../../cmd/hwygen -input varint_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch varint
 
 // Package varint provides SIMD-accelerated batch varint (LEB128) decoding.
 //
