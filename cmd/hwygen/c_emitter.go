@@ -254,7 +254,7 @@ func (e *CEmitter) emitExpConstants(buf *bytes.Buffer, vecType string) {
 	if e.elemType == "float32" {
 		fmt.Fprintf(buf, "    // Exp constants (f32)\n")
 		fmt.Fprintf(buf, "    %s invLn2 = %s;\n", vecType, e.fmtConstHex("0x3FB8AA3B"))
-		fmt.Fprintf(buf, "    %s ln2Hi = %s;\n", vecType, e.fmtConstHex("0x3F317200"))
+		fmt.Fprintf(buf, "    %s ln2Hi = %s;\n", vecType, e.fmtConstHex("0x3F318000"))
 		fmt.Fprintf(buf, "    %s ln2Lo = %s;\n", vecType, e.fmtConstHex("0xB95E8083"))
 		fmt.Fprintf(buf, "    %s overflow = %s;\n", vecType, e.fmtConstHex("0x42B17218"))
 		fmt.Fprintf(buf, "    %s underflow = %s;\n", vecType, e.fmtConstHex("0xC2AEAC50"))
@@ -270,8 +270,8 @@ func (e *CEmitter) emitExpConstants(buf *bytes.Buffer, vecType string) {
 	} else {
 		fmt.Fprintf(buf, "    // Exp constants (f64)\n")
 		fmt.Fprintf(buf, "    %s%s invLn2 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF71547652B82FELL"))
-		fmt.Fprintf(buf, "    %s%s ln2Hi = %s;\n", vol, vecType, e.fmtConstHex("0x3FE62E42FEFA39EFLL"))
-		fmt.Fprintf(buf, "    %s%s ln2Lo = %s;\n", vol, vecType, e.fmtConstHex("0xBDE8BFBE8E7BCD5ELL"))
+		fmt.Fprintf(buf, "    %s%s ln2Hi = %s;\n", vol, vecType, e.fmtConstHex("0x3FE62E42FEE00000LL"))
+		fmt.Fprintf(buf, "    %s%s ln2Lo = %s;\n", vol, vecType, e.fmtConstHex("0x3DEA39EF35793C76LL"))
 		fmt.Fprintf(buf, "    %s%s overflow = %s;\n", vol, vecType, e.fmtConstHex("0x40862E42FEFA39EFLL"))
 		fmt.Fprintf(buf, "    %s%s underflow = %s;\n", vol, vecType, e.fmtConstHex("0xC0862E42FEFA39EFLL"))
 		fmt.Fprintf(buf, "    %s%s c1 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
@@ -314,12 +314,12 @@ func (e *CEmitter) emitErfConstants(buf *bytes.Buffer, vecType string) {
 		fmt.Fprintf(buf, "    %s erfP = %s;\n", vecType, e.fmtConstHex("0x3EA7BA27"))
 		fmt.Fprintf(buf, "    %s one = %s;\n", vecType, e.fmtConstFloat("1.0f"))
 	} else {
-		fmt.Fprintf(buf, "    %s%s a1 = %s;\n", vol, vecType, e.fmtConstHex("0x3FD04DDF3B72BEF5LL"))
-		fmt.Fprintf(buf, "    %s%s a2 = %s;\n", vol, vecType, e.fmtConstHex("0xBFD2327F14F2FE0ELL"))
-		fmt.Fprintf(buf, "    %s%s a3 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF6C0CC1ECAC78CLL"))
-		fmt.Fprintf(buf, "    %s%s a4 = %s;\n", vol, vecType, e.fmtConstHex("0xBFF7412D14DC4B0DLL"))
-		fmt.Fprintf(buf, "    %s%s a5 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0FB926CE8EF39LL"))
-		fmt.Fprintf(buf, "    %s%s erfP = %s;\n", vol, vecType, e.fmtConstHex("0x3FD4F80D2CC7BBF6LL"))
+		fmt.Fprintf(buf, "    %s%s a1 = %s;\n", vol, vecType, e.fmtConstHex("0x3FD04F20C6EC5A7ELL"))
+		fmt.Fprintf(buf, "    %s%s a2 = %s;\n", vol, vecType, e.fmtConstHex("0xBFD23531CC3C1469LL"))
+		fmt.Fprintf(buf, "    %s%s a3 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF6BE1C55BAE157LL"))
+		fmt.Fprintf(buf, "    %s%s a4 = %s;\n", vol, vecType, e.fmtConstHex("0xBFF7401C57014C39LL"))
+		fmt.Fprintf(buf, "    %s%s a5 = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0FB844255A12DLL"))
+		fmt.Fprintf(buf, "    %s%s erfP = %s;\n", vol, vecType, e.fmtConstHex("0x3FD4F740A93D7B8CLL"))
 		fmt.Fprintf(buf, "    %s%s one = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
 	}
 }
@@ -473,6 +473,16 @@ func (e *CEmitter) emitErfComputation(buf *bytes.Buffer, x, res, indent string) 
 // isSVE returns true if the profile targets SVE (either darwin or linux).
 func (e *CEmitter) isSVE() bool {
 	return e.profile != nil && e.profile.NeedsPredicate
+}
+
+// isNarrowFloat returns true if the element type is a half-precision float (f16 or bf16).
+func (e *CEmitter) isNarrowFloat() bool {
+	return isHalfPrecisionType(e.elemType)
+}
+
+// isBFloat16 returns true if the element type is bfloat16.
+func (e *CEmitter) isBFloat16() bool {
+	return e.elemType == "hwy.BFloat16" || e.elemType == "bfloat16"
 }
 
 // hasDynamicLanes returns true if any non-scalar tier uses dynamic lanes.
@@ -856,11 +866,16 @@ func (e *CEmitter) emitCompositeFunction(buf *bytes.Buffer, pf *ParsedFunc) erro
 
 // emitCompositeConstants emits constants for composite functions.
 func (e *CEmitter) emitCompositeConstants(buf *bytes.Buffer, pf *ParsedFunc) {
+	if e.isNarrowFloat() {
+		e.emitPromotedCompositeConstants(buf, pf)
+		return
+	}
+
 	vecType := e.vecType()
 	vol := e.volatilePrefix()
 
 	switch {
-	case strings.Contains(pf.Name, "GELU") && strings.Contains(pf.Name, "Approx"):
+	case strings.Contains(pf.Name, "GELUApprox"):
 		// GELUApprox uses sigmoid: x * sigmoid(1.702 * x)
 		e.emitSigmoidConstants(buf, vecType)
 		if e.elemType == "float32" {
@@ -878,12 +893,52 @@ func (e *CEmitter) emitCompositeConstants(buf *bytes.Buffer, pf *ParsedFunc) {
 			fmt.Fprintf(buf, "    %s%s half = %s;\n", vol, vecType, e.fmtConstHex("0x3FE0000000000000LL"))
 			fmt.Fprintf(buf, "    %s%s invSqrt2 = %s;\n", vol, vecType, e.fmtConstHex("0x3FE6A09E667F3BCDLL"))
 		}
+	case strings.Contains(pf.Name, "LeakyReLU"):
+		// LeakyReLU: max(x, alpha*x) — alpha hardcoded to 0.01
+		if e.elemType == "float32" {
+			fmt.Fprintf(buf, "    %s alpha = %s;\n", vecType, e.fmtConstFloat("0.01f"))
+		} else {
+			fmt.Fprintf(buf, "    %s%s alpha = %s;\n", vol, vecType, e.fmtConstHex("0x3F847AE147AE147BLL"))
+		}
+	case strings.Contains(pf.Name, "ReLU"):
+		// ReLU: max(0, x)
+		if e.elemType == "float32" {
+			fmt.Fprintf(buf, "    %s zero = %s;\n", vecType, e.fmtConstFloat("0.0f"))
+		} else {
+			fmt.Fprintf(buf, "    %s%s zero = %s;\n", vol, vecType, e.fmtConstHex("0x0000000000000000LL"))
+		}
+	case strings.Contains(pf.Name, "SiLU"):
+		// SiLU: x * sigmoid(x)
+		e.emitSigmoidConstants(buf, vecType)
+	case strings.Contains(pf.Name, "Tanh"):
+		// Tanh: 2*sigmoid(2*x) - 1
+		e.emitSigmoidConstants(buf, vecType)
+		if e.elemType == "float32" {
+			fmt.Fprintf(buf, "    %s two = %s;\n", vecType, e.fmtConstFloat("2.0f"))
+		} else {
+			fmt.Fprintf(buf, "    %s%s two = %s;\n", vol, vecType, e.fmtConstHex("0x4000000000000000LL"))
+		}
+	case strings.Contains(pf.Name, "ELU"):
+		// ELU: x > 0 ? x : alpha*(exp(x)-1) — alpha hardcoded to 1.0
+		e.emitExpConstants(buf, vecType)
+		if e.elemType == "float32" {
+			fmt.Fprintf(buf, "    %s one = %s;\n", vecType, e.fmtConstFloat("1.0f"))
+			fmt.Fprintf(buf, "    %s alpha = %s;\n", vecType, e.fmtConstFloat("1.0f"))
+		} else {
+			fmt.Fprintf(buf, "    %s%s one = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
+			fmt.Fprintf(buf, "    %s%s alpha = %s;\n", vol, vecType, e.fmtConstHex("0x3FF0000000000000LL"))
+		}
 	}
 	fmt.Fprintf(buf, "\n")
 }
 
 // emitCompositeComputation emits the computation for one vector of a composite function.
 func (e *CEmitter) emitCompositeComputation(buf *bytes.Buffer, pf *ParsedFunc, idx int, indent string) {
+	if e.isNarrowFloat() {
+		e.emitPromotedCompositeComputation(buf, pf, idx, indent)
+		return
+	}
+
 	suffix := fmt.Sprintf("%d", idx)
 	x := "x" + suffix
 	res := "res" + suffix
@@ -893,6 +948,16 @@ func (e *CEmitter) emitCompositeComputation(buf *bytes.Buffer, pf *ParsedFunc, i
 		e.emitGELUApproxComputation(buf, x, res, indent)
 	case strings.Contains(pf.Name, "GELU"):
 		e.emitGELUComputation(buf, x, res, indent)
+	case strings.Contains(pf.Name, "LeakyReLU"):
+		e.emitLeakyReLUComputation(buf, x, res, indent)
+	case strings.Contains(pf.Name, "ReLU"):
+		e.emitReLUComputation(buf, x, res, indent)
+	case strings.Contains(pf.Name, "SiLU"):
+		e.emitSiLUComputation(buf, x, res, indent)
+	case strings.Contains(pf.Name, "Tanh"):
+		e.emitTanhComputation(buf, x, res, indent)
+	case strings.Contains(pf.Name, "ELU"):
+		e.emitELUComputation(buf, x, res, indent)
 	default:
 		fmt.Fprintf(buf, "%s%s %s = %s; // TODO: implement %s\n", indent, e.vecType(), res, x, pf.Name)
 	}
@@ -900,11 +965,26 @@ func (e *CEmitter) emitCompositeComputation(buf *bytes.Buffer, pf *ParsedFunc, i
 
 // emitCompositeComputationSingle emits computation for a single vector (non-indexed).
 func (e *CEmitter) emitCompositeComputationSingle(buf *bytes.Buffer, pf *ParsedFunc, indent string) {
+	if e.isNarrowFloat() {
+		e.emitPromotedCompositeComputationSingle(buf, pf, indent)
+		return
+	}
+
 	switch {
 	case strings.Contains(pf.Name, "GELUApprox"):
 		e.emitGELUApproxComputation(buf, "x", "res", indent)
 	case strings.Contains(pf.Name, "GELU"):
 		e.emitGELUComputation(buf, "x", "res", indent)
+	case strings.Contains(pf.Name, "LeakyReLU"):
+		e.emitLeakyReLUComputation(buf, "x", "res", indent)
+	case strings.Contains(pf.Name, "ReLU"):
+		e.emitReLUComputation(buf, "x", "res", indent)
+	case strings.Contains(pf.Name, "SiLU"):
+		e.emitSiLUComputation(buf, "x", "res", indent)
+	case strings.Contains(pf.Name, "Tanh"):
+		e.emitTanhComputation(buf, "x", "res", indent)
+	case strings.Contains(pf.Name, "ELU"):
+		e.emitELUComputation(buf, "x", "res", indent)
 	default:
 		fmt.Fprintf(buf, "%s%s res = x; // TODO: implement %s\n", indent, e.vecType(), pf.Name)
 	}
@@ -946,6 +1026,186 @@ func (e *CEmitter) emitGELUApproxComputation(buf *bytes.Buffer, x, res, indent s
 
 	// Compute result = x * sigmoid
 	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMul(x, "sig_"+res))
+}
+
+// emitReLUComputation emits ReLU computation: max(0, x)
+func (e *CEmitter) emitReLUComputation(buf *bytes.Buffer, x, res, indent string) {
+	vecType := e.vecType()
+	fmt.Fprintf(buf, "%s// ReLU: max(0, x)\n", indent)
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMax(x, "zero"))
+}
+
+// emitSiLUComputation emits SiLU computation: x * sigmoid(x)
+func (e *CEmitter) emitSiLUComputation(buf *bytes.Buffer, x, res, indent string) {
+	vecType := e.vecType()
+	fmt.Fprintf(buf, "%s// SiLU: x * sigmoid(x)\n", indent)
+	fmt.Fprintf(buf, "%s\n", indent)
+	// Compute sigmoid(x)
+	fmt.Fprintf(buf, "%s// Compute sigmoid(x)\n", indent)
+	e.emitSigmoidComputation(buf, x, "sig_"+res, indent)
+	// result = x * sigmoid(x)
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMul(x, "sig_"+res))
+}
+
+// emitTanhComputation emits tanh computation: 2*sigmoid(2*x) - 1
+func (e *CEmitter) emitTanhComputation(buf *bytes.Buffer, x, res, indent string) {
+	vecType := e.vecType()
+	fmt.Fprintf(buf, "%s// Tanh: 2*sigmoid(2*x) - 1\n", indent)
+	fmt.Fprintf(buf, "%s\n", indent)
+	// Compute 2*x
+	fmt.Fprintf(buf, "%s%s twoX_%s = %s;\n", indent, vecType, res, e.fmtMul(x, "two"))
+	// Compute sigmoid(2*x)
+	fmt.Fprintf(buf, "%s// Compute sigmoid(2*x)\n", indent)
+	e.emitSigmoidComputation(buf, "twoX_"+res, "sig_"+res, indent)
+	// result = 2*sigmoid(2*x) - 1
+	fmt.Fprintf(buf, "%s%s twoSig_%s = %s;\n", indent, vecType, res, e.fmtMul("two", "sig_"+res))
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtSub("twoSig_"+res, "one"))
+}
+
+// emitLeakyReLUComputation emits LeakyReLU: max(x, alpha*x) with hardcoded alpha.
+func (e *CEmitter) emitLeakyReLUComputation(buf *bytes.Buffer, x, res, indent string) {
+	vecType := e.vecType()
+	fmt.Fprintf(buf, "%s// LeakyReLU: max(x, alpha * x)\n", indent)
+	fmt.Fprintf(buf, "%s%s alphaX_%s = %s;\n", indent, vecType, res, e.fmtMul(x, "alpha"))
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtMax(x, "alphaX_"+res))
+}
+
+// emitELUComputation emits ELU: x > 0 ? x : alpha*(exp(x)-1) with hardcoded alpha.
+func (e *CEmitter) emitELUComputation(buf *bytes.Buffer, x, res, indent string) {
+	vecType := e.vecType()
+	maskT := e.maskType()
+	fmt.Fprintf(buf, "%s// ELU: x > 0 ? x : alpha*(exp(x)-1)\n", indent)
+	fmt.Fprintf(buf, "%s\n", indent)
+	// isPositive = x > 0
+	fmt.Fprintf(buf, "%s%s pos_%s = %s;\n", indent, maskT, res, e.fmtCmpGt(x, "zero"))
+	// Compute exp(x) inline
+	fmt.Fprintf(buf, "%s// Compute exp(x)\n", indent)
+	e.emitExpComputation(buf, x, "exp_"+res, indent)
+	// expM1 = exp(x) - 1
+	fmt.Fprintf(buf, "%s%s expM1_%s = %s;\n", indent, vecType, res, e.fmtSub("exp_"+res, "one"))
+	// negPart = alpha * (exp(x) - 1)
+	fmt.Fprintf(buf, "%s%s neg_%s = %s;\n", indent, vecType, res, e.fmtMul("alpha", "expM1_"+res))
+	// result = isPositive ? x : negPart
+	fmt.Fprintf(buf, "%s%s %s = %s;\n", indent, vecType, res, e.fmtSel("pos_"+res, x, "neg_"+res))
+}
+
+// ---------------------------------------------------------------------------
+// Promoted f32 computation path for f16/bf16 composite functions.
+// Promotes narrow vectors to f32 halves, computes using f32 intrinsics and
+// GOAT-safe helpers (_v_erf_f32, _v_sigmoid_f32, _v_exp_f32), then demotes.
+// ---------------------------------------------------------------------------
+
+// emitPromotedCompositeConstants emits f32 constants for promoted f16/bf16 computation.
+func (e *CEmitter) emitPromotedCompositeConstants(buf *bytes.Buffer, pf *ParsedFunc) {
+	switch {
+	case strings.Contains(pf.Name, "GELUApprox"):
+		fmt.Fprintf(buf, "    float32x4_t f32_geluCoeff = vdupq_n_f32(1.702f);\n")
+	case strings.Contains(pf.Name, "GELU"):
+		fmt.Fprintf(buf, "    float32x4_t f32_invSqrt2 = vdupq_n_f32(0.7071067811865476f);\n")
+		fmt.Fprintf(buf, "    float32x4_t f32_half = vdupq_n_f32(0.5f);\n")
+		fmt.Fprintf(buf, "    float32x4_t f32_one = vdupq_n_f32(1.0f);\n")
+	case strings.Contains(pf.Name, "LeakyReLU"):
+		fmt.Fprintf(buf, "    float32x4_t f32_alpha = vdupq_n_f32(0.01f);\n")
+	case strings.Contains(pf.Name, "ReLU"):
+		fmt.Fprintf(buf, "    float32x4_t f32_zero = vdupq_n_f32(0.0f);\n")
+	case strings.Contains(pf.Name, "SiLU"):
+		// No constants needed — _v_sigmoid_f32 is self-contained
+	case strings.Contains(pf.Name, "Tanh"):
+		fmt.Fprintf(buf, "    float32x4_t f32_two = vdupq_n_f32(2.0f);\n")
+		fmt.Fprintf(buf, "    float32x4_t f32_one = vdupq_n_f32(1.0f);\n")
+	case strings.Contains(pf.Name, "ELU"):
+		fmt.Fprintf(buf, "    float32x4_t f32_alpha = vdupq_n_f32(1.0f);\n")
+		fmt.Fprintf(buf, "    float32x4_t f32_one = vdupq_n_f32(1.0f);\n")
+		fmt.Fprintf(buf, "    float32x4_t f32_zero = vdupq_n_f32(0.0f);\n")
+	}
+	fmt.Fprintf(buf, "\n")
+}
+
+// emitPromotedCompositeComputation emits promoted f32 computation for one vector (indexed).
+func (e *CEmitter) emitPromotedCompositeComputation(buf *bytes.Buffer, pf *ParsedFunc, idx int, indent string) {
+	suffix := fmt.Sprintf("%d", idx)
+	x := "x" + suffix
+	res := "res" + suffix
+	lo := "lo_" + suffix
+	hi := "hi_" + suffix
+	resLo := "res_lo_" + suffix
+	resHi := "res_hi_" + suffix
+
+	e.emitPromoteToF32(buf, x, lo, hi, indent)
+	e.emitF32HalfComputation(buf, pf, lo, resLo, indent)
+	e.emitF32HalfComputation(buf, pf, hi, resHi, indent)
+	e.emitDemoteFromF32(buf, resLo, resHi, res, indent)
+}
+
+// emitPromotedCompositeComputationSingle emits promoted f32 computation for a single vector.
+func (e *CEmitter) emitPromotedCompositeComputationSingle(buf *bytes.Buffer, pf *ParsedFunc, indent string) {
+	e.emitPromoteToF32(buf, "x", "lo", "hi", indent)
+	e.emitF32HalfComputation(buf, pf, "lo", "res_lo", indent)
+	e.emitF32HalfComputation(buf, pf, "hi", "res_hi", indent)
+	e.emitDemoteFromF32(buf, "res_lo", "res_hi", "res", indent)
+}
+
+// emitPromoteToF32 promotes a narrow (f16/bf16) vector to two f32x4_t halves.
+func (e *CEmitter) emitPromoteToF32(buf *bytes.Buffer, x, lo, hi, indent string) {
+	if e.isBFloat16() {
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = bf16_promote_lo(%s);\n", indent, lo, x)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = bf16_promote_hi(%s);\n", indent, hi, x)
+	} else {
+		// Float16
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vcvt_f32_f16(vget_low_f16(%s));\n", indent, lo, x)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vcvt_f32_f16(vget_high_f16(%s));\n", indent, hi, x)
+	}
+}
+
+// emitDemoteFromF32 demotes two f32x4_t halves back to a narrow (f16/bf16) vector.
+func (e *CEmitter) emitDemoteFromF32(buf *bytes.Buffer, resLo, resHi, res, indent string) {
+	vecType := e.vecType()
+	if e.isBFloat16() {
+		fmt.Fprintf(buf, "%s%s %s = bf16_combine(bf16_demote_half(%s), bf16_demote_half(%s));\n",
+			indent, vecType, res, resLo, resHi)
+	} else {
+		// Float16
+		fmt.Fprintf(buf, "%s%s %s = vcombine_f16(vcvt_f16_f32(%s), vcvt_f16_f32(%s));\n",
+			indent, vecType, res, resLo, resHi)
+	}
+}
+
+// emitF32HalfComputation emits inline f32 computation for one f32x4_t half,
+// using GOAT-safe helpers for complex math.
+func (e *CEmitter) emitF32HalfComputation(buf *bytes.Buffer, pf *ParsedFunc, input, result, indent string) {
+	switch {
+	case strings.Contains(pf.Name, "GELUApprox"):
+		// GELUApprox: x * sigmoid(1.702 * x)
+		fmt.Fprintf(buf, "%sfloat32x4_t scaled_%s = vmulq_f32(%s, f32_geluCoeff);\n", indent, result, input)
+		fmt.Fprintf(buf, "%sfloat32x4_t sig_%s = _v_sigmoid_f32(scaled_%s);\n", indent, result, result)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vmulq_f32(%s, sig_%s);\n", indent, result, input, result)
+	case strings.Contains(pf.Name, "GELU"):
+		// GELU: x * 0.5 * (1 + erf(x / sqrt(2)))
+		fmt.Fprintf(buf, "%sfloat32x4_t erf_%s = _v_erf_f32(vmulq_f32(%s, f32_invSqrt2));\n", indent, result, input)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vmulq_f32(%s, vmulq_f32(f32_half, vaddq_f32(f32_one, erf_%s)));\n",
+			indent, result, input, result)
+	case strings.Contains(pf.Name, "LeakyReLU"):
+		// LeakyReLU: max(x, alpha*x)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vmaxq_f32(%s, vmulq_f32(%s, f32_alpha));\n", indent, result, input, input)
+	case strings.Contains(pf.Name, "ReLU"):
+		// ReLU: max(0, x)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vmaxq_f32(%s, f32_zero);\n", indent, result, input)
+	case strings.Contains(pf.Name, "SiLU"):
+		// SiLU: x * sigmoid(x)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vmulq_f32(%s, _v_sigmoid_f32(%s));\n", indent, result, input, input)
+	case strings.Contains(pf.Name, "Tanh"):
+		// Tanh: 2*sigmoid(2*x) - 1
+		fmt.Fprintf(buf, "%sfloat32x4_t sig_%s = _v_sigmoid_f32(vmulq_f32(f32_two, %s));\n", indent, result, input)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vsubq_f32(vmulq_f32(f32_two, sig_%s), f32_one);\n", indent, result, result)
+	case strings.Contains(pf.Name, "ELU"):
+		// ELU: x > 0 ? x : alpha*(exp(x)-1)
+		fmt.Fprintf(buf, "%suint32x4_t pos_%s = vcgtq_f32(%s, f32_zero);\n", indent, result, input)
+		fmt.Fprintf(buf, "%sfloat32x4_t neg_%s = vmulq_f32(f32_alpha, vsubq_f32(_v_exp_f32(%s), f32_one));\n",
+			indent, result, input)
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = vbslq_f32(pos_%s, %s, neg_%s);\n", indent, result, result, input, result)
+	default:
+		fmt.Fprintf(buf, "%sfloat32x4_t %s = %s; // TODO: implement %s\n", indent, result, input, pf.Name)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1289,7 +1549,7 @@ func (e *CEmitter) emitPromotedExpConstants(buf *bytes.Buffer, f32Vec, dupFn str
 	} else {
 		// NEON path - use hex bit patterns via vreinterpret
 		fmt.Fprintf(buf, "    %s invLn2 = vreinterpretq_f32_s32(vdupq_n_s32(0x3FB8AA3B));\n", f32Vec)
-		fmt.Fprintf(buf, "    %s ln2Hi = vreinterpretq_f32_s32(vdupq_n_s32(0x3F317200));\n", f32Vec)
+		fmt.Fprintf(buf, "    %s ln2Hi = vreinterpretq_f32_s32(vdupq_n_s32(0x3F318000));\n", f32Vec)
 		fmt.Fprintf(buf, "    %s ln2Lo = vreinterpretq_f32_s32(vdupq_n_s32(0xB95E8083));\n", f32Vec)
 		fmt.Fprintf(buf, "    %s overflow = vreinterpretq_f32_s32(vdupq_n_s32(0x42B17218));\n", f32Vec)
 		fmt.Fprintf(buf, "    %s underflow = vreinterpretq_f32_s32(vdupq_n_s32(0xC2AEAC50));\n", f32Vec)

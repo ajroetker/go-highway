@@ -273,31 +273,36 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				}
 			}
 
-			// Non-struct AST-translated functions (slice+int params) also need
+			// Non-struct AST-translated functions (slice+int params) and
+			// composite slice functions (without scalar T params) also need
 			// ASM adapter + wiring.
 			var nonStructASTFuncs []ParsedFunc
+			var compositeSliceFuncs []ParsedFunc
 			for _, f := range nonStructFuncs {
 				if IsASTCEligible(&f) {
 					nonStructASTFuncs = append(nonStructASTFuncs, f)
+				} else if IsSliceFunction(&f) && !hasScalarTypeParams(&f) {
+					compositeSliceFuncs = append(compositeSliceFuncs, f)
 				}
 			}
-			if len(nonStructASTFuncs) > 0 {
-				if err := g.emitSliceAsmPassthrough(nonStructASTFuncs, target, cOutputDir); err != nil {
+			allSliceDispatchFuncs := append(nonStructASTFuncs, compositeSliceFuncs...)
+			if len(allSliceDispatchFuncs) > 0 {
+				if err := g.emitSliceAsmPassthrough(allSliceDispatchFuncs, target, cOutputDir); err != nil {
 					return nil, fmt.Errorf("emit slice asm passthrough for %s: %w", target.Name, err)
 				}
-				if err := g.emitZCDispatchForSlices(nonStructASTFuncs, target); err != nil {
+				if err := g.emitZCDispatchForSlices(allSliceDispatchFuncs, target); err != nil {
 					return nil, fmt.Errorf("emit asm adapter for slices %s: %w", target.Name, err)
 				}
 			}
 
 			// Collect adapter info for all ASM-eligible functions
-			for _, pf := range append(structFuncs, nonStructASTFuncs...) {
+			for _, pf := range append(structFuncs, allSliceDispatchFuncs...) {
 				for _, elemType := range getCElemTypes(&pf) {
 					profile := GetCProfile(target.Name, elemType)
 					if profile == nil {
 						continue
 					}
-					if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+					if shouldSkipPromotedType(&pf, profile) {
 						continue
 					}
 					allAdapters = append(allAdapters, AsmAdapterInfo{
@@ -639,6 +644,35 @@ func IsSliceFunction(pf *ParsedFunc) bool {
 	return mathOpFromFuncName(pf.Name) != ""
 }
 
+// hasScalarTypeParams returns true if the function has any scalar parameters
+// of type T (e.g., the alpha parameter in LeakyReLU/ELU). Functions with
+// scalar T params cannot be wired via dispatch because the C function signature
+// doesn't include those parameters (they use hardcoded constants instead).
+func hasScalarTypeParams(pf *ParsedFunc) bool {
+	for _, p := range pf.Params {
+		if p.Type == "T" {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldSkipPromotedType returns true if the given function/type combo should
+// be skipped because the C profile requires promoted math and the function's
+// C code doesn't handle promotion internally. Composite slice functions
+// handle promotion via the promote-compute-demote pattern in their generated
+// C code, so they are never skipped.
+func shouldSkipPromotedType(pf *ParsedFunc, profile *CIntrinsicProfile) bool {
+	if profile.MathStrategy != "promoted" || profile.NativeArithmetic {
+		return false
+	}
+	// Composite slice functions handle promotion in their C code
+	if IsSliceFunction(pf) && !IsASTCEligible(pf) {
+		return false
+	}
+	return true
+}
+
 // getCProfileForFile determines the CIntrinsicProfile for a generated C file
 // based on its filename convention.
 func getCProfileForFile(cFile string, target Target) *CIntrinsicProfile {
@@ -898,7 +932,7 @@ func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir s
 			for _, et := range getCElemTypes(&pf) {
 				if isHalfPrecisionType(et) {
 					profile := GetCProfile(target.Name, et)
-					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					if profile != nil && !shouldSkipPromotedType(&pf, profile) {
 						needsHwy = true
 						break
 					}
@@ -1115,7 +1149,7 @@ func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, targe
 			if profile == nil {
 				continue
 			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
 			dv := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
@@ -1180,7 +1214,7 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 			for _, et := range getCElemTypes(&pf) {
 				if isHalfPrecisionType(et) {
 					profile := GetCProfile(target.Name, et)
-					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					if profile != nil && !shouldSkipPromotedType(&pf, profile) {
 						needsHwy = true
 						break
 					}
@@ -1288,7 +1322,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 			if profile == nil {
 				continue
 			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
 
@@ -1432,7 +1466,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			for _, et := range getCElemTypes(&pf) {
 				if isHalfPrecisionType(et) {
 					profile := GetCProfile(target.Name, et)
-					if profile != nil && (profile.MathStrategy != "promoted" || profile.NativeArithmetic) {
+					if profile != nil && !shouldSkipPromotedType(&pf, profile) {
 						needsHwy = true
 						break
 					}
@@ -1490,7 +1524,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			if profile == nil {
 				continue
 			}
-			if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
 			emitSliceZCAdapterFunc(&buf, &pf, elemType)
