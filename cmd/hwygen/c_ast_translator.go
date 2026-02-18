@@ -2067,6 +2067,12 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 						if suffix != "" {
 							argInfo := t.inferType(e.Args[0])
 							if argInfo.isVector {
+								// For promoted types (f16/bf16) calling contrib/math
+								// Vec functions: the vector arg is narrow but the
+								// helper expects f32. Split-promote, compute, demote.
+								if t.profile.MathStrategy == "promoted" && pkg.Name != "stdmath" && t.profile.SplitPromoteLo != "" {
+									return t.emitPromotedMathCall(cName, arg)
+								}
 								return fmt.Sprintf("_v_%s%s(%s)", cName, suffix, arg)
 							}
 							return fmt.Sprintf("_s_%s%s(%s)", cName, suffix, arg)
@@ -2118,12 +2124,17 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 				}
 			case "BaseSigmoidVec":
 				// sigmoid(x) = 1 / (1 + exp(-x))
+				// Note: normally handled by the generic mathFuncToC path above.
+				// This fallback handles cases where the generic path didn't match.
 				if len(e.Args) == 1 {
 					arg := t.translateExpr(e.Args[0])
 					// Use GOAT-safe inline helpers for all precisions.
 					if suffix := goatMathSuffix(t.elemType); suffix != "" {
 						argInfo := t.inferType(e.Args[0])
 						if argInfo.isVector {
+							if t.profile.MathStrategy == "promoted" && t.profile.SplitPromoteLo != "" {
+								return t.emitPromotedMathCall("sigmoid", arg)
+							}
 							return fmt.Sprintf("_v_sigmoid%s(%s)", suffix, arg)
 						}
 						return fmt.Sprintf("_s_sigmoid%s(%s)", suffix, arg)
@@ -2401,6 +2412,11 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr) stri
 		// Store is typically a statement, not expression — but handle both
 		return t.emitHwyStoreExpr(args)
 	case "Set":
+		return t.emitHwySet(args)
+	case "Const":
+		// hwy.Const[T](val) is semantically Set(ConstValue[T](val)).
+		// In C the float32→element-type conversion is implicit, so we
+		// just broadcast the literal like Set.
 		return t.emitHwySet(args)
 	case "Zero":
 		return t.emitHwyZero()
@@ -2969,6 +2985,35 @@ func (t *CASTTranslator) emitHwyPow(args []ast.Expr) string {
 	return fmt.Sprintf("pow(%s, %s)", base, exp)
 }
 
+// emitPromotedMathCall handles a math Vec→Vec function call when the current
+// profile uses MathStrategy=="promoted" (f16/bf16). The narrow vector argument
+// is split-promoted to two f32 halves, the math function is applied to each,
+// and the results are demoted and combined back to the narrow type.
+//
+// This emits pre-statements via t.writef() and returns the name of the result
+// variable. The caller's assignment (e.g., erfX := ...) will then assign from
+// this variable.
+func (t *CASTTranslator) emitPromotedMathCall(mathCName, arg string) string {
+	tc := t.tmpCount
+	t.tmpCount++
+
+	proLo := t.profile.SplitPromoteLo
+	proHi := t.profile.SplitPromoteHi
+	demoteFn := t.profile.DemoteFn
+	combineFn := t.profile.CombineFn
+	vecType := t.profile.VecTypes[t.tier]
+
+	t.writef("float32x4_t _pm_lo_%d = %s;\n", tc, fmt.Sprintf(proLo, arg))
+	t.writef("float32x4_t _pm_hi_%d = %s;\n", tc, fmt.Sprintf(proHi, arg))
+	t.writef("_pm_lo_%d = _v_%s_f32(_pm_lo_%d);\n", tc, mathCName, tc)
+	t.writef("_pm_hi_%d = _v_%s_f32(_pm_hi_%d);\n", tc, mathCName, tc)
+	dLo := fmt.Sprintf(demoteFn, fmt.Sprintf("_pm_lo_%d", tc))
+	dHi := fmt.Sprintf(demoteFn, fmt.Sprintf("_pm_hi_%d", tc))
+	t.writef("%s _pm_result_%d = %s;\n", vecType, tc, fmt.Sprintf(combineFn, dLo, dHi))
+
+	return fmt.Sprintf("_pm_result_%d", tc)
+}
+
 // emitInlinedBaseApply inlines a BaseApply(in, out, math.FooVec) call as a
 // load→math→store C loop. This eliminates per-vector function call overhead
 // by compiling the entire loop into GOAT assembly.
@@ -3486,7 +3531,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 	if sel := extractSelectorExpr(e.Fun); sel != nil {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
 			switch sel.Sel.Name {
-			case "Load", "Load4", "Zero", "Set", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
+			case "Load", "Load4", "Zero", "Set", "Const", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
 				"Min", "Max", "Neg", "Abs", "Sqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount", "TableLookupBytes",
@@ -3773,6 +3818,7 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 	// Must have int params (indicates a multi-dimensional function, not a simple
 	// array transform). This distinguishes matmul/transpose from GELU/softmax.
 	// OR must use integer SIMD ops (And, PopCount, BitsFromMask, LessThan, etc.)
+	// OR must call math Vec→Vec functions (BaseErfVec, BaseSigmoidVec, etc.)
 	hasIntParam := false
 	for _, p := range pf.Params {
 		if p.Type == "int" || p.Type == "int64" {
@@ -3782,6 +3828,12 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 	}
 
 	if hasIntParam {
+		return true
+	}
+
+	// Eligible if the function calls math Vec→Vec functions inline
+	// (e.g., GELU uses hwy.Mul + math.BaseErfVec in the same loop)
+	if hasMathVecCalls(pf) {
 		return true
 	}
 
@@ -3798,6 +3850,21 @@ func isBaseApplyWrapper(pf *ParsedFunc) bool {
 	for _, call := range pf.HwyCalls {
 		if call.FuncName == "BaseApply" {
 			return true
+		}
+	}
+	return false
+}
+
+// hasMathVecCalls returns true if the function calls math Vec→Vec functions
+// like BaseErfVec, BaseSigmoidVec, BaseExpVec, etc. These functions are
+// translatable to inline C helpers and indicate the function is eligible for
+// AST→C translation even without int params.
+func hasMathVecCalls(pf *ParsedFunc) bool {
+	for _, call := range pf.HwyCalls {
+		if call.Package == "math" || call.Package == "stdmath" {
+			if _, ok := mathFuncToC[call.FuncName]; ok {
+				return true
+			}
 		}
 	}
 	return false
