@@ -10,6 +10,11 @@ func PackedMicroKernel_F16(packedA unsafe.Pointer, packedB unsafe.Pointer, c uns
 	packedmicrokernel_c_f16_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, plen_packedA, plen_packedB, plen_c)
 }
 
+// PackedMicroKernel_BF16 calls the NEON SIMD assembly implementation.
+func PackedMicroKernel_BF16(packedA unsafe.Pointer, packedB unsafe.Pointer, c unsafe.Pointer, pn unsafe.Pointer, pir unsafe.Pointer, pjr unsafe.Pointer, pkc unsafe.Pointer, pmr unsafe.Pointer, pnr unsafe.Pointer, plen_packedA unsafe.Pointer, plen_packedB unsafe.Pointer, plen_c unsafe.Pointer) {
+	packedmicrokernel_c_bf16_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, plen_packedA, plen_packedB, plen_c)
+}
+
 // PackedMicroKernel_F32 calls the NEON SIMD assembly implementation.
 func PackedMicroKernel_F32(packedA unsafe.Pointer, packedB unsafe.Pointer, c unsafe.Pointer, pn unsafe.Pointer, pir unsafe.Pointer, pjr unsafe.Pointer, pkc unsafe.Pointer, pmr unsafe.Pointer, pnr unsafe.Pointer, plen_packedA unsafe.Pointer, plen_packedB unsafe.Pointer, plen_c unsafe.Pointer) {
 	packedmicrokernel_c_f32_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, plen_packedA, plen_packedB, plen_c)
@@ -25,6 +30,11 @@ func PackedMicroKernelGeneral_F16(packedA unsafe.Pointer, packedB unsafe.Pointer
 	packedmicrokernelgeneral_c_f16_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, plen_packedA, plen_packedB, plen_c)
 }
 
+// PackedMicroKernelGeneral_BF16 calls the NEON SIMD assembly implementation.
+func PackedMicroKernelGeneral_BF16(packedA unsafe.Pointer, packedB unsafe.Pointer, c unsafe.Pointer, pn unsafe.Pointer, pir unsafe.Pointer, pjr unsafe.Pointer, pkc unsafe.Pointer, pmr unsafe.Pointer, pnr unsafe.Pointer, plen_packedA unsafe.Pointer, plen_packedB unsafe.Pointer, plen_c unsafe.Pointer) {
+	packedmicrokernelgeneral_c_bf16_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, plen_packedA, plen_packedB, plen_c)
+}
+
 // PackedMicroKernelGeneral_F32 calls the NEON SIMD assembly implementation.
 func PackedMicroKernelGeneral_F32(packedA unsafe.Pointer, packedB unsafe.Pointer, c unsafe.Pointer, pn unsafe.Pointer, pir unsafe.Pointer, pjr unsafe.Pointer, pkc unsafe.Pointer, pmr unsafe.Pointer, pnr unsafe.Pointer, plen_packedA unsafe.Pointer, plen_packedB unsafe.Pointer, plen_c unsafe.Pointer) {
 	packedmicrokernelgeneral_c_f32_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, plen_packedA, plen_packedB, plen_c)
@@ -38,6 +48,11 @@ func PackedMicroKernelGeneral_F64(packedA unsafe.Pointer, packedB unsafe.Pointer
 // PackedMicroKernelPartial_F16 calls the NEON SIMD assembly implementation.
 func PackedMicroKernelPartial_F16(packedA unsafe.Pointer, packedB unsafe.Pointer, c unsafe.Pointer, pn unsafe.Pointer, pir unsafe.Pointer, pjr unsafe.Pointer, pkc unsafe.Pointer, pmr unsafe.Pointer, pnr unsafe.Pointer, pactiveRows unsafe.Pointer, pactiveCols unsafe.Pointer, plen_packedA unsafe.Pointer, plen_packedB unsafe.Pointer, plen_c unsafe.Pointer) {
 	packedmicrokernelpartial_c_f16_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, pactiveRows, pactiveCols, plen_packedA, plen_packedB, plen_c)
+}
+
+// PackedMicroKernelPartial_BF16 calls the NEON SIMD assembly implementation.
+func PackedMicroKernelPartial_BF16(packedA unsafe.Pointer, packedB unsafe.Pointer, c unsafe.Pointer, pn unsafe.Pointer, pir unsafe.Pointer, pjr unsafe.Pointer, pkc unsafe.Pointer, pmr unsafe.Pointer, pnr unsafe.Pointer, pactiveRows unsafe.Pointer, pactiveCols unsafe.Pointer, plen_packedA unsafe.Pointer, plen_packedB unsafe.Pointer, plen_c unsafe.Pointer) {
+	packedmicrokernelpartial_c_bf16_neon(packedA, packedB, c, pn, pir, pjr, pkc, pmr, pnr, pactiveRows, pactiveCols, plen_packedA, plen_packedB, plen_c)
 }
 
 // PackedMicroKernelPartial_F32 calls the NEON SIMD assembly implementation.

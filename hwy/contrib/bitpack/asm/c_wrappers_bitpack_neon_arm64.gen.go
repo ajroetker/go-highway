@@ -6,28 +6,6 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
-// DeltaEncode32CU32 computes BaseDeltaEncode32 for entire arrays using NEON SIMD.
-func DeltaEncode32CU32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deltaencode32_c_u32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// DeltaEncode64CU64 computes BaseDeltaEncode64 for entire arrays using NEON SIMD.
-func DeltaEncode64CU64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	deltaencode64_c_u64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
 // Pack32CU32 computes Pack32 using NEON SIMD assembly.
 func Pack32CU32(src []uint32, bitWidth int, dst []byte) int {
 	var p_src unsafe.Pointer
@@ -126,5 +104,49 @@ func Unpack64CU8(src []byte, bitWidth int, dst []uint64) int {
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
+}
+
+// DeltaEncode32CU32 computes DeltaEncode32 using NEON SIMD assembly.
+func DeltaEncode32CU32(src []uint32, base uint32, dst []uint32) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	baseVal := int64(base)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	deltaencode32_c_u32_neon(
+		p_src,
+		unsafe.Pointer(&baseVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+// DeltaEncode64CU64 computes DeltaEncode64 using NEON SIMD assembly.
+func DeltaEncode64CU64(src []uint64, base uint64, dst []uint64) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	baseVal := int64(base)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	deltaencode64_c_u64_neon(
+		p_src,
+		unsafe.Pointer(&baseVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
 }
 

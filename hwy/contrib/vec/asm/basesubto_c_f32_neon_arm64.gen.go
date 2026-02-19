@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func subto_c_f32_neon(input, output, len unsafe.Pointer)
+func subto_c_f32_neon(dst, a, b, plen_dst unsafe.Pointer)

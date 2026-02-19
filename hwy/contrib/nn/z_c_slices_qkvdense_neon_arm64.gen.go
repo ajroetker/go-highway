@@ -18,10 +18,14 @@ func initQkvdenseNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	QKVDenseFloat16 = qKVDenseAsmF16
-	QKVDenseBFloat16 = qKVDenseAsmBF16
 	QKVDenseFloat32 = qKVDenseAsmF32
 	QKVDenseFloat64 = qKVDenseAsmF64
+	if hwy.HasARMFP16() {
+		QKVDenseFloat16 = qKVDenseAsmF16
+	}
+	if hwy.HasARMBF16() {
+		QKVDenseBFloat16 = qKVDenseAsmBF16
+	}
 }
 
 func qKVDenseAsmF16(x, wQKV, biasQ, biasK, biasV, q, k, v []hwy.Float16, batchSize, inFeatures, qDim, kvDim int) {

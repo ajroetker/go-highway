@@ -10,6 +10,11 @@ func MatMulKLast_F16(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm un
 	matmulklast_c_f16_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
 }
 
+// MatMulKLast_BF16 calls the NEON SIMD assembly implementation.
+func MatMulKLast_BF16(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm unsafe.Pointer, pn unsafe.Pointer, pk unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_c unsafe.Pointer) {
+	matmulklast_c_bf16_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
+}
+
 // MatMulKLast_F32 calls the NEON SIMD assembly implementation.
 func MatMulKLast_F32(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm unsafe.Pointer, pn unsafe.Pointer, pk unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_c unsafe.Pointer) {
 	matmulklast_c_f32_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
@@ -23,6 +28,11 @@ func MatMulKLast_F64(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm un
 // MatMulKLastBlocked_F16 calls the NEON SIMD assembly implementation.
 func MatMulKLastBlocked_F16(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm unsafe.Pointer, pn unsafe.Pointer, pk unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_c unsafe.Pointer) {
 	matmulklastblocked_c_f16_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
+}
+
+// MatMulKLastBlocked_BF16 calls the NEON SIMD assembly implementation.
+func MatMulKLastBlocked_BF16(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm unsafe.Pointer, pn unsafe.Pointer, pk unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_c unsafe.Pointer) {
+	matmulklastblocked_c_bf16_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
 }
 
 // MatMulKLastBlocked_F32 calls the NEON SIMD assembly implementation.

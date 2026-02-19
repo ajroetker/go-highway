@@ -49,6 +49,45 @@ func PackedMicroKernelCF16(packedA, packedB, c []hwy.Float16, n, ir, jr, kc, mr,
 	)
 }
 
+// PackedMicroKernelCBF16 computes PackedMicroKernel using NEON SIMD assembly.
+func PackedMicroKernelCBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	nVal := int64(n)
+	irVal := int64(ir)
+	jrVal := int64(jr)
+	kcVal := int64(kc)
+	mrVal := int64(mr)
+	nrVal := int64(nr)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_cVal := int64(len(c))
+	packedmicrokernel_c_bf16_neon(
+		p_packedA,
+		p_packedB,
+		p_c,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&irVal),
+		unsafe.Pointer(&jrVal),
+		unsafe.Pointer(&kcVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&nrVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
 // PackedMicroKernelCF32 computes PackedMicroKernel using NEON SIMD assembly.
 func PackedMicroKernelCF32(packedA, packedB, c []float32, n, ir, jr, kc, mr, nr int) {
 	var p_packedA unsafe.Pointer
@@ -151,6 +190,45 @@ func basePackedMicroKernelGeneralCF16(packedA, packedB, c []hwy.Float16, n, ir, 
 	len_packedBVal := int64(len(packedB))
 	len_cVal := int64(len(c))
 	packedmicrokernelgeneral_c_f16_neon(
+		p_packedA,
+		p_packedB,
+		p_c,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&irVal),
+		unsafe.Pointer(&jrVal),
+		unsafe.Pointer(&kcVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&nrVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// basePackedMicroKernelGeneralCBF16 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
+func basePackedMicroKernelGeneralCBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	nVal := int64(n)
+	irVal := int64(ir)
+	jrVal := int64(jr)
+	kcVal := int64(kc)
+	mrVal := int64(mr)
+	nrVal := int64(nr)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_cVal := int64(len(c))
+	packedmicrokernelgeneral_c_bf16_neon(
 		p_packedA,
 		p_packedB,
 		p_c,
@@ -270,6 +348,49 @@ func PackedMicroKernelPartialCF16(packedA, packedB, c []hwy.Float16, n, ir, jr, 
 	len_packedBVal := int64(len(packedB))
 	len_cVal := int64(len(c))
 	packedmicrokernelpartial_c_f16_neon(
+		p_packedA,
+		p_packedB,
+		p_c,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&irVal),
+		unsafe.Pointer(&jrVal),
+		unsafe.Pointer(&kcVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&nrVal),
+		unsafe.Pointer(&activeRowsVal),
+		unsafe.Pointer(&activeColsVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// PackedMicroKernelPartialCBF16 computes PackedMicroKernelPartial using NEON SIMD assembly.
+func PackedMicroKernelPartialCBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	nVal := int64(n)
+	irVal := int64(ir)
+	jrVal := int64(jr)
+	kcVal := int64(kc)
+	mrVal := int64(mr)
+	nrVal := int64(nr)
+	activeRowsVal := int64(activeRows)
+	activeColsVal := int64(activeCols)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_cVal := int64(len(c))
+	packedmicrokernelpartial_c_bf16_neon(
 		p_packedA,
 		p_packedB,
 		p_c,

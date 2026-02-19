@@ -131,8 +131,6 @@ BB0_3:
 	WORD $0x3cf86835 // ldr	q21, [x1, x24]
 	WORD $0x6e401eb6 // fmul.8h	v22, v21, v0
 	WORD $0x0e217ad7 // fcvtl	v23.4s, v22.4h
-	WORD $0x6e1642d6 // ext.16b	v22, v22, v22, #8
-	WORD $0x0e217ad6 // fcvtl	v22.4s, v22.4h
 	WORD $0x6ea0faf8 // fneg.4s	v24, v23
 	WORD $0x6eb7e439 // fcmgt.4s	v25, v1, v23
 	WORD $0x6e22defa // fmul.4s	v26, v23, v2
@@ -162,6 +160,9 @@ BB0_3:
 	WORD $0x6e38fe38 // fdiv.4s	v24, v17, v24
 	WORD $0x4e791f18 // bic.16b	v24, v24, v25
 	WORD $0x6e781e37 // bsl.16b	v23, v17, v24
+	WORD $0x0e216af7 // fcvtn	v23.4h, v23.4s
+	WORD $0x6e1642d6 // ext.16b	v22, v22, v22, #8
+	WORD $0x0e217ad6 // fcvtl	v22.4s, v22.4h
 	WORD $0x6ea0fad8 // fneg.4s	v24, v22
 	WORD $0x6eb6e439 // fcmgt.4s	v25, v1, v22
 	WORD $0x6e22deda // fmul.4s	v26, v22, v2
@@ -191,7 +192,6 @@ BB0_3:
 	WORD $0x6e38fe38 // fdiv.4s	v24, v17, v24
 	WORD $0x4e791f18 // bic.16b	v24, v24, v25
 	WORD $0x6e781e36 // bsl.16b	v22, v17, v24
-	WORD $0x0e216af7 // fcvtn	v23.4h, v23.4s
 	WORD $0x4e216ad7 // fcvtn2	v23.8h, v22.4s
 	WORD $0x6e571eb5 // fmul.8h	v21, v21, v23
 	WORD $0xf9400fe1 // ldr	x1, [sp, #24]                   ; 8-byte Folded Reload

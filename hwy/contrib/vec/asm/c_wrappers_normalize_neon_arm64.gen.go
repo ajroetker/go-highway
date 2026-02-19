@@ -3,94 +3,158 @@
 
 package asm
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/ajroetker/go-highway/hwy"
+)
 
 // Public wrapper functions
-// NormalizeCF16 computes BaseNormalize for entire arrays using NEON SIMD.
-func NormalizeCF16(input []uint16) []uint16 {
-	result := make([]uint16, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeCF16 computes Normalize using NEON SIMD assembly.
+func NormalizeCF16(dst []hwy.Float16) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalize_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	lenVal := int64(len(dst))
+	normalize_c_f16_neon(
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeCBF16 computes BaseNormalize for entire arrays using NEON SIMD.
-func NormalizeCBF16(input []uint16) []uint16 {
-	result := make([]uint16, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeCBF16 computes Normalize using NEON SIMD assembly.
+func NormalizeCBF16(dst []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalize_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	lenVal := int64(len(dst))
+	normalize_c_bf16_neon(
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeCF32 computes BaseNormalize for entire arrays using NEON SIMD.
-func NormalizeCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeCF32 computes Normalize using NEON SIMD assembly.
+func NormalizeCF32(dst []float32) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalize_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	lenVal := int64(len(dst))
+	normalize_c_f32_neon(
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeCF64 computes BaseNormalize for entire arrays using NEON SIMD.
-func NormalizeCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeCF64 computes Normalize using NEON SIMD assembly.
+func NormalizeCF64(dst []float64) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalize_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	lenVal := int64(len(dst))
+	normalize_c_f64_neon(
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeToCF16 computes BaseNormalizeTo for entire arrays using NEON SIMD.
-func NormalizeToCF16(input []uint16) []uint16 {
-	result := make([]uint16, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeToCF16 computes NormalizeTo using NEON SIMD assembly.
+func NormalizeToCF16(dst, src []hwy.Float16) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalizeto_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	normalizeto_c_f16_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeToCBF16 computes BaseNormalizeTo for entire arrays using NEON SIMD.
-func NormalizeToCBF16(input []uint16) []uint16 {
-	result := make([]uint16, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeToCBF16 computes NormalizeTo using NEON SIMD assembly.
+func NormalizeToCBF16(dst, src []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalizeto_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	normalizeto_c_bf16_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeToCF32 computes BaseNormalizeTo for entire arrays using NEON SIMD.
-func NormalizeToCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeToCF32 computes NormalizeTo using NEON SIMD assembly.
+func NormalizeToCF32(dst, src []float32) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalizeto_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	normalizeto_c_f32_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// NormalizeToCF64 computes BaseNormalizeTo for entire arrays using NEON SIMD.
-func NormalizeToCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
+// NormalizeToCF64 computes NormalizeTo using NEON SIMD assembly.
+func NormalizeToCF64(dst, src []float64) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	normalizeto_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	normalizeto_c_f64_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 

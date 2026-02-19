@@ -1150,6 +1150,8 @@ func neonInt32Profile() *CIntrinsicProfile {
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_s32"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_s32"},
 
+		SlideUpExtFn: map[string]string{"q": "vextq_s32"},
+
 		EqualFn:       map[string]string{"q": "vceqq_s32"},
 		LessThanFn:    map[string]string{"q": "vcltq_s32"},
 		GreaterThanFn: map[string]string{"q": "vcgtq_s32"},
@@ -1215,6 +1217,8 @@ func neonInt64Profile() *CIntrinsicProfile {
 
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_s64"},
 		InterleaveUpperFn: map[string]string{"q": "vzip2q_s64"},
+
+		SlideUpExtFn: map[string]string{"q": "vextq_s64"},
 
 		EqualFn:       map[string]string{"q": "vceqq_s64"},
 		LessThanFn:    map[string]string{"q": "vcltq_s64"},

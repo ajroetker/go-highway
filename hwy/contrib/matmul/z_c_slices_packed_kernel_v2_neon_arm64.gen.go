@@ -18,12 +18,18 @@ func initPacked_kernel_v2NeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	PackedMicroKernel4x2Float16 = packedMicroKernel4x2AsmF16
 	PackedMicroKernel4x2Float32 = packedMicroKernel4x2AsmF32
 	PackedMicroKernel4x2Float64 = packedMicroKernel4x2AsmF64
-	ZeroSliceFloat16 = zeroSliceAsmF16
 	ZeroSliceFloat32 = zeroSliceAsmF32
 	ZeroSliceFloat64 = zeroSliceAsmF64
+	if hwy.HasARMFP16() {
+		PackedMicroKernel4x2Float16 = packedMicroKernel4x2AsmF16
+		ZeroSliceFloat16 = zeroSliceAsmF16
+	}
+	if hwy.HasARMBF16() {
+		PackedMicroKernel4x2BFloat16 = packedMicroKernel4x2AsmBF16
+		ZeroSliceBFloat16 = zeroSliceAsmBF16
+	}
 }
 
 func packedMicroKernel4x2AsmF16(packedA, packedB, output []hwy.Float16, outputStride, outRowStart, outColStart, panelK, lanes int) {
@@ -48,6 +54,42 @@ func packedMicroKernel4x2AsmF16(packedA, packedB, output []hwy.Float16, outputSt
 	len_packedBVal := int64(len(packedB))
 	len_outputVal := int64(len(output))
 	asm.PackedMicroKernel4x2_F16(
+		p_packedA,
+		p_packedB,
+		p_output,
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&outRowStartVal),
+		unsafe.Pointer(&outColStartVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&lanesVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func packedMicroKernel4x2AsmBF16(packedA, packedB, output []hwy.BFloat16, outputStride, outRowStart, outColStart, panelK, lanes int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	outputStrideVal := int64(outputStride)
+	outRowStartVal := int64(outRowStart)
+	outColStartVal := int64(outColStart)
+	panelKVal := int64(panelK)
+	lanesVal := int64(lanes)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_outputVal := int64(len(output))
+	asm.PackedMicroKernel4x2_BF16(
 		p_packedA,
 		p_packedB,
 		p_output,
@@ -142,6 +184,20 @@ func zeroSliceAsmF16(s []hwy.Float16, n int) {
 	nVal := int64(n)
 	len_sVal := int64(len(s))
 	asm.ZeroSlice_F16(
+		p_s,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&len_sVal),
+	)
+}
+
+func zeroSliceAsmBF16(s []hwy.BFloat16, n int) {
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	nVal := int64(n)
+	len_sVal := int64(len(s))
+	asm.ZeroSlice_BF16(
 		p_s,
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&len_sVal),

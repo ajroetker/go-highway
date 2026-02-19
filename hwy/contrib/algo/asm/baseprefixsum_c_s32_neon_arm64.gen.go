@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func prefixsum_c_s32_neon(input, output, len unsafe.Pointer)
+func prefixsum_c_s32_neon(data, plen_data unsafe.Pointer)

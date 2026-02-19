@@ -320,6 +320,11 @@ func Parse(filename string) (*ParseResult, error) {
 		}
 	}
 
+	// Scan sibling *_base.go files for functions that can be inlined as helpers.
+	// This enables cross-file helper resolution within the same package, e.g.,
+	// BaseNormalize (normalize_base.go) calling BaseDot (dot_base.go).
+	scanPackageFuncs(filename, result)
+
 	// Scan sibling .go files for package-level struct types (needed before globals)
 	result.PackageStructs = scanPackageStructs(filename)
 
@@ -1044,6 +1049,110 @@ func GetTypeSuffix(elemType string) string {
 		return "u64"
 	default:
 		return "f32"
+	}
+}
+
+// scanPackageFuncs scans sibling *_base.go files in the same directory as
+// filename and merges their functions into result.AllFuncs. This enables
+// cross-file helper inlining within the same package — e.g., BaseNormalize
+// (in normalize_base.go) calling BaseDot (in dot_base.go) can discover
+// BaseDot and emit it as a static helper in the generated C file.
+//
+// Only functions not already in AllFuncs are added (the input file's own
+// functions take precedence).
+func scanPackageFuncs(filename string, result *ParseResult) {
+	dir := filepath.Dir(filename)
+	base := filepath.Base(filename)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	fset := token.NewFileSet()
+	for _, entry := range entries {
+		name := entry.Name()
+		// Only scan *_base.go files (the convention for hwygen input)
+		if entry.IsDir() || !strings.HasSuffix(name, "_base.go") {
+			continue
+		}
+		// Skip the input file itself (already parsed)
+		if name == base {
+			continue
+		}
+		// Skip test files
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+
+		path := filepath.Join(dir, name)
+		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if err != nil {
+			continue
+		}
+
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*ast.FuncDecl)
+			if !ok || funcDecl.Recv != nil || funcDecl.Body == nil {
+				continue
+			}
+			funcName := funcDecl.Name.Name
+			// Don't overwrite functions from the input file
+			if _, exists := result.AllFuncs[funcName]; exists {
+				continue
+			}
+
+			pf := ParsedFunc{
+				Name: funcName,
+				Body: funcDecl.Body,
+			}
+
+			// Parse type params
+			if funcDecl.Type.TypeParams != nil {
+				for _, field := range funcDecl.Type.TypeParams.List {
+					constraint := exprToString(field.Type)
+					for _, name := range field.Names {
+						pf.TypeParams = append(pf.TypeParams, TypeParam{
+							Name:       name.Name,
+							Constraint: constraint,
+						})
+					}
+				}
+			}
+
+			// Parse params
+			if funcDecl.Type.Params != nil {
+				for _, field := range funcDecl.Type.Params.List {
+					typeStr := exprToString(field.Type)
+					if len(field.Names) == 0 {
+						pf.Params = append(pf.Params, Param{Name: "_", Type: typeStr})
+					} else {
+						for _, n := range field.Names {
+							pf.Params = append(pf.Params, Param{Name: n.Name, Type: typeStr})
+						}
+					}
+				}
+			}
+
+			// Parse returns
+			if funcDecl.Type.Results != nil {
+				for _, field := range funcDecl.Type.Results.List {
+					typeStr := exprToString(field.Type)
+					if len(field.Names) == 0 {
+						pf.Returns = append(pf.Returns, Param{Name: "", Type: typeStr})
+					} else {
+						for _, n := range field.Names {
+							pf.Returns = append(pf.Returns, Param{Name: n.Name, Type: typeStr})
+						}
+					}
+				}
+			}
+
+			// Find hwy calls
+			pf.HwyCalls = findHwyCalls(funcDecl.Body)
+
+			result.AllFuncs[funcName] = &pf
+		}
 	}
 }
 

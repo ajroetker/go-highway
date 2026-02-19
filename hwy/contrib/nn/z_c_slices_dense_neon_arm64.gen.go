@@ -18,10 +18,14 @@ func initDenseNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	DenseFloat16 = denseAsmF16
-	DenseBFloat16 = denseAsmBF16
 	DenseFloat32 = denseAsmF32
 	DenseFloat64 = denseAsmF64
+	if hwy.HasARMFP16() {
+		DenseFloat16 = denseAsmF16
+	}
+	if hwy.HasARMBF16() {
+		DenseBFloat16 = denseAsmBF16
+	}
 }
 
 func denseAsmF16(x, weight, bias, output []hwy.Float16, batchSize, inFeatures, outFeatures int) {

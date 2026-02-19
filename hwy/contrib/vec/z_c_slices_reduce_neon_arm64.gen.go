@@ -18,6 +18,8 @@ func initReduceNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
+	SumFloat32 = sumAsmF32
+	SumFloat64 = sumAsmF64
 	MinFloat32 = minAsmF32
 	MinFloat64 = minAsmF64
 	MaxFloat32 = maxAsmF32
@@ -29,13 +31,75 @@ func initReduceNeonCAsm() {
 	MinMaxFloat32 = minMaxAsmF32
 	MinMaxFloat64 = minMaxAsmF64
 	if hwy.HasARMFP16() {
+		SumFloat16 = sumAsmF16
 		MinFloat16 = minAsmF16
 		MinMaxFloat16 = minMaxAsmF16
 	}
 	if hwy.HasARMBF16() {
+		SumBFloat16 = sumAsmBF16
 		MinBFloat16 = minAsmBF16
 		MinMaxBFloat16 = minMaxAsmBF16
 	}
+}
+
+func sumAsmF16(v []hwy.Float16) hwy.Float16 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	asm.Sum_F16(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
+}
+
+func sumAsmBF16(v []hwy.BFloat16) hwy.BFloat16 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	asm.Sum_BF16(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
+}
+
+func sumAsmF32(v []float32) float32 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	asm.Sum_F32(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
+func sumAsmF64(v []float64) float64 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	asm.Sum_F64(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
 }
 
 func minAsmF16(v []hwy.Float16) hwy.Float16 {

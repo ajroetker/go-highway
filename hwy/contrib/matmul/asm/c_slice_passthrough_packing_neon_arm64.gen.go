@@ -10,6 +10,11 @@ func PackRHSVec_F16(b unsafe.Pointer, packed unsafe.Pointer, pk unsafe.Pointer, 
 	packrhsvec_c_f16_neon(b, packed, pk, pn, prowStart, pcolStart, ppanelK, ppanelCols, pnr, plen_b, plen_packed, pout_result)
 }
 
+// PackRHSVec_BF16 calls the NEON SIMD assembly implementation.
+func PackRHSVec_BF16(b unsafe.Pointer, packed unsafe.Pointer, pk unsafe.Pointer, pn unsafe.Pointer, prowStart unsafe.Pointer, pcolStart unsafe.Pointer, ppanelK unsafe.Pointer, ppanelCols unsafe.Pointer, pnr unsafe.Pointer, plen_b unsafe.Pointer, plen_packed unsafe.Pointer, pout_result unsafe.Pointer) {
+	packrhsvec_c_bf16_neon(b, packed, pk, pn, prowStart, pcolStart, ppanelK, ppanelCols, pnr, plen_b, plen_packed, pout_result)
+}
+
 // PackRHSVec_F32 calls the NEON SIMD assembly implementation.
 func PackRHSVec_F32(b unsafe.Pointer, packed unsafe.Pointer, pk unsafe.Pointer, pn unsafe.Pointer, prowStart unsafe.Pointer, pcolStart unsafe.Pointer, ppanelK unsafe.Pointer, ppanelCols unsafe.Pointer, pnr unsafe.Pointer, plen_b unsafe.Pointer, plen_packed unsafe.Pointer, pout_result unsafe.Pointer) {
 	packrhsvec_c_f32_neon(b, packed, pk, pn, prowStart, pcolStart, ppanelK, ppanelCols, pnr, plen_b, plen_packed, pout_result)

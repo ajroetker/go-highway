@@ -18,9 +18,14 @@ func initMatmul_blockedNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	BlockedMatMulFloat16 = blockedMatMulAsmF16
 	BlockedMatMulFloat32 = blockedMatMulAsmF32
 	BlockedMatMulFloat64 = blockedMatMulAsmF64
+	if hwy.HasARMFP16() {
+		BlockedMatMulFloat16 = blockedMatMulAsmF16
+	}
+	if hwy.HasARMBF16() {
+		BlockedMatMulBFloat16 = blockedMatMulAsmBF16
+	}
 }
 
 func blockedMatMulAsmF16(a, b, c []hwy.Float16, m, n, k int) {
@@ -43,6 +48,38 @@ func blockedMatMulAsmF16(a, b, c []hwy.Float16, m, n, k int) {
 	len_bVal := int64(len(b))
 	len_cVal := int64(len(c))
 	asm.BlockedMatMul_F16(
+		p_a,
+		p_b,
+		p_c,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+func blockedMatMulAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	asm.BlockedMatMul_BF16(
 		p_a,
 		p_b,
 		p_c,

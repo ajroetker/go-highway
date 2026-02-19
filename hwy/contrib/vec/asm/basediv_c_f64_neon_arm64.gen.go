@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func div_c_f64_neon(input, output, len unsafe.Pointer)
+func div_c_f64_neon(dst, s, plen_dst unsafe.Pointer)

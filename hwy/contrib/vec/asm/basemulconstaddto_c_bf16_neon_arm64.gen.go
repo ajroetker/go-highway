@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func mulconstaddto_c_bf16_neon(input, output, len unsafe.Pointer)
+func mulconstaddto_c_bf16_neon(dst, pa, x, plen_dst unsafe.Pointer)

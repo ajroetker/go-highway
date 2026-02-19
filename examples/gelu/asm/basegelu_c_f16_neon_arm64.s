@@ -160,8 +160,6 @@ BB0_3:
 	WORD $0x3ce4683e // ldr	q30, [x1, x4]
 	WORD $0x6e401fdf // fmul.8h	v31, v30, v0
 	WORD $0x0e217be8 // fcvtl	v8.4s, v31.4h
-	WORD $0x6e1f43ff // ext.16b	v31, v31, v31, #8
-	WORD $0x0e217bff // fcvtl	v31.4s, v31.4h
 	WORD $0x4ea0f909 // fabs.4s	v9, v8
 	WORD $0x4ea0e90a // fcmlt.4s	v10, v8, #0.0
 	WORD $0x4eb71eeb // mov.16b	v11, v23
@@ -208,6 +206,9 @@ BB0_3:
 	WORD $0x4ea8d6e8 // fsub.4s	v8, v23, v8
 	WORD $0x6ea0f909 // fneg.4s	v9, v8
 	WORD $0x6eaa1d28 // bit.16b	v8, v9, v10
+	WORD $0x0e216908 // fcvtn	v8.4h, v8.4s
+	WORD $0x6e1f43ff // ext.16b	v31, v31, v31, #8
+	WORD $0x0e217bff // fcvtl	v31.4s, v31.4h
 	WORD $0x4ea0fbe9 // fabs.4s	v9, v31
 	WORD $0x4ea0ebea // fcmlt.4s	v10, v31, #0.0
 	WORD $0x4eb71eeb // mov.16b	v11, v23
@@ -254,7 +255,6 @@ BB0_3:
 	WORD $0x4ebfd6ff // fsub.4s	v31, v23, v31
 	WORD $0x6ea0fbe9 // fneg.4s	v9, v31
 	WORD $0x6eaa1d3f // bit.16b	v31, v9, v10
-	WORD $0x0e216908 // fcvtn	v8.4h, v8.4s
 	WORD $0x4e216be8 // fcvtn2	v8.8h, v31.4s
 	WORD $0x4e5a151f // fadd.8h	v31, v8, v26
 	WORD $0x6e5b1fff // fmul.8h	v31, v31, v27

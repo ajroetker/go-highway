@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func scale_c_f64_neon(input, output, len unsafe.Pointer)
+func scale_c_f64_neon(pc, dst, plen_dst unsafe.Pointer)

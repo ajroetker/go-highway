@@ -25,36 +25,6 @@ func LiftPredict53_S64(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor uns
 	liftpredict53_c_s64_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor)
 }
 
-// LiftStep97_F16 calls the NEON SIMD assembly implementation.
-func LiftStep97_F16(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pcoeff unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
-	liftstep97_c_f16_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
-}
-
-// LiftStep97_F32 calls the NEON SIMD assembly implementation.
-func LiftStep97_F32(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pcoeff unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
-	liftstep97_c_f32_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
-}
-
-// LiftStep97_F64 calls the NEON SIMD assembly implementation.
-func LiftStep97_F64(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pcoeff unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
-	liftstep97_c_f64_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
-}
-
-// ScaleSlice_F16 calls the NEON SIMD assembly implementation.
-func ScaleSlice_F16(data unsafe.Pointer, pn unsafe.Pointer, pscale unsafe.Pointer, plen_data unsafe.Pointer) {
-	scaleslice_c_f16_neon(data, pn, pscale, plen_data)
-}
-
-// ScaleSlice_F32 calls the NEON SIMD assembly implementation.
-func ScaleSlice_F32(data unsafe.Pointer, pn unsafe.Pointer, pscale unsafe.Pointer, plen_data unsafe.Pointer) {
-	scaleslice_c_f32_neon(data, pn, pscale, plen_data)
-}
-
-// ScaleSlice_F64 calls the NEON SIMD assembly implementation.
-func ScaleSlice_F64(data unsafe.Pointer, pn unsafe.Pointer, pscale unsafe.Pointer, plen_data unsafe.Pointer) {
-	scaleslice_c_f64_neon(data, pn, pscale, plen_data)
-}
-
 // Synthesize53Core_S32 calls the NEON SIMD assembly implementation.
 func Synthesize53Core_S32(data unsafe.Pointer, pn unsafe.Pointer, low unsafe.Pointer, psn unsafe.Pointer, high unsafe.Pointer, pdn unsafe.Pointer, pphase unsafe.Pointer, plen_data unsafe.Pointer, plen_low unsafe.Pointer, plen_high unsafe.Pointer) {
 	synthesize53core_c_s32_neon(data, pn, low, psn, high, pdn, pphase, plen_data, plen_low, plen_high)

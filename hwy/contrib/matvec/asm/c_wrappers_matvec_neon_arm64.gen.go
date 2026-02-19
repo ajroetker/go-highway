@@ -10,8 +10,8 @@ import (
 )
 
 // Public wrapper functions
-// MatCF16 computes MatVec using NEON SIMD assembly.
-func MatCF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
+// MatVecCF16 computes MatVec using NEON SIMD assembly.
+func MatVecCF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])
@@ -41,8 +41,8 @@ func MatCF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
 	)
 }
 
-// MatCBF16 computes MatVec using NEON SIMD assembly.
-func MatCBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
+// MatVecCBF16 computes MatVec using NEON SIMD assembly.
+func MatVecCBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])
@@ -72,8 +72,8 @@ func MatCBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
 	)
 }
 
-// MatCF32 computes MatVec using NEON SIMD assembly.
-func MatCF32(m []float32, rows, cols int, v, result []float32) {
+// MatVecCF32 computes MatVec using NEON SIMD assembly.
+func MatVecCF32(m []float32, rows, cols int, v, result []float32) {
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])
@@ -103,8 +103,8 @@ func MatCF32(m []float32, rows, cols int, v, result []float32) {
 	)
 }
 
-// MatCF64 computes MatVec using NEON SIMD assembly.
-func MatCF64(m []float64, rows, cols int, v, result []float64) {
+// MatVecCF64 computes MatVec using NEON SIMD assembly.
+func MatVecCF64(m []float64, rows, cols int, v, result []float64) {
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])

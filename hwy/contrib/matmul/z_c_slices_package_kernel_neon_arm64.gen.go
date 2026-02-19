@@ -18,15 +18,22 @@ func initPackage_kernelNeonCAsm() {
 	if hwy.NoSimdEnv() || hwy.HasSME() {
 		return
 	}
-	PackedMicroKernelFloat16 = packedMicroKernelAsmF16
 	PackedMicroKernelFloat32 = packedMicroKernelAsmF32
 	PackedMicroKernelFloat64 = packedMicroKernelAsmF64
-	packedMicroKernelGeneralFloat16 = packedMicroKernelGeneralAsmF16
 	packedMicroKernelGeneralFloat32 = packedMicroKernelGeneralAsmF32
 	packedMicroKernelGeneralFloat64 = packedMicroKernelGeneralAsmF64
-	PackedMicroKernelPartialFloat16 = packedMicroKernelPartialAsmF16
 	PackedMicroKernelPartialFloat32 = packedMicroKernelPartialAsmF32
 	PackedMicroKernelPartialFloat64 = packedMicroKernelPartialAsmF64
+	if hwy.HasARMFP16() {
+		PackedMicroKernelFloat16 = packedMicroKernelAsmF16
+		packedMicroKernelGeneralFloat16 = packedMicroKernelGeneralAsmF16
+		PackedMicroKernelPartialFloat16 = packedMicroKernelPartialAsmF16
+	}
+	if hwy.HasARMBF16() {
+		PackedMicroKernelBFloat16 = packedMicroKernelAsmBF16
+		packedMicroKernelGeneralBFloat16 = packedMicroKernelGeneralAsmBF16
+		PackedMicroKernelPartialBFloat16 = packedMicroKernelPartialAsmBF16
+	}
 }
 
 func packedMicroKernelAsmF16(packedA, packedB, c []hwy.Float16, n, ir, jr, kc, mr, nr int) {
@@ -52,6 +59,44 @@ func packedMicroKernelAsmF16(packedA, packedB, c []hwy.Float16, n, ir, jr, kc, m
 	len_packedBVal := int64(len(packedB))
 	len_cVal := int64(len(c))
 	asm.PackedMicroKernel_F16(
+		p_packedA,
+		p_packedB,
+		p_c,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&irVal),
+		unsafe.Pointer(&jrVal),
+		unsafe.Pointer(&kcVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&nrVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+func packedMicroKernelAsmBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	nVal := int64(n)
+	irVal := int64(ir)
+	jrVal := int64(jr)
+	kcVal := int64(kc)
+	mrVal := int64(mr)
+	nrVal := int64(nr)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_cVal := int64(len(c))
+	asm.PackedMicroKernel_BF16(
 		p_packedA,
 		p_packedB,
 		p_c,
@@ -181,6 +226,44 @@ func packedMicroKernelGeneralAsmF16(packedA, packedB, c []hwy.Float16, n, ir, jr
 	)
 }
 
+func packedMicroKernelGeneralAsmBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	nVal := int64(n)
+	irVal := int64(ir)
+	jrVal := int64(jr)
+	kcVal := int64(kc)
+	mrVal := int64(mr)
+	nrVal := int64(nr)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_cVal := int64(len(c))
+	asm.PackedMicroKernelGeneral_BF16(
+		p_packedA,
+		p_packedB,
+		p_c,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&irVal),
+		unsafe.Pointer(&jrVal),
+		unsafe.Pointer(&kcVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&nrVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
 func packedMicroKernelGeneralAsmF32(packedA, packedB, c []float32, n, ir, jr, kc, mr, nr int) {
 	var p_packedA unsafe.Pointer
 	if len(packedA) > 0 {
@@ -282,6 +365,48 @@ func packedMicroKernelPartialAsmF16(packedA, packedB, c []hwy.Float16, n, ir, jr
 	len_packedBVal := int64(len(packedB))
 	len_cVal := int64(len(c))
 	asm.PackedMicroKernelPartial_F16(
+		p_packedA,
+		p_packedB,
+		p_c,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&irVal),
+		unsafe.Pointer(&jrVal),
+		unsafe.Pointer(&kcVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&nrVal),
+		unsafe.Pointer(&activeRowsVal),
+		unsafe.Pointer(&activeColsVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+func packedMicroKernelPartialAsmBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr, activeRows, activeCols int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	nVal := int64(n)
+	irVal := int64(ir)
+	jrVal := int64(jr)
+	kcVal := int64(kc)
+	mrVal := int64(mr)
+	nrVal := int64(nr)
+	activeRowsVal := int64(activeRows)
+	activeColsVal := int64(activeCols)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_cVal := int64(len(c))
+	asm.PackedMicroKernelPartial_BF16(
 		p_packedA,
 		p_packedB,
 		p_c,

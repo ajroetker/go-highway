@@ -79,6 +79,11 @@ type CASTTranslator struct {
 	// that are slices. When calling a helper, the translator appends the
 	// corresponding len_<name> variables for each slice argument.
 	helperSliceParams map[string][]int
+
+	// helperReturnVec tracks helper functions that return hwy.Vec[T].
+	// inferCallType uses this to assign the correct vector type to results
+	// of helper function calls (instead of defaulting to scalar).
+	helperReturnVec map[string]bool
 }
 
 // deferredAccum tracks a scalar variable being replaced by a vector accumulator
@@ -161,6 +166,7 @@ type cParamInfo struct {
 	cType           string // "float *", "long *", "ImageF32 *"
 	isSlice         bool
 	isInt           bool
+	isVector        bool   // true for hwy.Vec[T] parameters (helper functions only)
 	isStructPtr     bool   // true for generic struct pointer parameters (e.g., *Image[T])
 	structElemCType string // "float", "double" - element type for struct's data field
 }
@@ -179,6 +185,7 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 		widenedVars:         make(map[string]bool),
 		requiredStructTypes: make(map[string]structTypeInfo),
 		helperSliceParams:   make(map[string][]int),
+		helperReturnVec:     make(map[string]bool),
 		buf:                 &bytes.Buffer{},
 	}
 }
@@ -818,6 +825,13 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 					info.cType = scalarCType + " *"
 				}
 			}
+		} else if strings.HasPrefix(p.Type, "hwy.Vec[") {
+			// Vector param — used by helper functions inlined in the caller's C file.
+			// These never cross the Go/assembly boundary, so passing vector register
+			// types (float32x4_t etc.) is safe within a single compilation unit.
+			info.cName = p.Name
+			info.cType = t.profile.VecTypes[t.tier]
+			info.isVector = true
 		} else if strings.HasPrefix(p.Type, "*") && isGoScalarIntType(p.Type[1:]) {
 			// Pointer-to-scalar-int param (e.g. *int, *int64) — used by helper
 			// functions that modify counters by reference.
@@ -1074,7 +1088,18 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 	// Determine return type
 	retType := "void"
 	if t.helperMode && len(pf.Returns) > 0 {
-		retType = "long" // Go int return → C long
+		ret := pf.Returns[0]
+		if strings.HasPrefix(ret.Type, "hwy.Vec[") {
+			retType = t.profile.VecTypes[t.tier]
+		} else if isGoScalarIntType(ret.Type) {
+			retType = "long"
+		} else if ret.Type == "float32" {
+			retType = "float"
+		} else if ret.Type == "float64" {
+			retType = "double"
+		} else {
+			retType = "long"
+		}
 	}
 
 	if t.profile.FuncAttrs != "" {
@@ -1598,6 +1623,7 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 				cType := parts[0]
 				arrLen := parts[1]
 				t.vars[lhsName] = cVarInfo{cType: cType + " *", isPtr: true}
+				t.sliceLenVars[lhsName] = arrLen
 				t.writef("%s %s[%s];\n", cType, lhsName, arrLen)
 				return
 			}
@@ -2039,11 +2065,17 @@ func (t *CASTTranslator) translateExprStmt(s *ast.ExprStmt) {
 	}
 
 	// Check for BaseApply(in, out, mathFunc) → inline the load-transform-store loop
+	// Matches both unqualified BaseApply(...) and qualified algo.BaseApply(...)
+	isBaseApply := false
 	if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "BaseApply" {
-		if len(call.Args) == 3 {
-			t.emitInlinedBaseApply(call.Args)
-			return
-		}
+		isBaseApply = true
+	}
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "BaseApply" {
+		isBaseApply = true
+	}
+	if isBaseApply && len(call.Args) == 3 {
+		t.emitInlinedBaseApply(call.Args)
+		return
 	}
 
 	// Generic function call
@@ -2610,8 +2642,9 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		if sliceIndices, ok := t.helperSliceParams[ident.Name]; ok {
 			for _, idx := range sliceIndices {
 				if idx < len(e.Args) {
-					if argIdent, ok := e.Args[idx].(*ast.Ident); ok {
-						if lenVar, ok := t.sliceLenVars[argIdent.Name]; ok {
+					sliceName := sliceArgBaseName(e.Args[idx])
+					if sliceName != "" {
+						if lenVar, ok := t.sliceLenVars[sliceName]; ok {
 							args = append(args, lenVar)
 						}
 					}
@@ -2620,6 +2653,22 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		}
 	}
 	return fmt.Sprintf("%s(%s)", fun, strings.Join(args, ", "))
+}
+
+// sliceArgBaseName extracts the underlying slice identifier name from an
+// argument expression. Handles both simple identifiers (src) and slice
+// expressions (src[:n], src[i:]). Returns "" if the base name can't be
+// determined.
+func sliceArgBaseName(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.SliceExpr:
+		if ident, ok := e.X.(*ast.Ident); ok {
+			return ident.Name
+		}
+	}
+	return ""
 }
 
 // extractSelectorExpr extracts the SelectorExpr from a call expression's Fun,
@@ -4232,6 +4281,14 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 	// Check for hwy.Func calls
 	if sel := extractSelectorExpr(e.Fun); sel != nil {
 		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
+			// Scalar-returning functions must be checked before the type parameter
+			// override below, which would incorrectly return a vector type for
+			// calls like hwy.NumLanes[uint8]().
+			switch sel.Sel.Name {
+			case "MaxLanes", "NumLanes", "GetLane":
+				return cVarInfo{cType: "long"}
+			}
+
 			// Check for explicit type parameter that overrides the profile's vector type.
 			// e.g., hwy.LoadSlice[uint8](...) on a uint32 profile → uint8x16_t
 			if idx, ok := e.Fun.(*ast.IndexExpr); ok {
@@ -4303,8 +4360,6 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 					return cVarInfo{cType: accType, isVector: true}
 				}
 				return cVarInfo{cType: vecType, isVector: true}
-			case "MaxLanes", "GetLane":
-				return cVarInfo{cType: "long"}
 			}
 		}
 	}
@@ -4411,6 +4466,13 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 		// min/max: infer from first argument
 		if (ident.Name == "min" || ident.Name == "max") && len(e.Args) > 0 {
 			return t.inferType(e.Args[0])
+		}
+	}
+
+	// Check if this is a call to a helper function that returns Vec[T].
+	if ident, ok := e.Fun.(*ast.Ident); ok {
+		if t.helperReturnVec[ident.Name] {
+			return cVarInfo{cType: t.profile.VecTypes[t.tier], isVector: true}
 		}
 	}
 

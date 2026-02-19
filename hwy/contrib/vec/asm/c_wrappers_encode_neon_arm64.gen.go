@@ -6,47 +6,87 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
-// EncodeFloat32sCU8 computes BaseEncodeFloat32s for entire arrays using NEON SIMD.
-func EncodeFloat32sCU8(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// EncodeFloat32sCU8 computes EncodeFloat32s using NEON SIMD assembly.
+func EncodeFloat32sCU8(dst []byte, src []float32) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	encodefloat32s_c_u8_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	encodefloat32s_c_u8_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// DecodeFloat32sCF32 computes BaseDecodeFloat32s for entire arrays using NEON SIMD.
-func DecodeFloat32sCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// DecodeFloat32sCF32 computes DecodeFloat32s using NEON SIMD assembly.
+func DecodeFloat32sCF32(dst []float32, src []byte) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	decodefloat32s_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	decodefloat32s_c_f32_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// EncodeFloat64sCU8 computes BaseEncodeFloat64s for entire arrays using NEON SIMD.
-func EncodeFloat64sCU8(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// EncodeFloat64sCU8 computes EncodeFloat64s using NEON SIMD assembly.
+func EncodeFloat64sCU8(dst []byte, src []float64) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	encodefloat64s_c_u8_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	encodefloat64s_c_u8_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// DecodeFloat64sCF64 computes BaseDecodeFloat64s for entire arrays using NEON SIMD.
-func DecodeFloat64sCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
+// DecodeFloat64sCF64 computes DecodeFloat64s using NEON SIMD assembly.
+func DecodeFloat64sCF64(dst []float64, src []byte) {
+	if len(dst) == 0 {
+		return
 	}
-	n := int64(len(input))
-	decodefloat64s_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	lenVal := int64(len(dst))
+	decodefloat64s_c_f64_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&lenVal),
+	)
 }
 

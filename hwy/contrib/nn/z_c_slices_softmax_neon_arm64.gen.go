@@ -22,17 +22,13 @@ func initSoftmaxNeonCAsm() {
 	SoftmaxFloat64 = softmaxAsmF64
 	LogSoftmaxFloat32 = logSoftmaxAsmF32
 	LogSoftmaxFloat64 = logSoftmaxAsmF64
-	SoftmaxWithTemperatureFloat32 = softmaxWithTemperatureAsmF32
-	SoftmaxWithTemperatureFloat64 = softmaxWithTemperatureAsmF64
 	if hwy.HasARMFP16() {
 		SoftmaxFloat16 = softmaxAsmF16
 		LogSoftmaxFloat16 = logSoftmaxAsmF16
-		SoftmaxWithTemperatureFloat16 = softmaxWithTemperatureAsmF16
 	}
 	if hwy.HasARMBF16() {
 		SoftmaxBFloat16 = softmaxAsmBF16
 		LogSoftmaxBFloat16 = logSoftmaxAsmBF16
-		SoftmaxWithTemperatureBFloat16 = softmaxWithTemperatureAsmBF16
 	}
 }
 
@@ -168,82 +164,6 @@ func logSoftmaxAsmF64(input, output []float64) {
 	asm.LogSoftmax_F64(
 		p_input,
 		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxWithTemperatureAsmF16(input, output []hwy.Float16, temperature hwy.Float16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	temperatureVal := uint16(temperature)
-	lenVal := int64(len(input))
-	asm.SoftmaxWithTemperature_F16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&temperatureVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxWithTemperatureAsmBF16(input, output []hwy.BFloat16, temperature hwy.BFloat16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	temperatureVal := uint16(temperature)
-	lenVal := int64(len(input))
-	asm.SoftmaxWithTemperature_BF16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&temperatureVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxWithTemperatureAsmF32(input, output []float32, temperature float32) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	temperatureVal := temperature
-	lenVal := int64(len(input))
-	asm.SoftmaxWithTemperature_F32(
-		p_input,
-		p_output,
-		unsafe.Pointer(&temperatureVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxWithTemperatureAsmF64(input, output []float64, temperature float64) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	temperatureVal := temperature
-	lenVal := int64(len(input))
-	asm.SoftmaxWithTemperature_F64(
-		p_input,
-		p_output,
-		unsafe.Pointer(&temperatureVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
