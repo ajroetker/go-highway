@@ -116,7 +116,7 @@ BB0_13:
 	BNE  BB0_13
 
 BB0_14:
-	WORD $0xb400012a // cbz	x10, LBB0_17
+	CBZ  R10, BB0_17
 	WORD $0xd280000f // mov	x15, #0                         ; =0x0
 	WORD $0xeb0c013f // cmp	x9, x12
 	WORD $0x9a8cb12d // csel	x13, x9, x12, lt
@@ -235,7 +235,7 @@ BB0_27:
 
 BB0_29:
 	WORD $0xd280000e // mov	x14, #0                         ; =0x0
-	WORD $0xb400010a // cbz	x10, LBB0_32
+	CBZ  R10, BB0_32
 	WORD $0xeb08013f // cmp	x9, x8
 	WORD $0x9a88b12c // csel	x12, x9, x8, lt
 	WORD $0xb27e01cd // orr	x13, x14, #0x4
@@ -327,7 +327,7 @@ BB0_41:
 BB0_42:
 	WORD $0xeb08013f // cmp	x9, x8
 	WORD $0x9a88b12b // csel	x11, x9, x8, lt
-	WORD $0xb4000a6a // cbz	x10, LBB0_57
+	CBZ  R10, BB0_57
 	WORD $0xf100056a // subs	x10, x11, #1
 	BLT  BB0_51
 	WORD $0xd280000d // mov	x13, #0                         ; =0x0

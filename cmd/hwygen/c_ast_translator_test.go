@@ -366,3 +366,103 @@ func TestEmitFuncSignature_VecReturn(t *testing.T) {
 		t.Errorf("expected Vec return type in signature, got: %s", output)
 	}
 }
+
+// TestTryEvalConstInt verifies constant-folding of integer expressions.
+func TestTryEvalConstInt(t *testing.T) {
+	profile := testProfile(t, "float32")
+	translator := NewCASTTranslator(profile, "float32")
+	translator.constVars["lanes"] = 4
+
+	tests := []struct {
+		name string
+		expr string
+		want int
+		ok   bool
+	}{
+		{"literal 4", "4", 4, true},
+		{"literal 0", "0", 0, true},
+		{"known var", "lanes", 4, true},
+		{"lanes - 1", "lanes - 1", 3, true},
+		{"lanes * 2", "lanes * 2", 8, true},
+		{"lanes * 2 - 1", "lanes * 2 - 1", 7, true},
+		{"parenthesized", "(lanes - 1)", 3, true},
+		{"unknown var", "i", 0, false},
+		{"mixed unknown", "lanes + i", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expr, err := parser.ParseExpr(tt.expr)
+			if err != nil {
+				t.Fatalf("parse %q: %v", tt.expr, err)
+			}
+			got, ok := translator.tryEvalConstInt(expr)
+			if ok != tt.ok {
+				t.Errorf("tryEvalConstInt(%q) ok = %v, want %v", tt.expr, ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Errorf("tryEvalConstInt(%q) = %d, want %d", tt.expr, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestGetLaneLanesMinusOne verifies that hwy.GetLane(v, lanes-1) emits a
+// direct intrinsic call (vgetq_lane_f32) instead of the store-to-stack fallback.
+func TestGetLaneLanesMinusOne(t *testing.T) {
+	profile := testProfile(t, "float32")
+	translator := NewCASTTranslator(profile, "float32")
+	// Simulate: lanes := hwy.NumLanes[float32]() — record lanes=4
+	translator.constVars["lanes"] = 4
+
+	// Parse: last := hwy.GetLane(v, lanes-1)
+	src := `package p; func f() { last := hwy.GetLane(v, lanes-1) ; _ = last }`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	assignStmt := funcDecl.Body.List[0].(*ast.AssignStmt)
+
+	// Register "v" as a vector variable so translateExpr works
+	translator.vars["v"] = cVarInfo{cType: "float32x4_t", isVector: true}
+
+	translator.translateAssignStmt(assignStmt)
+	output := translator.buf.String()
+
+	if !strings.Contains(output, "vgetq_lane_f32(v, 3)") {
+		t.Errorf("expected vgetq_lane_f32(v, 3), got: %s", output)
+	}
+	if strings.Contains(output, "_getlane_buf") {
+		t.Errorf("should not use store-to-stack pattern, got: %s", output)
+	}
+}
+
+// TestGetLaneVariableIndex verifies that GetLane with a truly variable index
+// (not constant-foldable) still uses the store-to-stack fallback.
+func TestGetLaneVariableIndex(t *testing.T) {
+	profile := testProfile(t, "float32")
+	translator := NewCASTTranslator(profile, "float32")
+
+	// Parse: elem := hwy.GetLane(v, i)
+	src := `package p; func f() { elem := hwy.GetLane(v, i) ; _ = elem }`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	assignStmt := funcDecl.Body.List[0].(*ast.AssignStmt)
+
+	translator.vars["v"] = cVarInfo{cType: "float32x4_t", isVector: true}
+
+	translator.translateAssignStmt(assignStmt)
+	output := translator.buf.String()
+
+	if !strings.Contains(output, "_getlane_buf") {
+		t.Errorf("expected store-to-stack pattern for variable index, got: %s", output)
+	}
+}

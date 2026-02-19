@@ -15,7 +15,7 @@ func init() {
 }
 
 func initPackage_kernelNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	PackedMicroKernelFloat32 = packedMicroKernelAsmF32

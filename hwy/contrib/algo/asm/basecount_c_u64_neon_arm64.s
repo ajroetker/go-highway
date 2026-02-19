@@ -12,7 +12,7 @@ TEXT ·count_c_u64_neon(SB), $0-32
 	MOVD plen_slice+16(FP), R2
 	MOVD pout_result+24(FP), R3
 	WORD $0xf940004a            // ldr	x10, [x2]
-	WORD $0xb400014a            // cbz	x10, LBB0_4
+	CBZ  R10, BB0_4
 	WORD $0xf9400028            // ldr	x8, [x1]
 	WORD $0xf100095f            // cmp	x10, #2
 	BGE  BB0_5

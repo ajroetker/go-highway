@@ -44,7 +44,7 @@ TEXT ·packrhsvec_c_bf16_neon(SB), $80-96
 	WORD $0xf100217f            // cmp	x11, #8
 	BLT  BB0_10
 	WORD $0x92400962            // and	x2, x11, #0x7
-	WORD $0xb5000462            // cbnz	x2, LBB0_10
+	CBNZ R2, BB0_10
 	WORD $0xf100063f            // cmp	x17, #1
 	BLT  BB0_29
 	WORD $0xf100053f            // cmp	x9, #1

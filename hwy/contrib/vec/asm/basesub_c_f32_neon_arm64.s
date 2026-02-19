@@ -11,7 +11,7 @@ TEXT ·sub_c_f32_neon(SB), $0-24
 	MOVD s+8(FP), R1
 	MOVD plen_dst+16(FP), R2
 	WORD $0xf9400048         // ldr	x8, [x2]
-	WORD $0xb4000388         // cbz	x8, LBB0_8
+	CBZ  R8, BB0_8
 	WORD $0xf100111f         // cmp	x8, #4
 	BGE  BB0_3
 	WORD $0xd280000c         // mov	x12, #0                         ; =0x0

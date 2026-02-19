@@ -245,7 +245,7 @@ BB0_17:
 	WORD $0xf2c03419 // movk	x25, #416, lsl #32
 	WORD $0xf2e7df59 // movk	x25, #16122, lsl #48
 	WORD $0xf9403fe5 // ldr	x5, [sp, #120]                  ; 8-byte Folded Reload
-	WORD $0xb4000fca // cbz	x10, LBB0_34
+	CBZ  R10, BB0_34
 	WORD $0xf100213f // cmp	x9, #8
 	BGE  BB0_30
 	WORD $0xd280000c // mov	x12, #0                         ; =0x0

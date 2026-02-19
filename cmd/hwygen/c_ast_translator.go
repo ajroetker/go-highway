@@ -84,6 +84,12 @@ type CASTTranslator struct {
 	// inferCallType uses this to assign the correct vector type to results
 	// of helper function calls (instead of defaulting to scalar).
 	helperReturnVec map[string]bool
+
+	// constVars maps variable names to their known constant integer values.
+	// Populated when translating hwy.NumLanes/MaxLanes assignments (e.g.,
+	// "lanes" → 4). Used by tryEvalConstInt to constant-fold expressions
+	// like lanes-1 in GetLane index arguments.
+	constVars map[string]int
 }
 
 // deferredAccum tracks a scalar variable being replaced by a vector accumulator
@@ -186,6 +192,7 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 		requiredStructTypes: make(map[string]structTypeInfo),
 		helperSliceParams:   make(map[string][]int),
 		helperReturnVec:     make(map[string]bool),
+		constVars:           make(map[string]int),
 		buf:                 &bytes.Buffer{},
 	}
 }
@@ -881,9 +888,9 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 		return
 	}
 
-	if !hasExplicitSize {
-		// No explicit int params: add a single shared length parameter.
-		// All slices are assumed same length.
+	if !hasExplicitSize && !hasMixedSliceTypes(pf) {
+		// No explicit int params and all slices have the same element type:
+		// add a single shared length parameter.
 		var firstSlice string
 		for _, p := range pf.Params {
 			if strings.HasPrefix(p.Type, "[]") {
@@ -926,9 +933,9 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 	}
 
 	// Handle return values as output pointers.
-	// GOAT requires all pointer dereferences to be 64-bit (long/unsigned long),
-	// so we always use "long *" for output pointers. The Go wrapper handles
-	// narrowing (e.g., int64 → uint32).
+	// Use the appropriate C pointer type so that GOAT generates correct
+	// load/store instructions (e.g., float * for float32 results, not long *
+	// which would emit fcvtzs and truncate special values like Inf).
 	t.returnOrder = nil
 	t.returnParams = nil
 	for _, ret := range pf.Returns {
@@ -936,11 +943,12 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 		if name == "" {
 			name = "result"
 		}
+		cType := goReturnTypeToCPtrType(ret.Type, t.elemType)
 		info := cParamInfo{
 			goName: name,
 			goType: ret.Type,
 			cName:  "pout_" + name,
-			cType:  "long *",
+			cType:  cType,
 			isInt:  false, // not dereferenced at top - handled by return stmt
 		}
 		key := "__return_" + name
@@ -983,6 +991,25 @@ func goSliceElemToCType(elemType string, profile *CIntrinsicProfile) string {
 		return profile.CType
 	default:
 		return profile.CType
+	}
+}
+
+// goReturnTypeToCPtrType maps a Go return type to the C pointer type for the
+// output parameter. Float types use float */double * so GOAT generates correct
+// FP load/store instructions instead of integer conversion (fcvtzs).
+// When goType is "T", elemType is used to resolve to the concrete type.
+func goReturnTypeToCPtrType(goType, elemType string) string {
+	resolved := goType
+	if resolved == "T" {
+		resolved = elemType
+	}
+	switch resolved {
+	case "float32":
+		return "float *"
+	case "float64":
+		return "double *"
+	default:
+		return "long *"
 	}
 }
 
@@ -1128,6 +1155,135 @@ func (t *CASTTranslator) lanesExpr() string {
 		}
 	}
 	return fmt.Sprintf("%d", t.lanes)
+}
+
+// tryEvalConstInt tries to evaluate an integer expression to a constant value.
+// It recognizes:
+//   - Integer literals (ast.BasicLit with token.INT)
+//   - Known identifiers (e.g., "lanes" mapped to t.lanes via t.constVars)
+//   - Binary expressions with constant operands (e.g., lanes - 1)
+//   - Parenthesized expressions
+func (t *CASTTranslator) tryEvalConstInt(expr ast.Expr) (int, bool) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		if e.Kind == token.INT {
+			val, err := strconv.Atoi(e.Value)
+			if err == nil {
+				return val, true
+			}
+		}
+	case *ast.Ident:
+		if val, ok := t.constVars[e.Name]; ok {
+			return val, true
+		}
+	case *ast.BinaryExpr:
+		left, lok := t.tryEvalConstInt(e.X)
+		right, rok := t.tryEvalConstInt(e.Y)
+		if lok && rok {
+			switch e.Op {
+			case token.ADD:
+				return left + right, true
+			case token.SUB:
+				return left - right, true
+			case token.MUL:
+				return left * right, true
+			}
+		}
+	case *ast.ParenExpr:
+		return t.tryEvalConstInt(e.X)
+	}
+	return 0, false
+}
+
+// isNumLanesCall reports whether expr is a call to hwy.NumLanes[T](),
+// hwy.MaxLanes[T](), v.NumLanes(), or v.NumElements().
+func (t *CASTTranslator) isNumLanesCall(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	// hwy.NumLanes[T]() or hwy.MaxLanes[T]()
+	if sel := extractSelectorExpr(call.Fun); sel != nil {
+		if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
+			return sel.Sel.Name == "NumLanes" || sel.Sel.Name == "MaxLanes"
+		}
+	}
+	// v.NumLanes() or v.NumElements() method call
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		return sel.Sel.Name == "NumLanes" || sel.Sel.Name == "NumElements"
+	}
+	return false
+}
+
+// numLanesCallLanes returns the correct lane count for a NumLanes/MaxLanes call,
+// taking into account the type parameter (e.g., hwy.NumLanes[uint8]() → 16 on NEON).
+// For method calls like v.NumLanes(), returns t.lanes (the dispatch type's lane count).
+func (t *CASTTranslator) numLanesCallLanes(expr ast.Expr) int {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return t.lanes
+	}
+	// Check for hwy.NumLanes[T]() with explicit type parameter via IndexExpr
+	if idx, ok := call.Fun.(*ast.IndexExpr); ok {
+		if sel, ok := idx.X.(*ast.SelectorExpr); ok {
+			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" {
+				if sel.Sel.Name == "NumLanes" || sel.Sel.Name == "MaxLanes" {
+					if typeName := typeExprToString(idx.Index); typeName != "" {
+						if lanes := t.lanesForType(typeName); lanes > 0 {
+							return lanes
+						}
+					}
+				}
+			}
+		}
+	}
+	return t.lanes
+}
+
+// typeExprToString extracts a Go type name from an AST expression.
+// Handles both plain idents (uint8) and qualified names (hwy.Float16).
+func typeExprToString(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.SelectorExpr:
+		if pkg, ok := e.X.(*ast.Ident); ok {
+			return pkg.Name + "." + e.Sel.Name
+		}
+	}
+	return ""
+}
+
+// lanesForType computes the number of SIMD lanes for an arbitrary element type,
+// based on the vector width implied by the primary tier's dispatch type.
+// Returns 0 if the type is unknown.
+func (t *CASTTranslator) lanesForType(elemType string) int {
+	// Compute vector width from dispatch type
+	vecWidth := t.lanes * goTypeSize(t.elemType)
+	if vecWidth == 0 {
+		return 0
+	}
+	elemSize := goTypeSize(elemType)
+	if elemSize == 0 {
+		return 0
+	}
+	return vecWidth / elemSize
+}
+
+// goTypeSize returns the byte size for a Go type name.
+func goTypeSize(typeName string) int {
+	switch typeName {
+	case "float32", "int32", "uint32":
+		return 4
+	case "float64", "int64", "uint64":
+		return 8
+	case "int16", "uint16", "hwy.Float16", "hwy.BFloat16", "Float16", "BFloat16":
+		return 2
+	case "int8", "uint8", "byte":
+		return 1
+	default:
+		return 0
+	}
 }
 
 // emitNamedReturnDecls emits local variable declarations for named return values.
@@ -1483,12 +1639,30 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 		}
 	}
 
-	// Check for hwy.GetLane with variable index — requires store-to-stack pattern
+	// Check for hwy.GetLane with non-literal index. Try constant-folding
+	// first (e.g., lanes-1 → 3); fall back to store-to-stack for truly
+	// variable indices (loop counters, etc.).
 	if call, ok := rhs.(*ast.CallExpr); ok {
 		if sel := extractSelectorExpr(call.Fun); sel != nil {
 			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "hwy" && sel.Sel.Name == "GetLane" {
 				if len(call.Args) >= 2 {
 					if _, isLit := call.Args[1].(*ast.BasicLit); !isLit {
+						// Try constant-folding the index expression
+						if val, ok := t.tryEvalConstInt(call.Args[1]); ok {
+							lhsName := t.translateExpr(lhs)
+							fn := t.profile.GetLaneFn[t.tier]
+							vec := t.translateExpr(call.Args[0])
+							rhsExpr := fmt.Sprintf("%s(%s, %d)", fn, vec, val)
+							varInfo := cVarInfo{cType: t.profile.CType}
+							if s.Tok == token.DEFINE {
+								t.vars[lhsName] = varInfo
+								t.writef("%s = %s;\n", cDeclVar(varInfo.cType, lhsName), rhsExpr)
+							} else {
+								t.writef("%s = %s;\n", lhsName, rhsExpr)
+							}
+							return
+						}
+						// Truly variable index — use store-to-stack
 						lhsName := t.translateExpr(lhs)
 						t.translateGetLaneVarIndex(lhsName, call.Args, s.Tok)
 						return
@@ -1631,6 +1805,12 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 
 		t.vars[lhsName] = varInfo
 		t.writef("%s = %s;\n", cDeclVar(varInfo.cType, lhsName), rhsStr)
+
+		// Record constant value for NumLanes/MaxLanes assignments to enable
+		// constant-folding in GetLane index expressions (e.g., lanes-1).
+		if t.isNumLanesCall(rhs) {
+			t.constVars[lhsName] = t.numLanesCallLanes(rhs)
+		}
 
 	case token.ASSIGN: // =
 		rhsStr := t.translateExpr(rhs)
@@ -1990,11 +2170,25 @@ func (t *CASTTranslator) translateForPost(stmt ast.Stmt) string {
 // translateRangeStmt translates `for i := range m` to `for (long i = 0; i < m; i++)`.
 // Also handles `for i := range s[:n]` → `for (i = 0; i < n; i++)`.
 func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
-	// `for i := range m` → key is i, X is m
+	// `for range m` (Go 1.22+) — no loop variable, just iterate m times
 	if s.Key == nil {
+		rangeOver := t.translateExpr(s.X)
+		// When ranging over a slice parameter, use the length variable.
+		if ident, ok := s.X.(*ast.Ident); ok {
+			if lenVar, ok := t.sliceLenVars[ident.Name]; ok {
+				rangeOver = lenVar
+			}
+		}
+		t.writef("#pragma clang loop vectorize(disable) interleave(disable)\n")
+		t.writef("for (long _range_i = 0; _range_i < %s; _range_i++) {\n", rangeOver)
+		t.indent++
+		t.translateBlockStmtContents(s.Body)
+		t.indent--
+		t.writef("}\n")
 		return
 	}
 
+	// `for i := range m` → key is i, X is m
 	iter := t.translateExpr(s.Key)
 
 	// For `for i := range s[:high]` or `for i := range s[low:high]`,
@@ -2361,6 +2555,17 @@ func (t *CASTTranslator) translateBasicLit(lit *ast.BasicLit) string {
 func (t *CASTTranslator) translateBinaryExpr(e *ast.BinaryExpr) string {
 	left := t.translateExpr(e.X)
 	right := t.translateExpr(e.Y)
+
+	// In Go, integer literals are 64-bit on arm64. In C, integer literals
+	// like `1` are 32-bit int. `1 << N` for N >= 32 is undefined behavior
+	// in C. Suffix with L to force 64-bit when the left operand of a shift
+	// is a small integer literal.
+	if e.Op == token.SHL || e.Op == token.SHR {
+		if lit, ok := e.X.(*ast.BasicLit); ok && lit.Kind == token.INT {
+			left = left + "L"
+		}
+	}
+
 	return left + " " + e.Op.String() + " " + right
 }
 
@@ -2958,6 +3163,11 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		}
 		return t.emitHwyStoreExpr(args) // same semantics as Store for C
 	case "MaxLanes", "NumLanes":
+		if typeParam != "" {
+			if lanes := t.lanesForType(typeParam); lanes > 0 {
+				return fmt.Sprintf("%d", lanes)
+			}
+		}
 		return t.lanesExpr()
 	case "GetLane":
 		return t.emitHwyGetLane(args)
@@ -3930,8 +4140,17 @@ func (t *CASTTranslator) translateMakeExpr(e *ast.CallExpr) string {
 		return "/* make: insufficient args */"
 	}
 
-	// Second arg is the length
-	length := t.translateExpr(e.Args[1])
+	// Second arg is the length. Try constant-folding first so that
+	// make([]T, lanes) produces a fixed-size C array (e.g. int buf[4])
+	// instead of a VLA (int buf[lanes]). Clang -O3 can merge VLAs to
+	// the same stack address when it thinks lifetimes don't overlap,
+	// producing incorrect results for functions with multiple buffers.
+	var length string
+	if val, ok := t.tryEvalConstInt(e.Args[1]); ok {
+		length = strconv.Itoa(val)
+	} else {
+		length = t.translateExpr(e.Args[1])
+	}
 
 	// Check if the first arg is a slice of hwy.Vec[T]
 	typeStr := exprToString(e.Args[0])

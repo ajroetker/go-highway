@@ -14,8 +14,7 @@ TEXT ·max_c_f64_neon(SB), $0-24
 	WORD $0xf100051f            // cmp	x8, #1
 	BGT  BB0_2
 	WORD $0xfd400000            // ldr	d0, [x0]
-	WORD $0x9e780008            // fcvtzs	x8, d0
-	WORD $0xf9000048            // str	x8, [x2]
+	WORD $0xfd000040            // str	d0, [x2]
 	RET
 
 BB0_2:
@@ -28,8 +27,7 @@ BB0_2:
 	BHI  BB0_8
 
 BB0_4:
-	WORD $0x9e780008 // fcvtzs	x8, d0
-	WORD $0xf9000048 // str	x8, [x2]
+	WORD $0xfd000040 // str	d0, [x2]
 	RET
 
 BB0_5:

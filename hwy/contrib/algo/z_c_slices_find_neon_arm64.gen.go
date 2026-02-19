@@ -15,7 +15,7 @@ func init() {
 }
 
 func initFindNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	FindFloat32 = findAsmF32

@@ -46,7 +46,7 @@ TEXT ·dense_c_f32_neon(SB), $144-88
 	WORD $0xd37ef50c             // lsl	x12, x8, #2
 	WORD $0xd37ced2d             // lsl	x13, x9, #4
 	WORD $0xd37df12e             // lsl	x14, x9, #3
-	WORD $0xb4002a42             // cbz	x2, LBB0_59
+	CBZ  R2, BB0_59
 	WORD $0xf94017e8             // ldr	x8, [sp, #40]                   ; 8-byte Folded Reload
 	WORD $0x91001110             // add	x16, x8, #4
 	WORD $0xd37ef551             // lsl	x17, x10, #2
@@ -160,7 +160,7 @@ BB0_16:
 	WORD $0x9b097d68 // mul	x8, x11, x9
 	WORD $0x8b08086c // add	x12, x3, x8, lsl #2
 	WORD $0xd37ef52d // lsl	x13, x9, #2
-	WORD $0xb4002682 // cbz	x2, LBB0_66
+	CBZ  R2, BB0_66
 	WORD $0xf94017e8 // ldr	x8, [sp, #40]                   ; 8-byte Folded Reload
 	WORD $0x9100210e // add	x14, x8, #8
 	WORD $0xd37ef54f // lsl	x15, x10, #2
@@ -320,7 +320,7 @@ BB0_34:
 	BNE  BB0_34
 
 BB0_35:
-	WORD $0xb4fff982 // cbz	x2, LBB0_29
+	CBZ  R2, BB0_29
 	WORD $0xbc6b7844 // ldr	s4, [x2, x11, lsl #2]
 	WORD $0x1e242800 // fadd	s0, s0, s4
 	WORD $0x1e242821 // fadd	s1, s1, s4
@@ -384,7 +384,7 @@ BB0_44:
 	BNE  BB0_44
 
 BB0_45:
-	WORD $0xb4fffcc2 // cbz	x2, LBB0_40
+	CBZ  R2, BB0_40
 	WORD $0xbc6f7841 // ldr	s1, [x2, x15, lsl #2]
 	WORD $0x1e212800 // fadd	s0, s0, s1
 	B    BB0_40
@@ -393,7 +393,7 @@ BB0_47:
 	WORD $0xd37ced2c // lsl	x12, x9, #4
 	WORD $0xd37df12d // lsl	x13, x9, #3
 	WORD $0x8b090528 // add	x8, x9, x9, lsl #1
-	WORD $0xb40012c2 // cbz	x2, LBB0_73
+	CBZ  R2, BB0_73
 	WORD $0xd280000f // mov	x15, #0                         ; =0x0
 	WORD $0xd37ef50e // lsl	x14, x8, #2
 	WORD $0xaa0303f0 // mov	x16, x3
@@ -425,7 +425,7 @@ BB0_52:
 	WORD $0x9b097d68 // mul	x8, x11, x9
 	WORD $0x8b080868 // add	x8, x3, x8, lsl #2
 	WORD $0xd37ef52a // lsl	x10, x9, #2
-	WORD $0xb40001c2 // cbz	x2, LBB0_56
+	CBZ  R2, BB0_56
 
 BB0_53:
 	WORD $0xaa0203ec // mov	x12, x2

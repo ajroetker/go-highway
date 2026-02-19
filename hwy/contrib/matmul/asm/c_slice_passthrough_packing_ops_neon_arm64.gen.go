@@ -25,6 +25,26 @@ func PackRHSFast_F64(b unsafe.Pointer, packed unsafe.Pointer, pn unsafe.Pointer,
 	packrhsfast_c_f64_neon(b, packed, pn, prowStart, pcolStart, ppanelK, ppanelCols, pnr, plen_b, plen_packed)
 }
 
+// ApplyPackedOutput_F16 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutput_F16(packedOutput unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, pbeta unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutput_c_f16_neon(packedOutput, output, palpha, pbeta, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutput_BF16 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutput_BF16(packedOutput unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, pbeta unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutput_c_bf16_neon(packedOutput, output, palpha, pbeta, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutput_F32 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutput_F32(packedOutput unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, pbeta unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutput_c_f32_neon(packedOutput, output, palpha, pbeta, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutput_F64 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutput_F64(packedOutput unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, pbeta unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutput_c_f64_neon(packedOutput, output, palpha, pbeta, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
 // ApplyPackedOutputSimple_F16 calls the NEON SIMD assembly implementation.
 func ApplyPackedOutputSimple_F16(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
 	applypackedoutputsimple_c_f16_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)

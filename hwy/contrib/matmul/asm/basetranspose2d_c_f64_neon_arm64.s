@@ -127,7 +127,7 @@ BB0_18:
 	WORD $0xf100211f // cmp	x8, #8
 	BGE  BB0_20
 	WORD $0xd2800002 // mov	x2, #0                          ; =0x0
-	WORD $0xb500044b // cbnz	x11, LBB0_23
+	CBNZ R11, BB0_23
 	B    BB0_17
 
 BB0_20:
@@ -164,7 +164,7 @@ BB0_21:
 	WORD $0xeb0101ff // cmp	x15, x1
 	BNE  BB0_21
 	WORD $0xcb0103e2 // neg	x2, x1
-	WORD $0xb4fffacb // cbz	x11, LBB0_17
+	CBZ  R11, BB0_17
 
 BB0_23:
 	WORD $0x9b027c01 // mul	x1, x0, x2

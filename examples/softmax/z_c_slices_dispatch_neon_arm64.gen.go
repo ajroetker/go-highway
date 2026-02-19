@@ -15,7 +15,7 @@ func init() {
 }
 
 func initNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	SoftmaxFloat32 = softmaxAsmF32

@@ -15,7 +15,7 @@ func init() {
 }
 
 func initBitpackNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	Pack32 = pack32AsmU32

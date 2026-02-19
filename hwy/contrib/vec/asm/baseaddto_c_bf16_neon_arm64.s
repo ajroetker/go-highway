@@ -12,7 +12,7 @@ TEXT ·addto_c_bf16_neon(SB), $0-32
 	MOVD b+16(FP), R2
 	MOVD plen_dst+24(FP), R3
 	WORD $0xf9400068         // ldr	x8, [x3]
-	WORD $0xb4000688         // cbz	x8, LBB0_8
+	CBZ  R8, BB0_8
 	WORD $0xf100211f         // cmp	x8, #8
 	BGE  BB0_3
 	WORD $0xd280000d         // mov	x13, #0                         ; =0x0

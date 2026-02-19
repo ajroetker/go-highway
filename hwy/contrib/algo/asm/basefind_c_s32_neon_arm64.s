@@ -12,7 +12,7 @@ TEXT ·find_c_s32_neon(SB), $0-32
 	MOVD plen_slice+16(FP), R2
 	MOVD pout_result+24(FP), R3
 	WORD $0xf9400049            // ldr	x9, [x2]
-	WORD $0xb4000429            // cbz	x9, LBB0_12
+	CBZ  R9, BB0_12
 	WORD $0xd280000d            // mov	x13, #0                         ; =0x0
 	WORD $0xf940002a            // ldr	x10, [x1]
 	WORD $0x4e040d40            // dup.4s	v0, w10
@@ -20,22 +20,22 @@ TEXT ·find_c_s32_neon(SB), $0-32
 	WORD $0xaa0003ec            // mov	x12, x0
 
 BB0_2:
-	WORD $0xaa0d03e8 // mov	x8, x13
-	WORD $0x910011ad // add	x13, x13, #4
-	WORD $0xeb0901bf // cmp	x13, x9
-	BGT  BB0_9
-	WORD $0x3cc10581 // ldr	q1, [x12], #16
-	WORD $0x6ea08c21 // cmeq.4s	v1, v1, v0
-	WORD $0x1e26002d // fmov	w13, s1
-	WORD $0x350002ed // cbnz	w13, LBB0_14
-	WORD $0x0e0c3c2d // mov.s	w13, v1[1]
-	WORD $0x350000ed // cbnz	w13, LBB0_8
-	WORD $0x0e143c2d // mov.s	w13, v1[2]
-	WORD $0x350002ed // cbnz	w13, LBB0_15
-	WORD $0x0e1c3c2e // mov.s	w14, v1[3]
-	WORD $0x9100110d // add	x13, x8, #4
-	WORD $0x34fffe4e // cbz	w14, LBB0_2
-	WORD $0x5280006b // mov	w11, #3                         ; =0x3
+	WORD  $0xaa0d03e8 // mov	x8, x13
+	WORD  $0x910011ad // add	x13, x13, #4
+	WORD  $0xeb0901bf // cmp	x13, x9
+	BGT   BB0_9
+	WORD  $0x3cc10581 // ldr	q1, [x12], #16
+	WORD  $0x6ea08c21 // cmeq.4s	v1, v1, v0
+	WORD  $0x1e26002d // fmov	w13, s1
+	CBNZW R13, BB0_14
+	WORD  $0x0e0c3c2d // mov.s	w13, v1[1]
+	CBNZW R13, BB0_8
+	WORD  $0x0e143c2d // mov.s	w13, v1[2]
+	CBNZW R13, BB0_15
+	WORD  $0x0e1c3c2e // mov.s	w14, v1[3]
+	WORD  $0x9100110d // add	x13, x8, #4
+	CBZW  R14, BB0_2
+	WORD  $0x5280006b // mov	w11, #3                         ; =0x3
 
 BB0_8:
 	WORD $0x8b080168 // add	x8, x11, x8

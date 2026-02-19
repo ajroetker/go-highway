@@ -95,7 +95,7 @@ BB0_15:
 BB0_16:
 	WORD $0x5e0a0424 // mov	h4, v1[2]
 	WORD $0x9ef8008c // fcvtzs	x12, h4
-	WORD $0xb40001eb // cbz	x11, LBB0_21
+	CBZ  R11, BB0_21
 	WORD $0x1ee22060 // fcmp	h3, h2
 	BMI  BB0_21
 	WORD $0xfa4c0124 // ccmp	x9, x12, #4, eq
@@ -123,7 +123,7 @@ BB0_21:
 BB0_22:
 	WORD $0x5e0e0422 // mov	h2, v1[3]
 	WORD $0x9ef8004c // fcvtzs	x12, h2
-	WORD $0xb40001eb // cbz	x11, LBB0_27
+	CBZ  R11, BB0_27
 	WORD $0x1ee32080 // fcmp	h4, h3
 	BMI  BB0_27
 	WORD $0xfa4c0124 // ccmp	x9, x12, #4, eq
@@ -151,7 +151,7 @@ BB0_27:
 BB0_28:
 	WORD $0x5e120423 // mov	h3, v1[4]
 	WORD $0x9ef8006c // fcvtzs	x12, h3
-	WORD $0xb400016b // cbz	x11, LBB0_32
+	CBZ  R11, BB0_32
 	WORD $0x1ee42040 // fcmp	h2, h4
 	BMI  BB0_32
 	WORD $0xfa4c0124 // ccmp	x9, x12, #4, eq
@@ -173,7 +173,7 @@ BB0_32:
 BB0_33:
 	WORD $0x5e160424 // mov	h4, v1[5]
 	WORD $0x9ef8008c // fcvtzs	x12, h4
-	WORD $0xb40000eb // cbz	x11, LBB0_37
+	CBZ  R11, BB0_37
 	WORD $0x1ee22060 // fcmp	h3, h2
 	BMI  BB0_37
 	WORD $0x5280002b // mov	w11, #1                         ; =0x1
@@ -192,7 +192,7 @@ BB0_38:
 	BVS  BB0_44
 	WORD $0x5e1a0424 // mov	h4, v1[6]
 	WORD $0x9ef8008c // fcvtzs	x12, h4
-	WORD $0xb40000eb // cbz	x11, LBB0_43
+	CBZ  R11, BB0_43
 	WORD $0x1ee22060 // fcmp	h3, h2
 	BMI  BB0_43
 	WORD $0x5280002b // mov	w11, #1                         ; =0x1
@@ -211,7 +211,7 @@ BB0_44:
 	BVS  BB0_50
 	WORD $0x5e1e0421 // mov	h1, v1[7]
 	WORD $0x9ef8002c // fcvtzs	x12, h1
-	WORD $0xb40000eb // cbz	x11, LBB0_49
+	CBZ  R11, BB0_49
 	WORD $0x1ee22000 // fcmp	h0, h2
 	BMI  BB0_49
 	WORD $0x5280002b // mov	w11, #1                         ; =0x1
@@ -241,7 +241,7 @@ BB0_52:
 	WORD $0x7c6a7800 // ldr	h0, [x0, x10, lsl #1]
 	WORD $0x1ee02000 // fcmp	h0, h0
 	BVS  BB0_57
-	WORD $0xb4fffeeb // cbz	x11, LBB0_51
+	CBZ  R11, BB0_51
 	WORD $0x1ee22000 // fcmp	h0, h2
 	BMI  BB0_51
 	WORD $0xfa490140 // ccmp	x10, x9, #0, eq
@@ -324,7 +324,7 @@ BB0_67:
 	WORD $0x7d401401 // ldr	h1, [x0, #10]
 	WORD $0x1ee12020 // fcmp	h1, h1
 	BVS  BB0_81
-	WORD $0xb400014a // cbz	x10, LBB0_73
+	CBZ  R10, BB0_73
 	WORD $0x1ee02020 // fcmp	h1, h0
 	BMI  BB0_73
 	WORD $0xfa460920 // ccmp	x9, #6, #0, eq
@@ -345,7 +345,7 @@ BB0_74:
 	WORD $0x7d401800 // ldr	h0, [x0, #12]
 	WORD $0x1ee02000 // fcmp	h0, h0
 	BVS  BB0_78
-	WORD $0xb40000ea // cbz	x10, LBB0_79
+	CBZ  R10, BB0_79
 	WORD $0x1ee12000 // fcmp	h0, h1
 	BMI  BB0_79
 	WORD $0xfa470920 // ccmp	x9, #7, #0, eq

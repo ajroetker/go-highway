@@ -203,7 +203,7 @@ BB0_19:
 	WORD $0x91004063 // add	x3, x3, #16
 	WORD $0xeb0101df // cmp	x14, x1
 	BNE  BB0_19
-	WORD $0xb4fffb2b // cbz	x11, LBB0_17
+	CBZ  R11, BB0_17
 	WORD $0xd2800001 // mov	x1, #0                          ; =0x0
 	WORD $0xaa0b03e2 // mov	x2, x11
 

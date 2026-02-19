@@ -10,7 +10,7 @@ TEXT ·normalize_c_f64_neon(SB), $0-16
 	MOVD dst+0(FP), R0
 	MOVD plen_dst+8(FP), R1
 	WORD $0xf9400028        // ldr	x8, [x1]
-	WORD $0xb4000a88        // cbz	x8, LBB0_20
+	CBZ  R8, BB0_20
 	WORD $0xf100211f        // cmp	x8, #8
 	BGE  BB0_6
 	WORD $0xd2800009        // mov	x9, #0                          ; =0x0
@@ -83,7 +83,7 @@ BB0_11:
 
 BB0_12:
 	WORD $0x9e780009 // fcvtzs	x9, d0
-	WORD $0xb4000369 // cbz	x9, LBB0_20
+	CBZ  R9, BB0_20
 	WORD $0x9e620120 // scvtf	d0, x9
 	WORD $0x1e61c000 // fsqrt	d0, d0
 	WORD $0x1e6e1001 // fmov	d1, #1.00000000

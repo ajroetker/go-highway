@@ -221,7 +221,7 @@ BB0_8:
 	WORD $0x3c810596 // str	q22, [x12], #16
 	WORD $0xb100096b // adds	x11, x11, #2
 	BNE  BB0_8
-	WORD $0xb40009ca // cbz	x10, LBB0_12
+	CBZ  R10, BB0_12
 
 BB0_10:
 	WORD $0xcb090108 // sub	x8, x8, x9

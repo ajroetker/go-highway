@@ -273,12 +273,12 @@ BB0_19:
 	BLE  BB0_3
 	WORD $0xd2800006 // mov	x6, #0                          ; =0x0
 	WORD $0xd2800007 // mov	x7, #0                          ; =0x0
-	WORD $0xb5000243 // cbnz	x3, LBB0_26
+	CBNZ R3, BB0_26
 	B    BB0_30
 
 BB0_22:
 	WORD $0xd2800006 // mov	x6, #0                          ; =0x0
-	WORD $0xb4000323 // cbz	x3, LBB0_27
+	CBZ  R3, BB0_27
 	WORD $0xaa0403e7 // mov	x7, x4
 	WORD $0xaa0303f3 // mov	x19, x3
 	WORD $0xaa0d03f4 // mov	x20, x13

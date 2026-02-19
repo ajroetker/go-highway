@@ -15,7 +15,7 @@ func init() {
 }
 
 func initMatmul_klastNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	MatMulKLastFloat32 = matMulKLastAsmF32
@@ -33,6 +33,15 @@ func initMatmul_klastNeonCAsm() {
 }
 
 func matMulKLastAsmF16(a, b, c []hwy.Float16, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -65,6 +74,15 @@ func matMulKLastAsmF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 func matMulKLastAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -97,6 +115,15 @@ func matMulKLastAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 }
 
 func matMulKLastAsmF32(a, b, c []float32, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -129,6 +156,15 @@ func matMulKLastAsmF32(a, b, c []float32, m, n, k int) {
 }
 
 func matMulKLastAsmF64(a, b, c []float64, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -161,6 +197,15 @@ func matMulKLastAsmF64(a, b, c []float64, m, n, k int) {
 }
 
 func matMulKLastBlockedAsmF16(a, b, c []hwy.Float16, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -193,6 +238,15 @@ func matMulKLastBlockedAsmF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 func matMulKLastBlockedAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -225,6 +279,15 @@ func matMulKLastBlockedAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 }
 
 func matMulKLastBlockedAsmF32(a, b, c []float32, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -257,6 +320,15 @@ func matMulKLastBlockedAsmF32(a, b, c []float32, m, n, k int) {
 }
 
 func matMulKLastBlockedAsmF64(a, b, c []float64, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < n*k {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])

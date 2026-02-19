@@ -11,7 +11,7 @@ TEXT ·addconst_c_f16_neon(SB), $0-24
 	MOVD dst+8(FP), R1
 	MOVD plen_dst+16(FP), R2
 	WORD $0xf9400048         // ldr	x8, [x2]
-	WORD $0xb4000328         // cbz	x8, LBB0_8
+	CBZ  R8, BB0_8
 	WORD $0x7d400000         // ldr	h0, [x0]
 	WORD $0xf100211f         // cmp	x8, #8
 	BGE  BB0_3

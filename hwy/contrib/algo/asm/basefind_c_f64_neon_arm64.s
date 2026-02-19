@@ -12,7 +12,7 @@ TEXT ·find_c_f64_neon(SB), $0-32
 	MOVD plen_slice+16(FP), R2
 	MOVD pout_result+24(FP), R3
 	WORD $0xf9400049            // ldr	x9, [x2]
-	WORD $0xb4000409            // cbz	x9, LBB0_8
+	CBZ  R9, BB0_8
 	WORD $0xd2800008            // mov	x8, #0                          ; =0x0
 	WORD $0xfd400020            // ldr	d0, [x1]
 	WORD $0x4e080401            // dup.2d	v1, v0[0]
@@ -28,7 +28,7 @@ BB0_2:
 	WORD $0x9e66004c // fmov	x12, d2
 	WORD $0xaa0a03e8 // mov	x8, x10
 	WORD $0xaa0d018e // orr	x14, x12, x13
-	WORD $0xb4fffeee // cbz	x14, LBB0_2
+	CBZ  R14, BB0_2
 	WORD $0xf10001bf // cmp	x13, #0
 	WORD $0x92800008 // mov	x8, #-1                         ; =0xffffffffffffffff
 	WORD $0xda880508 // cneg	x8, x8, ne

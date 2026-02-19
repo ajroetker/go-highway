@@ -23,11 +23,10 @@ TEXT ·unpack64_c_u8_neon(SB), $16-48
 	WORD $0x5280080a            // mov	w10, #64                        ; =0x40
 	WORD $0xf10101bf            // cmp	x13, #64
 	WORD $0x9a8ab1aa            // csel	x10, x13, x10, lt
-	WORD $0x1280000b            // mov	w11, #-1                        ; =0xffffffff
-	WORD $0x1aca216b            // lsl	w11, w11, w10
-	WORD $0x2a2b03eb            // mvn	w11, w11
+	WORD $0x9280000b            // mov	x11, #-1                        ; =0xffffffffffffffff
+	WORD $0x9aca216c            // lsl	x12, x11, x10
 	WORD $0xf100fdbf            // cmp	x13, #63
-	WORD $0xda9fd16b            // csinv	x11, x11, xzr, le
+	WORD $0xda8cc16b            // csinv	x11, x11, x12, gt
 	WORD $0xf100051f            // cmp	x8, #1
 	BLT  BB0_10
 	WORD $0xd37df12c            // lsl	x12, x9, #3
@@ -38,7 +37,7 @@ TEXT ·unpack64_c_u8_neon(SB), $16-48
 	WORD $0xd280000e            // mov	x14, #0                         ; =0x0
 	WORD $0xd280000f            // mov	x15, #0                         ; =0x0
 	WORD $0x52800110            // mov	w16, #8                         ; =0x8
-	WORD $0x12800011            // mov	w17, #-1                        ; =0xffffffff
+	WORD $0x92800011            // mov	x17, #-1                        ; =0xffffffffffffffff
 	B    BB0_5
 
 BB0_4:
@@ -64,7 +63,7 @@ BB0_7:
 	WORD $0xeb06009f // cmp	x4, x6
 	WORD $0x9a86b086 // csel	x6, x4, x6, lt
 	WORD $0x386e6807 // ldrb	w7, [x0, x14]
-	WORD $0x1ac62233 // lsl	w19, w17, w6
+	WORD $0x9ac62233 // lsl	x19, x17, x6
 	WORD $0x1acf24e7 // lsr	w7, w7, w15
 	WORD $0x0a3300e7 // bic	w7, w7, w19
 	WORD $0x9ac320e7 // lsl	x7, x7, x3

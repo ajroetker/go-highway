@@ -15,7 +15,7 @@ func init() {
 }
 
 func initNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	ExpTransformFloat32 = expTransformAsmF32

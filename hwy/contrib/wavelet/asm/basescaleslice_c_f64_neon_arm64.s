@@ -11,9 +11,9 @@ TEXT ·scaleslice_c_f64_neon(SB), $0-32
 	MOVD pn+8(FP), R1
 	MOVD pscale+16(FP), R2
 	MOVD plen_data+24(FP), R3
-	WORD $0xb4000340          // cbz	x0, LBB0_9
+	CBZ  R0, BB0_9
 	WORD $0xf9400028          // ldr	x8, [x1]
-	WORD $0xb4000308          // cbz	x8, LBB0_9
+	CBZ  R8, BB0_9
 	WORD $0xfd400040          // ldr	d0, [x2]
 	WORD $0xf100091f          // cmp	x8, #2
 	BGE  BB0_4

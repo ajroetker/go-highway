@@ -12,7 +12,7 @@ TEXT ·softmaxwithtemperature_c_bf16_neon(SB), $32-32
 	MOVD ptemperature+16(FP), R2
 	MOVD plen_input+24(FP), R3
 	WORD $0xf9400068             // ldr	x8, [x3]
-	WORD $0xb40027a8             // cbz	x8, LBB0_27
+	CBZ  R8, BB0_27
 	WORD $0x6d0023e9             // stp	d9, d8, [sp, #-32]!             ; 16-byte Folded Spill [transformed]
 	WORD $0xa9014ff4             // stp	x20, x19, [sp, #16]             ; 16-byte Folded Spill
 	WORD $0x7940004b             // ldrh	w11, [x2]
@@ -300,11 +300,11 @@ BB0_18:
 	B    BB0_14
 
 BB0_19:
-	WORD $0x1e2e1001 // fmov	s1, #1.00000000
-	WORD $0x1e201820 // fdiv	s0, s1, s0
-	WORD $0x1e380009 // fcvtzs	w9, s0
-	WORD $0x3600006b // tbz	w11, #0, LBB0_21
-	WORD $0xd280000c // mov	x12, #0                         ; =0x0
+	WORD $0x1e2e1001     // fmov	s1, #1.00000000
+	WORD $0x1e201820     // fdiv	s0, s1, s0
+	WORD $0x1e380009     // fcvtzs	w9, s0
+	TBZ  $0, R11, BB0_21
+	WORD $0xd280000c     // mov	x12, #0                         ; =0x0
 	B    BB0_23
 
 BB0_21:

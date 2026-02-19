@@ -11,44 +11,46 @@ TEXT ·sum_c_f64_neon(SB), $0-24
 	MOVD plen_v+8(FP), R1
 	MOVD pout_result+16(FP), R2
 	WORD $0xf9400028            // ldr	x8, [x1]
-	WORD $0xb4000368            // cbz	x8, LBB0_9
+	CBZ  R8, BB0_4
 	WORD $0xf100091f            // cmp	x8, #2
-	BGE  BB0_3
+	BGE  BB0_5
 	WORD $0xd2800009            // mov	x9, #0                          ; =0x0
 	WORD $0x6f00e400            // movi.2d	v0, #0000000000000000
 	WORD $0x7e70d800            // faddp.2d	d0, v0
 	WORD $0xeb090108            // subs	x8, x8, x9
-	BGT  BB0_6
-	B    BB0_8
+	BGT  BB0_8
 
 BB0_3:
+	WORD $0xfd000040 // str	d0, [x2]
+	RET
+
+BB0_4:
+	WORD $0x2f00e400 // movi	d0, #0000000000000000
+	WORD $0xfd000040 // str	d0, [x2]
+	RET
+
+BB0_5:
 	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
 	WORD $0x52800049 // mov	w9, #2                          ; =0x2
 	WORD $0xaa0003ea // mov	x10, x0
 
-BB0_4:
+BB0_6:
 	WORD $0x3cc10541 // ldr	q1, [x10], #16
 	WORD $0x4e61d400 // fadd.2d	v0, v0, v1
 	WORD $0x91000929 // add	x9, x9, #2
 	WORD $0xeb08013f // cmp	x9, x8
-	BLE  BB0_4
+	BLE  BB0_6
 	WORD $0x927ff509 // and	x9, x8, #0x7ffffffffffffffe
 	WORD $0x7e70d800 // faddp.2d	d0, v0
 	WORD $0xeb090108 // subs	x8, x8, x9
-	BLE  BB0_8
+	BLE  BB0_3
 
-BB0_6:
+BB0_8:
 	WORD $0x8b090c09 // add	x9, x0, x9, lsl #3
 
-BB0_7:
+BB0_9:
 	WORD $0xfc408521 // ldr	d1, [x9], #8
 	WORD $0x1e612800 // fadd	d0, d0, d1
 	WORD $0xf1000508 // subs	x8, x8, #1
-	BNE  BB0_7
-
-BB0_8:
-	WORD $0x9e780008 // fcvtzs	x8, d0
-
-BB0_9:
-	WORD $0xf9000048 // str	x8, [x2]
-	RET
+	BNE  BB0_9
+	B    BB0_3

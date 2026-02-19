@@ -46,7 +46,7 @@ BB0_2:
 	WORD $0x9100056b // add	x11, x11, #1
 	WORD $0xeb0b013f // cmp	x9, x11
 	BNE  BB0_2
-	WORD $0xb40040ec // cbz	x12, LBB0_64
+	CBZ  R12, BB0_64
 	WORD $0xd280000b // mov	x11, #0                         ; =0x0
 	WORD $0x9e630181 // ucvtf	d1, x12
 	WORD $0x1e6e1000 // fmov	d0, #1.00000000
@@ -94,17 +94,17 @@ BB0_5:
 	BEQ  BB0_64
 
 BB0_6:
-	WORD $0xb86b7851 // ldr	w17, [x2, x11, lsl #2]
-	WORD $0x37f80191 // tbnz	w17, #31, LBB0_10
-	WORD $0xeb11015f // cmp	x10, x17
+	WORD $0xb86b7851      // ldr	w17, [x2, x11, lsl #2]
+	TBNZ $31, R17, BB0_10
+	WORD $0xeb11015f      // cmp	x10, x17
 	BLE  BB0_10
-	WORD $0xf100111f // cmp	x8, #4
+	WORD $0xf100111f      // cmp	x8, #4
 	BGE  BB0_13
-	WORD $0xd2800004 // mov	x4, #0                          ; =0x0
-	WORD $0x6f00e404 // movi.2d	v4, #0000000000000000
-	WORD $0x6e24d484 // faddp.4s	v4, v4, v4
-	WORD $0x7e30d884 // faddp.2s	s4, v4
-	WORD $0xeb08009f // cmp	x4, x8
+	WORD $0xd2800004      // mov	x4, #0                          ; =0x0
+	WORD $0x6f00e404      // movi.2d	v4, #0000000000000000
+	WORD $0x6e24d484      // faddp.4s	v4, v4, v4
+	WORD $0x7e30d884      // faddp.2s	s4, v4
+	WORD $0xeb08009f      // cmp	x4, x8
 	BLT  BB0_16
 	B    BB0_17
 

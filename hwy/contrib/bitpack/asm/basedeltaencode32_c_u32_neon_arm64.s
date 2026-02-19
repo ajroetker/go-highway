@@ -13,7 +13,7 @@ TEXT ·deltaencode32_c_u32_neon(SB), $0-40
 	MOVD plen_src+24(FP), R3
 	MOVD plen_dst+32(FP), R4
 	WORD $0xf9400069         // ldr	x9, [x3]
-	WORD $0xb40004e9         // cbz	x9, LBB0_9
+	CBZ  R9, BB0_9
 	WORD $0xf9400088         // ldr	x8, [x4]
 	WORD $0xeb09011f         // cmp	x8, x9
 	BLT  BB0_9

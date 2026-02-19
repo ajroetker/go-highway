@@ -277,7 +277,7 @@ BB0_8:
 	WORD $0x3c81059a // str	q26, [x12], #16
 	WORD $0xb100096b // adds	x11, x11, #2
 	BNE  BB0_8
-	WORD $0xb500006a // cbnz	x10, LBB0_11
+	CBNZ R10, BB0_11
 
 BB0_10:
 	WORD $0xa9404ff4 // ldp	x20, x19, [sp], #16             ; 16-byte Folded Reload [transformed]

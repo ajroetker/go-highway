@@ -6,50 +6,56 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/algo/asm/baseprefixsum_c_s64_neon_arm64.c
 
-TEXT ·prefixsum_c_s64_neon(SB), $16-16
+TEXT ·prefixsum_c_s64_neon(SB), $0-16
 	MOVD data+0(FP), R0
 	MOVD plen_data+8(FP), R1
 	WORD $0xf9400029         // ldr	x9, [x1]
-	WORD $0xb4000429         // cbz	x9, LBB0_9
+	CBZ  R9, BB0_10
 	WORD $0xf100093f         // cmp	x9, #2
 	BGE  BB0_3
-	WORD $0xd280000c         // mov	x12, #0                         ; =0x0
+	WORD $0xd280000a         // mov	x10, #0                         ; =0x0
 	WORD $0xd2800008         // mov	x8, #0                          ; =0x0
-	B    BB0_5
+	B    BB0_7
 
 BB0_3:
-	WORD $0xd280000b // mov	x11, #0                         ; =0x0
-	WORD $0xd2800008 // mov	x8, #0                          ; =0x0
+	WORD $0x3dc00001 // ldr	q1, [x0]
 	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
-	WORD $0xaa0003ea // mov	x10, x0
-
-BB0_4:
-	WORD $0x3dc00141 // ldr	q1, [x10]
 	WORD $0x6e014002 // ext.16b	v2, v0, v1, #8
-	WORD $0x4e080d03 // dup.2d	v3, x8
 	WORD $0x4ee28421 // add.2d	v1, v1, v2
-	WORD $0x4ee38421 // add.2d	v1, v1, v3
-	WORD $0x3c810541 // str	q1, [x10], #16
-	WORD $0x3d8003e1 // str	q1, [sp]
-	WORD $0xf94007e8 // ldr	x8, [sp, #8]
-	WORD $0x9100096c // add	x12, x11, #2
-	WORD $0x9100116d // add	x13, x11, #4
-	WORD $0xaa0c03eb // mov	x11, x12
-	WORD $0xeb0901bf // cmp	x13, x9
-	BLE  BB0_4
+	WORD $0x3d800001 // str	q1, [x0]
+	WORD $0xf100113f // cmp	x9, #4
+	BHS  BB0_5
+	WORD $0x52800028 // mov	w8, #1                          ; =0x1
+	WORD $0x5280004a // mov	w10, #2                         ; =0x2
+	B    BB0_7
 
 BB0_5:
-	WORD $0xeb0c0129 // subs	x9, x9, x12
-	BLE  BB0_8
-	WORD $0x8b0c0c0a // add	x10, x0, x12, lsl #3
+	WORD $0x9100400b // add	x11, x0, #16
+	WORD $0x5280004a // mov	w10, #2                         ; =0x2
+	WORD $0x52800028 // mov	w8, #1                          ; =0x1
+
+BB0_6:
+	WORD $0x3dc00161 // ldr	q1, [x11]
+	WORD $0x6e014002 // ext.16b	v2, v0, v1, #8
+	WORD $0x6e205821 // mvn.16b	v1, v1
+	WORD $0x6ee18441 // sub.2d	v1, v2, v1
+	WORD $0x3c810561 // str	q1, [x11], #16
+	WORD $0x9100114c // add	x12, x10, #4
+	WORD $0x9100094a // add	x10, x10, #2
+	WORD $0xeb09019f // cmp	x12, x9
+	BLE  BB0_6
 
 BB0_7:
+	WORD $0xeb0a0129 // subs	x9, x9, x10
+	BLE  BB0_10
+	WORD $0x8b0a0c0a // add	x10, x0, x10, lsl #3
+
+BB0_9:
 	WORD $0xf940014b // ldr	x11, [x10]
 	WORD $0x8b080168 // add	x8, x11, x8
 	WORD $0xf8008548 // str	x8, [x10], #8
 	WORD $0xf1000529 // subs	x9, x9, #1
-	BNE  BB0_7
+	BNE  BB0_9
 
-BB0_8:
-BB0_9:
+BB0_10:
 	RET

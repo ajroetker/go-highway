@@ -6,12 +6,12 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/algo/asm/basedeltadecode_c_u64_neon_arm64.c
 
-TEXT ·deltadecode_c_u64_neon(SB), $16-24
+TEXT ·deltadecode_c_u64_neon(SB), $0-24
 	MOVD data+0(FP), R0
 	MOVD pbase+8(FP), R1
 	MOVD plen_data+16(FP), R2
 	WORD $0xf9400049          // ldr	x9, [x2]
-	WORD $0xb4000409          // cbz	x9, LBB0_9
+	CBZ  R9, BB0_8
 	WORD $0xf9400028          // ldr	x8, [x1]
 	WORD $0xf100093f          // cmp	x9, #2
 	BGE  BB0_3
@@ -30,8 +30,7 @@ BB0_4:
 	WORD $0x4ee28421 // add.2d	v1, v1, v2
 	WORD $0x4ee38421 // add.2d	v1, v1, v3
 	WORD $0x3c810541 // str	q1, [x10], #16
-	WORD $0x3d8003e1 // str	q1, [sp]
-	WORD $0xf94007e8 // ldr	x8, [sp, #8]
+	WORD $0x4e183c28 // mov.d	x8, v1[1]
 	WORD $0x9100096c // add	x12, x11, #2
 	WORD $0x9100116d // add	x13, x11, #4
 	WORD $0xaa0c03eb // mov	x11, x12
@@ -51,5 +50,4 @@ BB0_7:
 	BNE  BB0_7
 
 BB0_8:
-BB0_9:
 	RET

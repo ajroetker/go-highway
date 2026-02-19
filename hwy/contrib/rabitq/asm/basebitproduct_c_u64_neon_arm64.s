@@ -15,7 +15,7 @@ TEXT ·bitproduct_c_u64_neon(SB), $0-56
 	MOVD plen_code+40(FP), R5
 	MOVD pout_result+48(FP), R6
 	WORD $0xf94000a8            // ldr	x8, [x5]
-	WORD $0xb40016c8            // cbz	x8, LBB0_13
+	CBZ  R8, BB0_13
 	WORD $0xf100211f            // cmp	x8, #8
 	BGE  BB0_5
 	WORD $0xd2800009            // mov	x9, #0                          ; =0x0

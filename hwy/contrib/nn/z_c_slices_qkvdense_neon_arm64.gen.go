@@ -15,7 +15,7 @@ func init() {
 }
 
 func initQkvdenseNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	QKVDenseFloat32 = qKVDenseAsmF32
@@ -29,6 +29,22 @@ func initQkvdenseNeonCAsm() {
 }
 
 func qKVDenseAsmF16(x, wQKV, biasQ, biasK, biasV, q, k, v []hwy.Float16, batchSize, inFeatures, qDim, kvDim int) {
+	totalOut := qDim + 2*kvDim
+	if len(x) < batchSize*inFeatures {
+		panic("qkvdense: x slice too short")
+	}
+	if len(wQKV) < totalOut*inFeatures {
+		panic("qkvdense: wQKV slice too short")
+	}
+	if len(q) < batchSize*qDim {
+		panic("qkvdense: q slice too short")
+	}
+	if len(k) < batchSize*kvDim {
+		panic("qkvdense: k slice too short")
+	}
+	if len(v) < batchSize*kvDim {
+		panic("qkvdense: v slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])
@@ -98,6 +114,22 @@ func qKVDenseAsmF16(x, wQKV, biasQ, biasK, biasV, q, k, v []hwy.Float16, batchSi
 }
 
 func qKVDenseAsmBF16(x, wQKV, biasQ, biasK, biasV, q, k, v []hwy.BFloat16, batchSize, inFeatures, qDim, kvDim int) {
+	totalOut := qDim + 2*kvDim
+	if len(x) < batchSize*inFeatures {
+		panic("qkvdense: x slice too short")
+	}
+	if len(wQKV) < totalOut*inFeatures {
+		panic("qkvdense: wQKV slice too short")
+	}
+	if len(q) < batchSize*qDim {
+		panic("qkvdense: q slice too short")
+	}
+	if len(k) < batchSize*kvDim {
+		panic("qkvdense: k slice too short")
+	}
+	if len(v) < batchSize*kvDim {
+		panic("qkvdense: v slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])
@@ -167,6 +199,22 @@ func qKVDenseAsmBF16(x, wQKV, biasQ, biasK, biasV, q, k, v []hwy.BFloat16, batch
 }
 
 func qKVDenseAsmF32(x, wQKV, biasQ, biasK, biasV, q, k, v []float32, batchSize, inFeatures, qDim, kvDim int) {
+	totalOut := qDim + 2*kvDim
+	if len(x) < batchSize*inFeatures {
+		panic("qkvdense: x slice too short")
+	}
+	if len(wQKV) < totalOut*inFeatures {
+		panic("qkvdense: wQKV slice too short")
+	}
+	if len(q) < batchSize*qDim {
+		panic("qkvdense: q slice too short")
+	}
+	if len(k) < batchSize*kvDim {
+		panic("qkvdense: k slice too short")
+	}
+	if len(v) < batchSize*kvDim {
+		panic("qkvdense: v slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])
@@ -236,6 +284,22 @@ func qKVDenseAsmF32(x, wQKV, biasQ, biasK, biasV, q, k, v []float32, batchSize, 
 }
 
 func qKVDenseAsmF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize, inFeatures, qDim, kvDim int) {
+	totalOut := qDim + 2*kvDim
+	if len(x) < batchSize*inFeatures {
+		panic("qkvdense: x slice too short")
+	}
+	if len(wQKV) < totalOut*inFeatures {
+		panic("qkvdense: wQKV slice too short")
+	}
+	if len(q) < batchSize*qDim {
+		panic("qkvdense: q slice too short")
+	}
+	if len(k) < batchSize*kvDim {
+		panic("qkvdense: k slice too short")
+	}
+	if len(v) < batchSize*kvDim {
+		panic("qkvdense: v slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])

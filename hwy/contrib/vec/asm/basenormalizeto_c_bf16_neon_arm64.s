@@ -11,7 +11,7 @@ TEXT ·normalizeto_c_bf16_neon(SB), $0-24
 	MOVD src+8(FP), R1
 	MOVD plen_dst+16(FP), R2
 	WORD $0xf9400048         // ldr	x8, [x2]
-	WORD $0xb40015a8         // cbz	x8, LBB0_22
+	CBZ  R8, BB0_22
 	WORD $0xf100811f         // cmp	x8, #32
 	BGE  BB0_5
 	WORD $0xd2800009         // mov	x9, #0                          ; =0x0

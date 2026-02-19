@@ -6,11 +6,11 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/algo/asm/baseprefixsum_c_f32_neon_arm64.c
 
-TEXT ·prefixsum_c_f32_neon(SB), $16-16
+TEXT ·prefixsum_c_f32_neon(SB), $0-16
 	MOVD data+0(FP), R0
 	MOVD plen_data+8(FP), R1
 	WORD $0xf9400028         // ldr	x8, [x1]
-	WORD $0xb4000468         // cbz	x8, LBB0_9
+	CBZ  R8, BB0_8
 	WORD $0xf100111f         // cmp	x8, #4
 	BGE  BB0_3
 	WORD $0xd280000b         // mov	x11, #0                         ; =0x0
@@ -32,8 +32,7 @@ BB0_4:
 	WORD $0x4e040400 // dup.4s	v0, v0[0]
 	WORD $0x4e22d400 // fadd.4s	v0, v0, v2
 	WORD $0x3c810520 // str	q0, [x9], #16
-	WORD $0x3d8003e0 // str	q0, [sp]
-	WORD $0xbd400fe0 // ldr	s0, [sp, #12]
+	WORD $0x5e1c0400 // mov	s0, v0[3]
 	WORD $0x9100114b // add	x11, x10, #4
 	WORD $0x9100214c // add	x12, x10, #8
 	WORD $0xaa0b03ea // mov	x10, x11
@@ -53,5 +52,4 @@ BB0_7:
 	BNE  BB0_7
 
 BB0_8:
-BB0_9:
 	RET

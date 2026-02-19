@@ -6,34 +6,34 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/vec/asm/basedecodefloat32s_c_f32_neon_arm64.c
 
-TEXT ·decodefloat32s_c_f32_neon(SB), $0-24
+TEXT ·decodefloat32s_c_f32_neon(SB), $0-32
 	MOVD dst+0(FP), R0
 	MOVD src+8(FP), R1
 	MOVD plen_dst+16(FP), R2
+	MOVD plen_src+24(FP), R3
 	WORD $0xf9400049         // ldr	x9, [x2]
-	WORD $0xb40002e9         // cbz	x9, LBB0_8
+	CBZ  R9, BB0_8
 	WORD $0xd37ef528         // lsl	x8, x9, #2
-	WORD $0xf100053f         // cmp	x9, #1
-	BLT  BB0_5
-	WORD $0xd2800009         // mov	x9, #0                          ; =0x0
+	WORD $0xf100113f         // cmp	x9, #4
+	BGE  BB0_3
+	WORD $0xd280000a         // mov	x10, #0                         ; =0x0
+	B    BB0_5
 
 BB0_3:
-	WORD $0x9100112a // add	x10, x9, #4
+	WORD $0xd2800009 // mov	x9, #0                          ; =0x0
+
+BB0_4:
 	WORD $0x3ce96820 // ldr	q0, [x1, x9]
 	WORD $0x3ca96800 // str	q0, [x0, x9]
+	WORD $0x9100412a // add	x10, x9, #16
+	WORD $0x9100812b // add	x11, x9, #32
 	WORD $0xaa0a03e9 // mov	x9, x10
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_3
-	WORD $0xeb080148 // subs	x8, x10, x8
-	BLT  BB0_6
-	B    BB0_8
+	WORD $0xeb08017f // cmp	x11, x8
+	BLE  BB0_4
 
 BB0_5:
-	WORD $0xd280000a // mov	x10, #0                         ; =0x0
 	WORD $0xeb080148 // subs	x8, x10, x8
 	BGE  BB0_8
-
-BB0_6:
 	WORD $0x8b0a0009 // add	x9, x0, x10
 	WORD $0x8b0a002a // add	x10, x1, x10
 

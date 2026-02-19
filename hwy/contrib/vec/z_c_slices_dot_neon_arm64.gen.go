@@ -15,7 +15,7 @@ func init() {
 }
 
 func initDotNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	DotFloat32 = dotAsmF32
@@ -78,7 +78,7 @@ func dotAsmF32(a, b []float32) float32 {
 		p_b = unsafe.Pointer(&b[0])
 	}
 	lenVal := int64(len(a))
-	var out_result int64
+	var out_result float32
 	asm.Dot_F32(
 		p_a,
 		p_b,
@@ -98,7 +98,7 @@ func dotAsmF64(a, b []float64) float64 {
 		p_b = unsafe.Pointer(&b[0])
 	}
 	lenVal := int64(len(a))
-	var out_result int64
+	var out_result float64
 	asm.Dot_F64(
 		p_a,
 		p_b,

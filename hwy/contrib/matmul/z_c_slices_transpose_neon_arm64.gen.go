@@ -15,7 +15,7 @@ func init() {
 }
 
 func initTransposeNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	Transpose2DStridedFloat32 = transpose2DStridedAsmF32

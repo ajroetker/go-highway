@@ -11,7 +11,7 @@ TEXT ·gelu_c_f32_neon(SB), $64-24
 	MOVD output+8(FP), R1
 	MOVD plen_input+16(FP), R2
 	WORD $0xf9400048           // ldr	x8, [x2]
-	WORD $0xb4002448           // cbz	x8, LBB0_13
+	CBZ  R8, BB0_13
 	WORD $0x6d0033ed           // stp	d13, d12, [sp, #-64]!           ; 16-byte Folded Spill [transformed]
 	WORD $0x6d012beb           // stp	d11, d10, [sp, #16]             ; 16-byte Folded Spill
 	WORD $0x6d0223e9           // stp	d9, d8, [sp, #32]               ; 16-byte Folded Spill

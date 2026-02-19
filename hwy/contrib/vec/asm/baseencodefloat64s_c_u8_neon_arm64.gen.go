@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func encodefloat64s_c_u8_neon(dst, src, plen_dst unsafe.Pointer)
+func encodefloat64s_c_u8_neon(dst, src, plen_dst, plen_src unsafe.Pointer)

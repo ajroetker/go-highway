@@ -22,7 +22,7 @@ TEXT ·liftstep97_c_bf16_neon(SB), $0-64
 	BEQ  BB0_20
 	WORD $0x7940008a              // ldrh	w10, [x4]
 	WORD $0xf94000ab              // ldr	x11, [x5]
-	WORD $0xb40002eb              // cbz	x11, LBB0_4
+	CBZ  R11, BB0_4
 	WORD $0xf100057f              // cmp	x11, #1
 	BNE  BB0_9
 	WORD $0x7940000b              // ldrh	w11, [x0]
@@ -151,14 +151,14 @@ BB0_11:
 	BGE  BB0_8
 
 BB0_12:
-	WORD $0xd10005cf // sub	x15, x14, #1
-	WORD $0x53103d50 // lsl	w16, w10, #16
-	WORD $0x52010210 // eor	w16, w16, #0x80000000
-	WORD $0x1e270200 // fmov	s0, w16
-	WORD $0x3600032b // tbz	w11, #0, LBB0_15
-	WORD $0x8b0f044f // add	x15, x2, x15, lsl #1
-	WORD $0x91000850 // add	x16, x2, #2
-	WORD $0x528ffff1 // mov	w17, #32767                     ; =0x7fff
+	WORD $0xd10005cf     // sub	x15, x14, #1
+	WORD $0x53103d50     // lsl	w16, w10, #16
+	WORD $0x52010210     // eor	w16, w16, #0x80000000
+	WORD $0x1e270200     // fmov	s0, w16
+	TBZ  $0, R11, BB0_15
+	WORD $0x8b0f044f     // add	x15, x2, x15, lsl #1
+	WORD $0x91000850     // add	x16, x2, #2
+	WORD $0x528ffff1     // mov	w17, #32767                     ; =0x7fff
 
 BB0_14:
 	WORD $0x786d7801 // ldrh	w1, [x0, x13, lsl #1]

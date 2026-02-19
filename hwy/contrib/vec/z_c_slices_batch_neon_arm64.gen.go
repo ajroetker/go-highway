@@ -15,7 +15,7 @@ func init() {
 }
 
 func initBatchNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	BatchL2SquaredDistanceFloat32 = batchL2SquaredDistanceAsmF32

@@ -15,7 +15,7 @@ func init() {
 }
 
 func initBlockkernelNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	BlockMulAddFloat32 = blockMulAddAsmF32
@@ -41,6 +41,15 @@ func initBlockkernelNeonCAsm() {
 }
 
 func blockMulAddAsmF16(aT, b, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -69,6 +78,15 @@ func blockMulAddAsmF16(aT, b, c []hwy.Float16, blockDim int) {
 }
 
 func blockMulAddAsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -97,6 +115,15 @@ func blockMulAddAsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
 }
 
 func blockMulAddAsmF32(aT, b, c []float32, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -125,6 +152,15 @@ func blockMulAddAsmF32(aT, b, c []float32, blockDim int) {
 }
 
 func blockMulAddAsmF64(aT, b, c []float64, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -153,6 +189,15 @@ func blockMulAddAsmF64(aT, b, c []float64, blockDim int) {
 }
 
 func blockMulAdd2AsmF16(aT, b, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd2: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd2: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd2: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -181,6 +226,15 @@ func blockMulAdd2AsmF16(aT, b, c []hwy.Float16, blockDim int) {
 }
 
 func blockMulAdd2AsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd2: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd2: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd2: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -209,6 +263,15 @@ func blockMulAdd2AsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
 }
 
 func blockMulAdd2AsmF32(aT, b, c []float32, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd2: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd2: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd2: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -237,6 +300,15 @@ func blockMulAdd2AsmF32(aT, b, c []float32, blockDim int) {
 }
 
 func blockMulAdd2AsmF64(aT, b, c []float64, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd2: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd2: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd2: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -265,6 +337,15 @@ func blockMulAdd2AsmF64(aT, b, c []float64, blockDim int) {
 }
 
 func blockMulAddRegBlockedAsmF16(aT, b, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -293,6 +374,15 @@ func blockMulAddRegBlockedAsmF16(aT, b, c []hwy.Float16, blockDim int) {
 }
 
 func blockMulAddRegBlockedAsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -321,6 +411,15 @@ func blockMulAddRegBlockedAsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
 }
 
 func blockMulAddRegBlockedAsmF32(aT, b, c []float32, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -349,6 +448,15 @@ func blockMulAddRegBlockedAsmF32(aT, b, c []float32, blockDim int) {
 }
 
 func blockMulAddRegBlockedAsmF64(aT, b, c []float64, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAddRegBlocked: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -377,6 +485,15 @@ func blockMulAddRegBlockedAsmF64(aT, b, c []float64, blockDim int) {
 }
 
 func blockMulAdd4AsmF16(aT, b, c []hwy.Float16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd4: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd4: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd4: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -405,6 +522,15 @@ func blockMulAdd4AsmF16(aT, b, c []hwy.Float16, blockDim int) {
 }
 
 func blockMulAdd4AsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd4: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd4: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd4: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -433,6 +559,15 @@ func blockMulAdd4AsmBF16(aT, b, c []hwy.BFloat16, blockDim int) {
 }
 
 func blockMulAdd4AsmF32(aT, b, c []float32, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd4: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd4: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd4: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])
@@ -461,6 +596,15 @@ func blockMulAdd4AsmF32(aT, b, c []float32, blockDim int) {
 }
 
 func blockMulAdd4AsmF64(aT, b, c []float64, blockDim int) {
+	if len(aT) < blockDim*blockDim {
+		panic("BlockMulAdd4: aT slice too short")
+	}
+	if len(b) < blockDim*blockDim {
+		panic("BlockMulAdd4: B slice too short")
+	}
+	if len(c) < blockDim*blockDim {
+		panic("BlockMulAdd4: C slice too short")
+	}
 	var p_aT unsafe.Pointer
 	if len(aT) > 0 {
 		p_aT = unsafe.Pointer(&aT[0])

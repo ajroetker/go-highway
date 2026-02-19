@@ -15,7 +15,7 @@ func init() {
 }
 
 func initStreamvbyteNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	DecodeStreamVByte32GroupSIMD = decodeStreamVByte32GroupSIMDAsmU8

@@ -15,7 +15,7 @@ func init() {
 }
 
 func initDenseNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	DenseFloat32 = denseAsmF32
@@ -29,6 +29,18 @@ func initDenseNeonCAsm() {
 }
 
 func denseAsmF16(x, weight, bias, output []hwy.Float16, batchSize, inFeatures, outFeatures int) {
+	if len(x) < batchSize*inFeatures {
+		panic("dense: x slice too short")
+	}
+	if len(weight) < outFeatures*inFeatures {
+		panic("dense: weight slice too short")
+	}
+	if len(output) < batchSize*outFeatures {
+		panic("dense: output slice too short")
+	}
+	if bias != nil && len(bias) < outFeatures {
+		panic("dense: bias slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])
@@ -68,6 +80,18 @@ func denseAsmF16(x, weight, bias, output []hwy.Float16, batchSize, inFeatures, o
 }
 
 func denseAsmBF16(x, weight, bias, output []hwy.BFloat16, batchSize, inFeatures, outFeatures int) {
+	if len(x) < batchSize*inFeatures {
+		panic("dense: x slice too short")
+	}
+	if len(weight) < outFeatures*inFeatures {
+		panic("dense: weight slice too short")
+	}
+	if len(output) < batchSize*outFeatures {
+		panic("dense: output slice too short")
+	}
+	if bias != nil && len(bias) < outFeatures {
+		panic("dense: bias slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])
@@ -107,6 +131,18 @@ func denseAsmBF16(x, weight, bias, output []hwy.BFloat16, batchSize, inFeatures,
 }
 
 func denseAsmF32(x, weight, bias, output []float32, batchSize, inFeatures, outFeatures int) {
+	if len(x) < batchSize*inFeatures {
+		panic("dense: x slice too short")
+	}
+	if len(weight) < outFeatures*inFeatures {
+		panic("dense: weight slice too short")
+	}
+	if len(output) < batchSize*outFeatures {
+		panic("dense: output slice too short")
+	}
+	if bias != nil && len(bias) < outFeatures {
+		panic("dense: bias slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])
@@ -146,6 +182,18 @@ func denseAsmF32(x, weight, bias, output []float32, batchSize, inFeatures, outFe
 }
 
 func denseAsmF64(x, weight, bias, output []float64, batchSize, inFeatures, outFeatures int) {
+	if len(x) < batchSize*inFeatures {
+		panic("dense: x slice too short")
+	}
+	if len(weight) < outFeatures*inFeatures {
+		panic("dense: weight slice too short")
+	}
+	if len(output) < batchSize*outFeatures {
+		panic("dense: output slice too short")
+	}
+	if bias != nil && len(bias) < outFeatures {
+		panic("dense: bias slice too short")
+	}
 	var p_x unsafe.Pointer
 	if len(x) > 0 {
 		p_x = unsafe.Pointer(&x[0])

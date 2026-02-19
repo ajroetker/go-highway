@@ -15,7 +15,7 @@ func init() {
 }
 
 func initFusedint8matmulNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	FusedInt8MatMul = fusedInt8MatMulAsmF32

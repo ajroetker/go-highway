@@ -15,7 +15,7 @@ func init() {
 }
 
 func initPackingNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	PackRHSVecFloat32 = packRHSVecAsmF32

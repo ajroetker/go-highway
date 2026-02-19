@@ -16,10 +16,8 @@ TEXT ·minmax_c_f64_neon(SB), $0-32
 	BGT  BB0_2
 	WORD $0xfd400000            // ldr	d0, [x0]
 	WORD $0x1e604001            // fmov	d1, d0
-	WORD $0x9e780008            // fcvtzs	x8, d0
-	WORD $0xf9000048            // str	x8, [x2]
-	WORD $0x9e780028            // fcvtzs	x8, d1
-	WORD $0xf9000068            // str	x8, [x3]
+	WORD $0xfd000040            // str	d0, [x2]
+	WORD $0xfd000061            // str	d1, [x3]
 	RET
 
 BB0_2:
@@ -34,10 +32,8 @@ BB0_2:
 	BHI  BB0_8
 
 BB0_4:
-	WORD $0x9e780008 // fcvtzs	x8, d0
-	WORD $0xf9000048 // str	x8, [x2]
-	WORD $0x9e780028 // fcvtzs	x8, d1
-	WORD $0xf9000068 // str	x8, [x3]
+	WORD $0xfd000040 // str	d0, [x2]
+	WORD $0xfd000061 // str	d1, [x3]
 	RET
 
 BB0_5:

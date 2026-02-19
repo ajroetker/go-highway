@@ -15,7 +15,7 @@ func init() {
 }
 
 func initMatmulNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	MatMulFloat32 = matMulAsmF32
@@ -29,6 +29,15 @@ func initMatmulNeonCAsm() {
 }
 
 func matMulAsmF16(a, b, c []hwy.Float16, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -61,6 +70,15 @@ func matMulAsmF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 func matMulAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -93,6 +111,15 @@ func matMulAsmBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 }
 
 func matMulAsmF32(a, b, c []float32, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])
@@ -125,6 +152,15 @@ func matMulAsmF32(a, b, c []float32, m, n, k int) {
 }
 
 func matMulAsmF64(a, b, c []float64, m, n, k int) {
+	if len(a) < m*k {
+		panic("matmul: A slice too short")
+	}
+	if len(b) < k*n {
+		panic("matmul: B slice too short")
+	}
+	if len(c) < m*n {
+		panic("matmul: C slice too short")
+	}
 	var p_a unsafe.Pointer
 	if len(a) > 0 {
 		p_a = unsafe.Pointer(&a[0])

@@ -6,12 +6,13 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/vec/asm/baseencodefloat64s_c_u8_neon_arm64.c
 
-TEXT ·encodefloat64s_c_u8_neon(SB), $0-24
+TEXT ·encodefloat64s_c_u8_neon(SB), $0-32
 	MOVD dst+0(FP), R0
 	MOVD src+8(FP), R1
 	MOVD plen_dst+16(FP), R2
-	WORD $0xf9400049         // ldr	x9, [x2]
-	WORD $0xb40002c9         // cbz	x9, LBB0_8
+	MOVD plen_src+24(FP), R3
+	WORD $0xf9400069         // ldr	x9, [x3]
+	CBZ  R9, BB0_8
 	WORD $0xd37df128         // lsl	x8, x9, #3
 	WORD $0xf100093f         // cmp	x9, #2
 	BGE  BB0_3

@@ -212,7 +212,7 @@ BB0_17:
 	WORD $0x910042d6 // add	x22, x22, #16
 	WORD $0xeb14021f // cmp	x16, x20
 	BNE  BB0_17
-	WORD $0xb4fffb2f // cbz	x15, LBB0_15
+	CBZ  R15, BB0_15
 	WORD $0xd2800014 // mov	x20, #0                         ; =0x0
 	WORD $0xaa0f03f5 // mov	x21, x15
 
@@ -290,7 +290,7 @@ BB0_26:
 	WORD $0x91004063 // add	x3, x3, #16
 	WORD $0xeb0101ff // cmp	x15, x1
 	BNE  BB0_26
-	WORD $0xb4fffb2c // cbz	x12, LBB0_24
+	CBZ  R12, BB0_24
 	WORD $0xd2800001 // mov	x1, #0                          ; =0x0
 	WORD $0xaa0c03e2 // mov	x2, x12
 

@@ -134,3 +134,24 @@ func TestFixReservedAsmNames_NonexistentFile(t *testing.T) {
 		t.Errorf("expected nil for nonexistent file, got: %v", err)
 	}
 }
+
+// TestNeonNoSimdGuard verifies that neonNoSimdGuard returns the NoSimdEnv
+// guard for NEON targets and empty for all others.
+func TestNeonNoSimdGuard(t *testing.T) {
+	tests := []struct {
+		target Target
+		want   string
+	}{
+		{Target{Name: "NEON"}, "hwy.NoSimdEnv()"},
+		{Target{Name: "AVX2"}, ""},
+		{Target{Name: "AVX512"}, ""},
+		{Target{Name: "SVE_DARWIN"}, ""},
+		{Target{Name: "SVE_LINUX"}, ""},
+	}
+	for _, tt := range tests {
+		got := neonNoSimdGuard(tt.target)
+		if got != tt.want {
+			t.Errorf("neonNoSimdGuard(%s) = %q, want %q", tt.target.Name, got, tt.want)
+		}
+	}
+}

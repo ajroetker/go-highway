@@ -15,7 +15,7 @@ func init() {
 }
 
 func initColorNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	ForwardRCTInt32 = forwardRCTAsmS32

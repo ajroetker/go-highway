@@ -186,7 +186,7 @@ BB0_13:
 	BNE  BB0_13
 
 BB0_14:
-	WORD $0xb4fff422 // cbz	x2, LBB0_5
+	CBZ  R2, BB0_5
 	WORD $0x7c6b7844 // ldr	h4, [x2, x11, lsl #1]
 	WORD $0x1ee42863 // fadd	h3, h3, h4
 	WORD $0x1ee42842 // fadd	h2, h2, h4
@@ -231,7 +231,7 @@ BB0_20:
 	BLT  BB0_44
 	WORD $0x1ee24000 // fcvt	s0, h0
 	WORD $0x9b097d68 // mul	x8, x11, x9
-	WORD $0xb40013c2 // cbz	x2, LBB0_49
+	CBZ  R2, BB0_49
 	WORD $0xf94017ec // ldr	x12, [sp, #40]                  ; 8-byte Folded Reload
 	WORD $0x8b08058c // add	x12, x12, x8, lsl #1
 	WORD $0xd37ff92d // lsl	x13, x9, #1
@@ -391,14 +391,14 @@ BB0_41:
 	BNE  BB0_41
 
 BB0_42:
-	WORD $0xb4fffba2 // cbz	x2, LBB0_37
+	CBZ  R2, BB0_37
 	WORD $0x7c6f7841 // ldr	h1, [x2, x15, lsl #1]
 	WORD $0x1ee12800 // fadd	h0, h0, h1
 	B    BB0_37
 
 BB0_44:
 	WORD $0x9b097d68 // mul	x8, x11, x9
-	WORD $0xb4000c62 // cbz	x2, LBB0_60
+	CBZ  R2, BB0_60
 	WORD $0xf94017ea // ldr	x10, [sp, #40]                  ; 8-byte Folded Reload
 	WORD $0x8b080548 // add	x8, x10, x8, lsl #1
 	WORD $0xd37ff92a // lsl	x10, x9, #1

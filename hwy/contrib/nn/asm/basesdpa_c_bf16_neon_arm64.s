@@ -241,7 +241,7 @@ BB0_16:
 	WORD $0xf9402beb // ldr	x11, [sp, #80]                  ; 8-byte Folded Reload
 	WORD $0x52a85605 // mov	w5, #1118830592                 ; =0x42b00000
 	WORD $0x52b85613 // mov	w19, #-1028653056               ; =0xc2b00000
-	WORD $0xb40019ab // cbz	x11, LBB0_33
+	CBZ  R11, BB0_33
 	WORD $0xf100213f // cmp	x9, #8
 	BGE  BB0_29
 	WORD $0xd2800003 // mov	x3, #0                          ; =0x0

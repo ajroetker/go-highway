@@ -15,7 +15,7 @@ func init() {
 }
 
 func initFusednf4actmatmulNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	FusedNF4MatMulSiLU = fusedNF4MatMulSiLUAsmF32

@@ -15,7 +15,7 @@ func init() {
 }
 
 func initGroupvarintNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	DecodeGroupVarint32 = decodeGroupVarint32AsmU8

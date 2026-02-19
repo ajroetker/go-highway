@@ -20,7 +20,7 @@ TEXT ·liftupdate53_c_s32_neon(SB), $0-56
 	WORD $0xfa401924              // ccmp	x9, #0, #4, ne
 	BEQ  BB0_21
 	WORD $0xf940008c              // ldr	x12, [x4]
-	WORD $0xb400014c              // cbz	x12, LBB0_4
+	CBZ  R12, BB0_4
 	WORD $0xd280000d              // mov	x13, #0                         ; =0x0
 	WORD $0xd100052a              // sub	x10, x9, #1
 	WORD $0xeb0a011f              // cmp	x8, x10
@@ -80,7 +80,7 @@ BB0_7:
 	BLE  BB0_13
 	WORD $0xf100019f // cmp	x12, #0
 	WORD $0xda9f13ee // csetm	x14, eq
-	WORD $0xb40004cc // cbz	x12, LBB0_16
+	CBZ  R12, BB0_16
 	WORD $0x8b0e084c // add	x12, x2, x14, lsl #2
 	WORD $0x9100104d // add	x13, x2, #4
 
@@ -105,7 +105,7 @@ BB0_13:
 	WORD $0xeb08017f // cmp	x11, x8
 	BGE  BB0_21
 	WORD $0xd1000529 // sub	x9, x9, #1
-	WORD $0xb400042c // cbz	x12, LBB0_20
+	CBZ  R12, BB0_20
 
 BB0_15:
 	WORD $0x9100056a // add	x10, x11, #1

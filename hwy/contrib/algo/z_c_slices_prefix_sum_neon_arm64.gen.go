@@ -15,7 +15,7 @@ func init() {
 }
 
 func initPrefix_sumNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	PrefixSumFloat32 = prefixSumAsmF32
@@ -24,6 +24,10 @@ func initPrefix_sumNeonCAsm() {
 	PrefixSumInt64 = prefixSumAsmS64
 	PrefixSumUint32 = prefixSumAsmU32
 	PrefixSumUint64 = prefixSumAsmU64
+	DeltaDecodeInt32 = deltaDecodeAsmS32
+	DeltaDecodeInt64 = deltaDecodeAsmS64
+	DeltaDecodeUint32 = deltaDecodeAsmU32
+	DeltaDecodeUint64 = deltaDecodeAsmU64
 }
 
 func prefixSumAsmF32(data []float32) {
@@ -94,6 +98,62 @@ func prefixSumAsmU64(data []uint64) {
 	lenVal := int64(len(data))
 	asm.PrefixSum_U64(
 		p_data,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func deltaDecodeAsmS32(data []int32, base int32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	asm.DeltaDecode_S32(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func deltaDecodeAsmS64(data []int64, base int64) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	asm.DeltaDecode_S64(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func deltaDecodeAsmU32(data []uint32, base uint32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	asm.DeltaDecode_U32(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func deltaDecodeAsmU64(data []uint64, base uint64) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	asm.DeltaDecode_U64(
+		p_data,
+		unsafe.Pointer(&baseVal),
 		unsafe.Pointer(&lenVal),
 	)
 }

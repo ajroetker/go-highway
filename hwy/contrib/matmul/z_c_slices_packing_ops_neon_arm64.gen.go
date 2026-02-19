@@ -15,22 +15,26 @@ func init() {
 }
 
 func initPacking_opsNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	PackRHSFastFloat32 = packRHSFastAsmF32
 	PackRHSFastFloat64 = packRHSFastAsmF64
+	ApplyPackedOutputFloat32 = applyPackedOutputAsmF32
+	ApplyPackedOutputFloat64 = applyPackedOutputAsmF64
 	ApplyPackedOutputSimpleFloat32 = applyPackedOutputSimpleAsmF32
 	ApplyPackedOutputSimpleFloat64 = applyPackedOutputSimpleAsmF64
 	ApplyPackedOutputAccumFloat32 = applyPackedOutputAccumAsmF32
 	ApplyPackedOutputAccumFloat64 = applyPackedOutputAccumAsmF64
 	if hwy.HasARMFP16() {
 		PackRHSFastFloat16 = packRHSFastAsmF16
+		ApplyPackedOutputFloat16 = applyPackedOutputAsmF16
 		ApplyPackedOutputSimpleFloat16 = applyPackedOutputSimpleAsmF16
 		ApplyPackedOutputAccumFloat16 = applyPackedOutputAccumAsmF16
 	}
 	if hwy.HasARMBF16() {
 		PackRHSFastBFloat16 = packRHSFastAsmBF16
+		ApplyPackedOutputBFloat16 = applyPackedOutputAsmBF16
 		ApplyPackedOutputSimpleBFloat16 = applyPackedOutputSimpleAsmBF16
 		ApplyPackedOutputAccumBFloat16 = applyPackedOutputAccumAsmBF16
 	}
@@ -157,6 +161,146 @@ func packRHSFastAsmF64(b, packed []float64, n, rowStart, colStart, panelK, panel
 		unsafe.Pointer(&nrVal),
 		unsafe.Pointer(&len_bVal),
 		unsafe.Pointer(&len_packedVal),
+	)
+}
+
+func applyPackedOutputAsmF16(packedOutput, output []hwy.Float16, alpha, beta hwy.Float16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	alphaVal := uint16(alpha)
+	betaVal := uint16(beta)
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	asm.ApplyPackedOutput_F16(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&betaVal),
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func applyPackedOutputAsmBF16(packedOutput, output []hwy.BFloat16, alpha, beta hwy.BFloat16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	alphaVal := uint16(alpha)
+	betaVal := uint16(beta)
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	asm.ApplyPackedOutput_BF16(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&betaVal),
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func applyPackedOutputAsmF32(packedOutput, output []float32, alpha, beta float32, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	alphaVal := alpha
+	betaVal := beta
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	asm.ApplyPackedOutput_F32(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&betaVal),
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func applyPackedOutputAsmF64(packedOutput, output []float64, alpha, beta float64, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	alphaVal := alpha
+	betaVal := beta
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	asm.ApplyPackedOutput_F64(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&betaVal),
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
 	)
 }
 

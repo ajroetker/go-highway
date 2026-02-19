@@ -15,7 +15,7 @@ func init() {
 }
 
 func initNormalizeNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	NormalizeFloat32 = normalizeAsmF32

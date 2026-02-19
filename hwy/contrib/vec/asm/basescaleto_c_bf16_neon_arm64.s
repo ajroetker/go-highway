@@ -12,7 +12,7 @@ TEXT ·scaleto_c_bf16_neon(SB), $0-32
 	MOVD s+16(FP), R2
 	MOVD plen_dst+24(FP), R3
 	WORD $0xf9400069         // ldr	x9, [x3]
-	WORD $0xb4000629         // cbz	x9, LBB0_8
+	CBZ  R9, BB0_8
 	WORD $0x79400028         // ldrh	w8, [x1]
 	WORD $0xf100213f         // cmp	x9, #8
 	BGE  BB0_3

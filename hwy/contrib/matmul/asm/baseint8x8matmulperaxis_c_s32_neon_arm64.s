@@ -162,7 +162,7 @@ BB0_21:
 	BEQ  BB0_4
 	WORD $0xaa0e03f3 // mov	x19, x14
 	WORD $0xaa0e03f4 // mov	x20, x14
-	WORD $0xb400018f // cbz	x15, LBB0_27
+	CBZ  R15, BB0_27
 
 BB0_24:
 	WORD $0x8b1400f3 // add	x19, x7, x20
@@ -241,7 +241,7 @@ BB0_38:
 	BEQ  BB0_30
 	WORD $0xaa0d03e2 // mov	x2, x13
 	WORD $0xaa0d03e3 // mov	x3, x13
-	WORD $0xb400018e // cbz	x14, LBB0_44
+	CBZ  R14, BB0_44
 
 BB0_41:
 	WORD $0x8b030022 // add	x2, x1, x3

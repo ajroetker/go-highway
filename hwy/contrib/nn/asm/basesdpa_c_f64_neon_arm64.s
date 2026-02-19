@@ -273,7 +273,7 @@ BB0_15:
 	WORD $0xf2a2d836 // movk	x22, #5825, lsl #16
 	WORD $0xf2d82d96 // movk	x22, #49516, lsl #32
 	WORD $0xf2e7ead6 // movk	x22, #16214, lsl #48
-	WORD $0xb4000dca // cbz	x10, LBB0_31
+	CBZ  R10, BB0_31
 	WORD $0xf100093f // cmp	x9, #2
 	BGE  BB0_27
 	WORD $0xd280000a // mov	x10, #0                         ; =0x0

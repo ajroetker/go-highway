@@ -12,7 +12,7 @@ TEXT ·scaleto_c_f64_neon(SB), $0-32
 	MOVD s+16(FP), R2
 	MOVD plen_dst+24(FP), R3
 	WORD $0xf9400068         // ldr	x8, [x3]
-	WORD $0xb4000368         // cbz	x8, LBB0_8
+	CBZ  R8, BB0_8
 	WORD $0xfd400020         // ldr	d0, [x1]
 	WORD $0xf100091f         // cmp	x8, #2
 	BGE  BB0_3

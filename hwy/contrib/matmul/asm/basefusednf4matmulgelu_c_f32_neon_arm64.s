@@ -359,7 +359,7 @@ BB0_25:
 
 BB0_26:
 	WORD $0xbc6079b4 // ldr	s20, [x13, x0, lsl #2]
-	WORD $0xb4000063 // cbz	x3, LBB0_28
+	CBZ  R3, BB0_28
 	WORD $0xbc607873 // ldr	s19, [x3, x0, lsl #2]
 	WORD $0x1e332a94 // fadd	s20, s20, s19
 
@@ -573,7 +573,7 @@ BB0_32:
 
 BB0_33:
 	WORD $0x3cc106b3 // ldr	q19, [x21], #16
-	WORD $0xb4fff563 // cbz	x3, LBB0_32
+	CBZ  R3, BB0_32
 	WORD $0x3dc00134 // ldr	q20, [x9]
 	WORD $0x4e34d673 // fadd.4s	v19, v19, v20
 	B    BB0_32

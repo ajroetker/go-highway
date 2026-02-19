@@ -79,13 +79,13 @@ TEXT ·maskedvbytedecodegroup_c_u8_neon(SB), $16-40
 	WORD $0x2a0f0129              // orr	w9, w9, w15
 	WORD $0x2a090108              // orr	w8, w8, w9
 	WORD $0x2a10010a              // orr	w10, w8, w16
-	WORD $0x340005ca              // cbz	w10, LBB0_4
+	CBZW R10, BB0_4
 	WORD $0x90000008              // adrp	x8, _maskedVByte12LookupTable@PAGE
 	WORD $0x91000108              // add	x8, x8, _maskedVByte12LookupTable@PAGEOFF
 	WORD $0x528000c9              // mov	w9, #6                          ; =0x6
 	WORD $0x9ba92148              // umaddl	x8, w10, w9, x8
 	WORD $0x39400109              // ldrb	w9, [x8]
-	WORD $0xb4000509              // cbz	x9, LBB0_4
+	CBZ  R9, BB0_4
 	WORD $0x9000000b              // adrp	x11, _maskedVByte12ShuffleMasks@PAGE
 	WORD $0x9100016b              // add	x11, x11, _maskedVByte12ShuffleMasks@PAGEOFF
 	WORD $0x3cea5961              // ldr	q1, [x11, w10, uxtw #4]

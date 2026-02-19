@@ -15,7 +15,7 @@ func init() {
 }
 
 func initMatvecNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	MatVecFloat32 = matVecAsmF32
@@ -29,6 +29,15 @@ func initMatvecNeonCAsm() {
 }
 
 func matVecAsmF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
+	if len(m) < rows*cols {
+		panic("matrix slice too small")
+	}
+	if len(v) < cols {
+		panic("vector slice too small")
+	}
+	if len(result) < rows {
+		panic("result slice too small")
+	}
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])
@@ -59,6 +68,15 @@ func matVecAsmF16(m []hwy.Float16, rows, cols int, v, result []hwy.Float16) {
 }
 
 func matVecAsmBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
+	if len(m) < rows*cols {
+		panic("matrix slice too small")
+	}
+	if len(v) < cols {
+		panic("vector slice too small")
+	}
+	if len(result) < rows {
+		panic("result slice too small")
+	}
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])
@@ -89,6 +107,15 @@ func matVecAsmBF16(m []hwy.BFloat16, rows, cols int, v, result []hwy.BFloat16) {
 }
 
 func matVecAsmF32(m []float32, rows, cols int, v, result []float32) {
+	if len(m) < rows*cols {
+		panic("matrix slice too small")
+	}
+	if len(v) < cols {
+		panic("vector slice too small")
+	}
+	if len(result) < rows {
+		panic("result slice too small")
+	}
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])
@@ -119,6 +146,15 @@ func matVecAsmF32(m []float32, rows, cols int, v, result []float32) {
 }
 
 func matVecAsmF64(m []float64, rows, cols int, v, result []float64) {
+	if len(m) < rows*cols {
+		panic("matrix slice too small")
+	}
+	if len(v) < cols {
+		panic("vector slice too small")
+	}
+	if len(result) < rows {
+		panic("result slice too small")
+	}
 	var p_m unsafe.Pointer
 	if len(m) > 0 {
 		p_m = unsafe.Pointer(&m[0])

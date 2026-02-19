@@ -11,7 +11,7 @@ TEXT ·sum_c_f16_neon(SB), $0-24
 	MOVD plen_v+8(FP), R1
 	MOVD pout_result+16(FP), R2
 	WORD $0xf9400028            // ldr	x8, [x1]
-	WORD $0xb40003a8            // cbz	x8, LBB0_10
+	CBZ  R8, BB0_10
 	WORD $0xf100211f            // cmp	x8, #8
 	BGE  BB0_3
 	WORD $0xd2800009            // mov	x9, #0                          ; =0x0

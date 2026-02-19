@@ -15,7 +15,7 @@ func init() {
 }
 
 func initNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	GELUFloat32 = gELUAsmF32

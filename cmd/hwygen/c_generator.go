@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/printer"
+	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -239,12 +241,12 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 
 			// Non-struct AST-translated functions (slice+int params) need
-			// ASM adapter + wiring. Exclude functions with scalar T params
-			// (e.g., LeakyReLU, ELU) since emitSliceZCAdapterFunc doesn't
-			// handle T params in the adapter body yet.
+			// ASM adapter + wiring. Scalar T params (e.g., base T in
+			// DeltaDecode, value T in Find) are supported: the adapter
+			// converts them to addressable locals for unsafe.Pointer.
 			var nonStructASTFuncs []ParsedFunc
 			for _, f := range nonStructFuncs {
-				if IsASTCEligible(&f) && !hasScalarTypeParams(&f) {
+				if IsASTCEligible(&f) {
 					nonStructASTFuncs = append(nonStructASTFuncs, f)
 				}
 			}
@@ -1039,6 +1041,10 @@ func isSVETarget(target Target) bool {
 	return target.Name == "SVE_DARWIN" || target.Name == "SVE_LINUX"
 }
 
+func isNeonTarget(target Target) bool {
+	return target.Name == "NEON"
+}
+
 // isSVEStreamingTarget returns true for SVE targets that require SME streaming
 // mode (smstart/smstop). On Darwin, SVE instructions only work in streaming mode,
 // so per-function dispatch is impractical due to ~50ns transition overhead.
@@ -1061,14 +1067,13 @@ func sveRuntimeGuard(target Target) string {
 	}
 }
 
-// neonSMESkipGuard returns a guard expression for NEON asm targets that
-// causes the init() to skip dispatch overrides when SME is available.
-// SME dispatch (in *_sme.go files) provides better implementations;
-// without this guard the NEON asm overrides would clobber them because
-// z_c_slices*.gen.go sorts after *_sme.go alphabetically.
-func neonSMESkipGuard(target Target) string {
-	if target.Name == "NEON" {
-		return "hwy.NoSimdEnv() || hwy.HasSME()"
+// neonNoSimdGuard returns the NoSimdEnv guard for NEON targets.
+// NEON asm is the baseline on ARM64 — SME dispatch files (which must use
+// z-prefixed names to sort after z_c_slices_*) override when HasSME() is true.
+// The NoSimdEnv check allows HWY_NO_SIMD=1 to disable asm for testing.
+func neonNoSimdGuard(target Target) string {
+	if isNeonTarget(target) {
+		return "hwy.NoSimdEnv()"
 	}
 	return ""
 }
@@ -1159,14 +1164,11 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 		return fmt.Errorf("resolve asm import path: %w", err)
 	}
 
-	// Determine if hwy import is needed. SVE streaming targets (Darwin) skip
-	// init() generation, so only need hwy for half-precision types. Non-streaming
-	// SVE targets (Linux) generate init() with a runtime guard (hwy.HasSVE()).
-	needsHwy := isSVETarget(target) && !isSVEStreamingTarget(target)
-	// NEON asm targets need hwy for the SME skip guard (hwy.HasSME()).
-	if !needsHwy && neonSMESkipGuard(target) != "" {
-		needsHwy = true
-	}
+	// Determine if hwy import is needed:
+	// - NEON targets need hwy for the NoSimdEnv() guard
+	// - Non-streaming SVE targets (Linux) need hwy for HasSVE() guard
+	// - Half-precision types need hwy for HasARMFP16()/HasARMBF16() guards
+	needsHwy := isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target))
 	if !needsHwy {
 		// Check if we need the hwy import for half-precision types
 		for _, pf := range funcs {
@@ -1209,14 +1211,16 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 		initFn := "init" + capPrefix + capTarget + "CAsm"
 		fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initFn)
 		fmt.Fprintf(&buf, "func %s() {\n", initFn)
-		guard := sveRuntimeGuard(target)
-		if guard != "" {
-			fmt.Fprintf(&buf, "\tif !%s {\n", guard)
+		// Emit runtime guards: NoSimdEnv for NEON, feature detection for SVE.
+		noSimdGuard := neonNoSimdGuard(target)
+		sveGuard := sveRuntimeGuard(target)
+		if noSimdGuard != "" {
+			fmt.Fprintf(&buf, "\tif %s {\n", noSimdGuard)
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		if skipGuard := neonSMESkipGuard(target); skipGuard != "" {
-			fmt.Fprintf(&buf, "\tif %s {\n", skipGuard)
+		if sveGuard != "" {
+			fmt.Fprintf(&buf, "\tif !%s {\n", sveGuard)
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
@@ -1320,8 +1324,9 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 					break
 				}
 			}
-			if !hasIntParams {
-				// No explicit int params: single shared length for the first slice.
+			mixedSlices := hasMixedSliceTypes(&pf)
+			if !hasIntParams && !mixedSlices {
+				// No explicit int params and same-type slices: single shared length.
 				for _, p := range pf.Params {
 					if strings.HasPrefix(p.Type, "[]") {
 						paramDefs = append(paramDefs, "plen unsafe.Pointer")
@@ -1330,7 +1335,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 					}
 				}
 			} else {
-				// Explicit int params exist: per-slice length params.
+				// Explicit int params or mixed slice types: per-slice length params.
 				for _, p := range pf.Params {
 					if strings.HasPrefix(p.Type, "[]") {
 						plenName := "plen_" + p.Name
@@ -1411,14 +1416,11 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 		return fmt.Errorf("resolve asm import path: %w", err)
 	}
 
-	// Determine if hwy import is needed. SVE streaming targets (Darwin) skip
-	// init() generation, so only need hwy for half-precision types. Non-streaming
-	// SVE targets (Linux) generate init() with a runtime guard (hwy.HasSVE()).
-	needsHwy := isSVETarget(target) && !isSVEStreamingTarget(target)
-	// NEON asm targets need hwy for the SME skip guard (hwy.HasSME()).
-	if !needsHwy && neonSMESkipGuard(target) != "" {
-		needsHwy = true
-	}
+	// Determine if hwy import is needed:
+	// - NEON targets need hwy for the NoSimdEnv() guard
+	// - Non-streaming SVE targets (Linux) need hwy for HasSVE() guard
+	// - Half-precision types need hwy for HasARMFP16()/HasARMBF16() guards
+	needsHwy := isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target))
 	if !needsHwy {
 		// Check if we need the hwy import for half-precision types
 		for _, pf := range funcs {
@@ -1461,14 +1463,16 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 		initFn := "init" + capPrefix + capTarget + "CAsm"
 		fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initFn)
 		fmt.Fprintf(&buf, "func %s() {\n", initFn)
-		guard := sveRuntimeGuard(target)
-		if guard != "" {
-			fmt.Fprintf(&buf, "\tif !%s {\n", guard)
+		// Emit runtime guards: NoSimdEnv for NEON, feature detection for SVE.
+		noSimdGuard := neonNoSimdGuard(target)
+		sveGuard := sveRuntimeGuard(target)
+		if noSimdGuard != "" {
+			fmt.Fprintf(&buf, "\tif %s {\n", noSimdGuard)
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		if skipGuard := neonSMESkipGuard(target); skipGuard != "" {
-			fmt.Fprintf(&buf, "\tif %s {\n", skipGuard)
+		if sveGuard != "" {
+			fmt.Fprintf(&buf, "\tif !%s {\n", sveGuard)
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
@@ -1502,6 +1506,127 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 	return nil
 }
 
+// extractPanicPreconditions extracts panic guard statements from the top of a
+// function body. It collects variable declarations and if-statements that
+// contain panic() calls, stopping at the first statement that is neither.
+// Returns the Go source code for the preconditions, suitable for emitting
+// in the asm adapter function.
+func extractPanicPreconditions(body *ast.BlockStmt) string {
+	if body == nil {
+		return ""
+	}
+	fset := token.NewFileSet()
+	var buf bytes.Buffer
+	for _, stmt := range body.List {
+		switch s := stmt.(type) {
+		case *ast.IfStmt:
+			if containsPanic(s.Body) {
+				// This is a panic guard — emit it
+				printer.Fprint(&buf, fset, s)
+				buf.WriteString("\n")
+				continue
+			}
+			// Early return (e.g., if len(x) == 0 { return }) — skip but continue
+			if containsReturn(s.Body) {
+				continue
+			}
+			// Some other if — stop collecting
+			return buf.String()
+		case *ast.AssignStmt:
+			// Could be a supporting variable for a subsequent panic guard.
+			// Check if any following if-statement uses this var and panics.
+			if usedByFollowingPanicGuard(s, body.List) {
+				printer.Fprint(&buf, fset, s)
+				buf.WriteString("\n")
+				continue
+			}
+			// Not part of a panic guard — stop collecting
+			return buf.String()
+		case *ast.ReturnStmt:
+			// Bare return — stop
+			return buf.String()
+		default:
+			// Any other statement type — stop collecting
+			return buf.String()
+		}
+	}
+	return buf.String()
+}
+
+// containsPanic checks if a block contains a panic() call.
+func containsPanic(block *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(block, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "panic" {
+				found = true
+				return false
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// containsReturn checks if a block contains a return statement.
+func containsReturn(block *ast.BlockStmt) bool {
+	for _, stmt := range block.List {
+		if _, ok := stmt.(*ast.ReturnStmt); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// usedByFollowingPanicGuard checks if an assignment's LHS variable is
+// referenced by a subsequent if-statement that contains a panic().
+func usedByFollowingPanicGuard(assign *ast.AssignStmt, stmts []ast.Stmt) bool {
+	// Get the variable name(s) from the assignment LHS
+	var varNames []string
+	for _, lhs := range assign.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			varNames = append(varNames, ident.Name)
+		}
+	}
+	if len(varNames) == 0 {
+		return false
+	}
+
+	// Find this statement in the list and check subsequent statements
+	found := false
+	for _, stmt := range stmts {
+		if stmt == assign {
+			found = true
+			continue
+		}
+		if !found {
+			continue
+		}
+		if ifStmt, ok := stmt.(*ast.IfStmt); ok && containsPanic(ifStmt.Body) {
+			// Check if the condition references any of our variables
+			for _, name := range varNames {
+				if referencesIdent(ifStmt.Cond, name) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// referencesIdent checks if an expression references an identifier by name.
+func referencesIdent(expr ast.Expr, name string) bool {
+	found := false
+	ast.Inspect(expr, func(n ast.Node) bool {
+		if ident, ok := n.(*ast.Ident); ok && ident.Name == name {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
+}
+
 // emitSliceZCAdapterFunc generates an adapter function for a non-struct
 // AST-translated function. The adapter converts Go slice/int/scalar params
 // to the unsafe.Pointer calling convention expected by the asm passthrough.
@@ -1530,8 +1655,11 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	hasScalarParams := len(intParams) > 0 || len(floatParams) > 0
 
 	// Determine hidden length param strategy.
-	needsSharedLen := !hasScalarParams && len(sliceParams) > 0
-	needsPerSliceLen := hasScalarParams && len(sliceParams) > 0
+	// Use per-slice lengths when slices have different element types (e.g.,
+	// []byte and []float32) because len() has different semantics per type.
+	mixedSlices := hasMixedSliceTypes(pf)
+	needsSharedLen := !hasScalarParams && !mixedSlices && len(sliceParams) > 0
+	needsPerSliceLen := (hasScalarParams || mixedSlices) && len(sliceParams) > 0
 
 	// Determine if we have return values
 	hasReturns := len(pf.Returns) > 0
@@ -1555,6 +1683,15 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		fmt.Fprintf(buf, "func %s(%s) %s {\n", adapterName, goSig, returnType)
 	} else {
 		fmt.Fprintf(buf, "func %s(%s) {\n", adapterName, goSig)
+	}
+
+	// Emit panic preconditions from the base function (bounds checks, etc.)
+	// These ensure the asm adapter preserves the same safety guarantees as
+	// the base Go implementation.
+	if preconditions := extractPanicPreconditions(pf.Body); preconditions != "" {
+		for _, line := range strings.Split(strings.TrimRight(preconditions, "\n"), "\n") {
+			fmt.Fprintf(buf, "\t%s\n", line)
+		}
 	}
 
 	// Build nil-safe pointer variables for each slice parameter.
@@ -1597,7 +1734,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	}
 
 	// Output variables for return values.
-	// Array returns use the actual type; scalars use int64 for GOAT convention.
+	// Array returns use the actual type; float scalars use float32/float64
+	// so GOAT generates correct FP load/store instructions; int scalars use int64.
 	if hasReturns {
 		for _, ret := range pf.Returns {
 			name := ret.Name
@@ -1608,7 +1746,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			if isGoArrayType(goType) {
 				fmt.Fprintf(buf, "\tvar out_%s %s\n", name, goType)
 			} else {
-				fmt.Fprintf(buf, "\tvar out_%s int64\n", name)
+				outType := goReturnOutVarType(goType)
+				fmt.Fprintf(buf, "\tvar out_%s %s\n", name, outType)
 			}
 		}
 	}
@@ -1958,6 +2097,25 @@ func isGoScalarIntType(goType string) bool {
 	}
 }
 
+// hasMixedSliceTypes reports whether a function's slice parameters have
+// different element types (e.g., []byte and []float32). When true, each slice
+// needs its own length parameter because len([]byte) and len([]float32) have
+// different semantics (byte count vs element count).
+func hasMixedSliceTypes(pf *ParsedFunc) bool {
+	var firstElem string
+	for _, p := range pf.Params {
+		if strings.HasPrefix(p.Type, "[]") {
+			elem := strings.TrimPrefix(p.Type, "[]")
+			if firstElem == "" {
+				firstElem = elem
+			} else if elem != firstElem {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func isGoScalarFloatType(goType string) bool {
 	switch goType {
 	case "float32", "float64":
@@ -2062,6 +2220,21 @@ func isGoArrayType(goType string) bool {
 	return len(goType) >= 3 && goType[0] == '[' && goType[1] != ']'
 }
 
+// goReturnOutVarType returns the Go type for the output variable in the asm wrapper.
+// Float types use their native Go type so the pointer passed to GOAT is correctly
+// typed (float32 → float *, float64 → double *). Integer types use int64 to match
+// GOAT's long * convention.
+func goReturnOutVarType(goType string) string {
+	switch goType {
+	case "float32":
+		return "float32"
+	case "float64":
+		return "float64"
+	default:
+		return "int64"
+	}
+}
+
 // goReturnZeroValue returns the zero-value literal for a Go return type.
 // For scalar types returns "0", for array types returns e.g. "[4]uint32{}".
 func goReturnZeroValue(goType, elemType string) string {
@@ -2113,8 +2286,11 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 
 	// Determine hidden length param strategy.
-	needsSharedLen := !hasScalarParams && len(sliceParams) > 0
-	needsPerSliceLen := hasScalarParams && len(sliceParams) > 0
+	// Use per-slice lengths when slices have different element types (e.g.,
+	// []byte and []float32) because len() has different semantics per type.
+	mixedSlices := hasMixedSliceTypes(pf)
+	needsSharedLen := !hasScalarParams && !mixedSlices && len(sliceParams) > 0
+	needsPerSliceLen := (hasScalarParams || mixedSlices) && len(sliceParams) > 0
 	firstSlice := ""
 	if needsSharedLen && len(sliceParams) > 0 {
 		firstSlice = sliceParams[0]

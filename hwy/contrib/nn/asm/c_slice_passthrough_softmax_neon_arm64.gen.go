@@ -45,3 +45,23 @@ func LogSoftmax_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Poi
 	logsoftmax_c_f64_neon(input, output, plen)
 }
 
+// SoftmaxWithTemperature_F16 calls the NEON SIMD assembly implementation.
+func SoftmaxWithTemperature_F16(input unsafe.Pointer, output unsafe.Pointer, ptemperature unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxwithtemperature_c_f16_neon(input, output, ptemperature, plen)
+}
+
+// SoftmaxWithTemperature_BF16 calls the NEON SIMD assembly implementation.
+func SoftmaxWithTemperature_BF16(input unsafe.Pointer, output unsafe.Pointer, ptemperature unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxwithtemperature_c_bf16_neon(input, output, ptemperature, plen)
+}
+
+// SoftmaxWithTemperature_F32 calls the NEON SIMD assembly implementation.
+func SoftmaxWithTemperature_F32(input unsafe.Pointer, output unsafe.Pointer, ptemperature unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxwithtemperature_c_f32_neon(input, output, ptemperature, plen)
+}
+
+// SoftmaxWithTemperature_F64 calls the NEON SIMD assembly implementation.
+func SoftmaxWithTemperature_F64(input unsafe.Pointer, output unsafe.Pointer, ptemperature unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxwithtemperature_c_f64_neon(input, output, ptemperature, plen)
+}
+

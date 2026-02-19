@@ -55,16 +55,16 @@ BB0_3:
 	BGE  BB0_21
 
 BB0_4:
-	WORD $0xeb00013f // cmp	x9, x0
-	WORD $0x9a80b124 // csel	x4, x9, x0, lt
-	WORD $0xcb0c0103 // sub	x3, x8, x12
-	WORD $0xeb03013f // cmp	x9, x3
-	WORD $0x9a83b122 // csel	x2, x9, x3, lt
-	WORD $0x1a9fd605 // csinc	w5, w16, wzr, le
-	WORD $0x37000265 // tbnz	w5, #0, LBB0_9
-	WORD $0xd2800002 // mov	x2, #0                          ; =0x0
-	WORD $0x8b0b0423 // add	x3, x1, x11, lsl #1
-	WORD $0xaa0d03e4 // mov	x4, x13
+	WORD $0xeb00013f   // cmp	x9, x0
+	WORD $0x9a80b124   // csel	x4, x9, x0, lt
+	WORD $0xcb0c0103   // sub	x3, x8, x12
+	WORD $0xeb03013f   // cmp	x9, x3
+	WORD $0x9a83b122   // csel	x2, x9, x3, lt
+	WORD $0x1a9fd605   // csinc	w5, w16, wzr, le
+	TBNZ $0, R5, BB0_9
+	WORD $0xd2800002   // mov	x2, #0                          ; =0x0
+	WORD $0x8b0b0423   // add	x3, x1, x11, lsl #1
+	WORD $0xaa0d03e4   // mov	x4, x13
 
 BB0_6:
 	WORD $0xd2800005 // mov	x5, #0                          ; =0x0

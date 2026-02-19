@@ -15,7 +15,7 @@ func init() {
 }
 
 func initEncodeNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	EncodeFloat32s = encodeFloat32sAsmU8
@@ -25,6 +25,10 @@ func initEncodeNeonCAsm() {
 }
 
 func encodeFloat32sAsmU8(dst []byte, src []float32) {
+	totalBytes := len(src) * 4
+	if len(dst) < totalBytes {
+		panic("dst is too short")
+	}
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
@@ -33,15 +37,21 @@ func encodeFloat32sAsmU8(dst []byte, src []float32) {
 	if len(src) > 0 {
 		p_src = unsafe.Pointer(&src[0])
 	}
-	lenVal := int64(len(dst))
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
 	asm.EncodeFloat32s_U8(
 		p_dst,
 		p_src,
-		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
 	)
 }
 
 func decodeFloat32sAsmF32(dst []float32, src []byte) {
+	totalBytes := len(dst) * 4
+	if len(src) < totalBytes {
+		panic("src is too short")
+	}
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
@@ -50,15 +60,21 @@ func decodeFloat32sAsmF32(dst []float32, src []byte) {
 	if len(src) > 0 {
 		p_src = unsafe.Pointer(&src[0])
 	}
-	lenVal := int64(len(dst))
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
 	asm.DecodeFloat32s_F32(
 		p_dst,
 		p_src,
-		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
 	)
 }
 
 func encodeFloat64sAsmU8(dst []byte, src []float64) {
+	totalBytes := len(src) * 8
+	if len(dst) < totalBytes {
+		panic("dst is too short")
+	}
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
@@ -67,15 +83,21 @@ func encodeFloat64sAsmU8(dst []byte, src []float64) {
 	if len(src) > 0 {
 		p_src = unsafe.Pointer(&src[0])
 	}
-	lenVal := int64(len(dst))
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
 	asm.EncodeFloat64s_U8(
 		p_dst,
 		p_src,
-		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
 	)
 }
 
 func decodeFloat64sAsmF64(dst []float64, src []byte) {
+	totalBytes := len(dst) * 8
+	if len(src) < totalBytes {
+		panic("src is too short")
+	}
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
@@ -84,11 +106,13 @@ func decodeFloat64sAsmF64(dst []float64, src []byte) {
 	if len(src) > 0 {
 		p_src = unsafe.Pointer(&src[0])
 	}
-	lenVal := int64(len(dst))
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
 	asm.DecodeFloat64s_F64(
 		p_dst,
 		p_src,
-		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
 	)
 }
 

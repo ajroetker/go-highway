@@ -11,7 +11,7 @@ TEXT ·softmax_c_f16_neon(SB), $32-24
 	MOVD output+8(FP), R1
 	MOVD plen_input+16(FP), R2
 	WORD $0xf9400048           // ldr	x8, [x2]
-	WORD $0xb40021e8           // cbz	x8, LBB0_24
+	CBZ  R8, BB0_24
 	WORD $0xa90057f6           // stp	x22, x21, [sp, #-32]!           ; 16-byte Folded Spill [transformed]
 	WORD $0xa9014ff4           // stp	x20, x19, [sp, #16]             ; 16-byte Folded Spill
 	WORD $0x7d400000           // ldr	h0, [x0]
@@ -269,12 +269,12 @@ BB0_13:
 	B    BB0_12
 
 BB0_16:
-	WORD $0x1ee24020 // fcvt	s0, h1
-	WORD $0x1e2e1001 // fmov	s1, #1.00000000
-	WORD $0x1e201820 // fdiv	s0, s1, s0
-	WORD $0x1e380009 // fcvtzs	w9, s0
-	WORD $0x3600006a // tbz	w10, #0, LBB0_18
-	WORD $0xd280000b // mov	x11, #0                         ; =0x0
+	WORD $0x1ee24020     // fcvt	s0, h1
+	WORD $0x1e2e1001     // fmov	s1, #1.00000000
+	WORD $0x1e201820     // fdiv	s0, s1, s0
+	WORD $0x1e380009     // fcvtzs	w9, s0
+	TBZ  $0, R10, BB0_18
+	WORD $0xd280000b     // mov	x11, #0                         ; =0x0
 	B    BB0_20
 
 BB0_18:

@@ -11,7 +11,7 @@ TEXT ·logsoftmax_c_f64_neon(SB), $48-24
 	MOVD output+8(FP), R1
 	MOVD plen_input+16(FP), R2
 	WORD $0xf9400048           // ldr	x8, [x2]
-	WORD $0xb4002ba8           // cbz	x8, LBB0_22
+	CBZ  R8, BB0_22
 	WORD $0x6d0023e9           // stp	d9, d8, [sp, #-48]!             ; 16-byte Folded Spill [transformed]
 	WORD $0xa90157f6           // stp	x22, x21, [sp, #16]             ; 16-byte Folded Spill
 	WORD $0xa9024ff4           // stp	x20, x19, [sp, #32]             ; 16-byte Folded Spill
