@@ -6,15 +6,14 @@
 // flags: -march=armv8.2-a+fp16+simd -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/nn/asm/basesoftmaxwithtemperature_c_f16_neon_arm64.c
 
-TEXT ·softmaxwithtemperature_c_f16_neon(SB), $32-32
+TEXT ·softmaxwithtemperature_c_f16_neon(SB), $16-32
 	MOVD input+0(FP), R0
 	MOVD output+8(FP), R1
 	MOVD ptemperature+16(FP), R2
 	MOVD plen_input+24(FP), R3
 	WORD $0xf9400068             // ldr	x8, [x3]
-	WORD $0xb40022e8             // cbz	x8, LBB0_23
-	WORD $0x6d0023e9             // stp	d9, d8, [sp, #-32]!             ; 16-byte Folded Spill [transformed]
-	WORD $0xa9014ff4             // stp	x20, x19, [sp, #16]             ; 16-byte Folded Spill
+	WORD $0xb4002288             // cbz	x8, LBB0_23
+	WORD $0xa9004ff4             // stp	x20, x19, [sp, #-16]!           ; 16-byte Folded Spill [transformed]
 	WORD $0x7d400041             // ldr	h1, [x2]
 	WORD $0x7d400000             // ldr	h0, [x0]
 	WORD $0xf100091f             // cmp	x8, #2
@@ -83,62 +82,61 @@ BB0_7:
 	WORD $0x4ec116f7 // fsub.8h	v23, v23, v1
 	WORD $0x4f0292f7 // fmul.8h	v23, v23, v2[0]
 	WORD $0x0e217af8 // fcvtl	v24.4s, v23.4h
-	WORD $0x6e1742f7 // ext.16b	v23, v23, v23, #8
-	WORD $0x0e217af7 // fcvtl	v23.4s, v23.4h
-	WORD $0x6ea4e719 // fcmgt.4s	v25, v24, v4
-	WORD $0x6e25df1a // fmul.4s	v26, v24, v5
-	WORD $0x4e218b5a // frintn.4s	v26, v26
-	WORD $0x6e26df5b // fmul.4s	v27, v26, v6
-	WORD $0x4ebbd71b // fsub.4s	v27, v24, v27
-	WORD $0x6e27df5c // fmul.4s	v28, v26, v7
-	WORD $0x4e3bd79b // fadd.4s	v27, v28, v27
-	WORD $0x4eb11e3c // mov.16b	v28, v17
-	WORD $0x4e3bce1c // fmla.4s	v28, v16, v27
-	WORD $0x4eb21e5d // mov.16b	v29, v18
-	WORD $0x4e3ccf7d // fmla.4s	v29, v27, v28
-	WORD $0x4eb31e7c // mov.16b	v28, v19
-	WORD $0x4e3dcf7c // fmla.4s	v28, v27, v29
-	WORD $0x4f0167fd // movi.4s	v29, #63, lsl #24
-	WORD $0x4eb41e9e // mov.16b	v30, v20
-	WORD $0x6e25deff // fmul.4s	v31, v23, v5
-	WORD $0x4e218bff // frintn.4s	v31, v31
-	WORD $0x6e26dfe8 // fmul.4s	v8, v31, v6
-	WORD $0x4e3ccf7d // fmla.4s	v29, v27, v28
-	WORD $0x4ea8d6fc // fsub.4s	v28, v23, v8
-	WORD $0x6e27dfe8 // fmul.4s	v8, v31, v7
-	WORD $0x4e3cd51c // fadd.4s	v28, v8, v28
-	WORD $0x4eb11e28 // mov.16b	v8, v17
-	WORD $0x4e3cce08 // fmla.4s	v8, v16, v28
-	WORD $0x4e3dcf7e // fmla.4s	v30, v27, v29
-	WORD $0x4eb21e5d // mov.16b	v29, v18
-	WORD $0x4e28cf9d // fmla.4s	v29, v28, v8
-	WORD $0x4eb31e68 // mov.16b	v8, v19
-	WORD $0x4e3dcf88 // fmla.4s	v8, v28, v29
+	WORD $0x6e25df19 // fmul.4s	v25, v24, v5
+	WORD $0x4e218b39 // frintn.4s	v25, v25
+	WORD $0x6e26df3a // fmul.4s	v26, v25, v6
+	WORD $0x4ebad71a // fsub.4s	v26, v24, v26
+	WORD $0x6e27df3b // fmul.4s	v27, v25, v7
+	WORD $0x4e3ad77a // fadd.4s	v26, v27, v26
+	WORD $0x4eb11e3b // mov.16b	v27, v17
+	WORD $0x4eb21e5c // mov.16b	v28, v18
+	WORD $0x4e3ace1b // fmla.4s	v27, v16, v26
+	WORD $0x4e3bcf5c // fmla.4s	v28, v26, v27
+	WORD $0x4eb31e7b // mov.16b	v27, v19
+	WORD $0x4e3ccf5b // fmla.4s	v27, v26, v28
+	WORD $0x4f0167fc // movi.4s	v28, #63, lsl #24
 	WORD $0x4eb41e9d // mov.16b	v29, v20
-	WORD $0x4e3ecf7d // fmla.4s	v29, v27, v30
-	WORD $0x4f0167fb // movi.4s	v27, #63, lsl #24
-	WORD $0x4e28cf9b // fmla.4s	v27, v28, v8
-	WORD $0x4eb41e9e // mov.16b	v30, v20
-	WORD $0x4e3bcf9e // fmla.4s	v30, v28, v27
+	WORD $0x4e3bcf5c // fmla.4s	v28, v26, v27
 	WORD $0x4eb41e9b // mov.16b	v27, v20
-	WORD $0x4e3ecf9b // fmla.4s	v27, v28, v30
-	WORD $0x4e21ab5a // fcvtns.4s	v26, v26
+	WORD $0x4e21ab39 // fcvtns.4s	v25, v25
+	WORD $0x4f375739 // shl.4s	v25, v25, #23
+	WORD $0x4eb48739 // add.4s	v25, v25, v20
+	WORD $0x6e1742f7 // ext.16b	v23, v23, v23, #8
+	WORD $0x4e3ccf5d // fmla.4s	v29, v26, v28
+	WORD $0x0e217af7 // fcvtl	v23.4s, v23.4h
+	WORD $0x6e25defc // fmul.4s	v28, v23, v5
+	WORD $0x4e218b9c // frintn.4s	v28, v28
+	WORD $0x6e26df9e // fmul.4s	v30, v28, v6
+	WORD $0x4ebed6fe // fsub.4s	v30, v23, v30
+	WORD $0x4e3dcf5b // fmla.4s	v27, v26, v29
+	WORD $0x6e27df9a // fmul.4s	v26, v28, v7
+	WORD $0x4e3ed75a // fadd.4s	v26, v26, v30
+	WORD $0x4eb11e3d // mov.16b	v29, v17
+	WORD $0x4e3ace1d // fmla.4s	v29, v16, v26
+	WORD $0x4eb21e5e // mov.16b	v30, v18
+	WORD $0x6e39df79 // fmul.4s	v25, v27, v25
+	WORD $0x4e3dcf5e // fmla.4s	v30, v26, v29
+	WORD $0x4eb31e7b // mov.16b	v27, v19
+	WORD $0x4e3ecf5b // fmla.4s	v27, v26, v30
+	WORD $0x6ea4e71d // fcmgt.4s	v29, v24, v4
+	WORD $0x6eb8e6b8 // fcmgt.4s	v24, v21, v24
+	WORD $0x6ebd1ed9 // bit.16b	v25, v22, v29
+	WORD $0x4f0167fd // movi.4s	v29, #63, lsl #24
+	WORD $0x4e3bcf5d // fmla.4s	v29, v26, v27
+	WORD $0x4eb41e9b // mov.16b	v27, v20
+	WORD $0x4e3dcf5b // fmla.4s	v27, v26, v29
+	WORD $0x6ea4e6fd // fcmgt.4s	v29, v23, v4
+	WORD $0x4e781f38 // bic.16b	v24, v25, v24
+	WORD $0x4eb41e99 // mov.16b	v25, v20
+	WORD $0x4e3bcf59 // fmla.4s	v25, v26, v27
+	WORD $0x4e21ab9a // fcvtns.4s	v26, v28
 	WORD $0x4f37575a // shl.4s	v26, v26, #23
 	WORD $0x4eb4875a // add.4s	v26, v26, v20
-	WORD $0x6e3adfba // fmul.4s	v26, v29, v26
-	WORD $0x6eb8e6b8 // fcmgt.4s	v24, v21, v24
-	WORD $0x6e7a1ed9 // bsl.16b	v25, v22, v26
-	WORD $0x6ea4e6fa // fcmgt.4s	v26, v23, v4
-	WORD $0x4e21abfc // fcvtns.4s	v28, v31
-	WORD $0x4f37579c // shl.4s	v28, v28, #23
-	WORD $0x4eb4879c // add.4s	v28, v28, v20
-	WORD $0x6e3cdf7b // fmul.4s	v27, v27, v28
-	WORD $0x4e781f38 // bic.16b	v24, v25, v24
-	WORD $0x6eb7e6b7 // fcmgt.4s	v23, v21, v23
-	WORD $0x4eba1f59 // mov.16b	v25, v26
-	WORD $0x6e7b1ed9 // bsl.16b	v25, v22, v27
-	WORD $0x4e771f37 // bic.16b	v23, v25, v23
 	WORD $0x0e216b18 // fcvtn	v24.4h, v24.4s
+	WORD $0x6e3adf39 // fmul.4s	v25, v25, v26
+	WORD $0x6eb7e6b7 // fcmgt.4s	v23, v21, v23
+	WORD $0x6ebd1ed9 // bit.16b	v25, v22, v29
+	WORD $0x4e771f37 // bic.16b	v23, v25, v23
 	WORD $0x4e216af8 // fcvtn2	v24.8h, v23.4s
 	WORD $0x3c810578 // str	q24, [x11], #16
 	WORD $0x4e581463 // fadd.8h	v3, v3, v24
@@ -317,8 +315,7 @@ BB0_21:
 	BNE  BB0_21
 
 BB0_22:
-	WORD $0xa9414ff4 // ldp	x20, x19, [sp, #16]             ; 16-byte Folded Reload
-	WORD $0x6d4023e9 // ldp	d9, d8, [sp], #32               ; 16-byte Folded Reload [transformed]
+	WORD $0xa9404ff4 // ldp	x20, x19, [sp], #16             ; 16-byte Folded Reload [transformed]
 
 BB0_23:
 	RET

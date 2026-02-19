@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input distance_base.go -output . -targets avx2,avx512,neon,fallback -dispatch distance
+//go:generate go run ../../../cmd/hwygen -input distance_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch distance
 
 import (
 	"math"

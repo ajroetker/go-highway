@@ -17,9 +17,9 @@
 // NOTE: This file is named "z_nn_arm64.go" (starting with 'z')
 // to ensure its init() runs AFTER the generated dispatch files.
 // Go executes init() functions in lexicographic filename order within a package.
-// The generated dispatch sets NEON implementations via neon:asm;
-// this file's init() must run afterward to override with SME
-// implementations when available.
+// The z_c_slices_* dispatch files set LayerNorm*, Softmax*, SDPA*, QKVDense*
+// to hwygen-generated NEON assembly; this file's init() runs afterward to
+// override SDPA and QKVDense with SME implementations when available.
 
 package nn
 
@@ -31,8 +31,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/nn/asm"
 )
 
-// Minimum dimensions for NEON/SME SDPA acceleration.
-const minDimForSDPANEON = 8
+// Minimum dimensions for SME SDPA acceleration.
 const minDimForSDPASME = 32
 
 // fillNegInfColumns sets mask[i, kvLen:paddedKvLen] = -inf for all rows.
@@ -74,41 +73,6 @@ func buildCausalPaddingMask[T hwy.Floats](m []T, seqLen, kvLen, paddedSeqLen, pa
 	}
 }
 
-// sdpaNEONF32 uses GOAT-generated NEON assembly for f32 SDPA.
-func sdpaNEONF32(q, k, v, mask, scores, output []float32, seqLen, kvLen, headDim int, scale float32) {
-	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
-		BaseSDPA(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
-		return
-	}
-	asm.SDPANeonF32(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
-}
-
-// sdpaNEONF64 uses GOAT-generated NEON assembly for f64 SDPA.
-func sdpaNEONF64(q, k, v, mask, scores, output []float64, seqLen, kvLen, headDim int, scale float64) {
-	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
-		BaseSDPA(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
-		return
-	}
-	asm.SDPANeonF64(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
-}
-
-// sdpaCausalNEONF32 uses GOAT-generated NEON assembly for f32 causal SDPA.
-func sdpaCausalNEONF32(q, k, v, scores, output []float32, seqLen, kvLen, headDim int, scale float32) {
-	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
-		BaseSDPACausal(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
-		return
-	}
-	asm.SDPACausalNeonF32(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
-}
-
-// sdpaCausalNEONF64 uses GOAT-generated NEON assembly for f64 causal SDPA.
-func sdpaCausalNEONF64(q, k, v, scores, output []float64, seqLen, kvLen, headDim int, scale float64) {
-	if seqLen < minDimForSDPANEON || kvLen < minDimForSDPANEON {
-		BaseSDPACausal(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
-		return
-	}
-	asm.SDPACausalNeonF64(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
-}
 
 // =============================================================================
 // SME SDPA adapter functions
@@ -124,7 +88,7 @@ func sdpaSMEF32(q, k, v, mask, scores, output []float32, seqLen, kvLen, headDim 
 	paddedHeadDim := matmul.AlignUp(headDim, tileSize)
 
 	if paddedSeqLen < minDimForSDPASME || paddedKvLen < minDimForSDPASME || paddedHeadDim < minDimForSDPASME {
-		sdpaNEONF32(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+		asm.SDPACF32(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
 		return
 	}
 
@@ -209,7 +173,7 @@ func sdpaSMEF64(q, k, v, mask, scores, output []float64, seqLen, kvLen, headDim 
 	paddedHeadDim := matmul.AlignUp(headDim, tileSize)
 
 	if paddedSeqLen < minDimForSDPASME || paddedKvLen < minDimForSDPASME || paddedHeadDim < minDimForSDPASME {
-		sdpaNEONF64(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
+		asm.SDPACF64(q, k, v, mask, scores, output, seqLen, kvLen, headDim, scale)
 		return
 	}
 
@@ -294,7 +258,7 @@ func sdpaCausalSMEF32(q, k, v, scores, output []float32, seqLen, kvLen, headDim 
 	paddedHeadDim := matmul.AlignUp(headDim, tileSize)
 
 	if paddedSeqLen < minDimForSDPASME || paddedKvLen < minDimForSDPASME || paddedHeadDim < minDimForSDPASME {
-		sdpaCausalNEONF32(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
+		asm.SDPACausalCF32(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
 		return
 	}
 
@@ -367,7 +331,7 @@ func sdpaCausalSMEF64(q, k, v, scores, output []float64, seqLen, kvLen, headDim 
 	paddedHeadDim := matmul.AlignUp(headDim, tileSize)
 
 	if paddedSeqLen < minDimForSDPASME || paddedKvLen < minDimForSDPASME || paddedHeadDim < minDimForSDPASME {
-		sdpaCausalNEONF64(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
+		asm.SDPACausalCF64(q, k, v, scores, output, seqLen, kvLen, headDim, scale)
 		return
 	}
 
@@ -483,39 +447,22 @@ func qkvdenseSMEF64(x, wQKV, biasQ, biasK, biasV, q, k, v []float64, batchSize, 
 }
 
 func init() {
-	if hwy.NoSimdEnv() {
+	if hwy.NoSimdEnv() || !hwy.HasSME() {
 		return
 	}
 
-	// LayerNorm: NEON path handled by generated dispatch (neon:asm).
+	// SME FMOPA provides higher throughput for aligned dimensions.
+	// The SME adapters check alignment and fall back to NEON assembly internally.
+	SDPAFloat32 = sdpaSMEF32
+	SDPAFloat64 = sdpaSMEF64
+	SDPACausalFloat32 = sdpaCausalSMEF32
+	SDPACausalFloat64 = sdpaCausalSMEF64
 
-	// Override SDPA dispatch
-	if hwy.HasSME() {
-		// SME FMOPA provides higher throughput for aligned dimensions.
-		// The SME adapters check alignment and fall back to NEON internally.
-		SDPAFloat32 = sdpaSMEF32
-		SDPAFloat64 = sdpaSMEF64
-	} else {
-		SDPAFloat32 = sdpaNEONF32
-		SDPAFloat64 = sdpaNEONF64
-	}
+	// SME QKVDense decomposes into 3 optimized MatMulKLast calls.
+	QKVDenseFloat32 = qkvdenseSMEF32
+	QKVDenseFloat64 = qkvdenseSMEF64
 
-	// QKVDense: NEON path handled by generated dispatch; SME overrides here.
-	if hwy.HasSME() {
-		QKVDenseFloat32 = qkvdenseSMEF32
-		QKVDenseFloat64 = qkvdenseSMEF64
-	}
-
-	// Causal SDPA dispatch
-	if hwy.HasSME() {
-		SDPACausalFloat32 = sdpaCausalSMEF32
-		SDPACausalFloat64 = sdpaCausalSMEF64
-	} else {
-		SDPACausalFloat32 = sdpaCausalNEONF32
-		SDPACausalFloat64 = sdpaCausalNEONF64
-	}
-
-	// Float16/BFloat16 use the hwygen-generated promoted implementations
-	// (promote to f32, compute, demote) which are already efficient enough
-	// since the promotion is the bottleneck, not the compute.
+	// LayerNorm, Softmax, Dense, and non-SME SDPA/QKVDense use
+	// hwygen-generated NEON assembly from z_c_slices_* dispatch files.
+	// Float16/BFloat16 use promoted implementations (promote to f32, compute, demote).
 }

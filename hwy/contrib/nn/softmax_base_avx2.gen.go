@@ -20,9 +20,9 @@ func BaseSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := asm.BroadcastFloat16x8AVX2(uint16(maxVal))
@@ -64,9 +64,9 @@ func BaseSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := asm.BroadcastBFloat16x8AVX2(uint16(maxVal))
@@ -108,9 +108,9 @@ func BaseSoftmax_avx2(input []float32, output []float32) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := archsimd.BroadcastFloat32x8(maxVal)
@@ -152,9 +152,9 @@ func BaseSoftmax_avx2_Float64(input []float64, output []float64) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := archsimd.BroadcastFloat64x4(maxVal)
@@ -212,9 +212,9 @@ func BaseLogSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := asm.BroadcastFloat16x8AVX2(uint16(maxVal))
@@ -253,9 +253,9 @@ func BaseLogSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := asm.BroadcastBFloat16x8AVX2(uint16(maxVal))
@@ -294,9 +294,9 @@ func BaseLogSoftmax_avx2(input []float32, output []float32) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := archsimd.BroadcastFloat32x8(maxVal)
@@ -335,9 +335,9 @@ func BaseLogSoftmax_avx2_Float64(input []float64, output []float64) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := archsimd.BroadcastFloat64x4(maxVal)
@@ -392,9 +392,9 @@ func BaseSoftmaxScalar_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	var expSum float32
@@ -414,9 +414,9 @@ func BaseSoftmaxScalar_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	var expSum float32
@@ -436,9 +436,9 @@ func BaseSoftmaxScalar_avx2(input []float32, output []float32) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	var expSum float32
@@ -458,9 +458,9 @@ func BaseSoftmaxScalar_avx2_Float64(input []float64, output []float64) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	var expSum float64
@@ -480,9 +480,9 @@ func BaseSoftmaxWithTemperature_avx2_Float16(input []hwy.Float16, output []hwy.F
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	invTemp := hwy.Float32ToFloat16(float32(1.0) / temperature.Float32())
@@ -527,9 +527,9 @@ func BaseSoftmaxWithTemperature_avx2_BFloat16(input []hwy.BFloat16, output []hwy
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	invTemp := hwy.Float32ToBFloat16(float32(1.0) / temperature.Float32())
@@ -574,9 +574,9 @@ func BaseSoftmaxWithTemperature_avx2(input []float32, output []float32, temperat
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	invTemp := float32(1.0) / temperature
@@ -621,9 +621,9 @@ func BaseSoftmaxWithTemperature_avx2_Float64(input []float64, output []float64, 
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	invTemp := float64(1.0) / temperature

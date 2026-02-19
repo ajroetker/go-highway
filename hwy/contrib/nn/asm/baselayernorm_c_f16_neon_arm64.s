@@ -142,8 +142,8 @@ BB0_18:
 	WORD $0x1e23c0a5 // fcvt	h5, s5
 	WORD $0x1ee240a5 // fcvt	s5, h5
 	WORD $0x1e252825 // fadd	s5, s1, s5
-	WORD $0x1e21c0a5 // fsqrt	s5, s5
 	WORD $0x1e22c0a5 // fcvt	d5, s5
+	WORD $0x1e61c0a5 // fsqrt	d5, d5
 	WORD $0x1e651845 // fdiv	d5, d2, d5
 	WORD $0x1e7800ae // fcvtzs	w14, d5
 	WORD $0x1ee301c5 // ucvtf	h5, w14

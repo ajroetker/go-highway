@@ -14,7 +14,7 @@
 
 package vec
 
-//go:generate go run ../../../cmd/hwygen -input encode_base.go -output . -targets avx2,avx512,neon,fallback -dispatch encode
+//go:generate go run ../../../cmd/hwygen -input encode_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch encode
 
 import (
 	"unsafe"

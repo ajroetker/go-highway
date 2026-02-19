@@ -21,7 +21,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-//go:generate go run ../../../cmd/hwygen -input softmax_base.go -output . -targets avx2,avx512,neon:asm,fallback
+//go:generate go run ../../../cmd/hwygen -input softmax_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch softmax
 
 // BaseSoftmax computes the softmax function over the input slice.
 //
@@ -42,9 +42,9 @@ func BaseSoftmax[T hwy.Floats](input, output []T) {
 
 	// Pass 1: Find the maximum value for numerical stability
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
@@ -104,9 +104,9 @@ func BaseLogSoftmax[T hwy.Floats](input, output []T) {
 
 	// Pass 1: Find the maximum value for numerical stability
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
@@ -154,9 +154,9 @@ func BaseSoftmaxScalar[T hwy.Floats](input, output []T) {
 
 	// Find max
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 
@@ -195,9 +195,9 @@ func BaseSoftmaxWithTemperature[T hwy.Floats](input, output []T, temperature T) 
 
 	// Pass 1: Find the maximum value
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 

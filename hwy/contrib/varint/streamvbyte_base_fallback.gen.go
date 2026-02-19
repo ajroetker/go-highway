@@ -88,19 +88,20 @@ func BaseEncodeStreamVByte32_fallback(values []uint32) (control []byte, data []b
 	numGroups := (len(values) + 3) / 4
 	control = make([]byte, numGroups)
 	data = make([]byte, 0, len(values)*4)
+	var buf [16]byte
 	for g := range numGroups {
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 		if remaining >= 4 {
-			ctrl, groupData := BaseEncodeStreamVByte32GroupSIMD_fallback(values[baseIdx : baseIdx+4])
+			ctrl, n := BaseEncodeStreamVByte32Group_fallback(values[baseIdx:baseIdx+4], buf[:])
 			control[g] = ctrl
-			data = append(data, groupData...)
+			data = append(data, buf[:n]...)
 		} else {
 			var group [4]uint32
 			copy(group[:], values[baseIdx:])
-			ctrl, groupData := encodeGroupScalar(group[:])
+			ctrl, n := encodeGroupScalarInto(group[:], buf[:])
 			control[g] = ctrl
-			data = append(data, groupData...)
+			data = append(data, buf[:n]...)
 		}
 	}
 	return control, data
@@ -127,7 +128,7 @@ func BaseEncodeStreamVByte32Into_fallback(values []uint32, controlBuf []byte, da
 		baseIdx := g * 4
 		remaining := len(values) - baseIdx
 		if remaining >= 4 && dataPos+16 <= len(dataBuf) {
-			ctrl, n := BaseEncodeStreamVByte32GroupSIMDInto_fallback(values[baseIdx:baseIdx+4], dataBuf[dataPos:])
+			ctrl, n := BaseEncodeStreamVByte32Group_fallback(values[baseIdx:baseIdx+4], dataBuf[dataPos:])
 			controlBuf[g] = ctrl
 			dataPos += n
 		} else {
@@ -141,28 +142,7 @@ func BaseEncodeStreamVByte32Into_fallback(values []uint32, controlBuf []byte, da
 	return controlBuf, dataBuf[:dataPos]
 }
 
-func BaseEncodeStreamVByte32GroupSIMD_fallback(values []uint32) (ctrl byte, data []byte) {
-	if len(values) < 4 {
-		return encodeGroupScalar(values)
-	}
-	ctrl = 0
-	for i := range 4 {
-		length := encodedLengthU32(values[i])
-		ctrl |= byte(length-1) << (i * 2)
-	}
-	dataLen := int(streamVByte32DataLen[ctrl])
-	data = make([]byte, dataLen)
-	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
-	inputVec := hwy.LoadSlice[uint8](inputBytes[:16])
-	maskVec := hwy.LoadSlice[uint8](streamVByte32EncodeShuffleMasks[ctrl][:16])
-	shuffled := hwy.TableLookupBytes(inputVec, maskVec)
-	var outputBytes [16]uint8
-	hwy.StoreSlice(shuffled, outputBytes[:16])
-	copy(data, outputBytes[:dataLen])
-	return ctrl, data
-}
-
-func BaseEncodeStreamVByte32GroupSIMDInto_fallback(values []uint32, dst []uint8) (ctrl byte, n int) {
+func BaseEncodeStreamVByte32Group_fallback(values []uint32, dst []uint8) (ctrl byte, n int) {
 	if len(values) < 4 || len(dst) < 16 {
 		return 0, 0
 	}

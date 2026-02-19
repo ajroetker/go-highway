@@ -4767,7 +4767,9 @@ func transformAssignStmt(stmt *ast.AssignStmt, ctx *transformContext) {
 	// For NEON target, detect accumulator patterns and use in-place operations.
 	// Pattern: acc = v.MulAdd(a, acc) -> v.MulAddAcc(a, &acc)
 	// This avoids return value allocation overhead on ARM64.
-	if ctx.target.Name == "NEON" {
+	// Skip when skipHalfPrecNEON is true because operands stay as hwy.Vec[T]
+	// (not asm.Float16x8), and MulAddAcc is only defined on asm types.
+	if ctx.target.Name == "NEON" && !ctx.skipHalfPrecNEON {
 		if transformed := tryTransformToInPlace(stmt, ctx); transformed {
 			return
 		}

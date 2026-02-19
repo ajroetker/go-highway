@@ -20,7 +20,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-//go:generate go run ../../../cmd/hwygen -input layernorm_base.go -output . -targets avx2,avx512,neon:asm,fallback
+//go:generate go run ../../../cmd/hwygen -input layernorm_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch layernorm
 
 // BaseLayerNorm computes layer normalization over groups of normSize elements.
 //

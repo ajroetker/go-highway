@@ -15,9 +15,9 @@ func BaseSoftmax_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := hwy.Set(maxVal)
@@ -54,9 +54,9 @@ func BaseSoftmax_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) 
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := hwy.Set(maxVal)
@@ -93,9 +93,9 @@ func BaseSoftmax_fallback(input []float32, output []float32) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := float32(maxVal)
@@ -131,9 +131,9 @@ func BaseSoftmax_fallback_Float64(input []float64, output []float64) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := float64(maxVal)
@@ -185,9 +185,9 @@ func BaseLogSoftmax_fallback_Float16(input []hwy.Float16, output []hwy.Float16) 
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := hwy.Set(maxVal)
@@ -222,9 +222,9 @@ func BaseLogSoftmax_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat1
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	vMax := hwy.Set(maxVal)
@@ -259,9 +259,9 @@ func BaseLogSoftmax_fallback(input []float32, output []float32) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := float32(maxVal)
@@ -295,9 +295,9 @@ func BaseLogSoftmax_fallback_Float64(input []float64, output []float64) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	vMax := float64(maxVal)
@@ -347,9 +347,9 @@ func BaseSoftmaxScalar_fallback_Float16(input []hwy.Float16, output []hwy.Float1
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	var expSum float32
@@ -369,9 +369,9 @@ func BaseSoftmaxScalar_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFlo
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	var expSum float32
@@ -391,9 +391,9 @@ func BaseSoftmaxScalar_fallback(input []float32, output []float32) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	var expSum float32
@@ -413,9 +413,9 @@ func BaseSoftmaxScalar_fallback_Float64(input []float64, output []float64) {
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	var expSum float64
@@ -435,9 +435,9 @@ func BaseSoftmaxWithTemperature_fallback_Float16(input []hwy.Float16, output []h
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	invTemp := hwy.Float32ToFloat16(float32(1.0) / temperature.Float32())
@@ -477,9 +477,9 @@ func BaseSoftmaxWithTemperature_fallback_BFloat16(input []hwy.BFloat16, output [
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i].Float32() > maxVal.Float32() {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
 		}
 	}
 	invTemp := hwy.Float32ToBFloat16(float32(1.0) / temperature.Float32())
@@ -519,9 +519,9 @@ func BaseSoftmaxWithTemperature_fallback(input []float32, output []float32, temp
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	invTemp := float32(1.0) / temperature
@@ -560,9 +560,9 @@ func BaseSoftmaxWithTemperature_fallback_Float64(input []float64, output []float
 		return
 	}
 	maxVal := input[0]
-	for i := 1; i < size; i++ {
-		if input[i] > maxVal {
-			maxVal = input[i]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
 		}
 	}
 	invTemp := float64(1.0) / temperature

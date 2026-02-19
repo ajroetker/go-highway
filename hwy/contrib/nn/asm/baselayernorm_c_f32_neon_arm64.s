@@ -32,14 +32,15 @@ TEXT ·layernorm_c_f32_neon(SB), $16-80
 	BLT  BB0_36
 	WORD $0xd280000a            // mov	x10, #0                         ; =0x0
 	WORD $0xbd4000a0            // ldr	s0, [x5]
-	WORD $0x9e230102            // ucvtf	s2, x8
-	WORD $0x1e2e1001            // fmov	s1, #1.00000000
-	WORD $0x1e221822            // fdiv	s2, s1, s2
+	WORD $0x9e230101            // ucvtf	s1, x8
+	WORD $0x1e2e1002            // fmov	s2, #1.00000000
+	WORD $0x1e211841            // fdiv	s1, s2, s1
 	WORD $0xf100007f            // cmp	x3, #0
 	WORD $0xfa401884            // ccmp	x4, #0, #4, ne
 	WORD $0x1a9f07eb            // cset	w11, ne
 	WORD $0x927ef10c            // and	x12, x8, #0x7ffffffffffffffc
 	WORD $0xd37ef50d            // lsl	x13, x8, #2
+	WORD $0x1e6e1002            // fmov	d2, #1.00000000
 	B    BB0_4
 
 BB0_3:
@@ -85,7 +86,7 @@ BB0_9:
 	BNE  BB0_9
 
 BB0_10:
-	WORD $0x1e230843 // fmul	s3, s2, s3
+	WORD $0x1e230823 // fmul	s3, s1, s3
 	WORD $0x4e040465 // dup.4s	v5, v3[0]
 	WORD $0xf100111f // cmp	x8, #4
 	BHS  BB0_12
@@ -124,10 +125,12 @@ BB0_15:
 	BNE  BB0_15
 
 BB0_16:
-	WORD $0x1e240844 // fmul	s4, s2, s4
+	WORD $0x1e240824 // fmul	s4, s1, s4
 	WORD $0x1e242804 // fadd	s4, s0, s4
-	WORD $0x1e21c084 // fsqrt	s4, s4
-	WORD $0x1e241824 // fdiv	s4, s1, s4
+	WORD $0x1e22c084 // fcvt	d4, s4
+	WORD $0x1e61c084 // fsqrt	d4, d4
+	WORD $0x1e641844 // fdiv	d4, d2, d4
+	WORD $0x1e624084 // fcvt	s4, d4
 	WORD $0xf100111f // cmp	x8, #4
 	WORD $0x3400008b // cbz	w11, LBB0_19
 	BHS  BB0_22
@@ -168,7 +171,7 @@ BB0_25:
 	WORD $0x1e2338a5 // fsub	s5, s5, s3
 	WORD $0xbc6e7866 // ldr	s6, [x3, x14, lsl #2]
 	WORD $0xbc6e7887 // ldr	s7, [x4, x14, lsl #2]
-	WORD $0x1e250885 // fmul	s5, s4, s5
+	WORD $0x1e2408a5 // fmul	s5, s5, s4
 	WORD $0x1f061ca5 // fmadd	s5, s5, s6, s7
 	WORD $0xbc2e7825 // str	s5, [x1, x14, lsl #2]
 	WORD $0x910005ce // add	x14, x14, #1
@@ -207,7 +210,7 @@ BB0_31:
 	WORD $0xbc6e7805 // ldr	s5, [x0, x14, lsl #2]
 	WORD $0x1e2338a5 // fsub	s5, s5, s3
 	WORD $0xbc6e7866 // ldr	s6, [x3, x14, lsl #2]
-	WORD $0x1e250885 // fmul	s5, s4, s5
+	WORD $0x1e2408a5 // fmul	s5, s5, s4
 	WORD $0x1e2508c5 // fmul	s5, s6, s5
 	WORD $0xbc2e7825 // str	s5, [x1, x14, lsl #2]
 	WORD $0x910005ce // add	x14, x14, #1
@@ -238,7 +241,7 @@ BB0_34:
 BB0_35:
 	WORD $0xbc6e7805 // ldr	s5, [x0, x14, lsl #2]
 	WORD $0x1e2338a5 // fsub	s5, s5, s3
-	WORD $0x1e250885 // fmul	s5, s4, s5
+	WORD $0x1e2408a5 // fmul	s5, s5, s4
 	WORD $0xbc2e7825 // str	s5, [x1, x14, lsl #2]
 	WORD $0x910005ce // add	x14, x14, #1
 	WORD $0xeb0e011f // cmp	x8, x14

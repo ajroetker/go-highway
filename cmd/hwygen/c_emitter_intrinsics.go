@@ -95,6 +95,14 @@ func (e *CEmitter) fmtDiv(a, b string) string {
 	return fmt.Sprintf("vdivq_%s(%s, %s)", s, a, b)
 }
 
+func (e *CEmitter) fmtSub(a, b string) string {
+	s := e.typeSuffix()
+	if e.isSVE() {
+		return fmt.Sprintf("svsub_%s_x(pg, %s, %s)", s, a, b)
+	}
+	return fmt.Sprintf("vsubq_%s(%s, %s)", s, a, b)
+}
+
 func (e *CEmitter) fmtMin(a, b string) string {
 	s := e.typeSuffix()
 	if e.isSVE() {

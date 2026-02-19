@@ -15,8 +15,7 @@ var DecodeStreamVByte32Into func(control []byte, data []uint8, dst []uint32) (de
 var DecodeStreamVByte32GroupSIMD func(ctrl byte, data []uint8, dst []uint32) int
 var EncodeStreamVByte32 func(values []uint32) (control []byte, data []byte)
 var EncodeStreamVByte32Into func(values []uint32, controlBuf []byte, dataBuf []byte) (control []byte, data []byte)
-var EncodeStreamVByte32GroupSIMD func(values []uint32) (ctrl byte, data []byte)
-var EncodeStreamVByte32GroupSIMDInto func(values []uint32, dst []uint8) (ctrl byte, n int)
+var EncodeStreamVByte32Group func(values []uint32, dst []uint8) (ctrl byte, n int)
 
 func init() {
 	initStreamvbyteAll()
@@ -44,8 +43,7 @@ func initStreamvbyteAVX2() {
 	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_avx2
 	EncodeStreamVByte32 = BaseEncodeStreamVByte32_avx2
 	EncodeStreamVByte32Into = BaseEncodeStreamVByte32Into_avx2
-	EncodeStreamVByte32GroupSIMD = BaseEncodeStreamVByte32GroupSIMD_avx2
-	EncodeStreamVByte32GroupSIMDInto = BaseEncodeStreamVByte32GroupSIMDInto_avx2
+	EncodeStreamVByte32Group = BaseEncodeStreamVByte32Group_avx2
 }
 
 func initStreamvbyteAVX512() {
@@ -54,8 +52,7 @@ func initStreamvbyteAVX512() {
 	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_avx512
 	EncodeStreamVByte32 = BaseEncodeStreamVByte32_avx512
 	EncodeStreamVByte32Into = BaseEncodeStreamVByte32Into_avx512
-	EncodeStreamVByte32GroupSIMD = BaseEncodeStreamVByte32GroupSIMD_avx512
-	EncodeStreamVByte32GroupSIMDInto = BaseEncodeStreamVByte32GroupSIMDInto_avx512
+	EncodeStreamVByte32Group = BaseEncodeStreamVByte32Group_avx512
 }
 
 func initStreamvbyteFallback() {
@@ -64,6 +61,5 @@ func initStreamvbyteFallback() {
 	DecodeStreamVByte32GroupSIMD = BaseDecodeStreamVByte32GroupSIMD_fallback
 	EncodeStreamVByte32 = BaseEncodeStreamVByte32_fallback
 	EncodeStreamVByte32Into = BaseEncodeStreamVByte32Into_fallback
-	EncodeStreamVByte32GroupSIMD = BaseEncodeStreamVByte32GroupSIMD_fallback
-	EncodeStreamVByte32GroupSIMDInto = BaseEncodeStreamVByte32GroupSIMDInto_fallback
+	EncodeStreamVByte32Group = BaseEncodeStreamVByte32Group_fallback
 }
