@@ -47,6 +47,43 @@ func PackedMicroKernel4x2CF16(packedA, packedB, output []hwy.Float16, outputStri
 	)
 }
 
+// PackedMicroKernel4x2CBF16 computes PackedMicroKernel4x2 using NEON SIMD assembly.
+func PackedMicroKernel4x2CBF16(packedA, packedB, output []hwy.BFloat16, outputStride, outRowStart, outColStart, panelK, lanes int) {
+	var p_packedA unsafe.Pointer
+	if len(packedA) > 0 {
+		p_packedA = unsafe.Pointer(&packedA[0])
+	}
+	var p_packedB unsafe.Pointer
+	if len(packedB) > 0 {
+		p_packedB = unsafe.Pointer(&packedB[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	outputStrideVal := int64(outputStride)
+	outRowStartVal := int64(outRowStart)
+	outColStartVal := int64(outColStart)
+	panelKVal := int64(panelK)
+	lanesVal := int64(lanes)
+	len_packedAVal := int64(len(packedA))
+	len_packedBVal := int64(len(packedB))
+	len_outputVal := int64(len(output))
+	packedmicrokernel4x2_c_bf16_neon(
+		p_packedA,
+		p_packedB,
+		p_output,
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&outRowStartVal),
+		unsafe.Pointer(&outColStartVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&lanesVal),
+		unsafe.Pointer(&len_packedAVal),
+		unsafe.Pointer(&len_packedBVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
 // PackedMicroKernel4x2CF32 computes PackedMicroKernel4x2 using NEON SIMD assembly.
 func PackedMicroKernel4x2CF32(packedA, packedB, output []float32, outputStride, outRowStart, outColStart, panelK, lanes int) {
 	var p_packedA unsafe.Pointer
@@ -130,6 +167,21 @@ func ZeroSliceCF16(s []hwy.Float16, n int) {
 	nVal := int64(n)
 	len_sVal := int64(len(s))
 	zeroslice_c_f16_neon(
+		p_s,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&len_sVal),
+	)
+}
+
+// ZeroSliceCBF16 computes ZeroSlice using NEON SIMD assembly.
+func ZeroSliceCBF16(s []hwy.BFloat16, n int) {
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	nVal := int64(n)
+	len_sVal := int64(len(s))
+	zeroslice_c_bf16_neon(
 		p_s,
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&len_sVal),

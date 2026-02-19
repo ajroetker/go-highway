@@ -15,9 +15,11 @@ func init() {
 }
 
 func initReduceNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
+	SumFloat32 = sumAsmF32
+	SumFloat64 = sumAsmF64
 	MinFloat32 = minAsmF32
 	MinFloat64 = minAsmF64
 	MaxFloat32 = maxAsmF32
@@ -29,16 +31,81 @@ func initReduceNeonCAsm() {
 	MinMaxFloat32 = minMaxAsmF32
 	MinMaxFloat64 = minMaxAsmF64
 	if hwy.HasARMFP16() {
+		SumFloat16 = sumAsmF16
 		MinFloat16 = minAsmF16
 		MinMaxFloat16 = minMaxAsmF16
 	}
 	if hwy.HasARMBF16() {
+		SumBFloat16 = sumAsmBF16
 		MinBFloat16 = minAsmBF16
 		MinMaxBFloat16 = minMaxAsmBF16
 	}
 }
 
+func sumAsmF16(v []hwy.Float16) hwy.Float16 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	asm.Sum_F16(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
+}
+
+func sumAsmBF16(v []hwy.BFloat16) hwy.BFloat16 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	asm.Sum_BF16(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
+}
+
+func sumAsmF32(v []float32) float32 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result float32
+	asm.Sum_F32(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
+func sumAsmF64(v []float64) float64 {
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result float64
+	asm.Sum_F64(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
+}
+
 func minAsmF16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -54,6 +121,9 @@ func minAsmF16(v []hwy.Float16) hwy.Float16 {
 }
 
 func minAsmBF16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -69,12 +139,15 @@ func minAsmBF16(v []hwy.BFloat16) hwy.BFloat16 {
 }
 
 func minAsmF32(v []float32) float32 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
 	}
 	lenVal := int64(len(v))
-	var out_result int64
+	var out_result float32
 	asm.Min_F32(
 		p_v,
 		unsafe.Pointer(&lenVal),
@@ -84,12 +157,15 @@ func minAsmF32(v []float32) float32 {
 }
 
 func minAsmF64(v []float64) float64 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
 	}
 	lenVal := int64(len(v))
-	var out_result int64
+	var out_result float64
 	asm.Min_F64(
 		p_v,
 		unsafe.Pointer(&lenVal),
@@ -99,12 +175,15 @@ func minAsmF64(v []float64) float64 {
 }
 
 func maxAsmF32(v []float32) float32 {
+	if len(v) == 0 {
+		panic("vec: Max called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
 	}
 	lenVal := int64(len(v))
-	var out_result int64
+	var out_result float32
 	asm.Max_F32(
 		p_v,
 		unsafe.Pointer(&lenVal),
@@ -114,12 +193,15 @@ func maxAsmF32(v []float32) float32 {
 }
 
 func maxAsmF64(v []float64) float64 {
+	if len(v) == 0 {
+		panic("vec: Max called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
 	}
 	lenVal := int64(len(v))
-	var out_result int64
+	var out_result float64
 	asm.Max_F64(
 		p_v,
 		unsafe.Pointer(&lenVal),
@@ -129,6 +211,9 @@ func maxAsmF64(v []float64) float64 {
 }
 
 func maxAsmS32(v []int32) int32 {
+	if len(v) == 0 {
+		panic("vec: Max called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -144,6 +229,9 @@ func maxAsmS32(v []int32) int32 {
 }
 
 func maxAsmS64(v []int64) int64 {
+	if len(v) == 0 {
+		panic("vec: Max called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -159,6 +247,9 @@ func maxAsmS64(v []int64) int64 {
 }
 
 func maxAsmU32(v []uint32) uint32 {
+	if len(v) == 0 {
+		panic("vec: Max called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -174,6 +265,9 @@ func maxAsmU32(v []uint32) uint32 {
 }
 
 func maxAsmU64(v []uint64) uint64 {
+	if len(v) == 0 {
+		panic("vec: Max called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -189,6 +283,9 @@ func maxAsmU64(v []uint64) uint64 {
 }
 
 func minMaxAsmF16(v []hwy.Float16) (hwy.Float16, hwy.Float16) {
+	if len(v) == 0 {
+		panic("vec: MinMax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -206,6 +303,9 @@ func minMaxAsmF16(v []hwy.Float16) (hwy.Float16, hwy.Float16) {
 }
 
 func minMaxAsmBF16(v []hwy.BFloat16) (hwy.BFloat16, hwy.BFloat16) {
+	if len(v) == 0 {
+		panic("vec: MinMax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -223,13 +323,16 @@ func minMaxAsmBF16(v []hwy.BFloat16) (hwy.BFloat16, hwy.BFloat16) {
 }
 
 func minMaxAsmF32(v []float32) (float32, float32) {
+	if len(v) == 0 {
+		panic("vec: MinMax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
 	}
 	lenVal := int64(len(v))
-	var out_minVal int64
-	var out_maxVal int64
+	var out_minVal float32
+	var out_maxVal float32
 	asm.MinMax_F32(
 		p_v,
 		unsafe.Pointer(&lenVal),
@@ -240,13 +343,16 @@ func minMaxAsmF32(v []float32) (float32, float32) {
 }
 
 func minMaxAsmF64(v []float64) (float64, float64) {
+	if len(v) == 0 {
+		panic("vec: MinMax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
 	}
 	lenVal := int64(len(v))
-	var out_minVal int64
-	var out_maxVal int64
+	var out_minVal float64
+	var out_maxVal float64
 	asm.MinMax_F64(
 		p_v,
 		unsafe.Pointer(&lenVal),

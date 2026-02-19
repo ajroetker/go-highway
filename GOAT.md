@@ -91,7 +91,7 @@ goat src/code.c -o ./asm -O3 -t arm64 --target-os linux -I /path/to/arm64/includ
 - No call statements except for inline functions.
 - Arguments must be int64_t, long, float, double, _Bool or pointer.
 - Potentially BUGGY code generation.
-- C functions must have void return types
+- Supported return types: `void`, `long`, `float`, `double`, `_Bool`
 - `uint64_t` from the header <stdint.h> is not supported
 - C source file names should not begin with `_`.
 - **`else` clauses are fully supported** - GOAT compiles C via clang, so `if/else` works correctly. Clang often auto-vectorizes simple if/else into branchless select instructions (e.g., `fcsel`, `fcmgt` + `and`).

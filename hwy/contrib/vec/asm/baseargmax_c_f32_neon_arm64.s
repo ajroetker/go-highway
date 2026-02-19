@@ -167,7 +167,7 @@ BB0_25:
 	WORD $0xbc697801 // ldr	s1, [x0, x9, lsl #2]
 	WORD $0x1e212020 // fcmp	s1, s1
 	BVS  BB0_30
-	WORD $0xb4fffeeb // cbz	x11, LBB0_24
+	CBZ  R11, BB0_24
 	WORD $0x1e202020 // fcmp	s1, s0
 	BGT  BB0_24
 	WORD $0xfa4a0120 // ccmp	x9, x10, #0, eq

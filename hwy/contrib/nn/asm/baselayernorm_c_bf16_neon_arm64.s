@@ -46,8 +46,8 @@ TEXT ·layernorm_c_bf16_neon(SB), $16-80
 	WORD $0x4f000422            // movi.4s	v2, #1
 	WORD $0x4f03c7e3            // movi.4s	v3, #127, msl #8
 	WORD $0x6f06e584            // movi.2d	v4, #0xffff0000ffff0000
-	WORD $0x1e6e1005            // fmov	d5, #1.00000000
 	WORD $0x528fffee            // mov	w14, #32767                     ; =0x7fff
+	WORD $0x1e6e1005            // fmov	d5, #1.00000000
 	B    BB0_4
 
 BB0_3:
@@ -181,19 +181,27 @@ BB0_17:
 BB0_18:
 	WORD $0x1e200a10 // fmul	s16, s16, s0
 	WORD $0x1e212a10 // fadd	s16, s16, s1
-	WORD $0x1e22c210 // fcvt	d16, s16
-	WORD $0x1e61c210 // fsqrt	d16, d16
+	WORD $0x1e38020f // fcvtzs	w15, s16
+	WORD $0x53103def // lsl	w15, w15, #16
+	WORD $0x1e2701f0 // fmov	s16, w15
+	WORD $0x1e21c210 // fsqrt	s16, s16
+	WORD $0x1e26020f // fmov	w15, s16
+	WORD $0x531041f0 // ubfx	w16, w15, #16, #1
+	WORD $0x0b1001ef // add	w15, w15, w16
+	WORD $0x0b0e01ef // add	w15, w15, w14
+	WORD $0x53107def // lsr	w15, w15, #16
+	WORD $0x1e6301f0 // ucvtf	d16, w15
 	WORD $0x1e7018b0 // fdiv	d16, d5, d16
 	WORD $0x1e78020f // fcvtzs	w15, d16
 	WORD $0x4e020df2 // dup.8h	v18, w15
 	WORD $0xf100211f // cmp	x8, #8
-	WORD $0x3400008b // cbz	w11, LBB0_21
+	CBZW R11, BB0_21
 	BHS  BB0_24
 	WORD $0xd2800002 // mov	x2, #0                          ; =0x0
 	B    BB0_26
 
 BB0_21:
-	WORD $0xb4000a43 // cbz	x3, LBB0_29
+	CBZ  R3, BB0_29
 	BHS  BB0_31
 	WORD $0xd2800002 // mov	x2, #0                          ; =0x0
 	B    BB0_33

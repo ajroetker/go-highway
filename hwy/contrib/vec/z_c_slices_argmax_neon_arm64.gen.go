@@ -15,7 +15,7 @@ func init() {
 }
 
 func initArgmaxNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	ArgmaxFloat32 = argmaxAsmF32
@@ -33,6 +33,9 @@ func initArgmaxNeonCAsm() {
 }
 
 func argmaxAsmF16(v []hwy.Float16) int {
+	if len(v) == 0 {
+		panic("vec: Argmax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -48,6 +51,9 @@ func argmaxAsmF16(v []hwy.Float16) int {
 }
 
 func argmaxAsmBF16(v []hwy.BFloat16) int {
+	if len(v) == 0 {
+		panic("vec: Argmax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -63,6 +69,9 @@ func argmaxAsmBF16(v []hwy.BFloat16) int {
 }
 
 func argmaxAsmF32(v []float32) int {
+	if len(v) == 0 {
+		panic("vec: Argmax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -78,6 +87,9 @@ func argmaxAsmF32(v []float32) int {
 }
 
 func argmaxAsmF64(v []float64) int {
+	if len(v) == 0 {
+		panic("vec: Argmax called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -93,6 +105,9 @@ func argmaxAsmF64(v []float64) int {
 }
 
 func argminAsmF16(v []hwy.Float16) int {
+	if len(v) == 0 {
+		panic("vec: Argmin called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -108,6 +123,9 @@ func argminAsmF16(v []hwy.Float16) int {
 }
 
 func argminAsmBF16(v []hwy.BFloat16) int {
+	if len(v) == 0 {
+		panic("vec: Argmin called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -123,6 +141,9 @@ func argminAsmBF16(v []hwy.BFloat16) int {
 }
 
 func argminAsmF32(v []float32) int {
+	if len(v) == 0 {
+		panic("vec: Argmin called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])
@@ -138,6 +159,9 @@ func argminAsmF32(v []float32) int {
 }
 
 func argminAsmF64(v []float64) int {
+	if len(v) == 0 {
+		panic("vec: Argmin called on empty slice")
+	}
 	var p_v unsafe.Pointer
 	if len(v) > 0 {
 		p_v = unsafe.Pointer(&v[0])

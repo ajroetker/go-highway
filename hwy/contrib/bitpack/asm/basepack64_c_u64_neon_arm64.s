@@ -25,11 +25,10 @@ BB0_2:
 	WORD $0x52800809 // mov	w9, #64                         ; =0x40
 	WORD $0xf10101df // cmp	x14, #64
 	WORD $0x9a89b1c9 // csel	x9, x14, x9, lt
-	WORD $0x1280000a // mov	w10, #-1                        ; =0xffffffff
-	WORD $0x1ac9214a // lsl	w10, w10, w9
-	WORD $0x2a2a03ea // mvn	w10, w10
+	WORD $0x9280000a // mov	x10, #-1                        ; =0xffffffffffffffff
+	WORD $0x9ac9214b // lsl	x11, x10, x9
 	WORD $0xf100fddf // cmp	x14, #63
-	WORD $0xda9fd14a // csinv	x10, x10, xzr, le
+	WORD $0xda8bc14a // csinv	x10, x10, x11, gt
 	WORD $0xf100091f // cmp	x8, #2
 	BGE  BB0_4
 	WORD $0xd280000d // mov	x13, #0                         ; =0x0
@@ -48,7 +47,7 @@ BB0_4:
 	WORD $0xd280000d // mov	x13, #0                         ; =0x0
 	WORD $0x52800051 // mov	w17, #2                         ; =0x2
 	WORD $0x5280010f // mov	w15, #8                         ; =0x8
-	WORD $0x12800010 // mov	w16, #-1                        ; =0xffffffff
+	WORD $0x92800010 // mov	x16, #-1                        ; =0xffffffffffffffff
 
 BB0_6:
 	WORD $0xd37df161 // lsl	x1, x11, #3
@@ -63,7 +62,7 @@ BB0_7:
 	WORD $0xcb0d01e3 // sub	x3, x15, x13
 	WORD $0xeb03003f // cmp	x1, x3
 	WORD $0x9a83b023 // csel	x3, x1, x3, lt
-	WORD $0x1ac32204 // lsl	w4, w16, w3
+	WORD $0x9ac32204 // lsl	x4, x16, x3
 	WORD $0x0a240224 // bic	w4, w17, w4
 	WORD $0x9ac32a31 // asr	x17, x17, x3
 	WORD $0x9acd2084 // lsl	x4, x4, x13
@@ -85,7 +84,7 @@ BB0_9:
 	WORD $0xcb0d01e3 // sub	x3, x15, x13
 	WORD $0xeb03003f // cmp	x1, x3
 	WORD $0x9a83b023 // csel	x3, x1, x3, lt
-	WORD $0x1ac32204 // lsl	w4, w16, w3
+	WORD $0x9ac32204 // lsl	x4, x16, x3
 	WORD $0x0a240224 // bic	w4, w17, w4
 	WORD $0x9ac32a31 // asr	x17, x17, x3
 	WORD $0x9acd2084 // lsl	x4, x4, x13
@@ -130,7 +129,7 @@ BB0_15:
 	WORD $0xf10005df // cmp	x14, #1
 	BLT  BB0_20
 	WORD $0x5280010e // mov	w14, #8                         ; =0x8
-	WORD $0x1280000f // mov	w15, #-1                        ; =0xffffffff
+	WORD $0x9280000f // mov	x15, #-1                        ; =0xffffffffffffffff
 
 BB0_17:
 	WORD $0xf86b7810 // ldr	x16, [x0, x11, lsl #3]
@@ -141,7 +140,7 @@ BB0_18:
 	WORD $0xcb0d01c1 // sub	x1, x14, x13
 	WORD $0xeb01023f // cmp	x17, x1
 	WORD $0x9a81b221 // csel	x1, x17, x1, lt
-	WORD $0x1ac121e3 // lsl	w3, w15, w1
+	WORD $0x9ac121e3 // lsl	x3, x15, x1
 	WORD $0x0a230203 // bic	w3, w16, w3
 	WORD $0x9ac12a10 // asr	x16, x16, x1
 	WORD $0x9acd2063 // lsl	x3, x3, x13

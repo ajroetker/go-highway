@@ -5,6 +5,26 @@ package asm
 
 import "unsafe"
 
+// Sum_F16 calls the NEON SIMD assembly implementation.
+func Sum_F16(v unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	sum_c_f16_neon(v, plen, pout_result)
+}
+
+// Sum_BF16 calls the NEON SIMD assembly implementation.
+func Sum_BF16(v unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	sum_c_bf16_neon(v, plen, pout_result)
+}
+
+// Sum_F32 calls the NEON SIMD assembly implementation.
+func Sum_F32(v unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	sum_c_f32_neon(v, plen, pout_result)
+}
+
+// Sum_F64 calls the NEON SIMD assembly implementation.
+func Sum_F64(v unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	sum_c_f64_neon(v, plen, pout_result)
+}
+
 // Min_F16 calls the NEON SIMD assembly implementation.
 func Min_F16(v unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
 	min_c_f16_neon(v, plen, pout_result)

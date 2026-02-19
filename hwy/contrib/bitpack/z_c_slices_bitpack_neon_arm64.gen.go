@@ -15,13 +15,15 @@ func init() {
 }
 
 func initBitpackNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	Pack32 = pack32AsmU32
 	Unpack32 = unpack32AsmU8
 	Pack64 = pack64AsmU64
 	Unpack64 = unpack64AsmU8
+	DeltaEncode32 = deltaEncode32AsmU32
+	DeltaEncode64 = deltaEncode64AsmU64
 }
 
 func pack32AsmU32(src []uint32, bitWidth int, dst []byte) int {
@@ -118,5 +120,47 @@ func unpack64AsmU8(src []byte, bitWidth int, dst []uint64) int {
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
+}
+
+func deltaEncode32AsmU32(src []uint32, base uint32, dst []uint32) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	baseVal := int64(base)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	asm.DeltaEncode32_U32(
+		p_src,
+		unsafe.Pointer(&baseVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+func deltaEncode64AsmU64(src []uint64, base uint64, dst []uint64) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	baseVal := int64(base)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	asm.DeltaEncode64_U64(
+		p_src,
+		unsafe.Pointer(&baseVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
 }
 

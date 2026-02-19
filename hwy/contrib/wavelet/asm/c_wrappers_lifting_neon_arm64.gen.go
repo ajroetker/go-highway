@@ -142,6 +142,34 @@ func LiftStep97CF16(target []hwy.Float16, tLen int, neighbor []hwy.Float16, nLen
 	)
 }
 
+// LiftStep97CBF16 computes LiftStep97 using NEON SIMD assembly.
+func LiftStep97CBF16(target []hwy.BFloat16, tLen int, neighbor []hwy.BFloat16, nLen int, coeff hwy.BFloat16, phase int) {
+	var p_target unsafe.Pointer
+	if len(target) > 0 {
+		p_target = unsafe.Pointer(&target[0])
+	}
+	var p_neighbor unsafe.Pointer
+	if len(neighbor) > 0 {
+		p_neighbor = unsafe.Pointer(&neighbor[0])
+	}
+	tLenVal := int64(tLen)
+	nLenVal := int64(nLen)
+	phaseVal := int64(phase)
+	coeffVal := uint16(coeff)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
+	liftstep97_c_bf16_neon(
+		p_target,
+		unsafe.Pointer(&tLenVal),
+		p_neighbor,
+		unsafe.Pointer(&nLenVal),
+		unsafe.Pointer(&coeffVal),
+		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
+	)
+}
+
 // LiftStep97CF32 computes LiftStep97 using NEON SIMD assembly.
 func LiftStep97CF32(target []float32, tLen int, neighbor []float32, nLen int, coeff float32, phase int) {
 	var p_target unsafe.Pointer
@@ -208,6 +236,23 @@ func ScaleSliceCF16(data []hwy.Float16, n int, scale hwy.Float16) {
 	scaleVal := uint16(scale)
 	len_dataVal := int64(len(data))
 	scaleslice_c_f16_neon(
+		p_data,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_dataVal),
+	)
+}
+
+// ScaleSliceCBF16 computes ScaleSlice using NEON SIMD assembly.
+func ScaleSliceCBF16(data []hwy.BFloat16, n int, scale hwy.BFloat16) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	nVal := int64(n)
+	scaleVal := uint16(scale)
+	len_dataVal := int64(len(data))
+	scaleslice_c_bf16_neon(
 		p_data,
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&scaleVal),

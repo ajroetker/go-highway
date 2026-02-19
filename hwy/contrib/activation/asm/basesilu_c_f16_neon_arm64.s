@@ -11,7 +11,7 @@ TEXT ·silu_c_f16_neon(SB), $0-24
 	MOVD output+8(FP), R1
 	MOVD plen_input+16(FP), R2
 	WORD $0xf9400048           // ldr	x8, [x2]
-	WORD $0xb4001b48           // cbz	x8, LBB0_12
+	CBZ  R8, BB0_12
 	WORD $0xf100211f           // cmp	x8, #8
 	BGE  BB0_3
 	WORD $0xd280000c           // mov	x12, #0                         ; =0x0

@@ -12,9 +12,9 @@ TEXT ·dot_c_f64_neon(SB), $0-32
 	MOVD plen_a+16(FP), R2
 	MOVD pout_result+24(FP), R3
 	WORD $0xf9400048            // ldr	x8, [x2]
-	WORD $0xb4000828            // cbz	x8, LBB0_13
+	CBZ  R8, BB0_7
 	WORD $0xf100211f            // cmp	x8, #8
-	BGE  BB0_6
+	BGE  BB0_8
 	WORD $0xd2800009            // mov	x9, #0                          ; =0x0
 	WORD $0x6f00e401            // movi.2d	v1, #0000000000000000
 	WORD $0x6f00e402            // movi.2d	v2, #0000000000000000
@@ -22,7 +22,7 @@ TEXT ·dot_c_f64_neon(SB), $0-32
 	WORD $0x6f00e400            // movi.2d	v0, #0000000000000000
 	WORD $0xb27f012a            // orr	x10, x9, #0x2
 	WORD $0xeb08015f            // cmp	x10, x8
-	BGT  BB0_9
+	BGT  BB0_11
 
 BB0_3:
 	WORD $0xd37df12b // lsl	x11, x9, #3
@@ -43,10 +43,18 @@ BB0_4:
 	WORD $0x4e60d420 // fadd.2d	v0, v1, v0
 	WORD $0x7e70d800 // faddp.2d	d0, v0
 	WORD $0xeb0c0108 // subs	x8, x8, x12
-	BGT  BB0_10
-	B    BB0_12
+	BGT  BB0_12
 
 BB0_6:
+	WORD $0xfd000060 // str	d0, [x3]
+	RET
+
+BB0_7:
+	WORD $0x2f00e400 // movi	d0, #0000000000000000
+	WORD $0xfd000060 // str	d0, [x3]
+	RET
+
+BB0_8:
 	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
 	WORD $0x52800109 // mov	w9, #8                          ; =0x8
 	WORD $0xaa0103ea // mov	x10, x1
@@ -55,7 +63,7 @@ BB0_6:
 	WORD $0x6f00e402 // movi.2d	v2, #0000000000000000
 	WORD $0x6f00e401 // movi.2d	v1, #0000000000000000
 
-BB0_7:
+BB0_9:
 	WORD $0x4cdf2d64 // ld1.2d	{ v4, v5, v6, v7 }, [x11], #64
 	WORD $0x4cdf2d50 // ld1.2d	{ v16, v17, v18, v19 }, [x10], #64
 	WORD $0x4e64ce00 // fmla.2d	v0, v16, v4
@@ -64,36 +72,30 @@ BB0_7:
 	WORD $0x4e67ce61 // fmla.2d	v1, v19, v7
 	WORD $0x91002129 // add	x9, x9, #8
 	WORD $0xeb08013f // cmp	x9, x8
-	BLE  BB0_7
+	BLE  BB0_9
 	WORD $0x927ded09 // and	x9, x8, #0x7ffffffffffffff8
 	WORD $0xb27f012a // orr	x10, x9, #0x2
 	WORD $0xeb08015f // cmp	x10, x8
 	BLE  BB0_3
 
-BB0_9:
+BB0_11:
 	WORD $0xaa0903ec // mov	x12, x9
 	WORD $0x4e60d460 // fadd.2d	v0, v3, v0
 	WORD $0x4e62d421 // fadd.2d	v1, v1, v2
 	WORD $0x4e60d420 // fadd.2d	v0, v1, v0
 	WORD $0x7e70d800 // faddp.2d	d0, v0
 	WORD $0xeb090108 // subs	x8, x8, x9
-	BLE  BB0_12
+	BLE  BB0_6
 
-BB0_10:
+BB0_12:
 	WORD $0xd37df18a // lsl	x10, x12, #3
 	WORD $0x8b0a0029 // add	x9, x1, x10
 	WORD $0x8b0a000a // add	x10, x0, x10
 
-BB0_11:
+BB0_13:
 	WORD $0xfc408541 // ldr	d1, [x10], #8
 	WORD $0xfc408522 // ldr	d2, [x9], #8
 	WORD $0x1f420020 // fmadd	d0, d1, d2, d0
 	WORD $0xf1000508 // subs	x8, x8, #1
-	BNE  BB0_11
-
-BB0_12:
-	WORD $0x9e780008 // fcvtzs	x8, d0
-
-BB0_13:
-	WORD $0xf9000068 // str	x8, [x3]
-	RET
+	BNE  BB0_13
+	B    BB0_6

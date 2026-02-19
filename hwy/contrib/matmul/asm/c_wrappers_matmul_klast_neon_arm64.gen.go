@@ -49,6 +49,45 @@ func MatMulKLastCF16(a, b, c []hwy.Float16, m, n, k int) {
 	)
 }
 
+// MatMulKLastCBF16 computes MatMulKLast using NEON SIMD assembly.
+func MatMulKLastCBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	if len(a) < m*k || len(b) < k*n || len(c) < m*n {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	matmulklast_c_bf16_neon(
+		p_a,
+		p_b,
+		p_c,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
 // MatMulKLastCF32 computes MatMulKLast using NEON SIMD assembly.
 func MatMulKLastCF32(a, b, c []float32, m, n, k int) {
 	var p_a unsafe.Pointer
@@ -154,6 +193,45 @@ func MatMulKLastBlockedCF16(a, b, c []hwy.Float16, m, n, k int) {
 	len_bVal := int64(len(b))
 	len_cVal := int64(len(c))
 	matmulklastblocked_c_f16_neon(
+		p_a,
+		p_b,
+		p_c,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// MatMulKLastBlockedCBF16 computes MatMulKLastBlocked using NEON SIMD assembly.
+func MatMulKLastBlockedCBF16(a, b, c []hwy.BFloat16, m, n, k int) {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	if len(a) < m*k || len(b) < k*n || len(c) < m*n {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	len_aVal := int64(len(a))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	matmulklastblocked_c_bf16_neon(
 		p_a,
 		p_b,
 		p_c,

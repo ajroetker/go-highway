@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func sum_c_bf16_neon(input, output, len unsafe.Pointer)
+func sum_c_bf16_neon(v, plen_v, pout_result unsafe.Pointer)

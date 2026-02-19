@@ -24,8 +24,7 @@ TEXT ·min_c_f32_neon(SB), $0-24
 	WORD $0xbd400801            // ldr	s1, [x0, #8]
 	WORD $0x1e202020            // fcmp	s1, s0
 	WORD $0x1e204c20            // fcsel	s0, s1, s0, mi
-	WORD $0x9e380008            // fcvtzs	x8, s0
-	WORD $0xf9000048            // str	x8, [x2]
+	WORD $0xbd000040            // str	s0, [x2]
 	RET
 
 BB0_4:
@@ -38,8 +37,7 @@ BB0_4:
 	BHI  BB0_10
 
 BB0_6:
-	WORD $0x9e380008 // fcvtzs	x8, s0
-	WORD $0xf9000048 // str	x8, [x2]
+	WORD $0xbd000040 // str	s0, [x2]
 	RET
 
 BB0_7:

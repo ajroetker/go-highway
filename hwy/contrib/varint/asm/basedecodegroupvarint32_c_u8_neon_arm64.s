@@ -112,7 +112,7 @@ BB0_10:
 	WORD $0xd3420d2d // ubfx	x13, x9, #2, #2
 	WORD $0x8b0b000c // add	x12, x0, x11
 	WORD $0x3940018b // ldrb	w11, [x12]
-	WORD $0xb400016d // cbz	x13, LBB0_14
+	CBZ  R13, BB0_14
 	WORD $0x3940058e // ldrb	w14, [x12, #1]
 	WORD $0x2a0e216b // orr	w11, w11, w14, lsl #8
 	WORD $0xf10005bf // cmp	x13, #1
@@ -130,7 +130,7 @@ BB0_14:
 	WORD $0xd344152d // ubfx	x13, x9, #4, #2
 	WORD $0x8b0b000c // add	x12, x0, x11
 	WORD $0x3940018b // ldrb	w11, [x12]
-	WORD $0xb400016d // cbz	x13, LBB0_18
+	CBZ  R13, BB0_18
 	WORD $0x3940058e // ldrb	w14, [x12, #1]
 	WORD $0x2a0e216b // orr	w11, w11, w14, lsl #8
 	WORD $0xf10005bf // cmp	x13, #1

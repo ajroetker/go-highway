@@ -15,7 +15,7 @@ func init() {
 }
 
 func initInt8x8matmulperaxisNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	Int8x8MatMulPerAxis = int8x8MatMulPerAxisAsmS32

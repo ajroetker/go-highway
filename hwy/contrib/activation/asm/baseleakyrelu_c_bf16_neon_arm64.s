@@ -12,7 +12,7 @@ TEXT ·leakyrelu_c_bf16_neon(SB), $0-32
 	MOVD palpha+16(FP), R2
 	MOVD plen_input+24(FP), R3
 	WORD $0xf9400068           // ldr	x8, [x3]
-	WORD $0xb40007e8           // cbz	x8, LBB0_10
+	CBZ  R8, BB0_10
 	WORD $0xf100211f           // cmp	x8, #8
 	BGE  BB0_3
 	WORD $0xd280000c           // mov	x12, #0                         ; =0x0
@@ -77,7 +77,7 @@ BB0_7:
 
 BB0_8:
 	WORD $0x7840254c // ldrh	w12, [x10], #2
-	WORD $0x34ffff8c // cbz	w12, LBB0_7
+	CBZW R12, BB0_7
 	WORD $0x1e230180 // ucvtf	s0, w12
 	WORD $0x1e26000c // fmov	w12, s0
 	WORD $0x5310418d // ubfx	w13, w12, #16, #1

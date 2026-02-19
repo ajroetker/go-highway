@@ -26,10 +26,8 @@ TEXT ·minmax_c_f32_neon(SB), $0-32
 	WORD $0x1e604040            // fmov	d0, d2
 
 BB0_4:
-	WORD $0x9e380008 // fcvtzs	x8, s0
-	WORD $0xf9000048 // str	x8, [x2]
-	WORD $0x9e380028 // fcvtzs	x8, s1
-	WORD $0xf9000068 // str	x8, [x3]
+	WORD $0xbd000040 // str	s0, [x2]
+	WORD $0xbd000061 // str	s1, [x3]
 	RET
 
 BB0_5:
@@ -46,10 +44,8 @@ BB0_5:
 
 BB0_7:
 	WORD $0x1e604001 // fmov	d1, d0
-	WORD $0x9e380008 // fcvtzs	x8, s0
-	WORD $0xf9000048 // str	x8, [x2]
-	WORD $0x9e380028 // fcvtzs	x8, s1
-	WORD $0xf9000068 // str	x8, [x3]
+	WORD $0xbd000040 // str	s0, [x2]
+	WORD $0xbd000061 // str	s1, [x3]
 	RET
 
 BB0_8:
@@ -89,8 +85,6 @@ BB0_13:
 	WORD $0x1e224c60 // fcsel	s0, s3, s2, mi
 	WORD $0x1e212060 // fcmp	s3, s1
 	WORD $0x1e21cc61 // fcsel	s1, s3, s1, gt
-	WORD $0x9e380008 // fcvtzs	x8, s0
-	WORD $0xf9000048 // str	x8, [x2]
-	WORD $0x9e380028 // fcvtzs	x8, s1
-	WORD $0xf9000068 // str	x8, [x3]
+	WORD $0xbd000040 // str	s0, [x2]
+	WORD $0xbd000061 // str	s1, [x3]
 	RET

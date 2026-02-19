@@ -30,6 +30,11 @@ func LiftStep97_F16(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe
 	liftstep97_c_f16_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
 }
 
+// LiftStep97_BF16 calls the NEON SIMD assembly implementation.
+func LiftStep97_BF16(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pcoeff unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
+	liftstep97_c_bf16_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
+}
+
 // LiftStep97_F32 calls the NEON SIMD assembly implementation.
 func LiftStep97_F32(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pcoeff unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
 	liftstep97_c_f32_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
@@ -43,6 +48,11 @@ func LiftStep97_F64(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe
 // ScaleSlice_F16 calls the NEON SIMD assembly implementation.
 func ScaleSlice_F16(data unsafe.Pointer, pn unsafe.Pointer, pscale unsafe.Pointer, plen_data unsafe.Pointer) {
 	scaleslice_c_f16_neon(data, pn, pscale, plen_data)
+}
+
+// ScaleSlice_BF16 calls the NEON SIMD assembly implementation.
+func ScaleSlice_BF16(data unsafe.Pointer, pn unsafe.Pointer, pscale unsafe.Pointer, plen_data unsafe.Pointer) {
+	scaleslice_c_bf16_neon(data, pn, pscale, plen_data)
 }
 
 // ScaleSlice_F32 calls the NEON SIMD assembly implementation.

@@ -11,7 +11,7 @@ TEXT ·silu_c_f64_neon(SB), $16-24
 	MOVD output+8(FP), R1
 	MOVD plen_input+16(FP), R2
 	WORD $0xf9400048           // ldr	x8, [x2]
-	WORD $0xb4001da8           // cbz	x8, LBB0_13
+	CBZ  R8, BB0_13
 	WORD $0xa9004ff4           // stp	x20, x19, [sp, #-16]!           ; 16-byte Folded Spill [transformed]
 	WORD $0xf100091f           // cmp	x8, #2
 	BGE  BB0_3

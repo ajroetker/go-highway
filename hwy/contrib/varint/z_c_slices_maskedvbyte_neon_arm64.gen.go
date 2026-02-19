@@ -15,7 +15,7 @@ func init() {
 }
 
 func initMaskedvbyteNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	MaskedVByteDecodeGroup = maskedVByteDecodeGroupAsmU8

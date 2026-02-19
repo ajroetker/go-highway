@@ -15,7 +15,7 @@ func init() {
 }
 
 func initVarintNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	FindVarintEnds = findVarintEndsAsmU8

@@ -10,6 +10,11 @@ func BlockedMatMul_F16(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm 
 	blockedmatmul_c_f16_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
 }
 
+// BlockedMatMul_BF16 calls the NEON SIMD assembly implementation.
+func BlockedMatMul_BF16(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm unsafe.Pointer, pn unsafe.Pointer, pk unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_c unsafe.Pointer) {
+	blockedmatmul_c_bf16_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)
+}
+
 // BlockedMatMul_F32 calls the NEON SIMD assembly implementation.
 func BlockedMatMul_F32(a unsafe.Pointer, b unsafe.Pointer, c unsafe.Pointer, pm unsafe.Pointer, pn unsafe.Pointer, pk unsafe.Pointer, plen_a unsafe.Pointer, plen_b unsafe.Pointer, plen_c unsafe.Pointer) {
 	blockedmatmul_c_f32_neon(a, b, c, pm, pn, pk, plen_a, plen_b, plen_c)

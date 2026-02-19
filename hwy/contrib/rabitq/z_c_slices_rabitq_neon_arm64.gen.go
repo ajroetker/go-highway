@@ -15,7 +15,7 @@ func init() {
 }
 
 func initRabitqNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	BitProduct = bitProductAsmU64

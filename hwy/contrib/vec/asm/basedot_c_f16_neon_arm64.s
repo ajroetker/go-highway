@@ -12,7 +12,7 @@ TEXT ·dot_c_f16_neon(SB), $0-32
 	MOVD plen_a+16(FP), R2
 	MOVD pout_result+24(FP), R3
 	WORD $0xf9400048            // ldr	x8, [x2]
-	WORD $0xb40008e8            // cbz	x8, LBB0_13
+	CBZ  R8, BB0_13
 	WORD $0xf100811f            // cmp	x8, #32
 	BGE  BB0_5
 	WORD $0xd2800009            // mov	x9, #0                          ; =0x0

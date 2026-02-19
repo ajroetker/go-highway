@@ -11,7 +11,7 @@ TEXT ·findvarintends_c_u8_neon(SB), $32-24
 	MOVD plen_src+8(FP), R1
 	MOVD pout_result+16(FP), R2
 	WORD $0xf940002a            // ldr	x10, [x1]
-	WORD $0xb40013ca            // cbz	x10, LBB0_4
+	CBZ  R10, BB0_4
 	WORD $0x52800408            // mov	w8, #32                         ; =0x20
 	WORD $0xf100815f            // cmp	x10, #32
 	WORD $0x9a88b149            // csel	x9, x10, x8, lt
@@ -183,7 +183,7 @@ BB0_5:
 
 BB0_7:
 	WORD $0x38ea680c // ldrsb	w12, [x0, x10]
-	WORD $0x1aca216d // lsl	w13, w11, w10
+	WORD $0x9aca216d // lsl	x13, x11, x10
 	WORD $0x7100019f // cmp	w12, #0
 	WORD $0x1a8db3ec // csel	w12, wzr, w13, lt
 	WORD $0x2a080188 // orr	w8, w12, w8

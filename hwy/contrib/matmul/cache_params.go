@@ -227,3 +227,39 @@ func CacheParamsV2Fallback() CacheParams {
 		Nc: 256, // 4 * 256 = 1KB packed output buffer
 	}
 }
+
+// SME Cache Parameters
+//
+// These parameters are optimized for ARM SME FMOPA outer product tiles.
+// SME uses ZA accumulator tiles which have fixed dimensions based on SVL:
+//   - f32: 16×16 tiles (SVL=512 bits → 16 lanes)
+//   - f64: 8×8 tiles (SVL=512 bits → 8 lanes)
+//
+// Key considerations:
+//   - Mr/Nr must match FMOPA tile size for optimal register usage
+//   - Kc should be large (full K when possible) to minimize ZA zero/store cycles
+//   - Mc/Nc should be multiples of tile size for aligned work distribution
+
+// CacheParamsSME returns blocking parameters for ARM SME float32.
+// Optimized for FMOPA with 16×16 tiles on Apple M4 (SVL=512 bits).
+func CacheParamsSME() CacheParams {
+	return CacheParams{
+		Mr: 16,  // FMOPA tile height (f32)
+		Nr: 16,  // FMOPA tile width (f32)
+		Kc: 512, // Full K is better for SME (fewer ZA zero/store cycles)
+		Mc: 48,  // 3 tiles (matches existing blocked kernel)
+		Nc: 48,  // 3 tiles
+	}
+}
+
+// CacheParamsSMEFloat64 returns blocking parameters for ARM SME float64.
+// Optimized for FMOPA with 8×8 tiles on Apple M4 (SVL=512 bits).
+func CacheParamsSMEFloat64() CacheParams {
+	return CacheParams{
+		Mr: 8,   // FMOPA tile height (f64)
+		Nr: 8,   // FMOPA tile width (f64)
+		Kc: 256, // Full K is better for SME
+		Mc: 48,  // 6 tiles
+		Nc: 48,  // 6 tiles
+	}
+}

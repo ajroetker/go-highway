@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func deltaencode32_c_u32_neon(input, output, len unsafe.Pointer)
+func deltaencode32_c_u32_neon(src, pbase, dst, plen_src, plen_dst unsafe.Pointer)

@@ -30,7 +30,7 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-// Use ajroetker/goat fork with SVE/SME streaming mode, FP16 headers, ABI offset fixes, int32_t support, size-appropriate load instructions, stack frame fixes, and Go reserved register fixes
-replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.1-antfly008
+// Use ajroetker/goat fork with SVE/SME streaming mode, FP16 headers, ABI offset fixes, int32_t support, size-appropriate load instructions, stack frame fixes, Go reserved register fixes, and CBZ/CBNZ/TBZ/TBNZ branch support
+replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.1-antfly009
 
 tool github.com/gorse-io/goat

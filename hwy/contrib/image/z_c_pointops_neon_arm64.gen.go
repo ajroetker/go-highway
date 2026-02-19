@@ -15,7 +15,7 @@ func init() {
 }
 
 func initPointopsNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	BrightnessContrastFloat32 = brightnessContrastAsmF32

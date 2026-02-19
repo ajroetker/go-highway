@@ -568,6 +568,10 @@ func RSqrtPrecise[T Floats](v Vec[T]) Vec[T] {
 	return RSqrt(v)
 }
 
+// InvSqrt computes reciprocal square root (1/sqrt(x)).
+// This is an alias for RSqrt.
+func InvSqrt[T Floats](v Vec[T]) Vec[T] { return RSqrt(v) }
+
 // Pow computes base^exp element-wise.
 func Pow[T Floats](base, exp Vec[T]) Vec[T] {
 	n := min(len(exp.data), len(base.data))

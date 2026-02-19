@@ -15,7 +15,7 @@ func init() {
 }
 
 func initDistanceNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	L2SquaredDistanceFloat32 = l2SquaredDistanceAsmF32
@@ -78,7 +78,7 @@ func l2SquaredDistanceAsmF32(a, b []float32) float32 {
 		p_b = unsafe.Pointer(&b[0])
 	}
 	lenVal := int64(len(a))
-	var out_result int64
+	var out_result float32
 	asm.L2SquaredDistance_F32(
 		p_a,
 		p_b,
@@ -98,7 +98,7 @@ func l2SquaredDistanceAsmF64(a, b []float64) float64 {
 		p_b = unsafe.Pointer(&b[0])
 	}
 	lenVal := int64(len(a))
-	var out_result int64
+	var out_result float64
 	asm.L2SquaredDistance_F64(
 		p_a,
 		p_b,

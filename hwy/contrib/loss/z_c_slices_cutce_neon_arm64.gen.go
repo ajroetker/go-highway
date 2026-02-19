@@ -15,7 +15,7 @@ func init() {
 }
 
 func initCutceNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	CutCrossEntropyGrad = cutCrossEntropyGradAsmF32

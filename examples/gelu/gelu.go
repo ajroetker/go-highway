@@ -23,7 +23,7 @@
 //	GOEXPERIMENT=simd go build
 package gelu
 
-//go:generate go run ../../cmd/hwygen -input gelu.go -output . -targets avx2,avx512,neon,fallback
+//go:generate go run ../../cmd/hwygen -input gelu.go -output . -targets avx2,avx512,neon:asm,fallback
 
 import (
 	stdmath "math"

@@ -10,48 +10,80 @@ import (
 )
 
 // Public wrapper functions
-// SumCF16 computes BaseSum for entire arrays using NEON SIMD.
-func SumCF16(input []uint16) []uint16 {
-	result := make([]uint16, len(input))
-	if len(input) == 0 {
-		return result
+// SumCF16 computes Sum using NEON SIMD assembly.
+func SumCF16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		return 0
 	}
-	n := int64(len(input))
-	sum_c_f16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_f16_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
 }
 
-// SumCBF16 computes BaseSum for entire arrays using NEON SIMD.
-func SumCBF16(input []uint16) []uint16 {
-	result := make([]uint16, len(input))
-	if len(input) == 0 {
-		return result
+// SumCBF16 computes Sum using NEON SIMD assembly.
+func SumCBF16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		return 0
 	}
-	n := int64(len(input))
-	sum_c_bf16_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_bf16_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
 }
 
-// SumCF32 computes BaseSum for entire arrays using NEON SIMD.
-func SumCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// SumCF32 computes Sum using NEON SIMD assembly.
+func SumCF32(v []float32) float32 {
+	if len(v) == 0 {
+		return 0
 	}
-	n := int64(len(input))
-	sum_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_f32_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
 }
 
-// SumCF64 computes BaseSum for entire arrays using NEON SIMD.
-func SumCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
+// SumCF64 computes Sum using NEON SIMD assembly.
+func SumCF64(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
 	}
-	n := int64(len(input))
-	sum_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_f64_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
 }
 
 // MinCF16 computes Min using NEON SIMD assembly.

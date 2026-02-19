@@ -77,14 +77,14 @@ See [GOAT.md](../GOAT.md) for complete GOAT documentation.
 GOAT has strict requirements for C functions:
 
 ```c
-// ✅ CORRECT: void return, pointer args, long for length
+// ✅ CORRECT: pointer args, long for length
 void add_f32_neon(float *a, float *b, float *result, long *len) {
     long n = *len;
     // ... implementation
 }
 
-// ❌ WRONG: non-void return type
-float sum_f32_neon(float *a, long *len) { ... }
+// ✅ CORRECT: non-void return (long, float, double, _Bool supported)
+long count_f32_neon(float *a, long *len) { ... }
 
 // ❌ WRONG: uint64_t not supported
 void foo(uint64_t *data, long *len) { ... }
@@ -618,7 +618,7 @@ go build -tags=noasm ./...
 ### GOAT Limitations
 
 1. **No function calls** - Only inline functions allowed in C
-2. **Void return types** - Functions must return void
+2. **Limited return types** - `void`, `long`, `float`, `double`, `_Bool`
 3. **Limited argument types** - Only pointers, int64_t, long, float, double, _Bool
 4. **No uint64_t** - Use int64_t or long instead
 

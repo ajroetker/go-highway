@@ -10,6 +10,11 @@ func Transpose2DStrided_F16(src unsafe.Pointer, prowStart unsafe.Pointer, prowEn
 	transpose2dstrided_c_f16_neon(src, prowStart, prowEnd, pk, pdstM, dst, plen_src, plen_dst)
 }
 
+// Transpose2DStrided_BF16 calls the NEON SIMD assembly implementation.
+func Transpose2DStrided_BF16(src unsafe.Pointer, prowStart unsafe.Pointer, prowEnd unsafe.Pointer, pk unsafe.Pointer, pdstM unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer) {
+	transpose2dstrided_c_bf16_neon(src, prowStart, prowEnd, pk, pdstM, dst, plen_src, plen_dst)
+}
+
 // Transpose2DStrided_F32 calls the NEON SIMD assembly implementation.
 func Transpose2DStrided_F32(src unsafe.Pointer, prowStart unsafe.Pointer, prowEnd unsafe.Pointer, pk unsafe.Pointer, pdstM unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer) {
 	transpose2dstrided_c_f32_neon(src, prowStart, prowEnd, pk, pdstM, dst, plen_src, plen_dst)
@@ -23,6 +28,11 @@ func Transpose2DStrided_F64(src unsafe.Pointer, prowStart unsafe.Pointer, prowEn
 // Transpose2D_F16 calls the NEON SIMD assembly implementation.
 func Transpose2D_F16(src unsafe.Pointer, pm unsafe.Pointer, pk unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer) {
 	transpose2d_c_f16_neon(src, pm, pk, dst, plen_src, plen_dst)
+}
+
+// Transpose2D_BF16 calls the NEON SIMD assembly implementation.
+func Transpose2D_BF16(src unsafe.Pointer, pm unsafe.Pointer, pk unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer) {
+	transpose2d_c_bf16_neon(src, pm, pk, dst, plen_src, plen_dst)
 }
 
 // Transpose2D_F32 calls the NEON SIMD assembly implementation.

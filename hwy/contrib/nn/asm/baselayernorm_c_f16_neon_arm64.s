@@ -148,13 +148,13 @@ BB0_18:
 	WORD $0x1e7800ae // fcvtzs	w14, d5
 	WORD $0x1ee301c5 // ucvtf	h5, w14
 	WORD $0xf100211f // cmp	x8, #8
-	WORD $0x3400008b // cbz	w11, LBB0_21
+	CBZW R11, BB0_21
 	BHS  BB0_24
 	WORD $0xd280000f // mov	x15, #0                         ; =0x0
 	B    BB0_26
 
 BB0_21:
-	WORD $0xb4000503 // cbz	x3, LBB0_29
+	CBZ  R3, BB0_29
 	BHS  BB0_31
 	WORD $0xd280000f // mov	x15, #0                         ; =0x0
 	B    BB0_33

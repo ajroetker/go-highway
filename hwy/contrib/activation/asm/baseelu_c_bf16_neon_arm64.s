@@ -12,7 +12,7 @@ TEXT ·elu_c_bf16_neon(SB), $16-32
 	MOVD palpha+16(FP), R2
 	MOVD plen_input+24(FP), R3
 	WORD $0xf9400069           // ldr	x9, [x3]
-	WORD $0xb4001589           // cbz	x9, LBB0_11
+	CBZ  R9, BB0_11
 	WORD $0x6d0023e9           // stp	d9, d8, [sp, #-16]!             ; 16-byte Folded Spill [transformed]
 	WORD $0x79400048           // ldrh	w8, [x2]
 	WORD $0xf100213f           // cmp	x9, #8
@@ -186,7 +186,7 @@ BB0_7:
 BB0_8:
 	WORD $0x7840258e // ldrh	w14, [x12], #2
 	WORD $0xaa0a03ed // mov	x13, x10
-	WORD $0x34ffff4e // cbz	w14, LBB0_7
+	CBZW R14, BB0_7
 	WORD $0x1e2301c0 // ucvtf	s0, w14
 	WORD $0x1e26000d // fmov	w13, s0
 	WORD $0x531041ae // ubfx	w14, w13, #16, #1

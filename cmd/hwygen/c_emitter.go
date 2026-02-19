@@ -1596,6 +1596,12 @@ func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator,
 			translator.helperSliceParams[name] = sliceIndices
 		}
 
+		// Register if this helper returns a Vec type, so inferCallType
+		// can assign the correct vector type to the call result.
+		if len(helper.Returns) > 0 && strings.HasPrefix(helper.Returns[0].Type, "hwy.Vec[") {
+			translator.helperReturnVec[name] = true
+		}
+
 		// Recursively collect helpers called by this helper first (dependency order)
 		e.collectHelperCode(helper, translator, emittedHelpers, helperCodes)
 

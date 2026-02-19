@@ -15,7 +15,7 @@ func init() {
 }
 
 func initSdpaNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	SDPAFloat32 = sDPAAsmF32

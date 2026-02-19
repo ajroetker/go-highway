@@ -125,13 +125,13 @@ BB0_16:
 	WORD $0x1e61c084 // fsqrt	d4, d4
 	WORD $0x1e641824 // fdiv	d4, d1, d4
 	WORD $0xf100091f // cmp	x8, #2
-	WORD $0x3400008b // cbz	w11, LBB0_19
+	CBZW R11, BB0_19
 	BHS  BB0_22
 	WORD $0xd280000e // mov	x14, #0                         ; =0x0
 	B    BB0_24
 
 BB0_19:
-	WORD $0xb4000403 // cbz	x3, LBB0_26
+	CBZ  R3, BB0_26
 	BHS  BB0_28
 	WORD $0xd280000e // mov	x14, #0                         ; =0x0
 	B    BB0_30

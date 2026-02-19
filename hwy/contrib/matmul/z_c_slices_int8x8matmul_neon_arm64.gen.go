@@ -15,7 +15,7 @@ func init() {
 }
 
 func initInt8x8matmulNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	Int8x8MatMul = int8x8MatMulAsmS32

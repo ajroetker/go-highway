@@ -6,95 +6,59 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/bitpack/asm/basedeltaencode64_c_u64_neon_arm64.c
 
-TEXT ·deltaencode64_c_u64_neon(SB), $0-24
-	MOVD input+0(FP), R0
-	MOVD output+8(FP), R1
-	MOVD len+16(FP), R2
-	WORD $0xf9400048      // ldr	x8, [x2]
-	WORD $0xf100211f      // cmp	x8, #8
-	BLT  BB0_5
-	WORD $0x91008029      // add	x9, x1, #32
-	WORD $0x9100800b      // add	x11, x0, #32
-	WORD $0x528000ea      // mov	w10, #7                         ; =0x7
-
-BB0_2:
-	WORD $0xad7f0560 // ldp	q0, q1, [x11, #-32]
-	WORD $0xacc20d62 // ldp	q2, q3, [x11], #64
-	WORD $0xad3f0520 // stp	q0, q1, [x9, #-32]
-	WORD $0xac820d22 // stp	q2, q3, [x9], #64
-	WORD $0x9100214a // add	x10, x10, #8
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_2
-	WORD $0xd1001d49 // sub	x9, x10, #7
-	WORD $0xb240012a // orr	x10, x9, #0x1
-	WORD $0xeb08015f // cmp	x10, x8
-	BLT  BB0_6
+TEXT ·deltaencode64_c_u64_neon(SB), $0-40
+	MOVD src+0(FP), R0
+	MOVD pbase+8(FP), R1
+	MOVD dst+16(FP), R2
+	MOVD plen_src+24(FP), R3
+	MOVD plen_dst+32(FP), R4
+	WORD $0xf940006a         // ldr	x10, [x3]
+	CBZ  R10, BB0_9
+	WORD $0xf9400088         // ldr	x8, [x4]
+	WORD $0xeb0a011f         // cmp	x8, x10
+	BLT  BB0_9
+	WORD $0xf9400028         // ldr	x8, [x1]
+	WORD $0xf9400009         // ldr	x9, [x0]
+	WORD $0xcb080128         // sub	x8, x9, x8
+	WORD $0xf9000048         // str	x8, [x2]
+	WORD $0xf1000d5f         // cmp	x10, #3
+	BGE  BB0_4
+	WORD $0x52800029         // mov	w9, #1                          ; =0x1
+	WORD $0xaa0003e8         // mov	x8, x0
+	B    BB0_6
 
 BB0_4:
-	WORD $0xaa0903ec // mov	x12, x9
-	B    BB0_8
+	WORD $0x9100204b // add	x11, x2, #8
+	WORD $0x5280002c // mov	w12, #1                         ; =0x1
+	WORD $0xaa0003e8 // mov	x8, x0
 
 BB0_5:
-	WORD $0xd2800009 // mov	x9, #0                          ; =0x0
-	WORD $0xb240012a // orr	x10, x9, #0x1
-	WORD $0xeb08015f // cmp	x10, x8
-	BGE  BB0_4
+	WORD $0x3cc08100 // ldur	q0, [x8, #8]
+	WORD $0x3cc10501 // ldr	q1, [x8], #16
+	WORD $0x6ee18400 // sub.2d	v0, v0, v1
+	WORD $0x3c810560 // str	q0, [x11], #16
+	WORD $0x91000989 // add	x9, x12, #2
+	WORD $0x9100118d // add	x13, x12, #4
+	WORD $0xaa0903ec // mov	x12, x9
+	WORD $0xeb0a01bf // cmp	x13, x10
+	BLE  BB0_5
 
 BB0_6:
-	WORD $0xd37df12b // lsl	x11, x9, #3
-	WORD $0x8b0b000a // add	x10, x0, x11
-	WORD $0x8b0b002b // add	x11, x1, x11
-
-BB0_7:
-	WORD $0x3cc10540 // ldr	q0, [x10], #16
-	WORD $0x3c810560 // str	q0, [x11], #16
-	WORD $0x9100092c // add	x12, x9, #2
-	WORD $0x91000d2d // add	x13, x9, #3
-	WORD $0xaa0c03e9 // mov	x9, x12
-	WORD $0xeb0801bf // cmp	x13, x8
-	BLT  BB0_7
+	WORD $0xeb09014a // subs	x10, x10, x9
+	BLE  BB0_9
+	WORD $0xd37df12c // lsl	x12, x9, #3
+	WORD $0x8b0c004b // add	x11, x2, x12
+	WORD $0x8b0c000c // add	x12, x0, x12
 
 BB0_8:
-	WORD $0xeb0c0109 // subs	x9, x8, x12
-	BLE  BB0_17
-	WORD $0xf100213f // cmp	x9, #8
-	BLO  BB0_14
-	WORD $0xcb00002a // sub	x10, x1, x0
-	WORD $0xf101015f // cmp	x10, #64
-	BLO  BB0_14
-	WORD $0x927df12b // and	x11, x9, #0xfffffffffffffff8
-	WORD $0x8b0b018a // add	x10, x12, x11
-	WORD $0xd37df18c // lsl	x12, x12, #3
-	WORD $0x9100818d // add	x13, x12, #32
-	WORD $0x8b0d000c // add	x12, x0, x13
-	WORD $0x8b0d002d // add	x13, x1, x13
-	WORD $0xaa0b03ee // mov	x14, x11
+	WORD $0xf940010d // ldr	x13, [x8]
+	WORD $0xf840858e // ldr	x14, [x12], #8
+	WORD $0x8b090c08 // add	x8, x0, x9, lsl #3
+	WORD $0xcb0d01cd // sub	x13, x14, x13
+	WORD $0xf800856d // str	x13, [x11], #8
+	WORD $0x91000529 // add	x9, x9, #1
+	WORD $0xf100054a // subs	x10, x10, #1
+	BNE  BB0_8
 
-BB0_12:
-	WORD $0xad7f0580 // ldp	q0, q1, [x12, #-32]
-	WORD $0xacc20d82 // ldp	q2, q3, [x12], #64
-	WORD $0xad3f05a0 // stp	q0, q1, [x13, #-32]
-	WORD $0xac820da2 // stp	q2, q3, [x13], #64
-	WORD $0xf10021ce // subs	x14, x14, #8
-	BNE  BB0_12
-	WORD $0xeb0b013f // cmp	x9, x11
-	BNE  BB0_15
-	B    BB0_17
-
-BB0_14:
-	WORD $0xaa0c03ea // mov	x10, x12
-
-BB0_15:
-	WORD $0xcb0a0108 // sub	x8, x8, x10
-	WORD $0xd37df14a // lsl	x10, x10, #3
-	WORD $0x8b0a0029 // add	x9, x1, x10
-	WORD $0x8b0a000a // add	x10, x0, x10
-
-BB0_16:
-	WORD $0xf840854b // ldr	x11, [x10], #8
-	WORD $0xf800852b // str	x11, [x9], #8
-	WORD $0xf1000508 // subs	x8, x8, #1
-	BNE  BB0_16
-
-BB0_17:
+BB0_9:
 	RET

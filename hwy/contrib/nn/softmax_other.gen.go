@@ -40,7 +40,10 @@ var SoftmaxWithTemperatureFloat64 func(input []float64, output []float64, temper
 // The max subtraction provides numerical stability by preventing overflow
 // in the exponential computation.
 //
-// This function uses SIMD-accelerated exp for efficient processing.
+// Uses a fused three-pass algorithm:
+//  1. Find max (scalar)
+//  2. Fused subtract-max + exp + accumulate sum (SIMD)
+//  3. Normalize by 1/sum (SIMD)
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Softmax[T hwy.Floats](input []T, output []T) {
@@ -78,6 +81,11 @@ func SoftmaxInPlace[T hwy.Floats](x []T) {
 //
 // This is more numerically stable than computing log(softmax(x)) directly,
 // and is commonly used for negative log-likelihood loss computation.
+//
+// Uses a fused three-pass algorithm:
+//  1. Find max (scalar)
+//  2. Fused subtract-max + exp + accumulate sum (SIMD, no intermediate storage)
+//  3. output[i] = input[i] - max - log(sum) (SIMD)
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func LogSoftmax[T hwy.Floats](input []T, output []T) {
@@ -133,6 +141,11 @@ func SoftmaxScalar[T hwy.Floats](input []T, output []T) {
 //   - T < 1: sharper (more confident, closer to argmax)
 //   - T = 1: standard softmax
 //   - T > 1: softer (more uniform)
+//
+// Uses a fused three-pass algorithm:
+//  1. Find max (scalar)
+//  2. Fused (subtract-max * invTemp) + exp + accumulate sum (SIMD)
+//  3. Normalize by 1/sum (SIMD)
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func SoftmaxWithTemperature[T hwy.Floats](input []T, output []T, temperature T) {

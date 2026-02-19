@@ -12,7 +12,7 @@ TEXT ·elu_c_f32_neon(SB), $16-32
 	MOVD palpha+16(FP), R2
 	MOVD plen_input+24(FP), R3
 	WORD $0xf9400068           // ldr	x8, [x3]
-	WORD $0xb4001808           // cbz	x8, LBB0_15
+	CBZ  R8, BB0_15
 	WORD $0xa9004ff4           // stp	x20, x19, [sp, #-16]!           ; 16-byte Folded Spill [transformed]
 	WORD $0xbd400040           // ldr	s0, [x2]
 	WORD $0xf100111f           // cmp	x8, #4

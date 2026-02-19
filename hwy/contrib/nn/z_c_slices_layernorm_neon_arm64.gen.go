@@ -15,7 +15,7 @@ func init() {
 }
 
 func initLayernormNeonCAsm() {
-	if hwy.NoSimdEnv() || hwy.HasSME() {
+	if hwy.NoSimdEnv() {
 		return
 	}
 	LayerNormFloat32 = layerNormAsmF32

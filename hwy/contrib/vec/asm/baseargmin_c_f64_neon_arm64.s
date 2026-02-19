@@ -89,7 +89,7 @@ BB0_12:
 	WORD $0xfc697800 // ldr	d0, [x0, x9, lsl #3]
 	WORD $0x1e602000 // fcmp	d0, d0
 	BVS  BB0_18
-	WORD $0xb400018b // cbz	x11, LBB0_17
+	CBZ  R11, BB0_17
 	WORD $0x1e612000 // fcmp	d0, d1
 	BMI  BB0_17
 	WORD $0xfa4a0120 // ccmp	x9, x10, #0, eq
