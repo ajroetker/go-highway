@@ -5095,3 +5095,883 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 		t.Error("main function should call bf16_promote_hi()")
 	}
 }
+
+// --- Tests for //hwy:types multi-type annotation ---
+
+func TestParseTypesDirective(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		want    int    // expected number of TypeCombinations on first func
+		wantT1  string // expected T1 value of first combo
+		wantT2  string // expected T2 value of first combo
+	}{
+		{
+			name: "single combo",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:types T1=hwy.Float16,T2=float32
+func BaseDotGeneral[T1, T2 hwy.Floats](a []T1, acc []T2) {
+	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
+}
+`,
+			want:   1,
+			wantT1: "hwy.Float16",
+			wantT2: "float32",
+		},
+		{
+			name: "multiple combos",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:types T1=hwy.Float16,T2=float32 T1=hwy.BFloat16,T2=float32 T1=int8,T2=int32
+func BaseDotGeneral[T1, T2 hwy.Lanes](a []T1, acc []T2) {
+	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
+}
+`,
+			want:   3,
+			wantT1: "hwy.Float16",
+			wantT2: "float32",
+		},
+		{
+			name: "no hwy:types directive",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+func BaseSigmoid[T hwy.Floats](data []T) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`,
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test_base.go")
+			if err := os.WriteFile(path, []byte(tt.src), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := Parse(path)
+			if err != nil {
+				t.Fatalf("Parse failed: %v", err)
+			}
+
+			if len(result.Funcs) == 0 {
+				t.Fatal("no functions found")
+			}
+
+			pf := result.Funcs[0]
+			if len(pf.TypeCombinations) != tt.want {
+				t.Errorf("got %d TypeCombinations, want %d", len(pf.TypeCombinations), tt.want)
+			}
+
+			if tt.want > 0 {
+				combo := pf.TypeCombinations[0]
+				if got := combo.Types["T1"]; got != tt.wantT1 {
+					t.Errorf("T1 = %q, want %q", got, tt.wantT1)
+				}
+				if got := combo.Types["T2"]; got != tt.wantT2 {
+					t.Errorf("T2 = %q, want %q", got, tt.wantT2)
+				}
+			}
+		})
+	}
+}
+
+func TestSpecializeTypeWithMap(t *testing.T) {
+	typeParams := []TypeParam{
+		{Name: "T1", Constraint: "hwy.Floats"},
+		{Name: "T2", Constraint: "hwy.Floats"},
+	}
+	typeMap := map[string]string{
+		"T1": "hwy.Float16",
+		"T2": "float32",
+	}
+
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"[]T1", "[]hwy.Float16"},
+		{"[]T2", "[]float32"},
+		{"T1", "hwy.Float16"},
+		{"T2", "float32"},
+		{"hwy.Vec[T1]", "hwy.Vec[hwy.Float16]"},
+		{"hwy.Vec[T2]", "hwy.Vec[float32]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := specializeTypeWithMap(tt.input, typeParams, "hwy.Float16", typeMap)
+			if got != tt.want {
+				t.Errorf("specializeTypeWithMap(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSpecializeTypeWithMapNil(t *testing.T) {
+	// When typeMap is nil, specializeTypeWithMap should behave like specializeType
+	typeParams := []TypeParam{
+		{Name: "T", Constraint: "hwy.Floats"},
+	}
+	input := "[]T"
+	got := specializeTypeWithMap(input, typeParams, "float64", nil)
+	want := "[]float64"
+	if got != want {
+		t.Errorf("specializeTypeWithMap(%q, nil) = %q, want %q", input, got, want)
+	}
+}
+
+func TestComboTypeSuffix(t *testing.T) {
+	typeParams := []TypeParam{
+		{Name: "T1", Constraint: "hwy.Floats"},
+		{Name: "T2", Constraint: "hwy.Floats"},
+	}
+
+	tests := []struct {
+		name  string
+		combo TypeCombination
+		want  string
+	}{
+		{
+			name:  "Float16 Float32",
+			combo: TypeCombination{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			want:  "Float16Float32",
+		},
+		{
+			name:  "BFloat16 Float32",
+			combo: TypeCombination{Types: map[string]string{"T1": "hwy.BFloat16", "T2": "float32"}},
+			want:  "BFloat16Float32",
+		},
+		{
+			name:  "Int8 Int32",
+			combo: TypeCombination{Types: map[string]string{"T1": "int8", "T2": "int32"}},
+			want:  "Int8Int32",
+		},
+		{
+			name:  "single type",
+			combo: TypeCombination{Types: map[string]string{"T1": "float64"}},
+			want:  "Float64",
+		},
+		{
+			name:  "empty types",
+			combo: TypeCombination{Types: nil},
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := comboTypeSuffix(tt.combo, typeParams)
+			if got != tt.want {
+				t.Errorf("comboTypeSuffix() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTypeCombinationsBackwardCompat(t *testing.T) {
+	// Functions without //hwy:types should produce same combos as GetConcreteTypes
+	pf := ParsedFunc{
+		Name: "BaseSigmoid",
+		TypeParams: []TypeParam{
+			{Name: "T", Constraint: "hwy.FloatsNative"},
+		},
+	}
+
+	combos := getTypeCombinations(&pf)
+	concreteTypes := GetConcreteTypes("hwy.FloatsNative")
+
+	if len(combos) != len(concreteTypes) {
+		t.Fatalf("got %d combos, want %d (same as GetConcreteTypes)", len(combos), len(concreteTypes))
+	}
+
+	for i, combo := range combos {
+		elemType := comboPrimaryType(combo, pf.TypeParams)
+		if elemType != concreteTypes[i] {
+			t.Errorf("combo[%d] primary type = %q, want %q", i, elemType, concreteTypes[i])
+		}
+	}
+}
+
+func TestGetTypeCombinationsExplicit(t *testing.T) {
+	pf := ParsedFunc{
+		Name: "BaseDotGeneral",
+		TypeParams: []TypeParam{
+			{Name: "T1", Constraint: "hwy.Floats"},
+			{Name: "T2", Constraint: "hwy.Floats"},
+		},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			{Types: map[string]string{"T1": "hwy.BFloat16", "T2": "float32"}},
+		},
+	}
+
+	combos := getTypeCombinations(&pf)
+	if len(combos) != 2 {
+		t.Fatalf("got %d combos, want 2", len(combos))
+	}
+	if combos[0].Types["T1"] != "hwy.Float16" {
+		t.Errorf("combo[0].T1 = %q, want %q", combos[0].Types["T1"], "hwy.Float16")
+	}
+	if combos[1].Types["T1"] != "hwy.BFloat16" {
+		t.Errorf("combo[1].T1 = %q, want %q", combos[1].Types["T1"], "hwy.BFloat16")
+	}
+}
+
+func TestBuildDispatchFuncNameCombo(t *testing.T) {
+	typeParams := []TypeParam{
+		{Name: "T1", Constraint: "hwy.Floats"},
+		{Name: "T2", Constraint: "hwy.Floats"},
+	}
+
+	tests := []struct {
+		name    string
+		combo   TypeCombination
+		private bool
+		want    string
+	}{
+		{
+			name:  "multi-type public",
+			combo: TypeCombination{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			want:  "DotGeneralFloat16Float32",
+		},
+		{
+			name:    "multi-type private",
+			combo:   TypeCombination{Types: map[string]string{"T1": "int8", "T2": "int32"}},
+			private: true,
+			want:    "dotGeneralInt8Int32",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildDispatchFuncNameCombo("BaseDotGeneral", tt.combo, typeParams, tt.private)
+			if got != tt.want {
+				t.Errorf("buildDispatchFuncNameCombo() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractVecElemType(t *testing.T) {
+	tests := []struct {
+		input   string
+		primary string
+		want    string
+	}{
+		{"hwy.Vec[float32]", "float64", "float32"},
+		{"hwy.Vec[hwy.Float16]", "float32", "hwy.Float16"},
+		{"[]float32", "float64", "float64"},
+		{"int", "float32", "float32"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := extractVecElemType(tt.input, tt.primary)
+			if got != tt.want {
+				t.Errorf("extractVecElemType(%q, %q) = %q, want %q", tt.input, tt.primary, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultiTypeDispatchGeneration(t *testing.T) {
+	// Test that emitGenericDispatcher produces correct output for multi-type functions
+	pf := ParsedFunc{
+		Name: "BaseDotGeneral",
+		TypeParams: []TypeParam{
+			{Name: "T1", Constraint: "hwy.Lanes"},
+			{Name: "T2", Constraint: "hwy.Lanes"},
+		},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			{Types: map[string]string{"T1": "hwy.BFloat16", "T2": "float32"}},
+		},
+		Params: []Param{
+			{Name: "a", Type: "[]T1"},
+			{Name: "b", Type: "[]T1"},
+			{Name: "acc", Type: "[]T2"},
+		},
+	}
+
+	var buf bytes.Buffer
+	emitGenericDispatcher(&buf, pf)
+	output := buf.String()
+
+	// Should contain the generic function signature
+	if !strings.Contains(output, "func DotGeneral[") {
+		t.Error("output should contain generic function signature")
+	}
+
+	// Should contain dispatch var names for both combos
+	if !strings.Contains(output, "DotGeneralFloat16Float32") {
+		t.Errorf("output should reference DotGeneralFloat16Float32, got:\n%s", output)
+	}
+	if !strings.Contains(output, "DotGeneralBFloat16Float32") {
+		t.Errorf("output should reference DotGeneralBFloat16Float32, got:\n%s", output)
+	}
+
+	// Should contain type switch
+	if !strings.Contains(output, "switch any(") {
+		t.Error("output should contain type switch")
+	}
+}
+
+func TestContainsSpecificTypeParam(t *testing.T) {
+	tests := []struct {
+		typeStr   string
+		paramName string
+		want      bool
+	}{
+		{"T1", "T1", true},
+		{"[]T1", "T1", true},
+		{"hwy.Vec[T1]", "T1", true},
+		{"func(T1)", "T1", true},
+		{"map[T1]int", "T1", true},
+		{"T2", "T1", false},
+		{"[]T2", "T1", false},
+		{"int", "T1", false},
+		{"[]float32", "T1", false},
+		// Should not match substrings — T1 inside T12
+		{"T12", "T1", false},
+	}
+
+	for _, tt := range tests {
+		name := fmt.Sprintf("%s_contains_%s", tt.typeStr, tt.paramName)
+		t.Run(name, func(t *testing.T) {
+			got := containsSpecificTypeParam(tt.typeStr, tt.paramName)
+			if got != tt.want {
+				t.Errorf("containsSpecificTypeParam(%q, %q) = %v, want %v", tt.typeStr, tt.paramName, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEmitSingleTypeDispatch(t *testing.T) {
+	pf := ParsedFunc{
+		Name: "BaseSigmoid",
+		TypeParams: []TypeParam{
+			{Name: "T", Constraint: "hwy.Floats"},
+		},
+		Params: []Param{
+			{Name: "data", Type: "[]T"},
+		},
+	}
+	combos := []TypeCombination{
+		{Types: map[string]string{"T": "float32"}},
+		{Types: map[string]string{"T": "float64"}},
+	}
+
+	var buf bytes.Buffer
+	emitSingleTypeDispatch(&buf, pf, combos)
+	output := buf.String()
+
+	// Should have outer switch on data
+	if !strings.Contains(output, "switch any(data).(type)") {
+		t.Errorf("expected switch on data, got:\n%s", output)
+	}
+	// Should have case for each type
+	if !strings.Contains(output, "case []float32:") {
+		t.Errorf("expected case []float32, got:\n%s", output)
+	}
+	if !strings.Contains(output, "case []float64:") {
+		t.Errorf("expected case []float64, got:\n%s", output)
+	}
+	// Should dispatch to typed functions
+	if !strings.Contains(output, "SigmoidFloat32(") {
+		t.Errorf("expected SigmoidFloat32 dispatch call, got:\n%s", output)
+	}
+	if !strings.Contains(output, "SigmoidFloat64(") {
+		t.Errorf("expected SigmoidFloat64 dispatch call, got:\n%s", output)
+	}
+}
+
+func TestEmitMultiTypeDispatch(t *testing.T) {
+	t.Run("nested switches for shared outer type", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseDotGeneral",
+			TypeParams: []TypeParam{
+				{Name: "T1", Constraint: "hwy.Lanes"},
+				{Name: "T2", Constraint: "hwy.Lanes"},
+			},
+			Params: []Param{
+				{Name: "a", Type: "[]T1"},
+				{Name: "acc", Type: "[]T2"},
+			},
+		}
+		// Two combos share T1=hwy.Float16, so we should get a nested inner switch
+		combos := []TypeCombination{
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float64"}},
+		}
+
+		var buf bytes.Buffer
+		emitMultiTypeDispatch(&buf, pf, combos)
+		output := buf.String()
+
+		// Outer switch on a (first param with T1)
+		if !strings.Contains(output, "switch any(a).(type)") {
+			t.Errorf("expected outer switch on a, got:\n%s", output)
+		}
+		// Outer case for hwy.Float16
+		if !strings.Contains(output, "case []hwy.Float16:") {
+			t.Errorf("expected outer case []hwy.Float16, got:\n%s", output)
+		}
+		// Inner switch on acc (first param with T2)
+		if !strings.Contains(output, "switch any(acc).(type)") {
+			t.Errorf("expected inner switch on acc, got:\n%s", output)
+		}
+		// Inner cases
+		if !strings.Contains(output, "case []float32:") {
+			t.Errorf("expected inner case []float32, got:\n%s", output)
+		}
+		if !strings.Contains(output, "case []float64:") {
+			t.Errorf("expected inner case []float64, got:\n%s", output)
+		}
+		// Both dispatch names
+		if !strings.Contains(output, "DotGeneralFloat16Float32(") {
+			t.Errorf("expected DotGeneralFloat16Float32 call, got:\n%s", output)
+		}
+		if !strings.Contains(output, "DotGeneralFloat16Float64(") {
+			t.Errorf("expected DotGeneralFloat16Float64 call, got:\n%s", output)
+		}
+	})
+
+	t.Run("single combo per outer type skips inner switch", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseDotGeneral",
+			TypeParams: []TypeParam{
+				{Name: "T1", Constraint: "hwy.Lanes"},
+				{Name: "T2", Constraint: "hwy.Lanes"},
+			},
+			Params: []Param{
+				{Name: "a", Type: "[]T1"},
+				{Name: "acc", Type: "[]T2"},
+			},
+		}
+		// Each outer type has exactly one inner type — no inner switch needed
+		combos := []TypeCombination{
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			{Types: map[string]string{"T1": "hwy.BFloat16", "T2": "float32"}},
+		}
+
+		var buf bytes.Buffer
+		emitMultiTypeDispatch(&buf, pf, combos)
+		output := buf.String()
+
+		// Should have outer switch
+		if !strings.Contains(output, "switch any(a).(type)") {
+			t.Errorf("expected outer switch, got:\n%s", output)
+		}
+		// Should NOT have inner switch (each outer group has only 1 combo)
+		count := strings.Count(output, "switch any(")
+		if count != 1 {
+			t.Errorf("expected exactly 1 switch statement (no inner), got %d in:\n%s", count, output)
+		}
+		// Both cases and calls should still be present
+		if !strings.Contains(output, "case []hwy.Float16:") {
+			t.Errorf("expected case []hwy.Float16, got:\n%s", output)
+		}
+		if !strings.Contains(output, "case []hwy.BFloat16:") {
+			t.Errorf("expected case []hwy.BFloat16, got:\n%s", output)
+		}
+	})
+
+	t.Run("falls back to single dispatch for 1 type param", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseSigmoid",
+			TypeParams: []TypeParam{
+				{Name: "T", Constraint: "hwy.Floats"},
+			},
+			Params: []Param{
+				{Name: "data", Type: "[]T"},
+			},
+		}
+		combos := []TypeCombination{
+			{Types: map[string]string{"T": "float32"}},
+		}
+
+		var buf bytes.Buffer
+		emitMultiTypeDispatch(&buf, pf, combos)
+		output := buf.String()
+
+		// Should still produce a switch (via fallback to emitSingleTypeDispatch)
+		if !strings.Contains(output, "switch any(data).(type)") {
+			t.Errorf("expected fallback to single dispatch, got:\n%s", output)
+		}
+	})
+}
+
+func TestEmitDispatchCall(t *testing.T) {
+	t.Run("no return no typeMap", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseSigmoid",
+			TypeParams: []TypeParam{
+				{Name: "T", Constraint: "hwy.Floats"},
+			},
+			Params: []Param{
+				{Name: "data", Type: "[]T"},
+				{Name: "n", Type: "int"},
+			},
+		}
+		var buf bytes.Buffer
+		emitDispatchCall(&buf, pf, "SigmoidFloat32", "float32", nil, "\t\t")
+		output := buf.String()
+
+		// Should type-assert the generic param and pass non-generic directly
+		if !strings.Contains(output, "any(data).([]float32)") {
+			t.Errorf("expected type assertion for data, got:\n%s", output)
+		}
+		if !strings.Contains(output, "n") {
+			t.Errorf("expected non-generic param n passed directly, got:\n%s", output)
+		}
+		// Should not have return
+		if strings.Contains(output, "return") {
+			t.Errorf("expected no return for void function, got:\n%s", output)
+		}
+	})
+
+	t.Run("with return and typeMap", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseDot",
+			TypeParams: []TypeParam{
+				{Name: "T1", Constraint: "hwy.Lanes"},
+				{Name: "T2", Constraint: "hwy.Lanes"},
+			},
+			Params: []Param{
+				{Name: "a", Type: "[]T1"},
+				{Name: "acc", Type: "[]T2"},
+			},
+			Returns: []Param{
+				{Type: "T2"},
+			},
+		}
+		typeMap := map[string]string{"T1": "hwy.Float16", "T2": "float32"}
+		var buf bytes.Buffer
+		emitDispatchCall(&buf, pf, "DotFloat16Float32", "hwy.Float16", typeMap, "\t\t")
+		output := buf.String()
+
+		// a should be asserted as []hwy.Float16 (T1's mapped type)
+		if !strings.Contains(output, "any(a).([]hwy.Float16)") {
+			t.Errorf("expected type assertion for a as []hwy.Float16, got:\n%s", output)
+		}
+		// acc should be asserted as []float32 (T2's mapped type)
+		if !strings.Contains(output, "any(acc).([]float32)") {
+			t.Errorf("expected type assertion for acc as []float32, got:\n%s", output)
+		}
+		// Should have return with type wrap
+		if !strings.Contains(output, "return any(") {
+			t.Errorf("expected return with type wrap, got:\n%s", output)
+		}
+	})
+
+	t.Run("multi return values", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseCompute",
+			TypeParams: []TypeParam{
+				{Name: "T", Constraint: "hwy.Floats"},
+			},
+			Params: []Param{
+				{Name: "data", Type: "[]T"},
+			},
+			Returns: []Param{
+				{Type: "[]T"},
+				{Type: "error"},
+			},
+		}
+		var buf bytes.Buffer
+		emitDispatchCall(&buf, pf, "ComputeFloat32", "float32", nil, "\t\t")
+		output := buf.String()
+
+		// Multi-return: should capture into temp vars then return with assertion
+		if !strings.Contains(output, "_r0") {
+			t.Errorf("expected temp var _r0, got:\n%s", output)
+		}
+		if !strings.Contains(output, "_r1") {
+			t.Errorf("expected temp var _r1, got:\n%s", output)
+		}
+		// The generic return should be unwrapped via any()
+		if !strings.Contains(output, "any(_r0).([]T)") {
+			t.Errorf("expected any(_r0).([]T), got:\n%s", output)
+		}
+		// The non-generic return (error) should pass through
+		if !strings.Contains(output, "_r1") {
+			t.Errorf("expected _r1 pass-through, got:\n%s", output)
+		}
+	})
+}
+
+func TestEmitDispatchArg(t *testing.T) {
+	typeParams := []TypeParam{
+		{Name: "T1", Constraint: "hwy.Lanes"},
+		{Name: "T2", Constraint: "hwy.Lanes"},
+	}
+	typeMap := map[string]string{"T1": "hwy.Float16", "T2": "float32"}
+
+	tests := []struct {
+		name    string
+		param   Param
+		typeMap map[string]string
+		want    string
+	}{
+		{
+			name:    "generic param T1 with typeMap",
+			param:   Param{Name: "a", Type: "[]T1"},
+			typeMap: typeMap,
+			want:    "any(a).([]hwy.Float16)",
+		},
+		{
+			name:    "generic param T2 with typeMap",
+			param:   Param{Name: "acc", Type: "[]T2"},
+			typeMap: typeMap,
+			want:    "any(acc).([]float32)",
+		},
+		{
+			name:    "non-generic param",
+			param:   Param{Name: "n", Type: "int"},
+			typeMap: typeMap,
+			want:    "n",
+		},
+		{
+			name:    "generic param without typeMap",
+			param:   Param{Name: "a", Type: "[]T1"},
+			typeMap: nil,
+			want:    "any(a).([]hwy.Float16)", // falls back to elemType
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			emitDispatchArg(&buf, tt.param, typeParams, "hwy.Float16", tt.typeMap)
+			got := buf.String()
+			if got != tt.want {
+				t.Errorf("emitDispatchArg() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetDispatchCombos(t *testing.T) {
+	t.Run("single-type generic", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseSigmoid",
+			TypeParams: []TypeParam{
+				{Name: "T", Constraint: "hwy.FloatsNative"},
+			},
+		}
+		combos := getDispatchCombos(pf)
+
+		concreteTypes := GetConcreteTypes("hwy.FloatsNative")
+		if len(combos) != len(concreteTypes) {
+			t.Fatalf("got %d dispatch combos, want %d", len(combos), len(concreteTypes))
+		}
+		for i, dc := range combos {
+			if dc.ElemType != concreteTypes[i] {
+				t.Errorf("combo[%d].ElemType = %q, want %q", i, dc.ElemType, concreteTypes[i])
+			}
+			// DispatchName should be like SigmoidFloat32
+			if !strings.HasPrefix(dc.DispatchName, "Sigmoid") {
+				t.Errorf("combo[%d].DispatchName = %q, expected Sigmoid prefix", i, dc.DispatchName)
+			}
+		}
+	})
+
+	t.Run("multi-type with hwy:types", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "BaseDotGeneral",
+			TypeParams: []TypeParam{
+				{Name: "T1", Constraint: "hwy.Lanes"},
+				{Name: "T2", Constraint: "hwy.Lanes"},
+			},
+			TypeCombinations: []TypeCombination{
+				{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+				{Types: map[string]string{"T1": "int8", "T2": "int32"}},
+			},
+		}
+		combos := getDispatchCombos(pf)
+
+		if len(combos) != 2 {
+			t.Fatalf("got %d dispatch combos, want 2", len(combos))
+		}
+
+		if combos[0].DispatchName != "DotGeneralFloat16Float32" {
+			t.Errorf("combo[0].DispatchName = %q, want %q", combos[0].DispatchName, "DotGeneralFloat16Float32")
+		}
+		if combos[0].ElemType != "hwy.Float16" {
+			t.Errorf("combo[0].ElemType = %q, want %q", combos[0].ElemType, "hwy.Float16")
+		}
+		if combos[0].TypeSuffix != "Float16Float32" {
+			t.Errorf("combo[0].TypeSuffix = %q, want %q", combos[0].TypeSuffix, "Float16Float32")
+		}
+
+		if combos[1].DispatchName != "DotGeneralInt8Int32" {
+			t.Errorf("combo[1].DispatchName = %q, want %q", combos[1].DispatchName, "DotGeneralInt8Int32")
+		}
+		if combos[1].TypeSuffix != "Int8Int32" {
+			t.Errorf("combo[1].TypeSuffix = %q, want %q", combos[1].TypeSuffix, "Int8Int32")
+		}
+	})
+
+	t.Run("non-generic function", func(t *testing.T) {
+		pf := ParsedFunc{
+			Name: "Relu",
+		}
+		combos := getDispatchCombos(pf)
+		if len(combos) != 1 {
+			t.Fatalf("got %d dispatch combos for non-generic, want 1", len(combos))
+		}
+		if combos[0].DispatchName != "Relu" {
+			t.Errorf("combo.DispatchName = %q, want %q", combos[0].DispatchName, "Relu")
+		}
+	})
+}
+
+func TestBuildFuncSignatureWithMap(t *testing.T) {
+	t.Run("multi-type params", func(t *testing.T) {
+		pf := ParsedFunc{
+			TypeParams: []TypeParam{
+				{Name: "T1", Constraint: "hwy.Lanes"},
+				{Name: "T2", Constraint: "hwy.Lanes"},
+			},
+			Params: []Param{
+				{Name: "a", Type: "[]T1"},
+				{Name: "b", Type: "[]T1"},
+				{Name: "acc", Type: "[]T2"},
+			},
+		}
+		typeMap := map[string]string{"T1": "hwy.Float16", "T2": "float32"}
+		got := buildFuncSignatureWithMap(pf, "hwy.Float16", typeMap)
+
+		if !strings.Contains(got, "a []hwy.Float16") {
+			t.Errorf("expected a []hwy.Float16, got: %s", got)
+		}
+		if !strings.Contains(got, "b []hwy.Float16") {
+			t.Errorf("expected b []hwy.Float16, got: %s", got)
+		}
+		if !strings.Contains(got, "acc []float32") {
+			t.Errorf("expected acc []float32, got: %s", got)
+		}
+	})
+
+	t.Run("with return types", func(t *testing.T) {
+		pf := ParsedFunc{
+			TypeParams: []TypeParam{
+				{Name: "T1", Constraint: "hwy.Lanes"},
+				{Name: "T2", Constraint: "hwy.Lanes"},
+			},
+			Params: []Param{
+				{Name: "a", Type: "[]T1"},
+			},
+			Returns: []Param{
+				{Type: "T2"},
+			},
+		}
+		typeMap := map[string]string{"T1": "hwy.Float16", "T2": "float32"}
+		got := buildFuncSignatureWithMap(pf, "hwy.Float16", typeMap)
+
+		if !strings.Contains(got, "a []hwy.Float16") {
+			t.Errorf("expected a []hwy.Float16, got: %s", got)
+		}
+		if !strings.Contains(got, "float32") {
+			t.Errorf("expected return type float32, got: %s", got)
+		}
+	})
+
+	t.Run("nil typeMap delegates to single type", func(t *testing.T) {
+		pf := ParsedFunc{
+			TypeParams: []TypeParam{
+				{Name: "T", Constraint: "hwy.Floats"},
+			},
+			Params: []Param{
+				{Name: "data", Type: "[]T"},
+			},
+		}
+		got := buildFuncSignatureWithMap(pf, "float32", nil)
+		want := "(data []float32)"
+		if got != want {
+			t.Errorf("buildFuncSignatureWithMap with nil map = %q, want %q", got, want)
+		}
+	})
+}
+
+func TestCEmitterTypeSuffixMultiType(t *testing.T) {
+	target, err := GetTarget("neon")
+	if err != nil {
+		t.Fatalf("GetTarget: %v", err)
+	}
+
+	t.Run("multi-type suffix", func(t *testing.T) {
+		e := NewCEmitter("testpkg", "hwy.Float16", target)
+		e.typeMap = map[string]string{"T1": "hwy.Float16", "T2": "float32"}
+
+		got := e.typeSuffix()
+		// Keys sorted: T1, T2 → "f16_f32"
+		if got != "f16_f32" {
+			t.Errorf("typeSuffix() = %q, want %q", got, "f16_f32")
+		}
+	})
+
+	t.Run("single-type falls back to elemType", func(t *testing.T) {
+		e := NewCEmitter("testpkg", "float32", target)
+		// No typeMap set
+		got := e.typeSuffix()
+		if got != "f32" {
+			t.Errorf("typeSuffix() = %q, want %q", got, "f32")
+		}
+	})
+
+	t.Run("single-entry typeMap falls back to elemType", func(t *testing.T) {
+		e := NewCEmitter("testpkg", "float32", target)
+		e.typeMap = map[string]string{"T": "float32"}
+		got := e.typeSuffix()
+		// With only 1 entry, should fall back to normal elemType-based suffix
+		if got != "f32" {
+			t.Errorf("typeSuffix() = %q, want %q", got, "f32")
+		}
+	})
+}
+
+func TestCASTTranslatorResolveTypeParam(t *testing.T) {
+	target, err := GetTarget("neon")
+	if err != nil {
+		t.Fatalf("GetTarget: %v", err)
+	}
+	profile := GetCProfile(target.Name, "float32")
+	if profile == nil {
+		t.Skip("no neon/float32 profile available")
+	}
+
+	t.Run("with typeMap resolves to mapped type", func(t *testing.T) {
+		tr := NewCASTTranslator(profile, "hwy.Float16")
+		tr.typeMap = map[string]string{"T1": "hwy.Float16", "T2": "float32"}
+
+		if got := tr.resolveTypeParam("T1"); got != "hwy.Float16" {
+			t.Errorf("resolveTypeParam(T1) = %q, want %q", got, "hwy.Float16")
+		}
+		if got := tr.resolveTypeParam("T2"); got != "float32" {
+			t.Errorf("resolveTypeParam(T2) = %q, want %q", got, "float32")
+		}
+	})
+
+	t.Run("unknown param falls back to elemType", func(t *testing.T) {
+		tr := NewCASTTranslator(profile, "hwy.Float16")
+		tr.typeMap = map[string]string{"T1": "hwy.Float16"}
+
+		if got := tr.resolveTypeParam("T3"); got != "hwy.Float16" {
+			t.Errorf("resolveTypeParam(T3) = %q, want %q (elemType)", got, "hwy.Float16")
+		}
+	})
+
+	t.Run("nil typeMap always returns elemType", func(t *testing.T) {
+		tr := NewCASTTranslator(profile, "float64")
+		// no typeMap set
+
+		if got := tr.resolveTypeParam("T"); got != "float64" {
+			t.Errorf("resolveTypeParam(T) = %q, want %q", got, "float64")
+		}
+	})
+}

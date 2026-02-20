@@ -103,6 +103,7 @@ type TransformOptions struct {
 	Imports            map[string]string      // map[local_name]import_path for resolving package references
 	AllFuncs           map[string]*ParsedFunc // All functions in file for inlining helpers
 	SkipHalfPrecNEON   bool                   // Skip NEON asm specialization for this half-precision function
+	TypeMap            map[string]string      // Per-type-param concrete types (from //hwy:types); nil for single-type functions
 }
 
 // Transform transforms a parsed function for a specific target and element type.
@@ -131,16 +132,18 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		Name: ast.NewIdent(pf.Name + target.Suffix()),
 		Type: &ast.FuncType{
 			Params:  &ast.FieldList{},
-			Results: pf.buildResultsWithTarget(elemType, target, opts.SkipHalfPrecNEON),
+			Results: pf.buildResultsWithTarget(elemType, target, opts.SkipHalfPrecNEON, opts.TypeMap),
 		},
 		Body: cloneBlockStmt(filteredBody),
 	}
 
 	// Build parameter list with specialized types
 	for _, param := range pf.Params {
-		paramType := specializeType(param.Type, pf.TypeParams, elemType)
+		paramType := specializeTypeWithMap(param.Type, pf.TypeParams, elemType, opts.TypeMap)
 		// Also transform hwy.Vec[T] to concrete vector types for SIMD targets
-		paramType = specializeVecType(paramType, elemType, target, opts.SkipHalfPrecNEON)
+		// Extract the element type for this specific parameter's Vec type
+		vecElemType := extractVecElemType(paramType, elemType)
+		paramType = specializeVecType(paramType, vecElemType, target, opts.SkipHalfPrecNEON)
 		field := &ast.Field{
 			Names: []*ast.Ident{ast.NewIdent(param.Name)},
 			Type:  parseTypeExpr(paramType),
@@ -165,6 +168,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		target:                  target,
 		elemType:                elemType,
 		typeParams:              pf.TypeParams,
+		typeMap:                 opts.TypeMap,
 		loopInfo:                pf.LoopInfo,
 		lanesVars:               make(map[string]bool),
 		localVars:               make(map[string]bool),
@@ -748,9 +752,10 @@ type transformContext struct {
 	target                  Target
 	elemType                string
 	typeParams              []TypeParam
-	lanesVars               map[string]bool // Variables assigned from NumLanes()
-	localVars               map[string]bool // Variables defined locally in the function
-	stackArrayVars          map[string]bool // Variables that are stack arrays (need [:] when used as slice)
+	typeMap                 map[string]string             // Per-type-param concrete types (from //hwy:types); nil for single-type functions
+	lanesVars               map[string]bool               // Variables assigned from NumLanes()
+	localVars               map[string]bool               // Variables defined locally in the function
+	stackArrayVars          map[string]bool               // Variables that are stack arrays (need [:] when used as slice)
 	loopInfo                *LoopInfo
 	hoistedConsts           map[string]HoistedConst       // Hoisted constants (key is local var name)
 	funcName                string                        // Current function name for generating unique hoisted names
@@ -5778,6 +5783,65 @@ func specializeType(typeStr string, typeParams []TypeParam, elemType string) str
 	return typeStr
 }
 
+// specializeTypeWithMap is like specializeType but resolves each type parameter
+// independently using the provided typeMap. When typeMap is nil, it behaves
+// identically to specializeType (all element type params resolve to elemType).
+func specializeTypeWithMap(typeStr string, typeParams []TypeParam, elemType string, typeMap map[string]string) string {
+	if typeMap == nil {
+		return specializeType(typeStr, typeParams, elemType)
+	}
+
+	// Identify which type parameters are element types vs interface types
+	elementTypeParams := make(map[string]bool)
+	interfaceTypeParams := make(map[string]string)
+
+	for _, tp := range typeParams {
+		if strings.Contains(tp.Constraint, "Lanes") ||
+			strings.Contains(tp.Constraint, "Floats") ||
+			strings.Contains(tp.Constraint, "Integers") ||
+			strings.Contains(tp.Constraint, "SignedInts") ||
+			strings.Contains(tp.Constraint, "UnsignedInts") {
+			elementTypeParams[tp.Name] = true
+		} else {
+			interfaceTypeParams[tp.Name] = tp.Constraint
+		}
+	}
+
+	// Replace element type parameters using typeMap for per-param resolution
+	for _, tp := range typeParams {
+		if !elementTypeParams[tp.Name] {
+			continue
+		}
+		resolvedType := elemType
+		if ct, ok := typeMap[tp.Name]; ok {
+			resolvedType = ct
+		}
+		typeStr = strings.ReplaceAll(typeStr, "hwy.Vec["+tp.Name+"]", "hwy.Vec["+resolvedType+"]")
+		typeStr = strings.ReplaceAll(typeStr, "hwy.Mask["+tp.Name+"]", "hwy.Mask["+resolvedType+"]")
+		typeStr = strings.ReplaceAll(typeStr, "[]"+tp.Name, "[]"+resolvedType)
+		typeStr = replaceTypeParam(typeStr, tp.Name, resolvedType)
+	}
+
+	// For interface type parameters, specialize using the primary elemType
+	for paramName, constraint := range interfaceTypeParams {
+		if typeStr == paramName {
+			specializedConstraint := constraint
+			for _, tp := range typeParams {
+				if elementTypeParams[tp.Name] {
+					resolvedType := elemType
+					if ct, ok := typeMap[tp.Name]; ok {
+						resolvedType = ct
+					}
+					specializedConstraint = strings.ReplaceAll(specializedConstraint, "["+tp.Name+"]", "["+resolvedType+"]")
+				}
+			}
+			typeStr = specializedConstraint
+		}
+	}
+
+	return typeStr
+}
+
 // replaceTypeParam replaces a type parameter name with a concrete type,
 // being careful to only replace it when it appears as a standalone type
 // (not as part of another identifier).
@@ -5957,6 +6021,27 @@ func ComputeGenericHalfPrecFuncs(funcs []ParsedFunc) map[string]bool {
 //
 //	hwy.Mask[float32] -> archsimd.Int32x8 (for AVX2)
 //
+// extractVecElemType extracts the concrete element type from a specialized type string
+// for use with specializeVecType. For types containing "hwy.Vec[X]", returns X.
+// Falls back to the provided primaryElemType if no Vec type is found.
+//
+// Examples:
+//
+//	"hwy.Vec[float32]" → "float32"
+//	"hwy.Vec[hwy.Float16]" → "hwy.Float16"
+//	"[]float32" → "float32" (uses primaryElemType)
+func extractVecElemType(specializedType, primaryElemType string) string {
+	// Look for hwy.Vec[...] pattern
+	prefix := "hwy.Vec["
+	if idx := strings.Index(specializedType, prefix); idx >= 0 {
+		rest := specializedType[idx+len(prefix):]
+		if end := strings.Index(rest, "]"); end >= 0 {
+			return rest[:end]
+		}
+	}
+	return primaryElemType
+}
+
 // If skipHalfPrec is true, half-precision types on NEON are NOT converted to asm types,
 // keeping them on the generic hwy.Vec[T] path (used for functions with complex ops like RoundToEven).
 func specializeVecType(typeStr string, elemType string, target Target, skipHalfPrec ...bool) string {
@@ -6696,20 +6781,20 @@ func (pf *ParsedFunc) buildResults(elemType string) *ast.FieldList {
 }
 
 // buildResultsWithTarget builds the return type list with target-specific Vec types.
-func (pf *ParsedFunc) buildResultsWithTarget(elemType string, target Target, skipHalfPrec ...bool) *ast.FieldList {
+func (pf *ParsedFunc) buildResultsWithTarget(elemType string, target Target, skipHalfPrec bool, typeMap map[string]string) *ast.FieldList {
 	if len(pf.Returns) == 0 {
 		return nil
 	}
 
-	skip := len(skipHalfPrec) > 0 && skipHalfPrec[0]
 	fieldList := &ast.FieldList{
 		List: make([]*ast.Field, 0, len(pf.Returns)),
 	}
 
 	for _, ret := range pf.Returns {
-		retType := specializeType(ret.Type, pf.TypeParams, elemType)
+		retType := specializeTypeWithMap(ret.Type, pf.TypeParams, elemType, typeMap)
 		// Transform hwy.Vec[T] to concrete vector types for SIMD targets
-		retType = specializeVecType(retType, elemType, target, skip)
+		vecElemType := extractVecElemType(retType, elemType)
+		retType = specializeVecType(retType, vecElemType, target, skipHalfPrec)
 		field := &ast.Field{
 			Type: parseTypeExpr(retType),
 		}

@@ -28,15 +28,23 @@ import (
 
 // ParsedFunc represents a function that has been parsed from the input file.
 type ParsedFunc struct {
-	Name       string            // Function name
-	TypeParams []TypeParam       // Generic type parameters
-	Params     []Param           // Function parameters
-	Returns    []Param           // Return values
-	Body       *ast.BlockStmt    // Function body
-	HwyCalls   []HwyCall         // Detected hwy.* and contrib.* calls
-	LoopInfo   *LoopInfo         // Main processing loop info
-	Doc        *ast.CommentGroup // Function documentation
-	Private    bool              // true if base function uses lowercase "base" prefix (generates unexported dispatch)
+	Name             string            // Function name
+	TypeParams       []TypeParam       // Generic type parameters
+	TypeCombinations []TypeCombination // Explicit type combinations from //hwy:types directive
+	Params           []Param           // Function parameters
+	Returns          []Param           // Return values
+	Body             *ast.BlockStmt    // Function body
+	HwyCalls         []HwyCall         // Detected hwy.* and contrib.* calls
+	LoopInfo         *LoopInfo         // Main processing loop info
+	Doc              *ast.CommentGroup // Function documentation
+	Private          bool              // true if base function uses lowercase "base" prefix (generates unexported dispatch)
+}
+
+// TypeCombination represents one valid combination of concrete types for a
+// multi-type-param function. E.g., for //hwy:types T1=hwy.Float16,T2=float32
+// the Types map would be {"T1": "hwy.Float16", "T2": "float32"}.
+type TypeCombination struct {
+	Types map[string]string // maps type param name to concrete type
 }
 
 // TypeParam represents a generic type parameter.
@@ -235,6 +243,9 @@ func Parse(filename string) (*ParseResult, error) {
 	// Parse unroll directives from comments
 	unrollDirectives := parseUnrollDirectives(file, fset)
 
+	// Parse //hwy:types directives from comments
+	typesDirectives := parseTypesDirectives(file, fset)
+
 	for _, decl := range file.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
 		if !ok {
@@ -266,6 +277,36 @@ func Parse(filename string) (*ParseResult, error) {
 						Name:       name.Name,
 						Constraint: constraint,
 					})
+				}
+			}
+		}
+
+		// Check for //hwy:types directive on the 1-2 lines preceding the function
+		if len(pf.TypeParams) > 0 {
+			funcLine := fset.Position(funcDecl.Pos()).Line
+			for _, td := range typesDirectives {
+				if td.Line >= funcLine-2 && td.Line < funcLine {
+					// Validate that all param names in the directive match actual TypeParams
+					paramNames := make(map[string]bool, len(pf.TypeParams))
+					for _, tp := range pf.TypeParams {
+						paramNames[tp.Name] = true
+					}
+					valid := true
+					for _, combo := range td.Combinations {
+						for paramName := range combo.Types {
+							if !paramNames[paramName] {
+								valid = false
+								break
+							}
+						}
+						if !valid {
+							break
+						}
+					}
+					if valid {
+						pf.TypeCombinations = td.Combinations
+					}
+					break
 				}
 			}
 		}
@@ -496,6 +537,66 @@ func parseUnrollDirectives(file *ast.File, fset *token.FileSet) []UnrollDirectiv
 						Factor: factor,
 					})
 				}
+			}
+		}
+	}
+
+	return directives
+}
+
+// TypesDirective represents a parsed //hwy:types directive with its line number.
+type TypesDirective struct {
+	Line         int               // Line number of the directive
+	Combinations []TypeCombination // Parsed type combinations
+}
+
+// parseTypesDirectives scans all comments in the file for //hwy:types directives.
+// Returns a slice of TypesDirective, each containing the line number and parsed combinations.
+//
+// Format: //hwy:types T1=hwy.Float16,T2=float32  T1=hwy.BFloat16,T2=float32
+// Space-separated combinations, each combination is comma-separated Name=Type pairs.
+func parseTypesDirectives(file *ast.File, fset *token.FileSet) []TypesDirective {
+	var directives []TypesDirective
+
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+			line := fset.Position(c.Pos()).Line
+
+			after, ok := strings.CutPrefix(text, "hwy:types ")
+			if !ok {
+				continue
+			}
+			after = strings.TrimSpace(after)
+			if after == "" {
+				continue
+			}
+
+			// Split on whitespace to get individual combinations
+			comboParts := strings.Fields(after)
+			var combos []TypeCombination
+			for _, part := range comboParts {
+				combo := TypeCombination{Types: make(map[string]string)}
+				// Each part is comma-separated Name=Type pairs
+				pairs := strings.Split(part, ",")
+				valid := true
+				for _, pair := range pairs {
+					kv := strings.SplitN(pair, "=", 2)
+					if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
+						valid = false
+						break
+					}
+					combo.Types[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+				}
+				if valid && len(combo.Types) > 0 {
+					combos = append(combos, combo)
+				}
+			}
+			if len(combos) > 0 {
+				directives = append(directives, TypesDirective{
+					Line:         line,
+					Combinations: combos,
+				})
 			}
 		}
 	}

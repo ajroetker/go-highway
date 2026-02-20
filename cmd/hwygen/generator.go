@@ -21,6 +21,62 @@ import (
 	"strings"
 )
 
+// getTypeCombinations returns the type combinations for a function.
+// If the function has explicit //hwy:types annotations, those are returned.
+// Otherwise, single-type combos are built from GetConcreteTypes on the first type param.
+// For non-generic functions, returns a single combo with no type map.
+func getTypeCombinations(pf *ParsedFunc) []TypeCombination {
+	if len(pf.TypeCombinations) > 0 {
+		return pf.TypeCombinations
+	}
+	if len(pf.TypeParams) == 0 {
+		// Non-generic function: single combo with empty type map
+		return []TypeCombination{{Types: nil}}
+	}
+	// Single type param: wrap each concrete type as a single-entry combo
+	concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
+	combos := make([]TypeCombination, len(concreteTypes))
+	for i, ct := range concreteTypes {
+		combos[i] = TypeCombination{Types: map[string]string{pf.TypeParams[0].Name: ct}}
+	}
+	return combos
+}
+
+// comboTypeSuffix builds a function name suffix from a type combination.
+// For single-type combos, returns the single type suffix (e.g., "Float32").
+// For multi-type combos, concatenates all type suffixes in TypeParams order (e.g., "Float16Float32").
+func comboTypeSuffix(combo TypeCombination, typeParams []TypeParam) string {
+	if len(combo.Types) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, tp := range typeParams {
+		if ct, ok := combo.Types[tp.Name]; ok {
+			sb.WriteString(typeNameToSuffix(ct))
+		}
+	}
+	return sb.String()
+}
+
+// comboPrimaryType returns the primary element type from a combo (the first type param's value).
+// Falls back to "float32" if the combo has no types.
+func comboPrimaryType(combo TypeCombination, typeParams []TypeParam) string {
+	if len(combo.Types) == 0 {
+		return "float32"
+	}
+	if len(typeParams) > 0 {
+		if ct, ok := combo.Types[typeParams[0].Name]; ok {
+			return ct
+		}
+	}
+	return "float32"
+}
+
+// isMultiTypeCombination returns true if the combo has more than one type param.
+func isMultiTypeCombination(combo TypeCombination) bool {
+	return len(combo.Types) > 1
+}
+
 // typeNameToSuffix converts an element type name to a valid function suffix.
 // E.g., "float64" -> "Float64", "hwy.Float16" -> "Float16"
 func typeNameToSuffix(elemType string) string {
@@ -172,14 +228,27 @@ func (g *Generator) Run() error {
 				continue
 			}
 
-			var concreteTypes []string
-			if len(pf.TypeParams) > 0 {
-				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
+			// Get type combinations: explicit //hwy:types combos, or derived from constraints
+			var combos []TypeCombination
+			if len(pf.TypeCombinations) > 0 {
+				combos = pf.TypeCombinations
+			} else if len(pf.TypeParams) > 0 {
+				concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
+				combos = make([]TypeCombination, len(concreteTypes))
+				for i, ct := range concreteTypes {
+					combos[i] = TypeCombination{Types: map[string]string{pf.TypeParams[0].Name: ct}}
+				}
 			} else {
-				concreteTypes = inferTypesFromParams(pf.Params)
+				inferredTypes := inferTypesFromParams(pf.Params)
+				combos = make([]TypeCombination, len(inferredTypes))
+				for i, ct := range inferredTypes {
+					combos[i] = TypeCombination{Types: map[string]string{"": ct}}
+				}
 			}
 
-			for _, elemType := range concreteTypes {
+			for _, combo := range combos {
+				elemType := comboPrimaryType(combo, pf.TypeParams)
+
 				if target.Name == "NEON" &&
 					(elemType == "hwy.Float16" || elemType == "hwy.BFloat16") &&
 					genericHalfPrecFuncs[pf.Name] {
@@ -188,10 +257,19 @@ func (g *Generator) Run() error {
 					transformOpts.SkipHalfPrecNEON = false
 				}
 
+				// Set TypeMap for multi-type combos
+				if isMultiTypeCombination(combo) {
+					transformOpts.TypeMap = combo.Types
+				} else {
+					transformOpts.TypeMap = nil
+				}
+
 				transformResult := TransformWithOptions(&pf, target, elemType, transformOpts)
 
-				if elemType != "float32" && len(pf.TypeParams) > 0 {
-					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + typeNameToSuffix(elemType)
+				// Add type suffix to function name
+				suffix := comboTypeSuffix(combo, pf.TypeParams)
+				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
+					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + suffix
 				}
 
 				if pf.Private {

@@ -48,6 +48,10 @@ type CASTTranslator struct {
 	// Used to resolve type conversions like T(2) to the concrete C type.
 	typeParamNames map[string]bool
 
+	// Per-type-param concrete types (from //hwy:types); nil for single-type.
+	// When set, resolveTypeParam uses this map instead of elemType.
+	typeMap map[string]string
+
 	// Package-level array globals (e.g., nf4LookupTable).
 	// Set via SetPackageGlobals before TranslateToC.
 	packageGlobals    map[string]*PackageGlobal  // name → global
@@ -801,7 +805,7 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 		} else if t.isTypeParam(p.Type) {
 			// Generic type parameter (e.g., "T" in func F[T hwy.Floats](..., coeff T)).
 			// Resolve to the concrete element type for this instantiation.
-			resolvedType := t.elemType
+			resolvedType := t.resolveTypeParam(p.Type)
 			if t.helperMode {
 				// Helper mode: pass by value
 				info.isInt = false
@@ -943,7 +947,12 @@ func (t *CASTTranslator) buildParamMap(pf *ParsedFunc) {
 		if name == "" {
 			name = "result"
 		}
-		cType := goReturnTypeToCPtrType(ret.Type, t.elemType)
+		// Resolve type parameter to concrete type (uses typeMap if set)
+		resolvedRetType := ret.Type
+		if t.isTypeParam(ret.Type) {
+			resolvedRetType = t.resolveTypeParam(ret.Type)
+		}
+		cType := goReturnTypeToCPtrType(resolvedRetType, t.elemType)
 		info := cParamInfo{
 			goName: name,
 			goType: ret.Type,
@@ -4175,6 +4184,18 @@ func (t *CASTTranslator) translateMakeExpr(e *ast.CallExpr) string {
 // function being translated (e.g., "T" in BaseForwardRCT[T hwy.SignedInts]).
 func (t *CASTTranslator) isTypeParam(name string) bool {
 	return t.typeParamNames[name]
+}
+
+// resolveTypeParam resolves a type parameter name to its concrete Go type.
+// When typeMap is set and contains the parameter name, uses the mapped type.
+// Otherwise falls back to the translator's primary elemType.
+func (t *CASTTranslator) resolveTypeParam(name string) string {
+	if t.typeMap != nil {
+		if ct, ok := t.typeMap[name]; ok {
+			return ct
+		}
+	}
+	return t.elemType
 }
 
 // goTypeConvToCType returns the C type for a Go type conversion function name,
