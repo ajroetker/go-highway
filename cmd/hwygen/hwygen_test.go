@@ -5338,6 +5338,97 @@ func BaseSigmoid[T hwy.Floats](data []T) {
 	}
 }
 
+func TestParseGenDirectiveErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "missing equals sign",
+			input: "T1 float32",
+		},
+		{
+			name:  "empty name",
+			input: "=float32",
+		},
+		{
+			name:  "empty value",
+			input: "T1=",
+		},
+		{
+			name:  "empty set",
+			input: "T1={}",
+		},
+		{
+			name:  "empty set with whitespace",
+			input: "T1={ }",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			combos, err := parseGenDirective(tt.input)
+			if err == nil && len(combos) != 0 {
+				t.Errorf("parseGenDirective(%q) = %v, want error or empty result", tt.input, combos)
+			}
+		})
+	}
+}
+
+func TestParseGenDirectiveSilentSkip(t *testing.T) {
+	// Malformed //hwy:gen directives should be silently skipped by parseGenDirectives
+	// (errors don't propagate to Parse — the function just gets no TypeCombinations)
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "missing equals in directive",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:gen T1 float32
+func BaseFoo[T1 hwy.Floats](data []T1) {
+	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
+}
+`,
+		},
+		{
+			name: "invalid param name in directive",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:gen X=float32
+func BaseFoo[T hwy.Floats](data []T) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test_base.go")
+			if err := os.WriteFile(path, []byte(tt.src), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := Parse(path)
+			if err != nil {
+				t.Fatalf("Parse failed: %v", err)
+			}
+
+			if len(result.Funcs) == 0 {
+				t.Fatal("no functions found")
+			}
+
+			pf := result.Funcs[0]
+			if len(pf.TypeCombinations) != 0 {
+				t.Errorf("got %d TypeCombinations, want 0 (malformed directive should be skipped)", len(pf.TypeCombinations))
+			}
+		})
+	}
+}
+
 func TestSpecializeTypeWithMap(t *testing.T) {
 	typeParams := []TypeParam{
 		{Name: "T1", Constraint: "hwy.Floats"},
