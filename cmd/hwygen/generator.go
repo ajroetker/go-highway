@@ -22,7 +22,7 @@ import (
 )
 
 // getTypeCombinations returns the type combinations for a function.
-// If the function has explicit //hwy:types annotations, those are returned.
+// If the function has explicit //hwy:gen annotations, those are returned.
 // Otherwise, single-type combos are built from GetConcreteTypes on the first type param.
 // For non-generic functions, returns a single combo with no type map.
 func getTypeCombinations(pf *ParsedFunc) []TypeCombination {
@@ -228,7 +228,7 @@ func (g *Generator) Run() error {
 				continue
 			}
 
-			// Get type combinations: explicit //hwy:types combos, or derived from constraints
+			// Get type combinations: explicit //hwy:gen combos, or derived from constraints
 			var combos []TypeCombination
 			if len(pf.TypeCombinations) > 0 {
 				combos = pf.TypeCombinations

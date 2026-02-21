@@ -48,7 +48,7 @@ type CASTTranslator struct {
 	// Used to resolve type conversions like T(2) to the concrete C type.
 	typeParamNames map[string]bool
 
-	// Per-type-param concrete types (from //hwy:types); nil for single-type.
+	// Per-type-param concrete types (from //hwy:gen); nil for single-type.
 	// When set, resolveTypeParam uses this map instead of elemType.
 	typeMap map[string]string
 

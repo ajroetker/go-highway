@@ -5096,9 +5096,128 @@ func BaseExpVec[T hwy.Floats](x hwy.Vec[T]) hwy.Vec[T] {
 	}
 }
 
-// --- Tests for //hwy:types multi-type annotation ---
+// --- Tests for //hwy:gen multi-type annotation ---
 
-func TestParseTypesDirective(t *testing.T) {
+func TestSplitAssignments(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{
+			input: "T1=float32, T2=float64",
+			want:  []string{"T1=float32", "T2=float64"},
+		},
+		{
+			input: "T1={hwy.Float16, hwy.BFloat16}, T2=float32",
+			want:  []string{"T1={hwy.Float16, hwy.BFloat16}", "T2=float32"},
+		},
+		{
+			input: "T1={a, b}, T2={c, d}, T3=e",
+			want:  []string{"T1={a, b}", "T2={c, d}", "T3=e"},
+		},
+		{
+			input: "T1=float32",
+			want:  []string{"T1=float32"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := splitAssignments(tt.input)
+			if len(got) != len(tt.want) {
+				t.Fatalf("splitAssignments(%q) = %v (len %d), want %v (len %d)", tt.input, got, len(got), tt.want, len(tt.want))
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("splitAssignments(%q)[%d] = %q, want %q", tt.input, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestParseGenDirective(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantCount int
+		wantFirst map[string]string // expected first combo
+		wantLast  map[string]string // expected last combo (if different from first)
+	}{
+		{
+			name:      "bare values only",
+			input:     "T1=float32, T2=float64",
+			wantCount: 1,
+			wantFirst: map[string]string{"T1": "float32", "T2": "float64"},
+		},
+		{
+			name:      "single set",
+			input:     "T1={float32, float64}",
+			wantCount: 2,
+			wantFirst: map[string]string{"T1": "float32"},
+			wantLast:  map[string]string{"T1": "float64"},
+		},
+		{
+			name:      "cross product of two sets",
+			input:     "T1={float32, float64}, T2={int32, int64}",
+			wantCount: 4,
+			wantFirst: map[string]string{"T1": "float32", "T2": "int32"},
+			wantLast:  map[string]string{"T1": "float64", "T2": "int64"},
+		},
+		{
+			name:      "back-reference bare",
+			input:     "T1={hwy.Float16, hwy.BFloat16}, T2=T1",
+			wantCount: 2,
+			wantFirst: map[string]string{"T1": "hwy.Float16", "T2": "hwy.Float16"},
+			wantLast:  map[string]string{"T1": "hwy.BFloat16", "T2": "hwy.BFloat16"},
+		},
+		{
+			name:      "back-reference in set",
+			input:     "T1={hwy.Float16, hwy.BFloat16}, T2={T1, float32}",
+			wantCount: 4,
+			wantFirst: map[string]string{"T1": "hwy.Float16", "T2": "hwy.Float16"},
+			wantLast:  map[string]string{"T1": "hwy.BFloat16", "T2": "float32"},
+		},
+		{
+			name:      "three params with back-reference",
+			input:     "T1={hwy.Float16, hwy.BFloat16}, T2=float32, T3={T1, float32}",
+			wantCount: 4,
+			wantFirst: map[string]string{"T1": "hwy.Float16", "T2": "float32", "T3": "hwy.Float16"},
+			wantLast:  map[string]string{"T1": "hwy.BFloat16", "T2": "float32", "T3": "float32"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			combos, err := parseGenDirective(tt.input)
+			if err != nil {
+				t.Fatalf("parseGenDirective(%q) error: %v", tt.input, err)
+			}
+			if len(combos) != tt.wantCount {
+				t.Fatalf("got %d combos, want %d. combos: %v", len(combos), tt.wantCount, combos)
+			}
+
+			// Check first combo
+			for k, v := range tt.wantFirst {
+				if got := combos[0].Types[k]; got != v {
+					t.Errorf("first combo[%s] = %q, want %q", k, got, v)
+				}
+			}
+
+			// Check last combo if specified
+			if tt.wantLast != nil {
+				last := combos[len(combos)-1]
+				for k, v := range tt.wantLast {
+					if got := last.Types[k]; got != v {
+						t.Errorf("last combo[%s] = %q, want %q", k, got, v)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestParseGenDirectiveIntegration(t *testing.T) {
 	tests := []struct {
 		name    string
 		src     string
@@ -5107,10 +5226,10 @@ func TestParseTypesDirective(t *testing.T) {
 		wantT2  string // expected T2 value of first combo
 	}{
 		{
-			name: "single combo",
+			name: "single combo bare values",
 			src: `package foo
 import "github.com/ajroetker/go-highway/hwy"
-//hwy:types T1=hwy.Float16,T2=float32
+//hwy:gen T1=hwy.Float16, T2=float32
 func BaseDotGeneral[T1, T2 hwy.Floats](a []T1, acc []T2) {
 	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
 }
@@ -5120,20 +5239,60 @@ func BaseDotGeneral[T1, T2 hwy.Floats](a []T1, acc []T2) {
 			wantT2: "float32",
 		},
 		{
-			name: "multiple combos",
+			name: "set expansion",
 			src: `package foo
 import "github.com/ajroetker/go-highway/hwy"
-//hwy:types T1=hwy.Float16,T2=float32 T1=hwy.BFloat16,T2=float32 T1=int8,T2=int32
+//hwy:gen T1={hwy.Float16, hwy.BFloat16}, T2=float32
 func BaseDotGeneral[T1, T2 hwy.Lanes](a []T1, acc []T2) {
 	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
 }
 `,
-			want:   3,
+			want:   2,
 			wantT1: "hwy.Float16",
 			wantT2: "float32",
 		},
 		{
-			name: "no hwy:types directive",
+			name: "cross-product with back-reference",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:gen T1={hwy.Float16, hwy.BFloat16}, T2=float32, T3={T1, float32}
+func BaseDotGeneral[T1, T2, T3 hwy.Lanes](a []T1, acc []T2, out []T3) {
+	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
+}
+`,
+			want:   4,
+			wantT1: "hwy.Float16",
+			wantT2: "float32",
+		},
+		{
+			name: "multiple hwy:gen lines",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:gen T1={hwy.Float16, hwy.BFloat16}, T2=float32, T3={T1, float32}
+//hwy:gen T1=int8, T2=int32, T3=int32
+func BaseDotGeneral[T1, T2, T3 hwy.Lanes](a []T1, acc []T2, out []T3) {
+	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
+}
+`,
+			want:   5,
+			wantT1: "hwy.Float16",
+			wantT2: "float32",
+		},
+		{
+			name: "dependent back-reference T3=T1",
+			src: `package foo
+import "github.com/ajroetker/go-highway/hwy"
+//hwy:gen T1={hwy.Float16, hwy.BFloat16}, T2=float32, T3=T1
+func BaseFoo[T1, T2, T3 hwy.Lanes](a []T1, b []T2, c []T3) {
+	_ = hwy.Add(hwy.Vec[T1]{}, hwy.Vec[T1]{})
+}
+`,
+			want:   2,
+			wantT1: "hwy.Float16",
+			wantT2: "float32",
+		},
+		{
+			name: "no directive",
 			src: `package foo
 import "github.com/ajroetker/go-highway/hwy"
 func BaseSigmoid[T hwy.Floats](data []T) {
@@ -5273,7 +5432,7 @@ func TestComboTypeSuffix(t *testing.T) {
 }
 
 func TestGetTypeCombinationsBackwardCompat(t *testing.T) {
-	// Functions without //hwy:types should produce same combos as GetConcreteTypes
+	// Functions without //hwy:gen should produce same combos as GetConcreteTypes
 	pf := ParsedFunc{
 		Name: "BaseSigmoid",
 		TypeParams: []TypeParam{
@@ -5780,7 +5939,7 @@ func TestGetDispatchCombos(t *testing.T) {
 		}
 	})
 
-	t.Run("multi-type with hwy:types", func(t *testing.T) {
+	t.Run("multi-type with hwy:gen", func(t *testing.T) {
 		pf := ParsedFunc{
 			Name: "BaseDotGeneral",
 			TypeParams: []TypeParam{

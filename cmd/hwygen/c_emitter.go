@@ -20,7 +20,7 @@ type CEmitter struct {
 	packageGlobals []PackageGlobal    // package-level array vars for static const emission
 	packageConsts  []PackageConst     // package-level integer constants for #define emission
 	allFuncs       map[string]*ParsedFunc // all functions in the source file (for emitting sibling helpers)
-	typeMap        map[string]string  // per-type-param concrete types (from //hwy:types); nil for single-type
+	typeMap        map[string]string  // per-type-param concrete types (from //hwy:gen); nil for single-type
 }
 
 // NewCEmitter creates a new C emitter for the given element type.

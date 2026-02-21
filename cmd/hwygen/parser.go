@@ -30,7 +30,7 @@ import (
 type ParsedFunc struct {
 	Name             string            // Function name
 	TypeParams       []TypeParam       // Generic type parameters
-	TypeCombinations []TypeCombination // Explicit type combinations from //hwy:types directive
+	TypeCombinations []TypeCombination // Explicit type combinations from //hwy:gen directive
 	Params           []Param           // Function parameters
 	Returns          []Param           // Return values
 	Body             *ast.BlockStmt    // Function body
@@ -41,7 +41,7 @@ type ParsedFunc struct {
 }
 
 // TypeCombination represents one valid combination of concrete types for a
-// multi-type-param function. E.g., for //hwy:types T1=hwy.Float16,T2=float32
+// multi-type-param function. E.g., for //hwy:gen T1=hwy.Float16,T2=float32
 // the Types map would be {"T1": "hwy.Float16", "T2": "float32"}.
 type TypeCombination struct {
 	Types map[string]string // maps type param name to concrete type
@@ -243,8 +243,8 @@ func Parse(filename string) (*ParseResult, error) {
 	// Parse unroll directives from comments
 	unrollDirectives := parseUnrollDirectives(file, fset)
 
-	// Parse //hwy:types directives from comments
-	typesDirectives := parseTypesDirectives(file, fset)
+	// Parse //hwy:gen directives from comments
+	genDirectives := parseGenDirectives(file, fset)
 
 	for _, decl := range file.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
@@ -281,16 +281,17 @@ func Parse(filename string) (*ParseResult, error) {
 			}
 		}
 
-		// Check for //hwy:types directive on the 1-2 lines preceding the function
+		// Check for //hwy:gen directives on the lines preceding the function.
+		// Collect all matching directives (supports multiple //hwy:gen lines).
 		if len(pf.TypeParams) > 0 {
 			funcLine := fset.Position(funcDecl.Pos()).Line
-			for _, td := range typesDirectives {
-				if td.Line >= funcLine-2 && td.Line < funcLine {
+			paramNames := make(map[string]bool, len(pf.TypeParams))
+			for _, tp := range pf.TypeParams {
+				paramNames[tp.Name] = true
+			}
+			for _, td := range genDirectives {
+				if td.Line >= funcLine-5 && td.Line < funcLine {
 					// Validate that all param names in the directive match actual TypeParams
-					paramNames := make(map[string]bool, len(pf.TypeParams))
-					for _, tp := range pf.TypeParams {
-						paramNames[tp.Name] = true
-					}
 					valid := true
 					for _, combo := range td.Combinations {
 						for paramName := range combo.Types {
@@ -304,9 +305,8 @@ func Parse(filename string) (*ParseResult, error) {
 						}
 					}
 					if valid {
-						pf.TypeCombinations = td.Combinations
+						pf.TypeCombinations = append(pf.TypeCombinations, td.Combinations...)
 					}
-					break
 				}
 			}
 		}
@@ -544,18 +544,20 @@ func parseUnrollDirectives(file *ast.File, fset *token.FileSet) []UnrollDirectiv
 	return directives
 }
 
-// TypesDirective represents a parsed //hwy:types directive with its line number.
+// TypesDirective represents a parsed //hwy:gen directive with its line number.
 type TypesDirective struct {
 	Line         int               // Line number of the directive
 	Combinations []TypeCombination // Parsed type combinations
 }
 
-// parseTypesDirectives scans all comments in the file for //hwy:types directives.
-// Returns a slice of TypesDirective, each containing the line number and parsed combinations.
+// parseGenDirectives scans all comments in the file for //hwy:gen directives.
+// Returns a slice of TypesDirective, each containing the line number and
+// expanded combinations.
 //
-// Format: //hwy:types T1=hwy.Float16,T2=float32  T1=hwy.BFloat16,T2=float32
-// Space-separated combinations, each combination is comma-separated Name=Type pairs.
-func parseTypesDirectives(file *ast.File, fset *token.FileSet) []TypesDirective {
+// Syntax with cross-product expansion and back-references:
+//
+//	//hwy:gen T1={hwy.Float16, hwy.BFloat16}, T2=float32, T3={T1, float32}
+func parseGenDirectives(file *ast.File, fset *token.FileSet) []TypesDirective {
 	var directives []TypesDirective
 
 	for _, cg := range file.Comments {
@@ -563,7 +565,7 @@ func parseTypesDirectives(file *ast.File, fset *token.FileSet) []TypesDirective 
 			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
 			line := fset.Position(c.Pos()).Line
 
-			after, ok := strings.CutPrefix(text, "hwy:types ")
+			after, ok := strings.CutPrefix(text, "hwy:gen ")
 			if !ok {
 				continue
 			}
@@ -571,37 +573,133 @@ func parseTypesDirectives(file *ast.File, fset *token.FileSet) []TypesDirective 
 			if after == "" {
 				continue
 			}
-
-			// Split on whitespace to get individual combinations
-			comboParts := strings.Fields(after)
-			var combos []TypeCombination
-			for _, part := range comboParts {
-				combo := TypeCombination{Types: make(map[string]string)}
-				// Each part is comma-separated Name=Type pairs
-				pairs := strings.Split(part, ",")
-				valid := true
-				for _, pair := range pairs {
-					kv := strings.SplitN(pair, "=", 2)
-					if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
-						valid = false
-						break
-					}
-					combo.Types[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-				}
-				if valid && len(combo.Types) > 0 {
-					combos = append(combos, combo)
-				}
+			combos, err := parseGenDirective(after)
+			if err != nil || len(combos) == 0 {
+				continue
 			}
-			if len(combos) > 0 {
-				directives = append(directives, TypesDirective{
-					Line:         line,
-					Combinations: combos,
-				})
-			}
+			directives = append(directives, TypesDirective{
+				Line:         line,
+				Combinations: combos,
+			})
 		}
 	}
 
 	return directives
+}
+
+// parseGenDirective parses a single //hwy:gen directive line and expands it
+// into a flat slice of TypeCombinations via cross-product expansion with
+// back-reference resolution.
+//
+// Syntax: T1={hwy.Float16, hwy.BFloat16}, T2=float32, T3={T1, float32}
+//
+//   - Bare value: T2=float32 (set of 1)
+//   - Set: T1={hwy.Float16, hwy.BFloat16} (multiple options)
+//   - Back-reference: T3=T1 (T3 equals T1's resolved value, no extra combos)
+//   - Set with back-ref: T3={T1, float32} (T3 is T1's value OR float32)
+func parseGenDirective(text string) ([]TypeCombination, error) {
+	tokens := splitAssignments(text)
+
+	type assignment struct {
+		Name   string
+		Values []string
+	}
+
+	var assignments []assignment
+	definedParams := make(map[string]bool)
+
+	for _, tok := range tokens {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+		eqIdx := strings.IndexByte(tok, '=')
+		if eqIdx < 0 {
+			return nil, fmt.Errorf("invalid assignment (no '='): %q", tok)
+		}
+		name := strings.TrimSpace(tok[:eqIdx])
+		spec := strings.TrimSpace(tok[eqIdx+1:])
+		if name == "" || spec == "" {
+			return nil, fmt.Errorf("invalid assignment: %q", tok)
+		}
+
+		var values []string
+		if strings.HasPrefix(spec, "{") && strings.HasSuffix(spec, "}") {
+			// Set: parse interior comma-separated values
+			interior := spec[1 : len(spec)-1]
+			for _, v := range strings.Split(interior, ",") {
+				v = strings.TrimSpace(v)
+				if v != "" {
+					values = append(values, v)
+				}
+			}
+		} else {
+			values = []string{spec}
+		}
+
+		if len(values) == 0 {
+			return nil, fmt.Errorf("empty value set for %q", name)
+		}
+
+		definedParams[name] = true
+		assignments = append(assignments, assignment{Name: name, Values: values})
+	}
+
+	// Cross-product expansion with back-reference resolution
+	combos := []TypeCombination{{Types: make(map[string]string)}}
+
+	for _, a := range assignments {
+		var next []TypeCombination
+		for _, combo := range combos {
+			for _, v := range a.Values {
+				resolved := v
+				// Check if this value is a back-reference to a previously-defined param
+				if _, exists := combo.Types[v]; exists {
+					resolved = combo.Types[v]
+				}
+				newCombo := cloneTypeCombination(combo)
+				newCombo.Types[a.Name] = resolved
+				next = append(next, newCombo)
+			}
+		}
+		combos = next
+	}
+
+	return combos, nil
+}
+
+// splitAssignments splits a directive line on commas that are outside {...} braces.
+// For example: "T1={a, b}, T2=c" → ["T1={a, b}", "T2=c"]
+func splitAssignments(text string) []string {
+	var parts []string
+	depth := 0
+	start := 0
+	for i, ch := range text {
+		switch ch {
+		case '{':
+			depth++
+		case '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, strings.TrimSpace(text[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	if start < len(text) {
+		parts = append(parts, strings.TrimSpace(text[start:]))
+	}
+	return parts
+}
+
+// cloneTypeCombination creates a deep copy of a TypeCombination.
+func cloneTypeCombination(tc TypeCombination) TypeCombination {
+	clone := TypeCombination{Types: make(map[string]string, len(tc.Types))}
+	for k, v := range tc.Types {
+		clone.Types[k] = v
+	}
+	return clone
 }
 
 // detectLoopWithUnroll attempts to find the main vectorized loop pattern

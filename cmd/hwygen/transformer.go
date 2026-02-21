@@ -103,7 +103,7 @@ type TransformOptions struct {
 	Imports            map[string]string      // map[local_name]import_path for resolving package references
 	AllFuncs           map[string]*ParsedFunc // All functions in file for inlining helpers
 	SkipHalfPrecNEON   bool                   // Skip NEON asm specialization for this half-precision function
-	TypeMap            map[string]string      // Per-type-param concrete types (from //hwy:types); nil for single-type functions
+	TypeMap            map[string]string      // Per-type-param concrete types (from //hwy:gen); nil for single-type functions
 }
 
 // Transform transforms a parsed function for a specific target and element type.
@@ -752,7 +752,7 @@ type transformContext struct {
 	target                  Target
 	elemType                string
 	typeParams              []TypeParam
-	typeMap                 map[string]string             // Per-type-param concrete types (from //hwy:types); nil for single-type functions
+	typeMap                 map[string]string             // Per-type-param concrete types (from //hwy:gen); nil for single-type functions
 	lanesVars               map[string]bool               // Variables assigned from NumLanes()
 	localVars               map[string]bool               // Variables defined locally in the function
 	stackArrayVars          map[string]bool               // Variables that are stack arrays (need [:] when used as slice)

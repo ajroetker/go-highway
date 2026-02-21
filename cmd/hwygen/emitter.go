@@ -919,7 +919,7 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 	genericName := buildGenericFuncName(pf.Name, hasInterfaceParams, pf.Private)
 	combos := getTypeCombinations(&pf)
 
-	// Check if this is a multi-type function (//hwy:types with 2+ type params per combo)
+	// Check if this is a multi-type function (//hwy:gen with 2+ type params per combo)
 	isMultiType := len(pf.TypeCombinations) > 0 && len(pf.TypeParams) > 1
 
 	// Copy doc comments from the base function, then add dispatch note
@@ -1325,7 +1325,7 @@ type dispatchComboInfo struct {
 // getDispatchCombos returns dispatch info for all type combinations of a function.
 // For non-generic functions, returns a single entry with no type suffix.
 // For single-type-param generic functions, returns one entry per concrete type.
-// For multi-type-param functions (//hwy:types), returns one entry per combination.
+// For multi-type-param functions (//hwy:gen), returns one entry per combination.
 func getDispatchCombos(pf ParsedFunc) []dispatchComboInfo {
 	combos := getTypeCombinations(&pf)
 	isGeneric := len(pf.TypeParams) > 0
