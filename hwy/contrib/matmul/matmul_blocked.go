@@ -75,103 +75,143 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				// Process columns in groups of Nr (2 vector widths)
 				var j int
 				for j = j0; j+nr <= jEnd; j += nr {
-					// Initialize 8 accumulators (4 rows × 2 column strips)
-					acc00 := hwy.Zero[T]()
-					acc01 := hwy.Zero[T]()
-					acc10 := hwy.Zero[T]()
-					acc11 := hwy.Zero[T]()
-					acc20 := hwy.Zero[T]()
-					acc21 := hwy.Zero[T]()
-					acc30 := hwy.Zero[T]()
-					acc31 := hwy.Zero[T]()
+					// Running totals for pairwise summation
+					tot00 := hwy.Zero[T]()
+					tot01 := hwy.Zero[T]()
+					tot10 := hwy.Zero[T]()
+					tot11 := hwy.Zero[T]()
+					tot20 := hwy.Zero[T]()
+					tot21 := hwy.Zero[T]()
+					tot30 := hwy.Zero[T]()
+					tot31 := hwy.Zero[T]()
 
-					// K-loop: accumulate in registers (full K dimension)
-					for p := range k {
-						// Load A values for 4 rows
-						a0p := a[i*k+p]
-						a1p := a[(i+1)*k+p]
-						a2p := a[(i+2)*k+p]
-						a3p := a[(i+3)*k+p]
+					// K-loop with pairwise summation blocks
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						// Fresh accumulators per block
+						acc00 := hwy.Zero[T]()
+						acc01 := hwy.Zero[T]()
+						acc10 := hwy.Zero[T]()
+						acc11 := hwy.Zero[T]()
+						acc20 := hwy.Zero[T]()
+						acc21 := hwy.Zero[T]()
+						acc30 := hwy.Zero[T]()
+						acc31 := hwy.Zero[T]()
 
-						vA0 := hwy.Set(a0p)
-						vA1 := hwy.Set(a1p)
-						vA2 := hwy.Set(a2p)
-						vA3 := hwy.Set(a3p)
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
 
-						// Load B values (2 vector widths)
-						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
+							bRowStart := p * n
+							vB0 := hwy.Load(b[bRowStart+j:])
+							vB1 := hwy.Load(b[bRowStart+j+lanes:])
 
-						// Accumulate: 8 FMA operations
-						acc00 = hwy.MulAdd(vA0, vB0, acc00)
-						acc01 = hwy.MulAdd(vA0, vB1, acc01)
-						acc10 = hwy.MulAdd(vA1, vB0, acc10)
-						acc11 = hwy.MulAdd(vA1, vB1, acc11)
-						acc20 = hwy.MulAdd(vA2, vB0, acc20)
-						acc21 = hwy.MulAdd(vA2, vB1, acc21)
-						acc30 = hwy.MulAdd(vA3, vB0, acc30)
-						acc31 = hwy.MulAdd(vA3, vB1, acc31)
+							acc00 = hwy.MulAdd(vA0, vB0, acc00)
+							acc01 = hwy.MulAdd(vA0, vB1, acc01)
+							acc10 = hwy.MulAdd(vA1, vB0, acc10)
+							acc11 = hwy.MulAdd(vA1, vB1, acc11)
+							acc20 = hwy.MulAdd(vA2, vB0, acc20)
+							acc21 = hwy.MulAdd(vA2, vB1, acc21)
+							acc30 = hwy.MulAdd(vA3, vB0, acc30)
+							acc31 = hwy.MulAdd(vA3, vB1, acc31)
+						}
+						tot00 = hwy.Add(tot00, acc00)
+						tot01 = hwy.Add(tot01, acc01)
+						tot10 = hwy.Add(tot10, acc10)
+						tot11 = hwy.Add(tot11, acc11)
+						tot20 = hwy.Add(tot20, acc20)
+						tot21 = hwy.Add(tot21, acc21)
+						tot30 = hwy.Add(tot30, acc30)
+						tot31 = hwy.Add(tot31, acc31)
 					}
 
-					// Write back accumulators to C
+					// Write back totals to C
 					cRow0 := i * n
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
 
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.Store(tot00, c[cRow0+j:])
+					hwy.Store(tot01, c[cRow0+j+lanes:])
+					hwy.Store(tot10, c[cRow1+j:])
+					hwy.Store(tot11, c[cRow1+j+lanes:])
+					hwy.Store(tot20, c[cRow2+j:])
+					hwy.Store(tot21, c[cRow2+j+lanes:])
+					hwy.Store(tot30, c[cRow3+j:])
+					hwy.Store(tot31, c[cRow3+j+lanes:])
 				}
 
 				// Handle remaining columns (less than Nr)
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
 					if remaining >= lanes {
-						// Full vector width, single column strip
-						acc0 := hwy.Zero[T]()
-						acc1 := hwy.Zero[T]()
-						acc2 := hwy.Zero[T]()
-						acc3 := hwy.Zero[T]()
+						// Full vector width, single column strip with pairwise summation
+						tot0 := hwy.Zero[T]()
+						tot1 := hwy.Zero[T]()
+						tot2 := hwy.Zero[T]()
+						tot3 := hwy.Zero[T]()
 
-						for p := range k {
-							vA0 := hwy.Set(a[i*k+p])
-							vA1 := hwy.Set(a[(i+1)*k+p])
-							vA2 := hwy.Set(a[(i+2)*k+p])
-							vA3 := hwy.Set(a[(i+3)*k+p])
-
-							vB := hwy.Load(b[p*n+j:])
-							acc0 = hwy.MulAdd(vA0, vB, acc0)
-							acc1 = hwy.MulAdd(vA1, vB, acc1)
-							acc2 = hwy.MulAdd(vA2, vB, acc2)
-							acc3 = hwy.MulAdd(vA3, vB, acc3)
+						for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+							pEnd := pBlock + pairwiseBlockK
+							if pEnd > k {
+								pEnd = k
+							}
+							acc0 := hwy.Zero[T]()
+							acc1 := hwy.Zero[T]()
+							acc2 := hwy.Zero[T]()
+							acc3 := hwy.Zero[T]()
+							for p := pBlock; p < pEnd; p++ {
+								vA0 := hwy.Set(a[i*k+p])
+								vA1 := hwy.Set(a[(i+1)*k+p])
+								vA2 := hwy.Set(a[(i+2)*k+p])
+								vA3 := hwy.Set(a[(i+3)*k+p])
+								vB := hwy.Load(b[p*n+j:])
+								acc0 = hwy.MulAdd(vA0, vB, acc0)
+								acc1 = hwy.MulAdd(vA1, vB, acc1)
+								acc2 = hwy.MulAdd(vA2, vB, acc2)
+								acc3 = hwy.MulAdd(vA3, vB, acc3)
+							}
+							tot0 = hwy.Add(tot0, acc0)
+							tot1 = hwy.Add(tot1, acc1)
+							tot2 = hwy.Add(tot2, acc2)
+							tot3 = hwy.Add(tot3, acc3)
 						}
 
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.Store(tot0, c[i*n+j:])
+						hwy.Store(tot1, c[(i+1)*n+j:])
+						hwy.Store(tot2, c[(i+2)*n+j:])
+						hwy.Store(tot3, c[(i+3)*n+j:])
 					} else {
-						// Scalar tail
+						// Scalar tail with pairwise summation
 						for jj := j; jj < jEnd; jj++ {
-							var sum0, sum1, sum2, sum3 T
-							for p := range k {
-								bpj := b[p*n+jj]
-								sum0 += a[i*k+p] * bpj
-								sum1 += a[(i+1)*k+p] * bpj
-								sum2 += a[(i+2)*k+p] * bpj
-								sum3 += a[(i+3)*k+p] * bpj
+							var tot0, tot1, tot2, tot3 T
+							for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+								pEnd := pBlock + pairwiseBlockK
+								if pEnd > k {
+									pEnd = k
+								}
+								var sum0, sum1, sum2, sum3 T
+								for p := pBlock; p < pEnd; p++ {
+									bpj := b[p*n+jj]
+									sum0 += a[i*k+p] * bpj
+									sum1 += a[(i+1)*k+p] * bpj
+									sum2 += a[(i+2)*k+p] * bpj
+									sum3 += a[(i+3)*k+p] * bpj
+								}
+								tot0 += sum0
+								tot1 += sum1
+								tot2 += sum2
+								tot3 += sum3
 							}
-							c[i*n+jj] = sum0
-							c[(i+1)*n+jj] = sum1
-							c[(i+2)*n+jj] = sum2
-							c[(i+3)*n+jj] = sum3
+							c[i*n+jj] = tot0
+							c[(i+1)*n+jj] = tot1
+							c[(i+2)*n+jj] = tot2
+							c[(i+3)*n+jj] = tot3
 						}
 						break
 					}
@@ -181,38 +221,55 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 			// Handle remaining rows - process pairs when possible for SIMD efficiency
 			// This avoids the per-row overhead when M % 4 != 0
 
-			// Process pairs of remaining rows with SIMD
+			// Process pairs of remaining rows with pairwise summation
 			for i+2 <= iEnd {
 				cRow0 := i * n
 				cRow1 := (i + 1) * n
 
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc0 := hwy.Zero[T]()
-					acc1 := hwy.Zero[T]()
-
-					for p := range k {
-						vA0 := hwy.Set(a[i*k+p])
-						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc0 = hwy.MulAdd(vA0, vB, acc0)
-						acc1 = hwy.MulAdd(vA1, vB, acc1)
+					tot0 := hwy.Zero[T]()
+					tot1 := hwy.Zero[T]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc0 := hwy.Zero[T]()
+						acc1 := hwy.Zero[T]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.MulAdd(vA0, vB, acc0)
+							acc1 = hwy.MulAdd(vA1, vB, acc1)
+						}
+						tot0 = hwy.Add(tot0, acc0)
+						tot1 = hwy.Add(tot1, acc1)
 					}
-
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.Store(tot0, c[cRow0+j:])
+					hwy.Store(tot1, c[cRow1+j:])
 				}
 
 				// Scalar tail for remaining columns
 				for ; j < jEnd; j++ {
-					var sum0, sum1 T
-					for p := range k {
-						bp := b[p*n+j]
-						sum0 += a[i*k+p] * bp
-						sum1 += a[(i+1)*k+p] * bp
+					var tot0, tot1 T
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum0, sum1 T
+						for p := pBlock; p < pEnd; p++ {
+							bp := b[p*n+j]
+							sum0 += a[i*k+p] * bp
+							sum1 += a[(i+1)*k+p] * bp
+						}
+						tot0 += sum0
+						tot1 += sum1
 					}
-					c[cRow0+j] = sum0
-					c[cRow1+j] = sum1
+					c[cRow0+j] = tot0
+					c[cRow1+j] = tot1
 				}
 
 				i += 2
@@ -224,22 +281,38 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc := hwy.Zero[T]()
-					for p := range k {
-						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc = hwy.MulAdd(vA, vB, acc)
+					total := hwy.Zero[T]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc := hwy.Zero[T]()
+						for p := pBlock; p < pEnd; p++ {
+							vA := hwy.Set(a[i*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc = hwy.MulAdd(vA, vB, acc)
+						}
+						total = hwy.Add(total, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.Store(total, c[cRowStart+j:])
 				}
 
 				// Scalar tail for remaining columns
 				for ; j < jEnd; j++ {
-					var sum T
-					for p := range k {
-						sum += a[i*k+p] * b[p*n+j]
+					var total T
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum T
+						for p := pBlock; p < pEnd; p++ {
+							sum += a[i*k+p] * b[p*n+j]
+						}
+						total += sum
 					}
-					c[cRowStart+j] = sum
+					c[cRowStart+j] = total
 				}
 			}
 		}

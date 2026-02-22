@@ -1014,6 +1014,12 @@ func blockedMatMulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 // Uses optimized tiled dot-product algorithm via GOAT-generated assembly.
 // C = A * B^T where A is [M,K] and B is [N,K] (K-last layout).
 func matmulKLastNEON(a, b, c []float32, m, n, k int) {
+	// M=1 specialization for autoregressive decoder (vector-matrix multiply).
+	// Uses the Go base which has a dedicated 1x4Nr kernel with pairwise summation.
+	if m == 1 {
+		BaseMatMulKLast(a, b, c, m, n, k)
+		return
+	}
 	// Fall back to scalar for small matrices
 	if m < minDimForNEONKLast || n < minDimForNEONKLast || k < minDimForNEONKLast {
 		BaseMatMulKLast(a, b, c, m, n, k)
@@ -1072,6 +1078,13 @@ const klastStripN = 48
 // strip's output directly into the correct columns of C, avoiding any
 // scatter copy.
 func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
+	// M=1 specialization: streaming mode + transpose overhead dominates for
+	// vector-matrix multiply. Use Go base which has dedicated 1xNr kernel.
+	if m == 1 {
+		BaseMatMulKLast(a, b, c, m, n, k)
+		return
+	}
+
 	const tileSize = 16
 	paddedM := AlignUp(m, tileSize)
 	paddedN := AlignUp(n, tileSize)
