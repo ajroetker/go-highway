@@ -1556,6 +1556,19 @@ func extractLiteralValue(expr ast.Expr) (string, bool) {
 				}
 			}
 		}
+	case *ast.CallExpr:
+		// Handle conversion calls like hwy.Float32ToFloat16(0.5) or
+		// hwy.Float32ToBFloat16(1.0) — extract the literal argument.
+		if len(e.Args) == 1 {
+			return extractLiteralValue(e.Args[0])
+		}
+	case *ast.BinaryExpr:
+		// Handle constant expressions like 88.72283905206835 * 2
+		lhs, lhsOk := extractLiteralValue(e.X)
+		rhs, rhsOk := extractLiteralValue(e.Y)
+		if lhsOk && rhsOk {
+			return lhs + " " + e.Op.String() + " " + rhs, true
+		}
 	}
 	return "", false
 }
@@ -1685,7 +1698,10 @@ func extractStructField(name string, typeExpr ast.Expr) *PackageStructField {
 }
 
 // scanPackageConsts scans all .go files in the same directory for package-level
-// integer constants (e.g., `const BlockSize = 48`).
+// constants and variable declarations with literal initializers.
+// This includes both `const BlockSize = 48` and typed var declarations like
+// `var actZero_f32 float32 = 0.0` or `var v hwy.Float16 = hwy.Float32ToFloat16(0.5)`.
+// The extracted values are emitted as #define macros in generated C code.
 func scanPackageConsts(filename string) []PackageConst {
 	dir := filepath.Dir(filename)
 	entries, err := os.ReadDir(dir)
@@ -1713,7 +1729,7 @@ func scanPackageConsts(filename string) []PackageConst {
 
 		for _, decl := range file.Decls {
 			genDecl, ok := decl.(*ast.GenDecl)
-			if !ok || genDecl.Tok != token.CONST {
+			if !ok || (genDecl.Tok != token.CONST && genDecl.Tok != token.VAR) {
 				continue
 			}
 			for _, spec := range genDecl.Specs {

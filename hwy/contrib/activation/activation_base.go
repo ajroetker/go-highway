@@ -35,10 +35,10 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 		return
 	}
 
-	// Constants: 0.5 and 1/sqrt(2) = 0.7071067811865476
-	vHalf := hwy.Const[T](0.5)
-	vOne := hwy.Const[T](1.0)
-	vInvSqrt2 := hwy.Const[T](0.7071067811865476)
+	// Constants: 0.5 and 1/sqrt(2)
+	vHalf := hwy.Const[T](actHalf_f32)
+	vOne := hwy.Const[T](actOne_f32)
+	vInvSqrt2 := hwy.Const[T](actInvSqrt2_f32)
 
 	lanes := vOne.NumLanes()
 	ii := 0
@@ -80,7 +80,7 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 	}
 
 	// Constant: 1.702 (the approximation coefficient)
-	vCoeff := hwy.Const[T](1.702)
+	vCoeff := hwy.Const[T](actGeluApproxCoeff_f32)
 
 	lanes := vCoeff.NumLanes()
 	ii := 0
@@ -117,7 +117,7 @@ func BaseReLU[T hwy.Floats](input, output []T) {
 		return
 	}
 
-	vZero := hwy.Const[T](0.0)
+	vZero := hwy.Const[T](actZero_f32)
 	lanes := vZero.NumLanes()
 	ii := 0
 
@@ -259,10 +259,10 @@ func BaseHardSwish[T hwy.Floats](input, output []T) {
 		return
 	}
 
-	vZero := hwy.Const[T](0.0)
-	vOne := hwy.Const[T](1.0)
-	vScale := hwy.Const[T](0.16666667)
-	vBias := hwy.Const[T](0.5)
+	vZero := hwy.Const[T](actZero_f32)
+	vOne := hwy.Const[T](actOne_f32)
+	vScale := hwy.Const[T](actHardSwishScale_f32)
+	vBias := hwy.Const[T](actHalf_f32)
 	lanes := vZero.NumLanes()
 	ii := 0
 
@@ -305,8 +305,8 @@ func BaseELU[T hwy.Floats](input, output []T, alpha T) {
 		return
 	}
 
-	vZero := hwy.Const[T](0.0)
-	vOne := hwy.Const[T](1.0)
+	vZero := hwy.Const[T](actZero_f32)
+	vOne := hwy.Const[T](actOne_f32)
 	vAlpha := hwy.Set(alpha)
 	lanes := hwy.MaxLanes[T]()
 	ii := 0

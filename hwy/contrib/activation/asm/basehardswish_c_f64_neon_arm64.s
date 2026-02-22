@@ -19,9 +19,7 @@ TEXT ·hardswish_c_f64_neon(SB), $0-24
 
 BB0_3:
 	WORD $0xd2800009 // mov	x9, #0                          ; =0x0
-	WORD $0xd29b496a // mov	x10, #55883                     ; =0xda4b
-	WORD $0xf2ab8faa // movk	x10, #23677, lsl #16
-	WORD $0xf2caaaaa // movk	x10, #21845, lsl #32
+	WORD $0xb200f3ea // mov	x10, #6148914691236517205       ; =0x5555555555555555
 	WORD $0xf2e7f8aa // movk	x10, #16325, lsl #48
 	WORD $0x4e080d40 // dup.2d	v0, x10
 	WORD $0x6f03f401 // fmov.2d	v1, #0.50000000

@@ -16,28 +16,28 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseELU_AVX2_vOne_f32          = archsimd.BroadcastFloat32x8(1.0)
-	BaseELU_AVX2_vOne_f64          = archsimd.BroadcastFloat64x4(1.0)
-	BaseELU_AVX2_vZero_f32         = archsimd.BroadcastFloat32x8(0.0)
-	BaseELU_AVX2_vZero_f64         = archsimd.BroadcastFloat64x4(0.0)
-	BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(1.702)
-	BaseGELUApprox_AVX2_vCoeff_f64 = archsimd.BroadcastFloat64x4(1.702)
-	BaseGELU_AVX2_vHalf_f32        = archsimd.BroadcastFloat32x8(0.5)
-	BaseGELU_AVX2_vHalf_f64        = archsimd.BroadcastFloat64x4(0.5)
-	BaseGELU_AVX2_vInvSqrt2_f32    = archsimd.BroadcastFloat32x8(0.7071067811865476)
-	BaseGELU_AVX2_vInvSqrt2_f64    = archsimd.BroadcastFloat64x4(0.7071067811865476)
-	BaseGELU_AVX2_vOne_f32         = archsimd.BroadcastFloat32x8(1.0)
-	BaseGELU_AVX2_vOne_f64         = archsimd.BroadcastFloat64x4(1.0)
-	BaseHardSwish_AVX2_vBias_f32   = archsimd.BroadcastFloat32x8(0.5)
-	BaseHardSwish_AVX2_vBias_f64   = archsimd.BroadcastFloat64x4(0.5)
-	BaseHardSwish_AVX2_vOne_f32    = archsimd.BroadcastFloat32x8(1.0)
-	BaseHardSwish_AVX2_vOne_f64    = archsimd.BroadcastFloat64x4(1.0)
-	BaseHardSwish_AVX2_vScale_f32  = archsimd.BroadcastFloat32x8(0.16666667)
-	BaseHardSwish_AVX2_vScale_f64  = archsimd.BroadcastFloat64x4(0.16666667)
-	BaseHardSwish_AVX2_vZero_f32   = archsimd.BroadcastFloat32x8(0.0)
-	BaseHardSwish_AVX2_vZero_f64   = archsimd.BroadcastFloat64x4(0.0)
-	BaseReLU_AVX2_vZero_f32        = archsimd.BroadcastFloat32x8(0.0)
-	BaseReLU_AVX2_vZero_f64        = archsimd.BroadcastFloat64x4(0.0)
+	BaseELU_AVX2_vOne_f32          = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseELU_AVX2_vOne_f64          = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseELU_AVX2_vZero_f32         = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseELU_AVX2_vZero_f64         = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(float32(actGeluApproxCoeff_f32))
+	BaseGELUApprox_AVX2_vCoeff_f64 = archsimd.BroadcastFloat64x4(float64(actGeluApproxCoeff_f64))
+	BaseGELU_AVX2_vHalf_f32        = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
+	BaseGELU_AVX2_vHalf_f64        = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
+	BaseGELU_AVX2_vInvSqrt2_f32    = archsimd.BroadcastFloat32x8(float32(actInvSqrt2_f32))
+	BaseGELU_AVX2_vInvSqrt2_f64    = archsimd.BroadcastFloat64x4(float64(actInvSqrt2_f64))
+	BaseGELU_AVX2_vOne_f32         = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseGELU_AVX2_vOne_f64         = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseHardSwish_AVX2_vBias_f32   = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
+	BaseHardSwish_AVX2_vBias_f64   = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
+	BaseHardSwish_AVX2_vOne_f32    = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseHardSwish_AVX2_vOne_f64    = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseHardSwish_AVX2_vScale_f32  = archsimd.BroadcastFloat32x8(float32(actHardSwishScale_f32))
+	BaseHardSwish_AVX2_vScale_f64  = archsimd.BroadcastFloat64x4(float64(actHardSwishScale_f64))
+	BaseHardSwish_AVX2_vZero_f32   = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseHardSwish_AVX2_vZero_f64   = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseReLU_AVX2_vZero_f32        = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseReLU_AVX2_vZero_f64        = archsimd.BroadcastFloat64x4(float64(actZero_f64))
 )
 
 func BaseGELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
@@ -45,9 +45,9 @@ func BaseGELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vHalf := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.5))))
-	vOne := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(1.0))))
-	vInvSqrt2 := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.7071067811865476))))
+	vHalf := asm.BroadcastFloat16x8AVX2(uint16(actHalf_f16))
+	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
+	vInvSqrt2 := asm.BroadcastFloat16x8AVX2(uint16(actInvSqrt2_f16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -86,9 +86,9 @@ func BaseGELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vHalf := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.5))))
-	vOne := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(1.0))))
-	vInvSqrt2 := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.7071067811865476))))
+	vHalf := asm.BroadcastBFloat16x8AVX2(uint16(actHalf_bf16))
+	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
+	vInvSqrt2 := asm.BroadcastBFloat16x8AVX2(uint16(actInvSqrt2_bf16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -209,7 +209,7 @@ func BaseGELUApprox_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vCoeff := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(1.702))))
+	vCoeff := asm.BroadcastFloat16x8AVX2(uint16(actGeluApproxCoeff_f16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -243,7 +243,7 @@ func BaseGELUApprox_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vCoeff := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(1.702))))
+	vCoeff := asm.BroadcastBFloat16x8AVX2(uint16(actGeluApproxCoeff_bf16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -345,7 +345,7 @@ func BaseReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.0))))
+	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -375,7 +375,7 @@ func BaseReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.0))))
+	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -853,10 +853,10 @@ func BaseHardSwish_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.0))))
-	vOne := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(1.0))))
-	vScale := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.16666667))))
-	vBias := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.5))))
+	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
+	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
+	vScale := asm.BroadcastFloat16x8AVX2(uint16(actHardSwishScale_f16))
+	vBias := asm.BroadcastFloat16x8AVX2(uint16(actHalf_f16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -898,10 +898,10 @@ func BaseHardSwish_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.0))))
-	vOne := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(1.0))))
-	vScale := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.16666667))))
-	vBias := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.5))))
+	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
+	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
+	vScale := asm.BroadcastBFloat16x8AVX2(uint16(actHardSwishScale_bf16))
+	vBias := asm.BroadcastBFloat16x8AVX2(uint16(actHalf_bf16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -1033,8 +1033,8 @@ func BaseELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.F
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(0.0))))
-	vOne := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float32ToFloat16(float32(1.0))))
+	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
+	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
 	vAlpha := asm.BroadcastFloat16x8AVX2(uint16(alpha))
 	lanes := 8
 	ii := 0
@@ -1078,8 +1078,8 @@ func BaseELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hw
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(0.0))))
-	vOne := asm.BroadcastBFloat16x8AVX2(uint16(hwy.Float32ToBFloat16(float32(1.0))))
+	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
+	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
 	vAlpha := asm.BroadcastBFloat16x8AVX2(uint16(alpha))
 	lanes := 8
 	ii := 0

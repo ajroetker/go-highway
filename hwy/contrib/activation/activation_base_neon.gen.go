@@ -15,28 +15,28 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseELU_NEON_vOne_f32          = asm.BroadcastFloat32x4(1.0)
-	BaseELU_NEON_vOne_f64          = asm.BroadcastFloat64x2(1.0)
-	BaseELU_NEON_vZero_f32         = asm.BroadcastFloat32x4(0.0)
-	BaseELU_NEON_vZero_f64         = asm.BroadcastFloat64x2(0.0)
-	BaseGELUApprox_NEON_vCoeff_f32 = asm.BroadcastFloat32x4(1.702)
-	BaseGELUApprox_NEON_vCoeff_f64 = asm.BroadcastFloat64x2(1.702)
-	BaseGELU_NEON_vHalf_f32        = asm.BroadcastFloat32x4(0.5)
-	BaseGELU_NEON_vHalf_f64        = asm.BroadcastFloat64x2(0.5)
-	BaseGELU_NEON_vInvSqrt2_f32    = asm.BroadcastFloat32x4(0.7071067811865476)
-	BaseGELU_NEON_vInvSqrt2_f64    = asm.BroadcastFloat64x2(0.7071067811865476)
-	BaseGELU_NEON_vOne_f32         = asm.BroadcastFloat32x4(1.0)
-	BaseGELU_NEON_vOne_f64         = asm.BroadcastFloat64x2(1.0)
-	BaseHardSwish_NEON_vBias_f32   = asm.BroadcastFloat32x4(0.5)
-	BaseHardSwish_NEON_vBias_f64   = asm.BroadcastFloat64x2(0.5)
-	BaseHardSwish_NEON_vOne_f32    = asm.BroadcastFloat32x4(1.0)
-	BaseHardSwish_NEON_vOne_f64    = asm.BroadcastFloat64x2(1.0)
-	BaseHardSwish_NEON_vScale_f32  = asm.BroadcastFloat32x4(0.16666667)
-	BaseHardSwish_NEON_vScale_f64  = asm.BroadcastFloat64x2(0.16666667)
-	BaseHardSwish_NEON_vZero_f32   = asm.BroadcastFloat32x4(0.0)
-	BaseHardSwish_NEON_vZero_f64   = asm.BroadcastFloat64x2(0.0)
-	BaseReLU_NEON_vZero_f32        = asm.BroadcastFloat32x4(0.0)
-	BaseReLU_NEON_vZero_f64        = asm.BroadcastFloat64x2(0.0)
+	BaseELU_NEON_vOne_f32          = asm.BroadcastFloat32x4(float32(actOne_f32))
+	BaseELU_NEON_vOne_f64          = asm.BroadcastFloat64x2(float64(actOne_f64))
+	BaseELU_NEON_vZero_f32         = asm.BroadcastFloat32x4(float32(actZero_f32))
+	BaseELU_NEON_vZero_f64         = asm.BroadcastFloat64x2(float64(actZero_f64))
+	BaseGELUApprox_NEON_vCoeff_f32 = asm.BroadcastFloat32x4(float32(actGeluApproxCoeff_f32))
+	BaseGELUApprox_NEON_vCoeff_f64 = asm.BroadcastFloat64x2(float64(actGeluApproxCoeff_f64))
+	BaseGELU_NEON_vHalf_f32        = asm.BroadcastFloat32x4(float32(actHalf_f32))
+	BaseGELU_NEON_vHalf_f64        = asm.BroadcastFloat64x2(float64(actHalf_f64))
+	BaseGELU_NEON_vInvSqrt2_f32    = asm.BroadcastFloat32x4(float32(actInvSqrt2_f32))
+	BaseGELU_NEON_vInvSqrt2_f64    = asm.BroadcastFloat64x2(float64(actInvSqrt2_f64))
+	BaseGELU_NEON_vOne_f32         = asm.BroadcastFloat32x4(float32(actOne_f32))
+	BaseGELU_NEON_vOne_f64         = asm.BroadcastFloat64x2(float64(actOne_f64))
+	BaseHardSwish_NEON_vBias_f32   = asm.BroadcastFloat32x4(float32(actHalf_f32))
+	BaseHardSwish_NEON_vBias_f64   = asm.BroadcastFloat64x2(float64(actHalf_f64))
+	BaseHardSwish_NEON_vOne_f32    = asm.BroadcastFloat32x4(float32(actOne_f32))
+	BaseHardSwish_NEON_vOne_f64    = asm.BroadcastFloat64x2(float64(actOne_f64))
+	BaseHardSwish_NEON_vScale_f32  = asm.BroadcastFloat32x4(float32(actHardSwishScale_f32))
+	BaseHardSwish_NEON_vScale_f64  = asm.BroadcastFloat64x2(float64(actHardSwishScale_f64))
+	BaseHardSwish_NEON_vZero_f32   = asm.BroadcastFloat32x4(float32(actZero_f32))
+	BaseHardSwish_NEON_vZero_f64   = asm.BroadcastFloat64x2(float64(actZero_f64))
+	BaseReLU_NEON_vZero_f32        = asm.BroadcastFloat32x4(float32(actZero_f32))
+	BaseReLU_NEON_vZero_f64        = asm.BroadcastFloat64x2(float64(actZero_f64))
 )
 
 func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
@@ -44,9 +44,9 @@ func BaseGELU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vHalf := hwy.Const[hwy.Float16](0.5)
-	vOne := hwy.Const[hwy.Float16](1.0)
-	vInvSqrt2 := hwy.Const[hwy.Float16](0.7071067811865476)
+	vHalf := hwy.Set[hwy.Float16](actHalf_f16)
+	vOne := hwy.Set[hwy.Float16](actOne_f16)
+	vInvSqrt2 := hwy.Set[hwy.Float16](actInvSqrt2_f16)
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -85,9 +85,9 @@ func BaseGELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vHalf := hwy.Const[hwy.BFloat16](0.5)
-	vOne := hwy.Const[hwy.BFloat16](1.0)
-	vInvSqrt2 := hwy.Const[hwy.BFloat16](0.7071067811865476)
+	vHalf := hwy.Set[hwy.BFloat16](actHalf_bf16)
+	vOne := hwy.Set[hwy.BFloat16](actOne_bf16)
+	vInvSqrt2 := hwy.Set[hwy.BFloat16](actInvSqrt2_bf16)
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -208,7 +208,7 @@ func BaseGELUApprox_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vCoeff := hwy.Const[hwy.Float16](1.702)
+	vCoeff := hwy.Set[hwy.Float16](actGeluApproxCoeff_f16)
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -242,7 +242,7 @@ func BaseGELUApprox_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vCoeff := hwy.Const[hwy.BFloat16](1.702)
+	vCoeff := hwy.Set[hwy.BFloat16](actGeluApproxCoeff_bf16)
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -344,7 +344,7 @@ func BaseReLU_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.0))))
+	vZero := asm.BroadcastFloat16x8(uint16(actZero_f16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -374,7 +374,7 @@ func BaseReLU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.0))))
+	vZero := asm.BroadcastBFloat16x8(uint16(actZero_bf16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -852,10 +852,10 @@ func BaseHardSwish_neon_Float16(input []hwy.Float16, output []hwy.Float16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.0))))
-	vOne := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(1.0))))
-	vScale := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.16666667))))
-	vBias := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.5))))
+	vZero := asm.BroadcastFloat16x8(uint16(actZero_f16))
+	vOne := asm.BroadcastFloat16x8(uint16(actOne_f16))
+	vScale := asm.BroadcastFloat16x8(uint16(actHardSwishScale_f16))
+	vBias := asm.BroadcastFloat16x8(uint16(actHalf_f16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -897,10 +897,10 @@ func BaseHardSwish_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	if size == 0 {
 		return
 	}
-	vZero := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.0))))
-	vOne := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(1.0))))
-	vScale := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.16666667))))
-	vBias := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.5))))
+	vZero := asm.BroadcastBFloat16x8(uint16(actZero_bf16))
+	vOne := asm.BroadcastBFloat16x8(uint16(actOne_bf16))
+	vScale := asm.BroadcastBFloat16x8(uint16(actHardSwishScale_bf16))
+	vBias := asm.BroadcastBFloat16x8(uint16(actHalf_bf16))
 	lanes := 8
 	ii := 0
 	for ; ii+lanes*2 <= size; ii += lanes * 2 {
@@ -1032,8 +1032,8 @@ func BaseELU_neon_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.F
 	if size == 0 {
 		return
 	}
-	vZero := hwy.Const[hwy.Float16](0.0)
-	vOne := hwy.Const[hwy.Float16](1.0)
+	vZero := hwy.Set[hwy.Float16](actZero_f16)
+	vOne := hwy.Set[hwy.Float16](actOne_f16)
 	vAlpha := hwy.Set(alpha)
 	lanes := 8
 	ii := 0
@@ -1077,8 +1077,8 @@ func BaseELU_neon_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hw
 	if size == 0 {
 		return
 	}
-	vZero := hwy.Const[hwy.BFloat16](0.0)
-	vOne := hwy.Const[hwy.BFloat16](1.0)
+	vZero := hwy.Set[hwy.BFloat16](actZero_bf16)
+	vOne := hwy.Set[hwy.BFloat16](actOne_bf16)
 	vAlpha := hwy.Set(alpha)
 	lanes := 8
 	ii := 0
