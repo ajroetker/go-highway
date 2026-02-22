@@ -1449,9 +1449,9 @@ func TestASTTranslatorMatMul(t *testing.T) {
 		t.Errorf("expected at least 5 for loops (got %d) — matmul needs nested loops", forCount)
 	}
 
-	// Verify scalar tail loop is preserved (j-outer/p-inner with sum accumulator)
-	if !strings.Contains(cCode, "cRow[j] = sum") {
-		t.Error("missing scalar store tail: cRow[j] = sum")
+	// Verify scalar tail loop is preserved (j-outer/p-inner with pairwise summation)
+	if !strings.Contains(cCode, "cRow[j] = total") {
+		t.Error("missing scalar store tail: cRow[j] = total")
 	}
 	if !strings.Contains(cCode, "sum += a[i * k + p] * b[p * n + j]") {
 		t.Error("missing scalar FMA tail: sum += a[i * k + p] * b[p * n + j]")
