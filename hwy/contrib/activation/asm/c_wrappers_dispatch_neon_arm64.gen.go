@@ -522,6 +522,90 @@ func TanhCF64(input, output []float64) {
 	)
 }
 
+// HardSwishCF16 computes HardSwish using NEON SIMD assembly.
+func HardSwishCF16(input, output []hwy.Float16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCBF16 computes HardSwish using NEON SIMD assembly.
+func HardSwishCBF16(input, output []hwy.BFloat16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCF32 computes HardSwish using NEON SIMD assembly.
+func HardSwishCF32(input, output []float32) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCF64 computes HardSwish using NEON SIMD assembly.
+func HardSwishCF64(input, output []float64) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 // ELUCF16 computes ELU using NEON SIMD assembly.
 func ELUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
 	if len(input) == 0 {

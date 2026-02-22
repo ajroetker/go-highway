@@ -125,6 +125,26 @@ func Tanh_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) 
 	tanh_c_f64_neon(input, output, plen)
 }
 
+// HardSwish_F16 calls the NEON SIMD assembly implementation.
+func HardSwish_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_f16_neon(input, output, plen)
+}
+
+// HardSwish_BF16 calls the NEON SIMD assembly implementation.
+func HardSwish_BF16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_bf16_neon(input, output, plen)
+}
+
+// HardSwish_F32 calls the NEON SIMD assembly implementation.
+func HardSwish_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_f32_neon(input, output, plen)
+}
+
+// HardSwish_F64 calls the NEON SIMD assembly implementation.
+func HardSwish_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_f64_neon(input, output, plen)
+}
+
 // ELU_F16 calls the NEON SIMD assembly implementation.
 func ELU_F16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
 	elu_c_f16_neon(input, output, palpha, plen)

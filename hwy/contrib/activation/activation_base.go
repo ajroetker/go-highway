@@ -35,10 +35,10 @@ func BaseGELU[T hwy.Floats](input, output []T) {
 		return
 	}
 
-	// Constants: 0.5 and 1/sqrt(2) = 0.7071067811865476
-	vHalf := hwy.Const[T](0.5)
-	vOne := hwy.Const[T](1.0)
-	vInvSqrt2 := hwy.Const[T](0.7071067811865476)
+	// Constants: 0.5 and 1/sqrt(2)
+	vHalf := hwy.Const[T](actHalf_f32)
+	vOne := hwy.Const[T](actOne_f32)
+	vInvSqrt2 := hwy.Const[T](actInvSqrt2_f32)
 
 	lanes := vOne.NumLanes()
 	ii := 0
@@ -80,7 +80,7 @@ func BaseGELUApprox[T hwy.Floats](input, output []T) {
 	}
 
 	// Constant: 1.702 (the approximation coefficient)
-	vCoeff := hwy.Const[T](1.702)
+	vCoeff := hwy.Const[T](actGeluApproxCoeff_f32)
 
 	lanes := vCoeff.NumLanes()
 	ii := 0
@@ -117,7 +117,7 @@ func BaseReLU[T hwy.Floats](input, output []T) {
 		return
 	}
 
-	vZero := hwy.Const[T](0.0)
+	vZero := hwy.Const[T](actZero_f32)
 	lanes := vZero.NumLanes()
 	ii := 0
 
@@ -247,6 +247,53 @@ func BaseTanh[T hwy.Floats](input, output []T) {
 	}
 }
 
+// BaseHardSwish computes the Hard Swish activation function.
+//
+// HardSwish(x) = x * min(max(x/6 + 0.5, 0), 1)
+//
+// HardSwish is a piecewise-linear approximation of Swish used in MobileNetV3
+// and other efficient architectures. It avoids the sigmoid computation of SiLU.
+func BaseHardSwish[T hwy.Floats](input, output []T) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+
+	vZero := hwy.Const[T](actZero_f32)
+	vOne := hwy.Const[T](actOne_f32)
+	vScale := hwy.Const[T](actHardSwishScale_f32)
+	vBias := hwy.Const[T](actHalf_f32)
+	lanes := vZero.NumLanes()
+	ii := 0
+
+	// Process full vectors
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+
+		// Compute clamp(x/6 + 0.5, 0, 1)
+		s := hwy.Add(hwy.Mul(x, vScale), vBias)
+		s = hwy.Max(s, vZero)
+		s = hwy.Min(s, vOne)
+
+		// HardSwish(x) = x * s
+		result := hwy.Mul(x, s)
+
+		hwy.Store(result, output[ii:])
+	}
+
+	// Handle tail elements
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = T(x * s)
+	}
+}
+
 // BaseELU computes the Exponential Linear Unit activation.
 //
 // ELU(x) = x if x > 0, else alpha * (exp(x) - 1)
@@ -258,8 +305,8 @@ func BaseELU[T hwy.Floats](input, output []T, alpha T) {
 		return
 	}
 
-	vZero := hwy.Const[T](0.0)
-	vOne := hwy.Const[T](1.0)
+	vZero := hwy.Const[T](actZero_f32)
+	vOne := hwy.Const[T](actOne_f32)
 	vAlpha := hwy.Set(alpha)
 	lanes := hwy.MaxLanes[T]()
 	ii := 0

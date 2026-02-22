@@ -30,6 +30,8 @@ func initNeonCAsm() {
 	LeakyReLUFloat64 = leakyReLUAsmF64
 	TanhFloat32 = tanhAsmF32
 	TanhFloat64 = tanhAsmF64
+	HardSwishFloat32 = hardSwishAsmF32
+	HardSwishFloat64 = hardSwishAsmF64
 	ELUFloat32 = eLUAsmF32
 	ELUFloat64 = eLUAsmF64
 	if hwy.HasARMFP16() {
@@ -39,6 +41,7 @@ func initNeonCAsm() {
 		SiLUFloat16 = siLUAsmF16
 		LeakyReLUFloat16 = leakyReLUAsmF16
 		TanhFloat16 = tanhAsmF16
+		HardSwishFloat16 = hardSwishAsmF16
 		ELUFloat16 = eLUAsmF16
 	}
 	if hwy.HasARMBF16() {
@@ -48,6 +51,7 @@ func initNeonCAsm() {
 		SiLUBFloat16 = siLUAsmBF16
 		LeakyReLUBFloat16 = leakyReLUAsmBF16
 		TanhBFloat16 = tanhAsmBF16
+		HardSwishBFloat16 = hardSwishAsmBF16
 		ELUBFloat16 = eLUAsmBF16
 	}
 }
@@ -462,6 +466,74 @@ func tanhAsmF64(input, output []float64) {
 	}
 	lenVal := int64(len(input))
 	asm.Tanh_F64(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmF16(input, output []hwy.Float16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_F16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmBF16(input, output []hwy.BFloat16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_BF16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmF32(input, output []float32) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_F32(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmF64(input, output []float64) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_F64(
 		p_input,
 		p_output,
 		unsafe.Pointer(&lenVal),

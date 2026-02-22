@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -19,6 +20,7 @@ type CEmitter struct {
 	packageGlobals []PackageGlobal    // package-level array vars for static const emission
 	packageConsts  []PackageConst     // package-level integer constants for #define emission
 	allFuncs       map[string]*ParsedFunc // all functions in the source file (for emitting sibling helpers)
+	typeMap        map[string]string  // per-type-param concrete types (from //hwy:gen); nil for single-type
 }
 
 // NewCEmitter creates a new C emitter for the given element type.
@@ -514,6 +516,20 @@ func (e *CEmitter) lanesExpr() string {
 
 // Helper methods for type-specific intrinsics
 func (e *CEmitter) typeSuffix() string {
+	if len(e.typeMap) > 1 {
+		// Multi-type: concatenate suffixes for all type params
+		// We need consistent ordering, so iterate sorted keys
+		keys := make([]string, 0, len(e.typeMap))
+		for k := range e.typeMap {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var parts []string
+		for _, k := range keys {
+			parts = append(parts, cTypeSuffix(e.typeMap[k]))
+		}
+		return strings.Join(parts, "_")
+	}
 	return cTypeSuffix(e.elemType)
 }
 
@@ -1475,6 +1491,9 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 	}
 
 	translator := NewCASTTranslator(e.profile, e.elemType)
+	if e.typeMap != nil {
+		translator.typeMap = e.typeMap
+	}
 	if len(e.packageGlobals) > 0 {
 		translator.SetPackageGlobals(e.packageGlobals)
 	}

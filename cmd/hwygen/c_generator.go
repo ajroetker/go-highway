@@ -122,14 +122,18 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 
 		// Generate C code for Vec→Vec functions
 		for _, pf := range vecFuncs {
-			elemTypes := getCElemTypes(&pf)
-			for _, elemType := range elemTypes {
+			combos := getTypeCombinations(&pf)
+			for _, combo := range combos {
+				elemType := comboPrimaryType(combo, pf.TypeParams)
 				profile := GetCProfile(target.Name, elemType)
 				if profile == nil {
 					continue // No profile for this target/type combo
 				}
 				emitter := NewCEmitter(g.PackageOut, elemType, target)
 				emitter.profile = profile
+				if isMultiTypeCombination(combo) {
+					emitter.typeMap = combo.Types
+				}
 				cFile, err := emitter.EmitC(&pf, cOutputDir)
 				if err != nil {
 					return nil, fmt.Errorf("emit C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
@@ -140,8 +144,9 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 
 		// Generate C code for AST-translated functions (matmul, activation, etc.)
 		for _, pf := range astFuncs {
-			elemTypes := getCElemTypes(&pf)
-			for _, elemType := range elemTypes {
+			combos := getTypeCombinations(&pf)
+			for _, combo := range combos {
+				elemType := comboPrimaryType(combo, pf.TypeParams)
 				profile := GetCProfile(target.Name, elemType)
 				if profile == nil {
 					continue
@@ -156,6 +161,9 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				emitter.packageGlobals = result.PackageGlobals
 				emitter.packageConsts = result.PackageConsts
 				emitter.allFuncs = result.AllFuncs
+				if isMultiTypeCombination(combo) {
+					emitter.typeMap = combo.Types
+				}
 				cFile, err := emitter.EmitASTTranslatedC(&pf, cOutputDir)
 				if err != nil {
 					return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)

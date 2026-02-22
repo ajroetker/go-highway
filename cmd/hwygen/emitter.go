@@ -204,8 +204,8 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 		// For SIMD targets: need hwy package for hwy.Vec[hwy.Float16] since archsimd doesn't have native half-precision support.
 		// For Fallback targets: need hwy package for the hwy.Float16/hwy.BFloat16 types themselves.
 		if len(pf.TypeParams) > 0 {
-			concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
-			for _, ct := range concreteTypes {
+			for _, combo := range getTypeCombinations(&pf) {
+				ct := comboPrimaryType(combo, pf.TypeParams)
 				if ct == "hwy.Float16" || ct == "hwy.BFloat16" {
 					if target.Name != "Fallback" {
 						pkgs.HwyPkg = true
@@ -400,18 +400,13 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 	// Declare function variables
 	for _, pf := range dispatchableFuncs {
-		isGeneric := len(pf.TypeParams) > 0
-		var concreteTypes []string
-		if isGeneric {
-			concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
-		} else {
-			concreteTypes = []string{"float32"}
-		}
-
-		for _, elemType := range concreteTypes {
-			funcName := buildDispatchFuncName(pf.Name, elemType, isGeneric, pf.Private)
-			signature := buildFuncSignature(pf, elemType)
-			fmt.Fprintf(&buf, "var %s func%s\n", funcName, signature)
+		for _, dc := range getDispatchCombos(pf) {
+			typeMap := dc.Combo.Types
+			if len(typeMap) <= 1 {
+				typeMap = nil
+			}
+			signature := buildFuncSignatureWithMap(pf, dc.ElemType, typeMap)
+			fmt.Fprintf(&buf, "var %s func%s\n", dc.DispatchName, signature)
 		}
 	}
 	fmt.Fprintf(&buf, "\n")
@@ -485,18 +480,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 		fmt.Fprintf(&buf, "func %s() {\n", initFuncName)
 
 		for _, pf := range dispatchableFuncs {
-			isGeneric := len(pf.TypeParams) > 0
-			var concreteTypes []string
-			if isGeneric {
-				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
-			} else {
-				concreteTypes = []string{"float32"}
-			}
-
-			for _, elemType := range concreteTypes {
-				dispatchName := buildDispatchFuncName(pf.Name, elemType, isGeneric, pf.Private)
-				// Functions with interface type parameters only have fallback implementations
-				// so use fallback even for SIMD targets
+			for _, dc := range getDispatchCombos(pf) {
 				baseName := pf.Name
 				if pf.Private {
 					baseName = makeUnexported(baseName)
@@ -507,10 +491,11 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 				} else {
 					implName = baseName + target.Suffix()
 				}
-				if elemType != "float32" && isGeneric {
-					implName = implName + "_" + typeNameToSuffix(elemType)
+				suffix := dc.TypeSuffix
+				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
+					implName = implName + "_" + suffix
 				}
-				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
+				fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, implName)
 			}
 		}
 
@@ -521,25 +506,17 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	if hasFallback {
 		fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 		for _, pf := range dispatchableFuncs {
-			isGeneric := len(pf.TypeParams) > 0
-			var concreteTypes []string
-			if isGeneric {
-				concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
-			} else {
-				concreteTypes = []string{"float32"}
-			}
-
-			for _, elemType := range concreteTypes {
-				dispatchName := buildDispatchFuncName(pf.Name, elemType, isGeneric, pf.Private)
+			for _, dc := range getDispatchCombos(pf) {
 				baseName := pf.Name
 				if pf.Private {
 					baseName = makeUnexported(baseName)
 				}
 				implName := baseName + "_fallback"
-				if elemType != "float32" && isGeneric {
-					implName = implName + "_" + typeNameToSuffix(elemType)
+				suffix := dc.TypeSuffix
+				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
+					implName = implName + "_" + suffix
 				}
-				fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
+				fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, implName)
 			}
 		}
 		fmt.Fprintf(&buf, "}\n")
@@ -589,18 +566,13 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 
 	// Declare function variables
 	for _, pf := range dispatchableFuncs {
-		isGeneric := len(pf.TypeParams) > 0
-		var concreteTypes []string
-		if isGeneric {
-			concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
-		} else {
-			concreteTypes = []string{"float32"}
-		}
-
-		for _, elemType := range concreteTypes {
-			funcName := buildDispatchFuncName(pf.Name, elemType, isGeneric, pf.Private)
-			signature := buildFuncSignature(pf, elemType)
-			fmt.Fprintf(&buf, "var %s func%s\n", funcName, signature)
+		for _, dc := range getDispatchCombos(pf) {
+			typeMap := dc.Combo.Types
+			if len(typeMap) <= 1 {
+				typeMap = nil
+			}
+			signature := buildFuncSignatureWithMap(pf, dc.ElemType, typeMap)
+			fmt.Fprintf(&buf, "var %s func%s\n", dc.DispatchName, signature)
 		}
 	}
 	fmt.Fprintf(&buf, "\n")
@@ -625,25 +597,17 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 
 	fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 	for _, pf := range dispatchableFuncs {
-		isGeneric := len(pf.TypeParams) > 0
-		var concreteTypes []string
-		if isGeneric {
-			concreteTypes = GetConcreteTypes(pf.TypeParams[0].Constraint)
-		} else {
-			concreteTypes = []string{"float32"}
-		}
-
-		for _, elemType := range concreteTypes {
-			dispatchName := buildDispatchFuncName(pf.Name, elemType, isGeneric, pf.Private)
+		for _, dc := range getDispatchCombos(pf) {
 			baseName := pf.Name
 			if pf.Private {
 				baseName = makeUnexported(baseName)
 			}
 			implName := baseName + "_fallback"
-			if elemType != "float32" && isGeneric {
-				implName = implName + "_" + typeNameToSuffix(elemType)
+			suffix := dc.TypeSuffix
+			if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
+				implName = implName + "_" + suffix
 			}
-			fmt.Fprintf(&buf, "\t%s = %s\n", dispatchName, implName)
+			fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, implName)
 		}
 	}
 	fmt.Fprintf(&buf, "}\n")
@@ -953,7 +917,10 @@ func toCamelCase(s string) string {
 func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 	hasInterfaceParams := hasInterfaceTypeParams(pf.TypeParams)
 	genericName := buildGenericFuncName(pf.Name, hasInterfaceParams, pf.Private)
-	concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
+	combos := getTypeCombinations(&pf)
+
+	// Check if this is a multi-type function (//hwy:gen with 2+ type params per combo)
+	isMultiType := len(pf.TypeCombinations) > 0 && len(pf.TypeParams) > 1
 
 	// Copy doc comments from the base function, then add dispatch note
 	if pf.Doc != nil {
@@ -1011,11 +978,29 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 
 	fmt.Fprintf(buf, " {\n")
 
+	if isMultiType {
+		// Multi-type dispatch: nested type switches.
+		// Group combos by first type param value for the outer switch.
+		emitMultiTypeDispatch(buf, pf, combos)
+	} else {
+		// Single-type dispatch: simple type switch on first generic param
+		emitSingleTypeDispatch(buf, pf, combos)
+	}
+
+	// Add default return if function has return values
+	if len(pf.Returns) > 0 {
+		fmt.Fprintf(buf, "\tpanic(\"unreachable\")\n")
+	}
+
+	fmt.Fprintf(buf, "}\n\n")
+}
+
+// emitSingleTypeDispatch generates a simple type switch for single-type-param functions.
+func emitSingleTypeDispatch(buf *bytes.Buffer, pf ParsedFunc, combos []TypeCombination) {
 	// Find the first parameter with a generic type to use for type switch
 	var switchParam string
 	var switchParamType string
 	for _, param := range pf.Params {
-		// Check if this parameter contains a type parameter
 		if containsTypeParam(param.Type, pf.TypeParams) {
 			switchParam = param.Name
 			switchParamType = param.Type
@@ -1024,123 +1009,205 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 	}
 
 	if switchParam == "" {
-		// No generic parameter found, use first parameter
 		switchParam = pf.Params[0].Name
 		switchParamType = pf.Params[0].Type
 	}
 
-	// Generate type switch
 	fmt.Fprintf(buf, "\tswitch any(%s).(type) {\n", switchParam)
 
-	for _, elemType := range concreteTypes {
-		// emitGenericDispatcher is only called for generic functions, so isGeneric is always true
-		dispatchName := buildDispatchFuncName(pf.Name, elemType, true, pf.Private)
-		// Use specializeType to get the concrete type for the case statement
+	for _, combo := range combos {
+		elemType := comboPrimaryType(combo, pf.TypeParams)
+		dispatchName := buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
 		caseType := specializeType(switchParamType, pf.TypeParams, elemType)
 
 		fmt.Fprintf(buf, "\tcase %s:\n", caseType)
+		emitDispatchCall(buf, pf, dispatchName, elemType, nil, "\t\t")
+	}
 
-		// Check if any return type is a type parameter that needs wrapping
-		needsReturnWrap := false
-		for _, ret := range pf.Returns {
-			if containsTypeParam(ret.Type, pf.TypeParams) {
-				needsReturnWrap = true
+	fmt.Fprintf(buf, "\t}\n")
+}
+
+// emitMultiTypeDispatch generates nested type switches for multi-type-param functions.
+// The outer switch is on the first type param, the inner switch on the second.
+func emitMultiTypeDispatch(buf *bytes.Buffer, pf ParsedFunc, combos []TypeCombination) {
+	if len(pf.TypeParams) < 2 {
+		emitSingleTypeDispatch(buf, pf, combos)
+		return
+	}
+
+	firstTP := pf.TypeParams[0]
+	secondTP := pf.TypeParams[1]
+
+	// Find switch params for outer and inner switch
+	var outerSwitchParam, innerSwitchParam string
+	for _, param := range pf.Params {
+		if outerSwitchParam == "" && containsSpecificTypeParam(param.Type, firstTP.Name) {
+			outerSwitchParam = param.Name
+		}
+		if innerSwitchParam == "" && containsSpecificTypeParam(param.Type, secondTP.Name) {
+			innerSwitchParam = param.Name
+		}
+	}
+	if outerSwitchParam == "" {
+		outerSwitchParam = pf.Params[0].Name
+	}
+	if innerSwitchParam == "" {
+		// Use a different param or fall back
+		for _, param := range pf.Params {
+			if param.Name != outerSwitchParam {
+				innerSwitchParam = param.Name
 				break
 			}
 		}
+		if innerSwitchParam == "" {
+			innerSwitchParam = outerSwitchParam
+		}
+	}
 
-		// Handle multiple return values that need type conversion
-		if needsReturnWrap && len(pf.Returns) > 1 {
-			// Generate temp variable assignment: _r0, _r1 := Func(...)
-			fmt.Fprintf(buf, "\t\t")
-			for i := range pf.Returns {
-				if i > 0 {
-					fmt.Fprintf(buf, ", ")
-				}
-				fmt.Fprintf(buf, "_r%d", i)
-			}
-			fmt.Fprintf(buf, " := %s(", dispatchName)
-
-			for i, param := range pf.Params {
-				if i > 0 {
-					fmt.Fprintf(buf, ", ")
-				}
-				if containsTypeParam(param.Type, pf.TypeParams) {
-					concreteParamType := specializeType(param.Type, pf.TypeParams, elemType)
-					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
-				} else if param.Type == "T" {
-					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, elemType)
-				} else if isInterfaceTypeParam(param.Type, pf.TypeParams) {
-					concreteType := specializeType(getConstraintForParam(param.Type, pf.TypeParams), pf.TypeParams, elemType)
-					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
-				} else {
-					fmt.Fprintf(buf, "%s", param.Name)
-				}
-			}
-			fmt.Fprintf(buf, ")\n")
-
-			// Generate return statement: return any(_r0).(T), any(_r1).(T)
-			fmt.Fprintf(buf, "\t\treturn ")
-			for i, ret := range pf.Returns {
-				if i > 0 {
-					fmt.Fprintf(buf, ", ")
-				}
-				if containsTypeParam(ret.Type, pf.TypeParams) {
-					fmt.Fprintf(buf, "any(_r%d).(%s)", i, ret.Type)
-				} else {
-					fmt.Fprintf(buf, "_r%d", i)
-				}
-			}
-			fmt.Fprintf(buf, "\n")
+	// Group combos by first type param value
+	type comboGroup struct {
+		outerType string
+		combos    []TypeCombination
+	}
+	var groups []comboGroup
+	groupIdx := make(map[string]int)
+	for _, combo := range combos {
+		outerType := combo.Types[firstTP.Name]
+		if idx, ok := groupIdx[outerType]; ok {
+			groups[idx].combos = append(groups[idx].combos, combo)
 		} else {
-			// Single return or no return - use simpler inline form
-			if len(pf.Returns) > 0 {
-				if needsReturnWrap {
-					fmt.Fprintf(buf, "\t\treturn any(")
-				} else {
-					fmt.Fprintf(buf, "\t\treturn ")
-				}
-			} else {
-				fmt.Fprintf(buf, "\t\t")
-			}
-			fmt.Fprintf(buf, "%s(", dispatchName)
+			groupIdx[outerType] = len(groups)
+			groups = append(groups, comboGroup{outerType: outerType, combos: []TypeCombination{combo}})
+		}
+	}
 
-			for i, param := range pf.Params {
-				if i > 0 {
-					fmt.Fprintf(buf, ", ")
-				}
-				// Check if this parameter needs type assertion
-				if containsTypeParam(param.Type, pf.TypeParams) {
-					// Use specializeType to get the correct concrete type
-					concreteParamType := specializeType(param.Type, pf.TypeParams, elemType)
-					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
-				} else if param.Type == "T" {
-					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, elemType)
-				} else if isInterfaceTypeParam(param.Type, pf.TypeParams) {
-					// Interface type parameter (e.g., P constrained by Predicate[T])
-					// Need to assert to concrete interface type (e.g., Predicate[float32])
-					concreteType := specializeType(getConstraintForParam(param.Type, pf.TypeParams), pf.TypeParams, elemType)
-					fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
-				} else {
-					fmt.Fprintf(buf, "%s", param.Name)
-				}
+	fmt.Fprintf(buf, "\tswitch any(%s).(type) {\n", outerSwitchParam)
+
+	for _, group := range groups {
+		outerCaseType := specializeType("[]"+firstTP.Name, pf.TypeParams, group.outerType)
+		// Extract just the case type (e.g., "[]hwy.Float16")
+		fmt.Fprintf(buf, "\tcase %s:\n", outerCaseType)
+
+		if len(group.combos) == 1 {
+			// Only one combo for this outer type — no inner switch needed
+			combo := group.combos[0]
+			dispatchName := buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
+			elemType := comboPrimaryType(combo, pf.TypeParams)
+			emitDispatchCall(buf, pf, dispatchName, elemType, combo.Types, "\t\t")
+		} else {
+			// Multiple inner types — nest a switch
+			fmt.Fprintf(buf, "\t\tswitch any(%s).(type) {\n", innerSwitchParam)
+			for _, combo := range group.combos {
+				innerType := combo.Types[secondTP.Name]
+				innerCaseType := specializeType("[]"+secondTP.Name, pf.TypeParams, innerType)
+				fmt.Fprintf(buf, "\t\tcase %s:\n", innerCaseType)
+
+				dispatchName := buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
+				elemType := comboPrimaryType(combo, pf.TypeParams)
+				emitDispatchCall(buf, pf, dispatchName, elemType, combo.Types, "\t\t\t")
 			}
-			fmt.Fprintf(buf, ")")
-			if needsReturnWrap {
-				fmt.Fprintf(buf, ").(%s)", pf.Returns[0].Type)
-			}
-			fmt.Fprintf(buf, "\n")
+			fmt.Fprintf(buf, "\t\t}\n")
 		}
 	}
 
 	fmt.Fprintf(buf, "\t}\n")
+}
 
-	// Add default return if function has return values
-	if len(pf.Returns) > 0 {
-		fmt.Fprintf(buf, "\tpanic(\"unreachable\")\n")
+// emitDispatchCall emits the function call + return for one dispatch case.
+func emitDispatchCall(buf *bytes.Buffer, pf ParsedFunc, dispatchName, elemType string, typeMap map[string]string, indent string) {
+	needsReturnWrap := false
+	for _, ret := range pf.Returns {
+		if containsTypeParam(ret.Type, pf.TypeParams) {
+			needsReturnWrap = true
+			break
+		}
 	}
 
-	fmt.Fprintf(buf, "}\n\n")
+	if needsReturnWrap && len(pf.Returns) > 1 {
+		fmt.Fprintf(buf, "%s", indent)
+		for i := range pf.Returns {
+			if i > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			fmt.Fprintf(buf, "_r%d", i)
+		}
+		fmt.Fprintf(buf, " := %s(", dispatchName)
+
+		for i, param := range pf.Params {
+			if i > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			emitDispatchArg(buf, param, pf.TypeParams, elemType, typeMap)
+		}
+		fmt.Fprintf(buf, ")\n")
+
+		fmt.Fprintf(buf, "%sreturn ", indent)
+		for i, ret := range pf.Returns {
+			if i > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			if containsTypeParam(ret.Type, pf.TypeParams) {
+				fmt.Fprintf(buf, "any(_r%d).(%s)", i, ret.Type)
+			} else {
+				fmt.Fprintf(buf, "_r%d", i)
+			}
+		}
+		fmt.Fprintf(buf, "\n")
+	} else {
+		if len(pf.Returns) > 0 {
+			if needsReturnWrap {
+				fmt.Fprintf(buf, "%sreturn any(", indent)
+			} else {
+				fmt.Fprintf(buf, "%sreturn ", indent)
+			}
+		} else {
+			fmt.Fprintf(buf, "%s", indent)
+		}
+		fmt.Fprintf(buf, "%s(", dispatchName)
+
+		for i, param := range pf.Params {
+			if i > 0 {
+				fmt.Fprintf(buf, ", ")
+			}
+			emitDispatchArg(buf, param, pf.TypeParams, elemType, typeMap)
+		}
+		fmt.Fprintf(buf, ")")
+		if needsReturnWrap {
+			fmt.Fprintf(buf, ").(%s)", pf.Returns[0].Type)
+		}
+		fmt.Fprintf(buf, "\n")
+	}
+}
+
+// emitDispatchArg emits a single argument in a dispatch call, with type assertions as needed.
+func emitDispatchArg(buf *bytes.Buffer, param Param, typeParams []TypeParam, elemType string, typeMap map[string]string) {
+	if containsTypeParam(param.Type, typeParams) {
+		concreteParamType := specializeTypeWithMap(param.Type, typeParams, elemType, typeMap)
+		fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
+	} else if isInterfaceTypeParam(param.Type, typeParams) {
+		concreteType := specializeTypeWithMap(getConstraintForParam(param.Type, typeParams), typeParams, elemType, typeMap)
+		fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
+	} else {
+		fmt.Fprintf(buf, "%s", param.Name)
+	}
+}
+
+// containsSpecificTypeParam checks if a type string contains a specific type parameter name.
+func containsSpecificTypeParam(typeStr, paramName string) bool {
+	// Check for patterns like []T1, T1, [T1], func(T1)
+	if typeStr == paramName {
+		return true
+	}
+	if strings.Contains(typeStr, "[]"+paramName) {
+		return true
+	}
+	if strings.Contains(typeStr, "["+paramName+"]") {
+		return true
+	}
+	if strings.Contains(typeStr, "("+paramName) || strings.Contains(typeStr, paramName+")") {
+		return true
+	}
+	return false
 }
 
 // buildDispatchFuncName creates the public function name for the dispatcher.
@@ -1184,8 +1251,25 @@ func buildGenericFuncName(baseName string, hasInterfaceParams, private bool) str
 	return name
 }
 
-// buildFuncSignature builds a function signature string from ParsedFunc.
-func buildFuncSignature(pf ParsedFunc, elemType string) string {
+// buildDispatchFuncNameCombo creates the dispatch function name for a type combination.
+// For single-type combos, behaves like buildDispatchFuncName.
+// For multi-type combos, appends all type suffixes concatenated (e.g., "DotGeneralFloat16Float32").
+func buildDispatchFuncNameCombo(baseName string, combo TypeCombination, typeParams []TypeParam, private bool) string {
+	name := strings.TrimPrefix(baseName, "Base")
+	name = strings.TrimPrefix(name, "base")
+	if private {
+		name = makeUnexported(name)
+	}
+	suffix := comboTypeSuffix(combo, typeParams)
+	if suffix != "" {
+		name = name + suffix
+	}
+	return name
+}
+
+// buildFuncSignatureWithMap builds a function signature string from ParsedFunc,
+// using typeMap for per-param type resolution when non-nil.
+func buildFuncSignatureWithMap(pf ParsedFunc, elemType string, typeMap map[string]string) string {
 	var buf bytes.Buffer
 
 	// Parameters
@@ -1194,7 +1278,7 @@ func buildFuncSignature(pf ParsedFunc, elemType string) string {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		paramType := specializeType(param.Type, pf.TypeParams, elemType)
+		paramType := specializeTypeWithMap(param.Type, pf.TypeParams, elemType, typeMap)
 		buf.WriteString(param.Name)
 		buf.WriteString(" ")
 		buf.WriteString(paramType)
@@ -1206,7 +1290,7 @@ func buildFuncSignature(pf ParsedFunc, elemType string) string {
 		buf.WriteString(" ")
 		if len(pf.Returns) == 1 && pf.Returns[0].Name == "" {
 			// Single unnamed return
-			retType := specializeType(pf.Returns[0].Type, pf.TypeParams, elemType)
+			retType := specializeTypeWithMap(pf.Returns[0].Type, pf.TypeParams, elemType, typeMap)
 			buf.WriteString(retType)
 		} else {
 			// Multiple or named returns
@@ -1219,7 +1303,7 @@ func buildFuncSignature(pf ParsedFunc, elemType string) string {
 					buf.WriteString(ret.Name)
 					buf.WriteString(" ")
 				}
-				retType := specializeType(ret.Type, pf.TypeParams, elemType)
+				retType := specializeTypeWithMap(ret.Type, pf.TypeParams, elemType, typeMap)
 				buf.WriteString(retType)
 			}
 			buf.WriteString(")")
@@ -1227,6 +1311,46 @@ func buildFuncSignature(pf ParsedFunc, elemType string) string {
 	}
 
 	return buf.String()
+}
+
+// dispatchComboInfo contains the information needed to wire one type combination
+// in a dispatch init function.
+type dispatchComboInfo struct {
+	DispatchName string            // e.g., "DotGeneralFloat16Float32"
+	ElemType     string            // primary element type, e.g., "hwy.Float16"
+	TypeSuffix   string            // e.g., "Float16Float32" or "Float64"
+	Combo        TypeCombination   // the full combination
+}
+
+// getDispatchCombos returns dispatch info for all type combinations of a function.
+// For non-generic functions, returns a single entry with no type suffix.
+// For single-type-param generic functions, returns one entry per concrete type.
+// For multi-type-param functions (//hwy:gen), returns one entry per combination.
+func getDispatchCombos(pf ParsedFunc) []dispatchComboInfo {
+	combos := getTypeCombinations(&pf)
+	isGeneric := len(pf.TypeParams) > 0
+
+	var result []dispatchComboInfo
+	for _, combo := range combos {
+		elemType := comboPrimaryType(combo, pf.TypeParams)
+
+		var dispatchName string
+		if !isGeneric {
+			dispatchName = buildDispatchFuncName(pf.Name, elemType, false, pf.Private)
+		} else {
+			dispatchName = buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
+		}
+
+		suffix := comboTypeSuffix(combo, pf.TypeParams)
+
+		result = append(result, dispatchComboInfo{
+			DispatchName: dispatchName,
+			ElemType:     elemType,
+			TypeSuffix:   suffix,
+			Combo:        combo,
+		})
+	}
+	return result
 }
 
 // getBaseFilename extracts the base filename without extension.
