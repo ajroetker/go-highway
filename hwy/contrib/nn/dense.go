@@ -84,6 +84,8 @@ func applyActivationInPlace[T hwy.Floats](data []T, act ActivationType) {
 		activation.ReLU(data, data)
 	case ActivationSilu:
 		activation.SiLU(data, data)
+	case ActivationHardSwish:
+		activation.HardSwish(data, data)
 	case ActivationTanh:
 		activation.Tanh(data, data)
 	}

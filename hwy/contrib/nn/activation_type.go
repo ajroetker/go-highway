@@ -26,6 +26,8 @@ const (
 	ActivationRelu
 	// ActivationSilu applies the Sigmoid Linear Unit (Swish) activation.
 	ActivationSilu
+	// ActivationHardSwish applies the Hard Swish activation: x * min(max(x/6 + 0.5, 0), 1).
+	ActivationHardSwish
 	// ActivationTanh applies the hyperbolic tangent activation.
 	ActivationTanh
 )

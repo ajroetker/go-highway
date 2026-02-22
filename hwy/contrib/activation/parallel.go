@@ -103,6 +103,14 @@ func ParallelTanh[T hwy.Floats](pool workerpool.Executor, input, output []T, row
 	})
 }
 
+// ParallelHardSwish applies HardSwish element-wise across a [rows, cols]
+// matrix in parallel.
+func ParallelHardSwish[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
+	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
+		HardSwish(in, out)
+	})
+}
+
 // ParallelLeakyReLU applies LeakyReLU(alpha) element-wise across a
 // [rows, cols] matrix in parallel.
 func ParallelLeakyReLU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int, alpha T) {

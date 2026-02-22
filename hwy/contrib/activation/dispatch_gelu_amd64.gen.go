@@ -34,6 +34,10 @@ var TanhFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var TanhBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var TanhFloat32 func(input []float32, output []float32)
 var TanhFloat64 func(input []float64, output []float64)
+var HardSwishFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var HardSwishBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
+var HardSwishFloat32 func(input []float32, output []float32)
+var HardSwishFloat64 func(input []float64, output []float64)
 var ELUFloat16 func(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16)
 var ELUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16)
 var ELUFloat32 func(input []float32, output []float32, alpha float32)
@@ -161,6 +165,27 @@ func Tanh[T hwy.Floats](input []T, output []T) {
 	}
 }
 
+// HardSwish computes the Hard Swish activation function.
+//
+// HardSwish(x) = x * min(max(x/6 + 0.5, 0), 1)
+//
+// HardSwish is a piecewise-linear approximation of Swish used in MobileNetV3
+// and other efficient architectures. It avoids the sigmoid computation of SiLU.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func HardSwish[T hwy.Floats](input []T, output []T) {
+	switch any(input).(type) {
+	case []hwy.Float16:
+		HardSwishFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		HardSwishBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
+	case []float32:
+		HardSwishFloat32(any(input).([]float32), any(output).([]float32))
+	case []float64:
+		HardSwishFloat64(any(input).([]float64), any(output).([]float64))
+	}
+}
+
 // ELU computes the Exponential Linear Unit activation.
 //
 // ELU(x) = x if x > 0, else alpha * (exp(x) - 1)
@@ -226,6 +251,10 @@ func initGeluAVX2() {
 	TanhBFloat16 = BaseTanh_avx2_BFloat16
 	TanhFloat32 = BaseTanh_avx2
 	TanhFloat64 = BaseTanh_avx2_Float64
+	HardSwishFloat16 = BaseHardSwish_avx2_Float16
+	HardSwishBFloat16 = BaseHardSwish_avx2_BFloat16
+	HardSwishFloat32 = BaseHardSwish_avx2
+	HardSwishFloat64 = BaseHardSwish_avx2_Float64
 	ELUFloat16 = BaseELU_avx2_Float16
 	ELUBFloat16 = BaseELU_avx2_BFloat16
 	ELUFloat32 = BaseELU_avx2
@@ -257,6 +286,10 @@ func initGeluAVX512() {
 	TanhBFloat16 = BaseTanh_avx512_BFloat16
 	TanhFloat32 = BaseTanh_avx512
 	TanhFloat64 = BaseTanh_avx512_Float64
+	HardSwishFloat16 = BaseHardSwish_avx512_Float16
+	HardSwishBFloat16 = BaseHardSwish_avx512_BFloat16
+	HardSwishFloat32 = BaseHardSwish_avx512
+	HardSwishFloat64 = BaseHardSwish_avx512_Float64
 	ELUFloat16 = BaseELU_avx512_Float16
 	ELUBFloat16 = BaseELU_avx512_BFloat16
 	ELUFloat32 = BaseELU_avx512
@@ -288,6 +321,10 @@ func initGeluFallback() {
 	TanhBFloat16 = BaseTanh_fallback_BFloat16
 	TanhFloat32 = BaseTanh_fallback
 	TanhFloat64 = BaseTanh_fallback_Float64
+	HardSwishFloat16 = BaseHardSwish_fallback_Float16
+	HardSwishBFloat16 = BaseHardSwish_fallback_BFloat16
+	HardSwishFloat32 = BaseHardSwish_fallback
+	HardSwishFloat64 = BaseHardSwish_fallback_Float64
 	ELUFloat16 = BaseELU_fallback_Float16
 	ELUBFloat16 = BaseELU_fallback_BFloat16
 	ELUFloat32 = BaseELU_fallback

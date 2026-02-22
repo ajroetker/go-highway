@@ -521,6 +521,128 @@ func BaseTanh_fallback_Float64(input []float64, output []float64) {
 	}
 }
 
+func BaseHardSwish_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := hwy.Const[hwy.Float16](0.0)
+	vOne := hwy.Const[hwy.Float16](1.0)
+	vScale := hwy.Const[hwy.Float16](0.16666667)
+	vBias := hwy.Const[hwy.Float16](0.5)
+	lanes := vZero.NumLanes()
+	ii := 0
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		s := hwy.Add(hwy.Mul(x, vScale), vBias)
+		s = hwy.Max(s, vZero)
+		s = hwy.Min(s, vOne)
+		result := hwy.Mul(x, s)
+		hwy.Store(result, output[ii:])
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = hwy.Float32ToFloat16(float32(x * s))
+	}
+}
+
+func BaseHardSwish_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := hwy.Const[hwy.BFloat16](0.0)
+	vOne := hwy.Const[hwy.BFloat16](1.0)
+	vScale := hwy.Const[hwy.BFloat16](0.16666667)
+	vBias := hwy.Const[hwy.BFloat16](0.5)
+	lanes := vZero.NumLanes()
+	ii := 0
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		s := hwy.Add(hwy.Mul(x, vScale), vBias)
+		s = hwy.Max(s, vZero)
+		s = hwy.Min(s, vOne)
+		result := hwy.Mul(x, s)
+		hwy.Store(result, output[ii:])
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = hwy.Float32ToBFloat16(float32(x * s))
+	}
+}
+
+func BaseHardSwish_fallback(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := float32(0.0)
+	vOne := float32(1.0)
+	vScale := float32(0.16666667)
+	vBias := float32(0.5)
+	ii := 0
+	for ; ii < size; ii++ {
+		x := input[ii]
+		s := x*vScale + vBias
+		s = max(s, vZero)
+		s = min(s, vOne)
+		result := x * s
+		output[ii] = result
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = float32(x * s)
+	}
+}
+
+func BaseHardSwish_fallback_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := float64(0.0)
+	vOne := float64(1.0)
+	vScale := float64(0.16666667)
+	vBias := float64(0.5)
+	ii := 0
+	for ; ii < size; ii++ {
+		x := input[ii]
+		s := x*vScale + vBias
+		s = max(s, vZero)
+		s = min(s, vOne)
+		result := x * s
+		output[ii] = result
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = float64(x * s)
+	}
+}
+
 func BaseELU_fallback_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {

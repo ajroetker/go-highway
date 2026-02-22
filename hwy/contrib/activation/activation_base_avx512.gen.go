@@ -29,6 +29,14 @@ var (
 	BaseGELU_AVX512_vInvSqrt2_f64    archsimd.Float64x8
 	BaseGELU_AVX512_vOne_f32         archsimd.Float32x16
 	BaseGELU_AVX512_vOne_f64         archsimd.Float64x8
+	BaseHardSwish_AVX512_vBias_f32   archsimd.Float32x16
+	BaseHardSwish_AVX512_vBias_f64   archsimd.Float64x8
+	BaseHardSwish_AVX512_vOne_f32    archsimd.Float32x16
+	BaseHardSwish_AVX512_vOne_f64    archsimd.Float64x8
+	BaseHardSwish_AVX512_vScale_f32  archsimd.Float32x16
+	BaseHardSwish_AVX512_vScale_f64  archsimd.Float64x8
+	BaseHardSwish_AVX512_vZero_f32   archsimd.Float32x16
+	BaseHardSwish_AVX512_vZero_f64   archsimd.Float64x8
 	BaseReLU_AVX512_vZero_f32        archsimd.Float32x16
 	BaseReLU_AVX512_vZero_f64        archsimd.Float64x8
 	_activationBaseHoistOnce         sync.Once
@@ -48,6 +56,14 @@ func _activationBaseInitHoistedConstants() {
 		BaseGELU_AVX512_vInvSqrt2_f64 = archsimd.BroadcastFloat64x8(0.7071067811865476)
 		BaseGELU_AVX512_vOne_f32 = archsimd.BroadcastFloat32x16(1.0)
 		BaseGELU_AVX512_vOne_f64 = archsimd.BroadcastFloat64x8(1.0)
+		BaseHardSwish_AVX512_vBias_f32 = archsimd.BroadcastFloat32x16(0.5)
+		BaseHardSwish_AVX512_vBias_f64 = archsimd.BroadcastFloat64x8(0.5)
+		BaseHardSwish_AVX512_vOne_f32 = archsimd.BroadcastFloat32x16(1.0)
+		BaseHardSwish_AVX512_vOne_f64 = archsimd.BroadcastFloat64x8(1.0)
+		BaseHardSwish_AVX512_vScale_f32 = archsimd.BroadcastFloat32x16(0.16666667)
+		BaseHardSwish_AVX512_vScale_f64 = archsimd.BroadcastFloat64x8(0.16666667)
+		BaseHardSwish_AVX512_vZero_f32 = archsimd.BroadcastFloat32x16(0.0)
+		BaseHardSwish_AVX512_vZero_f64 = archsimd.BroadcastFloat64x8(0.0)
 		BaseReLU_AVX512_vZero_f32 = archsimd.BroadcastFloat32x16(0.0)
 		BaseReLU_AVX512_vZero_f64 = archsimd.BroadcastFloat64x8(0.0)
 	})
@@ -894,6 +910,214 @@ func BaseTanh_avx512_Float64(input []float64, output []float64) {
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
 		output[i] = float64(stdmath.Tanh(x))
+	}
+}
+
+func BaseHardSwish_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.0))))
+	vOne := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(1.0))))
+	vScale := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.16666667))))
+	vBias := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.5))))
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*3 <= size; ii += lanes * 3 {
+		x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii+16:][0]))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+16:][0]))
+		x2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii+32:][0]))
+		s2 := x2.Mul(vScale).Add(vBias)
+		s2 = s2.Max(vZero)
+		s2 = s2.Min(vOne)
+		result2 := x2.Mul(s2)
+		result2.StorePtr(unsafe.Pointer(&output[ii+32:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = hwy.Float32ToFloat16(float32(x * s))
+	}
+}
+
+func BaseHardSwish_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.0))))
+	vOne := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(1.0))))
+	vScale := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.16666667))))
+	vBias := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.5))))
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*3 <= size; ii += lanes * 3 {
+		x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii+16:][0]))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+16:][0]))
+		x2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii+32:][0]))
+		s2 := x2.Mul(vScale).Add(vBias)
+		s2 = s2.Max(vZero)
+		s2 = s2.Min(vOne)
+		result2 := x2.Mul(s2)
+		result2.StorePtr(unsafe.Pointer(&output[ii+32:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = hwy.Float32ToBFloat16(float32(x * s))
+	}
+}
+
+func BaseHardSwish_avx512(input []float32, output []float32) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := BaseHardSwish_AVX512_vZero_f32
+	vOne := BaseHardSwish_AVX512_vOne_f32
+	vScale := BaseHardSwish_AVX512_vScale_f32
+	vBias := BaseHardSwish_AVX512_vBias_f32
+	lanes := 16
+	ii := 0
+	for ; ii+lanes*3 <= size; ii += lanes * 3 {
+		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+16])))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.Store((*[16]float32)(unsafe.Pointer(&output[ii+16])))
+		x2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+32])))
+		s2 := x2.Mul(vScale).Add(vBias)
+		s2 = s2.Max(vZero)
+		s2 = s2.Min(vOne)
+		result2 := x2.Mul(s2)
+		result2.Store((*[16]float32)(unsafe.Pointer(&output[ii+32])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = float32(x * s)
+	}
+}
+
+func BaseHardSwish_avx512_Float64(input []float64, output []float64) {
+	_activationBaseInitHoistedConstants()
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := BaseHardSwish_AVX512_vZero_f64
+	vOne := BaseHardSwish_AVX512_vOne_f64
+	vScale := BaseHardSwish_AVX512_vScale_f64
+	vBias := BaseHardSwish_AVX512_vBias_f64
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*3 <= size; ii += lanes * 3 {
+		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+8])))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.Store((*[8]float64)(unsafe.Pointer(&output[ii+8])))
+		x2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+16])))
+		s2 := x2.Mul(vScale).Add(vBias)
+		s2 = s2.Max(vZero)
+		s2 = s2.Min(vOne)
+		result2 := x2.Mul(s2)
+		result2.Store((*[8]float64)(unsafe.Pointer(&output[ii+16])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = float64(x * s)
 	}
 }
 

@@ -247,6 +247,53 @@ func BaseTanh[T hwy.Floats](input, output []T) {
 	}
 }
 
+// BaseHardSwish computes the Hard Swish activation function.
+//
+// HardSwish(x) = x * min(max(x/6 + 0.5, 0), 1)
+//
+// HardSwish is a piecewise-linear approximation of Swish used in MobileNetV3
+// and other efficient architectures. It avoids the sigmoid computation of SiLU.
+func BaseHardSwish[T hwy.Floats](input, output []T) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+
+	vZero := hwy.Const[T](0.0)
+	vOne := hwy.Const[T](1.0)
+	vScale := hwy.Const[T](0.16666667)
+	vBias := hwy.Const[T](0.5)
+	lanes := vZero.NumLanes()
+	ii := 0
+
+	// Process full vectors
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+
+		// Compute clamp(x/6 + 0.5, 0, 1)
+		s := hwy.Add(hwy.Mul(x, vScale), vBias)
+		s = hwy.Max(s, vZero)
+		s = hwy.Min(s, vOne)
+
+		// HardSwish(x) = x * s
+		result := hwy.Mul(x, s)
+
+		hwy.Store(result, output[ii:])
+	}
+
+	// Handle tail elements
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = T(x * s)
+	}
+}
+
 // BaseELU computes the Exponential Linear Unit activation.
 //
 // ELU(x) = x if x > 0, else alpha * (exp(x) - 1)
