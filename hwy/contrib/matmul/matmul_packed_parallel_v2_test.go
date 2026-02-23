@@ -229,56 +229,6 @@ func naiveMatMul(a, b, c []float32, m, n, k int) {
 	}
 }
 
-// Benchmarks comparing V1 and V2
-func BenchmarkParallelPackedMatMulV1vsV2(b *testing.B) {
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	sizes := []int{256, 512, 1024, 2048}
-
-	for _, size := range sizes {
-		m, n, k := size, size, size
-		a := make([]float32, m*k)
-		bMat := make([]float32, k*n)
-		c := make([]float32, m*n)
-
-		// Initialize
-		for i := range a {
-			a[i] = float32(i%100) / 100.0
-		}
-		for i := range bMat {
-			bMat[i] = float32(i%100) / 100.0
-		}
-
-		b.Run("V1/"+sizeStrV2(size), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ParallelPackedMatMul(pool, a, bMat, c, m, n, k)
-			}
-		})
-
-		b.Run("V2/"+sizeStrV2(size), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				ParallelPackedMatMulV2(pool, a, bMat, c, m, n, k)
-			}
-		})
-	}
-}
-
-func sizeStrV2(size int) string {
-	switch size {
-	case 256:
-		return "256x256"
-	case 512:
-		return "512x512"
-	case 1024:
-		return "1024x1024"
-	case 2048:
-		return "2048x2048"
-	default:
-		return "unknown"
-	}
-}
-
 func BenchmarkBatchParallelPackedMatMulV2(b *testing.B) {
 	pool := workerpool.New(0)
 	defer pool.Close()
