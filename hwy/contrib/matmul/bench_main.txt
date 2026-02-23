@@ -1,0 +1,1170 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/ajroetker/go-highway/hwy/contrib/matmul
+cpu: Apple M4 Max
+BenchmarkBF16MatMulGenerated/64-14           	  373992	      9710 ns/op	        53.99 GFLOPS
+BenchmarkBF16MatMulGenerated/64-14           	  368137	      9739 ns/op	        53.83 GFLOPS
+BenchmarkBF16MatMulGenerated/64-14           	  372684	      9719 ns/op	        53.95 GFLOPS
+BenchmarkBF16MatMulGenerated/64-14           	  369710	      9705 ns/op	        54.02 GFLOPS
+BenchmarkBF16MatMulGenerated/64-14           	  370882	      9707 ns/op	        54.01 GFLOPS
+BenchmarkBF16MatMulGenerated/64-14           	  371130	      9691 ns/op	        54.10 GFLOPS
+BenchmarkBF16MatMulGenerated/128-14          	   46790	     76794 ns/op	        54.62 GFLOPS
+BenchmarkBF16MatMulGenerated/128-14          	   46989	     76758 ns/op	        54.64 GFLOPS
+BenchmarkBF16MatMulGenerated/128-14          	   46860	     77461 ns/op	        54.15 GFLOPS
+BenchmarkBF16MatMulGenerated/128-14          	   46777	     76950 ns/op	        54.51 GFLOPS
+BenchmarkBF16MatMulGenerated/128-14          	   47011	     77061 ns/op	        54.43 GFLOPS
+BenchmarkBF16MatMulGenerated/128-14          	   46842	     76673 ns/op	        54.70 GFLOPS
+BenchmarkBF16MatMulGenerated/256-14          	    5906	    609467 ns/op	        55.06 GFLOPS
+BenchmarkBF16MatMulGenerated/256-14          	    5877	    608554 ns/op	        55.14 GFLOPS
+BenchmarkBF16MatMulGenerated/256-14          	    5937	    611622 ns/op	        54.86 GFLOPS
+BenchmarkBF16MatMulGenerated/256-14          	    5918	    613470 ns/op	        54.70 GFLOPS
+BenchmarkBF16MatMulGenerated/256-14          	    5841	    613525 ns/op	        54.69 GFLOPS
+BenchmarkBF16MatMulGenerated/256-14          	    5972	    614102 ns/op	        54.64 GFLOPS
+BenchmarkBF16MatMulGenerated/512-14          	     736	   4895245 ns/op	        54.84 GFLOPS
+BenchmarkBF16MatMulGenerated/512-14          	     741	   4920449 ns/op	        54.56 GFLOPS
+BenchmarkBF16MatMulGenerated/512-14          	     734	   4872443 ns/op	        55.09 GFLOPS
+BenchmarkBF16MatMulGenerated/512-14          	     727	   4894378 ns/op	        54.85 GFLOPS
+BenchmarkBF16MatMulGenerated/512-14          	     733	   4880855 ns/op	        55.00 GFLOPS
+BenchmarkBF16MatMulGenerated/512-14          	     733	   4935077 ns/op	        54.39 GFLOPS
+BenchmarkBlockMulAddNEONF32/032/NEON-14      	 3148442	      1128 ns/op	        58.08 GFLOPS
+BenchmarkBlockMulAddNEONF32/032/NEON-14      	 3172180	      1130 ns/op	        57.98 GFLOPS
+BenchmarkBlockMulAddNEONF32/032/NEON-14      	 3192999	      1126 ns/op	        58.18 GFLOPS
+BenchmarkBlockMulAddNEONF32/032/NEON-14      	 3193418	      1123 ns/op	        58.35 GFLOPS
+BenchmarkBlockMulAddNEONF32/032/NEON-14      	 3197428	      1125 ns/op	        58.24 GFLOPS
+BenchmarkBlockMulAddNEONF32/032/NEON-14      	 3200433	      1123 ns/op	        58.34 GFLOPS
+BenchmarkBlockMulAddNEONF32/048/NEON-14      	  816607	      4370 ns/op	        50.61 GFLOPS
+BenchmarkBlockMulAddNEONF32/048/NEON-14      	  822759	      4359 ns/op	        50.74 GFLOPS
+BenchmarkBlockMulAddNEONF32/048/NEON-14      	  831201	      4380 ns/op	        50.50 GFLOPS
+BenchmarkBlockMulAddNEONF32/048/NEON-14      	  826077	      4360 ns/op	        50.73 GFLOPS
+BenchmarkBlockMulAddNEONF32/048/NEON-14      	  831410	      4351 ns/op	        50.84 GFLOPS
+BenchmarkBlockMulAddNEONF32/048/NEON-14      	  836817	      4353 ns/op	        50.82 GFLOPS
+BenchmarkBlockMulAddNEONF32/064/NEON-14      	  333904	     10890 ns/op	        48.15 GFLOPS
+BenchmarkBlockMulAddNEONF32/064/NEON-14      	  331611	     10927 ns/op	        47.98 GFLOPS
+BenchmarkBlockMulAddNEONF32/064/NEON-14      	  330688	     10933 ns/op	        47.95 GFLOPS
+BenchmarkBlockMulAddNEONF32/064/NEON-14      	  327669	     11105 ns/op	        47.21 GFLOPS
+BenchmarkBlockMulAddNEONF32/064/NEON-14      	  316884	     11029 ns/op	        47.54 GFLOPS
+BenchmarkBlockMulAddNEONF32/064/NEON-14      	  326016	     10972 ns/op	        47.78 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/032/FMOPA-14    	 9110720	       395.5 ns/op	       165.7 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/032/FMOPA-14    	 9051039	       396.8 ns/op	       165.2 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/032/FMOPA-14    	 8954162	       396.0 ns/op	       165.5 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/032/FMOPA-14    	 9228024	       394.9 ns/op	       165.9 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/032/FMOPA-14    	 9151848	       395.1 ns/op	       165.9 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/032/FMOPA-14    	 9152296	       395.0 ns/op	       165.9 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/048/FMOPA-14    	 4864153	       740.5 ns/op	       298.7 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/048/FMOPA-14    	 4850875	       740.3 ns/op	       298.8 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/048/FMOPA-14    	 4867539	       741.0 ns/op	       298.5 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/048/FMOPA-14    	 4864552	       739.5 ns/op	       299.1 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/048/FMOPA-14    	 4874066	       740.2 ns/op	       298.8 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/048/FMOPA-14    	 4872138	       739.8 ns/op	       299.0 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/064/FMOPA-14    	 2100523	      1717 ns/op	       305.3 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/064/FMOPA-14    	 2083740	      1728 ns/op	       303.4 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/064/FMOPA-14    	 2093470	      1726 ns/op	       303.7 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/064/FMOPA-14    	 2098213	      1717 ns/op	       305.3 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/064/FMOPA-14    	 2093300	      1724 ns/op	       304.1 GFLOPS
+BenchmarkBlockMulAddFMOPAF32/064/FMOPA-14    	 2093701	      1725 ns/op	       304.0 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd-14      	 9147043	       394.8 ns/op	       166.0 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd-14      	 9122468	       395.4 ns/op	       165.8 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd-14      	 9124323	       393.6 ns/op	       166.5 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd-14      	 9186163	       392.8 ns/op	       166.8 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd-14      	 9154952	       392.6 ns/op	       166.9 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd-14      	 9172636	       394.0 ns/op	       166.3 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd2-14     	 4436391	       813.8 ns/op	        80.53 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd2-14     	 4430877	       816.3 ns/op	        80.28 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd2-14     	 4421307	       816.3 ns/op	        80.28 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd2-14     	 4384224	       827.8 ns/op	        79.17 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd2-14     	 4430142	       824.8 ns/op	        79.45 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd2-14     	 4424278	       824.5 ns/op	        79.49 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd4-14     	 5898699	       619.3 ns/op	       105.8 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd4-14     	 5783888	       616.9 ns/op	       106.2 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd4-14     	 5871903	       611.4 ns/op	       107.2 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd4-14     	 5903908	       611.8 ns/op	       107.1 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd4-14     	 5906115	       611.6 ns/op	       107.2 GFLOPS
+BenchmarkBlockMulAdd/032/BlockMulAdd4-14     	 5903695	       609.5 ns/op	       107.5 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd-14      	 4828957	       748.3 ns/op	       295.6 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd-14      	 4838198	       739.7 ns/op	       299.0 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd-14      	 4782409	       749.9 ns/op	       295.0 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd-14      	 4866208	       747.5 ns/op	       295.9 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd-14      	 4827374	       742.8 ns/op	       297.8 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd-14      	 4866108	       744.9 ns/op	       296.9 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd2-14     	 1288635	      2811 ns/op	        78.68 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd2-14     	 1296456	      2796 ns/op	        79.12 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd2-14     	 1291852	      2784 ns/op	        79.45 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd2-14     	 1294814	      2778 ns/op	        79.61 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd2-14     	 1295038	      2768 ns/op	        79.91 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd2-14     	 1288388	      2778 ns/op	        79.63 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd4-14     	 1759984	      2053 ns/op	       107.7 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd4-14     	 1759950	      2044 ns/op	       108.2 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd4-14     	 1753216	      2048 ns/op	       108.0 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd4-14     	 1757226	      2054 ns/op	       107.7 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd4-14     	 1749369	      2059 ns/op	       107.4 GFLOPS
+BenchmarkBlockMulAdd/048/BlockMulAdd4-14     	 1754434	      2049 ns/op	       107.9 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd-14      	 2088772	      1713 ns/op	       306.0 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd-14      	 2094403	      1721 ns/op	       304.6 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd-14      	 2083564	      1714 ns/op	       305.8 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd-14      	 2083814	      1718 ns/op	       305.2 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd-14      	 2097939	      1723 ns/op	       304.4 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd-14      	 2100463	      1718 ns/op	       305.1 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd2-14     	  522793	      6907 ns/op	        75.90 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd2-14     	  520551	      6985 ns/op	        75.06 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd2-14     	  521248	      7047 ns/op	        74.40 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd2-14     	  527158	      6997 ns/op	        74.94 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd2-14     	  528666	      6985 ns/op	        75.06 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd2-14     	  516002	      6987 ns/op	        75.03 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd4-14     	  751372	      4885 ns/op	       107.3 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd4-14     	  756073	      4934 ns/op	       106.3 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd4-14     	  739688	      4880 ns/op	       107.4 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd4-14     	  708638	      4925 ns/op	       106.4 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd4-14     	  739002	      4877 ns/op	       107.5 GFLOPS
+BenchmarkBlockMulAdd/064/BlockMulAdd4-14     	  744362	      4836 ns/op	       108.4 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Sequential-14         	  526982	      6912 ns/op	       303.4 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Sequential-14         	  520142	      6930 ns/op	       302.6 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Sequential-14         	  520122	      6880 ns/op	       304.8 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Sequential-14         	  526429	      6973 ns/op	       300.7 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Sequential-14         	  525930	      6906 ns/op	       303.7 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Sequential-14         	  496501	      6884 ns/op	       304.6 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Parallel-14           	  375636	      9699 ns/op	       216.2 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Parallel-14           	  373027	      9680 ns/op	       216.7 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Parallel-14           	  365708	      9594 ns/op	       218.6 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Parallel-14           	  377198	      9617 ns/op	       218.1 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Parallel-14           	  357097	      9571 ns/op	       219.1 GFLOPS
+BenchmarkParallelBlockMulAdd/004blocks/Parallel-14           	  372261	      9672 ns/op	       216.8 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Sequential-14         	  262962	     13789 ns/op	       304.2 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Sequential-14         	  263384	     13740 ns/op	       305.3 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Sequential-14         	  263180	     13773 ns/op	       304.5 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Sequential-14         	  260362	     13881 ns/op	       302.2 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Sequential-14         	  261153	     13917 ns/op	       301.4 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Sequential-14         	  262971	     13739 ns/op	       305.3 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Parallel-14           	  229356	     16017 ns/op	       261.9 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Parallel-14           	  226887	     15837 ns/op	       264.8 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Parallel-14           	  224590	     15953 ns/op	       262.9 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Parallel-14           	  227204	     15847 ns/op	       264.7 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Parallel-14           	  218653	     15959 ns/op	       262.8 GFLOPS
+BenchmarkParallelBlockMulAdd/008blocks/Parallel-14           	  222783	     15870 ns/op	       264.3 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Sequential-14         	  130788	     27958 ns/op	       300.0 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Sequential-14         	  128301	     27497 ns/op	       305.1 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Sequential-14         	  131156	     27607 ns/op	       303.9 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Sequential-14         	  130876	     27651 ns/op	       303.4 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Sequential-14         	  131307	     27684 ns/op	       303.0 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Sequential-14         	  131972	     27440 ns/op	       305.7 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Parallel-14           	  135344	     27315 ns/op	       307.1 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Parallel-14           	  133915	     27036 ns/op	       310.3 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Parallel-14           	  133398	     27281 ns/op	       307.5 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Parallel-14           	  132940	     27148 ns/op	       309.0 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Parallel-14           	  124466	     27403 ns/op	       306.1 GFLOPS
+BenchmarkParallelBlockMulAdd/016blocks/Parallel-14           	  125109	     27156 ns/op	       308.9 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Sequential-14         	   65620	     54971 ns/op	       305.2 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Sequential-14         	   65278	     55149 ns/op	       304.2 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Sequential-14         	   65440	     55193 ns/op	       304.0 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Sequential-14         	   65362	     55045 ns/op	       304.8 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Sequential-14         	   65558	     55200 ns/op	       303.9 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Sequential-14         	   65706	     55096 ns/op	       304.5 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Parallel-14           	   80380	     45507 ns/op	       368.7 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Parallel-14           	   79698	     45220 ns/op	       371.0 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Parallel-14           	   79494	     45254 ns/op	       370.7 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Parallel-14           	   78235	     45122 ns/op	       371.8 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Parallel-14           	   80551	     45173 ns/op	       371.4 GFLOPS
+BenchmarkParallelBlockMulAdd/032blocks/Parallel-14           	   80331	     45094 ns/op	       372.0 GFLOPS
+BenchmarkMatMulFloat16/64-14                                 	   34899	    103300 ns/op	         5.075 GFLOPS
+BenchmarkMatMulFloat16/64-14                                 	   34977	    102946 ns/op	         5.093 GFLOPS
+BenchmarkMatMulFloat16/64-14                                 	   34957	    103249 ns/op	         5.078 GFLOPS
+BenchmarkMatMulFloat16/64-14                                 	   34873	    103352 ns/op	         5.073 GFLOPS
+BenchmarkMatMulFloat16/64-14                                 	   34814	    128024 ns/op	         4.095 GFLOPS
+BenchmarkMatMulFloat16/64-14                                 	   34471	    103245 ns/op	         5.078 GFLOPS
+BenchmarkMatMulFloat16/128-14                                	    4332	    834981 ns/op	         5.023 GFLOPS
+BenchmarkMatMulFloat16/128-14                                	    4335	    834578 ns/op	         5.026 GFLOPS
+BenchmarkMatMulFloat16/128-14                                	    4263	    831895 ns/op	         5.042 GFLOPS
+BenchmarkMatMulFloat16/128-14                                	    4334	    832976 ns/op	         5.035 GFLOPS
+BenchmarkMatMulFloat16/128-14                                	    4348	    832498 ns/op	         5.038 GFLOPS
+BenchmarkMatMulFloat16/128-14                                	    4328	    828272 ns/op	         5.064 GFLOPS
+BenchmarkMatMulFloat16/256-14                                	    2082	   2111649 ns/op	        15.89 GFLOPS
+BenchmarkMatMulFloat16/256-14                                	    1971	   1732707 ns/op	        19.37 GFLOPS
+BenchmarkMatMulFloat16/256-14                                	    2077	   1730321 ns/op	        19.39 GFLOPS
+BenchmarkMatMulFloat16/256-14                                	    2094	   1737662 ns/op	        19.31 GFLOPS
+BenchmarkMatMulFloat16/256-14                                	    2084	   1735283 ns/op	        19.34 GFLOPS
+BenchmarkMatMulFloat16/256-14                                	    2076	   1732950 ns/op	        19.36 GFLOPS
+BenchmarkMatMulFloat16/512-14                                	     494	   7230876 ns/op	        37.12 GFLOPS
+BenchmarkMatMulFloat16/512-14                                	     502	   7236698 ns/op	        37.09 GFLOPS
+BenchmarkMatMulFloat16/512-14                                	     501	   7285801 ns/op	        36.84 GFLOPS
+BenchmarkMatMulFloat16/512-14                                	     499	   7296371 ns/op	        36.79 GFLOPS
+BenchmarkMatMulFloat16/512-14                                	     484	   7334676 ns/op	        36.60 GFLOPS
+BenchmarkMatMulFloat16/512-14                                	     486	   7436832 ns/op	        36.10 GFLOPS
+BenchmarkMatMulBFloat16/64-14                                	 1000000	      3497 ns/op	       149.9 GFLOPS
+BenchmarkMatMulBFloat16/64-14                                	 1000000	      3497 ns/op	       149.9 GFLOPS
+BenchmarkMatMulBFloat16/64-14                                	 1000000	      3493 ns/op	       150.1 GFLOPS
+BenchmarkMatMulBFloat16/64-14                                	 1000000	      3484 ns/op	       150.5 GFLOPS
+BenchmarkMatMulBFloat16/64-14                                	 1000000	      3475 ns/op	       150.9 GFLOPS
+BenchmarkMatMulBFloat16/64-14                                	 1000000	      3500 ns/op	       149.8 GFLOPS
+BenchmarkMatMulBFloat16/128-14                               	  174864	     20029 ns/op	       209.4 GFLOPS
+BenchmarkMatMulBFloat16/128-14                               	  177361	     20221 ns/op	       207.4 GFLOPS
+BenchmarkMatMulBFloat16/128-14                               	  178050	     19935 ns/op	       210.4 GFLOPS
+BenchmarkMatMulBFloat16/128-14                               	  182154	     20038 ns/op	       209.3 GFLOPS
+BenchmarkMatMulBFloat16/128-14                               	  178215	     20193 ns/op	       207.7 GFLOPS
+BenchmarkMatMulBFloat16/128-14                               	  180810	     19914 ns/op	       210.6 GFLOPS
+BenchmarkMatMulBFloat16/256-14                               	   37209	     97237 ns/op	       345.1 GFLOPS
+BenchmarkMatMulBFloat16/256-14                               	   36874	     97071 ns/op	       345.7 GFLOPS
+BenchmarkMatMulBFloat16/256-14                               	   36752	     97082 ns/op	       345.6 GFLOPS
+BenchmarkMatMulBFloat16/256-14                               	   36967	     97015 ns/op	       345.9 GFLOPS
+BenchmarkMatMulBFloat16/256-14                               	   37214	     97761 ns/op	       343.2 GFLOPS
+BenchmarkMatMulBFloat16/256-14                               	   37051	     97159 ns/op	       345.4 GFLOPS
+BenchmarkMatMulBFloat16/512-14                               	    9430	    376307 ns/op	       713.3 GFLOPS
+BenchmarkMatMulBFloat16/512-14                               	    9490	    377372 ns/op	       711.3 GFLOPS
+BenchmarkMatMulBFloat16/512-14                               	    9487	    377683 ns/op	       710.7 GFLOPS
+BenchmarkMatMulBFloat16/512-14                               	    9451	    377228 ns/op	       711.6 GFLOPS
+BenchmarkMatMulBFloat16/512-14                               	    9554	    377472 ns/op	       711.1 GFLOPS
+BenchmarkMatMulBFloat16/512-14                               	    9703	    377388 ns/op	       711.3 GFLOPS
+BenchmarkParallelMatMulFloat16/256-14                        	    1999	   1735248 ns/op	        19.34 GFLOPS
+BenchmarkParallelMatMulFloat16/256-14                        	    2088	   1732935 ns/op	        19.36 GFLOPS
+BenchmarkParallelMatMulFloat16/256-14                        	    2090	   1739731 ns/op	        19.29 GFLOPS
+BenchmarkParallelMatMulFloat16/256-14                        	    2077	   1735063 ns/op	        19.34 GFLOPS
+BenchmarkParallelMatMulFloat16/256-14                        	    2089	   1731936 ns/op	        19.37 GFLOPS
+BenchmarkParallelMatMulFloat16/256-14                        	    2072	   1751148 ns/op	        19.16 GFLOPS
+BenchmarkParallelMatMulFloat16/512-14                        	     495	   7243476 ns/op	        37.06 GFLOPS
+BenchmarkParallelMatMulFloat16/512-14                        	     498	   7402830 ns/op	        36.26 GFLOPS
+BenchmarkParallelMatMulFloat16/512-14                        	     490	   7456807 ns/op	        36.00 GFLOPS
+BenchmarkParallelMatMulFloat16/512-14                        	     463	   7446759 ns/op	        36.05 GFLOPS
+BenchmarkParallelMatMulFloat16/512-14                        	     481	   7555866 ns/op	        35.53 GFLOPS
+BenchmarkParallelMatMulFloat16/512-14                        	     482	   7455766 ns/op	        36.00 GFLOPS
+BenchmarkParallelMatMulFloat16/1024-14                       	      61	  60446032 ns/op	        35.53 GFLOPS
+BenchmarkParallelMatMulFloat16/1024-14                       	      62	  58829104 ns/op	        36.50 GFLOPS
+BenchmarkParallelMatMulFloat16/1024-14                       	      61	  58311762 ns/op	        36.83 GFLOPS
+BenchmarkParallelMatMulFloat16/1024-14                       	      62	  58239605 ns/op	        36.87 GFLOPS
+BenchmarkParallelMatMulFloat16/1024-14                       	      62	  57998573 ns/op	        37.03 GFLOPS
+BenchmarkParallelMatMulFloat16/1024-14                       	      61	  57518838 ns/op	        37.34 GFLOPS
+BenchmarkParallelMatMulBFloat16/256-14                       	   36505	     98110 ns/op	       342.0 GFLOPS
+BenchmarkParallelMatMulBFloat16/256-14                       	   36642	     98050 ns/op	       342.2 GFLOPS
+BenchmarkParallelMatMulBFloat16/256-14                       	   36765	     97638 ns/op	       343.7 GFLOPS
+BenchmarkParallelMatMulBFloat16/256-14                       	   36702	     98000 ns/op	       342.4 GFLOPS
+BenchmarkParallelMatMulBFloat16/256-14                       	   36614	     98013 ns/op	       342.3 GFLOPS
+BenchmarkParallelMatMulBFloat16/256-14                       	   36670	     97820 ns/op	       343.0 GFLOPS
+BenchmarkParallelMatMulBFloat16/512-14                       	    9542	    375877 ns/op	       714.2 GFLOPS
+BenchmarkParallelMatMulBFloat16/512-14                       	    9519	    374931 ns/op	       716.0 GFLOPS
+BenchmarkParallelMatMulBFloat16/512-14                       	    9541	    376210 ns/op	       713.5 GFLOPS
+BenchmarkParallelMatMulBFloat16/512-14                       	    9471	    375553 ns/op	       714.8 GFLOPS
+BenchmarkParallelMatMulBFloat16/512-14                       	    9519	    375521 ns/op	       714.8 GFLOPS
+BenchmarkParallelMatMulBFloat16/512-14                       	    9423	    374426 ns/op	       716.9 GFLOPS
+BenchmarkParallelMatMulBFloat16/1024-14                      	    1708	   2094510 ns/op	      1025 GFLOPS
+BenchmarkParallelMatMulBFloat16/1024-14                      	    1656	   2072957 ns/op	      1036 GFLOPS
+BenchmarkParallelMatMulBFloat16/1024-14                      	    1734	   2101884 ns/op	      1022 GFLOPS
+BenchmarkParallelMatMulBFloat16/1024-14                      	    1728	   2076521 ns/op	      1034 GFLOPS
+BenchmarkParallelMatMulBFloat16/1024-14                      	    1748	   2066030 ns/op	      1039 GFLOPS
+BenchmarkParallelMatMulBFloat16/1024-14                      	    1753	   2075614 ns/op	      1035 GFLOPS
+BenchmarkMatMulNEON/032-14                                   	 3301480	      1087 ns/op	11307.53 MB/s	        60.31 GFLOPS
+BenchmarkMatMulNEON/032-14                                   	 3309027	      1088 ns/op	11293.99 MB/s	        60.23 GFLOPS
+BenchmarkMatMulNEON/032-14                                   	 3314970	      1087 ns/op	11306.94 MB/s	        60.30 GFLOPS
+BenchmarkMatMulNEON/032-14                                   	 3318498	      1092 ns/op	11251.00 MB/s	        60.01 GFLOPS
+BenchmarkMatMulNEON/032-14                                   	 3311299	      1087 ns/op	11306.48 MB/s	        60.30 GFLOPS
+BenchmarkMatMulNEON/032-14                                   	 3311623	      1088 ns/op	11293.48 MB/s	        60.23 GFLOPS
+BenchmarkMatMulNEON/064-14                                   	  331948	     10909 ns/op	4505.69 MB/s	        48.06 GFLOPS
+BenchmarkMatMulNEON/064-14                                   	  331657	     10917 ns/op	4502.37 MB/s	        48.03 GFLOPS
+BenchmarkMatMulNEON/064-14                                   	  329671	     10901 ns/op	4508.79 MB/s	        48.09 GFLOPS
+BenchmarkMatMulNEON/064-14                                   	  330698	     10900 ns/op	4509.20 MB/s	        48.10 GFLOPS
+BenchmarkMatMulNEON/064-14                                   	  330894	     10910 ns/op	4505.39 MB/s	        48.06 GFLOPS
+BenchmarkMatMulNEON/064-14                                   	  331611	     10893 ns/op	4512.12 MB/s	        48.13 GFLOPS
+BenchmarkMatMulNEON/128-14                                   	   36004	    100299 ns/op	1960.23 MB/s	        41.82 GFLOPS
+BenchmarkMatMulNEON/128-14                                   	   35893	    101831 ns/op	1930.72 MB/s	        41.19 GFLOPS
+BenchmarkMatMulNEON/128-14                                   	   35926	    101072 ns/op	1945.22 MB/s	        41.50 GFLOPS
+BenchmarkMatMulNEON/128-14                                   	   35648	    100978 ns/op	1947.03 MB/s	        41.54 GFLOPS
+BenchmarkMatMulNEON/128-14                                   	   35486	    100520 ns/op	1955.91 MB/s	        41.73 GFLOPS
+BenchmarkMatMulNEON/128-14                                   	   36033	    100156 ns/op	1963.01 MB/s	        41.88 GFLOPS
+BenchmarkMatMulNEON/256-14                                   	    3642	    993721 ns/op	 791.40 MB/s	        33.77 GFLOPS
+BenchmarkMatMulNEON/256-14                                   	    3625	    990629 ns/op	 793.87 MB/s	        33.87 GFLOPS
+BenchmarkMatMulNEON/256-14                                   	    3608	    994030 ns/op	 791.16 MB/s	        33.76 GFLOPS
+BenchmarkMatMulNEON/256-14                                   	    3657	    993972 ns/op	 791.20 MB/s	        33.76 GFLOPS
+BenchmarkMatMulNEON/256-14                                   	    3661	    998730 ns/op	 787.43 MB/s	        33.60 GFLOPS
+BenchmarkMatMulNEON/256-14                                   	    3542	    994053 ns/op	 791.14 MB/s	        33.76 GFLOPS
+BenchmarkMatMulNEON/512-14                                   	     445	   8117612 ns/op	 387.52 MB/s	        33.07 GFLOPS
+BenchmarkMatMulNEON/512-14                                   	     445	   8092261 ns/op	 388.73 MB/s	        33.17 GFLOPS
+BenchmarkMatMulNEON/512-14                                   	     445	   8111112 ns/op	 387.83 MB/s	        33.09 GFLOPS
+BenchmarkMatMulNEON/512-14                                   	     447	   8085302 ns/op	 389.07 MB/s	        33.20 GFLOPS
+BenchmarkMatMulNEON/512-14                                   	     444	   8042594 ns/op	 391.13 MB/s	        33.38 GFLOPS
+BenchmarkMatMulNEON/512-14                                   	     447	   8048099 ns/op	 390.87 MB/s	        33.35 GFLOPS
+BenchmarkMatMulSME/064-14                                    	 3420963	      1046 ns/op	47006.09 MB/s	       501.4 GFLOPS
+BenchmarkMatMulSME/064-14                                    	 3454839	      1043 ns/op	47138.84 MB/s	       502.8 GFLOPS
+BenchmarkMatMulSME/064-14                                    	 3431114	      1048 ns/op	46898.14 MB/s	       500.2 GFLOPS
+BenchmarkMatMulSME/064-14                                    	 3368236	      1050 ns/op	46789.34 MB/s	       499.1 GFLOPS
+BenchmarkMatMulSME/064-14                                    	 3438619	      1048 ns/op	46905.90 MB/s	       500.3 GFLOPS
+BenchmarkMatMulSME/064-14                                    	 3452205	      1054 ns/op	46617.36 MB/s	       497.3 GFLOPS
+BenchmarkMatMulSME/128-14                                    	  549668	      6510 ns/op	30200.95 MB/s	       644.3 GFLOPS
+BenchmarkMatMulSME/128-14                                    	  553230	      6548 ns/op	30025.69 MB/s	       640.5 GFLOPS
+BenchmarkMatMulSME/128-14                                    	  551214	      6570 ns/op	29926.55 MB/s	       638.4 GFLOPS
+BenchmarkMatMulSME/128-14                                    	  546235	      6577 ns/op	29891.60 MB/s	       637.7 GFLOPS
+BenchmarkMatMulSME/128-14                                    	  553208	      6523 ns/op	30141.56 MB/s	       643.0 GFLOPS
+BenchmarkMatMulSME/128-14                                    	  553374	      6509 ns/op	30204.09 MB/s	       644.4 GFLOPS
+BenchmarkMatMulSME/256-14                                    	   68664	     52323 ns/op	15030.36 MB/s	       641.3 GFLOPS
+BenchmarkMatMulSME/256-14                                    	   68798	     52425 ns/op	15001.09 MB/s	       640.0 GFLOPS
+BenchmarkMatMulSME/256-14                                    	   68822	     52302 ns/op	15036.38 MB/s	       641.6 GFLOPS
+BenchmarkMatMulSME/256-14                                    	   69007	     52174 ns/op	15073.31 MB/s	       643.1 GFLOPS
+BenchmarkMatMulSME/256-14                                    	   68986	     52347 ns/op	15023.36 MB/s	       641.0 GFLOPS
+BenchmarkMatMulSME/256-14                                    	   67825	     52218 ns/op	15060.64 MB/s	       642.6 GFLOPS
+BenchmarkMatMulSME/512-14                                    	    9552	    376533 ns/op	8354.46 MB/s	       712.9 GFLOPS
+BenchmarkMatMulSME/512-14                                    	    9578	    376063 ns/op	8364.90 MB/s	       713.8 GFLOPS
+BenchmarkMatMulSME/512-14                                    	    9582	    376404 ns/op	8357.31 MB/s	       713.2 GFLOPS
+BenchmarkMatMulSME/512-14                                    	    9577	    376672 ns/op	8351.37 MB/s	       712.7 GFLOPS
+BenchmarkMatMulSME/512-14                                    	    9505	    377840 ns/op	8325.56 MB/s	       710.4 GFLOPS
+BenchmarkMatMulSME/512-14                                    	    9615	    377165 ns/op	8340.45 MB/s	       711.7 GFLOPS
+BenchmarkMatMulDispatch/032-14                               	 9490965	       397.4 ns/op	30922.75 MB/s	       164.9 GFLOPS
+BenchmarkMatMulDispatch/032-14                               	 9330883	       382.9 ns/op	32095.95 MB/s	       171.2 GFLOPS
+BenchmarkMatMulDispatch/032-14                               	 9375114	       393.2 ns/op	31251.20 MB/s	       166.7 GFLOPS
+BenchmarkMatMulDispatch/032-14                               	 9444132	       394.2 ns/op	31170.32 MB/s	       166.2 GFLOPS
+BenchmarkMatMulDispatch/032-14                               	 9093362	       380.9 ns/op	32262.66 MB/s	       172.1 GFLOPS
+BenchmarkMatMulDispatch/032-14                               	 9523567	       392.7 ns/op	31294.97 MB/s	       166.9 GFLOPS
+BenchmarkMatMulDispatch/064-14                               	 2003190	      1787 ns/op	27508.10 MB/s	       293.4 GFLOPS
+BenchmarkMatMulDispatch/064-14                               	 2053484	      1792 ns/op	27423.61 MB/s	       292.5 GFLOPS
+BenchmarkMatMulDispatch/064-14                               	 2009234	      1758 ns/op	27954.06 MB/s	       298.2 GFLOPS
+BenchmarkMatMulDispatch/064-14                               	 2073574	      1768 ns/op	27794.42 MB/s	       296.5 GFLOPS
+BenchmarkMatMulDispatch/064-14                               	 2001912	      1771 ns/op	27753.68 MB/s	       296.0 GFLOPS
+BenchmarkMatMulDispatch/064-14                               	 2064778	      1767 ns/op	27811.63 MB/s	       296.7 GFLOPS
+BenchmarkMatMulDispatch/128-14                               	  358424	      9971 ns/op	19717.51 MB/s	       420.6 GFLOPS
+BenchmarkMatMulDispatch/128-14                               	  371223	      9707 ns/op	20253.69 MB/s	       432.1 GFLOPS
+BenchmarkMatMulDispatch/128-14                               	  371892	      9854 ns/op	19951.37 MB/s	       425.6 GFLOPS
+BenchmarkMatMulDispatch/128-14                               	  358212	     10049 ns/op	19565.28 MB/s	       417.4 GFLOPS
+BenchmarkMatMulDispatch/128-14                               	  358398	      9742 ns/op	20181.83 MB/s	       430.5 GFLOPS
+BenchmarkMatMulDispatch/128-14                               	  373431	      9773 ns/op	20118.24 MB/s	       429.2 GFLOPS
+BenchmarkMatMulDispatch/256-14                               	   60085	     59796 ns/op	13151.96 MB/s	       561.2 GFLOPS
+BenchmarkMatMulDispatch/256-14                               	   59979	     59280 ns/op	13266.48 MB/s	       566.0 GFLOPS
+BenchmarkMatMulDispatch/256-14                               	   60494	     60108 ns/op	13083.69 MB/s	       558.2 GFLOPS
+BenchmarkMatMulDispatch/256-14                               	   60031	     59769 ns/op	13157.93 MB/s	       561.4 GFLOPS
+BenchmarkMatMulDispatch/256-14                               	   60927	     59373 ns/op	13245.57 MB/s	       565.1 GFLOPS
+BenchmarkMatMulDispatch/256-14                               	   60981	     59859 ns/op	13138.09 MB/s	       560.6 GFLOPS
+BenchmarkMatMulDispatch/512-14                               	    9122	    392782 ns/op	8008.85 MB/s	       683.4 GFLOPS
+BenchmarkMatMulDispatch/512-14                               	    9193	    393412 ns/op	7996.01 MB/s	       682.3 GFLOPS
+BenchmarkMatMulDispatch/512-14                               	    9180	    393646 ns/op	7991.26 MB/s	       681.9 GFLOPS
+BenchmarkMatMulDispatch/512-14                               	    9181	    392932 ns/op	8005.78 MB/s	       683.2 GFLOPS
+BenchmarkMatMulDispatch/512-14                               	    9213	    392491 ns/op	8014.79 MB/s	       683.9 GFLOPS
+BenchmarkMatMulDispatch/512-14                               	    9163	    393290 ns/op	7998.50 MB/s	       682.5 GFLOPS
+BenchmarkBlockedMatMulNEON/032/hwygen-14                     	  176287	     20540 ns/op	 598.24 MB/s	         3.191 GFLOPS
+BenchmarkBlockedMatMulNEON/032/hwygen-14                     	  175621	     20571 ns/op	 597.33 MB/s	         3.186 GFLOPS
+BenchmarkBlockedMatMulNEON/032/hwygen-14                     	  174666	     20572 ns/op	 597.32 MB/s	         3.186 GFLOPS
+BenchmarkBlockedMatMulNEON/032/hwygen-14                     	  175280	     20553 ns/op	 597.86 MB/s	         3.189 GFLOPS
+BenchmarkBlockedMatMulNEON/032/hwygen-14                     	  176188	     20574 ns/op	 597.26 MB/s	         3.185 GFLOPS
+BenchmarkBlockedMatMulNEON/032/hwygen-14                     	  175257	     20524 ns/op	 598.72 MB/s	         3.193 GFLOPS
+BenchmarkBlockedMatMulNEON/032/GOAT-14                       	 3859970	       933.9 ns/op	13157.84 MB/s	        70.18 GFLOPS
+BenchmarkBlockedMatMulNEON/032/GOAT-14                       	 3848118	       931.8 ns/op	13186.96 MB/s	        70.33 GFLOPS
+BenchmarkBlockedMatMulNEON/032/GOAT-14                       	 3866469	       933.3 ns/op	13166.07 MB/s	        70.22 GFLOPS
+BenchmarkBlockedMatMulNEON/032/GOAT-14                       	 3859068	       933.1 ns/op	13168.58 MB/s	        70.23 GFLOPS
+BenchmarkBlockedMatMulNEON/032/GOAT-14                       	 3866559	       932.7 ns/op	13174.33 MB/s	        70.26 GFLOPS
+BenchmarkBlockedMatMulNEON/032/GOAT-14                       	 3854158	       934.2 ns/op	13152.97 MB/s	        70.15 GFLOPS
+BenchmarkBlockedMatMulNEON/048/hwygen-14                     	   52264	     68331 ns/op	 404.62 MB/s	         3.237 GFLOPS
+BenchmarkBlockedMatMulNEON/048/hwygen-14                     	   52558	     68393 ns/op	 404.25 MB/s	         3.234 GFLOPS
+BenchmarkBlockedMatMulNEON/048/hwygen-14                     	   52642	     68422 ns/op	 404.08 MB/s	         3.233 GFLOPS
+BenchmarkBlockedMatMulNEON/048/hwygen-14                     	   52555	     68293 ns/op	 404.85 MB/s	         3.239 GFLOPS
+BenchmarkBlockedMatMulNEON/048/hwygen-14                     	   52962	     68460 ns/op	 403.85 MB/s	         3.231 GFLOPS
+BenchmarkBlockedMatMulNEON/048/hwygen-14                     	   52653	     68501 ns/op	 403.61 MB/s	         3.229 GFLOPS
+BenchmarkBlockedMatMulNEON/048/GOAT-14                       	 1000000	      3131 ns/op	8829.56 MB/s	        70.64 GFLOPS
+BenchmarkBlockedMatMulNEON/048/GOAT-14                       	 1000000	      3135 ns/op	8819.49 MB/s	        70.56 GFLOPS
+BenchmarkBlockedMatMulNEON/048/GOAT-14                       	 1000000	      3142 ns/op	8799.00 MB/s	        70.39 GFLOPS
+BenchmarkBlockedMatMulNEON/048/GOAT-14                       	 1000000	      3112 ns/op	8883.79 MB/s	        71.07 GFLOPS
+BenchmarkBlockedMatMulNEON/048/GOAT-14                       	 1000000	      3131 ns/op	8830.21 MB/s	        70.64 GFLOPS
+BenchmarkBlockedMatMulNEON/048/GOAT-14                       	 1000000	      3142 ns/op	8798.80 MB/s	        70.39 GFLOPS
+BenchmarkBlockedMatMulNEON/064/hwygen-14                     	   22486	    160521 ns/op	 306.20 MB/s	         3.266 GFLOPS
+BenchmarkBlockedMatMulNEON/064/hwygen-14                     	   22419	    160520 ns/op	 306.20 MB/s	         3.266 GFLOPS
+BenchmarkBlockedMatMulNEON/064/hwygen-14                     	   22545	    160168 ns/op	 306.88 MB/s	         3.273 GFLOPS
+BenchmarkBlockedMatMulNEON/064/hwygen-14                     	   22464	    160287 ns/op	 306.65 MB/s	         3.271 GFLOPS
+BenchmarkBlockedMatMulNEON/064/hwygen-14                     	   22554	    159824 ns/op	 307.54 MB/s	         3.280 GFLOPS
+BenchmarkBlockedMatMulNEON/064/hwygen-14                     	   22477	    160519 ns/op	 306.21 MB/s	         3.266 GFLOPS
+BenchmarkBlockedMatMulNEON/064/GOAT-14                       	  470341	      7680 ns/op	6399.60 MB/s	        68.26 GFLOPS
+BenchmarkBlockedMatMulNEON/064/GOAT-14                       	  457038	      7679 ns/op	6400.49 MB/s	        68.27 GFLOPS
+BenchmarkBlockedMatMulNEON/064/GOAT-14                       	  469131	      7681 ns/op	6399.58 MB/s	        68.26 GFLOPS
+BenchmarkBlockedMatMulNEON/064/GOAT-14                       	  467262	      7696 ns/op	6387.11 MB/s	        68.13 GFLOPS
+BenchmarkBlockedMatMulNEON/064/GOAT-14                       	  470379	      7682 ns/op	6398.24 MB/s	        68.25 GFLOPS
+BenchmarkBlockedMatMulNEON/064/GOAT-14                       	  467042	      7682 ns/op	6398.43 MB/s	        68.25 GFLOPS
+BenchmarkBlockedMatMulNEON/128/hwygen-14                     	    2862	   1260685 ns/op	 155.95 MB/s	         3.327 GFLOPS
+BenchmarkBlockedMatMulNEON/128/hwygen-14                     	    2871	   1263452 ns/op	 155.61 MB/s	         3.320 GFLOPS
+BenchmarkBlockedMatMulNEON/128/hwygen-14                     	    2857	   1262999 ns/op	 155.67 MB/s	         3.321 GFLOPS
+BenchmarkBlockedMatMulNEON/128/hwygen-14                     	    2858	   1260614 ns/op	 155.96 MB/s	         3.327 GFLOPS
+BenchmarkBlockedMatMulNEON/128/hwygen-14                     	    2848	   1260660 ns/op	 155.96 MB/s	         3.327 GFLOPS
+BenchmarkBlockedMatMulNEON/128/hwygen-14                     	    2857	   1257585 ns/op	 156.34 MB/s	         3.335 GFLOPS
+BenchmarkBlockedMatMulNEON/128/GOAT-14                       	   55534	     64569 ns/op	3044.92 MB/s	        64.96 GFLOPS
+BenchmarkBlockedMatMulNEON/128/GOAT-14                       	   55885	     64642 ns/op	3041.50 MB/s	        64.89 GFLOPS
+BenchmarkBlockedMatMulNEON/128/GOAT-14                       	   55868	     64564 ns/op	3045.15 MB/s	        64.96 GFLOPS
+BenchmarkBlockedMatMulNEON/128/GOAT-14                       	   55694	     64736 ns/op	3037.07 MB/s	        64.79 GFLOPS
+BenchmarkBlockedMatMulNEON/128/GOAT-14                       	   55495	     64724 ns/op	3037.63 MB/s	        64.80 GFLOPS
+BenchmarkBlockedMatMulNEON/128/GOAT-14                       	   55818	     64588 ns/op	3044.04 MB/s	        64.94 GFLOPS
+BenchmarkBlockedMatMulNEON/256/hwygen-14                     	     343	  10488229 ns/op	  74.98 MB/s	         3.199 GFLOPS
+BenchmarkBlockedMatMulNEON/256/hwygen-14                     	     343	  10457082 ns/op	  75.21 MB/s	         3.209 GFLOPS
+BenchmarkBlockedMatMulNEON/256/hwygen-14                     	     342	  10516255 ns/op	  74.78 MB/s	         3.191 GFLOPS
+BenchmarkBlockedMatMulNEON/256/hwygen-14                     	     344	  10492505 ns/op	  74.95 MB/s	         3.198 GFLOPS
+BenchmarkBlockedMatMulNEON/256/hwygen-14                     	     344	  10490820 ns/op	  74.96 MB/s	         3.198 GFLOPS
+BenchmarkBlockedMatMulNEON/256/hwygen-14                     	     343	  10481349 ns/op	  75.03 MB/s	         3.201 GFLOPS
+BenchmarkBlockedMatMulNEON/256/GOAT-14                       	    6772	    533471 ns/op	1474.18 MB/s	        62.90 GFLOPS
+BenchmarkBlockedMatMulNEON/256/GOAT-14                       	    6720	    534166 ns/op	1472.26 MB/s	        62.82 GFLOPS
+BenchmarkBlockedMatMulNEON/256/GOAT-14                       	    6681	    533124 ns/op	1475.14 MB/s	        62.94 GFLOPS
+BenchmarkBlockedMatMulNEON/256/GOAT-14                       	    6747	    533122 ns/op	1475.14 MB/s	        62.94 GFLOPS
+BenchmarkBlockedMatMulNEON/256/GOAT-14                       	    6745	    533824 ns/op	1473.21 MB/s	        62.86 GFLOPS
+BenchmarkBlockedMatMulNEON/256/GOAT-14                       	    6686	    533134 ns/op	1475.11 MB/s	        62.94 GFLOPS
+BenchmarkBlockedMatMulNEON/512/hwygen-14                     	      40	  84772030 ns/op	  37.11 MB/s	         3.167 GFLOPS
+BenchmarkBlockedMatMulNEON/512/hwygen-14                     	      42	  85196464 ns/op	  36.92 MB/s	         3.151 GFLOPS
+BenchmarkBlockedMatMulNEON/512/hwygen-14                     	      42	  85076587 ns/op	  36.98 MB/s	         3.155 GFLOPS
+BenchmarkBlockedMatMulNEON/512/hwygen-14                     	      40	  84756483 ns/op	  37.11 MB/s	         3.167 GFLOPS
+BenchmarkBlockedMatMulNEON/512/hwygen-14                     	      42	  84742639 ns/op	  37.12 MB/s	         3.168 GFLOPS
+BenchmarkBlockedMatMulNEON/512/hwygen-14                     	      42	  84498454 ns/op	  37.23 MB/s	         3.177 GFLOPS
+BenchmarkBlockedMatMulNEON/512/GOAT-14                       	     844	   4261317 ns/op	 738.21 MB/s	        62.99 GFLOPS
+BenchmarkBlockedMatMulNEON/512/GOAT-14                       	     844	   4255053 ns/op	 739.29 MB/s	        63.09 GFLOPS
+BenchmarkBlockedMatMulNEON/512/GOAT-14                       	     846	   4257218 ns/op	 738.92 MB/s	        63.05 GFLOPS
+BenchmarkBlockedMatMulNEON/512/GOAT-14                       	     843	   4258337 ns/op	 738.72 MB/s	        63.04 GFLOPS
+BenchmarkBlockedMatMulNEON/512/GOAT-14                       	     843	   4255621 ns/op	 739.19 MB/s	        63.08 GFLOPS
+BenchmarkBlockedMatMulNEON/512/GOAT-14                       	     838	   4258641 ns/op	 738.67 MB/s	        63.03 GFLOPS
+BenchmarkBlockedMatMulSME/064-14                             	 3458570	      1040 ns/op	47268.07 MB/s	       504.2 GFLOPS
+BenchmarkBlockedMatMulSME/064-14                             	 3468901	      1038 ns/op	47358.76 MB/s	       505.2 GFLOPS
+BenchmarkBlockedMatMulSME/064-14                             	 3458900	      1039 ns/op	47298.60 MB/s	       504.5 GFLOPS
+BenchmarkBlockedMatMulSME/064-14                             	 3471217	      1040 ns/op	47255.66 MB/s	       504.1 GFLOPS
+BenchmarkBlockedMatMulSME/064-14                             	 3461341	      1046 ns/op	46971.99 MB/s	       501.0 GFLOPS
+BenchmarkBlockedMatMulSME/064-14                             	 3464859	      1041 ns/op	47196.85 MB/s	       503.4 GFLOPS
+BenchmarkBlockedMatMulSME/064/transpose-14                   	 2033180	      1716 ns/op	28643.91 MB/s	       305.5 GFLOPS
+BenchmarkBlockedMatMulSME/064/transpose-14                   	 2102053	      1770 ns/op	27768.86 MB/s	       296.2 GFLOPS
+BenchmarkBlockedMatMulSME/064/transpose-14                   	 2030307	      1723 ns/op	28522.76 MB/s	       304.2 GFLOPS
+BenchmarkBlockedMatMulSME/064/transpose-14                   	 2106108	      1742 ns/op	28221.40 MB/s	       301.0 GFLOPS
+BenchmarkBlockedMatMulSME/064/transpose-14                   	 2035278	      1744 ns/op	28188.86 MB/s	       300.7 GFLOPS
+BenchmarkBlockedMatMulSME/064/transpose-14                   	 2108476	      1719 ns/op	28591.93 MB/s	       305.0 GFLOPS
+BenchmarkBlockedMatMulSME/128-14                             	  554618	      6512 ns/op	30191.05 MB/s	       644.1 GFLOPS
+BenchmarkBlockedMatMulSME/128-14                             	  552824	      6563 ns/op	29955.23 MB/s	       639.0 GFLOPS
+BenchmarkBlockedMatMulSME/128-14                             	  547840	      6528 ns/op	30117.90 MB/s	       642.5 GFLOPS
+BenchmarkBlockedMatMulSME/128-14                             	  553363	      6503 ns/op	30231.42 MB/s	       644.9 GFLOPS
+BenchmarkBlockedMatMulSME/128-14                             	  549343	      6492 ns/op	30286.24 MB/s	       646.1 GFLOPS
+BenchmarkBlockedMatMulSME/128-14                             	  557835	      6500 ns/op	30245.17 MB/s	       645.2 GFLOPS
+BenchmarkBlockedMatMulSME/128/transpose-14                   	  362010	      9696 ns/op	20277.36 MB/s	       432.6 GFLOPS
+BenchmarkBlockedMatMulSME/128/transpose-14                   	  377524	      9556 ns/op	20574.31 MB/s	       438.9 GFLOPS
+BenchmarkBlockedMatMulSME/128/transpose-14                   	  380388	      9844 ns/op	19972.41 MB/s	       426.1 GFLOPS
+BenchmarkBlockedMatMulSME/128/transpose-14                   	  365299	      9848 ns/op	19964.20 MB/s	       425.9 GFLOPS
+BenchmarkBlockedMatMulSME/128/transpose-14                   	  377797	      9549 ns/op	20590.20 MB/s	       439.3 GFLOPS
+BenchmarkBlockedMatMulSME/128/transpose-14                   	  376712	      9850 ns/op	19959.23 MB/s	       425.8 GFLOPS
+BenchmarkBlockedMatMulSME/256-14                             	   68335	     52524 ns/op	14972.87 MB/s	       638.8 GFLOPS
+BenchmarkBlockedMatMulSME/256-14                             	   68658	     52519 ns/op	14974.17 MB/s	       638.9 GFLOPS
+BenchmarkBlockedMatMulSME/256-14                             	   68710	     52441 ns/op	14996.60 MB/s	       639.9 GFLOPS
+BenchmarkBlockedMatMulSME/256-14                             	   67581	     66834 ns/op	11766.96 MB/s	       502.1 GFLOPS
+BenchmarkBlockedMatMulSME/256-14                             	   68950	     52360 ns/op	15019.58 MB/s	       640.8 GFLOPS
+BenchmarkBlockedMatMulSME/256-14                             	   68790	     52238 ns/op	15054.89 MB/s	       642.3 GFLOPS
+BenchmarkBlockedMatMulSME/256/transpose-14                   	   60636	     59876 ns/op	13134.45 MB/s	       560.4 GFLOPS
+BenchmarkBlockedMatMulSME/256/transpose-14                   	   60198	     59304 ns/op	13261.00 MB/s	       565.8 GFLOPS
+BenchmarkBlockedMatMulSME/256/transpose-14                   	   60516	     59201 ns/op	13283.99 MB/s	       566.8 GFLOPS
+BenchmarkBlockedMatMulSME/256/transpose-14                   	   60116	     60095 ns/op	13086.44 MB/s	       558.4 GFLOPS
+BenchmarkBlockedMatMulSME/256/transpose-14                   	   59985	     61000 ns/op	12892.39 MB/s	       550.1 GFLOPS
+BenchmarkBlockedMatMulSME/256/transpose-14                   	   60980	     59780 ns/op	13155.42 MB/s	       561.3 GFLOPS
+BenchmarkBlockedMatMulSME/512-14                             	    9583	    375751 ns/op	8371.84 MB/s	       714.4 GFLOPS
+BenchmarkBlockedMatMulSME/512-14                             	    9573	    376265 ns/op	8360.40 MB/s	       713.4 GFLOPS
+BenchmarkBlockedMatMulSME/512-14                             	    9592	    376132 ns/op	8363.37 MB/s	       713.7 GFLOPS
+BenchmarkBlockedMatMulSME/512-14                             	    9568	    376337 ns/op	8358.82 MB/s	       713.3 GFLOPS
+BenchmarkBlockedMatMulSME/512-14                             	    9544	    378217 ns/op	8317.27 MB/s	       709.7 GFLOPS
+BenchmarkBlockedMatMulSME/512-14                             	    9590	    376087 ns/op	8364.35 MB/s	       713.8 GFLOPS
+BenchmarkBlockedMatMulSME/512/transpose-14                   	    9159	    393452 ns/op	7995.20 MB/s	       682.3 GFLOPS
+BenchmarkBlockedMatMulSME/512/transpose-14                   	    9156	    392352 ns/op	8017.62 MB/s	       684.2 GFLOPS
+BenchmarkBlockedMatMulSME/512/transpose-14                   	    9189	    393131 ns/op	8001.74 MB/s	       682.8 GFLOPS
+BenchmarkBlockedMatMulSME/512/transpose-14                   	    9163	    393098 ns/op	8002.40 MB/s	       682.9 GFLOPS
+BenchmarkBlockedMatMulSME/512/transpose-14                   	    9168	    394168 ns/op	7980.67 MB/s	       681.0 GFLOPS
+BenchmarkBlockedMatMulSME/512/transpose-14                   	    9145	    392832 ns/op	8007.82 MB/s	       683.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14                        	 3323443	      1082 ns/op	11360.21 MB/s	        60.59 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14                        	 3322689	      1082 ns/op	11355.43 MB/s	        60.56 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14                        	 3328399	      1084 ns/op	11340.32 MB/s	        60.48 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14                        	 3336043	      1086 ns/op	11316.10 MB/s	        60.35 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14                        	 3327644	      1083 ns/op	11349.63 MB/s	        60.53 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14                        	 3325842	      1089 ns/op	11279.95 MB/s	        60.16 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14                        	 1794454	      2051 ns/op	13482.88 MB/s	       107.9 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14                        	 1750813	      2004 ns/op	13798.87 MB/s	       110.4 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14                        	 1810264	      2026 ns/op	13649.44 MB/s	       109.2 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14                        	 1750622	      2029 ns/op	13628.70 MB/s	       109.0 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14                        	 1808937	      1993 ns/op	13872.07 MB/s	       111.0 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14                        	 1752055	      2054 ns/op	13458.70 MB/s	       107.7 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14                        	 1000000	      3376 ns/op	14559.82 MB/s	       155.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14                        	 1000000	      3384 ns/op	14522.87 MB/s	       154.9 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14                        	 1000000	      3491 ns/op	14080.62 MB/s	       150.2 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14                        	 1000000	      3455 ns/op	14225.60 MB/s	       151.7 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14                        	 1000000	      3378 ns/op	14548.48 MB/s	       155.2 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14                        	 1000000	      3425 ns/op	14349.74 MB/s	       153.1 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14                        	  235452	     15359 ns/op	12801.06 MB/s	       273.1 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14                        	  235982	     14901 ns/op	13194.43 MB/s	       281.5 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14                        	  242920	     14989 ns/op	13116.88 MB/s	       279.8 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14                        	  234672	     15332 ns/op	12823.42 MB/s	       273.6 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14                        	  235963	     15019 ns/op	13090.41 MB/s	       279.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14                        	  242491	     14827 ns/op	13260.55 MB/s	       282.9 GFLOPS
+BenchmarkBlockedMatMulDispatch/256-14                        	   59287	     61054 ns/op	12880.83 MB/s	       549.6 GFLOPS
+BenchmarkBlockedMatMulDispatch/256-14                        	   58933	     60594 ns/op	12978.61 MB/s	       553.8 GFLOPS
+BenchmarkBlockedMatMulDispatch/256-14                        	   59790	     60406 ns/op	13019.11 MB/s	       555.5 GFLOPS
+BenchmarkBlockedMatMulDispatch/256-14                        	   58804	     61138 ns/op	12863.30 MB/s	       548.8 GFLOPS
+BenchmarkBlockedMatMulDispatch/256-14                        	   58801	     60574 ns/op	12982.97 MB/s	       553.9 GFLOPS
+BenchmarkBlockedMatMulDispatch/256-14                        	   59763	     60834 ns/op	12927.51 MB/s	       551.6 GFLOPS
+BenchmarkBlockedMatMulDispatch/512-14                        	    9021	    397571 ns/op	7912.37 MB/s	       675.2 GFLOPS
+BenchmarkBlockedMatMulDispatch/512-14                        	    9036	    398522 ns/op	7893.49 MB/s	       673.6 GFLOPS
+BenchmarkBlockedMatMulDispatch/512-14                        	    9050	    399797 ns/op	7868.32 MB/s	       671.4 GFLOPS
+BenchmarkBlockedMatMulDispatch/512-14                        	    8952	    399537 ns/op	7873.43 MB/s	       671.9 GFLOPS
+BenchmarkBlockedMatMulDispatch/512-14                        	    9052	    399900 ns/op	7866.28 MB/s	       671.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/512-14                        	    9051	    400217 ns/op	7860.05 MB/s	       670.7 GFLOPS
+BenchmarkFusedInt8MatMulSME/64x256x512-14                    	   21835	    158150 ns/op	       106.1 GFLOPS	         0.1582 ms/op
+BenchmarkFusedInt8MatMulSME/64x256x512-14                    	   22750	    161819 ns/op	       103.7 GFLOPS	         0.1618 ms/op
+BenchmarkFusedInt8MatMulSME/64x256x512-14                    	   21930	    160450 ns/op	       104.6 GFLOPS	         0.1605 ms/op
+BenchmarkFusedInt8MatMulSME/64x256x512-14                    	   22824	    160717 ns/op	       104.4 GFLOPS	         0.1607 ms/op
+BenchmarkFusedInt8MatMulSME/64x256x512-14                    	   21910	    162905 ns/op	       103.0 GFLOPS	         0.1629 ms/op
+BenchmarkFusedInt8MatMulSME/64x256x512-14                    	   22033	    161139 ns/op	       104.1 GFLOPS	         0.1611 ms/op
+BenchmarkFusedInt8MatMulSME/64x512x1024-14                   	    6141	    580658 ns/op	       115.6 GFLOPS	         0.5807 ms/op
+BenchmarkFusedInt8MatMulSME/64x512x1024-14                   	    6327	    572442 ns/op	       117.2 GFLOPS	         0.5724 ms/op
+BenchmarkFusedInt8MatMulSME/64x512x1024-14                   	    6415	    581930 ns/op	       115.3 GFLOPS	         0.5819 ms/op
+BenchmarkFusedInt8MatMulSME/64x512x1024-14                   	    6122	    574029 ns/op	       116.9 GFLOPS	         0.5740 ms/op
+BenchmarkFusedInt8MatMulSME/64x512x1024-14                   	    6451	    566052 ns/op	       118.6 GFLOPS	         0.5661 ms/op
+BenchmarkFusedInt8MatMulSME/64x512x1024-14                   	    6141	    580491 ns/op	       115.6 GFLOPS	         0.5805 ms/op
+BenchmarkFusedInt8MatMulSME/64x1024x2048-14                  	    1585	   2233790 ns/op	       120.2 GFLOPS	         2.234 ms/op
+BenchmarkFusedInt8MatMulSME/64x1024x2048-14                  	    1651	   2215071 ns/op	       121.2 GFLOPS	         2.215 ms/op
+BenchmarkFusedInt8MatMulSME/64x1024x2048-14                  	    1576	   2278501 ns/op	       117.8 GFLOPS	         2.279 ms/op
+BenchmarkFusedInt8MatMulSME/64x1024x2048-14                  	    1578	   2220770 ns/op	       120.9 GFLOPS	         2.221 ms/op
+BenchmarkFusedInt8MatMulSME/64x1024x2048-14                  	    1614	   2252455 ns/op	       119.2 GFLOPS	         2.252 ms/op
+BenchmarkFusedInt8MatMulSME/64x1024x2048-14                  	    1563	   2291499 ns/op	       117.1 GFLOPS	         2.291 ms/op
+BenchmarkFusedInt8MatMulSME/64x4096x4096-14                  	     187	  18595648 ns/op	       115.5 GFLOPS	        18.60 ms/op
+BenchmarkFusedInt8MatMulSME/64x4096x4096-14                  	     158	  18988147 ns/op	       113.1 GFLOPS	        18.99 ms/op
+BenchmarkFusedInt8MatMulSME/64x4096x4096-14                  	     198	  18186614 ns/op	       118.1 GFLOPS	        18.19 ms/op
+BenchmarkFusedInt8MatMulSME/64x4096x4096-14                  	     195	  17965007 ns/op	       119.5 GFLOPS	        17.97 ms/op
+BenchmarkFusedInt8MatMulSME/64x4096x4096-14                  	     200	  18114054 ns/op	       118.6 GFLOPS	        18.11 ms/op
+BenchmarkFusedInt8MatMulSME/64x4096x4096-14                  	     198	  17837726 ns/op	       120.4 GFLOPS	        17.84 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x256x512_parallel-14   	   51559	     69543 ns/op	       241.2 GFLOPS	         0.06954 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x256x512_parallel-14   	   51578	     69586 ns/op	       241.1 GFLOPS	         0.06959 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x256x512_parallel-14   	   51403	     69861 ns/op	       240.2 GFLOPS	         0.06986 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x256x512_parallel-14   	   51540	     69665 ns/op	       240.8 GFLOPS	         0.06966 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x256x512_parallel-14   	   51429	     69698 ns/op	       240.7 GFLOPS	         0.06970 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x256x512_parallel-14   	   51814	     69550 ns/op	       241.2 GFLOPS	         0.06955 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x512x1024_parallel-14  	   25608	    140978 ns/op	       476.0 GFLOPS	         0.1410 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x512x1024_parallel-14  	   25474	    140563 ns/op	       477.4 GFLOPS	         0.1406 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x512x1024_parallel-14  	   25582	    140286 ns/op	       478.4 GFLOPS	         0.1403 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x512x1024_parallel-14  	   25604	    139961 ns/op	       479.5 GFLOPS	         0.1400 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x512x1024_parallel-14  	   26023	    139153 ns/op	       482.3 GFLOPS	         0.1392 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x512x1024_parallel-14  	   25884	    139887 ns/op	       479.7 GFLOPS	         0.1399 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x1024x2048_parallel-14 	    8716	    404361 ns/op	       663.9 GFLOPS	         0.4044 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x1024x2048_parallel-14 	    8630	    404301 ns/op	       664.0 GFLOPS	         0.4043 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x1024x2048_parallel-14 	    8758	    403920 ns/op	       664.6 GFLOPS	         0.4039 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x1024x2048_parallel-14 	    8804	    404012 ns/op	       664.4 GFLOPS	         0.4040 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x1024x2048_parallel-14 	    8802	    403449 ns/op	       665.4 GFLOPS	         0.4034 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x1024x2048_parallel-14 	    8698	    405370 ns/op	       662.2 GFLOPS	         0.4054 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x4096x4096_parallel-14 	    1347	   2672552 ns/op	       803.5 GFLOPS	         2.673 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x4096x4096_parallel-14 	    1344	   2677487 ns/op	       802.1 GFLOPS	         2.677 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x4096x4096_parallel-14 	    1333	   2695676 ns/op	       796.6 GFLOPS	         2.696 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x4096x4096_parallel-14 	    1335	   2696533 ns/op	       796.4 GFLOPS	         2.697 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x4096x4096_parallel-14 	    1353	   2692102 ns/op	       797.7 GFLOPS	         2.692 ms/op
+BenchmarkParallelFusedInt8MatMulSME/64x4096x4096_parallel-14 	    1346	   2746241 ns/op	       782.0 GFLOPS	         2.746 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/sequential-14      	    1617	   2200145 ns/op	       122.0 GFLOPS	         2.200 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/sequential-14      	    1663	   2249798 ns/op	       119.3 GFLOPS	         2.250 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/sequential-14      	    1575	   2270596 ns/op	       118.2 GFLOPS	         2.271 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/sequential-14      	    1606	   2212157 ns/op	       121.3 GFLOPS	         2.212 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/sequential-14      	    1624	   2238117 ns/op	       119.9 GFLOPS	         2.238 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/sequential-14      	    1594	   2263000 ns/op	       118.6 GFLOPS	         2.263 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/parallel-14        	    8556	    404276 ns/op	       664.0 GFLOPS	         0.4043 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/parallel-14        	    8812	    405271 ns/op	       662.4 GFLOPS	         0.4053 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/parallel-14        	    8852	    405324 ns/op	       662.3 GFLOPS	         0.4053 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/parallel-14        	    8888	    401977 ns/op	       667.8 GFLOPS	         0.4020 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/parallel-14        	    8930	    404639 ns/op	       663.4 GFLOPS	         0.4046 ms/op
+BenchmarkFusedInt8Comparison/64x1024x2048/parallel-14        	    8812	    407622 ns/op	       658.5 GFLOPS	         0.4076 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/sequential-14      	     196	  18451494 ns/op	       116.4 GFLOPS	        18.45 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/sequential-14      	     193	  17775306 ns/op	       120.8 GFLOPS	        17.78 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/sequential-14      	     201	  17891559 ns/op	       120.0 GFLOPS	        17.89 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/sequential-14      	     199	  17992220 ns/op	       119.4 GFLOPS	        17.99 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/sequential-14      	     201	  18415143 ns/op	       116.6 GFLOPS	        18.42 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/sequential-14      	     200	  18343876 ns/op	       117.1 GFLOPS	        18.34 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/parallel-14        	    1164	   2719905 ns/op	       789.5 GFLOPS	         2.720 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/parallel-14        	    1342	   2734276 ns/op	       785.4 GFLOPS	         2.734 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/parallel-14        	    1344	   2740717 ns/op	       783.5 GFLOPS	         2.741 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/parallel-14        	    1334	   2678451 ns/op	       801.8 GFLOPS	         2.678 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/parallel-14        	    1344	   2690444 ns/op	       798.2 GFLOPS	         2.690 ms/op
+BenchmarkFusedInt8Comparison/64x4096x4096/parallel-14        	    1330	   2709629 ns/op	       792.5 GFLOPS	         2.710 ms/op
+BenchmarkFusedInt8MatMul/32x64x128-14                        	  288513	     12518 ns/op	        41.88 GFLOPS
+BenchmarkFusedInt8MatMul/32x64x128-14                        	  288813	     12590 ns/op	        41.64 GFLOPS
+BenchmarkFusedInt8MatMul/32x64x128-14                        	  284344	     12567 ns/op	        41.72 GFLOPS
+BenchmarkFusedInt8MatMul/32x64x128-14                        	  282433	     12586 ns/op	        41.66 GFLOPS
+BenchmarkFusedInt8MatMul/32x64x128-14                        	  275462	     12538 ns/op	        41.82 GFLOPS
+BenchmarkFusedInt8MatMul/32x64x128-14                        	  286698	     12483 ns/op	        42.00 GFLOPS
+BenchmarkFusedInt8MatMul/64x128x256-14                       	   73968	     48753 ns/op	        86.03 GFLOPS
+BenchmarkFusedInt8MatMul/64x128x256-14                       	   73926	     48763 ns/op	        86.01 GFLOPS
+BenchmarkFusedInt8MatMul/64x128x256-14                       	   73774	     48698 ns/op	        86.13 GFLOPS
+BenchmarkFusedInt8MatMul/64x128x256-14                       	   73683	     48747 ns/op	        86.04 GFLOPS
+BenchmarkFusedInt8MatMul/64x128x256-14                       	   73766	     48936 ns/op	        85.71 GFLOPS
+BenchmarkFusedInt8MatMul/64x128x256-14                       	   73894	     48780 ns/op	        85.98 GFLOPS
+BenchmarkFusedInt8MatMul/64x256x512-14                       	   21973	    164107 ns/op	       102.2 GFLOPS
+BenchmarkFusedInt8MatMul/64x256x512-14                       	   21961	    164243 ns/op	       102.1 GFLOPS
+BenchmarkFusedInt8MatMul/64x256x512-14                       	   21970	    164071 ns/op	       102.3 GFLOPS
+BenchmarkFusedInt8MatMul/64x256x512-14                       	   21981	    163521 ns/op	       102.6 GFLOPS
+BenchmarkFusedInt8MatMul/64x256x512-14                       	   21993	    164293 ns/op	       102.1 GFLOPS
+BenchmarkFusedInt8MatMul/64x256x512-14                       	   21930	    165435 ns/op	       101.4 GFLOPS
+BenchmarkFusedInt8MatMulFallback/64x128x256_fallback-14      	     271	  13184504 ns/op	         0.3181 GFLOPS
+BenchmarkFusedInt8MatMulFallback/64x128x256_fallback-14      	     274	  13075574 ns/op	         0.3208 GFLOPS
+BenchmarkFusedInt8MatMulFallback/64x128x256_fallback-14      	     273	  13256285 ns/op	         0.3164 GFLOPS
+BenchmarkFusedInt8MatMulFallback/64x128x256_fallback-14      	     271	  13303540 ns/op	         0.3153 GFLOPS
+BenchmarkFusedInt8MatMulFallback/64x128x256_fallback-14      	     270	  13281537 ns/op	         0.3158 GFLOPS
+BenchmarkFusedInt8MatMulFallback/64x128x256_fallback-14      	     268	  13432632 ns/op	         0.3122 GFLOPS
+BenchmarkFusedNF4MatMulSiLUSME-14                            	   15435	    232472 ns/op
+BenchmarkFusedNF4MatMulSiLUSME-14                            	   15424	    234016 ns/op
+BenchmarkFusedNF4MatMulSiLUSME-14                            	   15420	    233294 ns/op
+BenchmarkFusedNF4MatMulSiLUSME-14                            	   15462	    232827 ns/op
+BenchmarkFusedNF4MatMulSiLUSME-14                            	   15466	    234239 ns/op
+BenchmarkFusedNF4MatMulSiLUSME-14                            	   15367	    233595 ns/op
+BenchmarkFusedNF4MatMulGELUSME-14                            	    9276	    391622 ns/op
+BenchmarkFusedNF4MatMulGELUSME-14                            	    9656	    392115 ns/op
+BenchmarkFusedNF4MatMulGELUSME-14                            	    9416	    397476 ns/op
+BenchmarkFusedNF4MatMulGELUSME-14                            	    8768	    506110 ns/op
+BenchmarkFusedNF4MatMulGELUSME-14                            	    9196	    389431 ns/op
+BenchmarkFusedNF4MatMulGELUSME-14                            	    9283	    391856 ns/op
+BenchmarkParallelFusedNF4MatMulSiLUSME-14                    	    6124	    587914 ns/op
+BenchmarkParallelFusedNF4MatMulSiLUSME-14                    	    6163	    592806 ns/op
+BenchmarkParallelFusedNF4MatMulSiLUSME-14                    	    6151	    594275 ns/op
+BenchmarkParallelFusedNF4MatMulSiLUSME-14                    	    6108	    596477 ns/op
+BenchmarkParallelFusedNF4MatMulSiLUSME-14                    	    6160	    695313 ns/op
+BenchmarkParallelFusedNF4MatMulSiLUSME-14                    	    4724	    709825 ns/op
+BenchmarkFusedNF4MatMul/64x256x512-14                        	   18469	    194517 ns/op	        86.25 GFLOPS	         0.1945 ms/op
+BenchmarkFusedNF4MatMul/64x256x512-14                        	   18476	    195270 ns/op	        85.92 GFLOPS	         0.1953 ms/op
+BenchmarkFusedNF4MatMul/64x256x512-14                        	   18429	    194972 ns/op	        86.05 GFLOPS	         0.1950 ms/op
+BenchmarkFusedNF4MatMul/64x256x512-14                        	   18486	    194428 ns/op	        86.29 GFLOPS	         0.1944 ms/op
+BenchmarkFusedNF4MatMul/64x256x512-14                        	   18392	    195615 ns/op	        85.77 GFLOPS	         0.1956 ms/op
+BenchmarkFusedNF4MatMul/64x256x512-14                        	   18480	    195663 ns/op	        85.75 GFLOPS	         0.1957 ms/op
+BenchmarkFusedNF4MatMul/64x512x1024-14                       	    4742	    749936 ns/op	        89.49 GFLOPS	         0.7499 ms/op
+BenchmarkFusedNF4MatMul/64x512x1024-14                       	    4750	    751100 ns/op	        89.35 GFLOPS	         0.7511 ms/op
+BenchmarkFusedNF4MatMul/64x512x1024-14                       	    4824	    750106 ns/op	        89.47 GFLOPS	         0.7501 ms/op
+BenchmarkFusedNF4MatMul/64x512x1024-14                       	    4812	    749122 ns/op	        89.58 GFLOPS	         0.7491 ms/op
+BenchmarkFusedNF4MatMul/64x512x1024-14                       	    4838	    751891 ns/op	        89.25 GFLOPS	         0.7519 ms/op
+BenchmarkFusedNF4MatMul/64x512x1024-14                       	    4761	    748891 ns/op	        89.61 GFLOPS	         0.7489 ms/op
+BenchmarkFusedNF4MatMul/64x1024x2048-14                      	    1153	   3083080 ns/op	        87.07 GFLOPS	         3.083 ms/op
+BenchmarkFusedNF4MatMul/64x1024x2048-14                      	    1170	   3092191 ns/op	        86.81 GFLOPS	         3.092 ms/op
+BenchmarkFusedNF4MatMul/64x1024x2048-14                      	    1166	   3079222 ns/op	        87.18 GFLOPS	         3.079 ms/op
+BenchmarkFusedNF4MatMul/64x1024x2048-14                      	    1160	   3079237 ns/op	        87.18 GFLOPS	         3.079 ms/op
+BenchmarkFusedNF4MatMul/64x1024x2048-14                      	    1168	   3079259 ns/op	        87.18 GFLOPS	         3.079 ms/op
+BenchmarkFusedNF4MatMul/64x1024x2048-14                      	    1168	   3084612 ns/op	        87.02 GFLOPS	         3.085 ms/op
+BenchmarkFusedNF4MatMul/64x4096x4096-14                      	     168	  21173254 ns/op	       101.4 GFLOPS	        21.17 ms/op
+BenchmarkFusedNF4MatMul/64x4096x4096-14                      	     170	  21269362 ns/op	       101.0 GFLOPS	        21.27 ms/op
+BenchmarkFusedNF4MatMul/64x4096x4096-14                      	     169	  21115692 ns/op	       101.7 GFLOPS	        21.12 ms/op
+BenchmarkFusedNF4MatMul/64x4096x4096-14                      	     170	  21172867 ns/op	       101.4 GFLOPS	        21.17 ms/op
+BenchmarkFusedNF4MatMul/64x4096x4096-14                      	     168	  21262818 ns/op	       101.0 GFLOPS	        21.26 ms/op
+BenchmarkFusedNF4MatMul/64x4096x4096-14                      	     168	  21309556 ns/op	       100.8 GFLOPS	        21.31 ms/op
+BenchmarkParallelFusedNF4MatMul/64x256x512_parallel-14       	   48070	     73891 ns/op	       227.1 GFLOPS	         0.07389 ms/op
+BenchmarkParallelFusedNF4MatMul/64x256x512_parallel-14       	   47109	     75032 ns/op	       223.6 GFLOPS	         0.07503 ms/op
+BenchmarkParallelFusedNF4MatMul/64x256x512_parallel-14       	   48031	     74340 ns/op	       225.7 GFLOPS	         0.07434 ms/op
+BenchmarkParallelFusedNF4MatMul/64x256x512_parallel-14       	   47190	     74813 ns/op	       224.3 GFLOPS	         0.07481 ms/op
+BenchmarkParallelFusedNF4MatMul/64x256x512_parallel-14       	   48060	     72648 ns/op	       230.9 GFLOPS	         0.07265 ms/op
+BenchmarkParallelFusedNF4MatMul/64x256x512_parallel-14       	   48789	     71466 ns/op	       234.8 GFLOPS	         0.07147 ms/op
+BenchmarkParallelFusedNF4MatMul/64x512x1024_parallel-14      	   21429	    169837 ns/op	       395.1 GFLOPS	         0.1698 ms/op
+BenchmarkParallelFusedNF4MatMul/64x512x1024_parallel-14      	   21134	    165691 ns/op	       405.0 GFLOPS	         0.1657 ms/op
+BenchmarkParallelFusedNF4MatMul/64x512x1024_parallel-14      	   22062	    163680 ns/op	       410.0 GFLOPS	         0.1637 ms/op
+BenchmarkParallelFusedNF4MatMul/64x512x1024_parallel-14      	   22249	    161885 ns/op	       414.5 GFLOPS	         0.1619 ms/op
+BenchmarkParallelFusedNF4MatMul/64x512x1024_parallel-14      	   21927	    160636 ns/op	       417.8 GFLOPS	         0.1606 ms/op
+BenchmarkParallelFusedNF4MatMul/64x512x1024_parallel-14      	   23103	    160788 ns/op	       417.4 GFLOPS	         0.1608 ms/op
+BenchmarkParallelFusedNF4MatMul/64x1024x2048_parallel-14     	    7227	    493199 ns/op	       544.3 GFLOPS	         0.4932 ms/op
+BenchmarkParallelFusedNF4MatMul/64x1024x2048_parallel-14     	    7363	    515517 ns/op	       520.7 GFLOPS	         0.5155 ms/op
+BenchmarkParallelFusedNF4MatMul/64x1024x2048_parallel-14     	    6705	    497970 ns/op	       539.1 GFLOPS	         0.4980 ms/op
+BenchmarkParallelFusedNF4MatMul/64x1024x2048_parallel-14     	    7257	    496869 ns/op	       540.3 GFLOPS	         0.4969 ms/op
+BenchmarkParallelFusedNF4MatMul/64x1024x2048_parallel-14     	    7224	    505351 ns/op	       531.2 GFLOPS	         0.5053 ms/op
+BenchmarkParallelFusedNF4MatMul/64x1024x2048_parallel-14     	    7165	    500477 ns/op	       536.4 GFLOPS	         0.5005 ms/op
+BenchmarkParallelFusedNF4MatMul/64x4096x4096_parallel-14     	    1191	   3029267 ns/op	       708.9 GFLOPS	         3.029 ms/op
+BenchmarkParallelFusedNF4MatMul/64x4096x4096_parallel-14     	    1201	   3006884 ns/op	       714.2 GFLOPS	         3.007 ms/op
+BenchmarkParallelFusedNF4MatMul/64x4096x4096_parallel-14     	    1207	   3027141 ns/op	       709.4 GFLOPS	         3.027 ms/op
+BenchmarkParallelFusedNF4MatMul/64x4096x4096_parallel-14     	    1209	   3080139 ns/op	       697.2 GFLOPS	         3.080 ms/op
+BenchmarkParallelFusedNF4MatMul/64x4096x4096_parallel-14     	    1198	   3006564 ns/op	       714.3 GFLOPS	         3.007 ms/op
+BenchmarkParallelFusedNF4MatMul/64x4096x4096_parallel-14     	    1182	   3034486 ns/op	       707.7 GFLOPS	         3.034 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/sequential-14       	    1174	   3043604 ns/op	        88.20 GFLOPS	         3.044 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/sequential-14       	    1176	   3046999 ns/op	        88.10 GFLOPS	         3.047 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/sequential-14       	    1180	   3049561 ns/op	        88.02 GFLOPS	         3.050 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/sequential-14       	    1184	   3041196 ns/op	        88.27 GFLOPS	         3.041 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/sequential-14       	    1185	   3050100 ns/op	        88.01 GFLOPS	         3.050 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/sequential-14       	    1184	   3058354 ns/op	        87.77 GFLOPS	         3.058 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/parallel-14         	    7177	    494928 ns/op	       542.4 GFLOPS	         0.4949 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/parallel-14         	    7279	    511233 ns/op	       525.1 GFLOPS	         0.5112 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/parallel-14         	    7051	    498543 ns/op	       538.4 GFLOPS	         0.4985 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/parallel-14         	    7194	    493921 ns/op	       543.5 GFLOPS	         0.4939 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/parallel-14         	    7320	    492716 ns/op	       544.8 GFLOPS	         0.4927 ms/op
+BenchmarkFusedNF4Comparison/64x1024x2048/parallel-14         	    7280	    492368 ns/op	       545.2 GFLOPS	         0.4924 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/sequential-14       	     170	  21173811 ns/op	       101.4 GFLOPS	        21.17 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/sequential-14       	     170	  21033531 ns/op	       102.1 GFLOPS	        21.03 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/sequential-14       	     171	  21105608 ns/op	       101.7 GFLOPS	        21.11 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/sequential-14       	     170	  21078370 ns/op	       101.9 GFLOPS	        21.08 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/sequential-14       	     171	  20896596 ns/op	       102.8 GFLOPS	        20.90 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/sequential-14       	     171	  21007186 ns/op	       102.2 GFLOPS	        21.01 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/parallel-14         	    1201	   2991029 ns/op	       718.0 GFLOPS	         2.991 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/parallel-14         	    1215	   2990119 ns/op	       718.2 GFLOPS	         2.990 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/parallel-14         	    1201	   3001713 ns/op	       715.4 GFLOPS	         3.002 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/parallel-14         	    1212	   2958343 ns/op	       725.9 GFLOPS	         2.958 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/parallel-14         	    1208	   2969025 ns/op	       723.3 GFLOPS	         2.969 ms/op
+BenchmarkFusedNF4Comparison/64x4096x4096/parallel-14         	    1202	   3022805 ns/op	       710.4 GFLOPS	         3.023 ms/op
+BenchmarkFusedNF4Scalar/32x64x128-14                         	    2042	   1731717 ns/op	         0.3028 GFLOPS
+BenchmarkFusedNF4Scalar/32x64x128-14                         	    2086	   1729445 ns/op	         0.3032 GFLOPS
+BenchmarkFusedNF4Scalar/32x64x128-14                         	    2096	   1735996 ns/op	         0.3020 GFLOPS
+BenchmarkFusedNF4Scalar/32x64x128-14                         	    2094	   1721196 ns/op	         0.3046 GFLOPS
+BenchmarkFusedNF4Scalar/32x64x128-14                         	    2098	   1730580 ns/op	         0.3030 GFLOPS
+BenchmarkFusedNF4Scalar/32x64x128-14                         	    2091	   1722396 ns/op	         0.3044 GFLOPS
+BenchmarkFusedNF4Scalar/64x128x256-14                        	     260	  13658388 ns/op	         0.3071 GFLOPS
+BenchmarkFusedNF4Scalar/64x128x256-14                        	     262	  13691093 ns/op	         0.3064 GFLOPS
+BenchmarkFusedNF4Scalar/64x128x256-14                        	     261	  13769800 ns/op	         0.3046 GFLOPS
+BenchmarkFusedNF4Scalar/64x128x256-14                        	     261	  13689498 ns/op	         0.3064 GFLOPS
+BenchmarkFusedNF4Scalar/64x128x256-14                        	     261	  13714713 ns/op	         0.3058 GFLOPS
+BenchmarkFusedNF4Scalar/64x128x256-14                        	     261	  13781199 ns/op	         0.3043 GFLOPS
+BenchmarkFusedInt4Scalar/64x128x256-14                       	     253	  14108410 ns/op	         0.2973 GFLOPS
+BenchmarkFusedInt4Scalar/64x128x256-14                       	     255	  14098190 ns/op	         0.2975 GFLOPS
+BenchmarkFusedInt4Scalar/64x128x256-14                       	     255	  14221173 ns/op	         0.2949 GFLOPS
+BenchmarkFusedInt4Scalar/64x128x256-14                       	     255	  14102407 ns/op	         0.2974 GFLOPS
+BenchmarkFusedInt4Scalar/64x128x256-14                       	     256	  14133116 ns/op	         0.2968 GFLOPS
+BenchmarkFusedInt4Scalar/64x128x256-14                       	     255	  14118734 ns/op	         0.2971 GFLOPS
+BenchmarkInt8x8MatMulPerAxis/32x64x128-14                    	  127672	     28068 ns/op	        18.68 GOPS
+BenchmarkInt8x8MatMulPerAxis/32x64x128-14                    	  128686	     28158 ns/op	        18.62 GOPS
+BenchmarkInt8x8MatMulPerAxis/32x64x128-14                    	  128330	     27821 ns/op	        18.84 GOPS
+BenchmarkInt8x8MatMulPerAxis/32x64x128-14                    	  126693	     27988 ns/op	        18.73 GOPS
+BenchmarkInt8x8MatMulPerAxis/32x64x128-14                    	  129074	     28019 ns/op	        18.71 GOPS
+BenchmarkInt8x8MatMulPerAxis/32x64x128-14                    	  129308	     27922 ns/op	        18.78 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x128x256-14                   	   21859	    164878 ns/op	        25.44 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x128x256-14                   	   21820	    164907 ns/op	        25.43 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x128x256-14                   	   21884	    164832 ns/op	        25.45 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x128x256-14                   	   21855	    165035 ns/op	        25.41 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x128x256-14                   	   21750	    165361 ns/op	        25.36 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x128x256-14                   	   21679	    165471 ns/op	        25.35 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x256x512-14                   	    6348	    571528 ns/op	        29.36 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x256x512-14                   	    6364	    570067 ns/op	        29.43 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x256x512-14                   	    6370	    571538 ns/op	        29.35 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x256x512-14                   	    6236	    571259 ns/op	        29.37 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x256x512-14                   	    6326	    571603 ns/op	        29.35 GOPS
+BenchmarkInt8x8MatMulPerAxis/64x256x512-14                   	    6124	    573780 ns/op	        29.24 GOPS
+BenchmarkInt8x8MatMul/32x64x128-14                           	  129633	     27683 ns/op	        18.94 GOPS
+BenchmarkInt8x8MatMul/32x64x128-14                           	  125816	     27751 ns/op	        18.89 GOPS
+BenchmarkInt8x8MatMul/32x64x128-14                           	  129834	     27776 ns/op	        18.88 GOPS
+BenchmarkInt8x8MatMul/32x64x128-14                           	  128412	     27655 ns/op	        18.96 GOPS
+BenchmarkInt8x8MatMul/32x64x128-14                           	  129573	     27751 ns/op	        18.89 GOPS
+BenchmarkInt8x8MatMul/32x64x128-14                           	  129276	     28111 ns/op	        18.65 GOPS
+BenchmarkInt8x8MatMul/64x128x256-14                          	   21650	    166007 ns/op	        25.27 GOPS
+BenchmarkInt8x8MatMul/64x128x256-14                          	   21459	    166198 ns/op	        25.24 GOPS
+BenchmarkInt8x8MatMul/64x128x256-14                          	   21612	    166689 ns/op	        25.16 GOPS
+BenchmarkInt8x8MatMul/64x128x256-14                          	   21626	    166642 ns/op	        25.17 GOPS
+BenchmarkInt8x8MatMul/64x128x256-14                          	   21582	    166289 ns/op	        25.22 GOPS
+BenchmarkInt8x8MatMul/64x128x256-14                          	   21528	    166537 ns/op	        25.19 GOPS
+BenchmarkInt8x8MatMul/64x256x512-14                          	    6308	    574182 ns/op	        29.22 GOPS
+BenchmarkInt8x8MatMul/64x256x512-14                          	    6250	    575863 ns/op	        29.13 GOPS
+BenchmarkInt8x8MatMul/64x256x512-14                          	    6240	    576203 ns/op	        29.12 GOPS
+BenchmarkInt8x8MatMul/64x256x512-14                          	    6219	    585537 ns/op	        28.65 GOPS
+BenchmarkInt8x8MatMul/64x256x512-14                          	    6246	    576096 ns/op	        29.12 GOPS
+BenchmarkInt8x8MatMul/64x256x512-14                          	    6279	    573556 ns/op	        29.25 GOPS
+BenchmarkMatMulKLastNEON/064-14                              	  439593	      8183 ns/op	6006.85 MB/s	        64.07 GFLOPS
+BenchmarkMatMulKLastNEON/064-14                              	  439392	      8226 ns/op	5975.37 MB/s	        63.74 GFLOPS
+BenchmarkMatMulKLastNEON/064-14                              	  440295	      8210 ns/op	5986.62 MB/s	        63.86 GFLOPS
+BenchmarkMatMulKLastNEON/064-14                              	  434522	      8193 ns/op	5999.21 MB/s	        63.99 GFLOPS
+BenchmarkMatMulKLastNEON/064-14                              	  439944	      8150 ns/op	6031.24 MB/s	        64.33 GFLOPS
+BenchmarkMatMulKLastNEON/064-14                              	  442524	      8164 ns/op	6020.73 MB/s	        64.22 GFLOPS
+BenchmarkMatMulKLastNEON/128-14                              	   49947	     71565 ns/op	2747.25 MB/s	        58.61 GFLOPS
+BenchmarkMatMulKLastNEON/128-14                              	   50538	     71387 ns/op	2754.11 MB/s	        58.75 GFLOPS
+BenchmarkMatMulKLastNEON/128-14                              	   50504	     71424 ns/op	2752.70 MB/s	        58.72 GFLOPS
+BenchmarkMatMulKLastNEON/128-14                              	   50512	     71469 ns/op	2750.96 MB/s	        58.69 GFLOPS
+BenchmarkMatMulKLastNEON/128-14                              	   50528	     71465 ns/op	2751.10 MB/s	        58.69 GFLOPS
+BenchmarkMatMulKLastNEON/128-14                              	   50493	     71439 ns/op	2752.11 MB/s	        58.71 GFLOPS
+BenchmarkMatMulKLastNEON/256-14                              	    5274	    682773 ns/op	1151.82 MB/s	        49.14 GFLOPS
+BenchmarkMatMulKLastNEON/256-14                              	    5289	    683643 ns/op	1150.35 MB/s	        49.08 GFLOPS
+BenchmarkMatMulKLastNEON/256-14                              	    5260	    682538 ns/op	1152.22 MB/s	        49.16 GFLOPS
+BenchmarkMatMulKLastNEON/256-14                              	    5270	    685207 ns/op	1147.73 MB/s	        48.97 GFLOPS
+BenchmarkMatMulKLastNEON/256-14                              	    5268	    687413 ns/op	1144.05 MB/s	        48.81 GFLOPS
+BenchmarkMatMulKLastNEON/256-14                              	    5260	    684278 ns/op	1149.29 MB/s	        49.04 GFLOPS
+BenchmarkMatMulKLastNEON/512-14                              	     558	   6496091 ns/op	 484.25 MB/s	        41.32 GFLOPS
+BenchmarkMatMulKLastNEON/512-14                              	     554	   6453311 ns/op	 487.46 MB/s	        41.60 GFLOPS
+BenchmarkMatMulKLastNEON/512-14                              	     559	   6438331 ns/op	 488.59 MB/s	        41.69 GFLOPS
+BenchmarkMatMulKLastNEON/512-14                              	     559	   6437661 ns/op	 488.64 MB/s	        41.70 GFLOPS
+BenchmarkMatMulKLastNEON/512-14                              	     561	   6458477 ns/op	 487.07 MB/s	        41.56 GFLOPS
+BenchmarkMatMulKLastNEON/512-14                              	     556	   6472736 ns/op	 486.00 MB/s	        41.47 GFLOPS
+BenchmarkMatMulKLastSME/064-14                               	 1447095	      2473 ns/op	19872.55 MB/s	       212.0 GFLOPS
+BenchmarkMatMulKLastSME/064-14                               	 1453051	      2484 ns/op	19787.43 MB/s	       211.1 GFLOPS
+BenchmarkMatMulKLastSME/064-14                               	 1458628	      2465 ns/op	19943.79 MB/s	       212.7 GFLOPS
+BenchmarkMatMulKLastSME/064-14                               	 1458795	      2475 ns/op	19858.87 MB/s	       211.8 GFLOPS
+BenchmarkMatMulKLastSME/064-14                               	 1463007	      2493 ns/op	19716.09 MB/s	       210.3 GFLOPS
+BenchmarkMatMulKLastSME/064-14                               	 1453195	      2478 ns/op	19838.20 MB/s	       211.6 GFLOPS
+BenchmarkMatMulKLastSME/128-14                               	  287714	     12382 ns/op	15878.80 MB/s	       338.7 GFLOPS
+BenchmarkMatMulKLastSME/128-14                               	  292657	     12280 ns/op	16010.73 MB/s	       341.6 GFLOPS
+BenchmarkMatMulKLastSME/128-14                               	  294345	     12319 ns/op	15960.34 MB/s	       340.5 GFLOPS
+BenchmarkMatMulKLastSME/128-14                               	  290254	     12281 ns/op	16008.64 MB/s	       341.5 GFLOPS
+BenchmarkMatMulKLastSME/128-14                               	  293586	     12332 ns/op	15942.63 MB/s	       340.1 GFLOPS
+BenchmarkMatMulKLastSME/128-14                               	  294229	     12303 ns/op	15981.01 MB/s	       340.9 GFLOPS
+BenchmarkMatMulKLastSME/256-14                               	   57226	     63431 ns/op	12398.30 MB/s	       529.0 GFLOPS
+BenchmarkMatMulKLastSME/256-14                               	   56335	     63570 ns/op	12371.08 MB/s	       527.8 GFLOPS
+BenchmarkMatMulKLastSME/256-14                               	   56467	     63064 ns/op	12470.46 MB/s	       532.1 GFLOPS
+BenchmarkMatMulKLastSME/256-14                               	   56790	     63911 ns/op	12305.07 MB/s	       525.0 GFLOPS
+BenchmarkMatMulKLastSME/256-14                               	   55789	     64513 ns/op	12190.37 MB/s	       520.1 GFLOPS
+BenchmarkMatMulKLastSME/256-14                               	   55968	     63793 ns/op	12327.96 MB/s	       526.0 GFLOPS
+BenchmarkMatMulKLastSME/512-14                               	    8778	    407328 ns/op	7722.84 MB/s	       659.0 GFLOPS
+BenchmarkMatMulKLastSME/512-14                               	    8876	    420393 ns/op	7482.83 MB/s	       638.5 GFLOPS
+BenchmarkMatMulKLastSME/512-14                               	    7790	    427164 ns/op	7364.21 MB/s	       628.4 GFLOPS
+BenchmarkMatMulKLastSME/512-14                               	    8530	    411114 ns/op	7651.71 MB/s	       652.9 GFLOPS
+BenchmarkMatMulKLastSME/512-14                               	    8704	    410202 ns/op	7668.72 MB/s	       654.4 GFLOPS
+BenchmarkMatMulKLastSME/512-14                               	    8858	    409436 ns/op	7683.07 MB/s	       655.6 GFLOPS
+BenchmarkMatMulKLastDispatch/064-14                          	 1000000	      3230 ns/op	15216.26 MB/s	       162.3 GFLOPS
+BenchmarkMatMulKLastDispatch/064-14                          	 1000000	      3234 ns/op	15199.87 MB/s	       162.1 GFLOPS
+BenchmarkMatMulKLastDispatch/064-14                          	 1000000	      3229 ns/op	15221.28 MB/s	       162.4 GFLOPS
+BenchmarkMatMulKLastDispatch/064-14                          	 1000000	      3257 ns/op	15089.47 MB/s	       161.0 GFLOPS
+BenchmarkMatMulKLastDispatch/064-14                          	 1000000	      3219 ns/op	15268.08 MB/s	       162.9 GFLOPS
+BenchmarkMatMulKLastDispatch/064-14                          	 1000000	      3209 ns/op	15315.21 MB/s	       163.4 GFLOPS
+BenchmarkMatMulKLastDispatch/128-14                          	  262772	     13720 ns/op	14329.71 MB/s	       305.7 GFLOPS
+BenchmarkMatMulKLastDispatch/128-14                          	  261516	     13754 ns/op	14294.99 MB/s	       305.0 GFLOPS
+BenchmarkMatMulKLastDispatch/128-14                          	  262051	     13727 ns/op	14323.14 MB/s	       305.6 GFLOPS
+BenchmarkMatMulKLastDispatch/128-14                          	  261974	     13720 ns/op	14329.78 MB/s	       305.7 GFLOPS
+BenchmarkMatMulKLastDispatch/128-14                          	  262712	     13729 ns/op	14320.31 MB/s	       305.5 GFLOPS
+BenchmarkMatMulKLastDispatch/128-14                          	  261938	     13734 ns/op	14315.32 MB/s	       305.4 GFLOPS
+BenchmarkMatMulKLastDispatch/256-14                          	   46828	     76855 ns/op	10232.73 MB/s	       436.6 GFLOPS
+BenchmarkMatMulKLastDispatch/256-14                          	   46802	     77008 ns/op	10212.33 MB/s	       435.7 GFLOPS
+BenchmarkMatMulKLastDispatch/256-14                          	   46674	     77145 ns/op	10194.19 MB/s	       435.0 GFLOPS
+BenchmarkMatMulKLastDispatch/256-14                          	   46798	     77385 ns/op	10162.55 MB/s	       433.6 GFLOPS
+BenchmarkMatMulKLastDispatch/256-14                          	   46459	     77415 ns/op	10158.62 MB/s	       433.4 GFLOPS
+BenchmarkMatMulKLastDispatch/256-14                          	   46338	     77043 ns/op	10207.74 MB/s	       435.5 GFLOPS
+BenchmarkMatMulKLastDispatch/512-14                          	    7861	    457947 ns/op	6869.20 MB/s	       586.2 GFLOPS
+BenchmarkMatMulKLastDispatch/512-14                          	    7864	    460901 ns/op	6825.16 MB/s	       582.4 GFLOPS
+BenchmarkMatMulKLastDispatch/512-14                          	    7854	    459616 ns/op	6844.25 MB/s	       584.0 GFLOPS
+BenchmarkMatMulKLastDispatch/512-14                          	    7816	    459583 ns/op	6844.74 MB/s	       584.1 GFLOPS
+BenchmarkMatMulKLastDispatch/512-14                          	    7851	    459141 ns/op	6851.34 MB/s	       584.6 GFLOPS
+BenchmarkMatMulKLastDispatch/512-14                          	    7784	    459970 ns/op	6838.98 MB/s	       583.6 GFLOPS
+BenchmarkMatMulKLast/064-14                                  	 1000000	      3217 ns/op	15277.00 MB/s	       163.0 GFLOPS
+BenchmarkMatMulKLast/064-14                                  	 1000000	      3215 ns/op	15290.02 MB/s	       163.1 GFLOPS
+BenchmarkMatMulKLast/064-14                                  	 1000000	      3193 ns/op	15394.14 MB/s	       164.2 GFLOPS
+BenchmarkMatMulKLast/064-14                                  	 1000000	      3198 ns/op	15370.31 MB/s	       163.9 GFLOPS
+BenchmarkMatMulKLast/064-14                                  	 1000000	      3212 ns/op	15301.13 MB/s	       163.2 GFLOPS
+BenchmarkMatMulKLast/064-14                                  	 1000000	      3208 ns/op	15321.23 MB/s	       163.4 GFLOPS
+BenchmarkMatMulKLast/128-14                                  	  260938	     13786 ns/op	14261.45 MB/s	       304.2 GFLOPS
+BenchmarkMatMulKLast/128-14                                  	  262358	     13735 ns/op	14314.48 MB/s	       305.4 GFLOPS
+BenchmarkMatMulKLast/128-14                                  	  260247	     13722 ns/op	14327.42 MB/s	       305.7 GFLOPS
+BenchmarkMatMulKLast/128-14                                  	  261217	     13738 ns/op	14310.84 MB/s	       305.3 GFLOPS
+BenchmarkMatMulKLast/128-14                                  	  261730	     13721 ns/op	14328.53 MB/s	       305.7 GFLOPS
+BenchmarkMatMulKLast/128-14                                  	  259788	     13788 ns/op	14259.77 MB/s	       304.2 GFLOPS
+BenchmarkMatMulKLast/256-14                                  	   46748	     76899 ns/op	10226.85 MB/s	       436.3 GFLOPS
+BenchmarkMatMulKLast/256-14                                  	   47005	     76937 ns/op	10221.73 MB/s	       436.1 GFLOPS
+BenchmarkMatMulKLast/256-14                                  	   44374	     77050 ns/op	10206.82 MB/s	       435.5 GFLOPS
+BenchmarkMatMulKLast/256-14                                  	   46915	     76672 ns/op	10257.10 MB/s	       437.6 GFLOPS
+BenchmarkMatMulKLast/256-14                                  	   46994	     76741 ns/op	10247.83 MB/s	       437.2 GFLOPS
+BenchmarkMatMulKLast/256-14                                  	   46945	     76721 ns/op	10250.52 MB/s	       437.4 GFLOPS
+BenchmarkMatMulKLast/512-14                                  	    7897	    454743 ns/op	6917.59 MB/s	       590.3 GFLOPS
+BenchmarkMatMulKLast/512-14                                  	    7928	    454495 ns/op	6921.36 MB/s	       590.6 GFLOPS
+BenchmarkMatMulKLast/512-14                                  	    7930	    456205 ns/op	6895.42 MB/s	       588.4 GFLOPS
+BenchmarkMatMulKLast/512-14                                  	    7915	    457641 ns/op	6873.79 MB/s	       586.6 GFLOPS
+BenchmarkMatMulKLast/512-14                                  	    7687	    457550 ns/op	6875.15 MB/s	       586.7 GFLOPS
+BenchmarkMatMulKLast/512-14                                  	    7821	    457260 ns/op	6879.52 MB/s	       587.1 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_small-14                   	    3715	    973252 ns/op	8888.50 MB/s	       465.4 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_small-14                   	    3705	    974993 ns/op	8872.63 MB/s	       464.6 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_small-14                   	    3691	    978404 ns/op	8841.70 MB/s	       463.0 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_small-14                   	    3680	    977808 ns/op	8847.09 MB/s	       463.3 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_small-14                   	    3664	    977853 ns/op	8846.68 MB/s	       463.2 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_small-14                   	    3670	    975931 ns/op	8864.10 MB/s	       464.2 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_medium-14                  	    2190	   1637884 ns/op	8962.82 MB/s	       491.7 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_medium-14                  	    2203	   1638487 ns/op	8959.53 MB/s	       491.5 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_medium-14                  	    2193	   1643795 ns/op	8930.59 MB/s	       489.9 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_medium-14                  	    2173	   1654499 ns/op	8872.82 MB/s	       486.7 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_medium-14                  	    2192	   1667809 ns/op	8802.01 MB/s	       482.9 GFLOPS
+BenchmarkMatMulKLastLLMShapes/QKV_medium-14                  	    2204	   1722334 ns/op	8523.35 MB/s	       467.6 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_up_small-14                	    2572	   1304608 ns/op	8740.76 MB/s	       463.0 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_up_small-14                	    2720	   1300886 ns/op	8765.76 MB/s	       464.3 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_up_small-14                	    2743	   1296456 ns/op	8795.72 MB/s	       465.9 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_up_small-14                	    2778	   1297086 ns/op	8791.45 MB/s	       465.6 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_up_small-14                	    2805	   1297451 ns/op	8788.97 MB/s	       465.5 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_up_small-14                	    2736	   1294864 ns/op	8806.53 MB/s	       466.4 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_down_small-14              	    2604	   1391135 ns/op	8197.09 MB/s	       434.2 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_down_small-14              	    2553	   1400106 ns/op	8144.57 MB/s	       431.4 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_down_small-14              	    2586	   1384223 ns/op	8238.02 MB/s	       436.3 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_down_small-14              	    2600	   1387640 ns/op	8217.74 MB/s	       435.3 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_down_small-14              	    2599	   1392411 ns/op	8189.58 MB/s	       433.8 GFLOPS
+BenchmarkMatMulKLastLLMShapes/MLP_down_small-14              	    2575	   1397665 ns/op	8158.79 MB/s	       432.1 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_single-14            	   46282	     81213 ns/op	29126.48 MB/s	        14.53 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_single-14            	   46548	     77802 ns/op	30403.29 MB/s	        15.16 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_single-14            	   46454	     77299 ns/op	30601.22 MB/s	        15.26 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_single-14            	   46552	     77268 ns/op	30613.59 MB/s	        15.27 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_single-14            	   46702	     77086 ns/op	30685.68 MB/s	        15.30 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_single-14            	   46621	     77519 ns/op	30514.16 MB/s	        15.22 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_batch-14             	   27987	    128493 ns/op	19891.32 MB/s	       293.8 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_batch-14             	   28003	    128793 ns/op	19844.98 MB/s	       293.1 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_batch-14             	   28185	    128293 ns/op	19922.35 MB/s	       294.2 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_batch-14             	   28027	    140575 ns/op	18181.81 MB/s	       268.5 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_batch-14             	   27116	    132050 ns/op	19355.64 MB/s	       285.9 GFLOPS
+BenchmarkMatMulKLastLLMShapes/Attention_batch-14             	   27721	    136421 ns/op	18735.43 MB/s	       276.7 GFLOPS
+BenchmarkBatchParallelPackedMatMulV2/BatchV2-14              	    8977	    390353 ns/op
+BenchmarkBatchParallelPackedMatMulV2/BatchV2-14              	    9024	    389923 ns/op
+BenchmarkBatchParallelPackedMatMulV2/BatchV2-14              	    9415	    389340 ns/op
+BenchmarkBatchParallelPackedMatMulV2/BatchV2-14              	    8955	    389032 ns/op
+BenchmarkBatchParallelPackedMatMulV2/BatchV2-14              	    8890	    391744 ns/op
+BenchmarkBatchParallelPackedMatMulV2/BatchV2-14              	    9142	    389333 ns/op
+BenchmarkPoolKLast/KLast_FineGrained-14                      	   12264	    296428 ns/op
+BenchmarkPoolKLast/KLast_FineGrained-14                      	   12235	    292869 ns/op
+BenchmarkPoolKLast/KLast_FineGrained-14                      	   12302	    293527 ns/op
+BenchmarkPoolKLast/KLast_FineGrained-14                      	   12266	    294596 ns/op
+BenchmarkPoolKLast/KLast_FineGrained-14                      	   12178	    294728 ns/op
+BenchmarkPoolKLast/KLast_FineGrained-14                      	   12270	    293789 ns/op
+BenchmarkMatMul/064-14                                       	 1986480	      1813 ns/op	27113.98 MB/s	       289.2 GFLOPS
+BenchmarkMatMul/064-14                                       	 1991914	      1804 ns/op	27253.11 MB/s	       290.7 GFLOPS
+BenchmarkMatMul/064-14                                       	 1995747	      1804 ns/op	27241.05 MB/s	       290.6 GFLOPS
+BenchmarkMatMul/064-14                                       	 2009302	      1796 ns/op	27367.27 MB/s	       291.9 GFLOPS
+BenchmarkMatMul/064-14                                       	 1981050	      1806 ns/op	27218.31 MB/s	       290.3 GFLOPS
+BenchmarkMatMul/064-14                                       	 2009200	      1796 ns/op	27368.16 MB/s	       291.9 GFLOPS
+BenchmarkMatMul/128-14                                       	  357691	     10051 ns/op	19561.55 MB/s	       417.3 GFLOPS
+BenchmarkMatMul/128-14                                       	  358243	     10040 ns/op	19583.27 MB/s	       417.8 GFLOPS
+BenchmarkMatMul/128-14                                       	  357020	     10035 ns/op	19592.12 MB/s	       418.0 GFLOPS
+BenchmarkMatMul/128-14                                       	  357242	     10051 ns/op	19560.73 MB/s	       417.3 GFLOPS
+BenchmarkMatMul/128-14                                       	  357666	     10056 ns/op	19551.64 MB/s	       417.1 GFLOPS
+BenchmarkMatMul/128-14                                       	  358447	     10038 ns/op	19586.49 MB/s	       417.8 GFLOPS
+BenchmarkMatMul/256-14                                       	   59451	     59673 ns/op	13178.92 MB/s	       562.3 GFLOPS
+BenchmarkMatMul/256-14                                       	   60392	     59914 ns/op	13126.09 MB/s	       560.0 GFLOPS
+BenchmarkMatMul/256-14                                       	   60186	     60079 ns/op	13089.91 MB/s	       558.5 GFLOPS
+BenchmarkMatMul/256-14                                       	   59485	     59963 ns/op	13115.30 MB/s	       559.6 GFLOPS
+BenchmarkMatMul/256-14                                       	   59779	     60193 ns/op	13065.18 MB/s	       557.4 GFLOPS
+BenchmarkMatMul/256-14                                       	   59572	     60019 ns/op	13103.06 MB/s	       559.1 GFLOPS
+BenchmarkMatMul/512-14                                       	    9206	    391562 ns/op	8033.80 MB/s	       685.6 GFLOPS
+BenchmarkMatMul/512-14                                       	    9230	    395257 ns/op	7958.68 MB/s	       679.1 GFLOPS
+BenchmarkMatMul/512-14                                       	    8848	    391690 ns/op	8031.17 MB/s	       685.3 GFLOPS
+BenchmarkMatMul/512-14                                       	    9236	    394324 ns/op	7977.52 MB/s	       680.7 GFLOPS
+BenchmarkMatMul/512-14                                       	    9190	    393429 ns/op	7995.68 MB/s	       682.3 GFLOPS
+BenchmarkMatMul/512-14                                       	    9199	    390558 ns/op	8054.45 MB/s	       687.3 GFLOPS
+BenchmarkMatMulFloat64/064-14                                	 1000000	      3573 ns/op	27510.26 MB/s	       146.7 GFLOPS
+BenchmarkMatMulFloat64/064-14                                	 1000000	      3539 ns/op	27773.72 MB/s	       148.1 GFLOPS
+BenchmarkMatMulFloat64/064-14                                	 1000000	      3539 ns/op	27776.84 MB/s	       148.1 GFLOPS
+BenchmarkMatMulFloat64/064-14                                	 1000000	      3521 ns/op	27919.30 MB/s	       148.9 GFLOPS
+BenchmarkMatMulFloat64/064-14                                	 1000000	      3539 ns/op	27780.79 MB/s	       148.2 GFLOPS
+BenchmarkMatMulFloat64/064-14                                	 1000000	      3542 ns/op	27750.98 MB/s	       148.0 GFLOPS
+BenchmarkMatMulFloat64/128-14                                	  165505	     21869 ns/op	17980.21 MB/s	       191.8 GFLOPS
+BenchmarkMatMulFloat64/128-14                                	  167428	     21800 ns/op	18037.60 MB/s	       192.4 GFLOPS
+BenchmarkMatMulFloat64/128-14                                	  168216	     21739 ns/op	18087.87 MB/s	       192.9 GFLOPS
+BenchmarkMatMulFloat64/128-14                                	  161359	     21995 ns/op	17877.68 MB/s	       190.7 GFLOPS
+BenchmarkMatMulFloat64/128-14                                	  158672	     22076 ns/op	17811.69 MB/s	       190.0 GFLOPS
+BenchmarkMatMulFloat64/128-14                                	  166204	     21810 ns/op	18028.94 MB/s	       192.3 GFLOPS
+BenchmarkMatMulFloat64/256-14                                	   36902	     97015 ns/op	16212.60 MB/s	       345.9 GFLOPS
+BenchmarkMatMulFloat64/256-14                                	   37148	     97628 ns/op	16110.73 MB/s	       343.7 GFLOPS
+BenchmarkMatMulFloat64/256-14                                	   36955	     97257 ns/op	16172.23 MB/s	       345.0 GFLOPS
+BenchmarkMatMulFloat64/256-14                                	   37348	     97910 ns/op	16064.31 MB/s	       342.7 GFLOPS
+BenchmarkMatMulFloat64/256-14                                	   37068	     96991 ns/op	16216.64 MB/s	       346.0 GFLOPS
+BenchmarkMatMulFloat64/256-14                                	   37274	     96997 ns/op	16215.56 MB/s	       345.9 GFLOPS
+BenchmarkBlockedMatMul/064-14                                	 1000000	      3512 ns/op	13996.54 MB/s	       149.3 GFLOPS
+BenchmarkBlockedMatMul/064-14                                	 1000000	      3509 ns/op	14007.26 MB/s	       149.4 GFLOPS
+BenchmarkBlockedMatMul/064-14                                	 1000000	      3517 ns/op	13976.75 MB/s	       149.1 GFLOPS
+BenchmarkBlockedMatMul/064-14                                	 1000000	      3515 ns/op	13983.49 MB/s	       149.2 GFLOPS
+BenchmarkBlockedMatMul/064-14                                	 1000000	      3518 ns/op	13973.16 MB/s	       149.0 GFLOPS
+BenchmarkBlockedMatMul/064-14                                	 1000000	      3512 ns/op	13994.44 MB/s	       149.3 GFLOPS
+BenchmarkBlockedMatMul/128-14                                	  233488	     15392 ns/op	12773.25 MB/s	       272.5 GFLOPS
+BenchmarkBlockedMatMul/128-14                                	  239077	     15359 ns/op	12800.92 MB/s	       273.1 GFLOPS
+BenchmarkBlockedMatMul/128-14                                	  233863	     15380 ns/op	12783.11 MB/s	       272.7 GFLOPS
+BenchmarkBlockedMatMul/128-14                                	  234271	     15378 ns/op	12785.04 MB/s	       272.7 GFLOPS
+BenchmarkBlockedMatMul/128-14                                	  234537	     15370 ns/op	12791.99 MB/s	       272.9 GFLOPS
+BenchmarkBlockedMatMul/128-14                                	  234343	     15391 ns/op	12774.14 MB/s	       272.5 GFLOPS
+BenchmarkBlockedMatMul/256-14                                	   58750	     61270 ns/op	12835.55 MB/s	       547.7 GFLOPS
+BenchmarkBlockedMatMul/256-14                                	   58806	     61056 ns/op	12880.55 MB/s	       549.6 GFLOPS
+BenchmarkBlockedMatMul/256-14                                	   58978	     61338 ns/op	12821.24 MB/s	       547.0 GFLOPS
+BenchmarkBlockedMatMul/256-14                                	   59184	     61440 ns/op	12799.92 MB/s	       546.1 GFLOPS
+BenchmarkBlockedMatMul/256-14                                	   59168	     61035 ns/op	12884.93 MB/s	       549.8 GFLOPS
+BenchmarkBlockedMatMul/256-14                                	   58885	     60702 ns/op	12955.55 MB/s	       552.8 GFLOPS
+BenchmarkBlockedMatMul/512-14                                	    8836	    398667 ns/op	7890.61 MB/s	       673.3 GFLOPS
+BenchmarkBlockedMatMul/512-14                                	    8962	    395785 ns/op	7948.08 MB/s	       678.2 GFLOPS
+BenchmarkBlockedMatMul/512-14                                	    9085	    395740 ns/op	7948.97 MB/s	       678.3 GFLOPS
+BenchmarkBlockedMatMul/512-14                                	    9123	    396563 ns/op	7932.48 MB/s	       676.9 GFLOPS
+BenchmarkBlockedMatMul/512-14                                	    9098	    399623 ns/op	7871.73 MB/s	       671.7 GFLOPS
+BenchmarkBlockedMatMul/512-14                                	    9002	    397119 ns/op	7921.37 MB/s	       676.0 GFLOPS
+BenchmarkParallelMatMul/256-14                               	   75948	     47329 ns/op	16616.15 MB/s	       709.0 GFLOPS
+BenchmarkParallelMatMul/256-14                               	   76038	     47900 ns/op	16418.05 MB/s	       700.5 GFLOPS
+BenchmarkParallelMatMul/256-14                               	   75277	     47489 ns/op	16560.23 MB/s	       706.6 GFLOPS
+BenchmarkParallelMatMul/256-14                               	   75844	     47510 ns/op	16552.97 MB/s	       706.3 GFLOPS
+BenchmarkParallelMatMul/256-14                               	   75876	     47615 ns/op	16516.53 MB/s	       704.7 GFLOPS
+BenchmarkParallelMatMul/256-14                               	   75978	     49456 ns/op	15901.52 MB/s	       678.5 GFLOPS
+BenchmarkParallelMatMul/512-14                               	   22593	    157946 ns/op	19916.54 MB/s	      1700 GFLOPS
+BenchmarkParallelMatMul/512-14                               	   22983	    149390 ns/op	21057.11 MB/s	      1797 GFLOPS
+BenchmarkParallelMatMul/512-14                               	   25268	    143158 ns/op	21973.75 MB/s	      1875 GFLOPS
+BenchmarkParallelMatMul/512-14                               	   25057	    142019 ns/op	22149.98 MB/s	      1890 GFLOPS
+BenchmarkParallelMatMul/512-14                               	   25035	    143286 ns/op	21954.22 MB/s	      1873 GFLOPS
+BenchmarkParallelMatMul/512-14                               	   25069	    142715 ns/op	22042.10 MB/s	      1881 GFLOPS
+BenchmarkParallelMatMul/:24-14                               	    3957	   1083143 ns/op	11617.03 MB/s	      1983 GFLOPS
+BenchmarkParallelMatMul/:24-14                               	    2875	   1119648 ns/op	11238.28 MB/s	      1918 GFLOPS
+BenchmarkParallelMatMul/:24-14                               	    3337	   1114682 ns/op	11288.34 MB/s	      1927 GFLOPS
+BenchmarkParallelMatMul/:24-14                               	    3410	   1125175 ns/op	11183.07 MB/s	      1909 GFLOPS
+BenchmarkParallelMatMul/:24-14                               	    3271	   1105488 ns/op	11382.22 MB/s	      1943 GFLOPS
+BenchmarkParallelMatMul/:24-14                               	    3346	   1099430 ns/op	11444.94 MB/s	      1953 GFLOPS
+BenchmarkPackRHS/PackRHS-14                                  	   40052	     86082 ns/op
+BenchmarkPackRHS/PackRHS-14                                  	   39714	     86272 ns/op
+BenchmarkPackRHS/PackRHS-14                                  	   41528	     86137 ns/op
+BenchmarkPackRHS/PackRHS-14                                  	   41487	     85131 ns/op
+BenchmarkPackRHS/PackRHS-14                                  	   42258	     84289 ns/op
+BenchmarkPackRHS/PackRHS-14                                  	   42436	     84618 ns/op
+BenchmarkPackRHS/PackRHSFast-14                              	  208807	     17212 ns/op
+BenchmarkPackRHS/PackRHSFast-14                              	  207738	     17161 ns/op
+BenchmarkPackRHS/PackRHSFast-14                              	  210834	     17048 ns/op
+BenchmarkPackRHS/PackRHSFast-14                              	  189451	     17554 ns/op
+BenchmarkPackRHS/PackRHSFast-14                              	  207375	     17481 ns/op
+BenchmarkPackRHS/PackRHSFast-14                              	  207610	     17768 ns/op
+BenchmarkApplyPackedOutput/General-14                        	  598238	      6099 ns/op
+BenchmarkApplyPackedOutput/General-14                        	  597956	      6112 ns/op
+BenchmarkApplyPackedOutput/General-14                        	  606078	      6031 ns/op
+BenchmarkApplyPackedOutput/General-14                        	  601390	      6123 ns/op
+BenchmarkApplyPackedOutput/General-14                        	  602080	      6042 ns/op
+BenchmarkApplyPackedOutput/General-14                        	  592776	      6111 ns/op
+BenchmarkApplyPackedOutput/Simple-14                         	  783741	      4683 ns/op
+BenchmarkApplyPackedOutput/Simple-14                         	  772610	      4615 ns/op
+BenchmarkApplyPackedOutput/Simple-14                         	  740582	      4708 ns/op
+BenchmarkApplyPackedOutput/Simple-14                         	  741777	      4733 ns/op
+BenchmarkApplyPackedOutput/Simple-14                         	  792652	      4655 ns/op
+BenchmarkApplyPackedOutput/Simple-14                         	  767378	      4635 ns/op
+BenchmarkApplyPackedOutput/Accum-14                          	  567741	      6109 ns/op
+BenchmarkApplyPackedOutput/Accum-14                          	  572949	      6164 ns/op
+BenchmarkApplyPackedOutput/Accum-14                          	  589257	      6148 ns/op
+BenchmarkApplyPackedOutput/Accum-14                          	  582885	      6174 ns/op
+BenchmarkApplyPackedOutput/Accum-14                          	  579344	      6153 ns/op
+BenchmarkApplyPackedOutput/Accum-14                          	  580556	      6145 ns/op
+BenchmarkPackedMatMul/128-14                                 	   22364	    162351 ns/op	1211.01 MB/s	        25.83 GFLOPS
+BenchmarkPackedMatMul/128-14                                 	   22084	    164467 ns/op	1195.43 MB/s	        25.50 GFLOPS
+BenchmarkPackedMatMul/128-14                                 	   21585	    166507 ns/op	1180.78 MB/s	        25.19 GFLOPS
+BenchmarkPackedMatMul/128-14                                 	   21462	    168641 ns/op	1165.84 MB/s	        24.87 GFLOPS
+BenchmarkPackedMatMul/128-14                                 	   21058	    165381 ns/op	1188.82 MB/s	        25.36 GFLOPS
+BenchmarkPackedMatMul/128-14                                 	   22149	    162743 ns/op	1208.09 MB/s	        25.77 GFLOPS
+BenchmarkPackedMatMul/256-14                                 	    5382	    638254 ns/op	1232.16 MB/s	        52.57 GFLOPS
+BenchmarkPackedMatMul/256-14                                 	    5677	    641947 ns/op	1225.07 MB/s	        52.27 GFLOPS
+BenchmarkPackedMatMul/256-14                                 	    5764	    628688 ns/op	1250.91 MB/s	        53.37 GFLOPS
+BenchmarkPackedMatMul/256-14                                 	    5553	    646940 ns/op	1215.62 MB/s	        51.87 GFLOPS
+BenchmarkPackedMatMul/256-14                                 	    5521	    656674 ns/op	1197.60 MB/s	        51.10 GFLOPS
+BenchmarkPackedMatMul/256-14                                 	    5802	    625260 ns/op	1257.77 MB/s	        53.66 GFLOPS
+BenchmarkPackedMatMul/512-14                                 	     801	   4616678 ns/op	 681.38 MB/s	        58.14 GFLOPS
+BenchmarkPackedMatMul/512-14                                 	     789	   4519398 ns/op	 696.05 MB/s	        59.40 GFLOPS
+BenchmarkPackedMatMul/512-14                                 	     781	   4522606 ns/op	 695.56 MB/s	        59.35 GFLOPS
+BenchmarkPackedMatMul/512-14                                 	     805	   4629775 ns/op	 679.46 MB/s	        57.98 GFLOPS
+BenchmarkPackedMatMul/512-14                                 	     769	   4645808 ns/op	 677.11 MB/s	        57.78 GFLOPS
+BenchmarkPackedMatMul/512-14                                 	     778	   4639631 ns/op	 678.01 MB/s	        57.86 GFLOPS
+BenchmarkPackedMatMul/:24-14                                 	      96	  37175244 ns/op	 338.48 MB/s	        57.77 GFLOPS
+BenchmarkPackedMatMul/:24-14                                 	      93	  36362078 ns/op	 346.04 MB/s	        59.06 GFLOPS
+BenchmarkPackedMatMul/:24-14                                 	     100	  36212332 ns/op	 347.48 MB/s	        59.30 GFLOPS
+BenchmarkPackedMatMul/:24-14                                 	      98	  36665461 ns/op	 343.18 MB/s	        58.57 GFLOPS
+BenchmarkPackedMatMul/:24-14                                 	      99	  35978344 ns/op	 349.74 MB/s	        59.69 GFLOPS
+BenchmarkPackedMatMul/:24-14                                 	     100	  36186347 ns/op	 347.73 MB/s	        59.35 GFLOPS
+BenchmarkParallelPackedMatMul/256-14                         	    5569	    663541 ns/op	1185.20 MB/s	        50.57 GFLOPS
+BenchmarkParallelPackedMatMul/256-14                         	    5221	    660564 ns/op	1190.55 MB/s	        50.80 GFLOPS
+BenchmarkParallelPackedMatMul/256-14                         	    5476	    664217 ns/op	1184.00 MB/s	        50.52 GFLOPS
+BenchmarkParallelPackedMatMul/256-14                         	    5479	    659042 ns/op	1193.30 MB/s	        50.91 GFLOPS
+BenchmarkParallelPackedMatMul/256-14                         	    5361	    663220 ns/op	1185.78 MB/s	        50.59 GFLOPS
+BenchmarkParallelPackedMatMul/256-14                         	    5427	    658198 ns/op	1194.82 MB/s	        50.98 GFLOPS
+BenchmarkParallelPackedMatMul/512-14                         	    1432	   2530895 ns/op	1242.93 MB/s	       106.1 GFLOPS
+BenchmarkParallelPackedMatMul/512-14                         	    1380	   2533759 ns/op	1241.53 MB/s	       105.9 GFLOPS
+BenchmarkParallelPackedMatMul/512-14                         	    1420	   2524916 ns/op	1245.87 MB/s	       106.3 GFLOPS
+BenchmarkParallelPackedMatMul/512-14                         	    1416	   2525394 ns/op	1245.64 MB/s	       106.3 GFLOPS
+BenchmarkParallelPackedMatMul/512-14                         	    1365	   2536666 ns/op	1240.10 MB/s	       105.8 GFLOPS
+BenchmarkParallelPackedMatMul/512-14                         	    1428	   2527160 ns/op	1244.77 MB/s	       106.2 GFLOPS
+BenchmarkParallelPackedMatMul/:24-14                         	     367	   9949799 ns/op	1264.64 MB/s	       215.8 GFLOPS
+BenchmarkParallelPackedMatMul/:24-14                         	     367	   9750456 ns/op	1290.49 MB/s	       220.2 GFLOPS
+BenchmarkParallelPackedMatMul/:24-14                         	     370	   9592416 ns/op	1311.76 MB/s	       223.9 GFLOPS
+BenchmarkParallelPackedMatMul/:24-14                         	     373	   9763072 ns/op	1288.83 MB/s	       220.0 GFLOPS
+BenchmarkParallelPackedMatMul/:24-14                         	     369	   9819121 ns/op	1281.47 MB/s	       218.7 GFLOPS
+BenchmarkParallelPackedMatMul/:24-14                         	     366	   9914930 ns/op	1269.09 MB/s	       216.6 GFLOPS
+BenchmarkPacking/PackLHS-14                                  	  137524	     26715 ns/op	9812.66 MB/s
+BenchmarkPacking/PackLHS-14                                  	  133884	     27087 ns/op	9677.92 MB/s
+BenchmarkPacking/PackLHS-14                                  	  128274	     26890 ns/op	9748.66 MB/s
+BenchmarkPacking/PackLHS-14                                  	  135076	     26884 ns/op	9750.96 MB/s
+BenchmarkPacking/PackLHS-14                                  	  138544	     28393 ns/op	9232.83 MB/s
+BenchmarkPacking/PackLHS-14                                  	  124417	     27560 ns/op	9511.90 MB/s
+BenchmarkPacking/PackRHS-14                                  	   80154	     46680 ns/op	11231.50 MB/s
+BenchmarkPacking/PackRHS-14                                  	   73755	     46461 ns/op	11284.40 MB/s
+BenchmarkPacking/PackRHS-14                                  	   71822	     47554 ns/op	11025.03 MB/s
+BenchmarkPacking/PackRHS-14                                  	   81568	     46623 ns/op	11245.30 MB/s
+BenchmarkPacking/PackRHS-14                                  	   81031	     45662 ns/op	11481.98 MB/s
+BenchmarkPacking/PackRHS-14                                  	   73909	     45028 ns/op	11643.56 MB/s
+BenchmarkTranspose/16x16-14                                  	38843156	        95.70 ns/op	21400.17 MB/s
+BenchmarkTranspose/16x16-14                                  	38165005	        96.05 ns/op	21321.74 MB/s
+BenchmarkTranspose/16x16-14                                  	37729190	        95.59 ns/op	21425.09 MB/s
+BenchmarkTranspose/16x16-14                                  	38361892	        95.32 ns/op	21484.89 MB/s
+BenchmarkTranspose/16x16-14                                  	36150854	        95.89 ns/op	21358.51 MB/s
+BenchmarkTranspose/16x16-14                                  	34866742	        94.62 ns/op	21644.58 MB/s
+BenchmarkTranspose/32x32-14                                  	79837958	        45.25 ns/op	181030.88 MB/s
+BenchmarkTranspose/32x32-14                                  	78606910	        45.66 ns/op	179423.94 MB/s
+BenchmarkTranspose/32x32-14                                  	78966344	        45.88 ns/op	178538.55 MB/s
+BenchmarkTranspose/32x32-14                                  	78360806	        45.74 ns/op	179114.41 MB/s
+BenchmarkTranspose/32x32-14                                  	78699992	        45.74 ns/op	179114.71 MB/s
+BenchmarkTranspose/32x32-14                                  	79232908	        46.14 ns/op	177552.44 MB/s
+BenchmarkTranspose/64x64-14                                  	13563850	       266.0 ns/op	123208.52 MB/s
+BenchmarkTranspose/64x64-14                                  	13613414	       265.0 ns/op	123642.97 MB/s
+BenchmarkTranspose/64x64-14                                  	13119738	       267.9 ns/op	122318.22 MB/s
+BenchmarkTranspose/64x64-14                                  	13538518	       264.8 ns/op	123754.64 MB/s
+BenchmarkTranspose/64x64-14                                  	13666926	       264.8 ns/op	123743.61 MB/s
+BenchmarkTranspose/64x64-14                                  	13334977	       267.3 ns/op	122592.90 MB/s
+BenchmarkTranspose/128x128-14                                	 3220510	      1118 ns/op	117223.09 MB/s
+BenchmarkTranspose/128x128-14                                	 3265485	      1114 ns/op	117669.70 MB/s
+BenchmarkTranspose/128x128-14                                	 3257434	      1103 ns/op	118864.60 MB/s
+BenchmarkTranspose/128x128-14                                	 3263514	      1105 ns/op	118664.95 MB/s
+BenchmarkTranspose/128x128-14                                	 3194728	      1103 ns/op	118863.26 MB/s
+BenchmarkTranspose/128x128-14                                	 3269763	      1120 ns/op	116991.01 MB/s
+BenchmarkTranspose/256x256-14                                	  860310	      4243 ns/op	123568.85 MB/s
+BenchmarkTranspose/256x256-14                                	  846195	      4212 ns/op	124477.65 MB/s
+BenchmarkTranspose/256x256-14                                	  842900	      4213 ns/op	124450.03 MB/s
+BenchmarkTranspose/256x256-14                                	  850275	      4316 ns/op	121482.27 MB/s
+BenchmarkTranspose/256x256-14                                	  841846	      4223 ns/op	124144.18 MB/s
+BenchmarkTranspose/256x256-14                                	  852496	      4230 ns/op	123951.43 MB/s
+BenchmarkTranspose/512x512-14                                	  222190	     16025 ns/op	130868.54 MB/s
+BenchmarkTranspose/512x512-14                                	  223975	     16128 ns/op	130027.88 MB/s
+BenchmarkTranspose/512x512-14                                	  224306	     15922 ns/op	131711.91 MB/s
+BenchmarkTranspose/512x512-14                                	  225919	     16458 ns/op	127425.16 MB/s
+BenchmarkTranspose/512x512-14                                	  224134	     15935 ns/op	131605.12 MB/s
+BenchmarkTranspose/512x512-14                                	  226244	     16329 ns/op	128429.45 MB/s
+BenchmarkTranspose/1024x1024-14                              	   33402	    109277 ns/op	76764.86 MB/s
+BenchmarkTranspose/1024x1024-14                              	   33200	    108613 ns/op	77234.11 MB/s
+BenchmarkTranspose/1024x1024-14                              	   33278	    109355 ns/op	76710.18 MB/s
+BenchmarkTranspose/1024x1024-14                              	   33834	    107927 ns/op	77724.77 MB/s
+BenchmarkTranspose/1024x1024-14                              	   33435	    107885 ns/op	77755.09 MB/s
+BenchmarkTranspose/1024x1024-14                              	   33112	    108813 ns/op	77092.29 MB/s
+BenchmarkTransposeFloat64/64x64-14                           	 6872445	       521.9 ns/op	125583.31 MB/s
+BenchmarkTransposeFloat64/64x64-14                           	 6918526	       523.3 ns/op	125229.59 MB/s
+BenchmarkTransposeFloat64/64x64-14                           	 6907712	       524.5 ns/op	124942.12 MB/s
+BenchmarkTransposeFloat64/64x64-14                           	 6862386	       520.4 ns/op	125930.51 MB/s
+BenchmarkTransposeFloat64/64x64-14                           	 6948673	       523.7 ns/op	125143.15 MB/s
+BenchmarkTransposeFloat64/64x64-14                           	 6918388	       520.9 ns/op	125812.95 MB/s
+BenchmarkTransposeFloat64/256x256-14                         	  379981	      8273 ns/op	126754.20 MB/s
+BenchmarkTransposeFloat64/256x256-14                         	  423834	      8529 ns/op	122945.44 MB/s
+BenchmarkTransposeFloat64/256x256-14                         	  417448	      8522 ns/op	123041.82 MB/s
+BenchmarkTransposeFloat64/256x256-14                         	  423358	      8075 ns/op	129852.35 MB/s
+BenchmarkTransposeFloat64/256x256-14                         	  442308	      8542 ns/op	122756.51 MB/s
+BenchmarkTransposeFloat64/256x256-14                         	  423070	      8110 ns/op	129293.57 MB/s
+BenchmarkTransposeFloat64/512x512-14                         	   67436	     54144 ns/op	77466.22 MB/s
+BenchmarkTransposeFloat64/512x512-14                         	   66214	     54290 ns/op	77257.69 MB/s
+BenchmarkTransposeFloat64/512x512-14                         	   66873	     54618 ns/op	76792.82 MB/s
+BenchmarkTransposeFloat64/512x512-14                         	   66460	     54622 ns/op	76788.20 MB/s
+BenchmarkTransposeFloat64/512x512-14                         	   66448	     55234 ns/op	75937.51 MB/s
+BenchmarkTransposeFloat64/512x512-14                         	   64326	     59140 ns/op	70921.89 MB/s
+BenchmarkTransposeFloat16/64x64-14                           	33095877	       109.2 ns/op	150088.61 MB/s
+BenchmarkTransposeFloat16/64x64-14                           	33177710	       109.2 ns/op	150085.87 MB/s
+BenchmarkTransposeFloat16/64x64-14                           	33114422	       109.8 ns/op	149248.82 MB/s
+BenchmarkTransposeFloat16/64x64-14                           	33206834	       108.7 ns/op	150788.96 MB/s
+BenchmarkTransposeFloat16/64x64-14                           	33318884	       108.6 ns/op	150814.37 MB/s
+BenchmarkTransposeFloat16/64x64-14                           	33263700	       108.8 ns/op	150568.86 MB/s
+BenchmarkTransposeFloat16/256x256-14                         	  713126	      5052 ns/op	51889.65 MB/s
+BenchmarkTransposeFloat16/256x256-14                         	  714824	      5054 ns/op	51865.93 MB/s
+BenchmarkTransposeFloat16/256x256-14                         	  711051	      5052 ns/op	51888.19 MB/s
+BenchmarkTransposeFloat16/256x256-14                         	  715390	      5077 ns/op	51630.82 MB/s
+BenchmarkTransposeFloat16/256x256-14                         	  703112	      5049 ns/op	51921.87 MB/s
+BenchmarkTransposeFloat16/256x256-14                         	  708704	      5034 ns/op	52074.14 MB/s
+BenchmarkTransposeFloat16/1024x1024-14                       	   45426	     79532 ns/op	52737.09 MB/s
+BenchmarkTransposeFloat16/1024x1024-14                       	   45572	     79263 ns/op	52916.14 MB/s
+BenchmarkTransposeFloat16/1024x1024-14                       	   45252	     79780 ns/op	52573.58 MB/s
+BenchmarkTransposeFloat16/1024x1024-14                       	   45453	     79682 ns/op	52638.18 MB/s
+BenchmarkTransposeFloat16/1024x1024-14                       	   45454	     79408 ns/op	52819.69 MB/s
+BenchmarkTransposeFloat16/1024x1024-14                       	   45487	     79340 ns/op	52864.77 MB/s
+BenchmarkParallelTranspose/Serial_256x256-14                 	  852142	      4216 ns/op	124358.09 MB/s
+BenchmarkParallelTranspose/Serial_256x256-14                 	  853798	      4224 ns/op	124119.85 MB/s
+BenchmarkParallelTranspose/Serial_256x256-14                 	  836992	      4205 ns/op	124672.97 MB/s
+BenchmarkParallelTranspose/Serial_256x256-14                 	  847838	      4226 ns/op	124070.30 MB/s
+BenchmarkParallelTranspose/Serial_256x256-14                 	  845780	      4244 ns/op	123530.78 MB/s
+BenchmarkParallelTranspose/Serial_256x256-14                 	  847028	      4225 ns/op	124097.66 MB/s
+BenchmarkParallelTranspose/Parallel_256x256-14               	  190444	     18800 ns/op	27887.50 MB/s
+BenchmarkParallelTranspose/Parallel_256x256-14               	  186363	     19314 ns/op	27145.21 MB/s
+BenchmarkParallelTranspose/Parallel_256x256-14               	  170902	     26011 ns/op	20156.32 MB/s
+BenchmarkParallelTranspose/Parallel_256x256-14               	  195314	     18832 ns/op	27840.39 MB/s
+BenchmarkParallelTranspose/Parallel_256x256-14               	  193478	     18629 ns/op	28144.29 MB/s
+BenchmarkParallelTranspose/Parallel_256x256-14               	  194324	     18623 ns/op	28153.28 MB/s
+BenchmarkParallelTranspose/Serial_512x512-14                 	  228561	     16374 ns/op	128081.51 MB/s
+BenchmarkParallelTranspose/Serial_512x512-14                 	  223742	     15942 ns/op	131551.64 MB/s
+BenchmarkParallelTranspose/Serial_512x512-14                 	  223900	     16069 ns/op	130506.08 MB/s
+BenchmarkParallelTranspose/Serial_512x512-14                 	  220776	     16467 ns/op	127357.26 MB/s
+BenchmarkParallelTranspose/Serial_512x512-14                 	  209799	     15861 ns/op	132217.80 MB/s
+BenchmarkParallelTranspose/Serial_512x512-14                 	  228657	     15934 ns/op	131611.82 MB/s
+BenchmarkParallelTranspose/Parallel_512x512-14               	   60309	     60067 ns/op	34913.68 MB/s
+BenchmarkParallelTranspose/Parallel_512x512-14               	   59689	     59956 ns/op	34978.45 MB/s
+BenchmarkParallelTranspose/Parallel_512x512-14               	   60225	     57214 ns/op	36654.37 MB/s
+BenchmarkParallelTranspose/Parallel_512x512-14               	   67790	     54545 ns/op	38447.87 MB/s
+BenchmarkParallelTranspose/Parallel_512x512-14               	   63372	     56746 ns/op	36956.74 MB/s
+BenchmarkParallelTranspose/Parallel_512x512-14               	   63520	     55941 ns/op	37488.33 MB/s
+BenchmarkParallelTranspose/Serial_1024x1024-14               	   33054	    108276 ns/op	77474.38 MB/s
+BenchmarkParallelTranspose/Serial_1024x1024-14               	   33430	    109055 ns/op	76920.93 MB/s
+BenchmarkParallelTranspose/Serial_1024x1024-14               	   33180	    108342 ns/op	77427.02 MB/s
+BenchmarkParallelTranspose/Serial_1024x1024-14               	   29683	    109411 ns/op	76670.41 MB/s
+BenchmarkParallelTranspose/Serial_1024x1024-14               	   32842	    108081 ns/op	77614.04 MB/s
+BenchmarkParallelTranspose/Serial_1024x1024-14               	   33020	    108446 ns/op	77352.85 MB/s
+BenchmarkParallelTranspose/Parallel_1024x1024-14             	   21073	    167873 ns/op	49969.91 MB/s
+BenchmarkParallelTranspose/Parallel_1024x1024-14             	   21738	    167295 ns/op	50142.64 MB/s
+BenchmarkParallelTranspose/Parallel_1024x1024-14             	   21584	    165320 ns/op	50741.58 MB/s
+BenchmarkParallelTranspose/Parallel_1024x1024-14             	   21265	    169081 ns/op	49613.02 MB/s
+BenchmarkParallelTranspose/Parallel_1024x1024-14             	   21672	    170090 ns/op	49318.66 MB/s
+BenchmarkParallelTranspose/Parallel_1024x1024-14             	   21800	    171554 ns/op	48897.82 MB/s
+BenchmarkParallelTranspose/Serial_2048x2048-14               	    5398	    667857 ns/op	50241.96 MB/s
+BenchmarkParallelTranspose/Serial_2048x2048-14               	    5314	    674286 ns/op	49762.91 MB/s
+BenchmarkParallelTranspose/Serial_2048x2048-14               	    5474	    660353 ns/op	50812.89 MB/s
+BenchmarkParallelTranspose/Serial_2048x2048-14               	    5463	    664641 ns/op	50485.05 MB/s
+BenchmarkParallelTranspose/Serial_2048x2048-14               	    4942	    664595 ns/op	50488.52 MB/s
+BenchmarkParallelTranspose/Serial_2048x2048-14               	    5497	    662705 ns/op	50632.52 MB/s
+BenchmarkParallelTranspose/Parallel_2048x2048-14             	    5667	    773877 ns/op	43358.88 MB/s
+BenchmarkParallelTranspose/Parallel_2048x2048-14             	    4123	    814172 ns/op	41212.97 MB/s
+BenchmarkParallelTranspose/Parallel_2048x2048-14             	    5078	    710483 ns/op	47227.64 MB/s
+BenchmarkParallelTranspose/Parallel_2048x2048-14             	    5620	    737870 ns/op	45474.73 MB/s
+BenchmarkParallelTranspose/Parallel_2048x2048-14             	    4508	    811307 ns/op	41358.51 MB/s
+BenchmarkParallelTranspose/Parallel_2048x2048-14             	    4370	    813050 ns/op	41269.84 MB/s
+PASS
+ok  	github.com/ajroetker/go-highway/hwy/contrib/matmul	4864.890s
