@@ -339,39 +339,3 @@ func BenchmarkFusedNF4MatMulGELUSME(b *testing.B) {
 	}
 }
 
-// BenchmarkParallelFusedNF4MatMulSiLUSME benchmarks parallel SME fused NF4 + SiLU.
-func BenchmarkParallelFusedNF4MatMulSiLUSME(b *testing.B) {
-	if !hwy.HasSME() {
-		b.Skip("SME not available")
-	}
-
-	rng := testRNGActSME()
-	M, K, N := 256, 512, 512
-	groupSize := 32
-
-	input := make([]float32, M*K)
-	for i := range input {
-		input[i] = rng.Float32()*2 - 1
-	}
-
-	packedSize := (K*N + 1) / 2
-	packed := make([]uint8, packedSize)
-	for i := range packed {
-		packed[i] = uint8(rng.Intn(256))
-	}
-
-	numGroups := (N + groupSize - 1) / groupSize
-	scales := make([]float32, K*numGroups)
-	for i := range scales {
-		scales[i] = rng.Float32() + 0.1
-	}
-
-	output := make([]float32, M*N)
-
-	pool := workerpool.New(runtime.GOMAXPROCS(0))
-	defer pool.Close()
-
-	for b.Loop() {
-		ParallelFusedNF4MatMulSiLU(pool, input, packed, scales, nil, output, M, K, N, groupSize)
-	}
-}

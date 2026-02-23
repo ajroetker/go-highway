@@ -229,27 +229,3 @@ func naiveMatMul(a, b, c []float32, m, n, k int) {
 	}
 }
 
-func BenchmarkBatchParallelPackedMatMulV2(b *testing.B) {
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	batchSize := 8
-	m, n, k := 128, 128, 128
-
-	a := make([]float32, batchSize*m*k)
-	bMat := make([]float32, batchSize*k*n)
-	c := make([]float32, batchSize*m*n)
-
-	for i := range a {
-		a[i] = float32(i%100) / 100.0
-	}
-	for i := range bMat {
-		bMat[i] = float32(i%100) / 100.0
-	}
-
-	b.Run("BatchV2", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			BatchParallelPackedMatMulV2(pool, a, bMat, c, batchSize, m, n, k)
-		}
-	})
-}

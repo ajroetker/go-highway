@@ -438,46 +438,6 @@ func BenchmarkPackedMatMul(b *testing.B) {
 	}
 }
 
-// BenchmarkParallelPackedMatMul benchmarks the parallel packed matmul.
-func BenchmarkParallelPackedMatMul(b *testing.B) {
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	b.Logf("Dispatch level: %s", hwy.CurrentName())
-
-	sizes := []int{256, 512, 1024}
-
-	for _, size := range sizes {
-		m, n, k := size, size, size
-
-		a := make([]float32, m*k)
-		bMat := make([]float32, k*n)
-		c := make([]float32, m*n)
-
-		for i := range a {
-			a[i] = rand.Float32()
-		}
-		for i := range bMat {
-			bMat[i] = rand.Float32()
-		}
-
-		flops := float64(2*m*n*k) / 1e9
-
-		b.Run(sizeStr(size), func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				ParallelPackedMatMul(pool, a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-	}
-}
 
 // BenchmarkPacking benchmarks the packing operations themselves.
 func BenchmarkPacking(b *testing.B) {
