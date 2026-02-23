@@ -18,12 +18,6 @@ package matmul
 
 import "github.com/ajroetker/go-highway/hwy"
 
-// pairwiseBlockK is the block size for pairwise summation along K.
-// Reduces error from O(K*eps) to O(log2(K)*eps) with negligible throughput cost.
-// Block of 128 gives log2(K/128) + log2(128) = log2(K) depth, matching
-// the pairwise bound. NumPy and Julia use similar block sizes.
-const pairwiseBlockK = 128
-
 // matmulScalar is the pure Go scalar implementation.
 // C[i,j] = sum(A[i,p] * B[p,j]) for p in 0..K-1
 // This is kept for reference and benchmarking; the generated BaseMatMul_fallback
@@ -72,6 +66,12 @@ func matmulScalar64(a, b, c []float64, m, n, k int) {
 // of 4 vector widths, with accumulators held in registers across the full
 // K loop. This eliminates K-1 redundant loads and stores of C per element.
 //
+// Accumulation uses single-pass FMA matching the BLAS approach: accumulators
+// are kept in registers for the full K dimension. Precision is O(K*eps)
+// with FMA single-rounding. For large K, callers should use the packed
+// (Goto-style) matmul whose KC blocking provides superblock precision
+// O(KC + K/KC * eps) as a free byproduct of cache tiling.
+//
 // This function is designed for code generation by hwygen.
 // It will be specialized for AVX2, AVX-512, NEON, and fallback targets.
 func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
@@ -92,77 +92,44 @@ func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 	for i := range m {
 		cRow := c[i*n : (i+1)*n]
 
-		// Tiled J loop — 4 accumulators with pairwise summation over K blocks
+		// Tiled J loop — 4 accumulators held in registers across full K loop
 		var j int
 		for j = 0; j+tileJ <= n; j += tileJ {
-			// Running totals across K blocks (pairwise reduction)
-			total0 := hwy.Zero[T]()
-			total1 := hwy.Zero[T]()
-			total2 := hwy.Zero[T]()
-			total3 := hwy.Zero[T]()
-
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := pBlock + pairwiseBlockK
-				if pEnd > k {
-					pEnd = k
-				}
-				// Fresh accumulators per block
-				acc0 := hwy.Zero[T]()
-				acc1 := hwy.Zero[T]()
-				acc2 := hwy.Zero[T]()
-				acc3 := hwy.Zero[T]()
-				for p := pBlock; p < pEnd; p++ {
-					vA := hwy.Set(a[i*k+p])
-					bRow := b[p*n:]
-					acc0 = hwy.MulAdd(vA, hwy.Load(bRow[j:]), acc0)
-					acc1 = hwy.MulAdd(vA, hwy.Load(bRow[j+lanes:]), acc1)
-					acc2 = hwy.MulAdd(vA, hwy.Load(bRow[j+2*lanes:]), acc2)
-					acc3 = hwy.MulAdd(vA, hwy.Load(bRow[j+3*lanes:]), acc3)
-				}
-				total0 = hwy.Add(total0, acc0)
-				total1 = hwy.Add(total1, acc1)
-				total2 = hwy.Add(total2, acc2)
-				total3 = hwy.Add(total3, acc3)
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			for p := range k {
+				vA := hwy.Set(a[i*k+p])
+				bRow := b[p*n:]
+				acc0 = hwy.MulAdd(vA, hwy.Load(bRow[j:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(bRow[j+lanes:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(bRow[j+2*lanes:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(bRow[j+3*lanes:]), acc3)
 			}
-			hwy.Store(total0, cRow[j:])
-			hwy.Store(total1, cRow[j+lanes:])
-			hwy.Store(total2, cRow[j+2*lanes:])
-			hwy.Store(total3, cRow[j+3*lanes:])
+			hwy.Store(acc0, cRow[j:])
+			hwy.Store(acc1, cRow[j+lanes:])
+			hwy.Store(acc2, cRow[j+2*lanes:])
+			hwy.Store(acc3, cRow[j+3*lanes:])
 		}
 
 		// Remainder: single accumulator per remaining vector strip
 		for ; j+lanes <= n; j += lanes {
-			total := hwy.Zero[T]()
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := pBlock + pairwiseBlockK
-				if pEnd > k {
-					pEnd = k
-				}
-				acc := hwy.Zero[T]()
-				for p := pBlock; p < pEnd; p++ {
-					vA := hwy.Set(a[i*k+p])
-					acc = hwy.MulAdd(vA, hwy.Load(b[p*n+j:]), acc)
-				}
-				total = hwy.Add(total, acc)
+			acc := hwy.Zero[T]()
+			for p := range k {
+				vA := hwy.Set(a[i*k+p])
+				acc = hwy.MulAdd(vA, hwy.Load(b[p*n+j:]), acc)
 			}
-			hwy.Store(total, cRow[j:])
+			hwy.Store(acc, cRow[j:])
 		}
 
 		// Scalar tail
 		for ; j < n; j++ {
-			var total T
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := pBlock + pairwiseBlockK
-				if pEnd > k {
-					pEnd = k
-				}
-				var sum T
-				for p := pBlock; p < pEnd; p++ {
-					sum += a[i*k+p] * b[p*n+j]
-				}
-				total += sum
+			var sum T
+			for p := range k {
+				sum += a[i*k+p] * b[p*n+j]
 			}
-			cRow[j] = total
+			cRow[j] = sum
 		}
 	}
 }
