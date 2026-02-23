@@ -23,20 +23,16 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
-// BenchmarkMatMulNEONvsSME compares NEON vs SME at various sizes
-func BenchmarkMatMulNEONvsSME(b *testing.B) {
+// BenchmarkMatMulNEON benchmarks NEON streaming matmul at various sizes.
+func BenchmarkMatMulNEON(b *testing.B) {
 	sizes := []int{32, 64, 128, 256, 512}
 
 	for _, size := range sizes {
 		m, n, k := size, size, size
 
-		// Standard layout: A [M,K], B [K,N]
 		a := make([]float32, m*k)
 		bMat := make([]float32, k*n)
 		c := make([]float32, m*n)
-
-		// For FMOPA we need AT [K,M]
-		at := make([]float32, k*m)
 
 		for i := range a {
 			a[i] = rand.Float32()
@@ -44,13 +40,10 @@ func BenchmarkMatMulNEONvsSME(b *testing.B) {
 		for i := range bMat {
 			bMat[i] = rand.Float32()
 		}
-		// Transpose A to AT
-		Transpose2D(a, m, k, at)
 
 		flops := float64(2*m*n*k) / 1e9
 
-		// NEON streaming (no transpose needed, uses A directly)
-		b.Run(sizeStr(size)+"/NEON", func(b *testing.B) {
+		b.Run(sizeStr(size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -61,24 +54,66 @@ func BenchmarkMatMulNEONvsSME(b *testing.B) {
 			gflops := flops * float64(b.N) / elapsed
 			b.ReportMetric(gflops, "GFLOPS")
 		})
+	}
+}
 
-		// SME multi-tile FMOPA (uses pre-transposed AT)
-		if size%16 == 0 {
-			b.Run(sizeStr(size)+"/SME", func(b *testing.B) {
-				b.SetBytes(int64((m*k + k*n + m*n) * 4))
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					asm.MultiTileMatMulFMOPAF32(at, bMat, c, m, n, k)
-				}
-				b.StopTimer()
-				elapsed := b.Elapsed().Seconds()
-				gflops := flops * float64(b.N) / elapsed
-				b.ReportMetric(gflops, "GFLOPS")
-			})
+// BenchmarkMatMulSME benchmarks SME multi-tile FMOPA matmul at various sizes.
+func BenchmarkMatMulSME(b *testing.B) {
+	sizes := []int{64, 128, 256, 512}
+
+	for _, size := range sizes {
+		m, n, k := size, size, size
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, k*n)
+		c := make([]float32, m*n)
+		at := make([]float32, k*m)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
+		}
+		Transpose2D(a, m, k, at)
+
+		flops := float64(2*m*n*k) / 1e9
+
+		b.Run(sizeStr(size), func(b *testing.B) {
+			b.SetBytes(int64((m*k + k*n + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				asm.MultiTileMatMulFMOPAF32(at, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			gflops := flops * float64(b.N) / elapsed
+			b.ReportMetric(gflops, "GFLOPS")
+		})
+	}
+}
+
+// BenchmarkMatMulDispatch benchmarks auto-dispatched matmul at various sizes.
+func BenchmarkMatMulDispatch(b *testing.B) {
+	sizes := []int{32, 64, 128, 256, 512}
+
+	for _, size := range sizes {
+		m, n, k := size, size, size
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, k*n)
+		c := make([]float32, m*n)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
 		}
 
-		// Dispatch (auto-selects best path)
-		b.Run(sizeStr(size)+"/Dispatch", func(b *testing.B) {
+		flops := float64(2*m*n*k) / 1e9
+
+		b.Run(sizeStr(size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -92,9 +127,8 @@ func BenchmarkMatMulNEONvsSME(b *testing.B) {
 	}
 }
 
-// BenchmarkBlockedMatMulNEONvsSME compares NEON vs SME for blocked matmul.
-// This helps determine the optimal threshold for minDimForBlockedSME.
-func BenchmarkBlockedMatMulNEONvsSME(b *testing.B) {
+// BenchmarkBlockedMatMulNEON benchmarks NEON blocked matmul (hwygen and GOAT).
+func BenchmarkBlockedMatMulNEON(b *testing.B) {
 	sizes := []int{32, 48, 64, 128, 256, 512}
 
 	for _, size := range sizes {
@@ -104,22 +138,16 @@ func BenchmarkBlockedMatMulNEONvsSME(b *testing.B) {
 		bMat := make([]float32, k*n)
 		c := make([]float32, m*n)
 
-		// For FMOPA we need AT [K,M]
-		at := make([]float32, k*m)
-
 		for i := range a {
 			a[i] = rand.Float32()
 		}
 		for i := range bMat {
 			bMat[i] = rand.Float32()
 		}
-		// Transpose A to AT
-		Transpose2D(a, m, k, at)
 
 		flops := float64(2*m*n*k) / 1e9
 
-		// NEON blocked (hwygen-generated) - known to be slow (~2 GFLOPS)
-		b.Run(sizeStr(size)+"/NEON_hwygen", func(b *testing.B) {
+		b.Run(sizeStr(size)+"/hwygen", func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -131,8 +159,7 @@ func BenchmarkBlockedMatMulNEONvsSME(b *testing.B) {
 			b.ReportMetric(gflops, "GFLOPS")
 		})
 
-		// NEON blocked (GOAT-generated)
-		b.Run(sizeStr(size)+"/NEON_GOAT", func(b *testing.B) {
+		b.Run(sizeStr(size)+"/GOAT", func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -143,38 +170,79 @@ func BenchmarkBlockedMatMulNEONvsSME(b *testing.B) {
 			gflops := flops * float64(b.N) / elapsed
 			b.ReportMetric(gflops, "GFLOPS")
 		})
+	}
+}
 
-		// SME multi-tile FMOPA (uses pre-transposed AT) - only for 16-aligned sizes
-		if size%16 == 0 {
-			b.Run(sizeStr(size)+"/SME", func(b *testing.B) {
-				b.SetBytes(int64((m*k + k*n + m*n) * 4))
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					asm.MultiTileMatMulFMOPAF32(at, bMat, c, m, n, k)
-				}
-				b.StopTimer()
-				elapsed := b.Elapsed().Seconds()
-				gflops := flops * float64(b.N) / elapsed
-				b.ReportMetric(gflops, "GFLOPS")
-			})
+// BenchmarkBlockedMatMulSME benchmarks SME multi-tile FMOPA for blocked matmul.
+func BenchmarkBlockedMatMulSME(b *testing.B) {
+	sizes := []int{64, 128, 256, 512}
 
-			// SME with transpose included in timing
-			b.Run(sizeStr(size)+"/SME_transpose", func(b *testing.B) {
-				b.SetBytes(int64((m*k + k*n + m*n) * 4))
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					Transpose2D(a, m, k, at)
-					asm.MultiTileMatMulFMOPAF32(at, bMat, c, m, n, k)
-				}
-				b.StopTimer()
-				elapsed := b.Elapsed().Seconds()
-				gflops := flops * float64(b.N) / elapsed
-				b.ReportMetric(gflops, "GFLOPS")
-			})
+	for _, size := range sizes {
+		m, n, k := size, size, size
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, k*n)
+		c := make([]float32, m*n)
+		at := make([]float32, k*m)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
+		}
+		Transpose2D(a, m, k, at)
+
+		flops := float64(2*m*n*k) / 1e9
+
+		b.Run(sizeStr(size), func(b *testing.B) {
+			b.SetBytes(int64((m*k + k*n + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				asm.MultiTileMatMulFMOPAF32(at, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			gflops := flops * float64(b.N) / elapsed
+			b.ReportMetric(gflops, "GFLOPS")
+		})
+
+		b.Run(sizeStr(size)+"/transpose", func(b *testing.B) {
+			b.SetBytes(int64((m*k + k*n + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				Transpose2D(a, m, k, at)
+				asm.MultiTileMatMulFMOPAF32(at, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			gflops := flops * float64(b.N) / elapsed
+			b.ReportMetric(gflops, "GFLOPS")
+		})
+	}
+}
+
+// BenchmarkBlockedMatMulDispatch benchmarks auto-dispatched blocked matmul.
+func BenchmarkBlockedMatMulDispatch(b *testing.B) {
+	sizes := []int{32, 48, 64, 128, 256, 512}
+
+	for _, size := range sizes {
+		m, n, k := size, size, size
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, k*n)
+		c := make([]float32, m*n)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
 		}
 
-		// Dispatch (auto-selects best path)
-		b.Run(sizeStr(size)+"/Dispatch", func(b *testing.B) {
+		flops := float64(2*m*n*k) / 1e9
+
+		b.Run(sizeStr(size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

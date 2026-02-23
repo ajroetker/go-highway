@@ -262,26 +262,6 @@ func BenchmarkMatMul(b *testing.B) {
 	}
 }
 
-func BenchmarkMatMulScalar(b *testing.B) {
-	size := 256
-	m, n, k := size, size, size
-
-	a := make([]float32, m*k)
-	bMat := make([]float32, k*n)
-	c := make([]float32, m*n)
-
-	for i := range a {
-		a[i] = rand.Float32()
-	}
-	for i := range bMat {
-		bMat[i] = rand.Float32()
-	}
-
-	for b.Loop() {
-		matmulScalar(a, bMat, c, m, n, k)
-	}
-}
-
 // matmulReference64 computes C = A * B for float64
 func matmulReference64(a, b, c []float64, m, n, k int) {
 	for i := range m {
@@ -457,75 +437,6 @@ func BenchmarkBlockedMatMul(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				BlockedMatMul(a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-	}
-}
-
-// BenchmarkStreamingVsBlocked compares streaming and blocked matmul side-by-side.
-func BenchmarkStreamingVsBlocked(b *testing.B) {
-	b.Logf("Dispatch level: %s", hwy.CurrentName())
-
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	sizes := []int{32, 64, 128, 256, 512, 1024}
-
-	for _, size := range sizes {
-		m, n, k := size, size, size
-
-		a := make([]float32, m*k)
-		bMat := make([]float32, k*n)
-		c := make([]float32, m*n)
-
-		for i := range a {
-			a[i] = rand.Float32()
-		}
-		for i := range bMat {
-			bMat[i] = rand.Float32()
-		}
-
-		flops := float64(2*m*n*k) / 1e9
-
-		b.Run(sizeStr(size)+"/Streaming", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				MatMul(a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-
-		b.Run(sizeStr(size)+"/Blocked", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				BlockedMatMul(a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-
-		b.Run(sizeStr(size)+"/Auto", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				MatMulAuto(pool, a, bMat, c, m, n, k)
 			}
 
 			b.StopTimer()
@@ -752,57 +663,3 @@ func BenchmarkParallelMatMul(b *testing.B) {
 	}
 }
 
-// BenchmarkParallelVsBlocked compares parallel and blocked (single-threaded) matmul.
-func BenchmarkParallelVsBlocked(b *testing.B) {
-	b.Logf("Dispatch level: %s", hwy.CurrentName())
-
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	sizes := []int{256, 512, 1024}
-
-	for _, size := range sizes {
-		m, n, k := size, size, size
-
-		a := make([]float32, m*k)
-		bMat := make([]float32, k*n)
-		c := make([]float32, m*n)
-
-		for i := range a {
-			a[i] = rand.Float32()
-		}
-		for i := range bMat {
-			bMat[i] = rand.Float32()
-		}
-
-		flops := float64(2*m*n*k) / 1e9
-
-		b.Run(sizeStr(size)+"/Blocked", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				BlockedMatMul(a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-
-		b.Run(sizeStr(size)+"/Parallel", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				ParallelMatMul(pool, a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-	}
-}
