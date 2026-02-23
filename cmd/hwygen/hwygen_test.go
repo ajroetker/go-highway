@@ -1449,9 +1449,9 @@ func TestASTTranslatorMatMul(t *testing.T) {
 		t.Errorf("expected at least 5 for loops (got %d) — matmul needs nested loops", forCount)
 	}
 
-	// Verify scalar tail loop is preserved (j-outer/p-inner with pairwise summation)
-	if !strings.Contains(cCode, "cRow[j] = total") {
-		t.Error("missing scalar store tail: cRow[j] = total")
+	// Verify scalar tail loop is preserved (j-outer/p-inner with direct accumulation)
+	if !strings.Contains(cCode, "cRow[j] = sum") {
+		t.Error("missing scalar store tail: cRow[j] = sum")
 	}
 	if !strings.Contains(cCode, "sum += a[i * k + p] * b[p * n + j]") {
 		t.Error("missing scalar FMA tail: sum += a[i * k + p] * b[p * n + j]")
@@ -1677,9 +1677,9 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 		t.Errorf("f32: expected at least 5 for loops for matmul, got %d", forCount)
 	}
 
-	// Verify scalar tail loops are preserved (j-outer/p-inner with total accumulator from pairwise summation)
-	if !strings.Contains(f32, "cRow[j] = total;") {
-		t.Error("f32: missing scalar store tail: cRow[j] = total;")
+	// Verify scalar tail loops are preserved (j-outer/p-inner with direct accumulation)
+	if !strings.Contains(f32, "cRow[j] = sum;") {
+		t.Error("f32: missing scalar store tail: cRow[j] = sum;")
 	}
 	if !strings.Contains(f32, "sum += a[i * k + p] * b[p * n + j];") {
 		t.Error("f32: missing scalar FMA tail: sum += a[i * k + p] * b[p * n + j];")
