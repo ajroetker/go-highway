@@ -118,19 +118,6 @@ func BenchmarkBlockedMatMulNEONvsSME(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		// NEON blocked (hwygen-generated) - known to be slow (~2 GFLOPS)
-		b.Run(sizeStr(size)+"/NEON_hwygen", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				BaseBlockedMatMul_neon(a, bMat, c, m, n, k)
-			}
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-
 		// NEON blocked (GOAT-generated)
 		b.Run(sizeStr(size)+"/NEON_GOAT", func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))

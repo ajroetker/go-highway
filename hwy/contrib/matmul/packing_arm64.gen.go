@@ -156,27 +156,8 @@ func initPackingAll() {
 		initPackingFallback()
 		return
 	}
-	initPackingNEON()
+	initPackingFallback()
 	return
-}
-
-func initPackingNEON() {
-	PackLHSFloat16 = BasePackLHS_neon_Float16
-	PackLHSBFloat16 = BasePackLHS_neon_BFloat16
-	PackLHSFloat32 = BasePackLHS_neon
-	PackLHSFloat64 = BasePackLHS_neon_Float64
-	PackRHSFloat16 = BasePackRHS_neon_Float16
-	PackRHSBFloat16 = BasePackRHS_neon_BFloat16
-	PackRHSFloat32 = BasePackRHS_neon
-	PackRHSFloat64 = BasePackRHS_neon_Float64
-	PackLHSVecFloat16 = BasePackLHSVec_neon_Float16
-	PackLHSVecBFloat16 = BasePackLHSVec_neon_BFloat16
-	PackLHSVecFloat32 = BasePackLHSVec_neon
-	PackLHSVecFloat64 = BasePackLHSVec_neon_Float64
-	PackRHSVecFloat16 = BasePackRHSVec_neon_Float16
-	PackRHSVecBFloat16 = BasePackRHSVec_neon_BFloat16
-	PackRHSVecFloat32 = BasePackRHSVec_neon
-	PackRHSVecFloat64 = BasePackRHSVec_neon_Float64
 }
 
 func initPackingFallback() {

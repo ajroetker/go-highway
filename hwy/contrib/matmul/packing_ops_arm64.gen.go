@@ -141,27 +141,8 @@ func initPacking_opsAll() {
 		initPacking_opsFallback()
 		return
 	}
-	initPacking_opsNEON()
+	initPacking_opsFallback()
 	return
-}
-
-func initPacking_opsNEON() {
-	PackRHSFastFloat16 = BasePackRHSFast_neon_Float16
-	PackRHSFastBFloat16 = BasePackRHSFast_neon_BFloat16
-	PackRHSFastFloat32 = BasePackRHSFast_neon
-	PackRHSFastFloat64 = BasePackRHSFast_neon_Float64
-	ApplyPackedOutputFloat16 = BaseApplyPackedOutput_neon_Float16
-	ApplyPackedOutputBFloat16 = BaseApplyPackedOutput_neon_BFloat16
-	ApplyPackedOutputFloat32 = BaseApplyPackedOutput_neon
-	ApplyPackedOutputFloat64 = BaseApplyPackedOutput_neon_Float64
-	ApplyPackedOutputSimpleFloat16 = BaseApplyPackedOutputSimple_neon_Float16
-	ApplyPackedOutputSimpleBFloat16 = BaseApplyPackedOutputSimple_neon_BFloat16
-	ApplyPackedOutputSimpleFloat32 = BaseApplyPackedOutputSimple_neon
-	ApplyPackedOutputSimpleFloat64 = BaseApplyPackedOutputSimple_neon_Float64
-	ApplyPackedOutputAccumFloat16 = BaseApplyPackedOutputAccum_neon_Float16
-	ApplyPackedOutputAccumBFloat16 = BaseApplyPackedOutputAccum_neon_BFloat16
-	ApplyPackedOutputAccumFloat32 = BaseApplyPackedOutputAccum_neon
-	ApplyPackedOutputAccumFloat64 = BaseApplyPackedOutputAccum_neon_Float64
 }
 
 func initPacking_opsFallback() {

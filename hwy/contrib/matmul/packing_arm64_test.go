@@ -26,9 +26,9 @@ func TestNeonVsFallbackKernel(t *testing.T) {
 	cFallback := make([]float32, m*n)
 	BasePackedMicroKernel_fallback(packedA, packedB, cFallback, n, 12, 8, k, mr, nr)
 
-	// Call NEON directly
+	// Call C asm directly
 	cNeon := make([]float32, m*n)
-	BasePackedMicroKernel_neon(packedA, packedB, cNeon, n, 12, 8, k, mr, nr)
+	packedMicroKernelAsmF32(packedA, packedB, cNeon, n, 12, 8, k, mr, nr)
 
 	// Verify non-zero results
 	if cFallback[200] == 0 {

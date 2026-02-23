@@ -36,84 +36,127 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 			for i = i0; i+mr <= iEnd; i += mr {
 				var j int
 				for j = j0; j+nr <= jEnd; j += nr {
-					acc00 := hwy.Zero[hwy.Float16]()
-					acc01 := hwy.Zero[hwy.Float16]()
-					acc10 := hwy.Zero[hwy.Float16]()
-					acc11 := hwy.Zero[hwy.Float16]()
-					acc20 := hwy.Zero[hwy.Float16]()
-					acc21 := hwy.Zero[hwy.Float16]()
-					acc30 := hwy.Zero[hwy.Float16]()
-					acc31 := hwy.Zero[hwy.Float16]()
-					for p := range k {
-						a0p := a[i*k+p]
-						a1p := a[(i+1)*k+p]
-						a2p := a[(i+2)*k+p]
-						a3p := a[(i+3)*k+p]
-						vA0 := hwy.Set(a0p)
-						vA1 := hwy.Set(a1p)
-						vA2 := hwy.Set(a2p)
-						vA3 := hwy.Set(a3p)
-						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
-						acc00 = hwy.MulAdd(vA0, vB0, acc00)
-						acc01 = hwy.MulAdd(vA0, vB1, acc01)
-						acc10 = hwy.MulAdd(vA1, vB0, acc10)
-						acc11 = hwy.MulAdd(vA1, vB1, acc11)
-						acc20 = hwy.MulAdd(vA2, vB0, acc20)
-						acc21 = hwy.MulAdd(vA2, vB1, acc21)
-						acc30 = hwy.MulAdd(vA3, vB0, acc30)
-						acc31 = hwy.MulAdd(vA3, vB1, acc31)
+					tot00 := hwy.Zero[hwy.Float16]()
+					tot01 := hwy.Zero[hwy.Float16]()
+					tot10 := hwy.Zero[hwy.Float16]()
+					tot11 := hwy.Zero[hwy.Float16]()
+					tot20 := hwy.Zero[hwy.Float16]()
+					tot21 := hwy.Zero[hwy.Float16]()
+					tot30 := hwy.Zero[hwy.Float16]()
+					tot31 := hwy.Zero[hwy.Float16]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc00 := hwy.Zero[hwy.Float16]()
+						acc01 := hwy.Zero[hwy.Float16]()
+						acc10 := hwy.Zero[hwy.Float16]()
+						acc11 := hwy.Zero[hwy.Float16]()
+						acc20 := hwy.Zero[hwy.Float16]()
+						acc21 := hwy.Zero[hwy.Float16]()
+						acc30 := hwy.Zero[hwy.Float16]()
+						acc31 := hwy.Zero[hwy.Float16]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
+							bRowStart := p * n
+							vB0 := hwy.Load(b[bRowStart+j:])
+							vB1 := hwy.Load(b[bRowStart+j+lanes:])
+							acc00 = hwy.MulAdd(vA0, vB0, acc00)
+							acc01 = hwy.MulAdd(vA0, vB1, acc01)
+							acc10 = hwy.MulAdd(vA1, vB0, acc10)
+							acc11 = hwy.MulAdd(vA1, vB1, acc11)
+							acc20 = hwy.MulAdd(vA2, vB0, acc20)
+							acc21 = hwy.MulAdd(vA2, vB1, acc21)
+							acc30 = hwy.MulAdd(vA3, vB0, acc30)
+							acc31 = hwy.MulAdd(vA3, vB1, acc31)
+						}
+						tot00 = hwy.Add(tot00, acc00)
+						tot01 = hwy.Add(tot01, acc01)
+						tot10 = hwy.Add(tot10, acc10)
+						tot11 = hwy.Add(tot11, acc11)
+						tot20 = hwy.Add(tot20, acc20)
+						tot21 = hwy.Add(tot21, acc21)
+						tot30 = hwy.Add(tot30, acc30)
+						tot31 = hwy.Add(tot31, acc31)
 					}
 					cRow0 := i * n
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.Store(tot00, c[cRow0+j:])
+					hwy.Store(tot01, c[cRow0+j+lanes:])
+					hwy.Store(tot10, c[cRow1+j:])
+					hwy.Store(tot11, c[cRow1+j+lanes:])
+					hwy.Store(tot20, c[cRow2+j:])
+					hwy.Store(tot21, c[cRow2+j+lanes:])
+					hwy.Store(tot30, c[cRow3+j:])
+					hwy.Store(tot31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
 					if remaining >= lanes {
-						acc0 := hwy.Zero[hwy.Float16]()
-						acc1 := hwy.Zero[hwy.Float16]()
-						acc2 := hwy.Zero[hwy.Float16]()
-						acc3 := hwy.Zero[hwy.Float16]()
-						for p := range k {
-							vA0 := hwy.Set(a[i*k+p])
-							vA1 := hwy.Set(a[(i+1)*k+p])
-							vA2 := hwy.Set(a[(i+2)*k+p])
-							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
-							acc0 = hwy.MulAdd(vA0, vB, acc0)
-							acc1 = hwy.MulAdd(vA1, vB, acc1)
-							acc2 = hwy.MulAdd(vA2, vB, acc2)
-							acc3 = hwy.MulAdd(vA3, vB, acc3)
+						tot0 := hwy.Zero[hwy.Float16]()
+						tot1 := hwy.Zero[hwy.Float16]()
+						tot2 := hwy.Zero[hwy.Float16]()
+						tot3 := hwy.Zero[hwy.Float16]()
+						for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+							pEnd := pBlock + pairwiseBlockK
+							if pEnd > k {
+								pEnd = k
+							}
+							acc0 := hwy.Zero[hwy.Float16]()
+							acc1 := hwy.Zero[hwy.Float16]()
+							acc2 := hwy.Zero[hwy.Float16]()
+							acc3 := hwy.Zero[hwy.Float16]()
+							for p := pBlock; p < pEnd; p++ {
+								vA0 := hwy.Set(a[i*k+p])
+								vA1 := hwy.Set(a[(i+1)*k+p])
+								vA2 := hwy.Set(a[(i+2)*k+p])
+								vA3 := hwy.Set(a[(i+3)*k+p])
+								vB := hwy.Load(b[p*n+j:])
+								acc0 = hwy.MulAdd(vA0, vB, acc0)
+								acc1 = hwy.MulAdd(vA1, vB, acc1)
+								acc2 = hwy.MulAdd(vA2, vB, acc2)
+								acc3 = hwy.MulAdd(vA3, vB, acc3)
+							}
+							tot0 = hwy.Add(tot0, acc0)
+							tot1 = hwy.Add(tot1, acc1)
+							tot2 = hwy.Add(tot2, acc2)
+							tot3 = hwy.Add(tot3, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.Store(tot0, c[i*n+j:])
+						hwy.Store(tot1, c[(i+1)*n+j:])
+						hwy.Store(tot2, c[(i+2)*n+j:])
+						hwy.Store(tot3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
-							var sum0, sum1, sum2, sum3 float32
-							for p := range k {
-								bpj := b[p*n+jj]
-								sum0 += a[i*k+p].Float32() * bpj.Float32()
-								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
-								sum2 += a[(i+2)*k+p].Float32() * bpj.Float32()
-								sum3 += a[(i+3)*k+p].Float32() * bpj.Float32()
+							var tot0, tot1, tot2, tot3 float32
+							for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+								pEnd := pBlock + pairwiseBlockK
+								if pEnd > k {
+									pEnd = k
+								}
+								var sum0, sum1, sum2, sum3 float32
+								for p := pBlock; p < pEnd; p++ {
+									bpj := b[p*n+jj]
+									sum0 += a[i*k+p].Float32() * bpj.Float32()
+									sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
+									sum2 += a[(i+2)*k+p].Float32() * bpj.Float32()
+									sum3 += a[(i+3)*k+p].Float32() * bpj.Float32()
+								}
+								tot0 += sum0
+								tot1 += sum1
+								tot2 += sum2
+								tot3 += sum3
 							}
-							c[i*n+jj] = hwy.Float32ToFloat16(sum0)
-							c[(i+1)*n+jj] = hwy.Float32ToFloat16(sum1)
-							c[(i+2)*n+jj] = hwy.Float32ToFloat16(sum2)
-							c[(i+3)*n+jj] = hwy.Float32ToFloat16(sum3)
+							c[i*n+jj] = hwy.Float32ToFloat16(tot0)
+							c[(i+1)*n+jj] = hwy.Float32ToFloat16(tot1)
+							c[(i+2)*n+jj] = hwy.Float32ToFloat16(tot2)
+							c[(i+3)*n+jj] = hwy.Float32ToFloat16(tot3)
 						}
 						break
 					}
@@ -124,27 +167,46 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 				cRow1 := (i + 1) * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc0 := hwy.Zero[hwy.Float16]()
-					acc1 := hwy.Zero[hwy.Float16]()
-					for p := range k {
-						vA0 := hwy.Set(a[i*k+p])
-						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc0 = hwy.MulAdd(vA0, vB, acc0)
-						acc1 = hwy.MulAdd(vA1, vB, acc1)
+					tot0 := hwy.Zero[hwy.Float16]()
+					tot1 := hwy.Zero[hwy.Float16]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc0 := hwy.Zero[hwy.Float16]()
+						acc1 := hwy.Zero[hwy.Float16]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.MulAdd(vA0, vB, acc0)
+							acc1 = hwy.MulAdd(vA1, vB, acc1)
+						}
+						tot0 = hwy.Add(tot0, acc0)
+						tot1 = hwy.Add(tot1, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.Store(tot0, c[cRow0+j:])
+					hwy.Store(tot1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum0, sum1 float32
-					for p := range k {
-						bp := b[p*n+j]
-						sum0 += a[i*k+p].Float32() * bp.Float32()
-						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
+					var tot0, tot1 float32
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum0, sum1 float32
+						for p := pBlock; p < pEnd; p++ {
+							bp := b[p*n+j]
+							sum0 += a[i*k+p].Float32() * bp.Float32()
+							sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
+						}
+						tot0 += sum0
+						tot1 += sum1
 					}
-					c[cRow0+j] = hwy.Float32ToFloat16(sum0)
-					c[cRow1+j] = hwy.Float32ToFloat16(sum1)
+					c[cRow0+j] = hwy.Float32ToFloat16(tot0)
+					c[cRow1+j] = hwy.Float32ToFloat16(tot1)
 				}
 				i += 2
 			}
@@ -152,20 +214,36 @@ func BaseBlockedMatMul_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 				cRowStart := i * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc := hwy.Zero[hwy.Float16]()
-					for p := range k {
-						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc = hwy.MulAdd(vA, vB, acc)
+					total := hwy.Zero[hwy.Float16]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc := hwy.Zero[hwy.Float16]()
+						for p := pBlock; p < pEnd; p++ {
+							vA := hwy.Set(a[i*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc = hwy.MulAdd(vA, vB, acc)
+						}
+						total = hwy.Add(total, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.Store(total, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum float32
-					for p := range k {
-						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+					var total float32
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum float32
+						for p := pBlock; p < pEnd; p++ {
+							sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+						}
+						total += sum
 					}
-					c[cRowStart+j] = hwy.Float32ToFloat16(sum)
+					c[cRowStart+j] = hwy.Float32ToFloat16(total)
 				}
 			}
 		}
@@ -202,84 +280,127 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 			for i = i0; i+mr <= iEnd; i += mr {
 				var j int
 				for j = j0; j+nr <= jEnd; j += nr {
-					acc00 := hwy.Zero[hwy.BFloat16]()
-					acc01 := hwy.Zero[hwy.BFloat16]()
-					acc10 := hwy.Zero[hwy.BFloat16]()
-					acc11 := hwy.Zero[hwy.BFloat16]()
-					acc20 := hwy.Zero[hwy.BFloat16]()
-					acc21 := hwy.Zero[hwy.BFloat16]()
-					acc30 := hwy.Zero[hwy.BFloat16]()
-					acc31 := hwy.Zero[hwy.BFloat16]()
-					for p := range k {
-						a0p := a[i*k+p]
-						a1p := a[(i+1)*k+p]
-						a2p := a[(i+2)*k+p]
-						a3p := a[(i+3)*k+p]
-						vA0 := hwy.Set(a0p)
-						vA1 := hwy.Set(a1p)
-						vA2 := hwy.Set(a2p)
-						vA3 := hwy.Set(a3p)
-						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
-						acc00 = hwy.MulAdd(vA0, vB0, acc00)
-						acc01 = hwy.MulAdd(vA0, vB1, acc01)
-						acc10 = hwy.MulAdd(vA1, vB0, acc10)
-						acc11 = hwy.MulAdd(vA1, vB1, acc11)
-						acc20 = hwy.MulAdd(vA2, vB0, acc20)
-						acc21 = hwy.MulAdd(vA2, vB1, acc21)
-						acc30 = hwy.MulAdd(vA3, vB0, acc30)
-						acc31 = hwy.MulAdd(vA3, vB1, acc31)
+					tot00 := hwy.Zero[hwy.BFloat16]()
+					tot01 := hwy.Zero[hwy.BFloat16]()
+					tot10 := hwy.Zero[hwy.BFloat16]()
+					tot11 := hwy.Zero[hwy.BFloat16]()
+					tot20 := hwy.Zero[hwy.BFloat16]()
+					tot21 := hwy.Zero[hwy.BFloat16]()
+					tot30 := hwy.Zero[hwy.BFloat16]()
+					tot31 := hwy.Zero[hwy.BFloat16]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc00 := hwy.Zero[hwy.BFloat16]()
+						acc01 := hwy.Zero[hwy.BFloat16]()
+						acc10 := hwy.Zero[hwy.BFloat16]()
+						acc11 := hwy.Zero[hwy.BFloat16]()
+						acc20 := hwy.Zero[hwy.BFloat16]()
+						acc21 := hwy.Zero[hwy.BFloat16]()
+						acc30 := hwy.Zero[hwy.BFloat16]()
+						acc31 := hwy.Zero[hwy.BFloat16]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
+							bRowStart := p * n
+							vB0 := hwy.Load(b[bRowStart+j:])
+							vB1 := hwy.Load(b[bRowStart+j+lanes:])
+							acc00 = hwy.MulAdd(vA0, vB0, acc00)
+							acc01 = hwy.MulAdd(vA0, vB1, acc01)
+							acc10 = hwy.MulAdd(vA1, vB0, acc10)
+							acc11 = hwy.MulAdd(vA1, vB1, acc11)
+							acc20 = hwy.MulAdd(vA2, vB0, acc20)
+							acc21 = hwy.MulAdd(vA2, vB1, acc21)
+							acc30 = hwy.MulAdd(vA3, vB0, acc30)
+							acc31 = hwy.MulAdd(vA3, vB1, acc31)
+						}
+						tot00 = hwy.Add(tot00, acc00)
+						tot01 = hwy.Add(tot01, acc01)
+						tot10 = hwy.Add(tot10, acc10)
+						tot11 = hwy.Add(tot11, acc11)
+						tot20 = hwy.Add(tot20, acc20)
+						tot21 = hwy.Add(tot21, acc21)
+						tot30 = hwy.Add(tot30, acc30)
+						tot31 = hwy.Add(tot31, acc31)
 					}
 					cRow0 := i * n
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.Store(tot00, c[cRow0+j:])
+					hwy.Store(tot01, c[cRow0+j+lanes:])
+					hwy.Store(tot10, c[cRow1+j:])
+					hwy.Store(tot11, c[cRow1+j+lanes:])
+					hwy.Store(tot20, c[cRow2+j:])
+					hwy.Store(tot21, c[cRow2+j+lanes:])
+					hwy.Store(tot30, c[cRow3+j:])
+					hwy.Store(tot31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
 					if remaining >= lanes {
-						acc0 := hwy.Zero[hwy.BFloat16]()
-						acc1 := hwy.Zero[hwy.BFloat16]()
-						acc2 := hwy.Zero[hwy.BFloat16]()
-						acc3 := hwy.Zero[hwy.BFloat16]()
-						for p := range k {
-							vA0 := hwy.Set(a[i*k+p])
-							vA1 := hwy.Set(a[(i+1)*k+p])
-							vA2 := hwy.Set(a[(i+2)*k+p])
-							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
-							acc0 = hwy.MulAdd(vA0, vB, acc0)
-							acc1 = hwy.MulAdd(vA1, vB, acc1)
-							acc2 = hwy.MulAdd(vA2, vB, acc2)
-							acc3 = hwy.MulAdd(vA3, vB, acc3)
+						tot0 := hwy.Zero[hwy.BFloat16]()
+						tot1 := hwy.Zero[hwy.BFloat16]()
+						tot2 := hwy.Zero[hwy.BFloat16]()
+						tot3 := hwy.Zero[hwy.BFloat16]()
+						for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+							pEnd := pBlock + pairwiseBlockK
+							if pEnd > k {
+								pEnd = k
+							}
+							acc0 := hwy.Zero[hwy.BFloat16]()
+							acc1 := hwy.Zero[hwy.BFloat16]()
+							acc2 := hwy.Zero[hwy.BFloat16]()
+							acc3 := hwy.Zero[hwy.BFloat16]()
+							for p := pBlock; p < pEnd; p++ {
+								vA0 := hwy.Set(a[i*k+p])
+								vA1 := hwy.Set(a[(i+1)*k+p])
+								vA2 := hwy.Set(a[(i+2)*k+p])
+								vA3 := hwy.Set(a[(i+3)*k+p])
+								vB := hwy.Load(b[p*n+j:])
+								acc0 = hwy.MulAdd(vA0, vB, acc0)
+								acc1 = hwy.MulAdd(vA1, vB, acc1)
+								acc2 = hwy.MulAdd(vA2, vB, acc2)
+								acc3 = hwy.MulAdd(vA3, vB, acc3)
+							}
+							tot0 = hwy.Add(tot0, acc0)
+							tot1 = hwy.Add(tot1, acc1)
+							tot2 = hwy.Add(tot2, acc2)
+							tot3 = hwy.Add(tot3, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.Store(tot0, c[i*n+j:])
+						hwy.Store(tot1, c[(i+1)*n+j:])
+						hwy.Store(tot2, c[(i+2)*n+j:])
+						hwy.Store(tot3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
-							var sum0, sum1, sum2, sum3 float32
-							for p := range k {
-								bpj := b[p*n+jj]
-								sum0 += a[i*k+p].Float32() * bpj.Float32()
-								sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
-								sum2 += a[(i+2)*k+p].Float32() * bpj.Float32()
-								sum3 += a[(i+3)*k+p].Float32() * bpj.Float32()
+							var tot0, tot1, tot2, tot3 float32
+							for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+								pEnd := pBlock + pairwiseBlockK
+								if pEnd > k {
+									pEnd = k
+								}
+								var sum0, sum1, sum2, sum3 float32
+								for p := pBlock; p < pEnd; p++ {
+									bpj := b[p*n+jj]
+									sum0 += a[i*k+p].Float32() * bpj.Float32()
+									sum1 += a[(i+1)*k+p].Float32() * bpj.Float32()
+									sum2 += a[(i+2)*k+p].Float32() * bpj.Float32()
+									sum3 += a[(i+3)*k+p].Float32() * bpj.Float32()
+								}
+								tot0 += sum0
+								tot1 += sum1
+								tot2 += sum2
+								tot3 += sum3
 							}
-							c[i*n+jj] = hwy.Float32ToBFloat16(sum0)
-							c[(i+1)*n+jj] = hwy.Float32ToBFloat16(sum1)
-							c[(i+2)*n+jj] = hwy.Float32ToBFloat16(sum2)
-							c[(i+3)*n+jj] = hwy.Float32ToBFloat16(sum3)
+							c[i*n+jj] = hwy.Float32ToBFloat16(tot0)
+							c[(i+1)*n+jj] = hwy.Float32ToBFloat16(tot1)
+							c[(i+2)*n+jj] = hwy.Float32ToBFloat16(tot2)
+							c[(i+3)*n+jj] = hwy.Float32ToBFloat16(tot3)
 						}
 						break
 					}
@@ -290,27 +411,46 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 				cRow1 := (i + 1) * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc0 := hwy.Zero[hwy.BFloat16]()
-					acc1 := hwy.Zero[hwy.BFloat16]()
-					for p := range k {
-						vA0 := hwy.Set(a[i*k+p])
-						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc0 = hwy.MulAdd(vA0, vB, acc0)
-						acc1 = hwy.MulAdd(vA1, vB, acc1)
+					tot0 := hwy.Zero[hwy.BFloat16]()
+					tot1 := hwy.Zero[hwy.BFloat16]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc0 := hwy.Zero[hwy.BFloat16]()
+						acc1 := hwy.Zero[hwy.BFloat16]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.MulAdd(vA0, vB, acc0)
+							acc1 = hwy.MulAdd(vA1, vB, acc1)
+						}
+						tot0 = hwy.Add(tot0, acc0)
+						tot1 = hwy.Add(tot1, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.Store(tot0, c[cRow0+j:])
+					hwy.Store(tot1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum0, sum1 float32
-					for p := range k {
-						bp := b[p*n+j]
-						sum0 += a[i*k+p].Float32() * bp.Float32()
-						sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
+					var tot0, tot1 float32
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum0, sum1 float32
+						for p := pBlock; p < pEnd; p++ {
+							bp := b[p*n+j]
+							sum0 += a[i*k+p].Float32() * bp.Float32()
+							sum1 += a[(i+1)*k+p].Float32() * bp.Float32()
+						}
+						tot0 += sum0
+						tot1 += sum1
 					}
-					c[cRow0+j] = hwy.Float32ToBFloat16(sum0)
-					c[cRow1+j] = hwy.Float32ToBFloat16(sum1)
+					c[cRow0+j] = hwy.Float32ToBFloat16(tot0)
+					c[cRow1+j] = hwy.Float32ToBFloat16(tot1)
 				}
 				i += 2
 			}
@@ -318,20 +458,36 @@ func BaseBlockedMatMul_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 				cRowStart := i * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc := hwy.Zero[hwy.BFloat16]()
-					for p := range k {
-						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc = hwy.MulAdd(vA, vB, acc)
+					total := hwy.Zero[hwy.BFloat16]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc := hwy.Zero[hwy.BFloat16]()
+						for p := pBlock; p < pEnd; p++ {
+							vA := hwy.Set(a[i*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc = hwy.MulAdd(vA, vB, acc)
+						}
+						total = hwy.Add(total, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.Store(total, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum float32
-					for p := range k {
-						sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+					var total float32
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum float32
+						for p := pBlock; p < pEnd; p++ {
+							sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+						}
+						total += sum
 					}
-					c[cRowStart+j] = hwy.Float32ToBFloat16(sum)
+					c[cRowStart+j] = hwy.Float32ToBFloat16(total)
 				}
 			}
 		}
@@ -368,84 +524,127 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 			for i = i0; i+mr <= iEnd; i += mr {
 				var j int
 				for j = j0; j+nr <= jEnd; j += nr {
-					acc00 := hwy.Zero[float32]()
-					acc01 := hwy.Zero[float32]()
-					acc10 := hwy.Zero[float32]()
-					acc11 := hwy.Zero[float32]()
-					acc20 := hwy.Zero[float32]()
-					acc21 := hwy.Zero[float32]()
-					acc30 := hwy.Zero[float32]()
-					acc31 := hwy.Zero[float32]()
-					for p := range k {
-						a0p := a[i*k+p]
-						a1p := a[(i+1)*k+p]
-						a2p := a[(i+2)*k+p]
-						a3p := a[(i+3)*k+p]
-						vA0 := hwy.Set(a0p)
-						vA1 := hwy.Set(a1p)
-						vA2 := hwy.Set(a2p)
-						vA3 := hwy.Set(a3p)
-						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
-						acc00 = hwy.MulAdd(vA0, vB0, acc00)
-						acc01 = hwy.MulAdd(vA0, vB1, acc01)
-						acc10 = hwy.MulAdd(vA1, vB0, acc10)
-						acc11 = hwy.MulAdd(vA1, vB1, acc11)
-						acc20 = hwy.MulAdd(vA2, vB0, acc20)
-						acc21 = hwy.MulAdd(vA2, vB1, acc21)
-						acc30 = hwy.MulAdd(vA3, vB0, acc30)
-						acc31 = hwy.MulAdd(vA3, vB1, acc31)
+					tot00 := hwy.Zero[float32]()
+					tot01 := hwy.Zero[float32]()
+					tot10 := hwy.Zero[float32]()
+					tot11 := hwy.Zero[float32]()
+					tot20 := hwy.Zero[float32]()
+					tot21 := hwy.Zero[float32]()
+					tot30 := hwy.Zero[float32]()
+					tot31 := hwy.Zero[float32]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc00 := hwy.Zero[float32]()
+						acc01 := hwy.Zero[float32]()
+						acc10 := hwy.Zero[float32]()
+						acc11 := hwy.Zero[float32]()
+						acc20 := hwy.Zero[float32]()
+						acc21 := hwy.Zero[float32]()
+						acc30 := hwy.Zero[float32]()
+						acc31 := hwy.Zero[float32]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
+							bRowStart := p * n
+							vB0 := hwy.Load(b[bRowStart+j:])
+							vB1 := hwy.Load(b[bRowStart+j+lanes:])
+							acc00 = hwy.MulAdd(vA0, vB0, acc00)
+							acc01 = hwy.MulAdd(vA0, vB1, acc01)
+							acc10 = hwy.MulAdd(vA1, vB0, acc10)
+							acc11 = hwy.MulAdd(vA1, vB1, acc11)
+							acc20 = hwy.MulAdd(vA2, vB0, acc20)
+							acc21 = hwy.MulAdd(vA2, vB1, acc21)
+							acc30 = hwy.MulAdd(vA3, vB0, acc30)
+							acc31 = hwy.MulAdd(vA3, vB1, acc31)
+						}
+						tot00 = hwy.Add(tot00, acc00)
+						tot01 = hwy.Add(tot01, acc01)
+						tot10 = hwy.Add(tot10, acc10)
+						tot11 = hwy.Add(tot11, acc11)
+						tot20 = hwy.Add(tot20, acc20)
+						tot21 = hwy.Add(tot21, acc21)
+						tot30 = hwy.Add(tot30, acc30)
+						tot31 = hwy.Add(tot31, acc31)
 					}
 					cRow0 := i * n
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.Store(tot00, c[cRow0+j:])
+					hwy.Store(tot01, c[cRow0+j+lanes:])
+					hwy.Store(tot10, c[cRow1+j:])
+					hwy.Store(tot11, c[cRow1+j+lanes:])
+					hwy.Store(tot20, c[cRow2+j:])
+					hwy.Store(tot21, c[cRow2+j+lanes:])
+					hwy.Store(tot30, c[cRow3+j:])
+					hwy.Store(tot31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
 					if remaining >= lanes {
-						acc0 := hwy.Zero[float32]()
-						acc1 := hwy.Zero[float32]()
-						acc2 := hwy.Zero[float32]()
-						acc3 := hwy.Zero[float32]()
-						for p := range k {
-							vA0 := hwy.Set(a[i*k+p])
-							vA1 := hwy.Set(a[(i+1)*k+p])
-							vA2 := hwy.Set(a[(i+2)*k+p])
-							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
-							acc0 = hwy.MulAdd(vA0, vB, acc0)
-							acc1 = hwy.MulAdd(vA1, vB, acc1)
-							acc2 = hwy.MulAdd(vA2, vB, acc2)
-							acc3 = hwy.MulAdd(vA3, vB, acc3)
+						tot0 := hwy.Zero[float32]()
+						tot1 := hwy.Zero[float32]()
+						tot2 := hwy.Zero[float32]()
+						tot3 := hwy.Zero[float32]()
+						for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+							pEnd := pBlock + pairwiseBlockK
+							if pEnd > k {
+								pEnd = k
+							}
+							acc0 := hwy.Zero[float32]()
+							acc1 := hwy.Zero[float32]()
+							acc2 := hwy.Zero[float32]()
+							acc3 := hwy.Zero[float32]()
+							for p := pBlock; p < pEnd; p++ {
+								vA0 := hwy.Set(a[i*k+p])
+								vA1 := hwy.Set(a[(i+1)*k+p])
+								vA2 := hwy.Set(a[(i+2)*k+p])
+								vA3 := hwy.Set(a[(i+3)*k+p])
+								vB := hwy.Load(b[p*n+j:])
+								acc0 = hwy.MulAdd(vA0, vB, acc0)
+								acc1 = hwy.MulAdd(vA1, vB, acc1)
+								acc2 = hwy.MulAdd(vA2, vB, acc2)
+								acc3 = hwy.MulAdd(vA3, vB, acc3)
+							}
+							tot0 = hwy.Add(tot0, acc0)
+							tot1 = hwy.Add(tot1, acc1)
+							tot2 = hwy.Add(tot2, acc2)
+							tot3 = hwy.Add(tot3, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.Store(tot0, c[i*n+j:])
+						hwy.Store(tot1, c[(i+1)*n+j:])
+						hwy.Store(tot2, c[(i+2)*n+j:])
+						hwy.Store(tot3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
-							var sum0, sum1, sum2, sum3 float32
-							for p := range k {
-								bpj := b[p*n+jj]
-								sum0 += a[i*k+p] * bpj
-								sum1 += a[(i+1)*k+p] * bpj
-								sum2 += a[(i+2)*k+p] * bpj
-								sum3 += a[(i+3)*k+p] * bpj
+							var tot0, tot1, tot2, tot3 float32
+							for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+								pEnd := pBlock + pairwiseBlockK
+								if pEnd > k {
+									pEnd = k
+								}
+								var sum0, sum1, sum2, sum3 float32
+								for p := pBlock; p < pEnd; p++ {
+									bpj := b[p*n+jj]
+									sum0 += a[i*k+p] * bpj
+									sum1 += a[(i+1)*k+p] * bpj
+									sum2 += a[(i+2)*k+p] * bpj
+									sum3 += a[(i+3)*k+p] * bpj
+								}
+								tot0 += sum0
+								tot1 += sum1
+								tot2 += sum2
+								tot3 += sum3
 							}
-							c[i*n+jj] = sum0
-							c[(i+1)*n+jj] = sum1
-							c[(i+2)*n+jj] = sum2
-							c[(i+3)*n+jj] = sum3
+							c[i*n+jj] = tot0
+							c[(i+1)*n+jj] = tot1
+							c[(i+2)*n+jj] = tot2
+							c[(i+3)*n+jj] = tot3
 						}
 						break
 					}
@@ -456,27 +655,46 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 				cRow1 := (i + 1) * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc0 := hwy.Zero[float32]()
-					acc1 := hwy.Zero[float32]()
-					for p := range k {
-						vA0 := hwy.Set(a[i*k+p])
-						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc0 = hwy.MulAdd(vA0, vB, acc0)
-						acc1 = hwy.MulAdd(vA1, vB, acc1)
+					tot0 := hwy.Zero[float32]()
+					tot1 := hwy.Zero[float32]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc0 := hwy.Zero[float32]()
+						acc1 := hwy.Zero[float32]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.MulAdd(vA0, vB, acc0)
+							acc1 = hwy.MulAdd(vA1, vB, acc1)
+						}
+						tot0 = hwy.Add(tot0, acc0)
+						tot1 = hwy.Add(tot1, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.Store(tot0, c[cRow0+j:])
+					hwy.Store(tot1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum0, sum1 float32
-					for p := range k {
-						bp := b[p*n+j]
-						sum0 += a[i*k+p] * bp
-						sum1 += a[(i+1)*k+p] * bp
+					var tot0, tot1 float32
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum0, sum1 float32
+						for p := pBlock; p < pEnd; p++ {
+							bp := b[p*n+j]
+							sum0 += a[i*k+p] * bp
+							sum1 += a[(i+1)*k+p] * bp
+						}
+						tot0 += sum0
+						tot1 += sum1
 					}
-					c[cRow0+j] = sum0
-					c[cRow1+j] = sum1
+					c[cRow0+j] = tot0
+					c[cRow1+j] = tot1
 				}
 				i += 2
 			}
@@ -484,20 +702,36 @@ func BaseBlockedMatMul_fallback(a []float32, b []float32, c []float32, m int, n 
 				cRowStart := i * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc := hwy.Zero[float32]()
-					for p := range k {
-						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc = hwy.MulAdd(vA, vB, acc)
+					total := hwy.Zero[float32]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc := hwy.Zero[float32]()
+						for p := pBlock; p < pEnd; p++ {
+							vA := hwy.Set(a[i*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc = hwy.MulAdd(vA, vB, acc)
+						}
+						total = hwy.Add(total, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.Store(total, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum float32
-					for p := range k {
-						sum += a[i*k+p] * b[p*n+j]
+					var total float32
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum float32
+						for p := pBlock; p < pEnd; p++ {
+							sum += a[i*k+p] * b[p*n+j]
+						}
+						total += sum
 					}
-					c[cRowStart+j] = sum
+					c[cRowStart+j] = total
 				}
 			}
 		}
@@ -534,84 +768,127 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 			for i = i0; i+mr <= iEnd; i += mr {
 				var j int
 				for j = j0; j+nr <= jEnd; j += nr {
-					acc00 := hwy.Zero[float64]()
-					acc01 := hwy.Zero[float64]()
-					acc10 := hwy.Zero[float64]()
-					acc11 := hwy.Zero[float64]()
-					acc20 := hwy.Zero[float64]()
-					acc21 := hwy.Zero[float64]()
-					acc30 := hwy.Zero[float64]()
-					acc31 := hwy.Zero[float64]()
-					for p := range k {
-						a0p := a[i*k+p]
-						a1p := a[(i+1)*k+p]
-						a2p := a[(i+2)*k+p]
-						a3p := a[(i+3)*k+p]
-						vA0 := hwy.Set(a0p)
-						vA1 := hwy.Set(a1p)
-						vA2 := hwy.Set(a2p)
-						vA3 := hwy.Set(a3p)
-						bRowStart := p * n
-						vB0 := hwy.Load(b[bRowStart+j:])
-						vB1 := hwy.Load(b[bRowStart+j+lanes:])
-						acc00 = hwy.MulAdd(vA0, vB0, acc00)
-						acc01 = hwy.MulAdd(vA0, vB1, acc01)
-						acc10 = hwy.MulAdd(vA1, vB0, acc10)
-						acc11 = hwy.MulAdd(vA1, vB1, acc11)
-						acc20 = hwy.MulAdd(vA2, vB0, acc20)
-						acc21 = hwy.MulAdd(vA2, vB1, acc21)
-						acc30 = hwy.MulAdd(vA3, vB0, acc30)
-						acc31 = hwy.MulAdd(vA3, vB1, acc31)
+					tot00 := hwy.Zero[float64]()
+					tot01 := hwy.Zero[float64]()
+					tot10 := hwy.Zero[float64]()
+					tot11 := hwy.Zero[float64]()
+					tot20 := hwy.Zero[float64]()
+					tot21 := hwy.Zero[float64]()
+					tot30 := hwy.Zero[float64]()
+					tot31 := hwy.Zero[float64]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc00 := hwy.Zero[float64]()
+						acc01 := hwy.Zero[float64]()
+						acc10 := hwy.Zero[float64]()
+						acc11 := hwy.Zero[float64]()
+						acc20 := hwy.Zero[float64]()
+						acc21 := hwy.Zero[float64]()
+						acc30 := hwy.Zero[float64]()
+						acc31 := hwy.Zero[float64]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vA2 := hwy.Set(a[(i+2)*k+p])
+							vA3 := hwy.Set(a[(i+3)*k+p])
+							bRowStart := p * n
+							vB0 := hwy.Load(b[bRowStart+j:])
+							vB1 := hwy.Load(b[bRowStart+j+lanes:])
+							acc00 = hwy.MulAdd(vA0, vB0, acc00)
+							acc01 = hwy.MulAdd(vA0, vB1, acc01)
+							acc10 = hwy.MulAdd(vA1, vB0, acc10)
+							acc11 = hwy.MulAdd(vA1, vB1, acc11)
+							acc20 = hwy.MulAdd(vA2, vB0, acc20)
+							acc21 = hwy.MulAdd(vA2, vB1, acc21)
+							acc30 = hwy.MulAdd(vA3, vB0, acc30)
+							acc31 = hwy.MulAdd(vA3, vB1, acc31)
+						}
+						tot00 = hwy.Add(tot00, acc00)
+						tot01 = hwy.Add(tot01, acc01)
+						tot10 = hwy.Add(tot10, acc10)
+						tot11 = hwy.Add(tot11, acc11)
+						tot20 = hwy.Add(tot20, acc20)
+						tot21 = hwy.Add(tot21, acc21)
+						tot30 = hwy.Add(tot30, acc30)
+						tot31 = hwy.Add(tot31, acc31)
 					}
 					cRow0 := i * n
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					hwy.Store(acc00, c[cRow0+j:])
-					hwy.Store(acc01, c[cRow0+j+lanes:])
-					hwy.Store(acc10, c[cRow1+j:])
-					hwy.Store(acc11, c[cRow1+j+lanes:])
-					hwy.Store(acc20, c[cRow2+j:])
-					hwy.Store(acc21, c[cRow2+j+lanes:])
-					hwy.Store(acc30, c[cRow3+j:])
-					hwy.Store(acc31, c[cRow3+j+lanes:])
+					hwy.Store(tot00, c[cRow0+j:])
+					hwy.Store(tot01, c[cRow0+j+lanes:])
+					hwy.Store(tot10, c[cRow1+j:])
+					hwy.Store(tot11, c[cRow1+j+lanes:])
+					hwy.Store(tot20, c[cRow2+j:])
+					hwy.Store(tot21, c[cRow2+j+lanes:])
+					hwy.Store(tot30, c[cRow3+j:])
+					hwy.Store(tot31, c[cRow3+j+lanes:])
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
 					if remaining >= lanes {
-						acc0 := hwy.Zero[float64]()
-						acc1 := hwy.Zero[float64]()
-						acc2 := hwy.Zero[float64]()
-						acc3 := hwy.Zero[float64]()
-						for p := range k {
-							vA0 := hwy.Set(a[i*k+p])
-							vA1 := hwy.Set(a[(i+1)*k+p])
-							vA2 := hwy.Set(a[(i+2)*k+p])
-							vA3 := hwy.Set(a[(i+3)*k+p])
-							vB := hwy.Load(b[p*n+j:])
-							acc0 = hwy.MulAdd(vA0, vB, acc0)
-							acc1 = hwy.MulAdd(vA1, vB, acc1)
-							acc2 = hwy.MulAdd(vA2, vB, acc2)
-							acc3 = hwy.MulAdd(vA3, vB, acc3)
+						tot0 := hwy.Zero[float64]()
+						tot1 := hwy.Zero[float64]()
+						tot2 := hwy.Zero[float64]()
+						tot3 := hwy.Zero[float64]()
+						for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+							pEnd := pBlock + pairwiseBlockK
+							if pEnd > k {
+								pEnd = k
+							}
+							acc0 := hwy.Zero[float64]()
+							acc1 := hwy.Zero[float64]()
+							acc2 := hwy.Zero[float64]()
+							acc3 := hwy.Zero[float64]()
+							for p := pBlock; p < pEnd; p++ {
+								vA0 := hwy.Set(a[i*k+p])
+								vA1 := hwy.Set(a[(i+1)*k+p])
+								vA2 := hwy.Set(a[(i+2)*k+p])
+								vA3 := hwy.Set(a[(i+3)*k+p])
+								vB := hwy.Load(b[p*n+j:])
+								acc0 = hwy.MulAdd(vA0, vB, acc0)
+								acc1 = hwy.MulAdd(vA1, vB, acc1)
+								acc2 = hwy.MulAdd(vA2, vB, acc2)
+								acc3 = hwy.MulAdd(vA3, vB, acc3)
+							}
+							tot0 = hwy.Add(tot0, acc0)
+							tot1 = hwy.Add(tot1, acc1)
+							tot2 = hwy.Add(tot2, acc2)
+							tot3 = hwy.Add(tot3, acc3)
 						}
-						hwy.Store(acc0, c[i*n+j:])
-						hwy.Store(acc1, c[(i+1)*n+j:])
-						hwy.Store(acc2, c[(i+2)*n+j:])
-						hwy.Store(acc3, c[(i+3)*n+j:])
+						hwy.Store(tot0, c[i*n+j:])
+						hwy.Store(tot1, c[(i+1)*n+j:])
+						hwy.Store(tot2, c[(i+2)*n+j:])
+						hwy.Store(tot3, c[(i+3)*n+j:])
 					} else {
 						for jj := j; jj < jEnd; jj++ {
-							var sum0, sum1, sum2, sum3 float64
-							for p := range k {
-								bpj := b[p*n+jj]
-								sum0 += a[i*k+p] * bpj
-								sum1 += a[(i+1)*k+p] * bpj
-								sum2 += a[(i+2)*k+p] * bpj
-								sum3 += a[(i+3)*k+p] * bpj
+							var tot0, tot1, tot2, tot3 float64
+							for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+								pEnd := pBlock + pairwiseBlockK
+								if pEnd > k {
+									pEnd = k
+								}
+								var sum0, sum1, sum2, sum3 float64
+								for p := pBlock; p < pEnd; p++ {
+									bpj := b[p*n+jj]
+									sum0 += a[i*k+p] * bpj
+									sum1 += a[(i+1)*k+p] * bpj
+									sum2 += a[(i+2)*k+p] * bpj
+									sum3 += a[(i+3)*k+p] * bpj
+								}
+								tot0 += sum0
+								tot1 += sum1
+								tot2 += sum2
+								tot3 += sum3
 							}
-							c[i*n+jj] = sum0
-							c[(i+1)*n+jj] = sum1
-							c[(i+2)*n+jj] = sum2
-							c[(i+3)*n+jj] = sum3
+							c[i*n+jj] = tot0
+							c[(i+1)*n+jj] = tot1
+							c[(i+2)*n+jj] = tot2
+							c[(i+3)*n+jj] = tot3
 						}
 						break
 					}
@@ -622,27 +899,46 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 				cRow1 := (i + 1) * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc0 := hwy.Zero[float64]()
-					acc1 := hwy.Zero[float64]()
-					for p := range k {
-						vA0 := hwy.Set(a[i*k+p])
-						vA1 := hwy.Set(a[(i+1)*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc0 = hwy.MulAdd(vA0, vB, acc0)
-						acc1 = hwy.MulAdd(vA1, vB, acc1)
+					tot0 := hwy.Zero[float64]()
+					tot1 := hwy.Zero[float64]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc0 := hwy.Zero[float64]()
+						acc1 := hwy.Zero[float64]()
+						for p := pBlock; p < pEnd; p++ {
+							vA0 := hwy.Set(a[i*k+p])
+							vA1 := hwy.Set(a[(i+1)*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc0 = hwy.MulAdd(vA0, vB, acc0)
+							acc1 = hwy.MulAdd(vA1, vB, acc1)
+						}
+						tot0 = hwy.Add(tot0, acc0)
+						tot1 = hwy.Add(tot1, acc1)
 					}
-					hwy.Store(acc0, c[cRow0+j:])
-					hwy.Store(acc1, c[cRow1+j:])
+					hwy.Store(tot0, c[cRow0+j:])
+					hwy.Store(tot1, c[cRow1+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum0, sum1 float64
-					for p := range k {
-						bp := b[p*n+j]
-						sum0 += a[i*k+p] * bp
-						sum1 += a[(i+1)*k+p] * bp
+					var tot0, tot1 float64
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum0, sum1 float64
+						for p := pBlock; p < pEnd; p++ {
+							bp := b[p*n+j]
+							sum0 += a[i*k+p] * bp
+							sum1 += a[(i+1)*k+p] * bp
+						}
+						tot0 += sum0
+						tot1 += sum1
 					}
-					c[cRow0+j] = sum0
-					c[cRow1+j] = sum1
+					c[cRow0+j] = tot0
+					c[cRow1+j] = tot1
 				}
 				i += 2
 			}
@@ -650,20 +946,36 @@ func BaseBlockedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m
 				cRowStart := i * n
 				var j int
 				for j = j0; j+lanes <= jEnd; j += lanes {
-					acc := hwy.Zero[float64]()
-					for p := range k {
-						vA := hwy.Set(a[i*k+p])
-						vB := hwy.Load(b[p*n+j:])
-						acc = hwy.MulAdd(vA, vB, acc)
+					total := hwy.Zero[float64]()
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						acc := hwy.Zero[float64]()
+						for p := pBlock; p < pEnd; p++ {
+							vA := hwy.Set(a[i*k+p])
+							vB := hwy.Load(b[p*n+j:])
+							acc = hwy.MulAdd(vA, vB, acc)
+						}
+						total = hwy.Add(total, acc)
 					}
-					hwy.Store(acc, c[cRowStart+j:])
+					hwy.Store(total, c[cRowStart+j:])
 				}
 				for ; j < jEnd; j++ {
-					var sum float64
-					for p := range k {
-						sum += a[i*k+p] * b[p*n+j]
+					var total float64
+					for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+						pEnd := pBlock + pairwiseBlockK
+						if pEnd > k {
+							pEnd = k
+						}
+						var sum float64
+						for p := pBlock; p < pEnd; p++ {
+							sum += a[i*k+p] * b[p*n+j]
+						}
+						total += sum
 					}
-					c[cRowStart+j] = sum
+					c[cRowStart+j] = total
 				}
 			}
 		}

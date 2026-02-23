@@ -46,15 +46,8 @@ func initMatmul_blockedAll() {
 		initMatmul_blockedFallback()
 		return
 	}
-	initMatmul_blockedNEON()
+	initMatmul_blockedFallback()
 	return
-}
-
-func initMatmul_blockedNEON() {
-	BlockedMatMulFloat16 = BaseBlockedMatMul_neon_Float16
-	BlockedMatMulBFloat16 = BaseBlockedMatMul_neon_BFloat16
-	BlockedMatMulFloat32 = BaseBlockedMatMul_neon
-	BlockedMatMulFloat64 = BaseBlockedMatMul_neon_Float64
 }
 
 func initMatmul_blockedFallback() {

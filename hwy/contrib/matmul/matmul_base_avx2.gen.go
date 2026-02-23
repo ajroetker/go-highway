@@ -28,37 +28,67 @@ func BaseMatMul_avx2_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 		cRow := c[i*n : (i+1)*n]
 		var j int
 		for j = 0; j+tileJ <= n; j += tileJ {
-			acc0 := asm.ZeroFloat16x8AVX2()
-			acc1 := asm.ZeroFloat16x8AVX2()
-			acc2 := asm.ZeroFloat16x8AVX2()
-			acc3 := asm.ZeroFloat16x8AVX2()
-			for p := range k {
-				vA := asm.BroadcastFloat16x8AVX2(uint16(a[i*k+p]))
-				bRow := b[p*n:]
-				acc0 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j:][0])), acc0)
-				acc1 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+lanes:][0])), acc1)
-				acc2 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+2*lanes:][0])), acc2)
-				acc3 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+3*lanes:][0])), acc3)
+			total0 := asm.ZeroFloat16x8AVX2()
+			total1 := asm.ZeroFloat16x8AVX2()
+			total2 := asm.ZeroFloat16x8AVX2()
+			total3 := asm.ZeroFloat16x8AVX2()
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc0 := asm.ZeroFloat16x8AVX2()
+				acc1 := asm.ZeroFloat16x8AVX2()
+				acc2 := asm.ZeroFloat16x8AVX2()
+				acc3 := asm.ZeroFloat16x8AVX2()
+				for p := pBlock; p < pEnd; p++ {
+					vA := asm.BroadcastFloat16x8AVX2(uint16(a[i*k+p]))
+					bRow := b[p*n:]
+					acc0 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j:][0])), acc0)
+					acc1 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+lanes:][0])), acc1)
+					acc2 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+2*lanes:][0])), acc2)
+					acc3 = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+3*lanes:][0])), acc3)
+				}
+				total0 = total0.Add(acc0)
+				total1 = total1.Add(acc1)
+				total2 = total2.Add(acc2)
+				total3 = total3.Add(acc3)
 			}
-			acc0.StorePtr(unsafe.Pointer(&cRow[j:][0]))
-			acc1.StorePtr(unsafe.Pointer(&cRow[j+lanes:][0]))
-			acc2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes:][0]))
-			acc3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes:][0]))
+			total0.StorePtr(unsafe.Pointer(&cRow[j:][0]))
+			total1.StorePtr(unsafe.Pointer(&cRow[j+lanes:][0]))
+			total2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes:][0]))
+			total3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes:][0]))
 		}
 		for ; j+lanes <= n; j += lanes {
-			acc := asm.ZeroFloat16x8AVX2()
-			for p := range k {
-				vA := asm.BroadcastFloat16x8AVX2(uint16(a[i*k+p]))
-				acc = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[p*n+j:][0])), acc)
+			total := asm.ZeroFloat16x8AVX2()
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc := asm.ZeroFloat16x8AVX2()
+				for p := pBlock; p < pEnd; p++ {
+					vA := asm.BroadcastFloat16x8AVX2(uint16(a[i*k+p]))
+					acc = vA.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[p*n+j:][0])), acc)
+				}
+				total = total.Add(acc)
 			}
-			acc.StorePtr(unsafe.Pointer(&cRow[j:][0]))
+			total.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 		}
 		for ; j < n; j++ {
-			var sum float32
-			for p := range k {
-				sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+			var total float32
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				var sum float32
+				for p := pBlock; p < pEnd; p++ {
+					sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+				}
+				total += sum
 			}
-			cRow[j] = hwy.Float32ToFloat16(sum)
+			cRow[j] = hwy.Float32ToFloat16(total)
 		}
 	}
 }
@@ -79,37 +109,67 @@ func BaseMatMul_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat
 		cRow := c[i*n : (i+1)*n]
 		var j int
 		for j = 0; j+tileJ <= n; j += tileJ {
-			acc0 := asm.ZeroBFloat16x8AVX2()
-			acc1 := asm.ZeroBFloat16x8AVX2()
-			acc2 := asm.ZeroBFloat16x8AVX2()
-			acc3 := asm.ZeroBFloat16x8AVX2()
-			for p := range k {
-				vA := asm.BroadcastBFloat16x8AVX2(uint16(a[i*k+p]))
-				bRow := b[p*n:]
-				acc0 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j:][0])), acc0)
-				acc1 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+lanes:][0])), acc1)
-				acc2 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+2*lanes:][0])), acc2)
-				acc3 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+3*lanes:][0])), acc3)
+			total0 := asm.ZeroBFloat16x8AVX2()
+			total1 := asm.ZeroBFloat16x8AVX2()
+			total2 := asm.ZeroBFloat16x8AVX2()
+			total3 := asm.ZeroBFloat16x8AVX2()
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc0 := asm.ZeroBFloat16x8AVX2()
+				acc1 := asm.ZeroBFloat16x8AVX2()
+				acc2 := asm.ZeroBFloat16x8AVX2()
+				acc3 := asm.ZeroBFloat16x8AVX2()
+				for p := pBlock; p < pEnd; p++ {
+					vA := asm.BroadcastBFloat16x8AVX2(uint16(a[i*k+p]))
+					bRow := b[p*n:]
+					acc0 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j:][0])), acc0)
+					acc1 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+lanes:][0])), acc1)
+					acc2 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+2*lanes:][0])), acc2)
+					acc3 = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[j+3*lanes:][0])), acc3)
+				}
+				total0 = total0.Add(acc0)
+				total1 = total1.Add(acc1)
+				total2 = total2.Add(acc2)
+				total3 = total3.Add(acc3)
 			}
-			acc0.StorePtr(unsafe.Pointer(&cRow[j:][0]))
-			acc1.StorePtr(unsafe.Pointer(&cRow[j+lanes:][0]))
-			acc2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes:][0]))
-			acc3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes:][0]))
+			total0.StorePtr(unsafe.Pointer(&cRow[j:][0]))
+			total1.StorePtr(unsafe.Pointer(&cRow[j+lanes:][0]))
+			total2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes:][0]))
+			total3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes:][0]))
 		}
 		for ; j+lanes <= n; j += lanes {
-			acc := asm.ZeroBFloat16x8AVX2()
-			for p := range k {
-				vA := asm.BroadcastBFloat16x8AVX2(uint16(a[i*k+p]))
-				acc = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[p*n+j:][0])), acc)
+			total := asm.ZeroBFloat16x8AVX2()
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc := asm.ZeroBFloat16x8AVX2()
+				for p := pBlock; p < pEnd; p++ {
+					vA := asm.BroadcastBFloat16x8AVX2(uint16(a[i*k+p]))
+					acc = vA.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[p*n+j:][0])), acc)
+				}
+				total = total.Add(acc)
 			}
-			acc.StorePtr(unsafe.Pointer(&cRow[j:][0]))
+			total.StorePtr(unsafe.Pointer(&cRow[j:][0]))
 		}
 		for ; j < n; j++ {
-			var sum float32
-			for p := range k {
-				sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+			var total float32
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				var sum float32
+				for p := pBlock; p < pEnd; p++ {
+					sum += a[i*k+p].Float32() * b[p*n+j].Float32()
+				}
+				total += sum
 			}
-			cRow[j] = hwy.Float32ToBFloat16(sum)
+			cRow[j] = hwy.Float32ToBFloat16(total)
 		}
 	}
 }
@@ -130,37 +190,67 @@ func BaseMatMul_avx2(a []float32, b []float32, c []float32, m int, n int, k int)
 		cRow := c[i*n : (i+1)*n]
 		var j int
 		for j = 0; j+tileJ <= n; j += tileJ {
-			acc0 := archsimd.BroadcastFloat32x8(0)
-			acc1 := archsimd.BroadcastFloat32x8(0)
-			acc2 := archsimd.BroadcastFloat32x8(0)
-			acc3 := archsimd.BroadcastFloat32x8(0)
-			for p := range k {
-				vA := archsimd.BroadcastFloat32x8(a[i*k+p])
-				bRow := b[p*n:]
-				acc0 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j]))), acc0)
-				acc1 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
-				acc2 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
-				acc3 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
+			total0 := archsimd.BroadcastFloat32x8(0)
+			total1 := archsimd.BroadcastFloat32x8(0)
+			total2 := archsimd.BroadcastFloat32x8(0)
+			total3 := archsimd.BroadcastFloat32x8(0)
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc0 := archsimd.BroadcastFloat32x8(0)
+				acc1 := archsimd.BroadcastFloat32x8(0)
+				acc2 := archsimd.BroadcastFloat32x8(0)
+				acc3 := archsimd.BroadcastFloat32x8(0)
+				for p := pBlock; p < pEnd; p++ {
+					vA := archsimd.BroadcastFloat32x8(a[i*k+p])
+					bRow := b[p*n:]
+					acc0 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j]))), acc0)
+					acc1 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
+					acc2 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
+					acc3 = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
+				}
+				total0 = total0.Add(acc0)
+				total1 = total1.Add(acc1)
+				total2 = total2.Add(acc2)
+				total3 = total3.Add(acc3)
 			}
-			acc0.Store((*[8]float32)(unsafe.Pointer(&cRow[j])))
-			acc1.Store((*[8]float32)(unsafe.Pointer(&cRow[j+lanes])))
-			acc2.Store((*[8]float32)(unsafe.Pointer(&cRow[j+2*lanes])))
-			acc3.Store((*[8]float32)(unsafe.Pointer(&cRow[j+3*lanes])))
+			total0.Store((*[8]float32)(unsafe.Pointer(&cRow[j])))
+			total1.Store((*[8]float32)(unsafe.Pointer(&cRow[j+lanes])))
+			total2.Store((*[8]float32)(unsafe.Pointer(&cRow[j+2*lanes])))
+			total3.Store((*[8]float32)(unsafe.Pointer(&cRow[j+3*lanes])))
 		}
 		for ; j+lanes <= n; j += lanes {
-			acc := archsimd.BroadcastFloat32x8(0)
-			for p := range k {
-				vA := archsimd.BroadcastFloat32x8(a[i*k+p])
-				acc = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[p*n+j]))), acc)
+			total := archsimd.BroadcastFloat32x8(0)
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc := archsimd.BroadcastFloat32x8(0)
+				for p := pBlock; p < pEnd; p++ {
+					vA := archsimd.BroadcastFloat32x8(a[i*k+p])
+					acc = vA.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[p*n+j]))), acc)
+				}
+				total = total.Add(acc)
 			}
-			acc.Store((*[8]float32)(unsafe.Pointer(&cRow[j])))
+			total.Store((*[8]float32)(unsafe.Pointer(&cRow[j])))
 		}
 		for ; j < n; j++ {
-			var sum float32
-			for p := range k {
-				sum += a[i*k+p] * b[p*n+j]
+			var total float32
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				var sum float32
+				for p := pBlock; p < pEnd; p++ {
+					sum += a[i*k+p] * b[p*n+j]
+				}
+				total += sum
 			}
-			cRow[j] = sum
+			cRow[j] = total
 		}
 	}
 }
@@ -181,37 +271,67 @@ func BaseMatMul_avx2_Float64(a []float64, b []float64, c []float64, m int, n int
 		cRow := c[i*n : (i+1)*n]
 		var j int
 		for j = 0; j+tileJ <= n; j += tileJ {
-			acc0 := archsimd.BroadcastFloat64x4(0)
-			acc1 := archsimd.BroadcastFloat64x4(0)
-			acc2 := archsimd.BroadcastFloat64x4(0)
-			acc3 := archsimd.BroadcastFloat64x4(0)
-			for p := range k {
-				vA := archsimd.BroadcastFloat64x4(a[i*k+p])
-				bRow := b[p*n:]
-				acc0 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j]))), acc0)
-				acc1 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
-				acc2 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
-				acc3 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
+			total0 := archsimd.BroadcastFloat64x4(0)
+			total1 := archsimd.BroadcastFloat64x4(0)
+			total2 := archsimd.BroadcastFloat64x4(0)
+			total3 := archsimd.BroadcastFloat64x4(0)
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc0 := archsimd.BroadcastFloat64x4(0)
+				acc1 := archsimd.BroadcastFloat64x4(0)
+				acc2 := archsimd.BroadcastFloat64x4(0)
+				acc3 := archsimd.BroadcastFloat64x4(0)
+				for p := pBlock; p < pEnd; p++ {
+					vA := archsimd.BroadcastFloat64x4(a[i*k+p])
+					bRow := b[p*n:]
+					acc0 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j]))), acc0)
+					acc1 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
+					acc2 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
+					acc3 = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
+				}
+				total0 = total0.Add(acc0)
+				total1 = total1.Add(acc1)
+				total2 = total2.Add(acc2)
+				total3 = total3.Add(acc3)
 			}
-			acc0.Store((*[4]float64)(unsafe.Pointer(&cRow[j])))
-			acc1.Store((*[4]float64)(unsafe.Pointer(&cRow[j+lanes])))
-			acc2.Store((*[4]float64)(unsafe.Pointer(&cRow[j+2*lanes])))
-			acc3.Store((*[4]float64)(unsafe.Pointer(&cRow[j+3*lanes])))
+			total0.Store((*[4]float64)(unsafe.Pointer(&cRow[j])))
+			total1.Store((*[4]float64)(unsafe.Pointer(&cRow[j+lanes])))
+			total2.Store((*[4]float64)(unsafe.Pointer(&cRow[j+2*lanes])))
+			total3.Store((*[4]float64)(unsafe.Pointer(&cRow[j+3*lanes])))
 		}
 		for ; j+lanes <= n; j += lanes {
-			acc := archsimd.BroadcastFloat64x4(0)
-			for p := range k {
-				vA := archsimd.BroadcastFloat64x4(a[i*k+p])
-				acc = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[p*n+j]))), acc)
+			total := archsimd.BroadcastFloat64x4(0)
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				acc := archsimd.BroadcastFloat64x4(0)
+				for p := pBlock; p < pEnd; p++ {
+					vA := archsimd.BroadcastFloat64x4(a[i*k+p])
+					acc = vA.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[p*n+j]))), acc)
+				}
+				total = total.Add(acc)
 			}
-			acc.Store((*[4]float64)(unsafe.Pointer(&cRow[j])))
+			total.Store((*[4]float64)(unsafe.Pointer(&cRow[j])))
 		}
 		for ; j < n; j++ {
-			var sum float64
-			for p := range k {
-				sum += a[i*k+p] * b[p*n+j]
+			var total float64
+			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
+				pEnd := pBlock + pairwiseBlockK
+				if pEnd > k {
+					pEnd = k
+				}
+				var sum float64
+				for p := pBlock; p < pEnd; p++ {
+					sum += a[i*k+p] * b[p*n+j]
+				}
+				total += sum
 			}
-			cRow[j] = sum
+			cRow[j] = total
 		}
 	}
 }

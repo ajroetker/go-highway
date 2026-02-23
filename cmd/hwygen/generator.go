@@ -69,6 +69,10 @@ func comboPrimaryType(combo TypeCombination, typeParams []TypeParam) string {
 			return ct
 		}
 	}
+	// Non-generic functions use "" as the key for inferred types
+	if ct, ok := combo.Types[""]; ok {
+		return ct
+	}
 	return "float32"
 }
 
@@ -187,11 +191,10 @@ func (g *Generator) Run() error {
 			goSimdSpecs = append(goSimdSpecs, ts)
 		case TargetModeAsm:
 			asmSpecs = append(asmSpecs, ts)
-			// Also generate Go SIMD for this target, unless it's an SVE target
-			// (SVE has no Go SIMD OpMap; dispatch is handled by C/ASM init files)
-			if !isSVETarget(ts.Target) {
-				goSimdSpecs = append(goSimdSpecs, TargetSpec{Target: ts.Target, Mode: TargetModeGoSimd})
-			}
+			// SVE and NEON:asm targets don't get Go SIMD generation.
+			// SVE has no Go SIMD OpMap; NEON:asm relies on the C assembly init
+			// to override dispatch vars, with fallback as the base layer.
+			// This avoids generating _neon.gen.go files that would be dead code.
 		case TargetModeC:
 			cOnlySpecs = append(cOnlySpecs, ts)
 		}
@@ -328,7 +331,9 @@ func (g *Generator) Run() error {
 			}
 		}
 		if !found {
-			allTargets = append(allTargets, ts.Target)
+			target := ts.Target
+			target.Mode = TargetModeAsm
+			allTargets = append(allTargets, target)
 		}
 	}
 

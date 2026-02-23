@@ -457,8 +457,14 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 			// No GoSimd init function is generated for SVE targets.
 			continue
 		case "NEON":
-			// NEON is mandatory on ARM64, so always use it
-			fmt.Fprintf(&buf, "\tinit%sNEON()\n", capPrefix)
+			if target.Mode == TargetModeAsm {
+				// NEON:asm — use fallback as the base layer.
+				// The z_c_slices init() will override with C assembly implementations.
+				fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
+			} else {
+				// NEON GoSimd — use Go SIMD NEON implementation
+				fmt.Fprintf(&buf, "\tinit%sNEON()\n", capPrefix)
+			}
 			fmt.Fprintf(&buf, "\treturn\n")
 		}
 	}
@@ -472,8 +478,10 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 	// Generate init functions for each target
 	// SVE targets are skipped — their dispatch is handled by z_c_*.gen.go init() functions.
+	// ASM targets are also skipped — their dispatch is handled by z_c_slices init(),
+	// with fallback as the base layer (set by the dispatcher init above).
 	for _, target := range archTargets {
-		if isSVETarget(target) {
+		if isSVETarget(target) || target.Mode == TargetModeAsm {
 			continue
 		}
 		initFuncName := "init" + capPrefix + target.Name

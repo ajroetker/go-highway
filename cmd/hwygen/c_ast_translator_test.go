@@ -440,6 +440,36 @@ func TestGetLaneLanesMinusOne(t *testing.T) {
 	}
 }
 
+// TestWidenedVarsClearedOnVarDecl verifies that a plain `var total T` declaration
+// clears the widened status from a prior vector loop. This prevents the C translator
+// from emitting `total_lo`/`total_hi` references in a scalar tail where only a
+// single scalar `total` exists (regression from pairwise summation bf16 codegen).
+func TestWidenedVarsClearedOnVarDecl(t *testing.T) {
+	profile := testProfile(t, "hwy.BFloat16")
+	translator := NewCASTTranslator(profile, "hwy.BFloat16")
+
+	// Simulate the vector loop having registered "total" as widened
+	translator.widenedVars["total"] = true
+
+	// Parse: var total hwy.BFloat16
+	src := `package p; func f() { var total hwy.BFloat16; _ = total }`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	funcDecl := file.Decls[0].(*ast.FuncDecl)
+	declStmt := funcDecl.Body.List[0].(*ast.DeclStmt)
+
+	translator.translateDeclStmt(declStmt)
+
+	// After the var declaration, "total" should no longer be widened
+	if _, widened := translator.widenedVars["total"]; widened {
+		t.Error("var declaration should clear widened status, but total is still widened")
+	}
+}
+
 // TestGetLaneVariableIndex verifies that GetLane with a truly variable index
 // (not constant-foldable) still uses the store-to-stack fallback.
 func TestGetLaneVariableIndex(t *testing.T) {

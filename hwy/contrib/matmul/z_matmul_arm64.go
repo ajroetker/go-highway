@@ -370,7 +370,7 @@ func matmulNEON(a, b, c []float32, m, n, k int) {
 func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
-		BaseMatMul_neon_Float16(a, b, c, m, n, k)
+		BaseMatMul_fallback_Float16(a, b, c, m, n, k)
 		return
 	}
 	matMulAsmF16(a, b, c, m, n, k)
@@ -381,7 +381,7 @@ func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 func matmulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
-		BaseMatMul_neon_BFloat16(a, b, c, m, n, k)
+		BaseMatMul_fallback_BFloat16(a, b, c, m, n, k)
 		return
 	}
 	matMulAsmBF16(a, b, c, m, n, k)
@@ -988,7 +988,7 @@ func blockedMatMulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	if totalOps < blockedThreshold || m < minMForBlocked {
 		matMulAsmBF16(a, b, c, m, n, k)
 	} else {
-		BaseBlockedMatMul_neon_BFloat16(a, b, c, m, n, k)
+		BaseBlockedMatMul_fallback_BFloat16(a, b, c, m, n, k)
 	}
 }
 

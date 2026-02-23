@@ -82,19 +82,8 @@ func initMatmul_klastAll() {
 		initMatmul_klastFallback()
 		return
 	}
-	initMatmul_klastNEON()
+	initMatmul_klastFallback()
 	return
-}
-
-func initMatmul_klastNEON() {
-	MatMulKLastFloat16 = BaseMatMulKLast_neon_Float16
-	MatMulKLastBFloat16 = BaseMatMulKLast_neon_BFloat16
-	MatMulKLastFloat32 = BaseMatMulKLast_neon
-	MatMulKLastFloat64 = BaseMatMulKLast_neon_Float64
-	MatMulKLastBlockedFloat16 = BaseMatMulKLastBlocked_neon_Float16
-	MatMulKLastBlockedBFloat16 = BaseMatMulKLastBlocked_neon_BFloat16
-	MatMulKLastBlockedFloat32 = BaseMatMulKLastBlocked_neon
-	MatMulKLastBlockedFloat64 = BaseMatMulKLastBlocked_neon_Float64
 }
 
 func initMatmul_klastFallback() {

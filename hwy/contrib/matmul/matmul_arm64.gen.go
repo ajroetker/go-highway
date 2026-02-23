@@ -48,15 +48,8 @@ func initMatmulAll() {
 		initMatmulFallback()
 		return
 	}
-	initMatmulNEON()
+	initMatmulFallback()
 	return
-}
-
-func initMatmulNEON() {
-	MatMulFloat16 = BaseMatMul_neon_Float16
-	MatMulBFloat16 = BaseMatMul_neon_BFloat16
-	MatMulFloat32 = BaseMatMul_neon
-	MatMulFloat64 = BaseMatMul_neon_Float64
 }
 
 func initMatmulFallback() {

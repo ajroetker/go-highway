@@ -19,12 +19,8 @@ func initInt8x8matmulperaxisAll() {
 		initInt8x8matmulperaxisFallback()
 		return
 	}
-	initInt8x8matmulperaxisNEON()
+	initInt8x8matmulperaxisFallback()
 	return
-}
-
-func initInt8x8matmulperaxisNEON() {
-	Int8x8MatMulPerAxis = BaseInt8x8MatMulPerAxis_neon
 }
 
 func initInt8x8matmulperaxisFallback() {

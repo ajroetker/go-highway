@@ -1677,9 +1677,9 @@ func TestCModeMatMulNeonGeneration(t *testing.T) {
 		t.Errorf("f32: expected at least 5 for loops for matmul, got %d", forCount)
 	}
 
-	// Verify scalar tail loops are preserved (j-outer/p-inner with sum accumulator)
-	if !strings.Contains(f32, "cRow[j] = sum;") {
-		t.Error("f32: missing scalar store tail: cRow[j] = sum;")
+	// Verify scalar tail loops are preserved (j-outer/p-inner with total accumulator from pairwise summation)
+	if !strings.Contains(f32, "cRow[j] = total;") {
+		t.Error("f32: missing scalar store tail: cRow[j] = total;")
 	}
 	if !strings.Contains(f32, "sum += a[i * k + p] * b[p * n + j];") {
 		t.Error("f32: missing scalar FMA tail: sum += a[i * k + p] * b[p * n + j];")
@@ -2187,9 +2187,9 @@ func TestTranslateMatMulKLast(t *testing.T) {
 		t.Errorf("expected at least 4 for loops, got %d", forCount)
 	}
 
-	// Verify scalar tail: sum0 += a[...] * b[...]
-	if !strings.Contains(cCode, "sum0 +=") {
-		t.Error("missing scalar tail accumulation for sum0")
+	// Verify scalar tail: s0 += a[...] * b[...] (pairwise summation inner block accumulator)
+	if !strings.Contains(cCode, "s0 +=") {
+		t.Error("missing scalar tail accumulation for s0")
 	}
 }
 
@@ -5517,6 +5517,55 @@ func TestComboTypeSuffix(t *testing.T) {
 			got := comboTypeSuffix(tt.combo, typeParams)
 			if got != tt.want {
 				t.Errorf("comboTypeSuffix() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestComboPrimaryType(t *testing.T) {
+	tests := []struct {
+		name       string
+		combo      TypeCombination
+		typeParams []TypeParam
+		want       string
+	}{
+		{
+			name:       "generic single type param",
+			combo:      TypeCombination{Types: map[string]string{"T": "float64"}},
+			typeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+			want:       "float64",
+		},
+		{
+			name:       "generic multi type params",
+			combo:      TypeCombination{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			typeParams: []TypeParam{{Name: "T1"}, {Name: "T2"}},
+			want:       "hwy.Float16",
+		},
+		{
+			name:       "non-generic inferred int32",
+			combo:      TypeCombination{Types: map[string]string{"": "int32"}},
+			typeParams: nil,
+			want:       "int32",
+		},
+		{
+			name:       "non-generic inferred uint8",
+			combo:      TypeCombination{Types: map[string]string{"": "uint8"}},
+			typeParams: nil,
+			want:       "uint8",
+		},
+		{
+			name:       "empty combo",
+			combo:      TypeCombination{Types: nil},
+			typeParams: nil,
+			want:       "float32",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := comboPrimaryType(tt.combo, tt.typeParams)
+			if got != tt.want {
+				t.Errorf("comboPrimaryType() = %q, want %q", got, tt.want)
 			}
 		})
 	}

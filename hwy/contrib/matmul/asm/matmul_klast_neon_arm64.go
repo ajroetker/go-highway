@@ -14,6 +14,9 @@ import "unsafe"
 func matmul_klast_neon_f32(a, b, c, pm, pn, pk unsafe.Pointer)
 
 //go:noescape
+func matmul_klast_neon_f32_m1(a, b, c, pm, pn, pk unsafe.Pointer)
+
+//go:noescape
 func matmul_klast_neon_f32_aligned(a, b, c, pm, pn, pk unsafe.Pointer)
 
 //go:noescape

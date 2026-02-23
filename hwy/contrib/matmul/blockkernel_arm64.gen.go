@@ -129,27 +129,8 @@ func initBlockkernelAll() {
 		initBlockkernelFallback()
 		return
 	}
-	initBlockkernelNEON()
+	initBlockkernelFallback()
 	return
-}
-
-func initBlockkernelNEON() {
-	BlockMulAddFloat16 = BaseBlockMulAdd_neon_Float16
-	BlockMulAddBFloat16 = BaseBlockMulAdd_neon_BFloat16
-	BlockMulAddFloat32 = BaseBlockMulAdd_neon
-	BlockMulAddFloat64 = BaseBlockMulAdd_neon_Float64
-	BlockMulAdd2Float16 = BaseBlockMulAdd2_neon_Float16
-	BlockMulAdd2BFloat16 = BaseBlockMulAdd2_neon_BFloat16
-	BlockMulAdd2Float32 = BaseBlockMulAdd2_neon
-	BlockMulAdd2Float64 = BaseBlockMulAdd2_neon_Float64
-	BlockMulAddRegBlockedFloat16 = BaseBlockMulAddRegBlocked_neon_Float16
-	BlockMulAddRegBlockedBFloat16 = BaseBlockMulAddRegBlocked_neon_BFloat16
-	BlockMulAddRegBlockedFloat32 = BaseBlockMulAddRegBlocked_neon
-	BlockMulAddRegBlockedFloat64 = BaseBlockMulAddRegBlocked_neon_Float64
-	BlockMulAdd4Float16 = BaseBlockMulAdd4_neon_Float16
-	BlockMulAdd4BFloat16 = BaseBlockMulAdd4_neon_BFloat16
-	BlockMulAdd4Float32 = BaseBlockMulAdd4_neon
-	BlockMulAdd4Float64 = BaseBlockMulAdd4_neon_Float64
 }
 
 func initBlockkernelFallback() {
