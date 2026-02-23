@@ -34,6 +34,10 @@ var MatMulKLastBlockedFloat64 func(a []float64, b []float64, c []float64, m int,
 //  3. Multiply and accumulate into a vector accumulator
 //  4. Horizontal sum at the end to produce C[i,j]
 //
+// Uses direct single-pass accumulation with multiple independent FMA
+// accumulators for instruction-level parallelism, matching the BLAS
+// approach. FMA provides single-rounding precision.
+//
 // Memory access pattern:
 //   - A row i: A[i*K : i*K+K] - sequential (cache friendly)
 //   - B row j: B[j*K : j*K+K] - sequential (cache friendly)

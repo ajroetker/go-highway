@@ -31,59 +31,46 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := asm.ZeroFloat16x16AVX512()
-				acc1 := asm.ZeroFloat16x16AVX512()
-				acc2 := asm.ZeroFloat16x16AVX512()
-				acc3 := asm.ZeroFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
-					acc0 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow0+p:][0])), acc0)
-					acc1 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow1+p:][0])), acc1)
-					acc2 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow2+p:][0])), acc2)
-					acc3 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow3+p:][0])), acc3)
-				}
-				s0 := acc0.ReduceSum()
-				s1 := acc1.ReduceSum()
-				s2 := acc2.ReduceSum()
-				s3 := acc3.ReduceSum()
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap.Float32() * b[bRow0+p].Float32()
-					s1 += ap.Float32() * b[bRow1+p].Float32()
-					s2 += ap.Float32() * b[bRow2+p].Float32()
-					s3 += ap.Float32() * b[bRow3+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := asm.ZeroFloat16x16AVX512()
+			acc1 := asm.ZeroFloat16x16AVX512()
+			acc2 := asm.ZeroFloat16x16AVX512()
+			acc3 := asm.ZeroFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+				acc0 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow0+p:][0])), acc0)
+				acc1 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow1+p:][0])), acc1)
+				acc2 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow2+p:][0])), acc2)
+				acc3 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow3+p:][0])), acc3)
 			}
-			c[j] = hwy.Float32ToFloat16(tot0)
-			c[j+1] = hwy.Float32ToFloat16(tot1)
-			c[j+2] = hwy.Float32ToFloat16(tot2)
-			c[j+3] = hwy.Float32ToFloat16(tot3)
+			s0 := acc0.ReduceSum()
+			s1 := acc1.ReduceSum()
+			s2 := acc2.ReduceSum()
+			s3 := acc3.ReduceSum()
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap.Float32() * b[bRow0+p].Float32()
+				s1 += ap.Float32() * b[bRow1+p].Float32()
+				s2 += ap.Float32() * b[bRow2+p].Float32()
+				s3 += ap.Float32() * b[bRow3+p].Float32()
+			}
+			c[j] = hwy.Float32ToFloat16(s0)
+			c[j+1] = hwy.Float32ToFloat16(s1)
+			c[j+2] = hwy.Float32ToFloat16(s2)
+			c[j+3] = hwy.Float32ToFloat16(s3)
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := asm.ZeroFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					acc = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0])).MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0])), acc)
-				}
-				sum := acc.ReduceSum()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := asm.ZeroFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0])).MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0])), acc)
 			}
-			c[j] = hwy.Float32ToFloat16(total)
+			sum := acc.ReduceSum()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[j] = hwy.Float32ToFloat16(sum)
 		}
 		return
 	}
@@ -99,40 +86,32 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := asm.ZeroFloat16x16AVX512()
-				acc1 := asm.ZeroFloat16x16AVX512()
-				acc2 := asm.ZeroFloat16x16AVX512()
-				acc3 := asm.ZeroFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
-					acc0 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow0+p:][0])).MulAdd(vB, acc0)
-					acc1 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow1+p:][0])).MulAdd(vB, acc1)
-					acc2 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow2+p:][0])).MulAdd(vB, acc2)
-					acc3 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow3+p:][0])).MulAdd(vB, acc3)
-				}
-				s0 := acc0.ReduceSum()
-				s1 := acc1.ReduceSum()
-				s2 := acc2.ReduceSum()
-				s3 := acc3.ReduceSum()
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
-					s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
-					s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
-					s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := asm.ZeroFloat16x16AVX512()
+			acc1 := asm.ZeroFloat16x16AVX512()
+			acc2 := asm.ZeroFloat16x16AVX512()
+			acc3 := asm.ZeroFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				acc0 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow0+p:][0])).MulAdd(vB, acc0)
+				acc1 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow1+p:][0])).MulAdd(vB, acc1)
+				acc2 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow2+p:][0])).MulAdd(vB, acc2)
+				acc3 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow3+p:][0])).MulAdd(vB, acc3)
 			}
-			c[cRow0+j] = hwy.Float32ToFloat16(tot0)
-			c[cRow1+j] = hwy.Float32ToFloat16(tot1)
-			c[cRow2+j] = hwy.Float32ToFloat16(tot2)
-			c[cRow3+j] = hwy.Float32ToFloat16(tot3)
+			s0 := acc0.ReduceSum()
+			s1 := acc1.ReduceSum()
+			s2 := acc2.ReduceSum()
+			s3 := acc3.ReduceSum()
+			for ; p < k; p++ {
+				s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
+				s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
+				s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
+				s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToFloat16(s0)
+			c[cRow1+j] = hwy.Float32ToFloat16(s1)
+			c[cRow2+j] = hwy.Float32ToFloat16(s2)
+			c[cRow3+j] = hwy.Float32ToFloat16(s3)
 		}
 	}
 	for ; i < m; i++ {
@@ -140,23 +119,18 @@ func BaseMatMulKLast_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Fl
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := asm.ZeroFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
-					vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
-					acc = vA.MulAdd(vB, acc)
-				}
-				sum := acc.ReduceSum()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := asm.ZeroFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+				vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				acc = vA.MulAdd(vB, acc)
 			}
-			c[cRow+j] = hwy.Float32ToFloat16(total)
+			sum := acc.ReduceSum()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow+j] = hwy.Float32ToFloat16(sum)
 		}
 	}
 }
@@ -180,59 +154,46 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := asm.ZeroBFloat16x16AVX512()
-				acc1 := asm.ZeroBFloat16x16AVX512()
-				acc2 := asm.ZeroBFloat16x16AVX512()
-				acc3 := asm.ZeroBFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
-					acc0 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow0+p:][0])), acc0)
-					acc1 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow1+p:][0])), acc1)
-					acc2 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow2+p:][0])), acc2)
-					acc3 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow3+p:][0])), acc3)
-				}
-				s0 := acc0.ReduceSum()
-				s1 := acc1.ReduceSum()
-				s2 := acc2.ReduceSum()
-				s3 := acc3.ReduceSum()
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap.Float32() * b[bRow0+p].Float32()
-					s1 += ap.Float32() * b[bRow1+p].Float32()
-					s2 += ap.Float32() * b[bRow2+p].Float32()
-					s3 += ap.Float32() * b[bRow3+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := asm.ZeroBFloat16x16AVX512()
+			acc1 := asm.ZeroBFloat16x16AVX512()
+			acc2 := asm.ZeroBFloat16x16AVX512()
+			acc3 := asm.ZeroBFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+				acc0 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow0+p:][0])), acc0)
+				acc1 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow1+p:][0])), acc1)
+				acc2 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow2+p:][0])), acc2)
+				acc3 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow3+p:][0])), acc3)
 			}
-			c[j] = hwy.Float32ToBFloat16(tot0)
-			c[j+1] = hwy.Float32ToBFloat16(tot1)
-			c[j+2] = hwy.Float32ToBFloat16(tot2)
-			c[j+3] = hwy.Float32ToBFloat16(tot3)
+			s0 := acc0.ReduceSum()
+			s1 := acc1.ReduceSum()
+			s2 := acc2.ReduceSum()
+			s3 := acc3.ReduceSum()
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap.Float32() * b[bRow0+p].Float32()
+				s1 += ap.Float32() * b[bRow1+p].Float32()
+				s2 += ap.Float32() * b[bRow2+p].Float32()
+				s3 += ap.Float32() * b[bRow3+p].Float32()
+			}
+			c[j] = hwy.Float32ToBFloat16(s0)
+			c[j+1] = hwy.Float32ToBFloat16(s1)
+			c[j+2] = hwy.Float32ToBFloat16(s2)
+			c[j+3] = hwy.Float32ToBFloat16(s3)
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := asm.ZeroBFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					acc = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0])).MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0])), acc)
-				}
-				sum := acc.ReduceSum()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := asm.ZeroBFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0])).MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0])), acc)
 			}
-			c[j] = hwy.Float32ToBFloat16(total)
+			sum := acc.ReduceSum()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[j] = hwy.Float32ToBFloat16(sum)
 		}
 		return
 	}
@@ -248,40 +209,32 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := asm.ZeroBFloat16x16AVX512()
-				acc1 := asm.ZeroBFloat16x16AVX512()
-				acc2 := asm.ZeroBFloat16x16AVX512()
-				acc3 := asm.ZeroBFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
-					acc0 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow0+p:][0])).MulAdd(vB, acc0)
-					acc1 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow1+p:][0])).MulAdd(vB, acc1)
-					acc2 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow2+p:][0])).MulAdd(vB, acc2)
-					acc3 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow3+p:][0])).MulAdd(vB, acc3)
-				}
-				s0 := acc0.ReduceSum()
-				s1 := acc1.ReduceSum()
-				s2 := acc2.ReduceSum()
-				s3 := acc3.ReduceSum()
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
-					s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
-					s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
-					s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := asm.ZeroBFloat16x16AVX512()
+			acc1 := asm.ZeroBFloat16x16AVX512()
+			acc2 := asm.ZeroBFloat16x16AVX512()
+			acc3 := asm.ZeroBFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				acc0 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow0+p:][0])).MulAdd(vB, acc0)
+				acc1 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow1+p:][0])).MulAdd(vB, acc1)
+				acc2 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow2+p:][0])).MulAdd(vB, acc2)
+				acc3 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow3+p:][0])).MulAdd(vB, acc3)
 			}
-			c[cRow0+j] = hwy.Float32ToBFloat16(tot0)
-			c[cRow1+j] = hwy.Float32ToBFloat16(tot1)
-			c[cRow2+j] = hwy.Float32ToBFloat16(tot2)
-			c[cRow3+j] = hwy.Float32ToBFloat16(tot3)
+			s0 := acc0.ReduceSum()
+			s1 := acc1.ReduceSum()
+			s2 := acc2.ReduceSum()
+			s3 := acc3.ReduceSum()
+			for ; p < k; p++ {
+				s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
+				s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
+				s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
+				s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToBFloat16(s0)
+			c[cRow1+j] = hwy.Float32ToBFloat16(s1)
+			c[cRow2+j] = hwy.Float32ToBFloat16(s2)
+			c[cRow3+j] = hwy.Float32ToBFloat16(s3)
 		}
 	}
 	for ; i < m; i++ {
@@ -289,23 +242,18 @@ func BaseMatMulKLast_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := asm.ZeroBFloat16x16AVX512()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
-					vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
-					acc = vA.MulAdd(vB, acc)
-				}
-				sum := acc.ReduceSum()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := asm.ZeroBFloat16x16AVX512()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+				vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+				acc = vA.MulAdd(vB, acc)
 			}
-			c[cRow+j] = hwy.Float32ToBFloat16(total)
+			sum := acc.ReduceSum()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow+j] = hwy.Float32ToBFloat16(sum)
 		}
 	}
 }
@@ -329,59 +277,46 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := archsimd.BroadcastFloat32x16(0)
-				acc1 := archsimd.BroadcastFloat32x16(0)
-				acc2 := archsimd.BroadcastFloat32x16(0)
-				acc3 := archsimd.BroadcastFloat32x16(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
-					acc0 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow0+p]))), acc0)
-					acc1 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow1+p]))), acc1)
-					acc2 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow2+p]))), acc2)
-					acc3 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow3+p]))), acc3)
-				}
-				s0 := hwy.ReduceSum_AVX512_F32x16(acc0)
-				s1 := hwy.ReduceSum_AVX512_F32x16(acc1)
-				s2 := hwy.ReduceSum_AVX512_F32x16(acc2)
-				s3 := hwy.ReduceSum_AVX512_F32x16(acc3)
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap * b[bRow0+p]
-					s1 += ap * b[bRow1+p]
-					s2 += ap * b[bRow2+p]
-					s3 += ap * b[bRow3+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := archsimd.BroadcastFloat32x16(0)
+			acc1 := archsimd.BroadcastFloat32x16(0)
+			acc2 := archsimd.BroadcastFloat32x16(0)
+			acc3 := archsimd.BroadcastFloat32x16(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
+				acc0 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow0+p]))), acc0)
+				acc1 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow1+p]))), acc1)
+				acc2 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow2+p]))), acc2)
+				acc3 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow3+p]))), acc3)
 			}
-			c[j] = tot0
-			c[j+1] = tot1
-			c[j+2] = tot2
-			c[j+3] = tot3
+			s0 := hwy.ReduceSum_AVX512_F32x16(acc0)
+			s1 := hwy.ReduceSum_AVX512_F32x16(acc1)
+			s2 := hwy.ReduceSum_AVX512_F32x16(acc2)
+			s3 := hwy.ReduceSum_AVX512_F32x16(acc3)
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap * b[bRow0+p]
+				s1 += ap * b[bRow1+p]
+				s2 += ap * b[bRow2+p]
+				s3 += ap * b[bRow3+p]
+			}
+			c[j] = s0
+			c[j+1] = s1
+			c[j+2] = s2
+			c[j+3] = s3
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := archsimd.BroadcastFloat32x16(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					acc = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p]))), acc)
-				}
-				sum := hwy.ReduceSum_AVX512_F32x16(acc)
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := archsimd.BroadcastFloat32x16(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p]))), acc)
 			}
-			c[j] = total
+			sum := hwy.ReduceSum_AVX512_F32x16(acc)
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[j] = sum
 		}
 		return
 	}
@@ -397,40 +332,32 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := archsimd.BroadcastFloat32x16(0)
-				acc1 := archsimd.BroadcastFloat32x16(0)
-				acc2 := archsimd.BroadcastFloat32x16(0)
-				acc3 := archsimd.BroadcastFloat32x16(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
-					acc0 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
-					acc1 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
-					acc2 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
-					acc3 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
-				}
-				s0 := hwy.ReduceSum_AVX512_F32x16(acc0)
-				s1 := hwy.ReduceSum_AVX512_F32x16(acc1)
-				s2 := hwy.ReduceSum_AVX512_F32x16(acc2)
-				s3 := hwy.ReduceSum_AVX512_F32x16(acc3)
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p] * b[bRow+p]
-					s1 += a[aRow1+p] * b[bRow+p]
-					s2 += a[aRow2+p] * b[bRow+p]
-					s3 += a[aRow3+p] * b[bRow+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := archsimd.BroadcastFloat32x16(0)
+			acc1 := archsimd.BroadcastFloat32x16(0)
+			acc2 := archsimd.BroadcastFloat32x16(0)
+			acc3 := archsimd.BroadcastFloat32x16(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
+				acc0 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
+				acc1 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
+				acc2 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
+				acc3 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
 			}
-			c[cRow0+j] = tot0
-			c[cRow1+j] = tot1
-			c[cRow2+j] = tot2
-			c[cRow3+j] = tot3
+			s0 := hwy.ReduceSum_AVX512_F32x16(acc0)
+			s1 := hwy.ReduceSum_AVX512_F32x16(acc1)
+			s2 := hwy.ReduceSum_AVX512_F32x16(acc2)
+			s3 := hwy.ReduceSum_AVX512_F32x16(acc3)
+			for ; p < k; p++ {
+				s0 += a[aRow0+p] * b[bRow+p]
+				s1 += a[aRow1+p] * b[bRow+p]
+				s2 += a[aRow2+p] * b[bRow+p]
+				s3 += a[aRow3+p] * b[bRow+p]
+			}
+			c[cRow0+j] = s0
+			c[cRow1+j] = s1
+			c[cRow2+j] = s2
+			c[cRow3+j] = s3
 		}
 	}
 	for ; i < m; i++ {
@@ -438,23 +365,18 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := archsimd.BroadcastFloat32x16(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
-					vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
-					acc = vA.MulAdd(vB, acc)
-				}
-				sum := hwy.ReduceSum_AVX512_F32x16(acc)
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := archsimd.BroadcastFloat32x16(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
+				vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
+				acc = vA.MulAdd(vB, acc)
 			}
-			c[cRow+j] = total
+			sum := hwy.ReduceSum_AVX512_F32x16(acc)
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[cRow+j] = sum
 		}
 	}
 }
@@ -478,59 +400,46 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := archsimd.BroadcastFloat64x8(0)
-				acc1 := archsimd.BroadcastFloat64x8(0)
-				acc2 := archsimd.BroadcastFloat64x8(0)
-				acc3 := archsimd.BroadcastFloat64x8(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
-					acc0 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow0+p]))), acc0)
-					acc1 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow1+p]))), acc1)
-					acc2 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow2+p]))), acc2)
-					acc3 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow3+p]))), acc3)
-				}
-				s0 := hwy.ReduceSum_AVX512_F64x8(acc0)
-				s1 := hwy.ReduceSum_AVX512_F64x8(acc1)
-				s2 := hwy.ReduceSum_AVX512_F64x8(acc2)
-				s3 := hwy.ReduceSum_AVX512_F64x8(acc3)
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap * b[bRow0+p]
-					s1 += ap * b[bRow1+p]
-					s2 += ap * b[bRow2+p]
-					s3 += ap * b[bRow3+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := archsimd.BroadcastFloat64x8(0)
+			acc1 := archsimd.BroadcastFloat64x8(0)
+			acc2 := archsimd.BroadcastFloat64x8(0)
+			acc3 := archsimd.BroadcastFloat64x8(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
+				acc0 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow0+p]))), acc0)
+				acc1 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow1+p]))), acc1)
+				acc2 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow2+p]))), acc2)
+				acc3 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow3+p]))), acc3)
 			}
-			c[j] = tot0
-			c[j+1] = tot1
-			c[j+2] = tot2
-			c[j+3] = tot3
+			s0 := hwy.ReduceSum_AVX512_F64x8(acc0)
+			s1 := hwy.ReduceSum_AVX512_F64x8(acc1)
+			s2 := hwy.ReduceSum_AVX512_F64x8(acc2)
+			s3 := hwy.ReduceSum_AVX512_F64x8(acc3)
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap * b[bRow0+p]
+				s1 += ap * b[bRow1+p]
+				s2 += ap * b[bRow2+p]
+				s3 += ap * b[bRow3+p]
+			}
+			c[j] = s0
+			c[j+1] = s1
+			c[j+2] = s2
+			c[j+3] = s3
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := archsimd.BroadcastFloat64x8(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					acc = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p]))), acc)
-				}
-				sum := hwy.ReduceSum_AVX512_F64x8(acc)
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := archsimd.BroadcastFloat64x8(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p]))), acc)
 			}
-			c[j] = total
+			sum := hwy.ReduceSum_AVX512_F64x8(acc)
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[j] = sum
 		}
 		return
 	}
@@ -546,40 +455,32 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := archsimd.BroadcastFloat64x8(0)
-				acc1 := archsimd.BroadcastFloat64x8(0)
-				acc2 := archsimd.BroadcastFloat64x8(0)
-				acc3 := archsimd.BroadcastFloat64x8(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
-					acc0 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
-					acc1 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
-					acc2 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
-					acc3 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
-				}
-				s0 := hwy.ReduceSum_AVX512_F64x8(acc0)
-				s1 := hwy.ReduceSum_AVX512_F64x8(acc1)
-				s2 := hwy.ReduceSum_AVX512_F64x8(acc2)
-				s3 := hwy.ReduceSum_AVX512_F64x8(acc3)
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p] * b[bRow+p]
-					s1 += a[aRow1+p] * b[bRow+p]
-					s2 += a[aRow2+p] * b[bRow+p]
-					s3 += a[aRow3+p] * b[bRow+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := archsimd.BroadcastFloat64x8(0)
+			acc1 := archsimd.BroadcastFloat64x8(0)
+			acc2 := archsimd.BroadcastFloat64x8(0)
+			acc3 := archsimd.BroadcastFloat64x8(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
+				acc0 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
+				acc1 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
+				acc2 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
+				acc3 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
 			}
-			c[cRow0+j] = tot0
-			c[cRow1+j] = tot1
-			c[cRow2+j] = tot2
-			c[cRow3+j] = tot3
+			s0 := hwy.ReduceSum_AVX512_F64x8(acc0)
+			s1 := hwy.ReduceSum_AVX512_F64x8(acc1)
+			s2 := hwy.ReduceSum_AVX512_F64x8(acc2)
+			s3 := hwy.ReduceSum_AVX512_F64x8(acc3)
+			for ; p < k; p++ {
+				s0 += a[aRow0+p] * b[bRow+p]
+				s1 += a[aRow1+p] * b[bRow+p]
+				s2 += a[aRow2+p] * b[bRow+p]
+				s3 += a[aRow3+p] * b[bRow+p]
+			}
+			c[cRow0+j] = s0
+			c[cRow1+j] = s1
+			c[cRow2+j] = s2
+			c[cRow3+j] = s3
 		}
 	}
 	for ; i < m; i++ {
@@ -587,23 +488,18 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := archsimd.BroadcastFloat64x8(0)
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
-					vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
-					acc = vA.MulAdd(vB, acc)
-				}
-				sum := hwy.ReduceSum_AVX512_F64x8(acc)
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := archsimd.BroadcastFloat64x8(0)
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
+				vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
+				acc = vA.MulAdd(vB, acc)
 			}
-			c[cRow+j] = total
+			sum := hwy.ReduceSum_AVX512_F64x8(acc)
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[cRow+j] = sum
 		}
 	}
 }
@@ -636,23 +532,18 @@ func BaseMatMulKLastBlocked_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c [
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float32
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := asm.ZeroFloat16x16AVX512()
-							var p int
-							for p = pBlock; p+lanes <= pBlockEnd; p += lanes {
-								vA := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
-								vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
-								acc = vA.MulAdd(vB, acc)
-							}
-							sum := acc.ReduceSum()
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-							}
-							blockTotal += sum
+						acc := asm.ZeroFloat16x16AVX512()
+						var p int
+						for p = kk; p+lanes <= kEnd; p += lanes {
+							vA := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+							vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+							acc = vA.MulAdd(vB, acc)
 						}
-						c[cRow+j] = hwy.Float32ToFloat16(c[cRow+j].Float32() + blockTotal)
+						sum := acc.ReduceSum()
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+						}
+						c[cRow+j] = hwy.Float32ToFloat16(c[cRow+j].Float32() + sum)
 					}
 				}
 			}
@@ -688,23 +579,18 @@ func BaseMatMulKLastBlocked_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, 
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float32
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := asm.ZeroBFloat16x16AVX512()
-							var p int
-							for p = pBlock; p+lanes <= pBlockEnd; p += lanes {
-								vA := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
-								vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
-								acc = vA.MulAdd(vB, acc)
-							}
-							sum := acc.ReduceSum()
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-							}
-							blockTotal += sum
+						acc := asm.ZeroBFloat16x16AVX512()
+						var p int
+						for p = kk; p+lanes <= kEnd; p += lanes {
+							vA := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&a[aRow+p:][0]))
+							vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[bRow+p:][0]))
+							acc = vA.MulAdd(vB, acc)
 						}
-						c[cRow+j] = hwy.Float32ToBFloat16(c[cRow+j].Float32() + blockTotal)
+						sum := acc.ReduceSum()
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+						}
+						c[cRow+j] = hwy.Float32ToBFloat16(c[cRow+j].Float32() + sum)
 					}
 				}
 			}
@@ -740,23 +626,18 @@ func BaseMatMulKLastBlocked_avx512(a []float32, b []float32, c []float32, m int,
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float32
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := archsimd.BroadcastFloat32x16(0)
-							var p int
-							for p = pBlock; p+lanes <= pBlockEnd; p += lanes {
-								vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
-								vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
-								acc = vA.MulAdd(vB, acc)
-							}
-							sum := hwy.ReduceSum_AVX512_F32x16(acc)
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p] * b[bRow+p]
-							}
-							blockTotal += sum
+						acc := archsimd.BroadcastFloat32x16(0)
+						var p int
+						for p = kk; p+lanes <= kEnd; p += lanes {
+							vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
+							vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
+							acc = vA.MulAdd(vB, acc)
 						}
-						c[cRow+j] += blockTotal
+						sum := hwy.ReduceSum_AVX512_F32x16(acc)
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p] * b[bRow+p]
+						}
+						c[cRow+j] += sum
 					}
 				}
 			}
@@ -792,23 +673,18 @@ func BaseMatMulKLastBlocked_avx512_Float64(a []float64, b []float64, c []float64
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float64
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := archsimd.BroadcastFloat64x8(0)
-							var p int
-							for p = pBlock; p+lanes <= pBlockEnd; p += lanes {
-								vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
-								vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
-								acc = vA.MulAdd(vB, acc)
-							}
-							sum := hwy.ReduceSum_AVX512_F64x8(acc)
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p] * b[bRow+p]
-							}
-							blockTotal += sum
+						acc := archsimd.BroadcastFloat64x8(0)
+						var p int
+						for p = kk; p+lanes <= kEnd; p += lanes {
+							vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
+							vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
+							acc = vA.MulAdd(vB, acc)
 						}
-						c[cRow+j] += blockTotal
+						sum := hwy.ReduceSum_AVX512_F64x8(acc)
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p] * b[bRow+p]
+						}
+						c[cRow+j] += sum
 					}
 				}
 			}

@@ -86,6 +86,12 @@ func detectARMFP16BF16Features() {
 	// HasASIMDFHM: FP16 to FP32 fused multiply-add (ARMv8.4-A FEAT_FHM)
 	hasARMFP16 = cpu.ARM64.HasFPHP && cpu.ARM64.HasASIMDHP
 
+	// On macOS/Apple Silicon, x/sys/cpu may not detect FP16 properly.
+	// Fall back to sysctl-based detection (see fp16_detect_darwin.go).
+	if !hasARMFP16 && hasFP16Darwin {
+		hasARMFP16 = true
+	}
+
 	// ARM BF16 detection
 	// golang.org/x/sys/cpu doesn't have explicit BF16 detection yet
 	// BF16 (FEAT_BF16) was introduced in ARMv8.6-A

@@ -1042,13 +1042,13 @@ func matmulKLastNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 // matmulKLastNEONBF16 uses ARM NEON for bfloat16 KLast matrix multiplication.
-// Uses BFDOT for computation with f32 accumulation.
+// Uses hwygen-generated assembly with f32 accumulation for precision.
 func matmulKLastNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	if m < minDimForNEONKLast || n < minDimForNEONKLast || k < minDimForNEONKLast {
 		BaseMatMulKLast(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulKLastNEONBF16(a, b, c, m, n, k)
+	matMulKLastAsmBF16(a, b, c, m, n, k)
 }
 
 // =============================================================================
@@ -1410,7 +1410,7 @@ func matmulKLastFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	paddedK := AlignUp(k, tileSize)
 
 	if paddedM < minDimForSMEKLast || paddedN < minDimForSMEKLast || paddedK < minDimForSMEKLast {
-		asm.MatMulKLastNEONBF16(a, b, c, m, n, k)
+		matMulKLastAsmBF16(a, b, c, m, n, k)
 		return
 	}
 

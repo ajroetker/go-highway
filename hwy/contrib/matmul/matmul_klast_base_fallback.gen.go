@@ -25,59 +25,46 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := hwy.Zero[hwy.Float16]()
-				acc1 := hwy.Zero[hwy.Float16]()
-				acc2 := hwy.Zero[hwy.Float16]()
-				acc3 := hwy.Zero[hwy.Float16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := hwy.Load(a[aRow+p:])
-					acc0 = hwy.MulAdd(vA, hwy.Load(b[bRow0+p:]), acc0)
-					acc1 = hwy.MulAdd(vA, hwy.Load(b[bRow1+p:]), acc1)
-					acc2 = hwy.MulAdd(vA, hwy.Load(b[bRow2+p:]), acc2)
-					acc3 = hwy.MulAdd(vA, hwy.Load(b[bRow3+p:]), acc3)
-				}
-				s0 := hwy.ReduceSum(acc0).Float32()
-				s1 := hwy.ReduceSum(acc1).Float32()
-				s2 := hwy.ReduceSum(acc2).Float32()
-				s3 := hwy.ReduceSum(acc3).Float32()
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap.Float32() * b[bRow0+p].Float32()
-					s1 += ap.Float32() * b[bRow1+p].Float32()
-					s2 += ap.Float32() * b[bRow2+p].Float32()
-					s3 += ap.Float32() * b[bRow3+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := hwy.Load(a[aRow+p:])
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRow0+p:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRow1+p:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRow2+p:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRow3+p:]), acc3)
 			}
-			c[j] = hwy.Float32ToFloat16(tot0)
-			c[j+1] = hwy.Float32ToFloat16(tot1)
-			c[j+2] = hwy.Float32ToFloat16(tot2)
-			c[j+3] = hwy.Float32ToFloat16(tot3)
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap.Float32() * b[bRow0+p].Float32()
+				s1 += ap.Float32() * b[bRow1+p].Float32()
+				s2 += ap.Float32() * b[bRow2+p].Float32()
+				s3 += ap.Float32() * b[bRow3+p].Float32()
+			}
+			c[j] = hwy.Float32ToFloat16(s0)
+			c[j+1] = hwy.Float32ToFloat16(s1)
+			c[j+2] = hwy.Float32ToFloat16(s2)
+			c[j+3] = hwy.Float32ToFloat16(s3)
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := hwy.Zero[hwy.Float16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					acc = hwy.MulAdd(hwy.Load(a[aRow+p:]), hwy.Load(b[bRow+p:]), acc)
-				}
-				sum := hwy.ReduceSum(acc).Float32()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := hwy.Zero[hwy.Float16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = hwy.MulAdd(hwy.Load(a[aRow+p:]), hwy.Load(b[bRow+p:]), acc)
 			}
-			c[j] = hwy.Float32ToFloat16(total)
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[j] = hwy.Float32ToFloat16(sum)
 		}
 		return
 	}
@@ -93,40 +80,32 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := hwy.Zero[hwy.Float16]()
-				acc1 := hwy.Zero[hwy.Float16]()
-				acc2 := hwy.Zero[hwy.Float16]()
-				acc3 := hwy.Zero[hwy.Float16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vB := hwy.Load(b[bRow+p:])
-					acc0 = hwy.MulAdd(hwy.Load(a[aRow0+p:]), vB, acc0)
-					acc1 = hwy.MulAdd(hwy.Load(a[aRow1+p:]), vB, acc1)
-					acc2 = hwy.MulAdd(hwy.Load(a[aRow2+p:]), vB, acc2)
-					acc3 = hwy.MulAdd(hwy.Load(a[aRow3+p:]), vB, acc3)
-				}
-				s0 := hwy.ReduceSum(acc0).Float32()
-				s1 := hwy.ReduceSum(acc1).Float32()
-				s2 := hwy.ReduceSum(acc2).Float32()
-				s3 := hwy.ReduceSum(acc3).Float32()
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
-					s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
-					s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
-					s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := hwy.Zero[hwy.Float16]()
+			acc1 := hwy.Zero[hwy.Float16]()
+			acc2 := hwy.Zero[hwy.Float16]()
+			acc3 := hwy.Zero[hwy.Float16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vB := hwy.Load(b[bRow+p:])
+				acc0 = hwy.MulAdd(hwy.Load(a[aRow0+p:]), vB, acc0)
+				acc1 = hwy.MulAdd(hwy.Load(a[aRow1+p:]), vB, acc1)
+				acc2 = hwy.MulAdd(hwy.Load(a[aRow2+p:]), vB, acc2)
+				acc3 = hwy.MulAdd(hwy.Load(a[aRow3+p:]), vB, acc3)
 			}
-			c[cRow0+j] = hwy.Float32ToFloat16(tot0)
-			c[cRow1+j] = hwy.Float32ToFloat16(tot1)
-			c[cRow2+j] = hwy.Float32ToFloat16(tot2)
-			c[cRow3+j] = hwy.Float32ToFloat16(tot3)
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < k; p++ {
+				s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
+				s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
+				s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
+				s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToFloat16(s0)
+			c[cRow1+j] = hwy.Float32ToFloat16(s1)
+			c[cRow2+j] = hwy.Float32ToFloat16(s2)
+			c[cRow3+j] = hwy.Float32ToFloat16(s3)
 		}
 	}
 	for ; i < m; i++ {
@@ -134,23 +113,18 @@ func BaseMatMulKLast_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := hwy.Zero[hwy.Float16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := hwy.Load(a[aRow+p:])
-					vB := hwy.Load(b[bRow+p:])
-					acc = hwy.MulAdd(vA, vB, acc)
-				}
-				sum := hwy.ReduceSum(acc).Float32()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := hwy.Zero[hwy.Float16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := hwy.Load(a[aRow+p:])
+				vB := hwy.Load(b[bRow+p:])
+				acc = hwy.MulAdd(vA, vB, acc)
 			}
-			c[cRow+j] = hwy.Float32ToFloat16(total)
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow+j] = hwy.Float32ToFloat16(sum)
 		}
 	}
 }
@@ -174,59 +148,46 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := hwy.Zero[hwy.BFloat16]()
-				acc1 := hwy.Zero[hwy.BFloat16]()
-				acc2 := hwy.Zero[hwy.BFloat16]()
-				acc3 := hwy.Zero[hwy.BFloat16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := hwy.Load(a[aRow+p:])
-					acc0 = hwy.MulAdd(vA, hwy.Load(b[bRow0+p:]), acc0)
-					acc1 = hwy.MulAdd(vA, hwy.Load(b[bRow1+p:]), acc1)
-					acc2 = hwy.MulAdd(vA, hwy.Load(b[bRow2+p:]), acc2)
-					acc3 = hwy.MulAdd(vA, hwy.Load(b[bRow3+p:]), acc3)
-				}
-				s0 := hwy.ReduceSum(acc0).Float32()
-				s1 := hwy.ReduceSum(acc1).Float32()
-				s2 := hwy.ReduceSum(acc2).Float32()
-				s3 := hwy.ReduceSum(acc3).Float32()
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap.Float32() * b[bRow0+p].Float32()
-					s1 += ap.Float32() * b[bRow1+p].Float32()
-					s2 += ap.Float32() * b[bRow2+p].Float32()
-					s3 += ap.Float32() * b[bRow3+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := hwy.Load(a[aRow+p:])
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRow0+p:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRow1+p:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRow2+p:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRow3+p:]), acc3)
 			}
-			c[j] = hwy.Float32ToBFloat16(tot0)
-			c[j+1] = hwy.Float32ToBFloat16(tot1)
-			c[j+2] = hwy.Float32ToBFloat16(tot2)
-			c[j+3] = hwy.Float32ToBFloat16(tot3)
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap.Float32() * b[bRow0+p].Float32()
+				s1 += ap.Float32() * b[bRow1+p].Float32()
+				s2 += ap.Float32() * b[bRow2+p].Float32()
+				s3 += ap.Float32() * b[bRow3+p].Float32()
+			}
+			c[j] = hwy.Float32ToBFloat16(s0)
+			c[j+1] = hwy.Float32ToBFloat16(s1)
+			c[j+2] = hwy.Float32ToBFloat16(s2)
+			c[j+3] = hwy.Float32ToBFloat16(s3)
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := hwy.Zero[hwy.BFloat16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					acc = hwy.MulAdd(hwy.Load(a[aRow+p:]), hwy.Load(b[bRow+p:]), acc)
-				}
-				sum := hwy.ReduceSum(acc).Float32()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := hwy.Zero[hwy.BFloat16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = hwy.MulAdd(hwy.Load(a[aRow+p:]), hwy.Load(b[bRow+p:]), acc)
 			}
-			c[j] = hwy.Float32ToBFloat16(total)
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[j] = hwy.Float32ToBFloat16(sum)
 		}
 		return
 	}
@@ -242,40 +203,32 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := hwy.Zero[hwy.BFloat16]()
-				acc1 := hwy.Zero[hwy.BFloat16]()
-				acc2 := hwy.Zero[hwy.BFloat16]()
-				acc3 := hwy.Zero[hwy.BFloat16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vB := hwy.Load(b[bRow+p:])
-					acc0 = hwy.MulAdd(hwy.Load(a[aRow0+p:]), vB, acc0)
-					acc1 = hwy.MulAdd(hwy.Load(a[aRow1+p:]), vB, acc1)
-					acc2 = hwy.MulAdd(hwy.Load(a[aRow2+p:]), vB, acc2)
-					acc3 = hwy.MulAdd(hwy.Load(a[aRow3+p:]), vB, acc3)
-				}
-				s0 := hwy.ReduceSum(acc0).Float32()
-				s1 := hwy.ReduceSum(acc1).Float32()
-				s2 := hwy.ReduceSum(acc2).Float32()
-				s3 := hwy.ReduceSum(acc3).Float32()
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
-					s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
-					s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
-					s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := hwy.Zero[hwy.BFloat16]()
+			acc1 := hwy.Zero[hwy.BFloat16]()
+			acc2 := hwy.Zero[hwy.BFloat16]()
+			acc3 := hwy.Zero[hwy.BFloat16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vB := hwy.Load(b[bRow+p:])
+				acc0 = hwy.MulAdd(hwy.Load(a[aRow0+p:]), vB, acc0)
+				acc1 = hwy.MulAdd(hwy.Load(a[aRow1+p:]), vB, acc1)
+				acc2 = hwy.MulAdd(hwy.Load(a[aRow2+p:]), vB, acc2)
+				acc3 = hwy.MulAdd(hwy.Load(a[aRow3+p:]), vB, acc3)
 			}
-			c[cRow0+j] = hwy.Float32ToBFloat16(tot0)
-			c[cRow1+j] = hwy.Float32ToBFloat16(tot1)
-			c[cRow2+j] = hwy.Float32ToBFloat16(tot2)
-			c[cRow3+j] = hwy.Float32ToBFloat16(tot3)
+			s0 := hwy.ReduceSum(acc0).Float32()
+			s1 := hwy.ReduceSum(acc1).Float32()
+			s2 := hwy.ReduceSum(acc2).Float32()
+			s3 := hwy.ReduceSum(acc3).Float32()
+			for ; p < k; p++ {
+				s0 += a[aRow0+p].Float32() * b[bRow+p].Float32()
+				s1 += a[aRow1+p].Float32() * b[bRow+p].Float32()
+				s2 += a[aRow2+p].Float32() * b[bRow+p].Float32()
+				s3 += a[aRow3+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow0+j] = hwy.Float32ToBFloat16(s0)
+			c[cRow1+j] = hwy.Float32ToBFloat16(s1)
+			c[cRow2+j] = hwy.Float32ToBFloat16(s2)
+			c[cRow3+j] = hwy.Float32ToBFloat16(s3)
 		}
 	}
 	for ; i < m; i++ {
@@ -283,23 +236,18 @@ func BaseMatMulKLast_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []h
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := hwy.Zero[hwy.BFloat16]()
-				var p int
-				for p = pBlock; p+lanes <= pEnd; p += lanes {
-					vA := hwy.Load(a[aRow+p:])
-					vB := hwy.Load(b[bRow+p:])
-					acc = hwy.MulAdd(vA, vB, acc)
-				}
-				sum := hwy.ReduceSum(acc).Float32()
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-				}
-				total += sum
+			acc := hwy.Zero[hwy.BFloat16]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := hwy.Load(a[aRow+p:])
+				vB := hwy.Load(b[bRow+p:])
+				acc = hwy.MulAdd(vA, vB, acc)
 			}
-			c[cRow+j] = hwy.Float32ToBFloat16(total)
+			sum := hwy.ReduceSum(acc).Float32()
+			for ; p < k; p++ {
+				sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+			}
+			c[cRow+j] = hwy.Float32ToBFloat16(sum)
 		}
 	}
 }
@@ -322,59 +270,46 @@ func BaseMatMulKLast_fallback(a []float32, b []float32, c []float32, m int, n in
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := float32(0)
-				acc1 := float32(0)
-				acc2 := float32(0)
-				acc3 := float32(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					vA := a[aRow+p]
-					acc0 = vA*b[bRow0+p] + acc0
-					acc1 = vA*b[bRow1+p] + acc1
-					acc2 = vA*b[bRow2+p] + acc2
-					acc3 = vA*b[bRow3+p] + acc3
-				}
-				s0 := acc0
-				s1 := acc1
-				s2 := acc2
-				s3 := acc3
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap * b[bRow0+p]
-					s1 += ap * b[bRow1+p]
-					s2 += ap * b[bRow2+p]
-					s3 += ap * b[bRow3+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := float32(0)
+			acc1 := float32(0)
+			acc2 := float32(0)
+			acc3 := float32(0)
+			var p int
+			for p = 0; p < k; p++ {
+				vA := a[aRow+p]
+				acc0 = vA*b[bRow0+p] + acc0
+				acc1 = vA*b[bRow1+p] + acc1
+				acc2 = vA*b[bRow2+p] + acc2
+				acc3 = vA*b[bRow3+p] + acc3
 			}
-			c[j] = tot0
-			c[j+1] = tot1
-			c[j+2] = tot2
-			c[j+3] = tot3
+			s0 := acc0
+			s1 := acc1
+			s2 := acc2
+			s3 := acc3
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap * b[bRow0+p]
+				s1 += ap * b[bRow1+p]
+				s2 += ap * b[bRow2+p]
+				s3 += ap * b[bRow3+p]
+			}
+			c[j] = s0
+			c[j+1] = s1
+			c[j+2] = s2
+			c[j+3] = s3
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := float32(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					acc = a[aRow+p]*b[bRow+p] + acc
-				}
-				sum := acc
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := float32(0)
+			var p int
+			for p = 0; p < k; p++ {
+				acc = a[aRow+p]*b[bRow+p] + acc
 			}
-			c[j] = total
+			sum := acc
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[j] = sum
 		}
 		return
 	}
@@ -390,40 +325,32 @@ func BaseMatMulKLast_fallback(a []float32, b []float32, c []float32, m int, n in
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := float32(0)
-				acc1 := float32(0)
-				acc2 := float32(0)
-				acc3 := float32(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					vB := b[bRow+p]
-					acc0 = a[aRow0+p]*vB + acc0
-					acc1 = a[aRow1+p]*vB + acc1
-					acc2 = a[aRow2+p]*vB + acc2
-					acc3 = a[aRow3+p]*vB + acc3
-				}
-				s0 := acc0
-				s1 := acc1
-				s2 := acc2
-				s3 := acc3
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p] * b[bRow+p]
-					s1 += a[aRow1+p] * b[bRow+p]
-					s2 += a[aRow2+p] * b[bRow+p]
-					s3 += a[aRow3+p] * b[bRow+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := float32(0)
+			acc1 := float32(0)
+			acc2 := float32(0)
+			acc3 := float32(0)
+			var p int
+			for p = 0; p < k; p++ {
+				vB := b[bRow+p]
+				acc0 = a[aRow0+p]*vB + acc0
+				acc1 = a[aRow1+p]*vB + acc1
+				acc2 = a[aRow2+p]*vB + acc2
+				acc3 = a[aRow3+p]*vB + acc3
 			}
-			c[cRow0+j] = tot0
-			c[cRow1+j] = tot1
-			c[cRow2+j] = tot2
-			c[cRow3+j] = tot3
+			s0 := acc0
+			s1 := acc1
+			s2 := acc2
+			s3 := acc3
+			for ; p < k; p++ {
+				s0 += a[aRow0+p] * b[bRow+p]
+				s1 += a[aRow1+p] * b[bRow+p]
+				s2 += a[aRow2+p] * b[bRow+p]
+				s3 += a[aRow3+p] * b[bRow+p]
+			}
+			c[cRow0+j] = s0
+			c[cRow1+j] = s1
+			c[cRow2+j] = s2
+			c[cRow3+j] = s3
 		}
 	}
 	for ; i < m; i++ {
@@ -431,23 +358,18 @@ func BaseMatMulKLast_fallback(a []float32, b []float32, c []float32, m int, n in
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float32
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := float32(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					vA := a[aRow+p]
-					vB := b[bRow+p]
-					acc = vA*vB + acc
-				}
-				sum := acc
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := float32(0)
+			var p int
+			for p = 0; p < k; p++ {
+				vA := a[aRow+p]
+				vB := b[bRow+p]
+				acc = vA*vB + acc
 			}
-			c[cRow+j] = total
+			sum := acc
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[cRow+j] = sum
 		}
 	}
 }
@@ -470,59 +392,46 @@ func BaseMatMulKLast_fallback_Float64(a []float64, b []float64, c []float64, m i
 			bRow1 := (j + 1) * k
 			bRow2 := (j + 2) * k
 			bRow3 := (j + 3) * k
-			var tot0, tot1, tot2, tot3 float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := float64(0)
-				acc1 := float64(0)
-				acc2 := float64(0)
-				acc3 := float64(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					vA := a[aRow+p]
-					acc0 = vA*b[bRow0+p] + acc0
-					acc1 = vA*b[bRow1+p] + acc1
-					acc2 = vA*b[bRow2+p] + acc2
-					acc3 = vA*b[bRow3+p] + acc3
-				}
-				s0 := acc0
-				s1 := acc1
-				s2 := acc2
-				s3 := acc3
-				for ; p < pEnd; p++ {
-					ap := a[aRow+p]
-					s0 += ap * b[bRow0+p]
-					s1 += ap * b[bRow1+p]
-					s2 += ap * b[bRow2+p]
-					s3 += ap * b[bRow3+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := float64(0)
+			acc1 := float64(0)
+			acc2 := float64(0)
+			acc3 := float64(0)
+			var p int
+			for p = 0; p < k; p++ {
+				vA := a[aRow+p]
+				acc0 = vA*b[bRow0+p] + acc0
+				acc1 = vA*b[bRow1+p] + acc1
+				acc2 = vA*b[bRow2+p] + acc2
+				acc3 = vA*b[bRow3+p] + acc3
 			}
-			c[j] = tot0
-			c[j+1] = tot1
-			c[j+2] = tot2
-			c[j+3] = tot3
+			s0 := acc0
+			s1 := acc1
+			s2 := acc2
+			s3 := acc3
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap * b[bRow0+p]
+				s1 += ap * b[bRow1+p]
+				s2 += ap * b[bRow2+p]
+				s3 += ap * b[bRow3+p]
+			}
+			c[j] = s0
+			c[j+1] = s1
+			c[j+2] = s2
+			c[j+3] = s3
 		}
 		for ; j < n; j++ {
 			bRow := j * k
-			var total float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := float64(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					acc = a[aRow+p]*b[bRow+p] + acc
-				}
-				sum := acc
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := float64(0)
+			var p int
+			for p = 0; p < k; p++ {
+				acc = a[aRow+p]*b[bRow+p] + acc
 			}
-			c[j] = total
+			sum := acc
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[j] = sum
 		}
 		return
 	}
@@ -538,40 +447,32 @@ func BaseMatMulKLast_fallback_Float64(a []float64, b []float64, c []float64, m i
 		cRow3 := (i + 3) * n
 		for j := range n {
 			bRow := j * k
-			var tot0, tot1, tot2, tot3 float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc0 := float64(0)
-				acc1 := float64(0)
-				acc2 := float64(0)
-				acc3 := float64(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					vB := b[bRow+p]
-					acc0 = a[aRow0+p]*vB + acc0
-					acc1 = a[aRow1+p]*vB + acc1
-					acc2 = a[aRow2+p]*vB + acc2
-					acc3 = a[aRow3+p]*vB + acc3
-				}
-				s0 := acc0
-				s1 := acc1
-				s2 := acc2
-				s3 := acc3
-				for ; p < pEnd; p++ {
-					s0 += a[aRow0+p] * b[bRow+p]
-					s1 += a[aRow1+p] * b[bRow+p]
-					s2 += a[aRow2+p] * b[bRow+p]
-					s3 += a[aRow3+p] * b[bRow+p]
-				}
-				tot0 += s0
-				tot1 += s1
-				tot2 += s2
-				tot3 += s3
+			acc0 := float64(0)
+			acc1 := float64(0)
+			acc2 := float64(0)
+			acc3 := float64(0)
+			var p int
+			for p = 0; p < k; p++ {
+				vB := b[bRow+p]
+				acc0 = a[aRow0+p]*vB + acc0
+				acc1 = a[aRow1+p]*vB + acc1
+				acc2 = a[aRow2+p]*vB + acc2
+				acc3 = a[aRow3+p]*vB + acc3
 			}
-			c[cRow0+j] = tot0
-			c[cRow1+j] = tot1
-			c[cRow2+j] = tot2
-			c[cRow3+j] = tot3
+			s0 := acc0
+			s1 := acc1
+			s2 := acc2
+			s3 := acc3
+			for ; p < k; p++ {
+				s0 += a[aRow0+p] * b[bRow+p]
+				s1 += a[aRow1+p] * b[bRow+p]
+				s2 += a[aRow2+p] * b[bRow+p]
+				s3 += a[aRow3+p] * b[bRow+p]
+			}
+			c[cRow0+j] = s0
+			c[cRow1+j] = s1
+			c[cRow2+j] = s2
+			c[cRow3+j] = s3
 		}
 	}
 	for ; i < m; i++ {
@@ -579,23 +480,18 @@ func BaseMatMulKLast_fallback_Float64(a []float64, b []float64, c []float64, m i
 		cRow := i * n
 		for j := range n {
 			bRow := j * k
-			var total float64
-			for pBlock := 0; pBlock < k; pBlock += pairwiseBlockK {
-				pEnd := min(pBlock+pairwiseBlockK, k)
-				acc := float64(0)
-				var p int
-				for p = pBlock; p < pEnd; p++ {
-					vA := a[aRow+p]
-					vB := b[bRow+p]
-					acc = vA*vB + acc
-				}
-				sum := acc
-				for ; p < pEnd; p++ {
-					sum += a[aRow+p] * b[bRow+p]
-				}
-				total += sum
+			acc := float64(0)
+			var p int
+			for p = 0; p < k; p++ {
+				vA := a[aRow+p]
+				vB := b[bRow+p]
+				acc = vA*vB + acc
 			}
-			c[cRow+j] = total
+			sum := acc
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[cRow+j] = sum
 		}
 	}
 }
@@ -628,23 +524,18 @@ func BaseMatMulKLastBlocked_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float32
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := hwy.Zero[hwy.Float16]()
-							var p int
-							for p = pBlock; p+lanes <= pBlockEnd; p += lanes {
-								vA := hwy.Load(a[aRow+p:])
-								vB := hwy.Load(b[bRow+p:])
-								acc = hwy.MulAdd(vA, vB, acc)
-							}
-							sum := hwy.ReduceSum(acc).Float32()
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-							}
-							blockTotal += sum
+						acc := hwy.Zero[hwy.Float16]()
+						var p int
+						for p = kk; p+lanes <= kEnd; p += lanes {
+							vA := hwy.Load(a[aRow+p:])
+							vB := hwy.Load(b[bRow+p:])
+							acc = hwy.MulAdd(vA, vB, acc)
 						}
-						c[cRow+j] = hwy.Float32ToFloat16(c[cRow+j].Float32() + blockTotal)
+						sum := hwy.ReduceSum(acc).Float32()
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+						}
+						c[cRow+j] = hwy.Float32ToFloat16(c[cRow+j].Float32() + sum)
 					}
 				}
 			}
@@ -680,23 +571,18 @@ func BaseMatMulKLastBlocked_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float32
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := hwy.Zero[hwy.BFloat16]()
-							var p int
-							for p = pBlock; p+lanes <= pBlockEnd; p += lanes {
-								vA := hwy.Load(a[aRow+p:])
-								vB := hwy.Load(b[bRow+p:])
-								acc = hwy.MulAdd(vA, vB, acc)
-							}
-							sum := hwy.ReduceSum(acc).Float32()
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p].Float32() * b[bRow+p].Float32()
-							}
-							blockTotal += sum
+						acc := hwy.Zero[hwy.BFloat16]()
+						var p int
+						for p = kk; p+lanes <= kEnd; p += lanes {
+							vA := hwy.Load(a[aRow+p:])
+							vB := hwy.Load(b[bRow+p:])
+							acc = hwy.MulAdd(vA, vB, acc)
 						}
-						c[cRow+j] = hwy.Float32ToBFloat16(c[cRow+j].Float32() + blockTotal)
+						sum := hwy.ReduceSum(acc).Float32()
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p].Float32() * b[bRow+p].Float32()
+						}
+						c[cRow+j] = hwy.Float32ToBFloat16(c[cRow+j].Float32() + sum)
 					}
 				}
 			}
@@ -731,23 +617,18 @@ func BaseMatMulKLastBlocked_fallback(a []float32, b []float32, c []float32, m in
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float32
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := float32(0)
-							var p int
-							for p = pBlock; p < pBlockEnd; p++ {
-								vA := a[aRow+p]
-								vB := b[bRow+p]
-								acc = vA*vB + acc
-							}
-							sum := acc
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p] * b[bRow+p]
-							}
-							blockTotal += sum
+						acc := float32(0)
+						var p int
+						for p = kk; p < kEnd; p++ {
+							vA := a[aRow+p]
+							vB := b[bRow+p]
+							acc = vA*vB + acc
 						}
-						c[cRow+j] += blockTotal
+						sum := acc
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p] * b[bRow+p]
+						}
+						c[cRow+j] += sum
 					}
 				}
 			}
@@ -782,23 +663,18 @@ func BaseMatMulKLastBlocked_fallback_Float64(a []float64, b []float64, c []float
 					cRow := i * n
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
-						var blockTotal float64
-						for pBlock := kk; pBlock < kEnd; pBlock += pairwiseBlockK {
-							pBlockEnd := min(pBlock+pairwiseBlockK, kEnd)
-							acc := float64(0)
-							var p int
-							for p = pBlock; p < pBlockEnd; p++ {
-								vA := a[aRow+p]
-								vB := b[bRow+p]
-								acc = vA*vB + acc
-							}
-							sum := acc
-							for ; p < pBlockEnd; p++ {
-								sum += a[aRow+p] * b[bRow+p]
-							}
-							blockTotal += sum
+						acc := float64(0)
+						var p int
+						for p = kk; p < kEnd; p++ {
+							vA := a[aRow+p]
+							vB := b[bRow+p]
+							acc = vA*vB + acc
 						}
-						c[cRow+j] += blockTotal
+						sum := acc
+						for ; p < kEnd; p++ {
+							sum += a[aRow+p] * b[bRow+p]
+						}
+						c[cRow+j] += sum
 					}
 				}
 			}
