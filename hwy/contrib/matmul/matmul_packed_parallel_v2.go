@@ -148,7 +148,7 @@ func processGEMMSliceV2[T hwy.Floats](
 			panelK := pcEnd - pc
 
 			// Pack B panel: B[pc:pcEnd, globalJC:globalJC+panelCols]
-			PackRHSFast(b, packedB, n, pc, globalJC, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, globalJC, panelK, panelCols, nr)
 
 			// Loop 3: A panels (L2 blocking) - within slice M range
 			for ic := 0; ic < sliceM; ic += mc {
@@ -157,7 +157,7 @@ func processGEMMSliceV2[T hwy.Floats](
 				globalIC := lhsRowStart + ic
 
 				// Pack A panel: A[globalIC:globalIC+panelRows, pc:pcEnd]
-				PackLHS(a, packedA, m, k, globalIC, pc, panelRows, panelK, mr)
+				PackLHSVec(a, packedA, m, k, globalIC, pc, panelRows, panelK, mr)
 
 				// GEBP with packed output buffer
 				gebpWithPackedOutput(

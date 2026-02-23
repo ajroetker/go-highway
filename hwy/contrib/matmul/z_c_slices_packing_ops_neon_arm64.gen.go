@@ -18,8 +18,6 @@ func initPacking_opsNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	PackRHSFastFloat32 = packRHSFastAsmF32
-	PackRHSFastFloat64 = packRHSFastAsmF64
 	ApplyPackedOutputFloat32 = applyPackedOutputAsmF32
 	ApplyPackedOutputFloat64 = applyPackedOutputAsmF64
 	ApplyPackedOutputSimpleFloat32 = applyPackedOutputSimpleAsmF32
@@ -27,141 +25,15 @@ func initPacking_opsNeonCAsm() {
 	ApplyPackedOutputAccumFloat32 = applyPackedOutputAccumAsmF32
 	ApplyPackedOutputAccumFloat64 = applyPackedOutputAccumAsmF64
 	if hwy.HasARMFP16() {
-		PackRHSFastFloat16 = packRHSFastAsmF16
 		ApplyPackedOutputFloat16 = applyPackedOutputAsmF16
 		ApplyPackedOutputSimpleFloat16 = applyPackedOutputSimpleAsmF16
 		ApplyPackedOutputAccumFloat16 = applyPackedOutputAccumAsmF16
 	}
 	if hwy.HasARMBF16() {
-		PackRHSFastBFloat16 = packRHSFastAsmBF16
 		ApplyPackedOutputBFloat16 = applyPackedOutputAsmBF16
 		ApplyPackedOutputSimpleBFloat16 = applyPackedOutputSimpleAsmBF16
 		ApplyPackedOutputAccumBFloat16 = applyPackedOutputAccumAsmBF16
 	}
-}
-
-func packRHSFastAsmF16(b, packed []hwy.Float16, n, rowStart, colStart, panelK, panelCols, nr int) {
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	nVal := int64(n)
-	rowStartVal := int64(rowStart)
-	colStartVal := int64(colStart)
-	panelKVal := int64(panelK)
-	panelColsVal := int64(panelCols)
-	nrVal := int64(nr)
-	len_bVal := int64(len(b))
-	len_packedVal := int64(len(packed))
-	asm.PackRHSFast_F16(
-		p_b,
-		p_packed,
-		unsafe.Pointer(&nVal),
-		unsafe.Pointer(&rowStartVal),
-		unsafe.Pointer(&colStartVal),
-		unsafe.Pointer(&panelKVal),
-		unsafe.Pointer(&panelColsVal),
-		unsafe.Pointer(&nrVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_packedVal),
-	)
-}
-
-func packRHSFastAsmBF16(b, packed []hwy.BFloat16, n, rowStart, colStart, panelK, panelCols, nr int) {
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	nVal := int64(n)
-	rowStartVal := int64(rowStart)
-	colStartVal := int64(colStart)
-	panelKVal := int64(panelK)
-	panelColsVal := int64(panelCols)
-	nrVal := int64(nr)
-	len_bVal := int64(len(b))
-	len_packedVal := int64(len(packed))
-	asm.PackRHSFast_BF16(
-		p_b,
-		p_packed,
-		unsafe.Pointer(&nVal),
-		unsafe.Pointer(&rowStartVal),
-		unsafe.Pointer(&colStartVal),
-		unsafe.Pointer(&panelKVal),
-		unsafe.Pointer(&panelColsVal),
-		unsafe.Pointer(&nrVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_packedVal),
-	)
-}
-
-func packRHSFastAsmF32(b, packed []float32, n, rowStart, colStart, panelK, panelCols, nr int) {
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	nVal := int64(n)
-	rowStartVal := int64(rowStart)
-	colStartVal := int64(colStart)
-	panelKVal := int64(panelK)
-	panelColsVal := int64(panelCols)
-	nrVal := int64(nr)
-	len_bVal := int64(len(b))
-	len_packedVal := int64(len(packed))
-	asm.PackRHSFast_F32(
-		p_b,
-		p_packed,
-		unsafe.Pointer(&nVal),
-		unsafe.Pointer(&rowStartVal),
-		unsafe.Pointer(&colStartVal),
-		unsafe.Pointer(&panelKVal),
-		unsafe.Pointer(&panelColsVal),
-		unsafe.Pointer(&nrVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_packedVal),
-	)
-}
-
-func packRHSFastAsmF64(b, packed []float64, n, rowStart, colStart, panelK, panelCols, nr int) {
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	nVal := int64(n)
-	rowStartVal := int64(rowStart)
-	colStartVal := int64(colStart)
-	panelKVal := int64(panelK)
-	panelColsVal := int64(panelCols)
-	nrVal := int64(nr)
-	len_bVal := int64(len(b))
-	len_packedVal := int64(len(packed))
-	asm.PackRHSFast_F64(
-		p_b,
-		p_packed,
-		unsafe.Pointer(&nVal),
-		unsafe.Pointer(&rowStartVal),
-		unsafe.Pointer(&colStartVal),
-		unsafe.Pointer(&panelKVal),
-		unsafe.Pointer(&panelColsVal),
-		unsafe.Pointer(&nrVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_packedVal),
-	)
 }
 
 func applyPackedOutputAsmF16(packedOutput, output []hwy.Float16, alpha, beta hwy.Float16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {

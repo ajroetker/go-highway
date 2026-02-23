@@ -80,7 +80,7 @@ func BasePackedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 			panelK := pcEnd - pc
 
 			// Pack B panel: B[pc:pcEnd, jc:jcEnd] -> packedB
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 
 			// Loop 3: A panels (L2 blocking)
 			for ic := 0; ic < m; ic += mc {
@@ -88,7 +88,7 @@ func BasePackedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				panelRows := icEnd - ic
 
 				// Pack A panel: A[ic:icEnd, pc:pcEnd] -> packedA
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 
 				// GEBP: multiply packed A panel with packed B panel
 				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
@@ -228,7 +228,7 @@ func BasePackedMatMulWithBuffers[T hwy.Floats](a, b, c []T, m, n, k int, packedA
 			panelK := pcEnd - pc
 
 			// Pack B panel
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 
 			// Loop 3: A panels (L2 blocking)
 			for ic := 0; ic < m; ic += mc {
@@ -236,7 +236,7 @@ func BasePackedMatMulWithBuffers[T hwy.Floats](a, b, c []T, m, n, k int, packedA
 				panelRows := icEnd - ic
 
 				// Pack A panel
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 
 				// GEBP
 				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
@@ -274,7 +274,7 @@ func BasePackedMatMulStrip[T hwy.Floats](a, b, c []T, m, n, k, rowStart, rowEnd 
 			panelK := pcEnd - pc
 
 			// Pack B panel (shared across all row strips)
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 
 			// Loop 3: A panels within this strip (L2 blocking)
 			for ic := rowStart; ic < rowEnd; ic += mc {
@@ -282,7 +282,7 @@ func BasePackedMatMulStrip[T hwy.Floats](a, b, c []T, m, n, k, rowStart, rowEnd 
 				panelRows := icEnd - ic
 
 				// Pack A panel from this strip
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 
 				// GEBP for this strip
 				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)

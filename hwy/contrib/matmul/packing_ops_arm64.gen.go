@@ -8,10 +8,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var PackRHSFastFloat16 func(b []hwy.Float16, packed []hwy.Float16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int)
-var PackRHSFastBFloat16 func(b []hwy.BFloat16, packed []hwy.BFloat16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int)
-var PackRHSFastFloat32 func(b []float32, packed []float32, n int, rowStart int, colStart int, panelK int, panelCols int, nr int)
-var PackRHSFastFloat64 func(b []float64, packed []float64, n int, rowStart int, colStart int, panelK int, panelCols int, nr int)
 var ApplyPackedOutputFloat16 func(packedOutput []hwy.Float16, output []hwy.Float16, alpha hwy.Float16, beta hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputBFloat16 func(packedOutput []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16, beta hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputFloat32 func(packedOutput []float32, output []float32, alpha float32, beta float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
@@ -24,39 +20,6 @@ var ApplyPackedOutputAccumFloat16 func(packedOutput []hwy.Float16, output []hwy.
 var ApplyPackedOutputAccumBFloat16 func(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumFloat32 func(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumFloat64 func(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
-
-// PackRHSFast packs a panel of the RHS matrix (B) using SIMD when possible.
-//
-// This is an optimized version of BasePackRHS that uses vector loads/stores
-// for full micro-panels where nr matches common SIMD widths.
-//
-// For AVX-512 with float32 (nr=32), this uses 2x ZMM loads/stores per row.
-// For AVX2 with float32 (nr=16), this uses 2x YMM loads/stores per row.
-// For NEON with float32 (nr=8), this uses 2x vector loads/stores per row.
-//
-// Parameters:
-//   - b: Input matrix B in row-major order (K x N)
-//   - packed: Output buffer for packed data
-//   - n: Number of columns in B (row stride)
-//   - rowStart: Starting row index in B (K-dimension offset)
-//   - colStart: Starting column index in B
-//   - panelK: Number of rows to pack (K dimension)
-//   - panelCols: Number of columns to pack
-//   - nr: Micro-tile column dimension (should match vector width * 2)
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func PackRHSFast[T hwy.Floats](b []T, packed []T, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) {
-	switch any(b).(type) {
-	case []hwy.Float16:
-		PackRHSFastFloat16(any(b).([]hwy.Float16), any(packed).([]hwy.Float16), n, rowStart, colStart, panelK, panelCols, nr)
-	case []hwy.BFloat16:
-		PackRHSFastBFloat16(any(b).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), n, rowStart, colStart, panelK, panelCols, nr)
-	case []float32:
-		PackRHSFastFloat32(any(b).([]float32), any(packed).([]float32), n, rowStart, colStart, panelK, panelCols, nr)
-	case []float64:
-		PackRHSFastFloat64(any(b).([]float64), any(packed).([]float64), n, rowStart, colStart, panelK, panelCols, nr)
-	}
-}
 
 // ApplyPackedOutput applies the computed packed output to the final output matrix.
 //
@@ -146,10 +109,6 @@ func initPacking_opsAll() {
 }
 
 func initPacking_opsFallback() {
-	PackRHSFastFloat16 = BasePackRHSFast_fallback_Float16
-	PackRHSFastBFloat16 = BasePackRHSFast_fallback_BFloat16
-	PackRHSFastFloat32 = BasePackRHSFast_fallback
-	PackRHSFastFloat64 = BasePackRHSFast_fallback_Float64
 	ApplyPackedOutputFloat16 = BaseApplyPackedOutput_fallback_Float16
 	ApplyPackedOutputBFloat16 = BaseApplyPackedOutput_fallback_BFloat16
 	ApplyPackedOutputFloat32 = BaseApplyPackedOutput_fallback

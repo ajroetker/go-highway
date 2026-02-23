@@ -18,66 +18,6 @@ package matmul
 
 import "github.com/ajroetker/go-highway/hwy"
 
-// BasePackRHSFast packs a panel of the RHS matrix (B) using SIMD when possible.
-//
-// This is an optimized version of BasePackRHS that uses vector loads/stores
-// for full micro-panels where nr matches common SIMD widths.
-//
-// For AVX-512 with float32 (nr=32), this uses 2x ZMM loads/stores per row.
-// For AVX2 with float32 (nr=16), this uses 2x YMM loads/stores per row.
-// For NEON with float32 (nr=8), this uses 2x vector loads/stores per row.
-//
-// Parameters:
-//   - b: Input matrix B in row-major order (K x N)
-//   - packed: Output buffer for packed data
-//   - n: Number of columns in B (row stride)
-//   - rowStart: Starting row index in B (K-dimension offset)
-//   - colStart: Starting column index in B
-//   - panelK: Number of rows to pack (K dimension)
-//   - panelCols: Number of columns to pack
-//   - nr: Micro-tile column dimension (should match vector width * 2)
-func BasePackRHSFast[T hwy.Floats](b, packed []T, n, rowStart, colStart, panelK, panelCols, nr int) {
-	lanes := hwy.Zero[T]().NumLanes()
-	dstIdx := 0
-
-	// Iterate over strips of width nr
-	for stripColIdx := 0; stripColIdx < panelCols; stripColIdx += nr {
-		validCols := min(nr, panelCols-stripColIdx)
-		baseCol := colStart + stripColIdx
-
-		// Fast path: full strip with SIMD (nr must be multiple of lanes)
-		if validCols == nr && nr >= lanes && nr%lanes == 0 {
-			for kk := range panelK {
-				srcIdx := (rowStart+kk)*n + baseCol
-
-				// SIMD copy: process nr elements using nr/lanes vectors
-				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[srcIdx+c:])
-					hwy.Store(v, packed[dstIdx+c:])
-				}
-				dstIdx += nr
-			}
-			continue
-		}
-
-		// Fallback: partial strip with scalar copy + zero padding
-		for kk := range panelK {
-			srcIdx := (rowStart+kk)*n + baseCol
-
-			// Copy valid columns
-			for c := range validCols {
-				packed[dstIdx] = b[srcIdx+c]
-				dstIdx++
-			}
-			// Zero-pad remaining columns
-			for c := validCols; c < nr; c++ {
-				packed[dstIdx] = 0
-				dstIdx++
-			}
-		}
-	}
-}
-
 // BaseApplyPackedOutput applies the computed packed output to the final output matrix.
 //
 // This function transfers results from a temporary packed output buffer to the

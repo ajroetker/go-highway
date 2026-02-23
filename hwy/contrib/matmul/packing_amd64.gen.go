@@ -14,18 +14,14 @@ var PackLHSFloat16 func(a []hwy.Float16, packed []hwy.Float16, m int, k int, row
 var PackLHSBFloat16 func(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
 var PackLHSFloat32 func(a []float32, packed []float32, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
 var PackLHSFloat64 func(a []float64, packed []float64, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
-var PackRHSFloat16 func(b []hwy.Float16, packed []hwy.Float16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
-var PackRHSBFloat16 func(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
-var PackRHSFloat32 func(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
-var PackRHSFloat64 func(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
 var PackLHSVecFloat16 func(a []hwy.Float16, packed []hwy.Float16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
 var PackLHSVecBFloat16 func(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
 var PackLHSVecFloat32 func(a []float32, packed []float32, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
 var PackLHSVecFloat64 func(a []float64, packed []float64, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int
-var PackRHSVecFloat16 func(b []hwy.Float16, packed []hwy.Float16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
-var PackRHSVecBFloat16 func(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
-var PackRHSVecFloat32 func(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
-var PackRHSVecFloat64 func(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
+var PackRHSVecFloat16 func(b []hwy.Float16, packed []hwy.Float16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
+var PackRHSVecBFloat16 func(b []hwy.BFloat16, packed []hwy.BFloat16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
+var PackRHSVecFloat32 func(b []float32, packed []float32, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
+var PackRHSVecFloat64 func(b []float64, packed []float64, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int
 
 // PackLHS packs a panel of the LHS matrix (A) into a cache-friendly layout.
 //
@@ -70,51 +66,13 @@ func PackLHS[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colSta
 	panic("unreachable")
 }
 
-// PackRHS packs a panel of the RHS matrix (B) into a cache-friendly layout.
+// PackLHSVec packs LHS using SIMD butterfly transpose for mr=4.
 //
-// Input B is K x N in row-major order. This function packs a panel of rows
-// [rowStart, rowStart+panelK) and columns [colStart, colStart+panelCols).
-//
-// The packed layout is organized as micro-panels of Nr columns each:
-//   - For each micro-panel j (cols j*Nr to (j+1)*Nr):
-//   - For each k in [0, panelK):
-//   - Store B[rowStart+k, colStart+j*Nr+0], ..., B[rowStart+k, colStart+j*Nr+Nr-1]
-//
-// This gives memory layout: [num_micro_panels, panelK, Nr]
-// where num_micro_panels = ceil(panelCols / Nr)
-//
-// The K-first layout within micro-panels ensures sequential access
-// when iterating over K in the inner loop.
-//
-// Parameters:
-//   - b: Input matrix B in row-major order
-//   - packed: Output buffer, must have size >= ceil(panelCols/Nr) * panelK * Nr
-//   - k, n: Dimensions of the full B matrix
-//   - rowStart: Starting row of the panel to pack (K-dimension offset)
-//   - colStart: Starting column of the panel to pack
-//   - panelK: Number of rows to pack (K dimension)
-//   - panelCols: Number of columns to pack
-//   - nr: Micro-tile column dimension
-//
-// Returns the number of active columns in the last micro-panel (may be < Nr).
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func PackRHS[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	switch any(b).(type) {
-	case []hwy.Float16:
-		return PackRHSFloat16(any(b).([]hwy.Float16), any(packed).([]hwy.Float16), k, n, rowStart, colStart, panelK, panelCols, nr)
-	case []hwy.BFloat16:
-		return PackRHSBFloat16(any(b).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), k, n, rowStart, colStart, panelK, panelCols, nr)
-	case []float32:
-		return PackRHSFloat32(any(b).([]float32), any(packed).([]float32), k, n, rowStart, colStart, panelK, panelCols, nr)
-	case []float64:
-		return PackRHSFloat64(any(b).([]float64), any(packed).([]float64), k, n, rowStart, colStart, panelK, panelCols, nr)
-	}
-	panic("unreachable")
-}
-
-// PackLHSVec packs LHS using SIMD when Mr aligns with vector width.
-// This is a vectorized version of BasePackLHS for better performance.
+// Instead of gathering one element per row per k-value (strided access),
+// this loads `lanes` contiguous k-values from each of the 4 rows and
+// transposes them in-register using a 2-stage butterfly pattern
+// (InterleaveLower/InterleaveUpper), producing the packed [panelK, mr]
+// layout directly.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func PackLHSVec[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
@@ -131,20 +89,42 @@ func PackLHSVec[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, col
 	panic("unreachable")
 }
 
-// PackRHSVec packs RHS using SIMD loads for contiguous data.
-// This is a vectorized version of BasePackRHS for better performance.
+// PackRHSVec packs a panel of the RHS matrix (B) into a cache-friendly layout
+// using SIMD loads for full micro-panels and scalar code for partial ones.
+//
+// Input B is K x N in row-major order. This function packs a panel of rows
+// [rowStart, rowStart+panelK) and columns [colStart, colStart+panelCols).
+//
+// The packed layout is organized as micro-panels of Nr columns each:
+//   - For each micro-panel j (cols j*Nr to (j+1)*Nr):
+//   - For each k in [0, panelK):
+//   - Store B[rowStart+k, colStart+j*Nr+0], ..., B[rowStart+k, colStart+j*Nr+Nr-1]
+//
+// This gives memory layout: [num_micro_panels, panelK, Nr]
+//
+// Parameters:
+//   - b: Input matrix B in row-major order
+//   - packed: Output buffer
+//   - n: Number of columns in B (row stride)
+//   - rowStart: Starting row of the panel to pack (K-dimension offset)
+//   - colStart: Starting column of the panel to pack
+//   - panelK: Number of rows to pack (K dimension)
+//   - panelCols: Number of columns to pack
+//   - nr: Micro-tile column dimension
+//
+// Returns the number of active columns in the last micro-panel (may be < Nr).
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func PackRHSVec[T hwy.Floats](b []T, packed []T, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+func PackRHSVec[T hwy.Floats](b []T, packed []T, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
 	switch any(b).(type) {
 	case []hwy.Float16:
-		return PackRHSVecFloat16(any(b).([]hwy.Float16), any(packed).([]hwy.Float16), k, n, rowStart, colStart, panelK, panelCols, nr)
+		return PackRHSVecFloat16(any(b).([]hwy.Float16), any(packed).([]hwy.Float16), n, rowStart, colStart, panelK, panelCols, nr)
 	case []hwy.BFloat16:
-		return PackRHSVecBFloat16(any(b).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), k, n, rowStart, colStart, panelK, panelCols, nr)
+		return PackRHSVecBFloat16(any(b).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), n, rowStart, colStart, panelK, panelCols, nr)
 	case []float32:
-		return PackRHSVecFloat32(any(b).([]float32), any(packed).([]float32), k, n, rowStart, colStart, panelK, panelCols, nr)
+		return PackRHSVecFloat32(any(b).([]float32), any(packed).([]float32), n, rowStart, colStart, panelK, panelCols, nr)
 	case []float64:
-		return PackRHSVecFloat64(any(b).([]float64), any(packed).([]float64), k, n, rowStart, colStart, panelK, panelCols, nr)
+		return PackRHSVecFloat64(any(b).([]float64), any(packed).([]float64), n, rowStart, colStart, panelK, panelCols, nr)
 	}
 	panic("unreachable")
 }
@@ -174,10 +154,6 @@ func initPackingAVX2() {
 	PackLHSBFloat16 = BasePackLHS_avx2_BFloat16
 	PackLHSFloat32 = BasePackLHS_avx2
 	PackLHSFloat64 = BasePackLHS_avx2_Float64
-	PackRHSFloat16 = BasePackRHS_avx2_Float16
-	PackRHSBFloat16 = BasePackRHS_avx2_BFloat16
-	PackRHSFloat32 = BasePackRHS_avx2
-	PackRHSFloat64 = BasePackRHS_avx2_Float64
 	PackLHSVecFloat16 = BasePackLHSVec_avx2_Float16
 	PackLHSVecBFloat16 = BasePackLHSVec_avx2_BFloat16
 	PackLHSVecFloat32 = BasePackLHSVec_avx2
@@ -193,10 +169,6 @@ func initPackingAVX512() {
 	PackLHSBFloat16 = BasePackLHS_avx512_BFloat16
 	PackLHSFloat32 = BasePackLHS_avx512
 	PackLHSFloat64 = BasePackLHS_avx512_Float64
-	PackRHSFloat16 = BasePackRHS_avx512_Float16
-	PackRHSBFloat16 = BasePackRHS_avx512_BFloat16
-	PackRHSFloat32 = BasePackRHS_avx512
-	PackRHSFloat64 = BasePackRHS_avx512_Float64
 	PackLHSVecFloat16 = BasePackLHSVec_avx512_Float16
 	PackLHSVecBFloat16 = BasePackLHSVec_avx512_BFloat16
 	PackLHSVecFloat32 = BasePackLHSVec_avx512
@@ -212,10 +184,6 @@ func initPackingFallback() {
 	PackLHSBFloat16 = BasePackLHS_fallback_BFloat16
 	PackLHSFloat32 = BasePackLHS_fallback
 	PackLHSFloat64 = BasePackLHS_fallback_Float64
-	PackRHSFloat16 = BasePackRHS_fallback_Float16
-	PackRHSBFloat16 = BasePackRHS_fallback_BFloat16
-	PackRHSFloat32 = BasePackRHS_fallback
-	PackRHSFloat64 = BasePackRHS_fallback_Float64
 	PackLHSVecFloat16 = BasePackLHSVec_fallback_Float16
 	PackLHSVecBFloat16 = BasePackLHSVec_fallback_BFloat16
 	PackLHSVecFloat32 = BasePackLHSVec_fallback

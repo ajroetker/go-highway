@@ -144,318 +144,390 @@ func BasePackLHS_avx2_Float64(a []float64, packed []float64, m int, k int, rowSt
 	return activeRowsLast
 }
 
-func BasePackRHS_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
+func BasePackLHSVec_avx2_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
+	if mr != 4 {
+		return BasePackLHS_avx2_Float16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := 8
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
 	fullPanels := numMicroPanels
-	if activeColsLast < nr {
+	if activeRowsLast < mr {
 		fullPanels--
 	}
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
-				packIdx++
-			}
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row0+kk:][0]))
+			r1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row1+kk:][0]))
+			r2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row2+kk:][0]))
+			r3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row3+kk:][0]))
+			t0 := r0.InterleaveLower(r2)
+			t2 := r0.InterleaveUpper(r2)
+			t1 := r1.InterleaveLower(r3)
+			t3 := r1.InterleaveUpper(r3)
+			c0 := t0.InterleaveLower(t1)
+			c1 := t0.InterleaveUpper(t1)
+			c2 := t2.InterleaveLower(t3)
+			c3 := t2.InterleaveUpper(t3)
+			c0.StorePtr(unsafe.Pointer(&packed[packIdx:][0]))
+			c1.StorePtr(unsafe.Pointer(&packed[packIdx+lanes:][0]))
+			c2.StorePtr(unsafe.Pointer(&packed[packIdx+2*lanes:][0]))
+			c3.StorePtr(unsafe.Pointer(&packed[packIdx+3*lanes:][0]))
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = hwy.Float32ToFloat16(a[row0+kk].Float32())
+			packed[packIdx+1] = hwy.Float32ToFloat16(a[row1+kk].Float32())
+			packed[packIdx+2] = hwy.Float32ToFloat16(a[row2+kk].Float32())
+			packed[packIdx+3] = hwy.Float32ToFloat16(a[row3+kk].Float32())
+			packIdx += mr
 		}
 	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
 		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
+			for r := range activeRowsLast {
+				packed[packIdx] = hwy.Float32ToFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
-			for c := activeColsLast; c < nr; c++ {
+			for r := activeRowsLast; r < mr; r++ {
 				packed[packIdx] = hwy.Float32ToFloat16(0)
 				packIdx++
 			}
 		}
 	}
-	return activeColsLast
+	return activeRowsLast
 }
 
-func BasePackRHS_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
+func BasePackLHSVec_avx2_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
+	if mr != 4 {
+		return BasePackLHS_avx2_BFloat16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := 8
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
 	fullPanels := numMicroPanels
-	if activeColsLast < nr {
+	if activeRowsLast < mr {
 		fullPanels--
 	}
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
-				packIdx++
-			}
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row0+kk:][0]))
+			r1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row1+kk:][0]))
+			r2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row2+kk:][0]))
+			r3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row3+kk:][0]))
+			t0 := r0.InterleaveLower(r2)
+			t2 := r0.InterleaveUpper(r2)
+			t1 := r1.InterleaveLower(r3)
+			t3 := r1.InterleaveUpper(r3)
+			c0 := t0.InterleaveLower(t1)
+			c1 := t0.InterleaveUpper(t1)
+			c2 := t2.InterleaveLower(t3)
+			c3 := t2.InterleaveUpper(t3)
+			c0.StorePtr(unsafe.Pointer(&packed[packIdx:][0]))
+			c1.StorePtr(unsafe.Pointer(&packed[packIdx+lanes:][0]))
+			c2.StorePtr(unsafe.Pointer(&packed[packIdx+2*lanes:][0]))
+			c3.StorePtr(unsafe.Pointer(&packed[packIdx+3*lanes:][0]))
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = hwy.Float32ToBFloat16(a[row0+kk].Float32())
+			packed[packIdx+1] = hwy.Float32ToBFloat16(a[row1+kk].Float32())
+			packed[packIdx+2] = hwy.Float32ToBFloat16(a[row2+kk].Float32())
+			packed[packIdx+3] = hwy.Float32ToBFloat16(a[row3+kk].Float32())
+			packIdx += mr
 		}
 	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
 		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
+			for r := range activeRowsLast {
+				packed[packIdx] = hwy.Float32ToBFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
-			for c := activeColsLast; c < nr; c++ {
+			for r := activeRowsLast; r < mr; r++ {
 				packed[packIdx] = hwy.Float32ToBFloat16(0)
 				packIdx++
 			}
 		}
 	}
-	return activeColsLast
-}
-
-func BasePackRHS_avx2(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
-	fullPanels := numMicroPanels
-	if activeColsLast < nr {
-		fullPanels--
-	}
-	packIdx := 0
-	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-		}
-	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-			for c := activeColsLast; c < nr; c++ {
-				packed[packIdx] = 0
-				packIdx++
-			}
-		}
-	}
-	return activeColsLast
-}
-
-func BasePackRHS_avx2_Float64(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
-	fullPanels := numMicroPanels
-	if activeColsLast < nr {
-		fullPanels--
-	}
-	packIdx := 0
-	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-		}
-	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-			for c := activeColsLast; c < nr; c++ {
-				packed[packIdx] = 0
-				packIdx++
-			}
-		}
-	}
-	return activeColsLast
-}
-
-func BasePackLHSVec_avx2_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_avx2_Float16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
-}
-
-func BasePackLHSVec_avx2_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_avx2_BFloat16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	return activeRowsLast
 }
 
 func BasePackLHSVec_avx2(a []float32, packed []float32, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_avx2(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	if mr != 4 {
+		return BasePackLHS_avx2(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := 8
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
+	fullPanels := numMicroPanels
+	if activeRowsLast < mr {
+		fullPanels--
+	}
+	packIdx := 0
+	for panel := 0; panel < fullPanels; panel++ {
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[row0+kk])))
+			r1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[row1+kk])))
+			r2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[row2+kk])))
+			r3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[row3+kk])))
+			t0 := hwy.InterleaveLower_AVX2_F32x8(r0, r2)
+			t2 := hwy.InterleaveUpper_AVX2_F32x8(r0, r2)
+			t1 := hwy.InterleaveLower_AVX2_F32x8(r1, r3)
+			t3 := hwy.InterleaveUpper_AVX2_F32x8(r1, r3)
+			c0 := hwy.InterleaveLower_AVX2_F32x8(t0, t1)
+			c1 := hwy.InterleaveUpper_AVX2_F32x8(t0, t1)
+			c2 := hwy.InterleaveLower_AVX2_F32x8(t2, t3)
+			c3 := hwy.InterleaveUpper_AVX2_F32x8(t2, t3)
+			c0.Store((*[8]float32)(unsafe.Pointer(&packed[packIdx])))
+			c1.Store((*[8]float32)(unsafe.Pointer(&packed[packIdx+lanes])))
+			c2.Store((*[8]float32)(unsafe.Pointer(&packed[packIdx+2*lanes])))
+			c3.Store((*[8]float32)(unsafe.Pointer(&packed[packIdx+3*lanes])))
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = a[row0+kk]
+			packed[packIdx+1] = a[row1+kk]
+			packed[packIdx+2] = a[row2+kk]
+			packed[packIdx+3] = a[row3+kk]
+			packIdx += mr
+		}
+	}
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
+		for kk := range panelK {
+			for r := range activeRowsLast {
+				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
+				packIdx++
+			}
+			for r := activeRowsLast; r < mr; r++ {
+				packed[packIdx] = 0
+				packIdx++
+			}
+		}
+	}
+	return activeRowsLast
 }
 
 func BasePackLHSVec_avx2_Float64(a []float64, packed []float64, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_avx2_Float64(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
-}
-
-func BasePackRHSVec_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	lanes := 8
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c:][0]))
-					v.StorePtr(unsafe.Pointer(&packed[packIdx+c:][0]))
-				}
-				packIdx += nr
-			}
-		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = hwy.Float32ToFloat16(0)
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
+	if mr != 4 {
+		return BasePackLHS_avx2_Float64(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
 	}
-	return BasePackRHS_avx2_Float16(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
-}
-
-func BasePackRHSVec_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	lanes := 8
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := 0; c < nr; c += lanes {
-					v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[bRowStart+baseCol+c:][0]))
-					v.StorePtr(unsafe.Pointer(&packed[packIdx+c:][0]))
-				}
-				packIdx += nr
-			}
-		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = hwy.Float32ToBFloat16(0)
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
-	}
-	return BasePackRHS_avx2_BFloat16(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
-}
-
-func BasePackRHSVec_avx2(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	lanes := 8
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := 0; c < nr; c += lanes {
-					v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
-					v.Store((*[8]float32)(unsafe.Pointer(&packed[packIdx+c])))
-				}
-				packIdx += nr
-			}
-		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = b[bRowStart+baseCol+c]
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = 0
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
-	}
-	return BasePackRHS_avx2(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
-}
-
-func BasePackRHSVec_avx2_Float64(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
 	lanes := 4
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := 0; c < nr; c += lanes {
-					v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[bRowStart+baseCol+c])))
-					v.Store((*[4]float64)(unsafe.Pointer(&packed[packIdx+c])))
-				}
-				packIdx += nr
-			}
-		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = b[bRowStart+baseCol+c]
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = 0
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
+	fullPanels := numMicroPanels
+	if activeRowsLast < mr {
+		fullPanels--
 	}
-	return BasePackRHS_avx2_Float64(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
+	packIdx := 0
+	for panel := 0; panel < fullPanels; panel++ {
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[row0+kk])))
+			r1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[row1+kk])))
+			r2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[row2+kk])))
+			r3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[row3+kk])))
+			t0 := hwy.InterleaveLower_AVX2_F64x4(r0, r2)
+			t2 := hwy.InterleaveUpper_AVX2_F64x4(r0, r2)
+			t1 := hwy.InterleaveLower_AVX2_F64x4(r1, r3)
+			t3 := hwy.InterleaveUpper_AVX2_F64x4(r1, r3)
+			c0 := hwy.InterleaveLower_AVX2_F64x4(t0, t1)
+			c1 := hwy.InterleaveUpper_AVX2_F64x4(t0, t1)
+			c2 := hwy.InterleaveLower_AVX2_F64x4(t2, t3)
+			c3 := hwy.InterleaveUpper_AVX2_F64x4(t2, t3)
+			c0.Store((*[4]float64)(unsafe.Pointer(&packed[packIdx])))
+			c1.Store((*[4]float64)(unsafe.Pointer(&packed[packIdx+lanes])))
+			c2.Store((*[4]float64)(unsafe.Pointer(&packed[packIdx+2*lanes])))
+			c3.Store((*[4]float64)(unsafe.Pointer(&packed[packIdx+3*lanes])))
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = a[row0+kk]
+			packed[packIdx+1] = a[row1+kk]
+			packed[packIdx+2] = a[row2+kk]
+			packed[packIdx+3] = a[row3+kk]
+			packIdx += mr
+		}
+	}
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
+		for kk := range panelK {
+			for r := range activeRowsLast {
+				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
+				packIdx++
+			}
+			for r := activeRowsLast; r < mr; r++ {
+				packed[packIdx] = 0
+				packIdx++
+			}
+		}
+	}
+	return activeRowsLast
+}
+
+func BasePackRHSVec_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+	lanes := 8
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
+			for kk := range panelK {
+				srcRow := (rowStart + kk) * n
+				for c := 0; c < nr; c += lanes {
+					v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcRow+baseCol+c:][0]))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
+				}
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = hwy.Float32ToFloat16(b[srcRow+baseCol+c].Float32())
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = hwy.Float32ToFloat16(0)
+				dstIdx++
+			}
+		}
+	}
+	_ = numMicroPanels
+	return activeColsLast
+}
+
+func BasePackRHSVec_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+	lanes := 8
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
+			for kk := range panelK {
+				srcRow := (rowStart + kk) * n
+				for c := 0; c < nr; c += lanes {
+					v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcRow+baseCol+c:][0]))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
+				}
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = hwy.Float32ToBFloat16(b[srcRow+baseCol+c].Float32())
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = hwy.Float32ToBFloat16(0)
+				dstIdx++
+			}
+		}
+	}
+	_ = numMicroPanels
+	return activeColsLast
+}
+
+func BasePackRHSVec_avx2(b []float32, packed []float32, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+	lanes := 8
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
+			for kk := range panelK {
+				srcRow := (rowStart + kk) * n
+				for c := 0; c < nr; c += lanes {
+					v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[srcRow+baseCol+c])))
+					v.Store((*[8]float32)(unsafe.Pointer(&packed[dstIdx+c])))
+				}
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = b[srcRow+baseCol+c]
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = 0
+				dstIdx++
+			}
+		}
+	}
+	_ = numMicroPanels
+	return activeColsLast
+}
+
+func BasePackRHSVec_avx2_Float64(b []float64, packed []float64, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+	lanes := 4
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
+			for kk := range panelK {
+				srcRow := (rowStart + kk) * n
+				for c := 0; c < nr; c += lanes {
+					v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[srcRow+baseCol+c])))
+					v.Store((*[4]float64)(unsafe.Pointer(&packed[dstIdx+c])))
+				}
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = b[srcRow+baseCol+c]
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = 0
+				dstIdx++
+			}
+		}
+	}
+	_ = numMicroPanels
+	return activeColsLast
 }

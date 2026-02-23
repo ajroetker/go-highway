@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-func TestPackRHSFast(t *testing.T) {
+func TestPackRHSVec(t *testing.T) {
 	// Test matrix B: 4x8 (K=4, N=8)
 	// Row-major layout
 	b := []float32{
@@ -56,7 +56,7 @@ func TestPackRHSFast(t *testing.T) {
 	}
 
 	packed := make([]float32, len(expected))
-	PackRHSFast(b, packed, n, 0, 0, k, n, nr)
+	PackRHSVec(b, packed, n, 0, 0, k, n, nr)
 
 	for i := range expected {
 		if packed[i] != expected[i] {
@@ -65,7 +65,7 @@ func TestPackRHSFast(t *testing.T) {
 	}
 }
 
-func TestPackRHSFastPartialPanel(t *testing.T) {
+func TestPackRHSVecPartialPanel(t *testing.T) {
 	// Test matrix B: 4x6 (K=4, N=6)
 	// Last panel will be partial (2 valid cols + 2 zero padding)
 	b := []float32{
@@ -92,7 +92,7 @@ func TestPackRHSFastPartialPanel(t *testing.T) {
 	}
 
 	packed := make([]float32, len(expected))
-	PackRHSFast(b, packed, n, 0, 0, k, n, nr)
+	PackRHSVec(b, packed, n, 0, 0, k, n, nr)
 
 	for i := range expected {
 		if packed[i] != expected[i] {
@@ -219,8 +219,8 @@ func TestApplyPackedOutputFloat64(t *testing.T) {
 	}
 }
 
-// Benchmark PackRHSFast vs PackRHS
-func BenchmarkPackRHS(b *testing.B) {
+// BenchmarkPackRHSVec benchmarks the consolidated RHS packing.
+func BenchmarkPackRHSVec(b *testing.B) {
 	k, n := 512, 512
 	nr := 32
 	src := make([]float32, k*n)
@@ -229,17 +229,9 @@ func BenchmarkPackRHS(b *testing.B) {
 	}
 	packed := make([]float32, k*n)
 
-	b.Run("PackRHS", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			PackRHS(src, packed, k, n, 0, 0, k, n, nr)
-		}
-	})
-
-	b.Run("PackRHSFast", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			PackRHSFast(src, packed, n, 0, 0, k, n, nr)
-		}
-	})
+	for i := 0; i < b.N; i++ {
+		PackRHSVec(src, packed, n, 0, 0, k, n, nr)
+	}
 }
 
 // Benchmark ApplyPackedOutput variants

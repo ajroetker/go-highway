@@ -18,17 +18,165 @@ func initPackingNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	PackLHSVecFloat32 = packLHSVecAsmF32
+	PackLHSVecFloat64 = packLHSVecAsmF64
 	PackRHSVecFloat32 = packRHSVecAsmF32
 	PackRHSVecFloat64 = packRHSVecAsmF64
 	if hwy.HasARMFP16() {
+		PackLHSVecFloat16 = packLHSVecAsmF16
 		PackRHSVecFloat16 = packRHSVecAsmF16
 	}
 	if hwy.HasARMBF16() {
+		PackLHSVecBFloat16 = packLHSVecAsmBF16
 		PackRHSVecBFloat16 = packRHSVecAsmBF16
 	}
 }
 
-func packRHSVecAsmF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func packLHSVecAsmF16(a, packed []hwy.Float16, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	asm.PackLHSVec_F16(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+func packLHSVecAsmBF16(a, packed []hwy.BFloat16, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	asm.PackLHSVec_BF16(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+func packLHSVecAsmF32(a, packed []float32, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	asm.PackLHSVec_F32(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+func packLHSVecAsmF64(a, packed []float64, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	asm.PackLHSVec_F64(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+func packRHSVecAsmF16(b, packed []hwy.Float16, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -37,7 +185,6 @@ func packRHSVecAsmF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK,
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -50,7 +197,6 @@ func packRHSVecAsmF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK,
 	asm.PackRHSVec_F16(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
@@ -64,7 +210,7 @@ func packRHSVecAsmF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK,
 	return int(out_result)
 }
 
-func packRHSVecAsmBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func packRHSVecAsmBF16(b, packed []hwy.BFloat16, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -73,7 +219,6 @@ func packRHSVecAsmBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panel
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -86,7 +231,6 @@ func packRHSVecAsmBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panel
 	asm.PackRHSVec_BF16(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
@@ -100,7 +244,7 @@ func packRHSVecAsmBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panel
 	return int(out_result)
 }
 
-func packRHSVecAsmF32(b, packed []float32, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func packRHSVecAsmF32(b, packed []float32, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -109,7 +253,6 @@ func packRHSVecAsmF32(b, packed []float32, k, n, rowStart, colStart, panelK, pan
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -122,7 +265,6 @@ func packRHSVecAsmF32(b, packed []float32, k, n, rowStart, colStart, panelK, pan
 	asm.PackRHSVec_F32(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
@@ -136,7 +278,7 @@ func packRHSVecAsmF32(b, packed []float32, k, n, rowStart, colStart, panelK, pan
 	return int(out_result)
 }
 
-func packRHSVecAsmF64(b, packed []float64, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func packRHSVecAsmF64(b, packed []float64, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -145,7 +287,6 @@ func packRHSVecAsmF64(b, packed []float64, k, n, rowStart, colStart, panelK, pan
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -158,7 +299,6 @@ func packRHSVecAsmF64(b, packed []float64, k, n, rowStart, colStart, panelK, pan
 	asm.PackRHSVec_F64(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
