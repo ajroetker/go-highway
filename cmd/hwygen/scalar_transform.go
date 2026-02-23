@@ -30,9 +30,10 @@ var scalarizableHwyOps = map[string]bool{
 	"StoreSlice": true,
 
 	// Initialization
-	"Zero":  true,
-	"Set":   true,
-	"Const": true,
+	"Zero":      true,
+	"Set":       true,
+	"Const":     true,
+	"Broadcast": true,
 
 	// Arithmetic
 	"Add":    true,
@@ -910,8 +911,8 @@ func scalarizeHwyCall(opName string, args []ast.Expr, elemType string) ast.Expr 
 	case "Zero":
 		// Zero[T]() -> T(0)
 		return makeTypedZero(elemType)
-	case "Set", "Const":
-		// Set(val) or Const(val) -> T(val)
+	case "Set", "Const", "Broadcast":
+		// Set(val) or Const(val) or Broadcast(val) -> T(val)
 		// For half-precision types, use conversion functions since T(val) won't compile
 		if len(args) >= 1 {
 			if elemType == "hwy.Float16" {

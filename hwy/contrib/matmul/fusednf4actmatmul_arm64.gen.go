@@ -28,21 +28,8 @@ func initFusednf4actmatmulAll() {
 		initFusednf4actmatmulFallback()
 		return
 	}
-	initFusednf4actmatmulNEON()
+	initFusednf4actmatmulFallback()
 	return
-}
-
-func initFusednf4actmatmulNEON() {
-	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_neon
-	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_neon
-	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_neon
-	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_neon
-	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_neon
-	FusedInt4MatMulGELU = BaseFusedInt4MatMulGELU_neon
-	FusedInt4MatMulGELUApprox = BaseFusedInt4MatMulGELUApprox_neon
-	FusedInt4MatMulReLU = BaseFusedInt4MatMulReLU_neon
-	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_neon
-	FusedInt4MatMulSwiGLU = BaseFusedInt4MatMulSwiGLU_neon
 }
 
 func initFusednf4actmatmulFallback() {

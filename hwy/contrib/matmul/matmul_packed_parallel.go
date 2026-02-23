@@ -96,7 +96,7 @@ func processStripPacked[T hwy.Floats](a, b, c []T, m, n, k, rowStart, rowEnd int
 			panelK := pcEnd - pc
 
 			// Pack B panel
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 
 			// Loop 3: A panels within this strip (L2 blocking)
 			for ic := rowStart; ic < rowEnd; ic += mc {
@@ -104,7 +104,7 @@ func processStripPacked[T hwy.Floats](a, b, c []T, m, n, k, rowStart, rowEnd int
 				panelRows := icEnd - ic
 
 				// Pack A panel from this strip
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 
 				// GEBP for this panel
 				gebp(packedA, packedB, c, n, ic, jc, panelRows, panelCols, panelK, mr, nr, activeRowsLast)
@@ -163,7 +163,7 @@ func ParallelPackedMatMulSharedB[T hwy.Floats](pool workerpool.Executor, a, b, c
 // This packs all K rows and all N columns.
 func packEntireRHS[T hwy.Floats](b, packedB []T, k, n, nr int) {
 	// Pack entire B: all K rows, all N columns
-	PackRHS(b, packedB, k, n, 0, 0, k, n, nr)
+	PackRHSVec(b, packedB, n, 0, 0, k, n, nr)
 }
 
 // processStripWithSharedB computes a strip using pre-packed B.
@@ -187,7 +187,7 @@ func processStripWithSharedB[T hwy.Floats](a, sharedPackedB, c []T, m, n, k, row
 			panelRows := icEnd - ic
 
 			// Pack A panel (full K dimension, colStart=0)
-			activeRowsLast := PackLHS(a, packedA, m, k, ic, 0, panelRows, k, mr)
+			activeRowsLast := PackLHSVec(a, packedA, m, k, ic, 0, panelRows, k, mr)
 
 			// Process micro-tiles
 			numMicroPanelsA := (panelRows + mr - 1) / mr

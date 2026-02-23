@@ -34,6 +34,10 @@ var MatMulKLastBlockedFloat64 func(a []float64, b []float64, c []float64, m int,
 //  3. Multiply and accumulate into a vector accumulator
 //  4. Horizontal sum at the end to produce C[i,j]
 //
+// Uses direct single-pass accumulation with multiple independent FMA
+// accumulators for instruction-level parallelism, matching the BLAS
+// approach. FMA provides single-rounding precision.
+//
 // Memory access pattern:
 //   - A row i: A[i*K : i*K+K] - sequential (cache friendly)
 //   - B row j: B[j*K : j*K+K] - sequential (cache friendly)
@@ -82,19 +86,8 @@ func initMatmul_klastAll() {
 		initMatmul_klastFallback()
 		return
 	}
-	initMatmul_klastNEON()
+	initMatmul_klastFallback()
 	return
-}
-
-func initMatmul_klastNEON() {
-	MatMulKLastFloat16 = BaseMatMulKLast_neon_Float16
-	MatMulKLastBFloat16 = BaseMatMulKLast_neon_BFloat16
-	MatMulKLastFloat32 = BaseMatMulKLast_neon
-	MatMulKLastFloat64 = BaseMatMulKLast_neon_Float64
-	MatMulKLastBlockedFloat16 = BaseMatMulKLastBlocked_neon_Float16
-	MatMulKLastBlockedBFloat16 = BaseMatMulKLastBlocked_neon_BFloat16
-	MatMulKLastBlockedFloat32 = BaseMatMulKLastBlocked_neon
-	MatMulKLastBlockedFloat64 = BaseMatMulKLastBlocked_neon_Float64
 }
 
 func initMatmul_klastFallback() {

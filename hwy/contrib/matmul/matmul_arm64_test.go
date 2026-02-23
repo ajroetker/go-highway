@@ -147,19 +147,7 @@ func BenchmarkBlockedMatMulNEON(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size)+"/hwygen", func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				BaseBlockedMatMul_neon(a, bMat, c, m, n, k)
-			}
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-
-		b.Run(sizeStr(size)+"/GOAT", func(b *testing.B) {
+		b.Run(sizeStr(size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

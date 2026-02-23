@@ -23,6 +23,10 @@ var BlockedMatMulFloat64 func(a []float64, b []float64, c []float64, m int, n in
 // across the entire K dimension to minimize memory traffic. Each micro-tile
 // processes 4 rows × 2 vector widths of output.
 //
+// Accumulation uses single-pass FMA matching the BLAS approach. For large
+// matrices, callers should use the packed (Goto-style) matmul whose KC
+// blocking provides superblock precision as a free byproduct of cache tiling.
+//
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func BlockedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	switch any(a).(type) {
@@ -46,15 +50,8 @@ func initMatmul_blockedAll() {
 		initMatmul_blockedFallback()
 		return
 	}
-	initMatmul_blockedNEON()
+	initMatmul_blockedFallback()
 	return
-}
-
-func initMatmul_blockedNEON() {
-	BlockedMatMulFloat16 = BaseBlockedMatMul_neon_Float16
-	BlockedMatMulBFloat16 = BaseBlockedMatMul_neon_BFloat16
-	BlockedMatMulFloat32 = BaseBlockedMatMul_neon
-	BlockedMatMulFloat64 = BaseBlockedMatMul_neon_Float64
 }
 
 func initMatmul_blockedFallback() {

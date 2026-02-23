@@ -252,7 +252,7 @@ func TestPackRHS(t *testing.T) {
 	numPanels := (n + nr - 1) / nr
 	packed := make([]float32, numPanels*k*nr)
 
-	activeCols := BasePackRHS(b, packed, k, n, 0, 0, k, n, nr)
+	activeCols := BasePackRHSVec(b, packed, n, 0, 0, k, n, nr)
 
 	// Expected packed layout: [panel, k, nr]
 	expected := []float32{
@@ -438,46 +438,6 @@ func BenchmarkPackedMatMul(b *testing.B) {
 	}
 }
 
-// BenchmarkParallelPackedMatMul benchmarks the parallel packed matmul.
-func BenchmarkParallelPackedMatMul(b *testing.B) {
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	b.Logf("Dispatch level: %s", hwy.CurrentName())
-
-	sizes := []int{256, 512, 1024}
-
-	for _, size := range sizes {
-		m, n, k := size, size, size
-
-		a := make([]float32, m*k)
-		bMat := make([]float32, k*n)
-		c := make([]float32, m*n)
-
-		for i := range a {
-			a[i] = rand.Float32()
-		}
-		for i := range bMat {
-			bMat[i] = rand.Float32()
-		}
-
-		flops := float64(2*m*n*k) / 1e9
-
-		b.Run(sizeStr(size), func(b *testing.B) {
-			b.SetBytes(int64((m*k + k*n + m*n) * 4))
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				ParallelPackedMatMul(pool, a, bMat, c, m, n, k)
-			}
-
-			b.StopTimer()
-			elapsed := b.Elapsed().Seconds()
-			gflops := flops * float64(b.N) / elapsed
-			b.ReportMetric(gflops, "GFLOPS")
-		})
-	}
-}
 
 // BenchmarkPacking benchmarks the packing operations themselves.
 func BenchmarkPacking(b *testing.B) {
@@ -503,21 +463,21 @@ func BenchmarkPacking(b *testing.B) {
 	panelK := min(params.Kc, k)
 	panelCols := min(params.Nc, n)
 
-	b.Run("PackLHS", func(b *testing.B) {
+	b.Run("PackLHSVec", func(b *testing.B) {
 		b.SetBytes(int64(panelRows * panelK * 4))
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			PackLHS(a, packedA, m, k, 0, 0, panelRows, panelK, params.Mr)
+			PackLHSVec(a, packedA, m, k, 0, 0, panelRows, panelK, params.Mr)
 		}
 	})
 
-	b.Run("PackRHS", func(b *testing.B) {
+	b.Run("PackRHSVec", func(b *testing.B) {
 		b.SetBytes(int64(panelCols * panelK * 4))
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			PackRHS(bMat, packedB, k, n, 0, 0, panelK, panelCols, params.Nr)
+			PackRHSVec(bMat, packedB, n, 0, 0, panelK, panelCols, params.Nr)
 		}
 	})
 }

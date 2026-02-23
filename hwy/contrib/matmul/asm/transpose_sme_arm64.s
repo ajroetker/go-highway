@@ -279,7 +279,7 @@ BB0_17:
 	WORD $0x91008063 // add	x3, x3, #32
 	WORD $0xeb0101df // cmp	x14, x1
 	BNE  BB0_17
-	WORD $0xb4fffb2b // cbz	x11, LBB0_15
+	CBZ  R11, BB0_15
 	WORD $0xd2800001 // mov	x1, #0                          ; =0x0
 	WORD $0xaa0b03e2 // mov	x2, x11
 
@@ -507,7 +507,7 @@ BB1_17:
 	WORD $0x91010063 // add	x3, x3, #64
 	WORD $0xeb0101df // cmp	x14, x1
 	BNE  BB1_17
-	WORD $0xb4fffb2b // cbz	x11, LBB1_15
+	CBZ  R11, BB1_15
 	WORD $0xd2800001 // mov	x1, #0                          ; =0x0
 	WORD $0xaa0b03e2 // mov	x2, x11
 
@@ -926,7 +926,7 @@ BB2_17:
 	WORD $0x91004063 // add	x3, x3, #16
 	WORD $0xeb0101df // cmp	x14, x1
 	BNE  BB2_17
-	WORD $0xb4fffb2b // cbz	x11, LBB2_15
+	CBZ  R11, BB2_15
 	WORD $0xd2800001 // mov	x1, #0                          ; =0x0
 	WORD $0xaa0b03e2 // mov	x2, x11
 
@@ -1345,7 +1345,7 @@ BB3_17:
 	WORD $0x91004063 // add	x3, x3, #16
 	WORD $0xeb0101df // cmp	x14, x1
 	BNE  BB3_17
-	WORD $0xb4fffb2b // cbz	x11, LBB3_15
+	CBZ  R11, BB3_15
 	WORD $0xd2800001 // mov	x1, #0                          ; =0x0
 	WORD $0xaa0b03e2 // mov	x2, x11
 

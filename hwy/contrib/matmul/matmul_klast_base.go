@@ -35,6 +35,10 @@ import "github.com/ajroetker/go-highway/hwy"
 //  3. Multiply and accumulate into a vector accumulator
 //  4. Horizontal sum at the end to produce C[i,j]
 //
+// Uses direct single-pass accumulation with multiple independent FMA
+// accumulators for instruction-level parallelism, matching the BLAS
+// approach. FMA provides single-rounding precision.
+//
 // Memory access pattern:
 //   - A row i: A[i*K : i*K+K] - sequential (cache friendly)
 //   - B row j: B[j*K : j*K+K] - sequential (cache friendly)
@@ -50,6 +54,68 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 	}
 
 	lanes := hwy.Zero[T]().NumLanes()
+
+	// Specialized M=1 path for autoregressive decoder (vector-matrix multiply).
+	// Processes 4 B rows at a time for better register utilization.
+	// Memory-bandwidth bound — no packing needed.
+	if m == 1 {
+		aRow := 0
+
+		var j int
+		for j = 0; j+3 < n; j += 4 {
+			bRow0 := j * k
+			bRow1 := (j + 1) * k
+			bRow2 := (j + 2) * k
+			bRow3 := (j + 3) * k
+
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				vA := hwy.Load(a[aRow+p:])
+				acc0 = hwy.MulAdd(vA, hwy.Load(b[bRow0+p:]), acc0)
+				acc1 = hwy.MulAdd(vA, hwy.Load(b[bRow1+p:]), acc1)
+				acc2 = hwy.MulAdd(vA, hwy.Load(b[bRow2+p:]), acc2)
+				acc3 = hwy.MulAdd(vA, hwy.Load(b[bRow3+p:]), acc3)
+			}
+
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < k; p++ {
+				ap := a[aRow+p]
+				s0 += ap * b[bRow0+p]
+				s1 += ap * b[bRow1+p]
+				s2 += ap * b[bRow2+p]
+				s3 += ap * b[bRow3+p]
+			}
+
+			c[j] = s0
+			c[j+1] = s1
+			c[j+2] = s2
+			c[j+3] = s3
+		}
+
+		for ; j < n; j++ {
+			bRow := j * k
+			acc := hwy.Zero[T]()
+			var p int
+			for p = 0; p+lanes <= k; p += lanes {
+				acc = hwy.MulAdd(hwy.Load(a[aRow+p:]), hwy.Load(b[bRow+p:]), acc)
+			}
+			sum := hwy.ReduceSum(acc)
+			for ; p < k; p++ {
+				sum += a[aRow+p] * b[bRow+p]
+			}
+			c[j] = sum
+		}
+
+		return
+	}
 
 	// Process 4 rows of A at a time for better register utilization
 	var i int
@@ -68,45 +134,35 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 		for j := range n {
 			bRow := j * k
 
-			// Initialize 4 accumulators
 			acc0 := hwy.Zero[T]()
 			acc1 := hwy.Zero[T]()
 			acc2 := hwy.Zero[T]()
 			acc3 := hwy.Zero[T]()
 
-			// Vectorized dot product along K
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
 				vB := hwy.Load(b[bRow+p:])
-
-				vA0 := hwy.Load(a[aRow0+p:])
-				vA1 := hwy.Load(a[aRow1+p:])
-				vA2 := hwy.Load(a[aRow2+p:])
-				vA3 := hwy.Load(a[aRow3+p:])
-
-				acc0 = hwy.MulAdd(vA0, vB, acc0)
-				acc1 = hwy.MulAdd(vA1, vB, acc1)
-				acc2 = hwy.MulAdd(vA2, vB, acc2)
-				acc3 = hwy.MulAdd(vA3, vB, acc3)
+				acc0 = hwy.MulAdd(hwy.Load(a[aRow0+p:]), vB, acc0)
+				acc1 = hwy.MulAdd(hwy.Load(a[aRow1+p:]), vB, acc1)
+				acc2 = hwy.MulAdd(hwy.Load(a[aRow2+p:]), vB, acc2)
+				acc3 = hwy.MulAdd(hwy.Load(a[aRow3+p:]), vB, acc3)
 			}
 
-			// Horizontal sum + scalar tail
-			sum0 := hwy.ReduceSum(acc0)
-			sum1 := hwy.ReduceSum(acc1)
-			sum2 := hwy.ReduceSum(acc2)
-			sum3 := hwy.ReduceSum(acc3)
-
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
 			for ; p < k; p++ {
-				sum0 += a[aRow0+p] * b[bRow+p]
-				sum1 += a[aRow1+p] * b[bRow+p]
-				sum2 += a[aRow2+p] * b[bRow+p]
-				sum3 += a[aRow3+p] * b[bRow+p]
+				s0 += a[aRow0+p] * b[bRow+p]
+				s1 += a[aRow1+p] * b[bRow+p]
+				s2 += a[aRow2+p] * b[bRow+p]
+				s3 += a[aRow3+p] * b[bRow+p]
 			}
 
-			c[cRow0+j] = sum0
-			c[cRow1+j] = sum1
-			c[cRow2+j] = sum2
-			c[cRow3+j] = sum3
+			c[cRow0+j] = s0
+			c[cRow1+j] = s1
+			c[cRow2+j] = s2
+			c[cRow3+j] = s3
 		}
 	}
 
@@ -117,6 +173,7 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 		for j := range n {
 			bRow := j * k
+
 			acc := hwy.Zero[T]()
 
 			var p int
@@ -130,7 +187,6 @@ func BaseMatMulKLast[T hwy.Floats](a, b, c []T, m, n, k int) {
 			for ; p < k; p++ {
 				sum += a[aRow+p] * b[bRow+p]
 			}
-
 			c[cRow+j] = sum
 		}
 	}
@@ -178,13 +234,13 @@ func BaseMatMulKLastBlocked[T hwy.Floats](a, b, c []T, m, n, k int) {
 			for kk := 0; kk < k; kk += blockK {
 				kEnd := min(kk+blockK, k)
 
-				// Process block
 				for i := ii; i < iEnd; i++ {
 					aRow := i * k
 					cRow := i * n
 
 					for j := jj; j < jEnd; j++ {
 						bRow := j * k
+
 						acc := hwy.Zero[T]()
 
 						var p int

@@ -2336,6 +2336,10 @@ func (t *CASTTranslator) translateDeclStmt(s *ast.DeclStmt) {
 			cType := t.goTypeToCType(goType)
 			isVec := strings.HasPrefix(goType, "hwy.Vec[") || strings.HasPrefix(goType, "hwy.Mask[")
 			for _, name := range valueSpec.Names {
+				// Clear widened status if this var declaration shadows a
+				// previously widened variable (e.g., scalar tail loop reusing
+				// the same name as a vector loop accumulator).
+				delete(t.widenedVars, name.Name)
 				t.vars[name.Name] = cVarInfo{cType: cType, isVector: isVec}
 				// Go zero-initializes all declared variables; emit = 0 for scalar types
 				if isScalarCType(cType) {

@@ -370,7 +370,7 @@ func matmulNEON(a, b, c []float32, m, n, k int) {
 func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
-		BaseMatMul_neon_Float16(a, b, c, m, n, k)
+		BaseMatMul_fallback_Float16(a, b, c, m, n, k)
 		return
 	}
 	matMulAsmF16(a, b, c, m, n, k)
@@ -381,7 +381,7 @@ func matmulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 func matmulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	// Streaming algorithm works for any M size
 	if n < minDimForNEON || k < minDimForNEON {
-		BaseMatMul_neon_BFloat16(a, b, c, m, n, k)
+		BaseMatMul_fallback_BFloat16(a, b, c, m, n, k)
 		return
 	}
 	matMulAsmBF16(a, b, c, m, n, k)
@@ -988,7 +988,7 @@ func blockedMatMulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	if totalOps < blockedThreshold || m < minMForBlocked {
 		matMulAsmBF16(a, b, c, m, n, k)
 	} else {
-		BaseBlockedMatMul_neon_BFloat16(a, b, c, m, n, k)
+		BaseBlockedMatMul_fallback_BFloat16(a, b, c, m, n, k)
 	}
 }
 
@@ -1042,13 +1042,13 @@ func matmulKLastNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 }
 
 // matmulKLastNEONBF16 uses ARM NEON for bfloat16 KLast matrix multiplication.
-// Uses BFDOT for computation with f32 accumulation.
+// Uses hwygen-generated assembly with f32 accumulation for precision.
 func matmulKLastNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	if m < minDimForNEONKLast || n < minDimForNEONKLast || k < minDimForNEONKLast {
 		BaseMatMulKLast(a, b, c, m, n, k)
 		return
 	}
-	asm.MatMulKLastNEONBF16(a, b, c, m, n, k)
+	matMulKLastAsmBF16(a, b, c, m, n, k)
 }
 
 // =============================================================================
@@ -1072,6 +1072,13 @@ const klastStripN = 48
 // strip's output directly into the correct columns of C, avoiding any
 // scatter copy.
 func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
+	// M=1: streaming mode + transpose overhead dominates for vector-matrix
+	// multiply. Use NEON assembly which handles M=1 efficiently.
+	if m == 1 {
+		matMulKLastAsmF32(a, b, c, m, n, k)
+		return
+	}
+
 	const tileSize = 16
 	paddedM := AlignUp(m, tileSize)
 	paddedN := AlignUp(n, tileSize)
@@ -1403,7 +1410,7 @@ func matmulKLastFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	paddedK := AlignUp(k, tileSize)
 
 	if paddedM < minDimForSMEKLast || paddedN < minDimForSMEKLast || paddedK < minDimForSMEKLast {
-		asm.MatMulKLastNEONBF16(a, b, c, m, n, k)
+		matMulKLastAsmBF16(a, b, c, m, n, k)
 		return
 	}
 

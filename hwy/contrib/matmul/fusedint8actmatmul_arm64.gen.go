@@ -22,15 +22,8 @@ func initFusedint8actmatmulAll() {
 		initFusedint8actmatmulFallback()
 		return
 	}
-	initFusedint8actmatmulNEON()
+	initFusedint8actmatmulFallback()
 	return
-}
-
-func initFusedint8actmatmulNEON() {
-	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_neon
-	FusedInt8MatMulGELU = BaseFusedInt8MatMulGELU_neon
-	FusedInt8MatMulGELUApprox = BaseFusedInt8MatMulGELUApprox_neon
-	FusedInt8MatMulReLU = BaseFusedInt8MatMulReLU_neon
 }
 
 func initFusedint8actmatmulFallback() {

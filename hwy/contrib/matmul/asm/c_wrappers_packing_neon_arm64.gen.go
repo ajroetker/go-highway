@@ -10,8 +10,156 @@ import (
 )
 
 // Public wrapper functions
+// PackLHSVecCF16 computes PackLHSVec using NEON SIMD assembly.
+func PackLHSVecCF16(a, packed []hwy.Float16, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	packlhsvec_c_f16_neon(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// PackLHSVecCBF16 computes PackLHSVec using NEON SIMD assembly.
+func PackLHSVecCBF16(a, packed []hwy.BFloat16, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	packlhsvec_c_bf16_neon(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// PackLHSVecCF32 computes PackLHSVec using NEON SIMD assembly.
+func PackLHSVecCF32(a, packed []float32, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	packlhsvec_c_f32_neon(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// PackLHSVecCF64 computes PackLHSVec using NEON SIMD assembly.
+func PackLHSVecCF64(a, packed []float64, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	rowStartVal := int64(rowStart)
+	colStartVal := int64(colStart)
+	panelRowsVal := int64(panelRows)
+	panelKVal := int64(panelK)
+	mrVal := int64(mr)
+	len_aVal := int64(len(a))
+	len_packedVal := int64(len(packed))
+	var out_result int64
+	packlhsvec_c_f64_neon(
+		p_a,
+		p_packed,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&rowStartVal),
+		unsafe.Pointer(&colStartVal),
+		unsafe.Pointer(&panelRowsVal),
+		unsafe.Pointer(&panelKVal),
+		unsafe.Pointer(&mrVal),
+		unsafe.Pointer(&len_aVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
 // PackRHSVecCF16 computes PackRHSVec using NEON SIMD assembly.
-func PackRHSVecCF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func PackRHSVecCF16(b, packed []hwy.Float16, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -20,7 +168,6 @@ func PackRHSVecCF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK, p
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -33,7 +180,6 @@ func PackRHSVecCF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK, p
 	packrhsvec_c_f16_neon(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
@@ -48,7 +194,7 @@ func PackRHSVecCF16(b, packed []hwy.Float16, k, n, rowStart, colStart, panelK, p
 }
 
 // PackRHSVecCBF16 computes PackRHSVec using NEON SIMD assembly.
-func PackRHSVecCBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func PackRHSVecCBF16(b, packed []hwy.BFloat16, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -57,7 +203,6 @@ func PackRHSVecCBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panelK,
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -70,7 +215,6 @@ func PackRHSVecCBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panelK,
 	packrhsvec_c_bf16_neon(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
@@ -85,7 +229,7 @@ func PackRHSVecCBF16(b, packed []hwy.BFloat16, k, n, rowStart, colStart, panelK,
 }
 
 // PackRHSVecCF32 computes PackRHSVec using NEON SIMD assembly.
-func PackRHSVecCF32(b, packed []float32, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func PackRHSVecCF32(b, packed []float32, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -94,7 +238,6 @@ func PackRHSVecCF32(b, packed []float32, k, n, rowStart, colStart, panelK, panel
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -107,7 +250,6 @@ func PackRHSVecCF32(b, packed []float32, k, n, rowStart, colStart, panelK, panel
 	packrhsvec_c_f32_neon(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),
@@ -122,7 +264,7 @@ func PackRHSVecCF32(b, packed []float32, k, n, rowStart, colStart, panelK, panel
 }
 
 // PackRHSVecCF64 computes PackRHSVec using NEON SIMD assembly.
-func PackRHSVecCF64(b, packed []float64, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func PackRHSVecCF64(b, packed []float64, n, rowStart, colStart, panelK, panelCols, nr int) int {
 	var p_b unsafe.Pointer
 	if len(b) > 0 {
 		p_b = unsafe.Pointer(&b[0])
@@ -131,7 +273,6 @@ func PackRHSVecCF64(b, packed []float64, k, n, rowStart, colStart, panelK, panel
 	if len(packed) > 0 {
 		p_packed = unsafe.Pointer(&packed[0])
 	}
-	kVal := int64(k)
 	nVal := int64(n)
 	rowStartVal := int64(rowStart)
 	colStartVal := int64(colStart)
@@ -144,7 +285,6 @@ func PackRHSVecCF64(b, packed []float64, k, n, rowStart, colStart, panelK, panel
 	packrhsvec_c_f64_neon(
 		p_b,
 		p_packed,
-		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&rowStartVal),
 		unsafe.Pointer(&colStartVal),

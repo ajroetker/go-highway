@@ -112,23 +112,8 @@ func initPackedmatmulAll() {
 		initPackedmatmulFallback()
 		return
 	}
-	initPackedmatmulNEON()
+	initPackedmatmulFallback()
 	return
-}
-
-func initPackedmatmulNEON() {
-	PackedMatMulFloat16 = BasePackedMatMul_neon_Float16
-	PackedMatMulBFloat16 = BasePackedMatMul_neon_BFloat16
-	PackedMatMulFloat32 = BasePackedMatMul_neon
-	PackedMatMulFloat64 = BasePackedMatMul_neon_Float64
-	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_neon_Float16
-	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_neon_BFloat16
-	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_neon
-	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_neon_Float64
-	PackedMatMulStripFloat16 = BasePackedMatMulStrip_neon_Float16
-	PackedMatMulStripBFloat16 = BasePackedMatMulStrip_neon_BFloat16
-	PackedMatMulStripFloat32 = BasePackedMatMulStrip_neon
-	PackedMatMulStripFloat64 = BasePackedMatMulStrip_neon_Float64
 }
 
 func initPackedmatmulFallback() {

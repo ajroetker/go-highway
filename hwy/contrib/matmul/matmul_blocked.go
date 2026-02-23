@@ -34,6 +34,10 @@ const (
 // This implementation uses register blocking: accumulators are held in registers
 // across the entire K dimension to minimize memory traffic. Each micro-tile
 // processes 4 rows × 2 vector widths of output.
+//
+// Accumulation uses single-pass FMA matching the BLAS approach. For large
+// matrices, callers should use the packed (Goto-style) matmul whose KC
+// blocking provides superblock precision as a free byproduct of cache tiling.
 func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 	if len(a) < m*k {
 		panic("matmul: A slice too short")
@@ -145,7 +149,6 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 							vA1 := hwy.Set(a[(i+1)*k+p])
 							vA2 := hwy.Set(a[(i+2)*k+p])
 							vA3 := hwy.Set(a[(i+3)*k+p])
-
 							vB := hwy.Load(b[p*n+j:])
 							acc0 = hwy.MulAdd(vA0, vB, acc0)
 							acc1 = hwy.MulAdd(vA1, vB, acc1)
@@ -181,7 +184,7 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 			// Handle remaining rows - process pairs when possible for SIMD efficiency
 			// This avoids the per-row overhead when M % 4 != 0
 
-			// Process pairs of remaining rows with SIMD
+			// Process pairs of remaining rows
 			for i+2 <= iEnd {
 				cRow0 := i * n
 				cRow1 := (i + 1) * n
@@ -190,7 +193,6 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 				for j = j0; j+lanes <= jEnd; j += lanes {
 					acc0 := hwy.Zero[T]()
 					acc1 := hwy.Zero[T]()
-
 					for p := range k {
 						vA0 := hwy.Set(a[i*k+p])
 						vA1 := hwy.Set(a[(i+1)*k+p])
@@ -198,7 +200,6 @@ func BaseBlockedMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
 						acc0 = hwy.MulAdd(vA0, vB, acc0)
 						acc1 = hwy.MulAdd(vA1, vB, acc1)
 					}
-
 					hwy.Store(acc0, c[cRow0+j:])
 					hwy.Store(acc1, c[cRow1+j:])
 				}

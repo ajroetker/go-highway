@@ -46,11 +46,11 @@ func BasePackedMatMul_avx2_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Flo
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -119,11 +119,11 @@ func BasePackedMatMul_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -192,11 +192,11 @@ func BasePackedMatMul_avx2(a []float32, b []float32, c []float32, m int, n int, 
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -265,11 +265,11 @@ func BasePackedMatMul_avx2_Float64(a []float64, b []float64, c []float64, m int,
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -333,11 +333,11 @@ func BasePackedMatMulWithBuffers_avx2_Float16(a []hwy.Float16, b []hwy.Float16, 
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -401,11 +401,11 @@ func BasePackedMatMulWithBuffers_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat1
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -469,11 +469,11 @@ func BasePackedMatMulWithBuffers_avx2(a []float32, b []float32, c []float32, m i
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -537,11 +537,11 @@ func BasePackedMatMulWithBuffers_avx2_Float64(a []float64, b []float64, c []floa
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -597,11 +597,11 @@ func BasePackedMatMulStrip_avx2_Float16(a []hwy.Float16, b []hwy.Float16, c []hw
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := rowStart; ic < rowEnd; ic += mc {
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -657,11 +657,11 @@ func BasePackedMatMulStrip_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c [
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := rowStart; ic < rowEnd; ic += mc {
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -717,11 +717,11 @@ func BasePackedMatMulStrip_avx2(a []float32, b []float32, c []float32, m int, n 
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := rowStart; ic < rowEnd; ic += mc {
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
@@ -777,11 +777,11 @@ func BasePackedMatMulStrip_avx2_Float64(a []float64, b []float64, c []float64, m
 		for pc := 0; pc < k; pc += kc {
 			pcEnd := min(pc+kc, k)
 			panelK := pcEnd - pc
-			PackRHS(b, packedB, k, n, pc, jc, panelK, panelCols, nr)
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := rowStart; ic < rowEnd; ic += mc {
 				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
-				activeRowsLast := PackLHS(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{
 					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
 					numMicroPanelsB_2 := (panelCols + nr - 1) / nr

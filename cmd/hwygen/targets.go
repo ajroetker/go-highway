@@ -56,6 +56,7 @@ type Target struct {
 	VecPackage string            // "archsimd" for AVX, "asm" for NEON, "" for fallback
 	TypeMap    map[string]string // "float32" -> vector type name (without package prefix)
 	OpMap      map[string]OpInfo // "Add" -> operation info
+	Mode       TargetMode        // GoSimd, Asm, or C — controls dispatch generation
 }
 
 // OpInfo describes how to transform a hwy operation for this target.

@@ -11,4 +11,4 @@ package asm
 import "unsafe"
 
 //go:noescape
-func packrhsvec_c_f16_neon(b, packed, pk, pn, prowStart, pcolStart, ppanelK, ppanelCols, pnr, plen_b, plen_packed, pout_result unsafe.Pointer)
+func packrhsvec_c_f16_neon(b, packed, pn, prowStart, pcolStart, ppanelK, ppanelCols, pnr, plen_b, plen_packed, pout_result unsafe.Pointer)

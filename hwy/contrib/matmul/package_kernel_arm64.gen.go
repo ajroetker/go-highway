@@ -110,23 +110,8 @@ func initPackage_kernelAll() {
 		initPackage_kernelFallback()
 		return
 	}
-	initPackage_kernelNEON()
+	initPackage_kernelFallback()
 	return
-}
-
-func initPackage_kernelNEON() {
-	PackedMicroKernelFloat16 = BasePackedMicroKernel_neon_Float16
-	PackedMicroKernelBFloat16 = BasePackedMicroKernel_neon_BFloat16
-	PackedMicroKernelFloat32 = BasePackedMicroKernel_neon
-	PackedMicroKernelFloat64 = BasePackedMicroKernel_neon_Float64
-	packedMicroKernelGeneralFloat16 = basePackedMicroKernelGeneral_neon_Float16
-	packedMicroKernelGeneralBFloat16 = basePackedMicroKernelGeneral_neon_BFloat16
-	packedMicroKernelGeneralFloat32 = basePackedMicroKernelGeneral_neon
-	packedMicroKernelGeneralFloat64 = basePackedMicroKernelGeneral_neon_Float64
-	PackedMicroKernelPartialFloat16 = BasePackedMicroKernelPartial_neon_Float16
-	PackedMicroKernelPartialBFloat16 = BasePackedMicroKernelPartial_neon_BFloat16
-	PackedMicroKernelPartialFloat32 = BasePackedMicroKernelPartial_neon
-	PackedMicroKernelPartialFloat64 = BasePackedMicroKernelPartial_neon_Float64
 }
 
 func initPackage_kernelFallback() {

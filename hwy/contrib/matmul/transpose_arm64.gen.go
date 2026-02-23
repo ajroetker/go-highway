@@ -64,19 +64,8 @@ func initTransposeAll() {
 		initTransposeFallback()
 		return
 	}
-	initTransposeNEON()
+	initTransposeFallback()
 	return
-}
-
-func initTransposeNEON() {
-	Transpose2DStridedFloat16 = BaseTranspose2DStrided_neon_Float16
-	Transpose2DStridedBFloat16 = BaseTranspose2DStrided_neon_BFloat16
-	Transpose2DStridedFloat32 = BaseTranspose2DStrided_neon
-	Transpose2DStridedFloat64 = BaseTranspose2DStrided_neon_Float64
-	Transpose2DFloat16 = BaseTranspose2D_neon_Float16
-	Transpose2DBFloat16 = BaseTranspose2D_neon_BFloat16
-	Transpose2DFloat32 = BaseTranspose2D_neon
-	Transpose2DFloat64 = BaseTranspose2D_neon_Float64
 }
 
 func initTransposeFallback() {

@@ -138,316 +138,388 @@ func BasePackLHS_fallback_Float64(a []float64, packed []float64, m int, k int, r
 	return activeRowsLast
 }
 
-func BasePackRHS_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
+func BasePackLHSVec_fallback_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
+	if mr != 4 {
+		return BasePackLHS_fallback_Float16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
 	fullPanels := numMicroPanels
-	if activeColsLast < nr {
+	if activeRowsLast < mr {
 		fullPanels--
 	}
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
-				packIdx++
-			}
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := hwy.Load(a[row0+kk:])
+			r1 := hwy.Load(a[row1+kk:])
+			r2 := hwy.Load(a[row2+kk:])
+			r3 := hwy.Load(a[row3+kk:])
+			t0 := hwy.InterleaveLower(r0, r2)
+			t2 := hwy.InterleaveUpper(r0, r2)
+			t1 := hwy.InterleaveLower(r1, r3)
+			t3 := hwy.InterleaveUpper(r1, r3)
+			c0 := hwy.InterleaveLower(t0, t1)
+			c1 := hwy.InterleaveUpper(t0, t1)
+			c2 := hwy.InterleaveLower(t2, t3)
+			c3 := hwy.InterleaveUpper(t2, t3)
+			hwy.Store(c0, packed[packIdx:])
+			hwy.Store(c1, packed[packIdx+lanes:])
+			hwy.Store(c2, packed[packIdx+2*lanes:])
+			hwy.Store(c3, packed[packIdx+3*lanes:])
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = hwy.Float32ToFloat16(a[row0+kk].Float32())
+			packed[packIdx+1] = hwy.Float32ToFloat16(a[row1+kk].Float32())
+			packed[packIdx+2] = hwy.Float32ToFloat16(a[row2+kk].Float32())
+			packed[packIdx+3] = hwy.Float32ToFloat16(a[row3+kk].Float32())
+			packIdx += mr
 		}
 	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
 		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
+			for r := range activeRowsLast {
+				packed[packIdx] = hwy.Float32ToFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
-			for c := activeColsLast; c < nr; c++ {
+			for r := activeRowsLast; r < mr; r++ {
 				packed[packIdx] = hwy.Float32ToFloat16(0)
 				packIdx++
 			}
 		}
 	}
-	return activeColsLast
+	return activeRowsLast
 }
 
-func BasePackRHS_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
+func BasePackLHSVec_fallback_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
+	if mr != 4 {
+		return BasePackLHS_fallback_BFloat16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
 	fullPanels := numMicroPanels
-	if activeColsLast < nr {
+	if activeRowsLast < mr {
 		fullPanels--
 	}
 	packIdx := 0
 	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
-				packIdx++
-			}
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := hwy.Load(a[row0+kk:])
+			r1 := hwy.Load(a[row1+kk:])
+			r2 := hwy.Load(a[row2+kk:])
+			r3 := hwy.Load(a[row3+kk:])
+			t0 := hwy.InterleaveLower(r0, r2)
+			t2 := hwy.InterleaveUpper(r0, r2)
+			t1 := hwy.InterleaveLower(r1, r3)
+			t3 := hwy.InterleaveUpper(r1, r3)
+			c0 := hwy.InterleaveLower(t0, t1)
+			c1 := hwy.InterleaveUpper(t0, t1)
+			c2 := hwy.InterleaveLower(t2, t3)
+			c3 := hwy.InterleaveUpper(t2, t3)
+			hwy.Store(c0, packed[packIdx:])
+			hwy.Store(c1, packed[packIdx+lanes:])
+			hwy.Store(c2, packed[packIdx+2*lanes:])
+			hwy.Store(c3, packed[packIdx+3*lanes:])
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = hwy.Float32ToBFloat16(a[row0+kk].Float32())
+			packed[packIdx+1] = hwy.Float32ToBFloat16(a[row1+kk].Float32())
+			packed[packIdx+2] = hwy.Float32ToBFloat16(a[row2+kk].Float32())
+			packed[packIdx+3] = hwy.Float32ToBFloat16(a[row3+kk].Float32())
+			packIdx += mr
 		}
 	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
 		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
+			for r := range activeRowsLast {
+				packed[packIdx] = hwy.Float32ToBFloat16(a[(baseRow+r)*k+colStart+kk].Float32())
 				packIdx++
 			}
-			for c := activeColsLast; c < nr; c++ {
+			for r := activeRowsLast; r < mr; r++ {
 				packed[packIdx] = hwy.Float32ToBFloat16(0)
 				packIdx++
 			}
 		}
 	}
-	return activeColsLast
-}
-
-func BasePackRHS_fallback(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
-	fullPanels := numMicroPanels
-	if activeColsLast < nr {
-		fullPanels--
-	}
-	packIdx := 0
-	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-		}
-	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-			for c := activeColsLast; c < nr; c++ {
-				packed[packIdx] = 0
-				packIdx++
-			}
-		}
-	}
-	return activeColsLast
-}
-
-func BasePackRHS_fallback_Float64(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	numMicroPanels := (panelCols + nr - 1) / nr
-	activeColsLast := panelCols - (numMicroPanels-1)*nr
-	fullPanels := numMicroPanels
-	if activeColsLast < nr {
-		fullPanels--
-	}
-	packIdx := 0
-	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-		}
-	}
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range activeColsLast {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-			for c := activeColsLast; c < nr; c++ {
-				packed[packIdx] = 0
-				packIdx++
-			}
-		}
-	}
-	return activeColsLast
-}
-
-func BasePackLHSVec_fallback_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_fallback_Float16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
-}
-
-func BasePackLHSVec_fallback_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_fallback_BFloat16(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	return activeRowsLast
 }
 
 func BasePackLHSVec_fallback(a []float32, packed []float32, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_fallback(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	if mr != 4 {
+		return BasePackLHS_fallback(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := hwy.Zero[float32]().NumLanes()
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
+	fullPanels := numMicroPanels
+	if activeRowsLast < mr {
+		fullPanels--
+	}
+	packIdx := 0
+	for panel := 0; panel < fullPanels; panel++ {
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := hwy.Load(a[row0+kk:])
+			r1 := hwy.Load(a[row1+kk:])
+			r2 := hwy.Load(a[row2+kk:])
+			r3 := hwy.Load(a[row3+kk:])
+			t0 := hwy.InterleaveLower(r0, r2)
+			t2 := hwy.InterleaveUpper(r0, r2)
+			t1 := hwy.InterleaveLower(r1, r3)
+			t3 := hwy.InterleaveUpper(r1, r3)
+			c0 := hwy.InterleaveLower(t0, t1)
+			c1 := hwy.InterleaveUpper(t0, t1)
+			c2 := hwy.InterleaveLower(t2, t3)
+			c3 := hwy.InterleaveUpper(t2, t3)
+			hwy.Store(c0, packed[packIdx:])
+			hwy.Store(c1, packed[packIdx+lanes:])
+			hwy.Store(c2, packed[packIdx+2*lanes:])
+			hwy.Store(c3, packed[packIdx+3*lanes:])
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = a[row0+kk]
+			packed[packIdx+1] = a[row1+kk]
+			packed[packIdx+2] = a[row2+kk]
+			packed[packIdx+3] = a[row3+kk]
+			packIdx += mr
+		}
+	}
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
+		for kk := range panelK {
+			for r := range activeRowsLast {
+				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
+				packIdx++
+			}
+			for r := activeRowsLast; r < mr; r++ {
+				packed[packIdx] = 0
+				packIdx++
+			}
+		}
+	}
+	return activeRowsLast
 }
 
 func BasePackLHSVec_fallback_Float64(a []float64, packed []float64, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	return BasePackLHS_fallback_Float64(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	if mr != 4 {
+		return BasePackLHS_fallback_Float64(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+	lanes := hwy.Zero[float64]().NumLanes()
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
+	fullPanels := numMicroPanels
+	if activeRowsLast < mr {
+		fullPanels--
+	}
+	packIdx := 0
+	for panel := 0; panel < fullPanels; panel++ {
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			r0 := hwy.Load(a[row0+kk:])
+			r1 := hwy.Load(a[row1+kk:])
+			r2 := hwy.Load(a[row2+kk:])
+			r3 := hwy.Load(a[row3+kk:])
+			t0 := hwy.InterleaveLower(r0, r2)
+			t2 := hwy.InterleaveUpper(r0, r2)
+			t1 := hwy.InterleaveLower(r1, r3)
+			t3 := hwy.InterleaveUpper(r1, r3)
+			c0 := hwy.InterleaveLower(t0, t1)
+			c1 := hwy.InterleaveUpper(t0, t1)
+			c2 := hwy.InterleaveLower(t2, t3)
+			c3 := hwy.InterleaveUpper(t2, t3)
+			hwy.Store(c0, packed[packIdx:])
+			hwy.Store(c1, packed[packIdx+lanes:])
+			hwy.Store(c2, packed[packIdx+2*lanes:])
+			hwy.Store(c3, packed[packIdx+3*lanes:])
+			packIdx += lanes * mr
+		}
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = a[row0+kk]
+			packed[packIdx+1] = a[row1+kk]
+			packed[packIdx+2] = a[row2+kk]
+			packed[packIdx+3] = a[row3+kk]
+			packIdx += mr
+		}
+	}
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
+		for kk := range panelK {
+			for r := range activeRowsLast {
+				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
+				packIdx++
+			}
+			for r := activeRowsLast; r < mr; r++ {
+				packed[packIdx] = 0
+				packIdx++
+			}
+		}
+	}
+	return activeRowsLast
 }
 
-func BasePackRHSVec_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+func BasePackRHSVec_fallback_Float16(b []hwy.Float16, packed []hwy.Float16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
 			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
+				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := hwy.Load(b[srcRow+baseCol+c:])
+					hwy.Store(v, packed[dstIdx+c:])
 				}
-				packIdx += nr
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = hwy.Float32ToFloat16(b[srcRow+baseCol+c].Float32())
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = hwy.Float32ToFloat16(0)
+				dstIdx++
 			}
 		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = hwy.Float32ToFloat16(b[bRowStart+baseCol+c].Float32())
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = hwy.Float32ToFloat16(0)
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
 	}
-	return BasePackRHS_fallback_Float16(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
+	_ = numMicroPanels
+	return activeColsLast
 }
 
-func BasePackRHSVec_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+func BasePackRHSVec_fallback_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
 	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
 			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
+				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := hwy.Load(b[srcRow+baseCol+c:])
+					hwy.Store(v, packed[dstIdx+c:])
 				}
-				packIdx += nr
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = hwy.Float32ToBFloat16(b[srcRow+baseCol+c].Float32())
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = hwy.Float32ToBFloat16(0)
+				dstIdx++
 			}
 		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = hwy.Float32ToBFloat16(b[bRowStart+baseCol+c].Float32())
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = hwy.Float32ToBFloat16(0)
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
 	}
-	return BasePackRHS_fallback_BFloat16(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
+	_ = numMicroPanels
+	return activeColsLast
 }
 
-func BasePackRHSVec_fallback(b []float32, packed []float32, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	if nr >= 1 && nr%1 == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
+func BasePackRHSVec_fallback(b []float32, packed []float32, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= 1 && nr%1 == 0 {
 			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
+				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c++ {
-					v := b[bRowStart+baseCol+c]
-					packed[packIdx+c] = v
+					v := b[srcRow+baseCol+c]
+					packed[dstIdx+c] = v
 				}
-				packIdx += nr
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = b[srcRow+baseCol+c]
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = 0
+				dstIdx++
 			}
 		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = b[bRowStart+baseCol+c]
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = 0
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
 	}
-	return BasePackRHS_fallback(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
+	_ = numMicroPanels
+	return activeColsLast
 }
 
-func BasePackRHSVec_fallback_Float64(b []float64, packed []float64, k int, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	if nr >= 1 && nr%1 == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
+func BasePackRHSVec_fallback_Float64(b []float64, packed []float64, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
+	numMicroPanels := (panelCols + nr - 1) / nr
+	activeColsLast := panelCols - (numMicroPanels-1)*nr
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
+		if validCols == nr && nr >= 1 && nr%1 == 0 {
 			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
+				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c++ {
-					v := b[bRowStart+baseCol+c]
-					packed[packIdx+c] = v
+					v := b[srcRow+baseCol+c]
+					packed[dstIdx+c] = v
 				}
-				packIdx += nr
+				dstIdx += nr
+			}
+			continue
+		}
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = b[srcRow+baseCol+c]
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = 0
+				dstIdx++
 			}
 		}
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = b[bRowStart+baseCol+c]
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = 0
-					packIdx++
-				}
-			}
-		}
-		return activeColsLast
 	}
-	return BasePackRHS_fallback_Float64(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
+	_ = numMicroPanels
+	return activeColsLast
 }

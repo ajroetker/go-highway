@@ -86,7 +86,96 @@ func BasePackLHS[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRow
 	return activeRowsLast
 }
 
-// BasePackRHS packs a panel of the RHS matrix (B) into a cache-friendly layout.
+// BasePackLHSVec packs LHS using SIMD butterfly transpose for mr=4.
+//
+// Instead of gathering one element per row per k-value (strided access),
+// this loads `lanes` contiguous k-values from each of the 4 rows and
+// transposes them in-register using a 2-stage butterfly pattern
+// (InterleaveLower/InterleaveUpper), producing the packed [panelK, mr]
+// layout directly.
+func BasePackLHSVec[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
+	if mr != 4 {
+		return BasePackLHS(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
+	}
+
+	lanes := hwy.Zero[T]().NumLanes()
+	numMicroPanels := (panelRows + mr - 1) / mr
+	activeRowsLast := panelRows - (numMicroPanels-1)*mr
+
+	fullPanels := numMicroPanels
+	if activeRowsLast < mr {
+		fullPanels--
+	}
+
+	packIdx := 0
+
+	for panel := 0; panel < fullPanels; panel++ {
+		baseRow := rowStart + panel*mr
+		row0 := baseRow*k + colStart
+		row1 := (baseRow+1)*k + colStart
+		row2 := (baseRow+2)*k + colStart
+		row3 := (baseRow+3)*k + colStart
+
+		// SIMD path: process lanes k-values at a time with butterfly transpose
+		var kk int
+		for kk = 0; kk+lanes <= panelK; kk += lanes {
+			// Load lanes contiguous k-values from each of 4 rows
+			r0 := hwy.Load(a[row0+kk:])
+			r1 := hwy.Load(a[row1+kk:])
+			r2 := hwy.Load(a[row2+kk:])
+			r3 := hwy.Load(a[row3+kk:])
+
+			// 2-stage butterfly transpose (log2(4) = 2 stages)
+			// Stage 1: stride=2, pair rows (0,2) and (1,3)
+			t0 := hwy.InterleaveLower(r0, r2)
+			t2 := hwy.InterleaveUpper(r0, r2)
+			t1 := hwy.InterleaveLower(r1, r3)
+			t3 := hwy.InterleaveUpper(r1, r3)
+
+			// Stage 2: stride=1
+			c0 := hwy.InterleaveLower(t0, t1)
+			c1 := hwy.InterleaveUpper(t0, t1)
+			c2 := hwy.InterleaveLower(t2, t3)
+			c3 := hwy.InterleaveUpper(t2, t3)
+
+			// Store: lanes k-groups of mr=4 elements = lanes*4 elements
+			hwy.Store(c0, packed[packIdx:])
+			hwy.Store(c1, packed[packIdx+lanes:])
+			hwy.Store(c2, packed[packIdx+2*lanes:])
+			hwy.Store(c3, packed[packIdx+3*lanes:])
+			packIdx += lanes * mr
+		}
+
+		// Scalar tail for remaining k-values
+		for ; kk < panelK; kk++ {
+			packed[packIdx] = a[row0+kk]
+			packed[packIdx+1] = a[row1+kk]
+			packed[packIdx+2] = a[row2+kk]
+			packed[packIdx+3] = a[row3+kk]
+			packIdx += mr
+		}
+	}
+
+	// Pack partial last micro-panel with scalar code (zero-padding)
+	if activeRowsLast < mr && activeRowsLast > 0 {
+		baseRow := rowStart + fullPanels*mr
+		for kk := range panelK {
+			for r := range activeRowsLast {
+				packed[packIdx] = a[(baseRow+r)*k+colStart+kk]
+				packIdx++
+			}
+			for r := activeRowsLast; r < mr; r++ {
+				packed[packIdx] = 0
+				packIdx++
+			}
+		}
+	}
+
+	return activeRowsLast
+}
+
+// BasePackRHSVec packs a panel of the RHS matrix (B) into a cache-friendly layout
+// using SIMD loads for full micro-panels and scalar code for partial ones.
 //
 // Input B is K x N in row-major order. This function packs a panel of rows
 // [rowStart, rowStart+panelK) and columns [colStart, colStart+panelCols).
@@ -97,15 +186,11 @@ func BasePackLHS[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRow
 //   - Store B[rowStart+k, colStart+j*Nr+0], ..., B[rowStart+k, colStart+j*Nr+Nr-1]
 //
 // This gives memory layout: [num_micro_panels, panelK, Nr]
-// where num_micro_panels = ceil(panelCols / Nr)
-//
-// The K-first layout within micro-panels ensures sequential access
-// when iterating over K in the inner loop.
 //
 // Parameters:
 //   - b: Input matrix B in row-major order
-//   - packed: Output buffer, must have size >= ceil(panelCols/Nr) * panelK * Nr
-//   - k, n: Dimensions of the full B matrix
+//   - packed: Output buffer
+//   - n: Number of columns in B (row stride)
 //   - rowStart: Starting row of the panel to pack (K-dimension offset)
 //   - colStart: Starting column of the panel to pack
 //   - panelK: Number of rows to pack (K dimension)
@@ -113,105 +198,43 @@ func BasePackLHS[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRow
 //   - nr: Micro-tile column dimension
 //
 // Returns the number of active columns in the last micro-panel (may be < Nr).
-func BasePackRHS[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
+func BasePackRHSVec[T hwy.Floats](b, packed []T, n, rowStart, colStart, panelK, panelCols, nr int) int {
+	lanes := hwy.Zero[T]().NumLanes()
 	numMicroPanels := (panelCols + nr - 1) / nr
 	activeColsLast := panelCols - (numMicroPanels-1)*nr
 
-	// Pack complete micro-panels
-	fullPanels := numMicroPanels
-	if activeColsLast < nr {
-		fullPanels--
-	}
+	dstIdx := 0
+	for strip := 0; strip < panelCols; strip += nr {
+		validCols := min(nr, panelCols-strip)
+		baseCol := colStart + strip
 
-	packIdx := 0
-	for panel := 0; panel < fullPanels; panel++ {
-		baseCol := colStart + panel*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			for c := range nr {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-		}
-	}
-
-	// Pack partial last micro-panel (if any)
-	if activeColsLast < nr && activeColsLast > 0 {
-		baseCol := colStart + fullPanels*nr
-		for kk := range panelK {
-			bRowStart := (rowStart + kk) * n
-			// Pack active columns
-			for c := range activeColsLast {
-				packed[packIdx] = b[bRowStart+baseCol+c]
-				packIdx++
-			}
-			// Zero-pad remaining columns in micro-panel
-			for c := activeColsLast; c < nr; c++ {
-				packed[packIdx] = 0
-				packIdx++
-			}
-		}
-	}
-
-	return activeColsLast
-}
-
-// BasePackLHSVec packs LHS using SIMD when Mr aligns with vector width.
-// This is a vectorized version of BasePackLHS for better performance.
-func BasePackLHSVec[T hwy.Floats](a, packed []T, m, k, rowStart, colStart, panelRows, panelK, mr int) int {
-	// For now, fall back to scalar implementation.
-	// Future optimization: use SIMD gather or interleaved loads when beneficial.
-	return BasePackLHS(a, packed, m, k, rowStart, colStart, panelRows, panelK, mr)
-}
-
-// BasePackRHSVec packs RHS using SIMD loads for contiguous data.
-// This is a vectorized version of BasePackRHS for better performance.
-func BasePackRHSVec[T hwy.Floats](b, packed []T, k, n, rowStart, colStart, panelK, panelCols, nr int) int {
-	lanes := hwy.Zero[T]().NumLanes()
-
-	// If nr is a multiple of lanes and cols are contiguous, use SIMD loads
-	if nr >= lanes && nr%lanes == 0 {
-		numMicroPanels := (panelCols + nr - 1) / nr
-		activeColsLast := panelCols - (numMicroPanels-1)*nr
-
-		fullPanels := numMicroPanels
-		if activeColsLast < nr {
-			fullPanels--
-		}
-
-		packIdx := 0
-		for panel := 0; panel < fullPanels; panel++ {
-			baseCol := colStart + panel*nr
+		// SIMD fast path: full strip with nr aligned to vector width
+		if validCols == nr && nr >= lanes && nr%lanes == 0 {
 			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				// SIMD copy of nr elements (nr/lanes vectors)
+				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := hwy.Load(b[bRowStart+baseCol+c:])
-					hwy.Store(v, packed[packIdx+c:])
+					v := hwy.Load(b[srcRow+baseCol+c:])
+					hwy.Store(v, packed[dstIdx+c:])
 				}
-				packIdx += nr
+				dstIdx += nr
 			}
+			continue
 		}
 
-		// Handle partial panel with scalar code
-		if activeColsLast < nr && activeColsLast > 0 {
-			baseCol := colStart + fullPanels*nr
-			for kk := range panelK {
-				bRowStart := (rowStart + kk) * n
-				for c := range activeColsLast {
-					packed[packIdx] = b[bRowStart+baseCol+c]
-					packIdx++
-				}
-				for c := activeColsLast; c < nr; c++ {
-					packed[packIdx] = 0
-					packIdx++
-				}
+		// Scalar path: partial strip with zero-padding
+		for kk := range panelK {
+			srcRow := (rowStart + kk) * n
+			for c := range validCols {
+				packed[dstIdx] = b[srcRow+baseCol+c]
+				dstIdx++
+			}
+			for c := validCols; c < nr; c++ {
+				packed[dstIdx] = 0
+				dstIdx++
 			}
 		}
-
-		return activeColsLast
 	}
 
-	// Fall back to scalar for non-aligned cases
-	return BasePackRHS(b, packed, k, n, rowStart, colStart, panelK, panelCols, nr)
+	_ = numMicroPanels
+	return activeColsLast
 }

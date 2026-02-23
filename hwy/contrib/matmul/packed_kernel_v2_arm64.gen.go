@@ -80,19 +80,8 @@ func initPacked_kernel_v2All() {
 		initPacked_kernel_v2Fallback()
 		return
 	}
-	initPacked_kernel_v2NEON()
+	initPacked_kernel_v2Fallback()
 	return
-}
-
-func initPacked_kernel_v2NEON() {
-	PackedMicroKernel4x2Float16 = BasePackedMicroKernel4x2_neon_Float16
-	PackedMicroKernel4x2BFloat16 = BasePackedMicroKernel4x2_neon_BFloat16
-	PackedMicroKernel4x2Float32 = BasePackedMicroKernel4x2_neon
-	PackedMicroKernel4x2Float64 = BasePackedMicroKernel4x2_neon_Float64
-	ZeroSliceFloat16 = BaseZeroSlice_neon_Float16
-	ZeroSliceBFloat16 = BaseZeroSlice_neon_BFloat16
-	ZeroSliceFloat32 = BaseZeroSlice_neon
-	ZeroSliceFloat64 = BaseZeroSlice_neon_Float64
 }
 
 func initPacked_kernel_v2Fallback() {

@@ -339,29 +339,3 @@ func TestTranspose2DStrided(t *testing.T) {
 	}
 }
 
-func BenchmarkParallelTranspose(b *testing.B) {
-	pool := workerpool.New(0)
-	defer pool.Close()
-
-	for _, size := range []int{256, 512, 1024, 2048} {
-		src := make([]float32, size*size)
-		dst := make([]float32, size*size)
-		for i := range src {
-			src[i] = float32(i)
-		}
-
-		b.Run(fmt.Sprintf("Serial_%dx%d", size, size), func(b *testing.B) {
-			b.SetBytes(int64(size * size * 4 * 2))
-			for i := 0; i < b.N; i++ {
-				Transpose2DFloat32(src, size, size, dst)
-			}
-		})
-
-		b.Run(fmt.Sprintf("Parallel_%dx%d", size, size), func(b *testing.B) {
-			b.SetBytes(int64(size * size * 4 * 2))
-			for i := 0; i < b.N; i++ {
-				ParallelTranspose2DFloat32(pool, src, size, size, dst)
-			}
-		})
-	}
-}

@@ -22,217 +22,377 @@ TEXT ·matmulklast_c_f64_neon(SB), $112-72
 	WORD $0xa90357f6       // stp	x22, x21, [sp, #48]             ; 16-byte Folded Spill
 	WORD $0xa9044ff4       // stp	x20, x19, [sp, #64]             ; 16-byte Folded Spill
 	WORD $0xa9057bfd       // stp	x29, x30, [sp, #80]             ; 16-byte Folded Spill
-	WORD $0xf94000aa       // ldr	x10, [x5]
+	WORD $0xf94000a9       // ldr	x9, [x5]
 	WORD $0xf9400073       // ldr	x19, [x3]
-	WORD $0xf9400089       // ldr	x9, [x4]
-	WORD $0xf100127f       // cmp	x19, #4
-	BLT  BB0_8
-	WORD $0xf100053f       // cmp	x9, #1
-	BLT  BB0_9
-	WORD $0xf100055f       // cmp	x10, #1
-	BGT  BB0_10
-	WORD $0x6f00e400       // movi.2d	v0, #0000000000000000
-	WORD $0x7e70d800       // faddp.2d	d0, v0
-	WORD $0xf100015f       // cmp	x10, #0
-	BLE  BB0_19
-	WORD $0xd280000f       // mov	x15, #0                         ; =0x0
-	WORD $0x8b090528       // add	x8, x9, x9, lsl #1
-	WORD $0xd37df10c       // lsl	x12, x8, #3
-	WORD $0xd37be92d       // lsl	x13, x9, #5
-	WORD $0xd37ced2e       // lsl	x14, x9, #4
-	WORD $0xd37df150       // lsl	x16, x10, #3
-	WORD $0xaa0203f1       // mov	x17, x2
+	WORD $0xf9400088       // ldr	x8, [x4]
+	WORD $0xf100067f       // cmp	x19, #1
+	BNE  BB0_11
+	WORD $0xf100111f       // cmp	x8, #4
+	BLT  BB0_19
+	WORD $0xd2800011       // mov	x17, #0                         ; =0x0
+	WORD $0x927ff92a       // and	x10, x9, #0xfffffffffffffffe
+	WORD $0xd37be92b       // lsl	x11, x9, #5
+	WORD $0xd37df12c       // lsl	x12, x9, #3
+	WORD $0x8b09052d       // add	x13, x9, x9, lsl #1
+	WORD $0xd37df1ad       // lsl	x13, x13, #3
+	WORD $0x8b0c002e       // add	x14, x1, x12
+	WORD $0x8b09102f       // add	x15, x1, x9, lsl #4
+	WORD $0x8b0d0030       // add	x16, x1, x13
+	WORD $0xaa0103e3       // mov	x3, x1
+	B    BB0_4
 
-BB0_5:
-	WORD $0xb24005e7 // orr	x7, x15, #0x3
-	WORD $0x9b0a7deb // mul	x11, x15, x10
-	WORD $0xb24001e8 // orr	x8, x15, #0x1
-	WORD $0x9b0a7d08 // mul	x8, x8, x10
-	WORD $0xb27f01e3 // orr	x3, x15, #0x2
-	WORD $0x9b0a7c63 // mul	x3, x3, x10
-	WORD $0xaa0103e4 // mov	x4, x1
-	WORD $0xaa1103e5 // mov	x5, x17
-	WORD $0xaa0903e6 // mov	x6, x9
-	WORD $0x9b0a7ce7 // mul	x7, x7, x10
+BB0_3:
+	WORD $0xb2400626 // orr	x6, x17, #0x3
+	WORD $0xb2400224 // orr	x4, x17, #0x1
+	WORD $0xb27f0225 // orr	x5, x17, #0x2
+	WORD $0xfc317843 // str	d3, [x2, x17, lsl #3]
+	WORD $0xfc247842 // str	d2, [x2, x4, lsl #3]
+	WORD $0xfc257841 // str	d1, [x2, x5, lsl #3]
+	WORD $0xfc267840 // str	d0, [x2, x6, lsl #3]
+	WORD $0x91001224 // add	x4, x17, #4
+	WORD $0x91001e25 // add	x5, x17, #7
+	WORD $0x8b0b0063 // add	x3, x3, x11
+	WORD $0x8b0b01ce // add	x14, x14, x11
+	WORD $0x8b0b01ef // add	x15, x15, x11
+	WORD $0x8b0b0210 // add	x16, x16, x11
+	WORD $0xaa0403f1 // mov	x17, x4
+	WORD $0xeb0800bf // cmp	x5, x8
+	BGE  BB0_20
+
+BB0_4:
+	WORD $0xf100093f // cmp	x9, #2
+	BGE  BB0_6
+	WORD $0xd2800006 // mov	x6, #0                          ; =0x0
+	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
+	WORD $0x6f00e404 // movi.2d	v4, #0000000000000000
+	WORD $0x6f00e402 // movi.2d	v2, #0000000000000000
+	WORD $0x6f00e401 // movi.2d	v1, #0000000000000000
+	WORD $0x7e70d823 // faddp.2d	d3, v1
+	WORD $0x7e70d842 // faddp.2d	d2, v2
+	WORD $0x7e70d881 // faddp.2d	d1, v4
+	WORD $0x7e70d800 // faddp.2d	d0, v0
+	WORD $0xeb060124 // subs	x4, x9, x6
+	BLE  BB0_3
+	B    BB0_9
 
 BB0_6:
+	WORD $0x6f00e401 // movi.2d	v1, #0000000000000000
+	WORD $0xaa0303e4 // mov	x4, x3
+	WORD $0xaa0003e6 // mov	x6, x0
+	WORD $0x52800045 // mov	w5, #2                          ; =0x2
+	WORD $0x6f00e402 // movi.2d	v2, #0000000000000000
+	WORD $0x6f00e404 // movi.2d	v4, #0000000000000000
+	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
+
+BB0_7:
+	WORD $0x3cc104c3 // ldr	q3, [x6], #16
+	WORD $0x3dc00085 // ldr	q5, [x4]
+	WORD $0x4e63cca1 // fmla.2d	v1, v5, v3
+	WORD $0x3cec6885 // ldr	q5, [x4, x12]
+	WORD $0x4e63cca2 // fmla.2d	v2, v5, v3
+	WORD $0x3ce97885 // ldr	q5, [x4, x9, lsl #4]
+	WORD $0x4e63cca4 // fmla.2d	v4, v5, v3
+	WORD $0x3ced6885 // ldr	q5, [x4, x13]
+	WORD $0x4e63cca0 // fmla.2d	v0, v5, v3
+	WORD $0x910008a5 // add	x5, x5, #2
+	WORD $0x91004084 // add	x4, x4, #16
+	WORD $0xeb0900bf // cmp	x5, x9
+	BLE  BB0_7
+	WORD $0xaa0a03e6 // mov	x6, x10
+	WORD $0x7e70d823 // faddp.2d	d3, v1
+	WORD $0x7e70d842 // faddp.2d	d2, v2
+	WORD $0x7e70d881 // faddp.2d	d1, v4
+	WORD $0x7e70d800 // faddp.2d	d0, v0
+	WORD $0xeb0a0124 // subs	x4, x9, x10
+	BLE  BB0_3
+
+BB0_9:
+	WORD $0xd2800005 // mov	x5, #0                          ; =0x0
+	WORD $0xd37df0d4 // lsl	x20, x6, #3
+	WORD $0x8b140006 // add	x6, x0, x20
+	WORD $0x8b140067 // add	x7, x3, x20
+	WORD $0x8b1401d3 // add	x19, x14, x20
+	WORD $0x8b1401f5 // add	x21, x15, x20
+	WORD $0x8b140214 // add	x20, x16, x20
+
+BB0_10:
+	WORD $0xfc6578c4 // ldr	d4, [x6, x5, lsl #3]
+	WORD $0xfc6578e5 // ldr	d5, [x7, x5, lsl #3]
+	WORD $0x1f450c83 // fmadd	d3, d4, d5, d3
+	WORD $0xfc657a65 // ldr	d5, [x19, x5, lsl #3]
+	WORD $0x1f450882 // fmadd	d2, d4, d5, d2
+	WORD $0xfc657aa5 // ldr	d5, [x21, x5, lsl #3]
+	WORD $0x1f450481 // fmadd	d1, d4, d5, d1
+	WORD $0xfc657a85 // ldr	d5, [x20, x5, lsl #3]
+	WORD $0x1f450080 // fmadd	d0, d4, d5, d0
+	WORD $0x910004a5 // add	x5, x5, #1
+	WORD $0xeb05009f // cmp	x4, x5
+	BNE  BB0_10
+	B    BB0_3
+
+BB0_11:
+	WORD $0xf100127f // cmp	x19, #4
+	BLT  BB0_29
+	WORD $0xf100051f // cmp	x8, #1
+	BLT  BB0_30
+	WORD $0xf100053f // cmp	x9, #1
+	BGT  BB0_31
+	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
+	WORD $0x7e70d800 // faddp.2d	d0, v0
+	WORD $0xf100013f // cmp	x9, #0
+	BLE  BB0_40
+	WORD $0xd280000f // mov	x15, #0                         ; =0x0
+	WORD $0x8b08050a // add	x10, x8, x8, lsl #1
+	WORD $0xd37df14c // lsl	x12, x10, #3
+	WORD $0xd37be90d // lsl	x13, x8, #5
+	WORD $0xd37ced0e // lsl	x14, x8, #4
+	WORD $0xd37df130 // lsl	x16, x9, #3
+	WORD $0xaa0203f1 // mov	x17, x2
+
+BB0_16:
+	WORD $0xb24005e7 // orr	x7, x15, #0x3
+	WORD $0x9b097deb // mul	x11, x15, x9
+	WORD $0xb24001ea // orr	x10, x15, #0x1
+	WORD $0x9b097d4a // mul	x10, x10, x9
+	WORD $0xb27f01e3 // orr	x3, x15, #0x2
+	WORD $0x9b097c63 // mul	x3, x3, x9
+	WORD $0xaa0103e4 // mov	x4, x1
+	WORD $0xaa1103e5 // mov	x5, x17
+	WORD $0xaa0803e6 // mov	x6, x8
+	WORD $0x9b097ce7 // mul	x7, x7, x9
+
+BB0_17:
 	WORD $0xfc677801 // ldr	d1, [x0, x7, lsl #3]
 	WORD $0xfd400082 // ldr	d2, [x4]
 	WORD $0xfc637803 // ldr	d3, [x0, x3, lsl #3]
 	WORD $0x1f420063 // fmadd	d3, d3, d2, d0
-	WORD $0xfc687804 // ldr	d4, [x0, x8, lsl #3]
+	WORD $0xfc6a7804 // ldr	d4, [x0, x10, lsl #3]
 	WORD $0x1f420084 // fmadd	d4, d4, d2, d0
 	WORD $0xfc6b7805 // ldr	d5, [x0, x11, lsl #3]
 	WORD $0x1f4200a5 // fmadd	d5, d5, d2, d0
 	WORD $0xfd0000a5 // str	d5, [x5]
-	WORD $0xfc2978a4 // str	d4, [x5, x9, lsl #3]
+	WORD $0xfc2878a4 // str	d4, [x5, x8, lsl #3]
 	WORD $0xfc2e68a3 // str	d3, [x5, x14]
 	WORD $0x1f420021 // fmadd	d1, d1, d2, d0
 	WORD $0xfc2c68a1 // str	d1, [x5, x12]
 	WORD $0x910020a5 // add	x5, x5, #8
 	WORD $0x8b100084 // add	x4, x4, x16
 	WORD $0xf10004c6 // subs	x6, x6, #1
-	BNE  BB0_6
+	BNE  BB0_17
 	WORD $0x910011eb // add	x11, x15, #4
-	WORD $0x91001de8 // add	x8, x15, #7
+	WORD $0x91001dea // add	x10, x15, #7
 	WORD $0x8b0d0231 // add	x17, x17, x13
 	WORD $0xaa0b03ef // mov	x15, x11
-	WORD $0xeb13011f // cmp	x8, x19
-	BLT  BB0_5
+	WORD $0xeb13015f // cmp	x10, x19
+	BLT  BB0_16
+	B    BB0_44
+
+BB0_19:
+	WORD $0xd2800004 // mov	x4, #0                          ; =0x0
+
+BB0_20:
+	WORD $0xeb08009f // cmp	x4, x8
+	BGE  BB0_45
+	WORD $0x927ff92a // and	x10, x9, #0xfffffffffffffffe
+	WORD $0x9b097c8b // mul	x11, x4, x9
+	WORD $0x8b0b0c2b // add	x11, x1, x11, lsl #3
+	WORD $0xd37df12c // lsl	x12, x9, #3
 	B    BB0_23
 
-BB0_8:
+BB0_22:
+	WORD $0xfc247840 // str	d0, [x2, x4, lsl #3]
+	WORD $0x91000484 // add	x4, x4, #1
+	WORD $0x8b0c016b // add	x11, x11, x12
+	WORD $0xeb08009f // cmp	x4, x8
+	BEQ  BB0_45
+
+BB0_23:
+	WORD $0xf100093f // cmp	x9, #2
+	BGE  BB0_25
+	WORD $0xd280000d // mov	x13, #0                         ; =0x0
+	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
+	WORD $0x7e70d800 // faddp.2d	d0, v0
+	WORD $0xeb0901bf // cmp	x13, x9
+	BLT  BB0_28
+	B    BB0_22
+
+BB0_25:
+	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
+	WORD $0xaa0b03ed // mov	x13, x11
+	WORD $0xaa0003ee // mov	x14, x0
+	WORD $0x5280004f // mov	w15, #2                         ; =0x2
+
+BB0_26:
+	WORD $0x3cc105c1 // ldr	q1, [x14], #16
+	WORD $0x3cc105a2 // ldr	q2, [x13], #16
+	WORD $0x4e61cc40 // fmla.2d	v0, v2, v1
+	WORD $0x910009ef // add	x15, x15, #2
+	WORD $0xeb0901ff // cmp	x15, x9
+	BLE  BB0_26
+	WORD $0xaa0a03ed // mov	x13, x10
+	WORD $0x7e70d800 // faddp.2d	d0, v0
+	WORD $0xeb09015f // cmp	x10, x9
+	BGE  BB0_22
+
+BB0_28:
+	WORD $0xfc6d7801 // ldr	d1, [x0, x13, lsl #3]
+	WORD $0xfc6d7962 // ldr	d2, [x11, x13, lsl #3]
+	WORD $0x1f420020 // fmadd	d0, d1, d2, d0
+	WORD $0x910005ad // add	x13, x13, #1
+	WORD $0xeb0d013f // cmp	x9, x13
+	BNE  BB0_28
+	B    BB0_22
+
+BB0_29:
 	WORD $0xd280000b // mov	x11, #0                         ; =0x0
-	B    BB0_23
+	B    BB0_44
 
-BB0_9:
+BB0_30:
 	WORD $0x927ef26b // and	x11, x19, #0x7ffffffffffffffc
-	B    BB0_23
+	B    BB0_44
 
-BB0_10:
+BB0_31:
 	WORD $0xd2800005 // mov	x5, #0                          ; =0x0
-	WORD $0x927ff54c // and	x12, x10, #0x7ffffffffffffffe
-	WORD $0x8b0a0548 // add	x8, x10, x10, lsl #1
-	WORD $0xd37df10d // lsl	x13, x8, #3
-	WORD $0xd37be94e // lsl	x14, x10, #5
-	WORD $0xd37df14f // lsl	x15, x10, #3
-	WORD $0x92410550 // and	x16, x10, #0x8000000000000001
-	WORD $0x927cede8 // and	x8, x15, #0xfffffffffffffff0
-	WORD $0x8b0a110b // add	x11, x8, x10, lsl #4
-	WORD $0x8b080011 // add	x17, x0, x8
+	WORD $0x927ff52c // and	x12, x9, #0x7ffffffffffffffe
+	WORD $0x8b09052a // add	x10, x9, x9, lsl #1
+	WORD $0xd37df14d // lsl	x13, x10, #3
+	WORD $0xd37be92e // lsl	x14, x9, #5
+	WORD $0xd37df12f // lsl	x15, x9, #3
+	WORD $0x92410530 // and	x16, x9, #0x8000000000000001
+	WORD $0x927cedea // and	x10, x15, #0xfffffffffffffff0
+	WORD $0x8b09114b // add	x11, x10, x9, lsl #4
+	WORD $0x8b0a0011 // add	x17, x0, x10
 	WORD $0x8b0d0223 // add	x3, x17, x13
 	WORD $0x8b0b0004 // add	x4, x0, x11
 	WORD $0x8b0f000b // add	x11, x0, x15
-	WORD $0x8b080166 // add	x6, x11, x8
-	WORD $0x8b080028 // add	x8, x1, x8
-	WORD $0xa9000be8 // stp	x8, x2, [sp]                    ; 16-byte Folded Spill
+	WORD $0x8b0a0166 // add	x6, x11, x10
+	WORD $0x8b0a002a // add	x10, x1, x10
+	WORD $0xa9004fea // stp	x10, x19, [sp]                  ; 16-byte Folded Spill
 	WORD $0xaa0003e7 // mov	x7, x0
-	WORD $0xf9000ff3 // str	x19, [sp, #24]                  ; 8-byte Folded Spill
-	B    BB0_12
+	WORD $0xf9000fe1 // str	x1, [sp, #24]                   ; 8-byte Folded Spill
+	B    BB0_33
 
-BB0_11:
+BB0_32:
 	WORD $0x910010ab // add	x11, x5, #4
-	WORD $0x91001ca8 // add	x8, x5, #7
+	WORD $0x91001caa // add	x10, x5, #7
 	WORD $0x8b0e00e7 // add	x7, x7, x14
 	WORD $0x8b0e0063 // add	x3, x3, x14
 	WORD $0x8b0e0084 // add	x4, x4, x14
 	WORD $0x8b0e00c6 // add	x6, x6, x14
 	WORD $0x8b0e0231 // add	x17, x17, x14
 	WORD $0xaa0b03e5 // mov	x5, x11
-	WORD $0xf9400ff3 // ldr	x19, [sp, #24]                  ; 8-byte Folded Reload
-	WORD $0xeb13011f // cmp	x8, x19
-	WORD $0xaa0203e1 // mov	x1, x2
-	WORD $0xf94007e2 // ldr	x2, [sp, #8]                    ; 8-byte Folded Reload
-	BGE  BB0_23
+	WORD $0xf94007f3 // ldr	x19, [sp, #8]                   ; 8-byte Folded Reload
+	WORD $0xeb13015f // cmp	x10, x19
+	WORD $0xf9400fe1 // ldr	x1, [sp, #24]                   ; 8-byte Folded Reload
+	BGE  BB0_44
 
-BB0_12:
+BB0_33:
 	WORD $0xd280000b // mov	x11, #0                         ; =0x0
-	WORD $0xb24004a8 // orr	x8, x5, #0x3
+	WORD $0xb24004aa // orr	x10, x5, #0x3
 	WORD $0xb24000b3 // orr	x19, x5, #0x1
 	WORD $0xb27f00b4 // orr	x20, x5, #0x2
-	WORD $0x9b097cb5 // mul	x21, x5, x9
-	WORD $0x9b097e73 // mul	x19, x19, x9
-	WORD $0x9b097e96 // mul	x22, x20, x9
+	WORD $0x9b087cb5 // mul	x21, x5, x8
+	WORD $0x9b087e73 // mul	x19, x19, x8
+	WORD $0x9b087e96 // mul	x22, x20, x8
 	WORD $0x8b150c54 // add	x20, x2, x21, lsl #3
 	WORD $0x8b130c55 // add	x21, x2, x19, lsl #3
-	WORD $0x9b097d08 // mul	x8, x8, x9
+	WORD $0x9b087d4a // mul	x10, x10, x8
 	WORD $0x8b160c56 // add	x22, x2, x22, lsl #3
-	WORD $0x8b080c57 // add	x23, x2, x8, lsl #3
+	WORD $0x8b0a0c57 // add	x23, x2, x10, lsl #3
 	WORD $0xf94003f8 // ldr	x24, [sp]                       ; 8-byte Folded Reload
-	WORD $0xaa0103e2 // mov	x2, x1
 	WORD $0xaa0103f9 // mov	x25, x1
-	B    BB0_14
+	B    BB0_35
 
-BB0_13:
-	WORD $0xfc2b7a80 // str	d0, [x20, x11, lsl #3]
-	WORD $0xfc2b7aa1 // str	d1, [x21, x11, lsl #3]
-	WORD $0xfc2b7ac2 // str	d2, [x22, x11, lsl #3]
-	WORD $0xfc2b7ae3 // str	d3, [x23, x11, lsl #3]
+BB0_34:
+	WORD $0xfc2b7a83 // str	d3, [x20, x11, lsl #3]
+	WORD $0xfc2b7aa2 // str	d2, [x21, x11, lsl #3]
+	WORD $0xfc2b7ac1 // str	d1, [x22, x11, lsl #3]
+	WORD $0xfc2b7ae0 // str	d0, [x23, x11, lsl #3]
 	WORD $0x9100056b // add	x11, x11, #1
 	WORD $0x8b0f0339 // add	x25, x25, x15
 	WORD $0x8b0f0318 // add	x24, x24, x15
-	WORD $0xeb09017f // cmp	x11, x9
-	BEQ  BB0_11
+	WORD $0xeb08017f // cmp	x11, x8
+	BEQ  BB0_32
 
-BB0_14:
+BB0_35:
 	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
 	WORD $0xaa1903fe // mov	x30, x25
 	WORD $0xaa0703f3 // mov	x19, x7
-	WORD $0x52800048 // mov	w8, #2                          ; =0x2
+	WORD $0x5280004a // mov	w10, #2                         ; =0x2
 	WORD $0x6f00e401 // movi.2d	v1, #0000000000000000
-	WORD $0x6f00e402 // movi.2d	v2, #0000000000000000
-	WORD $0x6f00e403 // movi.2d	v3, #0000000000000000
+	WORD $0x6f00e404 // movi.2d	v4, #0000000000000000
+	WORD $0x6f00e405 // movi.2d	v5, #0000000000000000
 
-BB0_15:
-	WORD $0x3cc107c4 // ldr	q4, [x30], #16
-	WORD $0x3cef6a65 // ldr	q5, [x19, x15]
-	WORD $0x3dc00266 // ldr	q6, [x19]
-	WORD $0x3cea7a67 // ldr	q7, [x19, x10, lsl #4]
-	WORD $0x3ced6a70 // ldr	q16, [x19, x13]
-	WORD $0x4e66cc80 // fmla.2d	v0, v4, v6
-	WORD $0x4e65cc81 // fmla.2d	v1, v4, v5
-	WORD $0x4e67cc82 // fmla.2d	v2, v4, v7
-	WORD $0x4e70cc83 // fmla.2d	v3, v4, v16
-	WORD $0x91000908 // add	x8, x8, #2
+BB0_36:
+	WORD $0x3cc107c2 // ldr	q2, [x30], #16
+	WORD $0x3dc00263 // ldr	q3, [x19]
+	WORD $0x4e63cc40 // fmla.2d	v0, v2, v3
+	WORD $0x3cef6a63 // ldr	q3, [x19, x15]
+	WORD $0x4e63cc41 // fmla.2d	v1, v2, v3
+	WORD $0x3ce97a63 // ldr	q3, [x19, x9, lsl #4]
+	WORD $0x4e63cc44 // fmla.2d	v4, v2, v3
+	WORD $0x3ced6a63 // ldr	q3, [x19, x13]
+	WORD $0x4e63cc45 // fmla.2d	v5, v2, v3
+	WORD $0x9100094a // add	x10, x10, #2
 	WORD $0x91004273 // add	x19, x19, #16
-	WORD $0xeb0a011f // cmp	x8, x10
-	BLE  BB0_15
-	WORD $0x7e70d800 // faddp.2d	d0, v0
-	WORD $0x7e70d821 // faddp.2d	d1, v1
-	WORD $0x7e70d842 // faddp.2d	d2, v2
-	WORD $0x7e70d863 // faddp.2d	d3, v3
-	WORD $0xeb0c015f // cmp	x10, x12
-	BLE  BB0_13
-	WORD $0xd2800008 // mov	x8, #0                          ; =0x0
+	WORD $0xeb09015f // cmp	x10, x9
+	BLE  BB0_36
+	WORD $0x7e70d803 // faddp.2d	d3, v0
+	WORD $0x7e70d822 // faddp.2d	d2, v1
+	WORD $0x7e70d881 // faddp.2d	d1, v4
+	WORD $0x7e70d8a0 // faddp.2d	d0, v5
+	WORD $0xeb0c013f // cmp	x9, x12
+	BLE  BB0_34
+	WORD $0xd280000a // mov	x10, #0                         ; =0x0
 
-BB0_18:
-	WORD $0xfc687a24 // ldr	d4, [x17, x8, lsl #3]
-	WORD $0xfc687b05 // ldr	d5, [x24, x8, lsl #3]
-	WORD $0x1f450080 // fmadd	d0, d4, d5, d0
-	WORD $0xfc6878c4 // ldr	d4, [x6, x8, lsl #3]
-	WORD $0x1f450481 // fmadd	d1, d4, d5, d1
-	WORD $0xfc687884 // ldr	d4, [x4, x8, lsl #3]
-	WORD $0x1f450882 // fmadd	d2, d4, d5, d2
-	WORD $0xfc687864 // ldr	d4, [x3, x8, lsl #3]
+BB0_39:
+	WORD $0xfc6a7a24 // ldr	d4, [x17, x10, lsl #3]
+	WORD $0xfc6a7b05 // ldr	d5, [x24, x10, lsl #3]
 	WORD $0x1f450c83 // fmadd	d3, d4, d5, d3
-	WORD $0x91000508 // add	x8, x8, #1
-	WORD $0xeb08021f // cmp	x16, x8
-	BNE  BB0_18
-	B    BB0_13
+	WORD $0xfc6a78c4 // ldr	d4, [x6, x10, lsl #3]
+	WORD $0x1f450882 // fmadd	d2, d4, d5, d2
+	WORD $0xfc6a7884 // ldr	d4, [x4, x10, lsl #3]
+	WORD $0x1f450481 // fmadd	d1, d4, d5, d1
+	WORD $0xfc6a7864 // ldr	d4, [x3, x10, lsl #3]
+	WORD $0x1f450080 // fmadd	d0, d4, d5, d0
+	WORD $0x9100054a // add	x10, x10, #1
+	WORD $0xeb0a021f // cmp	x16, x10
+	BNE  BB0_39
+	B    BB0_34
 
-BB0_19:
+BB0_40:
 	WORD $0xd280000e // mov	x14, #0                         ; =0x0
-	WORD $0x8b090528 // add	x8, x9, x9, lsl #1
-	WORD $0xd37df10c // lsl	x12, x8, #3
-	WORD $0xd37be928 // lsl	x8, x9, #5
-	WORD $0xd37ced2d // lsl	x13, x9, #4
+	WORD $0x8b08050a // add	x10, x8, x8, lsl #1
+	WORD $0xd37df14c // lsl	x12, x10, #3
+	WORD $0xd37be90d // lsl	x13, x8, #5
+	WORD $0xd37ced0a // lsl	x10, x8, #4
 	WORD $0xaa0203ef // mov	x15, x2
 
-BB0_20:
+BB0_41:
 	WORD $0xaa0f03eb // mov	x11, x15
-	WORD $0xaa0903f0 // mov	x16, x9
+	WORD $0xaa0803f0 // mov	x16, x8
 
-BB0_21:
+BB0_42:
 	WORD $0xfd000160 // str	d0, [x11]
-	WORD $0xfc297960 // str	d0, [x11, x9, lsl #3]
-	WORD $0xfc2d6960 // str	d0, [x11, x13]
+	WORD $0xfc287960 // str	d0, [x11, x8, lsl #3]
+	WORD $0xfc2a6960 // str	d0, [x11, x10]
 	WORD $0xfc2c6960 // str	d0, [x11, x12]
 	WORD $0x9100216b // add	x11, x11, #8
 	WORD $0xf1000610 // subs	x16, x16, #1
-	BNE  BB0_21
+	BNE  BB0_42
 	WORD $0x910011cb // add	x11, x14, #4
 	WORD $0x91001dd0 // add	x16, x14, #7
-	WORD $0x8b0801ef // add	x15, x15, x8
+	WORD $0x8b0d01ef // add	x15, x15, x13
 	WORD $0xaa0b03ee // mov	x14, x11
 	WORD $0xeb13021f // cmp	x16, x19
-	BLT  BB0_20
+	BLT  BB0_41
 
-BB0_23:
+BB0_44:
 	WORD $0xeb13017f // cmp	x11, x19
-	WORD $0xfa41b928 // ccmp	x9, #1, #8, lt
-	BGE  BB0_25
+	WORD $0xfa41b908 // ccmp	x8, #1, #8, lt
+	BGE  BB0_46
 
-BB0_24:
+BB0_45:
 	WORD $0xa9457bfd // ldp	x29, x30, [sp, #80]             ; 16-byte Folded Reload
 	WORD $0xa9444ff4 // ldp	x20, x19, [sp, #64]             ; 16-byte Folded Reload
 	WORD $0xa94357f6 // ldp	x22, x21, [sp, #48]             ; 16-byte Folded Reload
@@ -240,105 +400,106 @@ BB0_24:
 	WORD $0xf9400bf9 // ldr	x25, [sp, #16]                  ; 8-byte Folded Reload
 	RET
 
-BB0_25:
-	WORD $0xf100055f // cmp	x10, #1
-	BGT  BB0_31
+BB0_46:
+	WORD $0xf100053f // cmp	x9, #1
+	BGT  BB0_52
 	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
 	WORD $0x7e70d800 // faddp.2d	d0, v0
-	WORD $0x9b097d68 // mul	x8, x11, x9
-	BLT  BB0_39
-	WORD $0x8b080c4c // add	x12, x2, x8, lsl #3
-	WORD $0xd37df128 // lsl	x8, x9, #3
-	WORD $0xd37df14d // lsl	x13, x10, #3
+	BLT  BB0_60
+	WORD $0x9b087d6a // mul	x10, x11, x8
+	WORD $0x8b0a0c4c // add	x12, x2, x10, lsl #3
+	WORD $0xd37df10d // lsl	x13, x8, #3
+	WORD $0xd37df12a // lsl	x10, x9, #3
 
-BB0_28:
-	WORD $0x9b0a7d6e // mul	x14, x11, x10
+BB0_49:
+	WORD $0x9b097d6e // mul	x14, x11, x9
 	WORD $0xaa0103ef // mov	x15, x1
 	WORD $0xaa0c03f0 // mov	x16, x12
-	WORD $0xaa0903f1 // mov	x17, x9
+	WORD $0xaa0803f1 // mov	x17, x8
 
-BB0_29:
+BB0_50:
 	WORD $0xfc6e7801 // ldr	d1, [x0, x14, lsl #3]
 	WORD $0xfd4001e2 // ldr	d2, [x15]
 	WORD $0x1f420021 // fmadd	d1, d1, d2, d0
 	WORD $0xfc008601 // str	d1, [x16], #8
-	WORD $0x8b0d01ef // add	x15, x15, x13
+	WORD $0x8b0a01ef // add	x15, x15, x10
 	WORD $0xf1000631 // subs	x17, x17, #1
-	BNE  BB0_29
+	BNE  BB0_50
 	WORD $0x9100056b // add	x11, x11, #1
-	WORD $0x8b08018c // add	x12, x12, x8
+	WORD $0x8b0d018c // add	x12, x12, x13
 	WORD $0xeb13017f // cmp	x11, x19
-	BNE  BB0_28
-	B    BB0_24
+	BNE  BB0_49
+	B    BB0_45
 
-BB0_31:
-	WORD $0x927ff54c // and	x12, x10, #0x7ffffffffffffffe
-	WORD $0xd37df14d // lsl	x13, x10, #3
-	WORD $0x9b0a7d68 // mul	x8, x11, x10
-	WORD $0x8b080c0e // add	x14, x0, x8, lsl #3
-	B    BB0_33
+BB0_52:
+	WORD $0x927ff52c // and	x12, x9, #0x7ffffffffffffffe
+	WORD $0xd37df12d // lsl	x13, x9, #3
+	WORD $0x9b097d6a // mul	x10, x11, x9
+	WORD $0x8b0a0c0e // add	x14, x0, x10, lsl #3
+	B    BB0_54
 
-BB0_32:
+BB0_53:
 	WORD $0x9100056b // add	x11, x11, #1
 	WORD $0x8b0d01ce // add	x14, x14, x13
 	WORD $0xeb13017f // cmp	x11, x19
-	BEQ  BB0_24
+	BEQ  BB0_45
 
-BB0_33:
+BB0_54:
 	WORD $0xd280000f // mov	x15, #0                         ; =0x0
-	WORD $0x9b097d68 // mul	x8, x11, x9
-	WORD $0x8b080c50 // add	x16, x2, x8, lsl #3
+	WORD $0x9b087d6a // mul	x10, x11, x8
+	WORD $0x8b0a0c50 // add	x16, x2, x10, lsl #3
 	WORD $0xaa0103f1 // mov	x17, x1
-	B    BB0_35
+	B    BB0_56
 
-BB0_34:
+BB0_55:
 	WORD $0xfc2f7a00 // str	d0, [x16, x15, lsl #3]
 	WORD $0x910005ef // add	x15, x15, #1
 	WORD $0x8b0d0231 // add	x17, x17, x13
-	WORD $0xeb0901ff // cmp	x15, x9
-	BEQ  BB0_32
+	WORD $0xeb0801ff // cmp	x15, x8
+	BEQ  BB0_53
 
-BB0_35:
+BB0_56:
 	WORD $0x6f00e400 // movi.2d	v0, #0000000000000000
-	WORD $0xaa0e03e8 // mov	x8, x14
+	WORD $0xaa0e03ea // mov	x10, x14
 	WORD $0xaa1103e0 // mov	x0, x17
 	WORD $0x52800043 // mov	w3, #2                          ; =0x2
 
-BB0_36:
-	WORD $0x3cc10501 // ldr	q1, [x8], #16
+BB0_57:
+	WORD $0x3cc10541 // ldr	q1, [x10], #16
 	WORD $0x3cc10402 // ldr	q2, [x0], #16
 	WORD $0x4e61cc40 // fmla.2d	v0, v2, v1
 	WORD $0x91000863 // add	x3, x3, #2
-	WORD $0xeb0a007f // cmp	x3, x10
-	BLE  BB0_36
+	WORD $0xeb09007f // cmp	x3, x9
+	BLE  BB0_57
 	WORD $0x7e70d800 // faddp.2d	d0, v0
-	WORD $0xaa0c03e8 // mov	x8, x12
-	WORD $0xeb0a019f // cmp	x12, x10
-	BGE  BB0_34
+	WORD $0xaa0c03ea // mov	x10, x12
+	WORD $0xeb09019f // cmp	x12, x9
+	BGE  BB0_55
 
-BB0_38:
-	WORD $0xfc6879c1 // ldr	d1, [x14, x8, lsl #3]
-	WORD $0xfc687a22 // ldr	d2, [x17, x8, lsl #3]
+BB0_59:
+	WORD $0xfc6a79c1 // ldr	d1, [x14, x10, lsl #3]
+	WORD $0xfc6a7a22 // ldr	d2, [x17, x10, lsl #3]
 	WORD $0x1f420020 // fmadd	d0, d1, d2, d0
-	WORD $0x91000508 // add	x8, x8, #1
-	WORD $0xeb08015f // cmp	x10, x8
-	BNE  BB0_38
-	B    BB0_34
+	WORD $0x9100054a // add	x10, x10, #1
+	WORD $0xeb0a013f // cmp	x9, x10
+	BNE  BB0_59
+	B    BB0_55
 
-BB0_39:
-	WORD $0x8b080c48 // add	x8, x2, x8, lsl #3
-	WORD $0xd37df12a // lsl	x10, x9, #3
+BB0_60:
+	WORD $0x9b087d69 // mul	x9, x11, x8
+	WORD $0x8b090c49 // add	x9, x2, x9, lsl #3
+	WORD $0xd37df10a // lsl	x10, x8, #3
 
-BB0_40:
-	WORD $0xaa0803ec // mov	x12, x8
-	WORD $0xaa0903ed // mov	x13, x9
+BB0_61:
+	WORD $0xaa0903ec // mov	x12, x9
+	WORD $0xaa0803ed // mov	x13, x8
 
-BB0_41:
+BB0_62:
 	WORD $0xfc008580 // str	d0, [x12], #8
 	WORD $0xf10005ad // subs	x13, x13, #1
-	BNE  BB0_41
+	BNE  BB0_62
 	WORD $0x9100056b // add	x11, x11, #1
-	WORD $0x8b0a0108 // add	x8, x8, x10
+	WORD $0x8b0a0129 // add	x9, x9, x10
 	WORD $0xeb13017f // cmp	x11, x19
-	BNE  BB0_40
-	B    BB0_24
+	BNE  BB0_61
+	B    BB0_45

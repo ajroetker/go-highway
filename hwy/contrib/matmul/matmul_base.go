@@ -66,6 +66,12 @@ func matmulScalar64(a, b, c []float64, m, n, k int) {
 // of 4 vector widths, with accumulators held in registers across the full
 // K loop. This eliminates K-1 redundant loads and stores of C per element.
 //
+// Accumulation uses single-pass FMA matching the BLAS approach: accumulators
+// are kept in registers for the full K dimension. Precision is O(K*eps)
+// with FMA single-rounding. For large K, callers should use the packed
+// (Goto-style) matmul whose KC blocking provides superblock precision
+// O(KC + K/KC * eps) as a free byproduct of cache tiling.
+//
 // This function is designed for code generation by hwygen.
 // It will be specialized for AVX2, AVX-512, NEON, and fallback targets.
 func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
