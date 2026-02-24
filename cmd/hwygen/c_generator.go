@@ -75,30 +75,50 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 		return nil, fmt.Errorf("no valid C generation targets specified")
 	}
 
-	// Collect all eligible functions
-	var vecFuncs []ParsedFunc // Vec→Vec functions
-	var astFuncs []ParsedFunc // Functions for AST translation (matmul, activation, etc.)
+	// Build dispatch groups to handle //hwy:specializes and //hwy:targets.
+	// Groups are built from ALL parsed functions; C-eligibility is checked
+	// per (target, combo) when selecting the source function.
+	groups, err := buildDispatchGroups(result.Funcs)
+	if err != nil {
+		return nil, fmt.Errorf("build dispatch groups: %w", err)
+	}
 
-	for _, pf := range result.Funcs {
-		if IsASTCEligible(&pf) {
-			astFuncs = append(astFuncs, pf)
-		} else if IsCEligible(&pf) {
-			vecFuncs = append(vecFuncs, pf)
+	// Filter to groups that have at least one C-eligible member.
+	var cGroups []DispatchGroup
+	for _, group := range groups {
+		hasCEligible := false
+		allMembers := append([]*ParsedFunc{group.Primary}, group.Specializations...)
+		for _, pf := range allMembers {
+			if IsASTCEligible(pf) || IsCEligible(pf) {
+				hasCEligible = true
+				break
+			}
+		}
+		if hasCEligible {
+			cGroups = append(cGroups, group)
 		}
 	}
 
-	totalFuncs := len(vecFuncs) + len(astFuncs)
-	if totalFuncs == 0 {
+	if len(cGroups) == 0 {
 		fmt.Println("No C-eligible functions found; all functions will use GoSimd path")
 		return nil, nil
 	}
 
-	fmt.Printf("Found %d C-eligible functions:\n", totalFuncs)
-	for _, pf := range vecFuncs {
-		fmt.Printf("  - %s (Vec→Vec)\n", pf.Name)
-	}
-	for _, pf := range astFuncs {
-		fmt.Printf("  - %s (AST→C)\n", pf.Name)
+	fmt.Printf("Found %d C-eligible dispatch groups:\n", len(cGroups))
+	for _, group := range cGroups {
+		synth := synthPrimaryForDispatch(&group)
+		if IsASTCEligible(&synth) {
+			fmt.Printf("  - %s (AST→C)\n", group.Primary.Name)
+		} else {
+			fmt.Printf("  - %s (Vec→Vec)\n", group.Primary.Name)
+		}
+		for _, spec := range group.Specializations {
+			fmt.Printf("    specialization: %s", spec.Name)
+			if len(spec.AllowedTargets) > 0 {
+				fmt.Printf(" [targets: %s]", strings.Join(spec.AllowedTargets, ","))
+			}
+			fmt.Println()
+		}
 	}
 
 	// Collect adapter info across all targets
@@ -120,55 +140,66 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 		// Track generated C files for GOAT compilation
 		var cFiles []string
 
-		// Generate C code for Vec→Vec functions
-		for _, pf := range vecFuncs {
-			combos := getTypeCombinations(&pf)
-			for _, combo := range combos {
-				elemType := comboPrimaryType(combo, pf.TypeParams)
-				profile := GetCProfile(target.Name, elemType)
-				if profile == nil {
-					continue // No profile for this target/type combo
+		// Generate C code using dispatch groups. For each group, iterate
+		// combos and select the source function per (target, combo). This
+		// ensures specializations are used when they match.
+		for gi := range cGroups {
+			group := &cGroups[gi]
+			for _, combo := range group.AllCombos {
+				sourcePF, serr := selectSourceFunc(group, target, combo)
+				if serr != nil {
+					return nil, fmt.Errorf("select source for %s: %w", group.GroupName, serr)
 				}
-				emitter := NewCEmitter(g.PackageOut, elemType, target)
-				emitter.profile = profile
-				if isMultiTypeCombination(combo) {
-					emitter.typeMap = combo.Types
+				if sourcePF == nil {
+					continue // no coverage on this target for this combo
 				}
-				cFile, err := emitter.EmitC(&pf, cOutputDir)
-				if err != nil {
-					return nil, fmt.Errorf("emit C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
-				}
-				cFiles = append(cFiles, cFile)
-			}
-		}
 
-		// Generate C code for AST-translated functions (matmul, activation, etc.)
-		for _, pf := range astFuncs {
-			combos := getTypeCombinations(&pf)
-			for _, combo := range combos {
-				elemType := comboPrimaryType(combo, pf.TypeParams)
+				// Check C-eligibility of the selected source
+				if !IsASTCEligible(sourcePF) && !IsCEligible(sourcePF) {
+					continue
+				}
+
+				elemType := comboPrimaryType(combo, group.AllTypeParams)
 				profile := GetCProfile(target.Name, elemType)
 				if profile == nil {
 					continue
 				}
-				// AST translator emits native arithmetic — skip types that
-				// require promoted math unless they have native SIMD arithmetic.
-				if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
-					continue
+
+				// Create a working copy with the primary's name for output naming
+				pf := *sourcePF
+				pf.Name = group.Primary.Name
+
+				if IsASTCEligible(&pf) {
+					// AST translator emits native arithmetic — skip types that
+					// require promoted math unless they have native SIMD arithmetic.
+					if profile.MathStrategy == "promoted" && !profile.NativeArithmetic {
+						continue
+					}
+					emitter := NewCEmitter(g.PackageOut, elemType, target)
+					emitter.profile = profile
+					emitter.packageGlobals = result.PackageGlobals
+					emitter.packageConsts = result.PackageConsts
+					emitter.allFuncs = result.AllFuncs
+					if isMultiTypeCombination(combo) {
+						emitter.typeMap = combo.Types
+					}
+					cFile, cerr := emitter.EmitASTTranslatedC(&pf, cOutputDir)
+					if cerr != nil {
+						return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, cerr)
+					}
+					cFiles = append(cFiles, cFile)
+				} else if IsCEligible(&pf) {
+					emitter := NewCEmitter(g.PackageOut, elemType, target)
+					emitter.profile = profile
+					if isMultiTypeCombination(combo) {
+						emitter.typeMap = combo.Types
+					}
+					cFile, cerr := emitter.EmitC(&pf, cOutputDir)
+					if cerr != nil {
+						return nil, fmt.Errorf("emit C for %s (%s, %s): %w", pf.Name, elemType, target.Name, cerr)
+					}
+					cFiles = append(cFiles, cFile)
 				}
-				emitter := NewCEmitter(g.PackageOut, elemType, target)
-				emitter.profile = profile
-				emitter.packageGlobals = result.PackageGlobals
-				emitter.packageConsts = result.PackageConsts
-				emitter.allFuncs = result.AllFuncs
-				if isMultiTypeCombination(combo) {
-					emitter.typeMap = combo.Types
-				}
-				cFile, err := emitter.EmitASTTranslatedC(&pf, cOutputDir)
-				if err != nil {
-					return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, err)
-				}
-				cFiles = append(cFiles, cFile)
 			}
 		}
 
@@ -215,13 +246,20 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				os.Remove(strings.TrimSuffix(cFile, ".c") + ".o")
 			}
 
-			// Separate struct-ptr and non-struct functions
-			allFuncs := make([]ParsedFunc, 0, len(vecFuncs)+len(astFuncs))
-			allFuncs = append(allFuncs, vecFuncs...)
-			allFuncs = append(allFuncs, astFuncs...)
+			// Build synthetic primary funcs for wrapper/adapter emission.
+			// These have the primary's name and the union of all combos,
+			// matching what the Go SIMD path does for EmitDispatcher.
+			synthFuncs := make([]ParsedFunc, 0, len(cGroups))
+			for _, group := range cGroups {
+				synth := synthPrimaryForDispatch(&group)
+				if IsASTCEligible(&synth) || IsCEligible(&synth) {
+					synthFuncs = append(synthFuncs, synth)
+				}
+			}
 
+			// Separate struct-ptr and non-struct functions
 			var structFuncs, nonStructFuncs []ParsedFunc
-			for _, f := range allFuncs {
+			for _, f := range synthFuncs {
 				if hasStructPtrParams(&f) {
 					structFuncs = append(structFuncs, f)
 				} else {

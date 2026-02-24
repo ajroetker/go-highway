@@ -38,6 +38,18 @@ type ParsedFunc struct {
 	LoopInfo         *LoopInfo         // Main processing loop info
 	Doc              *ast.CommentGroup // Function documentation
 	Private          bool              // true if base function uses lowercase "base" prefix (generates unexported dispatch)
+
+	// SpecializesGroup is the dispatch group name this function specializes.
+	// Set from //hwy:specializes directive. Empty string means this is a
+	// primary (default) function, not a specialization.
+	SpecializesGroup string
+
+	// AllowedTargets restricts which targets this function can be used for.
+	// Set from //hwy:targets directive. Empty slice means all targets.
+	AllowedTargets []string
+
+	// SourceFile records which file this function came from.
+	SourceFile string
 }
 
 // TypeCombination represents one valid combination of concrete types for a
@@ -51,6 +63,18 @@ type TypeCombination struct {
 type TypeParam struct {
 	Name       string // T
 	Constraint string // hwy.Floats
+}
+
+// SpecializesDirective represents a parsed //hwy:specializes directive.
+type SpecializesDirective struct {
+	Line      int    // Line number of the directive
+	GroupName string // Dispatch group name (e.g., "MatMul")
+}
+
+// TargetsDirective represents a parsed //hwy:targets directive.
+type TargetsDirective struct {
+	Line    int      // Line number of the directive
+	Targets []string // Allowed target names, lowercased (e.g., ["neon", "avx512"])
 }
 
 // hasHwyLanesConstraint checks if any type parameter has an hwy.Lanes-related constraint.
@@ -246,6 +270,12 @@ func Parse(filename string) (*ParseResult, error) {
 	// Parse //hwy:gen directives from comments
 	genDirectives := parseGenDirectives(file, fset)
 
+	// Parse //hwy:specializes directives from comments
+	specializesDirectives := parseSpecializesDirectives(file, fset)
+
+	// Parse //hwy:targets directives from comments
+	targetsDirectives := parseTargetsDirectives(file, fset)
+
 	for _, decl := range file.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
 		if !ok {
@@ -311,6 +341,23 @@ func Parse(filename string) (*ParseResult, error) {
 			}
 		}
 
+		// Check for //hwy:specializes and //hwy:targets directives.
+		// These use the same 5-line proximity rule as //hwy:gen.
+		{
+			funcLine := fset.Position(funcDecl.Pos()).Line
+			for _, sd := range specializesDirectives {
+				if sd.Line >= funcLine-5 && sd.Line < funcLine {
+					pf.SpecializesGroup = sd.GroupName
+				}
+			}
+			for _, td := range targetsDirectives {
+				if td.Line >= funcLine-5 && td.Line < funcLine {
+					pf.AllowedTargets = td.Targets
+				}
+			}
+		}
+		pf.SourceFile = filename
+
 		// Extract parameters
 		if funcDecl.Type.Params != nil {
 			for _, field := range funcDecl.Type.Params.List {
@@ -365,6 +412,11 @@ func Parse(filename string) (*ParseResult, error) {
 	// This enables cross-file helper resolution within the same package, e.g.,
 	// BaseNormalize (normalize_base.go) calling BaseDot (dot_base.go).
 	scanPackageFuncs(filename, result)
+
+	// Scan sibling *_base.go files for //hwy:specializes directives.
+	// Functions that specialize a dispatch group are fully parsed and added
+	// to result.Funcs so the generator can select them for specific (target, combo) pairs.
+	scanSpecializations(filename, result)
 
 	// Scan sibling .go files for package-level struct types (needed before globals)
 	result.PackageStructs = scanPackageStructs(filename)
@@ -581,6 +633,71 @@ func parseGenDirectives(file *ast.File, fset *token.FileSet) []TypesDirective {
 				Line:         line,
 				Combinations: combos,
 			})
+		}
+	}
+
+	return directives
+}
+
+// parseSpecializesDirectives scans all comments in the file for //hwy:specializes directives.
+// Syntax: //hwy:specializes MatMul
+func parseSpecializesDirectives(file *ast.File, fset *token.FileSet) []SpecializesDirective {
+	var directives []SpecializesDirective
+
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+			line := fset.Position(c.Pos()).Line
+
+			after, ok := strings.CutPrefix(text, "hwy:specializes ")
+			if !ok {
+				continue
+			}
+			groupName := strings.TrimSpace(after)
+			if groupName == "" {
+				continue
+			}
+			directives = append(directives, SpecializesDirective{
+				Line:      line,
+				GroupName: groupName,
+			})
+		}
+	}
+
+	return directives
+}
+
+// parseTargetsDirectives scans all comments in the file for //hwy:targets directives.
+// Syntax: //hwy:targets neon,avx512
+func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirective {
+	var directives []TargetsDirective
+
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+			line := fset.Position(c.Pos()).Line
+
+			after, ok := strings.CutPrefix(text, "hwy:targets ")
+			if !ok {
+				continue
+			}
+			after = strings.TrimSpace(after)
+			if after == "" {
+				continue
+			}
+			var targets []string
+			for _, t := range strings.Split(after, ",") {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					targets = append(targets, strings.ToLower(t))
+				}
+			}
+			if len(targets) > 0 {
+				directives = append(directives, TargetsDirective{
+					Line:    line,
+					Targets: targets,
+				})
+			}
 		}
 	}
 
@@ -1351,6 +1468,182 @@ func scanPackageFuncs(filename string, result *ParseResult) {
 			pf.HwyCalls = findHwyCalls(funcDecl.Body)
 
 			result.AllFuncs[funcName] = &pf
+		}
+	}
+}
+
+// scanSpecializations scans sibling *_base.go files for functions that have
+// //hwy:specializes directives. These functions are fully parsed (including
+// //hwy:gen and //hwy:targets directives) and appended to result.Funcs so the
+// generator can select them for specific (target, combo) pairs.
+func scanSpecializations(filename string, result *ParseResult) {
+	dir := filepath.Dir(filename)
+	base := filepath.Base(filename)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, "_base.go") {
+			continue
+		}
+		if name == base {
+			continue
+		}
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+
+		path := filepath.Join(dir, name)
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if err != nil {
+			continue
+		}
+
+		// Scan for specialization and related directives in this file
+		specDirectives := parseSpecializesDirectives(file, fset)
+		if len(specDirectives) == 0 {
+			continue // no specializations in this file
+		}
+		genDirectives := parseGenDirectives(file, fset)
+		targetsDirectives := parseTargetsDirectives(file, fset)
+		unrollDirectives := parseUnrollDirectives(file, fset)
+
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*ast.FuncDecl)
+			if !ok || funcDecl.Recv != nil || funcDecl.Body == nil {
+				continue
+			}
+			funcName := funcDecl.Name.Name
+			isExportedBase := strings.HasPrefix(funcName, "Base")
+			isPrivateBase := !isExportedBase && strings.HasPrefix(funcName, "base")
+			if !isExportedBase && !isPrivateBase {
+				continue
+			}
+
+			funcLine := fset.Position(funcDecl.Pos()).Line
+
+			// Check if this function has a //hwy:specializes directive
+			var specializesGroup string
+			for _, sd := range specDirectives {
+				if sd.Line >= funcLine-5 && sd.Line < funcLine {
+					specializesGroup = sd.GroupName
+				}
+			}
+			if specializesGroup == "" {
+				continue // not a specialization function
+			}
+
+			// Already in Funcs from the primary file? Skip.
+			alreadyInFuncs := false
+			for _, existing := range result.Funcs {
+				if existing.Name == funcName {
+					alreadyInFuncs = true
+					break
+				}
+			}
+			if alreadyInFuncs {
+				continue
+			}
+
+			pf := ParsedFunc{
+				Name:             funcName,
+				Body:             funcDecl.Body,
+				Doc:              funcDecl.Doc,
+				Private:          isPrivateBase,
+				SpecializesGroup: specializesGroup,
+				SourceFile:       path,
+			}
+
+			// Extract type parameters
+			if funcDecl.Type.TypeParams != nil {
+				for _, field := range funcDecl.Type.TypeParams.List {
+					constraint := exprToString(field.Type)
+					for _, tpName := range field.Names {
+						pf.TypeParams = append(pf.TypeParams, TypeParam{
+							Name:       tpName.Name,
+							Constraint: constraint,
+						})
+					}
+				}
+			}
+
+			// Match //hwy:gen directives
+			if len(pf.TypeParams) > 0 {
+				paramNames := make(map[string]bool, len(pf.TypeParams))
+				for _, tp := range pf.TypeParams {
+					paramNames[tp.Name] = true
+				}
+				for _, td := range genDirectives {
+					if td.Line >= funcLine-5 && td.Line < funcLine {
+						valid := true
+						for _, combo := range td.Combinations {
+							for paramName := range combo.Types {
+								if !paramNames[paramName] {
+									valid = false
+									break
+								}
+							}
+							if !valid {
+								break
+							}
+						}
+						if valid {
+							pf.TypeCombinations = append(pf.TypeCombinations, td.Combinations...)
+						}
+					}
+				}
+			}
+
+			// Match //hwy:targets directives
+			for _, td := range targetsDirectives {
+				if td.Line >= funcLine-5 && td.Line < funcLine {
+					pf.AllowedTargets = td.Targets
+				}
+			}
+
+			// Extract parameters
+			if funcDecl.Type.Params != nil {
+				for _, field := range funcDecl.Type.Params.List {
+					typeStr := exprToString(field.Type)
+					if len(field.Names) == 0 {
+						pf.Params = append(pf.Params, Param{Name: "", Type: typeStr})
+					} else {
+						for _, n := range field.Names {
+							pf.Params = append(pf.Params, Param{Name: n.Name, Type: typeStr})
+						}
+					}
+				}
+			}
+
+			// Extract return values
+			if funcDecl.Type.Results != nil {
+				for _, field := range funcDecl.Type.Results.List {
+					typeStr := exprToString(field.Type)
+					if len(field.Names) == 0 {
+						pf.Returns = append(pf.Returns, Param{Name: "", Type: typeStr})
+					} else {
+						for _, n := range field.Names {
+							pf.Returns = append(pf.Returns, Param{Name: n.Name, Type: typeStr})
+						}
+					}
+				}
+			}
+
+			// Find hwy.* calls
+			pf.HwyCalls = findHwyCalls(funcDecl.Body)
+
+			// Detect main vectorized loop
+			pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
+
+			// Add to both AllFuncs and Funcs
+			pfCopy := pf
+			result.AllFuncs[funcName] = &pfCopy
+			result.Funcs = append(result.Funcs, pf)
 		}
 	}
 }
