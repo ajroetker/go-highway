@@ -10,6 +10,98 @@ import (
 )
 
 // Public wrapper functions
+// ELUCF16 computes ELU using NEON SIMD assembly.
+func ELUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	elu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ELUCBF16 computes ELU using NEON SIMD assembly.
+func ELUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	elu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ELUCF32 computes ELU using NEON SIMD assembly.
+func ELUCF32(input, output []float32, alpha float32) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	elu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ELUCF64 computes ELU using NEON SIMD assembly.
+func ELUCF64(input, output []float64, alpha float64) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	elu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 // GELUCF16 computes GELU using NEON SIMD assembly.
 func GELUCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
@@ -174,6 +266,182 @@ func GELUApproxCF64(input, output []float64) {
 	geluapprox_c_f64_neon(
 		p_input,
 		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCF16 computes HardSwish using NEON SIMD assembly.
+func HardSwishCF16(input, output []hwy.Float16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCBF16 computes HardSwish using NEON SIMD assembly.
+func HardSwishCBF16(input, output []hwy.BFloat16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCF32 computes HardSwish using NEON SIMD assembly.
+func HardSwishCF32(input, output []float32) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// HardSwishCF64 computes HardSwish using NEON SIMD assembly.
+func HardSwishCF64(input, output []float64) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	hardswish_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LeakyReLUCF16 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	leakyrelu_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LeakyReLUCBF16 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	leakyrelu_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LeakyReLUCF32 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCF32(input, output []float32, alpha float32) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	leakyrelu_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LeakyReLUCF64 computes LeakyReLU using NEON SIMD assembly.
+func LeakyReLUCF64(input, output []float64, alpha float64) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	leakyrelu_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
@@ -346,8 +614,8 @@ func SiLUCF64(input, output []float64) {
 	)
 }
 
-// LeakyReLUCF16 computes LeakyReLU using NEON SIMD assembly.
-func LeakyReLUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
+// SoftplusCF16 computes Softplus using NEON SIMD assembly.
+func SoftplusCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
 		return
 	}
@@ -359,18 +627,16 @@ func LeakyReLUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := uint16(alpha)
 	lenVal := int64(len(input))
-	leakyrelu_c_f16_neon(
+	softplus_c_f16_neon(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// LeakyReLUCBF16 computes LeakyReLU using NEON SIMD assembly.
-func LeakyReLUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
+// SoftplusCBF16 computes Softplus using NEON SIMD assembly.
+func SoftplusCBF16(input, output []hwy.BFloat16) {
 	if len(input) == 0 {
 		return
 	}
@@ -382,18 +648,16 @@ func LeakyReLUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := uint16(alpha)
 	lenVal := int64(len(input))
-	leakyrelu_c_bf16_neon(
+	softplus_c_bf16_neon(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// LeakyReLUCF32 computes LeakyReLU using NEON SIMD assembly.
-func LeakyReLUCF32(input, output []float32, alpha float32) {
+// SoftplusCF32 computes Softplus using NEON SIMD assembly.
+func SoftplusCF32(input, output []float32) {
 	if len(input) == 0 {
 		return
 	}
@@ -405,18 +669,16 @@ func LeakyReLUCF32(input, output []float32, alpha float32) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := alpha
 	lenVal := int64(len(input))
-	leakyrelu_c_f32_neon(
+	softplus_c_f32_neon(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// LeakyReLUCF64 computes LeakyReLU using NEON SIMD assembly.
-func LeakyReLUCF64(input, output []float64, alpha float64) {
+// SoftplusCF64 computes Softplus using NEON SIMD assembly.
+func SoftplusCF64(input, output []float64) {
 	if len(input) == 0 {
 		return
 	}
@@ -428,12 +690,10 @@ func LeakyReLUCF64(input, output []float64, alpha float64) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := alpha
 	lenVal := int64(len(input))
-	leakyrelu_c_f64_neon(
+	softplus_c_f64_neon(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
@@ -518,182 +778,6 @@ func TanhCF64(input, output []float64) {
 	tanh_c_f64_neon(
 		p_input,
 		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// HardSwishCF16 computes HardSwish using NEON SIMD assembly.
-func HardSwishCF16(input, output []hwy.Float16) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	hardswish_c_f16_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// HardSwishCBF16 computes HardSwish using NEON SIMD assembly.
-func HardSwishCBF16(input, output []hwy.BFloat16) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	hardswish_c_bf16_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// HardSwishCF32 computes HardSwish using NEON SIMD assembly.
-func HardSwishCF32(input, output []float32) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	hardswish_c_f32_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// HardSwishCF64 computes HardSwish using NEON SIMD assembly.
-func HardSwishCF64(input, output []float64) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	hardswish_c_f64_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// ELUCF16 computes ELU using NEON SIMD assembly.
-func ELUCF16(input, output []hwy.Float16, alpha hwy.Float16) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := uint16(alpha)
-	lenVal := int64(len(input))
-	elu_c_f16_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// ELUCBF16 computes ELU using NEON SIMD assembly.
-func ELUCBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := uint16(alpha)
-	lenVal := int64(len(input))
-	elu_c_bf16_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// ELUCF32 computes ELU using NEON SIMD assembly.
-func ELUCF32(input, output []float32, alpha float32) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := alpha
-	lenVal := int64(len(input))
-	elu_c_f32_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// ELUCF64 computes ELU using NEON SIMD assembly.
-func ELUCF64(input, output []float64, alpha float64) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := alpha
-	lenVal := int64(len(input))
-	elu_c_f64_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }

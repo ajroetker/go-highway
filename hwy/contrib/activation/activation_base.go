@@ -294,6 +294,56 @@ func BaseHardSwish[T hwy.Floats](input, output []T) {
 	}
 }
 
+// BaseSoftplus computes the Softplus activation: log(1 + exp(x)).
+//
+// Softplus(x) = log(1 + exp(x))
+//
+// Softplus is a smooth approximation of ReLU used in SPLADE sparse embedding
+// models and other architectures requiring differentiable non-negative outputs.
+// For numerical stability, returns x directly when x exceeds a threshold
+// (where exp(x) would overflow and log(1 + exp(x)) ≈ x).
+func BaseSoftplus[T hwy.Floats](input, output []T) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+
+	vZero := hwy.Const[T](actZero_f32)
+	vOne := hwy.Const[T](actOne_f32)
+	vThreshold := hwy.Const[T](actSoftplusThreshold_f32)
+	lanes := vZero.NumLanes()
+	ii := 0
+
+	// Process full vectors
+	for ; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+
+		// Compute log(1 + exp(x))
+		expX := math.BaseExpVec(x)
+		log1pExpX := math.BaseLogVec(hwy.Add(vOne, expX))
+
+		// For numerical stability: use x directly when x > threshold
+		isLarge := hwy.Greater(x, vThreshold)
+		result := hwy.Merge(x, log1pExpX, isLarge)
+
+		// Clamp to non-negative (softplus output is always >= 0,
+		// but floating-point rounding near zero can produce tiny negatives)
+		result = hwy.Max(result, vZero)
+
+		hwy.Store(result, output[ii:])
+	}
+
+	// Handle tail elements with scalar math
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		if x > 20.0 {
+			output[i] = input[i]
+		} else {
+			output[i] = T(stdmath.Log(1.0 + stdmath.Exp(x)))
+		}
+	}
+}
+
 // BaseELU computes the Exponential Linear Unit activation.
 //
 // ELU(x) = x if x > 0, else alpha * (exp(x) - 1)

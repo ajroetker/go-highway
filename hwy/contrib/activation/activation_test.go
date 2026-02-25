@@ -243,6 +243,93 @@ func TestLeakyReLU(t *testing.T) {
 	}
 }
 
+func TestSoftplus(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []float32
+	}{
+		{
+			name:  "simple positive",
+			input: []float32{0.0, 0.5, 1.0, 2.0},
+		},
+		{
+			name:  "simple negative",
+			input: []float32{-2.0, -1.0, -0.5, 0.0},
+		},
+		{
+			name:  "mixed",
+			input: []float32{-2.0, -1.0, 0.0, 1.0, 2.0},
+		},
+		{
+			name:  "simd width",
+			input: []float32{-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5},
+		},
+		{
+			name:  "large positive (threshold)",
+			input: []float32{19.0, 20.0, 21.0, 50.0, 100.0},
+		},
+		{
+			name:  "large negative",
+			input: []float32{-50.0, -20.0, -10.0, -5.0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := make([]float32, len(tt.input))
+			Softplus(tt.input, output)
+
+			// Verify against scalar reference
+			for i, x := range tt.input {
+				var expected float32
+				if float64(x) > 20.0 {
+					expected = x
+				} else {
+					expected = float32(stdmath.Log(1.0 + stdmath.Exp(float64(x))))
+				}
+				if stdmath.Abs(float64(output[i]-expected)) > 1e-4 {
+					t.Errorf("Softplus(%v) = %v, want %v", x, output[i], expected)
+				}
+			}
+
+			// Property: Softplus(x) >= 0 for all x
+			for i, x := range tt.input {
+				if output[i] < 0 {
+					t.Errorf("Softplus(%v) = %v, want >= 0", x, output[i])
+				}
+			}
+
+			// Property: Softplus(0) = log(2) ≈ 0.6931
+			for i, x := range tt.input {
+				if x == 0 {
+					if stdmath.Abs(float64(output[i])-0.6931471805599453) > 1e-4 {
+						t.Errorf("Softplus(0) = %v, want ≈ 0.6931", output[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestSoftplus64(t *testing.T) {
+	input := []float64{-2.0, -1.0, 0.0, 1.0, 2.0, 25.0}
+	output := make([]float64, len(input))
+
+	Softplus(input, output)
+
+	for i, x := range input {
+		var expected float64
+		if x > 20.0 {
+			expected = x
+		} else {
+			expected = stdmath.Log(1.0 + stdmath.Exp(x))
+		}
+		if stdmath.Abs(output[i]-expected) > 1e-6 {
+			t.Errorf("Softplus(%v) = %v, want %v, diff=%v", x, output[i], expected, stdmath.Abs(output[i]-expected))
+		}
+	}
+}
+
 func TestELU(t *testing.T) {
 	var alpha float32 = 1.0
 	tests := []struct {
@@ -347,6 +434,24 @@ func BenchmarkReLU(b *testing.B) {
 		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				ReLU(input, output)
+			}
+		})
+	}
+}
+
+func BenchmarkSoftplus(b *testing.B) {
+	sizes := []int{8, 64, 256, 1024}
+
+	for _, size := range sizes {
+		input := make([]float32, size)
+		output := make([]float32, size)
+		for i := range input {
+			input[i] = float32(i-size/2) * 0.1
+		}
+
+		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				Softplus(input, output)
 			}
 		})
 	}

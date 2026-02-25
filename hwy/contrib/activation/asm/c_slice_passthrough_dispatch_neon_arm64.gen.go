@@ -5,6 +5,26 @@ package asm
 
 import "unsafe"
 
+// ELU_F16 calls the NEON SIMD assembly implementation.
+func ELU_F16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	elu_c_f16_neon(input, output, palpha, plen)
+}
+
+// ELU_BF16 calls the NEON SIMD assembly implementation.
+func ELU_BF16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	elu_c_bf16_neon(input, output, palpha, plen)
+}
+
+// ELU_F32 calls the NEON SIMD assembly implementation.
+func ELU_F32(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	elu_c_f32_neon(input, output, palpha, plen)
+}
+
+// ELU_F64 calls the NEON SIMD assembly implementation.
+func ELU_F64(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	elu_c_f64_neon(input, output, palpha, plen)
+}
+
 // GELU_F16 calls the NEON SIMD assembly implementation.
 func GELU_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	gelu_c_f16_neon(input, output, plen)
@@ -43,6 +63,46 @@ func GELUApprox_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Poi
 // GELUApprox_F64 calls the NEON SIMD assembly implementation.
 func GELUApprox_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	geluapprox_c_f64_neon(input, output, plen)
+}
+
+// HardSwish_F16 calls the NEON SIMD assembly implementation.
+func HardSwish_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_f16_neon(input, output, plen)
+}
+
+// HardSwish_BF16 calls the NEON SIMD assembly implementation.
+func HardSwish_BF16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_bf16_neon(input, output, plen)
+}
+
+// HardSwish_F32 calls the NEON SIMD assembly implementation.
+func HardSwish_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_f32_neon(input, output, plen)
+}
+
+// HardSwish_F64 calls the NEON SIMD assembly implementation.
+func HardSwish_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	hardswish_c_f64_neon(input, output, plen)
+}
+
+// LeakyReLU_F16 calls the NEON SIMD assembly implementation.
+func LeakyReLU_F16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	leakyrelu_c_f16_neon(input, output, palpha, plen)
+}
+
+// LeakyReLU_BF16 calls the NEON SIMD assembly implementation.
+func LeakyReLU_BF16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	leakyrelu_c_bf16_neon(input, output, palpha, plen)
+}
+
+// LeakyReLU_F32 calls the NEON SIMD assembly implementation.
+func LeakyReLU_F32(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	leakyrelu_c_f32_neon(input, output, palpha, plen)
+}
+
+// LeakyReLU_F64 calls the NEON SIMD assembly implementation.
+func LeakyReLU_F64(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
+	leakyrelu_c_f64_neon(input, output, palpha, plen)
 }
 
 // ReLU_F16 calls the NEON SIMD assembly implementation.
@@ -85,24 +145,24 @@ func SiLU_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) 
 	silu_c_f64_neon(input, output, plen)
 }
 
-// LeakyReLU_F16 calls the NEON SIMD assembly implementation.
-func LeakyReLU_F16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	leakyrelu_c_f16_neon(input, output, palpha, plen)
+// Softplus_F16 calls the NEON SIMD assembly implementation.
+func Softplus_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softplus_c_f16_neon(input, output, plen)
 }
 
-// LeakyReLU_BF16 calls the NEON SIMD assembly implementation.
-func LeakyReLU_BF16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	leakyrelu_c_bf16_neon(input, output, palpha, plen)
+// Softplus_BF16 calls the NEON SIMD assembly implementation.
+func Softplus_BF16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softplus_c_bf16_neon(input, output, plen)
 }
 
-// LeakyReLU_F32 calls the NEON SIMD assembly implementation.
-func LeakyReLU_F32(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	leakyrelu_c_f32_neon(input, output, palpha, plen)
+// Softplus_F32 calls the NEON SIMD assembly implementation.
+func Softplus_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softplus_c_f32_neon(input, output, plen)
 }
 
-// LeakyReLU_F64 calls the NEON SIMD assembly implementation.
-func LeakyReLU_F64(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	leakyrelu_c_f64_neon(input, output, palpha, plen)
+// Softplus_F64 calls the NEON SIMD assembly implementation.
+func Softplus_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softplus_c_f64_neon(input, output, plen)
 }
 
 // Tanh_F16 calls the NEON SIMD assembly implementation.
@@ -123,45 +183,5 @@ func Tanh_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) 
 // Tanh_F64 calls the NEON SIMD assembly implementation.
 func Tanh_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	tanh_c_f64_neon(input, output, plen)
-}
-
-// HardSwish_F16 calls the NEON SIMD assembly implementation.
-func HardSwish_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	hardswish_c_f16_neon(input, output, plen)
-}
-
-// HardSwish_BF16 calls the NEON SIMD assembly implementation.
-func HardSwish_BF16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	hardswish_c_bf16_neon(input, output, plen)
-}
-
-// HardSwish_F32 calls the NEON SIMD assembly implementation.
-func HardSwish_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	hardswish_c_f32_neon(input, output, plen)
-}
-
-// HardSwish_F64 calls the NEON SIMD assembly implementation.
-func HardSwish_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	hardswish_c_f64_neon(input, output, plen)
-}
-
-// ELU_F16 calls the NEON SIMD assembly implementation.
-func ELU_F16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	elu_c_f16_neon(input, output, palpha, plen)
-}
-
-// ELU_BF16 calls the NEON SIMD assembly implementation.
-func ELU_BF16(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	elu_c_bf16_neon(input, output, palpha, plen)
-}
-
-// ELU_F32 calls the NEON SIMD assembly implementation.
-func ELU_F32(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	elu_c_f32_neon(input, output, palpha, plen)
-}
-
-// ELU_F64 calls the NEON SIMD assembly implementation.
-func ELU_F64(input unsafe.Pointer, output unsafe.Pointer, palpha unsafe.Pointer, plen unsafe.Pointer) {
-	elu_c_f64_neon(input, output, palpha, plen)
 }
 

@@ -18,42 +18,122 @@ func initNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	ELUFloat32 = eLUAsmF32
+	ELUFloat64 = eLUAsmF64
 	GELUFloat32 = gELUAsmF32
 	GELUFloat64 = gELUAsmF64
 	GELUApproxFloat32 = gELUApproxAsmF32
 	GELUApproxFloat64 = gELUApproxAsmF64
+	HardSwishFloat32 = hardSwishAsmF32
+	HardSwishFloat64 = hardSwishAsmF64
+	LeakyReLUFloat32 = leakyReLUAsmF32
+	LeakyReLUFloat64 = leakyReLUAsmF64
 	ReLUFloat32 = reLUAsmF32
 	ReLUFloat64 = reLUAsmF64
 	SiLUFloat32 = siLUAsmF32
 	SiLUFloat64 = siLUAsmF64
-	LeakyReLUFloat32 = leakyReLUAsmF32
-	LeakyReLUFloat64 = leakyReLUAsmF64
+	SoftplusFloat32 = softplusAsmF32
+	SoftplusFloat64 = softplusAsmF64
 	TanhFloat32 = tanhAsmF32
 	TanhFloat64 = tanhAsmF64
-	HardSwishFloat32 = hardSwishAsmF32
-	HardSwishFloat64 = hardSwishAsmF64
-	ELUFloat32 = eLUAsmF32
-	ELUFloat64 = eLUAsmF64
 	if hwy.HasARMFP16() {
+		ELUFloat16 = eLUAsmF16
 		GELUFloat16 = gELUAsmF16
 		GELUApproxFloat16 = gELUApproxAsmF16
+		HardSwishFloat16 = hardSwishAsmF16
+		LeakyReLUFloat16 = leakyReLUAsmF16
 		ReLUFloat16 = reLUAsmF16
 		SiLUFloat16 = siLUAsmF16
-		LeakyReLUFloat16 = leakyReLUAsmF16
+		SoftplusFloat16 = softplusAsmF16
 		TanhFloat16 = tanhAsmF16
-		HardSwishFloat16 = hardSwishAsmF16
-		ELUFloat16 = eLUAsmF16
 	}
 	if hwy.HasARMBF16() {
+		ELUBFloat16 = eLUAsmBF16
 		GELUBFloat16 = gELUAsmBF16
 		GELUApproxBFloat16 = gELUApproxAsmBF16
+		HardSwishBFloat16 = hardSwishAsmBF16
+		LeakyReLUBFloat16 = leakyReLUAsmBF16
 		ReLUBFloat16 = reLUAsmBF16
 		SiLUBFloat16 = siLUAsmBF16
-		LeakyReLUBFloat16 = leakyReLUAsmBF16
+		SoftplusBFloat16 = softplusAsmBF16
 		TanhBFloat16 = tanhAsmBF16
-		HardSwishBFloat16 = hardSwishAsmBF16
-		ELUBFloat16 = eLUAsmBF16
 	}
+}
+
+func eLUAsmF16(input, output []hwy.Float16, alpha hwy.Float16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	asm.ELU_F16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func eLUAsmBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	asm.ELU_BF16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func eLUAsmF32(input, output []float32, alpha float32) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	asm.ELU_F32(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func eLUAsmF64(input, output []float64, alpha float64) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	asm.ELU_F64(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
 func gELUAsmF16(input, output []hwy.Float16) {
@@ -188,6 +268,150 @@ func gELUApproxAsmF64(input, output []float64) {
 	asm.GELUApprox_F64(
 		p_input,
 		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmF16(input, output []hwy.Float16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_F16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmBF16(input, output []hwy.BFloat16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_BF16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmF32(input, output []float32) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_F32(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func hardSwishAsmF64(input, output []float64) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.HardSwish_F64(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func leakyReLUAsmF16(input, output []hwy.Float16, alpha hwy.Float16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	asm.LeakyReLU_F16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func leakyReLUAsmBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := uint16(alpha)
+	lenVal := int64(len(input))
+	asm.LeakyReLU_BF16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func leakyReLUAsmF32(input, output []float32, alpha float32) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	asm.LeakyReLU_F32(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func leakyReLUAsmF64(input, output []float64, alpha float64) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	alphaVal := alpha
+	lenVal := int64(len(input))
+	asm.LeakyReLU_F64(
+		p_input,
+		p_output,
+		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
@@ -328,7 +552,7 @@ func siLUAsmF64(input, output []float64) {
 	)
 }
 
-func leakyReLUAsmF16(input, output []hwy.Float16, alpha hwy.Float16) {
+func softplusAsmF16(input, output []hwy.Float16) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
 		p_input = unsafe.Pointer(&input[0])
@@ -337,17 +561,15 @@ func leakyReLUAsmF16(input, output []hwy.Float16, alpha hwy.Float16) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := uint16(alpha)
 	lenVal := int64(len(input))
-	asm.LeakyReLU_F16(
+	asm.Softplus_F16(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func leakyReLUAsmBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
+func softplusAsmBF16(input, output []hwy.BFloat16) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
 		p_input = unsafe.Pointer(&input[0])
@@ -356,17 +578,15 @@ func leakyReLUAsmBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := uint16(alpha)
 	lenVal := int64(len(input))
-	asm.LeakyReLU_BF16(
+	asm.Softplus_BF16(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func leakyReLUAsmF32(input, output []float32, alpha float32) {
+func softplusAsmF32(input, output []float32) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
 		p_input = unsafe.Pointer(&input[0])
@@ -375,17 +595,15 @@ func leakyReLUAsmF32(input, output []float32, alpha float32) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := alpha
 	lenVal := int64(len(input))
-	asm.LeakyReLU_F32(
+	asm.Softplus_F32(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func leakyReLUAsmF64(input, output []float64, alpha float64) {
+func softplusAsmF64(input, output []float64) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
 		p_input = unsafe.Pointer(&input[0])
@@ -394,12 +612,10 @@ func leakyReLUAsmF64(input, output []float64, alpha float64) {
 	if len(output) > 0 {
 		p_output = unsafe.Pointer(&output[0])
 	}
-	alphaVal := alpha
 	lenVal := int64(len(input))
-	asm.LeakyReLU_F64(
+	asm.Softplus_F64(
 		p_input,
 		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }
@@ -468,150 +684,6 @@ func tanhAsmF64(input, output []float64) {
 	asm.Tanh_F64(
 		p_input,
 		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func hardSwishAsmF16(input, output []hwy.Float16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.HardSwish_F16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func hardSwishAsmBF16(input, output []hwy.BFloat16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.HardSwish_BF16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func hardSwishAsmF32(input, output []float32) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.HardSwish_F32(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func hardSwishAsmF64(input, output []float64) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.HardSwish_F64(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func eLUAsmF16(input, output []hwy.Float16, alpha hwy.Float16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := uint16(alpha)
-	lenVal := int64(len(input))
-	asm.ELU_F16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func eLUAsmBF16(input, output []hwy.BFloat16, alpha hwy.BFloat16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := uint16(alpha)
-	lenVal := int64(len(input))
-	asm.ELU_BF16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func eLUAsmF32(input, output []float32, alpha float32) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := alpha
-	lenVal := int64(len(input))
-	asm.ELU_F32(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func eLUAsmF64(input, output []float64, alpha float64) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	alphaVal := alpha
-	lenVal := int64(len(input))
-	asm.ELU_F64(
-		p_input,
-		p_output,
-		unsafe.Pointer(&alphaVal),
 		unsafe.Pointer(&lenVal),
 	)
 }

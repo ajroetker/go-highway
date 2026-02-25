@@ -119,6 +119,14 @@ func ParallelLeakyReLU[T hwy.Floats](pool workerpool.Executor, input, output []T
 	})
 }
 
+// ParallelSoftplus applies Softplus element-wise across a [rows, cols] matrix
+// in parallel.
+func ParallelSoftplus[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int) {
+	ParallelApplyRows(pool, input, output, rows, cols, func(in, out []T) {
+		Softplus(in, out)
+	})
+}
+
 // ParallelELU applies ELU(alpha) element-wise across a [rows, cols] matrix in
 // parallel.
 func ParallelELU[T hwy.Floats](pool workerpool.Executor, input, output []T, rows, cols int, alpha T) {
