@@ -165,7 +165,17 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 					continue
 				}
 
-				elemType := comboPrimaryType(combo, group.AllTypeParams)
+				// For generic functions, use the combo's type parameter.
+				// For non-generic functions (nil combo types), infer from
+				// slice parameters via getCElemTypes to stay consistent
+				// with wrapper generation naming.
+				var elemType string
+				if len(combo.Types) > 0 {
+					elemType = comboPrimaryType(combo, group.AllTypeParams)
+				} else {
+					ets := getCElemTypes(sourcePF)
+					elemType = ets[0]
+				}
 				profile := GetCProfile(target.Name, elemType)
 				if profile == nil {
 					continue
@@ -605,32 +615,53 @@ func (a *cProfileAdapter) GetZeroInit(tier string) string {
 
 // getCElemTypes returns the concrete element types for C code generation.
 // This includes f16/bf16 types when the constraint allows them.
-// For non-generic functions, it infers the element type from slice parameters.
+// For non-generic functions, it infers the element type from slice parameters,
+// preferring wider/non-byte types that represent the actual SIMD vector element
+// type (byte/uint8 slices are typically scalar staging buffers, not the
+// vectorized type).
 func getCElemTypes(pf *ParsedFunc) []string {
 	if len(pf.TypeParams) > 0 {
 		return GetConcreteTypes(pf.TypeParams[0].Constraint)
 	}
-	// For non-generic functions, detect element type from slice param types
+	// For non-generic functions, collect all slice element types.
+	// Prefer wider types over byte/uint8 since byte slices are typically
+	// packed output buffers, not the SIMD element type.
+	var best string
 	for _, p := range pf.Params {
-		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
-			elemType := after
-			switch elemType {
-			case "int32":
-				return []string{"int32"}
-			case "int64":
-				return []string{"int64"}
-			case "uint64":
-				return []string{"uint64"}
-			case "uint32":
-				return []string{"uint32"}
-			case "uint8", "byte":
-				return []string{"uint8"}
-			case "float64":
-				return []string{"float64"}
-			case "float32":
-				return []string{"float32"}
-			}
+		after, ok := strings.CutPrefix(p.Type, "[]")
+		if !ok {
+			continue
 		}
+		var candidate string
+		switch after {
+		case "int32":
+			candidate = "int32"
+		case "int64":
+			candidate = "int64"
+		case "uint64":
+			candidate = "uint64"
+		case "uint32":
+			candidate = "uint32"
+		case "uint8", "byte":
+			candidate = "uint8"
+		case "float64":
+			candidate = "float64"
+		case "float32":
+			candidate = "float32"
+		}
+		if candidate == "" {
+			continue
+		}
+		if best == "" {
+			best = candidate
+		} else if best == "uint8" && candidate != "uint8" {
+			// Prefer non-byte types: byte slices are typically packed
+			// I/O buffers, not the SIMD element type.
+			best = candidate
+		}
+	}
+	if best != "" {
+		return []string{best}
 	}
 	return []string{"float32"}
 }

@@ -6,106 +6,6 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
-// Pack32CU32 computes Pack32 using NEON SIMD assembly.
-func Pack32CU32(src []uint32, bitWidth int, dst []byte) int {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	bitWidthVal := int64(bitWidth)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	var out_result int64
-	pack32_c_u32_neon(
-		p_src,
-		unsafe.Pointer(&bitWidthVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// Unpack32CU8 computes Unpack32 using NEON SIMD assembly.
-func Unpack32CU8(src []byte, bitWidth int, dst []uint32) int {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	bitWidthVal := int64(bitWidth)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	var out_result int64
-	unpack32_c_u8_neon(
-		p_src,
-		unsafe.Pointer(&bitWidthVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// Pack64CU64 computes Pack64 using NEON SIMD assembly.
-func Pack64CU64(src []uint64, bitWidth int, dst []byte) int {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	bitWidthVal := int64(bitWidth)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	var out_result int64
-	pack64_c_u64_neon(
-		p_src,
-		unsafe.Pointer(&bitWidthVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// Unpack64CU8 computes Unpack64 using NEON SIMD assembly.
-func Unpack64CU8(src []byte, bitWidth int, dst []uint64) int {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	bitWidthVal := int64(bitWidth)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	var out_result int64
-	unpack64_c_u8_neon(
-		p_src,
-		unsafe.Pointer(&bitWidthVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
 // DeltaEncode32CU32 computes DeltaEncode32 using NEON SIMD assembly.
 func DeltaEncode32CU32(src []uint32, base uint32, dst []uint32) {
 	var p_src unsafe.Pointer
@@ -148,5 +48,105 @@ func DeltaEncode64CU64(src []uint64, base uint64, dst []uint64) {
 		unsafe.Pointer(&len_srcVal),
 		unsafe.Pointer(&len_dstVal),
 	)
+}
+
+// Pack32CU32 computes Pack32 using NEON SIMD assembly.
+func Pack32CU32(src []uint32, bitWidth int, dst []byte) int {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	bitWidthVal := int64(bitWidth)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_result int64
+	pack32_c_u32_neon(
+		p_src,
+		unsafe.Pointer(&bitWidthVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// Pack64CU64 computes Pack64 using NEON SIMD assembly.
+func Pack64CU64(src []uint64, bitWidth int, dst []byte) int {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	bitWidthVal := int64(bitWidth)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_result int64
+	pack64_c_u64_neon(
+		p_src,
+		unsafe.Pointer(&bitWidthVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// Unpack32CU32 computes Unpack32 using NEON SIMD assembly.
+func Unpack32CU32(src []byte, bitWidth int, dst []uint32) int {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	bitWidthVal := int64(bitWidth)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_result int64
+	unpack32_c_u32_neon(
+		p_src,
+		unsafe.Pointer(&bitWidthVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// Unpack64CU64 computes Unpack64 using NEON SIMD assembly.
+func Unpack64CU64(src []byte, bitWidth int, dst []uint64) int {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	bitWidthVal := int64(bitWidth)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_result int64
+	unpack64_c_u64_neon(
+		p_src,
+		unsafe.Pointer(&bitWidthVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
 }
 

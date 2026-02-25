@@ -217,11 +217,12 @@ func AVX2Target() Target {
 			// ===== Type Conversions =====
 			"ConvertToInt32":   {Name: "ConvertToInt32", IsMethod: true},
 			"ConvertToFloat32": {Name: "ConvertToFloat32", IsMethod: true},
-			"Round":            {Name: "Round", IsMethod: false},
-			"Trunc":            {Name: "Trunc", IsMethod: false},
-			"Ceil":             {Name: "Ceil", IsMethod: false},
-			"Floor":            {Name: "Floor", IsMethod: false},
+			"Round":            {Package: "hwy", Name: "Round", IsMethod: false},
+			"Trunc":            {Package: "hwy", Name: "Trunc", IsMethod: false},
+			"Ceil":             {Package: "hwy", Name: "Ceil", IsMethod: false},
+			"Floor":            {Package: "hwy", Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
+			"Clamp":            {Name: "Clamp", IsMethod: false},
 
 			// ===== Compress/Expand =====
 			// archsimd doesn't have these operations. Using hwy wrappers that work with
@@ -430,11 +431,12 @@ func AVX512Target() Target {
 			"ConvertToInt64":   {Name: "ConvertToInt64", IsMethod: true},
 			"ConvertToFloat32": {Name: "ConvertToFloat32", IsMethod: true},
 			"ConvertToFloat64": {Name: "ConvertToFloat64", IsMethod: true},
-			"Round":            {Name: "Round", IsMethod: false},
-			"Trunc":            {Name: "Trunc", IsMethod: false},
-			"Ceil":             {Name: "Ceil", IsMethod: false},
-			"Floor":            {Name: "Floor", IsMethod: false},
+			"Round":            {Package: "hwy", Name: "Round", IsMethod: false},
+			"Trunc":            {Package: "hwy", Name: "Trunc", IsMethod: false},
+			"Ceil":             {Package: "hwy", Name: "Ceil", IsMethod: false},
+			"Floor":            {Package: "hwy", Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
+			"Clamp":            {Name: "Clamp", IsMethod: false},
 
 			// ===== Compress/Expand =====
 			// archsimd doesn't have these operations. Using hwy wrappers that work with
@@ -640,6 +642,7 @@ func FallbackTarget() Target {
 			"Ceil":             {Package: "hwy", Name: "Ceil", IsMethod: false},
 			"Floor":            {Package: "hwy", Name: "Floor", IsMethod: false},
 			"NearestInt":       {Package: "hwy", Name: "NearestInt", IsMethod: false},
+			"Clamp":            {Package: "hwy", Name: "Clamp", IsMethod: false},
 
 			// ===== IEEE 754 Exponent/Mantissa operations =====
 			"GetExponent": {Package: "hwy", Name: "GetExponent", IsMethod: false},
@@ -850,6 +853,7 @@ func NEONTarget() Target {
 			"Ceil":             {Name: "Ceil", IsMethod: false},
 			"Floor":            {Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
+			"Clamp":            {Name: "Clamp", IsMethod: false},
 
 			// ===== Compress/Expand =====
 			"Compress":      {Name: "Compress", IsMethod: false},
@@ -1057,6 +1061,7 @@ func SVEDarwinTarget() Target {
 			"Ceil":             {Name: "Ceil", IsMethod: false},
 			"Floor":            {Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
+			"Clamp":            {Name: "Clamp", IsMethod: false},
 
 			// ===== Compress/Expand =====
 			"Compress":      {Name: "Compress", IsMethod: false},
@@ -1263,6 +1268,7 @@ func SVELinuxTarget() Target {
 			"Ceil":             {Name: "Ceil", IsMethod: false},
 			"Floor":            {Name: "Floor", IsMethod: false},
 			"NearestInt":       {Name: "NearestInt", IsMethod: false},
+			"Clamp":            {Name: "Clamp", IsMethod: false},
 
 			// ===== Compress/Expand =====
 			"Compress":      {Name: "Compress", IsMethod: false},

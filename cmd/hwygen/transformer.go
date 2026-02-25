@@ -4627,6 +4627,33 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		}
 		fullName = opInfo.Name
 		selExpr.X = ast.NewIdent(pkgName)
+	case "Clamp":
+		// hwy.Clamp(v, lo, hi) -> v.Max(lo).Min(hi)
+		// archsimd and asm vector types have Max/Min methods.
+		// For Fallback, keep as hwy.Clamp(v, lo, hi) since Vec[T] uses the generic function.
+		if ctx.target.Name == "Fallback" {
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = "Clamp"
+			return
+		}
+		if len(call.Args) >= 3 {
+			v := call.Args[0]
+			lo := call.Args[1]
+			hi := call.Args[2]
+			// v.Max(lo).Min(hi)
+			call.Fun = &ast.SelectorExpr{
+				X: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   v,
+						Sel: ast.NewIdent("Max"),
+					},
+					Args: []ast.Expr{lo},
+				},
+				Sel: ast.NewIdent("Min"),
+			}
+			call.Args = []ast.Expr{hi}
+		}
+		return
 	case "ConvertExponentToFloat":
 		// Convert Vec[int32] to Vec[T] for the target float type
 		// For native float types, transform to e.ConvertToFloat32() method call

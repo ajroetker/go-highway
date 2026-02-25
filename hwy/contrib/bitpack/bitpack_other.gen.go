@@ -8,12 +8,12 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var Pack32 func(src []uint32, bitWidth int, dst []byte) int
-var Unpack32 func(src []byte, bitWidth int, dst []uint32) int
-var Pack64 func(src []uint64, bitWidth int, dst []byte) int
-var Unpack64 func(src []byte, bitWidth int, dst []uint64) int
 var DeltaEncode32 func(src []uint32, base uint32, dst []uint32)
 var DeltaEncode64 func(src []uint64, base uint64, dst []uint64)
+var Pack32 func(src []uint32, bitWidth int, dst []byte) int
+var Pack64 func(src []uint64, bitWidth int, dst []byte) int
+var Unpack32 func(src []byte, bitWidth int, dst []uint32) int
+var Unpack64 func(src []byte, bitWidth int, dst []uint64) int
 
 func init() {
 	initBitpackAll()
@@ -25,10 +25,10 @@ func initBitpackAll() {
 }
 
 func initBitpackFallback() {
-	Pack32 = BasePack32_fallback
-	Unpack32 = BaseUnpack32_fallback
-	Pack64 = BasePack64_fallback
-	Unpack64 = BaseUnpack64_fallback
 	DeltaEncode32 = BaseDeltaEncode32_fallback
 	DeltaEncode64 = BaseDeltaEncode64_fallback
+	Pack32 = BasePack32_fallback
+	Pack64 = BasePack64_fallback
+	Unpack32 = BaseUnpack32_fallback
+	Unpack64 = BaseUnpack64_fallback
 }

@@ -574,7 +574,17 @@ func (g *Generator) Run() error {
 					continue
 				}
 
-				elemType := comboPrimaryType(combo, group.AllTypeParams)
+				// For generic functions, use the combo's type parameter.
+				// For non-generic functions (nil combo types), infer from
+				// slice parameters via getCElemTypes to stay consistent
+				// with C generation and wrapper naming.
+				var elemType string
+				if len(combo.Types) > 0 {
+					elemType = comboPrimaryType(combo, group.AllTypeParams)
+				} else {
+					ets := getCElemTypes(sourcePF)
+					elemType = ets[0]
+				}
 
 				if target.Name == "NEON" &&
 					(elemType == "hwy.Float16" || elemType == "hwy.BFloat16") &&
