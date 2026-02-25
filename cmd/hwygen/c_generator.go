@@ -121,6 +121,12 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 		}
 	}
 
+	// Determine the target mode for selectSourceFunc matching
+	cMode := TargetModeC
+	if asmMode {
+		cMode = TargetModeAsm
+	}
+
 	// Collect adapter info across all targets
 	var allAdapters []AsmAdapterInfo
 
@@ -146,7 +152,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 		for gi := range cGroups {
 			group := &cGroups[gi]
 			for _, combo := range group.AllCombos {
-				sourcePF, serr := selectSourceFunc(group, target, combo)
+				sourcePF, serr := selectSourceFunc(group, target, cMode, combo)
 				if serr != nil {
 					return nil, fmt.Errorf("select source for %s: %w", group.GroupName, serr)
 				}

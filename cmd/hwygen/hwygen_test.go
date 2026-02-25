@@ -6518,7 +6518,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			AllCombos: primary.TypeCombinations,
 		}
 		combo := TypeCombination{Types: map[string]string{"T": "float32"}}
-		got, err := selectSourceFunc(&group, neonTarget, combo)
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -6535,7 +6535,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			AllCombos:       primary.TypeCombinations,
 		}
 		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
-		got, err := selectSourceFunc(&group, neonTarget, combo)
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -6552,7 +6552,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			AllCombos:       primary.TypeCombinations,
 		}
 		combo := TypeCombination{Types: map[string]string{"T": "float32"}}
-		got, err := selectSourceFunc(&group, neonTarget, combo)
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -6569,7 +6569,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			AllCombos:       primary.TypeCombinations,
 		}
 		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
-		got, err := selectSourceFunc(&group, neonTarget, combo)
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -6586,7 +6586,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			AllCombos:       primary.TypeCombinations,
 		}
 		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
-		got, err := selectSourceFunc(&group, avx2Target, combo)
+		got, err := selectSourceFunc(&group, avx2Target, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -6603,7 +6603,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			AllCombos:       primary.TypeCombinations,
 		}
 		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
-		got, err := selectSourceFunc(&group, neonTarget, combo)
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -6620,12 +6620,74 @@ func TestSelectSourceFunc(t *testing.T) {
 		}
 		// A combo not covered by the primary
 		combo := TypeCombination{Types: map[string]string{"T": "int32"}}
-		got, err := selectSourceFunc(&group, fallbackTarget, combo)
+		got, err := selectSourceFunc(&group, fallbackTarget, TargetModeGoSimd, combo)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if got != nil {
 			t.Errorf("got %s, want nil", got.Name)
+		}
+	})
+
+	t.Run("mode-qualified neon:asm matches asm mode", func(t *testing.T) {
+		specAsmOnly := &ParsedFunc{
+			Name:             "BaseMatMulHalfAsm",
+			TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+			SpecializesGroup: "MatMul",
+			AllowedTargets:   []string{"neon:asm"},
+			TypeCombinations: []TypeCombination{
+				{Types: map[string]string{"T": "hwy.Float16"}},
+			},
+		}
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAsmOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		// Should match in asm mode
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeAsm, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != specAsmOnly {
+			name := "<nil>"
+			if got != nil {
+				name = got.Name
+			}
+			t.Errorf("got %s, want %s", name, specAsmOnly.Name)
+		}
+	})
+
+	t.Run("mode-qualified neon:asm does not match gosimd mode", func(t *testing.T) {
+		specAsmOnly := &ParsedFunc{
+			Name:             "BaseMatMulHalfAsm",
+			TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+			SpecializesGroup: "MatMul",
+			AllowedTargets:   []string{"neon:asm"},
+			TypeCombinations: []TypeCombination{
+				{Types: map[string]string{"T": "hwy.Float16"}},
+			},
+		}
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAsmOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		// Should NOT match in gosimd mode — falls through to primary
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != primary {
+			name := "<nil>"
+			if got != nil {
+				name = got.Name
+			}
+			t.Errorf("got %s, want %s (primary)", name, primary.Name)
 		}
 	})
 }

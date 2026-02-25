@@ -330,9 +330,9 @@ func widenConstraintForCombos(typeParams []TypeParam, combos []TypeCombination) 
 }
 
 // selectSourceFunc returns the function whose body should be used to generate
-// code for the given target and type combination. Returns nil if no function
-// covers this combo on this target.
-func selectSourceFunc(group *DispatchGroup, target Target, combo TypeCombination) (*ParsedFunc, error) {
+// code for the given target, mode, and type combination. Returns nil if no function
+// covers this combo on this target/mode.
+func selectSourceFunc(group *DispatchGroup, target Target, mode TargetMode, combo TypeCombination) (*ParsedFunc, error) {
 	type candidate struct {
 		pf    *ParsedFunc
 		score int // higher = more specific
@@ -345,7 +345,7 @@ func selectSourceFunc(group *DispatchGroup, target Target, combo TypeCombination
 		if !comboMatchesFunc(spec, combo) {
 			continue
 		}
-		if !targetAllowed(spec, target) {
+		if !targetAllowed(spec, target, mode) {
 			continue
 		}
 		score := 0
@@ -393,16 +393,26 @@ func comboMatchesFunc(pf *ParsedFunc, combo TypeCombination) bool {
 	return false
 }
 
-// targetAllowed returns true if the function is allowed to run on the given target.
+// targetAllowed returns true if the function is allowed to run on the given target and mode.
 // If AllowedTargets is empty, the function runs on all targets.
-func targetAllowed(pf *ParsedFunc, target Target) bool {
+// Allowed targets may include mode suffixes (e.g., "neon:asm") which restrict matching
+// to that specific mode. Without a suffix, any mode matches.
+func targetAllowed(pf *ParsedFunc, target Target, mode TargetMode) bool {
 	if len(pf.AllowedTargets) == 0 {
 		return true
 	}
 	targetLower := strings.ToLower(target.Name)
 	for _, allowed := range pf.AllowedTargets {
-		if allowed == targetLower {
-			return true
+		name, allowedMode := parseTargetSpec(allowed)
+		if name == targetLower {
+			// No mode suffix (GoSimd is the default from parseTargetSpec) → matches any mode
+			if allowedMode == TargetModeGoSimd {
+				return true
+			}
+			// Mode suffix → must match exactly
+			if allowedMode == mode {
+				return true
+			}
 		}
 	}
 	return false
@@ -551,7 +561,7 @@ func (g *Generator) Run() error {
 		for _, group := range groups {
 			for _, combo := range group.AllCombos {
 				// Select which function body to use for this (target, combo)
-				sourcePF, err := selectSourceFunc(&group, target, combo)
+				sourcePF, err := selectSourceFunc(&group, target, TargetModeGoSimd, combo)
 				if err != nil {
 					return fmt.Errorf("select source: %w", err)
 				}
