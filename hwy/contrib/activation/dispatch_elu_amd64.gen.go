@@ -10,6 +10,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var ELUFloat16 func(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16)
+var ELUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16)
+var ELUFloat32 func(input []float32, output []float32, alpha float32)
+var ELUFloat64 func(input []float64, output []float64, alpha float64)
 var GELUFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var GELUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var GELUFloat32 func(input []float32, output []float32)
@@ -18,6 +22,14 @@ var GELUApproxFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var GELUApproxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var GELUApproxFloat32 func(input []float32, output []float32)
 var GELUApproxFloat64 func(input []float64, output []float64)
+var HardSwishFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var HardSwishBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
+var HardSwishFloat32 func(input []float32, output []float32)
+var HardSwishFloat64 func(input []float64, output []float64)
+var LeakyReLUFloat16 func(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16)
+var LeakyReLUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16)
+var LeakyReLUFloat32 func(input []float32, output []float32, alpha float32)
+var LeakyReLUFloat64 func(input []float64, output []float64, alpha float64)
 var ReLUFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var ReLUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var ReLUFloat32 func(input []float32, output []float32)
@@ -26,22 +38,34 @@ var SiLUFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var SiLUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var SiLUFloat32 func(input []float32, output []float32)
 var SiLUFloat64 func(input []float64, output []float64)
-var LeakyReLUFloat16 func(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16)
-var LeakyReLUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16)
-var LeakyReLUFloat32 func(input []float32, output []float32, alpha float32)
-var LeakyReLUFloat64 func(input []float64, output []float64, alpha float64)
+var SoftplusFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var SoftplusBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
+var SoftplusFloat32 func(input []float32, output []float32)
+var SoftplusFloat64 func(input []float64, output []float64)
 var TanhFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var TanhBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var TanhFloat32 func(input []float32, output []float32)
 var TanhFloat64 func(input []float64, output []float64)
-var HardSwishFloat16 func(input []hwy.Float16, output []hwy.Float16)
-var HardSwishBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
-var HardSwishFloat32 func(input []float32, output []float32)
-var HardSwishFloat64 func(input []float64, output []float64)
-var ELUFloat16 func(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16)
-var ELUBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16)
-var ELUFloat32 func(input []float32, output []float32, alpha float32)
-var ELUFloat64 func(input []float64, output []float64, alpha float64)
+
+// ELU computes the Exponential Linear Unit activation.
+//
+// ELU(x) = x if x > 0, else alpha * (exp(x) - 1)
+//
+// ELU has smooth gradients everywhere and can push mean activations toward zero.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func ELU[T hwy.Floats](input []T, output []T, alpha T) {
+	switch any(input).(type) {
+	case []hwy.Float16:
+		ELUFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16), any(alpha).(hwy.Float16))
+	case []hwy.BFloat16:
+		ELUBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16), any(alpha).(hwy.BFloat16))
+	case []float32:
+		ELUFloat32(any(input).([]float32), any(output).([]float32), any(alpha).(float32))
+	case []float64:
+		ELUFloat64(any(input).([]float64), any(output).([]float64), any(alpha).(float64))
+	}
+}
 
 // GELU computes the Gaussian Error Linear Unit activation function.
 //
@@ -81,6 +105,47 @@ func GELUApprox[T hwy.Floats](input []T, output []T) {
 		GELUApproxFloat32(any(input).([]float32), any(output).([]float32))
 	case []float64:
 		GELUApproxFloat64(any(input).([]float64), any(output).([]float64))
+	}
+}
+
+// HardSwish computes the Hard Swish activation function.
+//
+// HardSwish(x) = x * min(max(x/6 + 0.5, 0), 1)
+//
+// HardSwish is a piecewise-linear approximation of Swish used in MobileNetV3
+// and other efficient architectures. It avoids the sigmoid computation of SiLU.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func HardSwish[T hwy.Floats](input []T, output []T) {
+	switch any(input).(type) {
+	case []hwy.Float16:
+		HardSwishFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		HardSwishBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
+	case []float32:
+		HardSwishFloat32(any(input).([]float32), any(output).([]float32))
+	case []float64:
+		HardSwishFloat64(any(input).([]float64), any(output).([]float64))
+	}
+}
+
+// LeakyReLU computes the Leaky ReLU activation with a configurable slope.
+//
+// LeakyReLU(x) = x if x > 0, else alpha * x
+//
+// This helps prevent "dying ReLU" by allowing small gradients for negative values.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func LeakyReLU[T hwy.Floats](input []T, output []T, alpha T) {
+	switch any(input).(type) {
+	case []hwy.Float16:
+		LeakyReLUFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16), any(alpha).(hwy.Float16))
+	case []hwy.BFloat16:
+		LeakyReLUBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16), any(alpha).(hwy.BFloat16))
+	case []float32:
+		LeakyReLUFloat32(any(input).([]float32), any(output).([]float32), any(alpha).(float32))
+	case []float64:
+		LeakyReLUFloat64(any(input).([]float64), any(output).([]float64), any(alpha).(float64))
 	}
 }
 
@@ -124,23 +189,26 @@ func SiLU[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// LeakyReLU computes the Leaky ReLU activation with a configurable slope.
+// Softplus computes the Softplus activation: log(1 + exp(x)).
 //
-// LeakyReLU(x) = x if x > 0, else alpha * x
+// Softplus(x) = log(1 + exp(x))
 //
-// This helps prevent "dying ReLU" by allowing small gradients for negative values.
+// Softplus is a smooth approximation of ReLU used in SPLADE sparse embedding
+// models and other architectures requiring differentiable non-negative outputs.
+// For numerical stability, returns x directly when x exceeds a threshold
+// (where exp(x) would overflow and log(1 + exp(x)) ≈ x).
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func LeakyReLU[T hwy.Floats](input []T, output []T, alpha T) {
+func Softplus[T hwy.Floats](input []T, output []T) {
 	switch any(input).(type) {
 	case []hwy.Float16:
-		LeakyReLUFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16), any(alpha).(hwy.Float16))
+		SoftplusFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
 	case []hwy.BFloat16:
-		LeakyReLUBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16), any(alpha).(hwy.BFloat16))
+		SoftplusBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
 	case []float32:
-		LeakyReLUFloat32(any(input).([]float32), any(output).([]float32), any(alpha).(float32))
+		SoftplusFloat32(any(input).([]float32), any(output).([]float32))
 	case []float64:
-		LeakyReLUFloat64(any(input).([]float64), any(output).([]float64), any(alpha).(float64))
+		SoftplusFloat64(any(input).([]float64), any(output).([]float64))
 	}
 }
 
@@ -165,68 +233,31 @@ func Tanh[T hwy.Floats](input []T, output []T) {
 	}
 }
 
-// HardSwish computes the Hard Swish activation function.
-//
-// HardSwish(x) = x * min(max(x/6 + 0.5, 0), 1)
-//
-// HardSwish is a piecewise-linear approximation of Swish used in MobileNetV3
-// and other efficient architectures. It avoids the sigmoid computation of SiLU.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func HardSwish[T hwy.Floats](input []T, output []T) {
-	switch any(input).(type) {
-	case []hwy.Float16:
-		HardSwishFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
-	case []hwy.BFloat16:
-		HardSwishBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
-	case []float32:
-		HardSwishFloat32(any(input).([]float32), any(output).([]float32))
-	case []float64:
-		HardSwishFloat64(any(input).([]float64), any(output).([]float64))
-	}
-}
-
-// ELU computes the Exponential Linear Unit activation.
-//
-// ELU(x) = x if x > 0, else alpha * (exp(x) - 1)
-//
-// ELU has smooth gradients everywhere and can push mean activations toward zero.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func ELU[T hwy.Floats](input []T, output []T, alpha T) {
-	switch any(input).(type) {
-	case []hwy.Float16:
-		ELUFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16), any(alpha).(hwy.Float16))
-	case []hwy.BFloat16:
-		ELUBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16), any(alpha).(hwy.BFloat16))
-	case []float32:
-		ELUFloat32(any(input).([]float32), any(output).([]float32), any(alpha).(float32))
-	case []float64:
-		ELUFloat64(any(input).([]float64), any(output).([]float64), any(alpha).(float64))
-	}
-}
-
 func init() {
-	initGeluAll()
+	initEluAll()
 }
 
-func initGeluAll() {
+func initEluAll() {
 	if hwy.NoSimdEnv() {
-		initGeluFallback()
+		initEluFallback()
 		return
 	}
 	if archsimd.X86.AVX512() {
-		initGeluAVX512()
+		initEluAVX512()
 		return
 	}
 	if archsimd.X86.AVX2() {
-		initGeluAVX2()
+		initEluAVX2()
 		return
 	}
-	initGeluFallback()
+	initEluFallback()
 }
 
-func initGeluAVX2() {
+func initEluAVX2() {
+	ELUFloat16 = BaseELU_avx2_Float16
+	ELUBFloat16 = BaseELU_avx2_BFloat16
+	ELUFloat32 = BaseELU_avx2
+	ELUFloat64 = BaseELU_avx2_Float64
 	GELUFloat16 = BaseGELU_avx2_Float16
 	GELUBFloat16 = BaseGELU_avx2_BFloat16
 	GELUFloat32 = BaseGELU_avx2
@@ -235,6 +266,14 @@ func initGeluAVX2() {
 	GELUApproxBFloat16 = BaseGELUApprox_avx2_BFloat16
 	GELUApproxFloat32 = BaseGELUApprox_avx2
 	GELUApproxFloat64 = BaseGELUApprox_avx2_Float64
+	HardSwishFloat16 = BaseHardSwish_avx2_Float16
+	HardSwishBFloat16 = BaseHardSwish_avx2_BFloat16
+	HardSwishFloat32 = BaseHardSwish_avx2
+	HardSwishFloat64 = BaseHardSwish_avx2_Float64
+	LeakyReLUFloat16 = BaseLeakyReLU_avx2_Float16
+	LeakyReLUBFloat16 = BaseLeakyReLU_avx2_BFloat16
+	LeakyReLUFloat32 = BaseLeakyReLU_avx2
+	LeakyReLUFloat64 = BaseLeakyReLU_avx2_Float64
 	ReLUFloat16 = BaseReLU_avx2_Float16
 	ReLUBFloat16 = BaseReLU_avx2_BFloat16
 	ReLUFloat32 = BaseReLU_avx2
@@ -243,25 +282,21 @@ func initGeluAVX2() {
 	SiLUBFloat16 = BaseSiLU_avx2_BFloat16
 	SiLUFloat32 = BaseSiLU_avx2
 	SiLUFloat64 = BaseSiLU_avx2_Float64
-	LeakyReLUFloat16 = BaseLeakyReLU_avx2_Float16
-	LeakyReLUBFloat16 = BaseLeakyReLU_avx2_BFloat16
-	LeakyReLUFloat32 = BaseLeakyReLU_avx2
-	LeakyReLUFloat64 = BaseLeakyReLU_avx2_Float64
+	SoftplusFloat16 = BaseSoftplus_avx2_Float16
+	SoftplusBFloat16 = BaseSoftplus_avx2_BFloat16
+	SoftplusFloat32 = BaseSoftplus_avx2
+	SoftplusFloat64 = BaseSoftplus_avx2_Float64
 	TanhFloat16 = BaseTanh_avx2_Float16
 	TanhBFloat16 = BaseTanh_avx2_BFloat16
 	TanhFloat32 = BaseTanh_avx2
 	TanhFloat64 = BaseTanh_avx2_Float64
-	HardSwishFloat16 = BaseHardSwish_avx2_Float16
-	HardSwishBFloat16 = BaseHardSwish_avx2_BFloat16
-	HardSwishFloat32 = BaseHardSwish_avx2
-	HardSwishFloat64 = BaseHardSwish_avx2_Float64
-	ELUFloat16 = BaseELU_avx2_Float16
-	ELUBFloat16 = BaseELU_avx2_BFloat16
-	ELUFloat32 = BaseELU_avx2
-	ELUFloat64 = BaseELU_avx2_Float64
 }
 
-func initGeluAVX512() {
+func initEluAVX512() {
+	ELUFloat16 = BaseELU_avx512_Float16
+	ELUBFloat16 = BaseELU_avx512_BFloat16
+	ELUFloat32 = BaseELU_avx512
+	ELUFloat64 = BaseELU_avx512_Float64
 	GELUFloat16 = BaseGELU_avx512_Float16
 	GELUBFloat16 = BaseGELU_avx512_BFloat16
 	GELUFloat32 = BaseGELU_avx512
@@ -270,6 +305,14 @@ func initGeluAVX512() {
 	GELUApproxBFloat16 = BaseGELUApprox_avx512_BFloat16
 	GELUApproxFloat32 = BaseGELUApprox_avx512
 	GELUApproxFloat64 = BaseGELUApprox_avx512_Float64
+	HardSwishFloat16 = BaseHardSwish_avx512_Float16
+	HardSwishBFloat16 = BaseHardSwish_avx512_BFloat16
+	HardSwishFloat32 = BaseHardSwish_avx512
+	HardSwishFloat64 = BaseHardSwish_avx512_Float64
+	LeakyReLUFloat16 = BaseLeakyReLU_avx512_Float16
+	LeakyReLUBFloat16 = BaseLeakyReLU_avx512_BFloat16
+	LeakyReLUFloat32 = BaseLeakyReLU_avx512
+	LeakyReLUFloat64 = BaseLeakyReLU_avx512_Float64
 	ReLUFloat16 = BaseReLU_avx512_Float16
 	ReLUBFloat16 = BaseReLU_avx512_BFloat16
 	ReLUFloat32 = BaseReLU_avx512
@@ -278,25 +321,21 @@ func initGeluAVX512() {
 	SiLUBFloat16 = BaseSiLU_avx512_BFloat16
 	SiLUFloat32 = BaseSiLU_avx512
 	SiLUFloat64 = BaseSiLU_avx512_Float64
-	LeakyReLUFloat16 = BaseLeakyReLU_avx512_Float16
-	LeakyReLUBFloat16 = BaseLeakyReLU_avx512_BFloat16
-	LeakyReLUFloat32 = BaseLeakyReLU_avx512
-	LeakyReLUFloat64 = BaseLeakyReLU_avx512_Float64
+	SoftplusFloat16 = BaseSoftplus_avx512_Float16
+	SoftplusBFloat16 = BaseSoftplus_avx512_BFloat16
+	SoftplusFloat32 = BaseSoftplus_avx512
+	SoftplusFloat64 = BaseSoftplus_avx512_Float64
 	TanhFloat16 = BaseTanh_avx512_Float16
 	TanhBFloat16 = BaseTanh_avx512_BFloat16
 	TanhFloat32 = BaseTanh_avx512
 	TanhFloat64 = BaseTanh_avx512_Float64
-	HardSwishFloat16 = BaseHardSwish_avx512_Float16
-	HardSwishBFloat16 = BaseHardSwish_avx512_BFloat16
-	HardSwishFloat32 = BaseHardSwish_avx512
-	HardSwishFloat64 = BaseHardSwish_avx512_Float64
-	ELUFloat16 = BaseELU_avx512_Float16
-	ELUBFloat16 = BaseELU_avx512_BFloat16
-	ELUFloat32 = BaseELU_avx512
-	ELUFloat64 = BaseELU_avx512_Float64
 }
 
-func initGeluFallback() {
+func initEluFallback() {
+	ELUFloat16 = BaseELU_fallback_Float16
+	ELUBFloat16 = BaseELU_fallback_BFloat16
+	ELUFloat32 = BaseELU_fallback
+	ELUFloat64 = BaseELU_fallback_Float64
 	GELUFloat16 = BaseGELU_fallback_Float16
 	GELUBFloat16 = BaseGELU_fallback_BFloat16
 	GELUFloat32 = BaseGELU_fallback
@@ -305,6 +344,14 @@ func initGeluFallback() {
 	GELUApproxBFloat16 = BaseGELUApprox_fallback_BFloat16
 	GELUApproxFloat32 = BaseGELUApprox_fallback
 	GELUApproxFloat64 = BaseGELUApprox_fallback_Float64
+	HardSwishFloat16 = BaseHardSwish_fallback_Float16
+	HardSwishBFloat16 = BaseHardSwish_fallback_BFloat16
+	HardSwishFloat32 = BaseHardSwish_fallback
+	HardSwishFloat64 = BaseHardSwish_fallback_Float64
+	LeakyReLUFloat16 = BaseLeakyReLU_fallback_Float16
+	LeakyReLUBFloat16 = BaseLeakyReLU_fallback_BFloat16
+	LeakyReLUFloat32 = BaseLeakyReLU_fallback
+	LeakyReLUFloat64 = BaseLeakyReLU_fallback_Float64
 	ReLUFloat16 = BaseReLU_fallback_Float16
 	ReLUBFloat16 = BaseReLU_fallback_BFloat16
 	ReLUFloat32 = BaseReLU_fallback
@@ -313,20 +360,12 @@ func initGeluFallback() {
 	SiLUBFloat16 = BaseSiLU_fallback_BFloat16
 	SiLUFloat32 = BaseSiLU_fallback
 	SiLUFloat64 = BaseSiLU_fallback_Float64
-	LeakyReLUFloat16 = BaseLeakyReLU_fallback_Float16
-	LeakyReLUBFloat16 = BaseLeakyReLU_fallback_BFloat16
-	LeakyReLUFloat32 = BaseLeakyReLU_fallback
-	LeakyReLUFloat64 = BaseLeakyReLU_fallback_Float64
+	SoftplusFloat16 = BaseSoftplus_fallback_Float16
+	SoftplusBFloat16 = BaseSoftplus_fallback_BFloat16
+	SoftplusFloat32 = BaseSoftplus_fallback
+	SoftplusFloat64 = BaseSoftplus_fallback_Float64
 	TanhFloat16 = BaseTanh_fallback_Float16
 	TanhBFloat16 = BaseTanh_fallback_BFloat16
 	TanhFloat32 = BaseTanh_fallback
 	TanhFloat64 = BaseTanh_fallback_Float64
-	HardSwishFloat16 = BaseHardSwish_fallback_Float16
-	HardSwishBFloat16 = BaseHardSwish_fallback_BFloat16
-	HardSwishFloat32 = BaseHardSwish_fallback
-	HardSwishFloat64 = BaseHardSwish_fallback_Float64
-	ELUFloat16 = BaseELU_fallback_Float16
-	ELUBFloat16 = BaseELU_fallback_BFloat16
-	ELUFloat32 = BaseELU_fallback
-	ELUFloat64 = BaseELU_fallback_Float64
 }

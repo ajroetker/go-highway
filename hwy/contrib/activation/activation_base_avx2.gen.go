@@ -16,29 +16,215 @@ import (
 
 // Hoisted constants - pre-broadcasted at package init time
 var (
-	BaseELU_AVX2_vOne_f32          = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseELU_AVX2_vOne_f64          = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseELU_AVX2_vZero_f32         = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseELU_AVX2_vZero_f64         = archsimd.BroadcastFloat64x4(float64(actZero_f64))
-	BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(float32(actGeluApproxCoeff_f32))
-	BaseGELUApprox_AVX2_vCoeff_f64 = archsimd.BroadcastFloat64x4(float64(actGeluApproxCoeff_f64))
-	BaseGELU_AVX2_vHalf_f32        = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
-	BaseGELU_AVX2_vHalf_f64        = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
-	BaseGELU_AVX2_vInvSqrt2_f32    = archsimd.BroadcastFloat32x8(float32(actInvSqrt2_f32))
-	BaseGELU_AVX2_vInvSqrt2_f64    = archsimd.BroadcastFloat64x4(float64(actInvSqrt2_f64))
-	BaseGELU_AVX2_vOne_f32         = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseGELU_AVX2_vOne_f64         = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseHardSwish_AVX2_vBias_f32   = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
-	BaseHardSwish_AVX2_vBias_f64   = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
-	BaseHardSwish_AVX2_vOne_f32    = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseHardSwish_AVX2_vOne_f64    = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseHardSwish_AVX2_vScale_f32  = archsimd.BroadcastFloat32x8(float32(actHardSwishScale_f32))
-	BaseHardSwish_AVX2_vScale_f64  = archsimd.BroadcastFloat64x4(float64(actHardSwishScale_f64))
-	BaseHardSwish_AVX2_vZero_f32   = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseHardSwish_AVX2_vZero_f64   = archsimd.BroadcastFloat64x4(float64(actZero_f64))
-	BaseReLU_AVX2_vZero_f32        = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseReLU_AVX2_vZero_f64        = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseELU_AVX2_vOne_f32            = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseELU_AVX2_vOne_f64            = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseELU_AVX2_vZero_f32           = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseELU_AVX2_vZero_f64           = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseGELUApprox_AVX2_vCoeff_f32   = archsimd.BroadcastFloat32x8(float32(actGeluApproxCoeff_f32))
+	BaseGELUApprox_AVX2_vCoeff_f64   = archsimd.BroadcastFloat64x4(float64(actGeluApproxCoeff_f64))
+	BaseGELU_AVX2_vHalf_f32          = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
+	BaseGELU_AVX2_vHalf_f64          = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
+	BaseGELU_AVX2_vInvSqrt2_f32      = archsimd.BroadcastFloat32x8(float32(actInvSqrt2_f32))
+	BaseGELU_AVX2_vInvSqrt2_f64      = archsimd.BroadcastFloat64x4(float64(actInvSqrt2_f64))
+	BaseGELU_AVX2_vOne_f32           = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseGELU_AVX2_vOne_f64           = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseHardSwish_AVX2_vBias_f32     = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
+	BaseHardSwish_AVX2_vBias_f64     = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
+	BaseHardSwish_AVX2_vOne_f32      = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseHardSwish_AVX2_vOne_f64      = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseHardSwish_AVX2_vScale_f32    = archsimd.BroadcastFloat32x8(float32(actHardSwishScale_f32))
+	BaseHardSwish_AVX2_vScale_f64    = archsimd.BroadcastFloat64x4(float64(actHardSwishScale_f64))
+	BaseHardSwish_AVX2_vZero_f32     = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseHardSwish_AVX2_vZero_f64     = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseReLU_AVX2_vZero_f32          = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseReLU_AVX2_vZero_f64          = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseSoftplus_AVX2_vOne_f32       = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+	BaseSoftplus_AVX2_vOne_f64       = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+	BaseSoftplus_AVX2_vThreshold_f32 = archsimd.BroadcastFloat32x8(float32(actSoftplusThreshold_f32))
+	BaseSoftplus_AVX2_vThreshold_f64 = archsimd.BroadcastFloat64x4(float64(actSoftplusThreshold_f64))
+	BaseSoftplus_AVX2_vZero_f32      = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+	BaseSoftplus_AVX2_vZero_f64      = archsimd.BroadcastFloat64x4(float64(actZero_f64))
 )
+
+func BaseELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
+	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
+	vAlpha := asm.BroadcastFloat16x8AVX2(uint16(alpha))
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		expX := math.BaseExpVec_avx2_Float16(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		expX1 := math.BaseExpVec_avx2_Float16(x1)
+		expM11 := expX1.Sub(vOne)
+		negPart1 := vAlpha.Mul(expM11)
+		isPositive1 := x1.Greater(vZero)
+		result1 := x1.Merge(negPart1, isPositive1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		expX := math.BaseExpVec_avx2_Float16(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		if input[i].Float32() > 0 {
+			output[i] = hwy.Float32ToFloat16(input[i].Float32())
+		} else {
+			x := float64(input[i].Float32())
+			output[i] = hwy.Float32ToFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
+		}
+	}
+}
+
+func BaseELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
+	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
+	vAlpha := asm.BroadcastBFloat16x8AVX2(uint16(alpha))
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		expX := math.BaseExpVec_avx2_BFloat16(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		expX1 := math.BaseExpVec_avx2_BFloat16(x1)
+		expM11 := expX1.Sub(vOne)
+		negPart1 := vAlpha.Mul(expM11)
+		isPositive1 := x1.Greater(vZero)
+		result1 := x1.Merge(negPart1, isPositive1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		expX := math.BaseExpVec_avx2_BFloat16(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		if input[i].Float32() > 0 {
+			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
+		} else {
+			x := float64(input[i].Float32())
+			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
+		}
+	}
+}
+
+func BaseELU_avx2(input []float32, output []float32, alpha float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := BaseELU_AVX2_vZero_f32
+	vOne := BaseELU_AVX2_vOne_f32
+	vAlpha := archsimd.BroadcastFloat32x8(alpha)
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		expX := math.BaseExpVec_avx2(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
+		expX1 := math.BaseExpVec_avx2(x1)
+		expM11 := expX1.Sub(vOne)
+		negPart1 := vAlpha.Mul(expM11)
+		isPositive1 := x1.Greater(vZero)
+		result1 := x1.Merge(negPart1, isPositive1)
+		result1.Store((*[8]float32)(unsafe.Pointer(&output[ii+8])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		expX := math.BaseExpVec_avx2(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		if input[i] > 0 {
+			output[i] = input[i]
+		} else {
+			x := float64(input[i])
+			output[i] = float32(float64(alpha) * (stdmath.Exp(x) - 1.0))
+		}
+	}
+}
+
+func BaseELU_avx2_Float64(input []float64, output []float64, alpha float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := BaseELU_AVX2_vZero_f64
+	vOne := BaseELU_AVX2_vOne_f64
+	vAlpha := archsimd.BroadcastFloat64x4(alpha)
+	lanes := 4
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		expX := math.BaseExpVec_avx2_Float64(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
+		expX1 := math.BaseExpVec_avx2_Float64(x1)
+		expM11 := expX1.Sub(vOne)
+		negPart1 := vAlpha.Mul(expM11)
+		isPositive1 := x1.Greater(vZero)
+		result1 := x1.Merge(negPart1, isPositive1)
+		result1.Store((*[4]float64)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		expX := math.BaseExpVec_avx2_Float64(x)
+		expM1 := expX.Sub(vOne)
+		negPart := vAlpha.Mul(expM1)
+		isPositive := x.Greater(vZero)
+		result := x.Merge(negPart, isPositive)
+		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		if input[i] > 0 {
+			output[i] = input[i]
+		} else {
+			x := float64(input[i])
+			output[i] = float64(float64(alpha) * (stdmath.Exp(x) - 1.0))
+		}
+	}
+}
 
 func BaseGELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
@@ -340,6 +526,350 @@ func BaseGELUApprox_avx2_Float64(input []float64, output []float64) {
 	}
 }
 
+func BaseHardSwish_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
+	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
+	vScale := asm.BroadcastFloat16x8AVX2(uint16(actHardSwishScale_f16))
+	vBias := asm.BroadcastFloat16x8AVX2(uint16(actHalf_f16))
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = hwy.Float32ToFloat16(float32(x * s))
+	}
+}
+
+func BaseHardSwish_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
+	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
+	vScale := asm.BroadcastBFloat16x8AVX2(uint16(actHardSwishScale_bf16))
+	vBias := asm.BroadcastBFloat16x8AVX2(uint16(actHalf_bf16))
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i].Float32())
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = hwy.Float32ToBFloat16(float32(x * s))
+	}
+}
+
+func BaseHardSwish_avx2(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := BaseHardSwish_AVX2_vZero_f32
+	vOne := BaseHardSwish_AVX2_vOne_f32
+	vScale := BaseHardSwish_AVX2_vScale_f32
+	vBias := BaseHardSwish_AVX2_vBias_f32
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.Store((*[8]float32)(unsafe.Pointer(&output[ii+8])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = float32(x * s)
+	}
+}
+
+func BaseHardSwish_avx2_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vZero := BaseHardSwish_AVX2_vZero_f64
+	vOne := BaseHardSwish_AVX2_vOne_f64
+	vScale := BaseHardSwish_AVX2_vScale_f64
+	vBias := BaseHardSwish_AVX2_vBias_f64
+	lanes := 4
+	ii := 0
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
+		s1 := x1.Mul(vScale).Add(vBias)
+		s1 = s1.Max(vZero)
+		s1 = s1.Min(vOne)
+		result1 := x1.Mul(s1)
+		result1.Store((*[4]float64)(unsafe.Pointer(&output[ii+4])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		s := x.Mul(vScale).Add(vBias)
+		s = s.Max(vZero)
+		s = s.Min(vOne)
+		result := x.Mul(s)
+		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		x := float64(input[i])
+		s := x/6.0 + 0.5
+		if s < 0 {
+			s = 0
+		} else if s > 1 {
+			s = 1
+		}
+		output[i] = float64(x * s)
+	}
+}
+
+func BaseLeakyReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vAlpha := asm.BroadcastFloat16x8AVX2(uint16(alpha))
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		negPart1 := x1.Mul(vAlpha)
+		result1 := x1.Max(negPart1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+		x2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+16:][0]))
+		negPart2 := x2.Mul(vAlpha)
+		result2 := x2.Max(negPart2)
+		result2.StorePtr(unsafe.Pointer(&output[ii+16:][0]))
+		x3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+24:][0]))
+		negPart3 := x3.Mul(vAlpha)
+		result3 := x3.Max(negPart3)
+		result3.StorePtr(unsafe.Pointer(&output[ii+24:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		if input[i].Float32() > 0 {
+			output[i] = hwy.Float32ToFloat16(input[i].Float32())
+		} else {
+			output[i] = hwy.Float32ToFloat16(alpha.Float32() * input[i].Float32())
+		}
+	}
+}
+
+func BaseLeakyReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vAlpha := asm.BroadcastBFloat16x8AVX2(uint16(alpha))
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		negPart1 := x1.Mul(vAlpha)
+		result1 := x1.Max(negPart1)
+		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+		x2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+16:][0]))
+		negPart2 := x2.Mul(vAlpha)
+		result2 := x2.Max(negPart2)
+		result2.StorePtr(unsafe.Pointer(&output[ii+16:][0]))
+		x3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+24:][0]))
+		negPart3 := x3.Mul(vAlpha)
+		result3 := x3.Max(negPart3)
+		result3.StorePtr(unsafe.Pointer(&output[ii+24:][0]))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
+	}
+	for i := ii; i < size; i++ {
+		if input[i].Float32() > 0 {
+			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
+		} else {
+			output[i] = hwy.Float32ToBFloat16(alpha.Float32() * input[i].Float32())
+		}
+	}
+}
+
+func BaseLeakyReLU_avx2(input []float32, output []float32, alpha float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vAlpha := archsimd.BroadcastFloat32x8(alpha)
+	lanes := 8
+	ii := 0
+	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
+		negPart1 := x1.Mul(vAlpha)
+		result1 := x1.Max(negPart1)
+		result1.Store((*[8]float32)(unsafe.Pointer(&output[ii+8])))
+		x2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+16])))
+		negPart2 := x2.Mul(vAlpha)
+		result2 := x2.Max(negPart2)
+		result2.Store((*[8]float32)(unsafe.Pointer(&output[ii+16])))
+		x3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+24])))
+		negPart3 := x3.Mul(vAlpha)
+		result3 := x3.Max(negPart3)
+		result3.Store((*[8]float32)(unsafe.Pointer(&output[ii+24])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		if input[i] > 0 {
+			output[i] = input[i]
+		} else {
+			output[i] = alpha * input[i]
+		}
+	}
+}
+
+func BaseLeakyReLU_avx2_Float64(input []float64, output []float64, alpha float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	vAlpha := archsimd.BroadcastFloat64x4(alpha)
+	lanes := 4
+	ii := 0
+	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
+		negPart1 := x1.Mul(vAlpha)
+		result1 := x1.Max(negPart1)
+		result1.Store((*[4]float64)(unsafe.Pointer(&output[ii+4])))
+		x2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+8])))
+		negPart2 := x2.Mul(vAlpha)
+		result2 := x2.Max(negPart2)
+		result2.Store((*[4]float64)(unsafe.Pointer(&output[ii+8])))
+		x3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+12])))
+		negPart3 := x3.Mul(vAlpha)
+		result3 := x3.Max(negPart3)
+		result3.Store((*[4]float64)(unsafe.Pointer(&output[ii+12])))
+	}
+	for ; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		negPart := x.Mul(vAlpha)
+		result := x.Max(negPart)
+		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for i := ii; i < size; i++ {
+		if input[i] > 0 {
+			output[i] = input[i]
+		} else {
+			output[i] = alpha * input[i]
+		}
+	}
+}
+
 func BaseReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -580,166 +1110,182 @@ func BaseSiLU_avx2_Float64(input []float64, output []float64) {
 	}
 }
 
-func BaseLeakyReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+func BaseSoftplus_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vAlpha := asm.BroadcastFloat16x8AVX2(uint16(alpha))
+	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
+	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
+	vThreshold := asm.BroadcastFloat16x8AVX2(uint16(actSoftplusThreshold_f16))
 	lanes := 8
 	ii := 0
-	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
 		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2_Float16(x)
+		log1pExpX := math.BaseLogVec_avx2_Float16(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
 		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		negPart1 := x1.Mul(vAlpha)
-		result1 := x1.Max(negPart1)
+		expX1 := math.BaseExpVec_avx2_Float16(x1)
+		log1pExpX1 := math.BaseLogVec_avx2_Float16(vOne.Add(expX1))
+		isLarge1 := x1.Greater(vThreshold)
+		result1 := x1.Merge(log1pExpX1, isLarge1)
+		result1 = result1.Max(vZero)
 		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
-		x2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+16:][0]))
-		negPart2 := x2.Mul(vAlpha)
-		result2 := x2.Max(negPart2)
-		result2.StorePtr(unsafe.Pointer(&output[ii+16:][0]))
-		x3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+24:][0]))
-		negPart3 := x3.Mul(vAlpha)
-		result3 := x3.Max(negPart3)
-		result3.StorePtr(unsafe.Pointer(&output[ii+24:][0]))
 	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2_Float16(x)
+		log1pExpX := math.BaseLogVec_avx2_Float16(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
 	}
 	for i := ii; i < size; i++ {
-		if input[i].Float32() > 0 {
+		x := float64(input[i].Float32())
+		if x > 20.0 {
 			output[i] = hwy.Float32ToFloat16(input[i].Float32())
 		} else {
-			output[i] = hwy.Float32ToFloat16(alpha.Float32() * input[i].Float32())
+			output[i] = hwy.Float32ToFloat16(float32(stdmath.Log(1.0 + stdmath.Exp(x))))
 		}
 	}
 }
 
-func BaseLeakyReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+func BaseSoftplus_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vAlpha := asm.BroadcastBFloat16x8AVX2(uint16(alpha))
+	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
+	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
+	vThreshold := asm.BroadcastBFloat16x8AVX2(uint16(actSoftplusThreshold_bf16))
 	lanes := 8
 	ii := 0
-	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
 		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2_BFloat16(x)
+		log1pExpX := math.BaseLogVec_avx2_BFloat16(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
 		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		negPart1 := x1.Mul(vAlpha)
-		result1 := x1.Max(negPart1)
+		expX1 := math.BaseExpVec_avx2_BFloat16(x1)
+		log1pExpX1 := math.BaseLogVec_avx2_BFloat16(vOne.Add(expX1))
+		isLarge1 := x1.Greater(vThreshold)
+		result1 := x1.Merge(log1pExpX1, isLarge1)
+		result1 = result1.Max(vZero)
 		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
-		x2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+16:][0]))
-		negPart2 := x2.Mul(vAlpha)
-		result2 := x2.Max(negPart2)
-		result2.StorePtr(unsafe.Pointer(&output[ii+16:][0]))
-		x3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+24:][0]))
-		negPart3 := x3.Mul(vAlpha)
-		result3 := x3.Max(negPart3)
-		result3.StorePtr(unsafe.Pointer(&output[ii+24:][0]))
 	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2_BFloat16(x)
+		log1pExpX := math.BaseLogVec_avx2_BFloat16(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
 	}
 	for i := ii; i < size; i++ {
-		if input[i].Float32() > 0 {
+		x := float64(input[i].Float32())
+		if x > 20.0 {
 			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
 		} else {
-			output[i] = hwy.Float32ToBFloat16(alpha.Float32() * input[i].Float32())
+			output[i] = hwy.Float32ToBFloat16(float32(stdmath.Log(1.0 + stdmath.Exp(x))))
 		}
 	}
 }
 
-func BaseLeakyReLU_avx2(input []float32, output []float32, alpha float32) {
+func BaseSoftplus_avx2(input []float32, output []float32) {
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vAlpha := archsimd.BroadcastFloat32x8(alpha)
+	vZero := BaseSoftplus_AVX2_vZero_f32
+	vOne := BaseSoftplus_AVX2_vOne_f32
+	vThreshold := BaseSoftplus_AVX2_vThreshold_f32
 	lanes := 8
 	ii := 0
-	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
 		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2(x)
+		log1pExpX := math.BaseLogVec_avx2(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
 		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
-		negPart1 := x1.Mul(vAlpha)
-		result1 := x1.Max(negPart1)
+		expX1 := math.BaseExpVec_avx2(x1)
+		log1pExpX1 := math.BaseLogVec_avx2(vOne.Add(expX1))
+		isLarge1 := x1.Greater(vThreshold)
+		result1 := x1.Merge(log1pExpX1, isLarge1)
+		result1 = result1.Max(vZero)
 		result1.Store((*[8]float32)(unsafe.Pointer(&output[ii+8])))
-		x2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+16])))
-		negPart2 := x2.Mul(vAlpha)
-		result2 := x2.Max(negPart2)
-		result2.Store((*[8]float32)(unsafe.Pointer(&output[ii+16])))
-		x3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+24])))
-		negPart3 := x3.Mul(vAlpha)
-		result3 := x3.Max(negPart3)
-		result3.Store((*[8]float32)(unsafe.Pointer(&output[ii+24])))
 	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2(x)
+		log1pExpX := math.BaseLogVec_avx2(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
-		if input[i] > 0 {
+		x := float64(input[i])
+		if x > 20.0 {
 			output[i] = input[i]
 		} else {
-			output[i] = alpha * input[i]
+			output[i] = float32(stdmath.Log(1.0 + stdmath.Exp(x)))
 		}
 	}
 }
 
-func BaseLeakyReLU_avx2_Float64(input []float64, output []float64, alpha float64) {
+func BaseSoftplus_avx2_Float64(input []float64, output []float64) {
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
 	}
-	vAlpha := archsimd.BroadcastFloat64x4(alpha)
+	vZero := BaseSoftplus_AVX2_vZero_f64
+	vOne := BaseSoftplus_AVX2_vOne_f64
+	vThreshold := BaseSoftplus_AVX2_vThreshold_f64
 	lanes := 4
 	ii := 0
-	for ; ii+lanes*4 <= size; ii += lanes * 4 {
+	for ; ii+lanes*2 <= size; ii += lanes * 2 {
 		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2_Float64(x)
+		log1pExpX := math.BaseLogVec_avx2_Float64(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
 		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
-		negPart1 := x1.Mul(vAlpha)
-		result1 := x1.Max(negPart1)
+		expX1 := math.BaseExpVec_avx2_Float64(x1)
+		log1pExpX1 := math.BaseLogVec_avx2_Float64(vOne.Add(expX1))
+		isLarge1 := x1.Greater(vThreshold)
+		result1 := x1.Merge(log1pExpX1, isLarge1)
+		result1 = result1.Max(vZero)
 		result1.Store((*[4]float64)(unsafe.Pointer(&output[ii+4])))
-		x2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+8])))
-		negPart2 := x2.Mul(vAlpha)
-		result2 := x2.Max(negPart2)
-		result2.Store((*[4]float64)(unsafe.Pointer(&output[ii+8])))
-		x3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+12])))
-		negPart3 := x3.Mul(vAlpha)
-		result3 := x3.Max(negPart3)
-		result3.Store((*[4]float64)(unsafe.Pointer(&output[ii+12])))
 	}
 	for ; ii+lanes <= size; ii += lanes {
 		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		negPart := x.Mul(vAlpha)
-		result := x.Max(negPart)
+		expX := math.BaseExpVec_avx2_Float64(x)
+		log1pExpX := math.BaseLogVec_avx2_Float64(vOne.Add(expX))
+		isLarge := x.Greater(vThreshold)
+		result := x.Merge(log1pExpX, isLarge)
+		result = result.Max(vZero)
 		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for i := ii; i < size; i++ {
-		if input[i] > 0 {
+		x := float64(input[i])
+		if x > 20.0 {
 			output[i] = input[i]
 		} else {
-			output[i] = alpha * input[i]
+			output[i] = float64(stdmath.Log(1.0 + stdmath.Exp(x)))
 		}
 	}
 }
@@ -845,365 +1391,5 @@ func BaseTanh_avx2_Float64(input []float64, output []float64) {
 	for i := ii; i < size; i++ {
 		x := float64(input[i])
 		output[i] = float64(stdmath.Tanh(x))
-	}
-}
-
-func BaseHardSwish_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
-	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
-	vScale := asm.BroadcastFloat16x8AVX2(uint16(actHardSwishScale_f16))
-	vBias := asm.BroadcastFloat16x8AVX2(uint16(actHalf_f16))
-	lanes := 8
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		s1 := x1.Mul(vScale).Add(vBias)
-		s1 = s1.Max(vZero)
-		s1 = s1.Min(vOne)
-		result1 := x1.Mul(s1)
-		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-	}
-	for i := ii; i < size; i++ {
-		x := float64(input[i].Float32())
-		s := x/6.0 + 0.5
-		if s < 0 {
-			s = 0
-		} else if s > 1 {
-			s = 1
-		}
-		output[i] = hwy.Float32ToFloat16(float32(x * s))
-	}
-}
-
-func BaseHardSwish_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
-	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
-	vScale := asm.BroadcastBFloat16x8AVX2(uint16(actHardSwishScale_bf16))
-	vBias := asm.BroadcastBFloat16x8AVX2(uint16(actHalf_bf16))
-	lanes := 8
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		s1 := x1.Mul(vScale).Add(vBias)
-		s1 = s1.Max(vZero)
-		s1 = s1.Min(vOne)
-		result1 := x1.Mul(s1)
-		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-	}
-	for i := ii; i < size; i++ {
-		x := float64(input[i].Float32())
-		s := x/6.0 + 0.5
-		if s < 0 {
-			s = 0
-		} else if s > 1 {
-			s = 1
-		}
-		output[i] = hwy.Float32ToBFloat16(float32(x * s))
-	}
-}
-
-func BaseHardSwish_avx2(input []float32, output []float32) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := BaseHardSwish_AVX2_vZero_f32
-	vOne := BaseHardSwish_AVX2_vOne_f32
-	vScale := BaseHardSwish_AVX2_vScale_f32
-	vBias := BaseHardSwish_AVX2_vBias_f32
-	lanes := 8
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
-		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
-		s1 := x1.Mul(vScale).Add(vBias)
-		s1 = s1.Max(vZero)
-		s1 = s1.Min(vOne)
-		result1 := x1.Mul(s1)
-		result1.Store((*[8]float32)(unsafe.Pointer(&output[ii+8])))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
-	}
-	for i := ii; i < size; i++ {
-		x := float64(input[i])
-		s := x/6.0 + 0.5
-		if s < 0 {
-			s = 0
-		} else if s > 1 {
-			s = 1
-		}
-		output[i] = float32(x * s)
-	}
-}
-
-func BaseHardSwish_avx2_Float64(input []float64, output []float64) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := BaseHardSwish_AVX2_vZero_f64
-	vOne := BaseHardSwish_AVX2_vOne_f64
-	vScale := BaseHardSwish_AVX2_vScale_f64
-	vBias := BaseHardSwish_AVX2_vBias_f64
-	lanes := 4
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
-		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
-		s1 := x1.Mul(vScale).Add(vBias)
-		s1 = s1.Max(vZero)
-		s1 = s1.Min(vOne)
-		result1 := x1.Mul(s1)
-		result1.Store((*[4]float64)(unsafe.Pointer(&output[ii+4])))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		s := x.Mul(vScale).Add(vBias)
-		s = s.Max(vZero)
-		s = s.Min(vOne)
-		result := x.Mul(s)
-		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
-	}
-	for i := ii; i < size; i++ {
-		x := float64(input[i])
-		s := x/6.0 + 0.5
-		if s < 0 {
-			s = 0
-		} else if s > 1 {
-			s = 1
-		}
-		output[i] = float64(x * s)
-	}
-}
-
-func BaseELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := asm.BroadcastFloat16x8AVX2(uint16(actZero_f16))
-	vOne := asm.BroadcastFloat16x8AVX2(uint16(actOne_f16))
-	vAlpha := asm.BroadcastFloat16x8AVX2(uint16(alpha))
-	lanes := 8
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		expX := math.BaseExpVec_avx2_Float16(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		expX1 := math.BaseExpVec_avx2_Float16(x1)
-		expM11 := expX1.Sub(vOne)
-		negPart1 := vAlpha.Mul(expM11)
-		isPositive1 := x1.Greater(vZero)
-		result1 := x1.Merge(negPart1, isPositive1)
-		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		expX := math.BaseExpVec_avx2_Float16(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-	}
-	for i := ii; i < size; i++ {
-		if input[i].Float32() > 0 {
-			output[i] = hwy.Float32ToFloat16(input[i].Float32())
-		} else {
-			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
-		}
-	}
-}
-
-func BaseELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := asm.BroadcastBFloat16x8AVX2(uint16(actZero_bf16))
-	vOne := asm.BroadcastBFloat16x8AVX2(uint16(actOne_bf16))
-	vAlpha := asm.BroadcastBFloat16x8AVX2(uint16(alpha))
-	lanes := 8
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		expX := math.BaseExpVec_avx2_BFloat16(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		expX1 := math.BaseExpVec_avx2_BFloat16(x1)
-		expM11 := expX1.Sub(vOne)
-		negPart1 := vAlpha.Mul(expM11)
-		isPositive1 := x1.Greater(vZero)
-		result1 := x1.Merge(negPart1, isPositive1)
-		result1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		expX := math.BaseExpVec_avx2_BFloat16(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.StorePtr(unsafe.Pointer(&output[ii:][0]))
-	}
-	for i := ii; i < size; i++ {
-		if input[i].Float32() > 0 {
-			output[i] = hwy.Float32ToBFloat16(input[i].Float32())
-		} else {
-			x := float64(input[i].Float32())
-			output[i] = hwy.Float32ToBFloat16(float32(float64(alpha.Float32()) * (stdmath.Exp(x) - 1.0)))
-		}
-	}
-}
-
-func BaseELU_avx2(input []float32, output []float32, alpha float32) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := BaseELU_AVX2_vZero_f32
-	vOne := BaseELU_AVX2_vOne_f32
-	vAlpha := archsimd.BroadcastFloat32x8(alpha)
-	lanes := 8
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		expX := math.BaseExpVec_avx2(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
-		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
-		expX1 := math.BaseExpVec_avx2(x1)
-		expM11 := expX1.Sub(vOne)
-		negPart1 := vAlpha.Mul(expM11)
-		isPositive1 := x1.Greater(vZero)
-		result1 := x1.Merge(negPart1, isPositive1)
-		result1.Store((*[8]float32)(unsafe.Pointer(&output[ii+8])))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		expX := math.BaseExpVec_avx2(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.Store((*[8]float32)(unsafe.Pointer(&output[ii])))
-	}
-	for i := ii; i < size; i++ {
-		if input[i] > 0 {
-			output[i] = input[i]
-		} else {
-			x := float64(input[i])
-			output[i] = float32(float64(alpha) * (stdmath.Exp(x) - 1.0))
-		}
-	}
-}
-
-func BaseELU_avx2_Float64(input []float64, output []float64, alpha float64) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	vZero := BaseELU_AVX2_vZero_f64
-	vOne := BaseELU_AVX2_vOne_f64
-	vAlpha := archsimd.BroadcastFloat64x4(alpha)
-	lanes := 4
-	ii := 0
-	for ; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		expX := math.BaseExpVec_avx2_Float64(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
-		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
-		expX1 := math.BaseExpVec_avx2_Float64(x1)
-		expM11 := expX1.Sub(vOne)
-		negPart1 := vAlpha.Mul(expM11)
-		isPositive1 := x1.Greater(vZero)
-		result1 := x1.Merge(negPart1, isPositive1)
-		result1.Store((*[4]float64)(unsafe.Pointer(&output[ii+4])))
-	}
-	for ; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		expX := math.BaseExpVec_avx2_Float64(x)
-		expM1 := expX.Sub(vOne)
-		negPart := vAlpha.Mul(expM1)
-		isPositive := x.Greater(vZero)
-		result := x.Merge(negPart, isPositive)
-		result.Store((*[4]float64)(unsafe.Pointer(&output[ii])))
-	}
-	for i := ii; i < size; i++ {
-		if input[i] > 0 {
-			output[i] = input[i]
-		} else {
-			x := float64(input[i])
-			output[i] = float64(float64(alpha) * (stdmath.Exp(x) - 1.0))
-		}
 	}
 }

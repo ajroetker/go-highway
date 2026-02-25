@@ -30,7 +30,8 @@ var (
 	actHalf_f16           hwy.Float16 = hwy.Float32ToFloat16(0.5)
 	actInvSqrt2_f16       hwy.Float16 = hwy.Float32ToFloat16(0.7071067811865476)
 	actGeluApproxCoeff_f16 hwy.Float16 = hwy.Float32ToFloat16(1.702)
-	actHardSwishScale_f16 hwy.Float16 = hwy.Float32ToFloat16(0.16666666666666666)
+	actHardSwishScale_f16  hwy.Float16 = hwy.Float32ToFloat16(0.16666666666666666)
+	actSoftplusThreshold_f16 hwy.Float16 = hwy.Float32ToFloat16(20.0)
 )
 
 // BFloat16 constants for activations
@@ -40,7 +41,8 @@ var (
 	actHalf_bf16           hwy.BFloat16 = hwy.Float32ToBFloat16(0.5)
 	actInvSqrt2_bf16       hwy.BFloat16 = hwy.Float32ToBFloat16(0.7071067811865476)
 	actGeluApproxCoeff_bf16 hwy.BFloat16 = hwy.Float32ToBFloat16(1.702)
-	actHardSwishScale_bf16 hwy.BFloat16 = hwy.Float32ToBFloat16(0.16666666666666666)
+	actHardSwishScale_bf16  hwy.BFloat16 = hwy.Float32ToBFloat16(0.16666666666666666)
+	actSoftplusThreshold_bf16 hwy.BFloat16 = hwy.Float32ToBFloat16(20.0)
 )
 
 // Float32 constants for activations
@@ -50,7 +52,8 @@ var (
 	actHalf_f32           float32 = 0.5
 	actInvSqrt2_f32       float32 = 0.7071067811865476
 	actGeluApproxCoeff_f32 float32 = 1.702
-	actHardSwishScale_f32 float32 = 0.16666666666666666
+	actHardSwishScale_f32  float32 = 0.16666666666666666
+	actSoftplusThreshold_f32 float32 = 20.0
 )
 
 // Float64 constants for activations
@@ -60,5 +63,6 @@ var (
 	actHalf_f64           float64 = 0.5
 	actInvSqrt2_f64       float64 = 0.7071067811865475244008443621048490392848359376884740365883398689
 	actGeluApproxCoeff_f64 float64 = 1.702
-	actHardSwishScale_f64 float64 = 0.16666666666666666666666666666666666666666666666666666666666666666
+	actHardSwishScale_f64  float64 = 0.16666666666666666666666666666666666666666666666666666666666666666
+	actSoftplusThreshold_f64 float64 = 20.0
 )
