@@ -5571,6 +5571,93 @@ func TestComboPrimaryType(t *testing.T) {
 	}
 }
 
+func TestGetCElemTypes(t *testing.T) {
+	tests := []struct {
+		name   string
+		pf     ParsedFunc
+		want   []string
+	}{
+		{
+			name: "generic function uses constraint",
+			pf: ParsedFunc{
+				Name:       "BaseSigmoid",
+				TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.FloatsNative"}},
+			},
+			want: GetConcreteTypes("hwy.FloatsNative"),
+		},
+		{
+			name: "non-generic float32 only",
+			pf: ParsedFunc{
+				Name:   "BaseGELU",
+				Params: []Param{{Name: "data", Type: "[]float32"}},
+			},
+			want: []string{"float32"},
+		},
+		{
+			name: "non-generic uint64 only",
+			pf: ParsedFunc{
+				Name:   "BasePack64",
+				Params: []Param{{Name: "src", Type: "[]uint64"}, {Name: "dst", Type: "[]byte"}},
+			},
+			want: []string{"uint64"},
+		},
+		{
+			name: "non-generic uint32 and byte prefers uint32",
+			pf: ParsedFunc{
+				Name:   "BasePack32",
+				Params: []Param{{Name: "src", Type: "[]uint32"}, {Name: "bitWidth", Type: "int"}, {Name: "dst", Type: "[]byte"}},
+			},
+			want: []string{"uint32"},
+		},
+		{
+			name: "non-generic byte and uint32 prefers uint32",
+			pf: ParsedFunc{
+				Name:   "BaseUnpack32",
+				Params: []Param{{Name: "src", Type: "[]byte"}, {Name: "bitWidth", Type: "int"}, {Name: "dst", Type: "[]uint32"}},
+			},
+			want: []string{"uint32"},
+		},
+		{
+			name: "non-generic uint8 and float32 prefers float32",
+			pf: ParsedFunc{
+				Name:   "BaseDequantizeUint8",
+				Params: []Param{{Name: "input", Type: "[]uint8"}, {Name: "output", Type: "[]float32"}, {Name: "min", Type: "float32"}, {Name: "scale", Type: "float32"}},
+			},
+			want: []string{"float32"},
+		},
+		{
+			name: "non-generic float32 and uint8 prefers float32",
+			pf: ParsedFunc{
+				Name:   "BaseQuantizeFloat32",
+				Params: []Param{{Name: "input", Type: "[]float32"}, {Name: "output", Type: "[]uint8"}, {Name: "min", Type: "float32"}, {Name: "scale", Type: "float32"}},
+			},
+			want: []string{"float32"},
+		},
+		{
+			name: "non-generic no slice params defaults to float32",
+			pf: ParsedFunc{
+				Name:   "BaseScalar",
+				Params: []Param{{Name: "x", Type: "float64"}, {Name: "y", Type: "float64"}},
+			},
+			want: []string{"float32"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getCElemTypes(&tt.pf)
+			if len(got) != len(tt.want) {
+				t.Fatalf("getCElemTypes() returned %d types %v, want %d types %v", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("getCElemTypes()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestGetTypeCombinationsBackwardCompat(t *testing.T) {
 	// Functions without //hwy:gen should produce same combos as GetConcreteTypes
 	pf := ParsedFunc{

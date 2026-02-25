@@ -85,6 +85,14 @@ type CIntrinsicProfile struct {
 	// Mask vector type (comparison results)
 	MaskType map[string]string // "uint32x4_t" (NEON), "__m256" (AVX)
 
+	// Rounding
+	RoundFn map[string]string // vrndnq_f32, svrintn_f32_x
+
+	// Type conversion
+	ConvertToFloat32Fn map[string]string // vcvtq_f32_s32 (int32→float32)
+	ConvertToInt32Fn   map[string]string // vcvtq_s32_f32 (float32→int32, truncate)
+	Int32VecType       map[string]string // C vector type for int32 results: "int32x4_t"
+
 	// Reduction min/max
 	ReduceMinFn map[string]string // vminvq_f32
 	ReduceMaxFn map[string]string // vmaxvq_f32
@@ -294,6 +302,11 @@ func neonF32Profile() *CIntrinsicProfile {
 		Load4Fn:   map[string]string{"q": "vld1q_f32_x4"},
 		VecX4Type: map[string]string{"q": "float32x4x4_t"},
 
+		RoundFn:            map[string]string{"q": "vrndnq_f32"},
+		ConvertToFloat32Fn: map[string]string{"q": "vcvtq_f32_s32"},
+		ConvertToInt32Fn:   map[string]string{"q": "vcvtq_s32_f32"},
+		Int32VecType:       map[string]string{"q": "int32x4_t"},
+
 		SlideUpExtFn:      map[string]string{"q": "vextq_f32"},
 		ReduceSumFn:       map[string]string{"q": "vaddvq_f32"},
 		InterleaveLowerFn: map[string]string{"q": "vzip1q_f32"},
@@ -375,6 +388,8 @@ func neonF64Profile() *CIntrinsicProfile {
 		GetLaneFn: map[string]string{"q": "vgetq_lane_f64"},
 		Load4Fn:   map[string]string{"q": "vld1q_f64_x4"},
 		VecX4Type: map[string]string{"q": "float64x2x4_t"},
+
+		RoundFn:            map[string]string{"q": "vrndnq_f64"},
 
 		SlideUpExtFn:      map[string]string{"q": "vextq_f64"},
 		ReduceSumFn:       map[string]string{"q": "vaddvq_f64"},
@@ -1285,6 +1300,11 @@ func sveDarwinF32Profile() *CIntrinsicProfile {
 		DupFn:     map[string]string{"sve": "svdup_f32"},
 		GetLaneFn: map[string]string{"sve": "svlasta_f32"},
 
+		RoundFn:            map[string]string{"sve": "svrintn_f32_x"},
+		ConvertToFloat32Fn: map[string]string{"sve": "svcvt_f32_s32_x"},
+		ConvertToInt32Fn:   map[string]string{"sve": "svcvt_s32_f32_x"},
+		Int32VecType:       map[string]string{"sve": "svint32_t"},
+
 		ReduceSumFn:       map[string]string{"sve": "svaddv_f32"},
 		ReduceMinFn:       map[string]string{"sve": "svminv_f32"},
 		ReduceMaxFn:       map[string]string{"sve": "svmaxv_f32"},
@@ -1403,6 +1423,11 @@ func sveLinuxF32Profile() *CIntrinsicProfile {
 		MaxFn:     map[string]string{"sve": "svmax_f32_x"},
 		DupFn:     map[string]string{"sve": "svdup_f32"},
 		GetLaneFn: map[string]string{"sve": "svlasta_f32"},
+
+		RoundFn:            map[string]string{"sve": "svrintn_f32_x"},
+		ConvertToFloat32Fn: map[string]string{"sve": "svcvt_f32_s32_x"},
+		ConvertToInt32Fn:   map[string]string{"sve": "svcvt_s32_f32_x"},
+		Int32VecType:       map[string]string{"sve": "svint32_t"},
 
 		ReduceSumFn:       map[string]string{"sve": "svaddv_f32"},
 		ReduceMinFn:       map[string]string{"sve": "svminv_f32"},

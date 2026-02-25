@@ -3122,6 +3122,14 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		return t.emitHwyUnaryOp(t.profile.SqrtFn, args)
 	case "RSqrt", "InvSqrt":
 		return t.emitHwyUnaryOp(t.profile.RSqrtFn, args)
+	case "Round":
+		return t.emitHwyUnaryOp(t.profile.RoundFn, args)
+	case "ConvertToFloat32":
+		return t.emitHwyUnaryOp(t.profile.ConvertToFloat32Fn, args)
+	case "ConvertToInt32":
+		return t.emitHwyUnaryOp(t.profile.ConvertToInt32Fn, args)
+	case "Clamp":
+		return t.emitHwyClamp(args)
 	case "ReduceSum":
 		return t.emitHwyReduceSum(args)
 	case "InterleaveLower":
@@ -3615,6 +3623,30 @@ func (t *CASTTranslator) emitHwyIfThenElse(args []ast.Expr) string {
 	}
 	// NEON convention: vbsl(mask, yes, no)
 	return fmt.Sprintf("%s(%s, %s, %s)", fn, mask, yes, no)
+}
+
+// emitHwyClamp: hwy.Clamp(v, lo, hi) → max(min(v, hi), lo)
+// Composed from Min and Max intrinsics.
+func (t *CASTTranslator) emitHwyClamp(args []ast.Expr) string {
+	if len(args) < 3 {
+		return "/* Clamp: missing args */"
+	}
+	minFn := t.profile.MinFn[t.tier]
+	maxFn := t.profile.MaxFn[t.tier]
+	v := t.translateExpr(args[0])
+	lo := t.translateExpr(args[1])
+	hi := t.translateExpr(args[2])
+
+	if minFn == "" || maxFn == "" {
+		// Scalar fallback
+		return fmt.Sprintf("((%s) < (%s) ? (%s) : ((%s) > (%s) ? (%s) : (%s)))", v, lo, lo, v, hi, hi, v)
+	}
+	if t.profile.NeedsPredicate {
+		inner := fmt.Sprintf("%s(pg, %s, %s)", minFn, v, hi)
+		return fmt.Sprintf("%s(pg, %s, %s)", maxFn, inner, lo)
+	}
+	inner := fmt.Sprintf("%s(%s, %s)", minFn, v, hi)
+	return fmt.Sprintf("%s(%s, %s)", maxFn, inner, lo)
 }
 
 // emitHwyGetLane: hwy.GetLane(v, idx) → vgetq_lane_f32(v, idx)
@@ -4551,7 +4583,12 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount",
 				"IfThenElse", "Merge", "SlideUpLanes", "Pow",
-				"Iota":
+				"Iota", "Round", "Clamp", "ConvertToFloat32":
+				return cVarInfo{cType: vecType, isVector: true}
+			case "ConvertToInt32":
+				if it, ok := t.profile.Int32VecType[t.tier]; ok {
+					return cVarInfo{cType: it, isVector: true}
+				}
 				return cVarInfo{cType: vecType, isVector: true}
 			case "MaskAnd", "MaskOr", "MaskAndNot", "FirstN":
 				// Mask operations return a mask vector
