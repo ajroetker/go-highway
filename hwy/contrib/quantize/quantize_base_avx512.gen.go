@@ -82,21 +82,21 @@ func BaseQuantizeFloat32_avx512(input []float32, output []uint8, min float32, sc
 	for ; i+lanes*3 <= n; i += lanes * 3 {
 		v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[i])))
 		diff := v.Sub(minVec).Mul(invScaleVec)
-		rounded := hwy.Clamp(archsimd.Round(diff), zeroVec, max255Vec)
+		rounded := hwy.Round_AVX512_F32x16(diff).Max(zeroVec).Min(max255Vec)
 		rounded.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
 		for j := range lanes {
 			output[i+j] = uint8(buf[j])
 		}
 		v1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[i+16])))
 		diff1 := v1.Sub(minVec).Mul(invScaleVec)
-		rounded1 := hwy.Clamp(archsimd.Round(diff1), zeroVec, max255Vec)
+		rounded1 := hwy.Round_AVX512_F32x16(diff1).Max(zeroVec).Min(max255Vec)
 		rounded1.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
 		for j := range lanes {
 			output[i+j+16] = uint8(buf[j])
 		}
 		v2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[i+32])))
 		diff2 := v2.Sub(minVec).Mul(invScaleVec)
-		rounded2 := hwy.Clamp(archsimd.Round(diff2), zeroVec, max255Vec)
+		rounded2 := hwy.Round_AVX512_F32x16(diff2).Max(zeroVec).Min(max255Vec)
 		rounded2.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
 		for j := range lanes {
 			output[i+j+32] = uint8(buf[j])
