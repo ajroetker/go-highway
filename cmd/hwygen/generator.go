@@ -104,6 +104,330 @@ type AsmAdapterInfo struct {
 	AdapterFunc string // "liftUpdate53AsmS32"
 }
 
+// DispatchGroup represents a set of functions that share a single dispatch
+// interface. One function is the "primary" (defines the dispatch signature
+// and widest constraint), and zero or more are "specializations" that
+// override specific (target, combo) slots.
+type DispatchGroup struct {
+	// GroupName is the dispatch name without "Base" prefix.
+	GroupName string
+
+	// Primary is the default function used when no specialization matches.
+	Primary *ParsedFunc
+
+	// Specializations are functions with //hwy:specializes pointing to this group.
+	Specializations []*ParsedFunc
+
+	// AllCombos is the union of all TypeCombinations across Primary and
+	// all Specializations. This determines the dispatch vars.
+	AllCombos []TypeCombination
+
+	// AllTypeParams is the type parameters from the Primary (widest constraint).
+	AllTypeParams []TypeParam
+
+	// Private reflects whether the primary function uses lowercase "base".
+	Private bool
+}
+
+// buildDispatchGroups partitions a list of parsed functions into dispatch groups.
+// Functions without //hwy:specializes each form their own single-member group.
+// Functions with //hwy:specializes join the group of the referenced primary function.
+func buildDispatchGroups(funcs []ParsedFunc) ([]DispatchGroup, error) {
+	// Step 1: Separate primary functions from specializations
+	type primaryEntry struct {
+		idx int
+		pf  *ParsedFunc
+	}
+	primaryByGroup := make(map[string]*primaryEntry)
+	var specFuncs []*ParsedFunc
+
+	for i := range funcs {
+		pf := &funcs[i]
+		if pf.SpecializesGroup != "" {
+			specFuncs = append(specFuncs, pf)
+		} else {
+			groupName := deriveFuncGroupName(pf.Name)
+			if existing, ok := primaryByGroup[groupName]; ok {
+				return nil, fmt.Errorf("duplicate primary function for group %q: %s and %s",
+					groupName, existing.pf.Name, pf.Name)
+			}
+			primaryByGroup[groupName] = &primaryEntry{idx: i, pf: pf}
+		}
+	}
+
+	// Step 2: Validate specializations reference existing groups
+	specsByGroup := make(map[string][]*ParsedFunc)
+	for _, pf := range specFuncs {
+		if _, ok := primaryByGroup[pf.SpecializesGroup]; !ok {
+			return nil, fmt.Errorf("specialization %s references unknown group %q (available: %v)",
+				pf.Name, pf.SpecializesGroup, groupNames(primaryByGroup))
+		}
+		specsByGroup[pf.SpecializesGroup] = append(specsByGroup[pf.SpecializesGroup], pf)
+	}
+
+	// Step 3: Build DispatchGroups
+	var groups []DispatchGroup
+	for groupName, entry := range primaryByGroup {
+		primary := entry.pf
+		specs := specsByGroup[groupName]
+
+		// Validate signature compatibility
+		for _, spec := range specs {
+			if err := validateSignatureCompatibility(primary, spec); err != nil {
+				return nil, fmt.Errorf("specialization %s incompatible with %s: %w",
+					spec.Name, primary.Name, err)
+			}
+		}
+
+		// Compute union of all combos
+		allCombos := computeUnionCombos(primary, specs)
+
+		// Use Primary's type params; widen constraint if specializations add types
+		allTypeParams := make([]TypeParam, len(primary.TypeParams))
+		copy(allTypeParams, primary.TypeParams)
+		if len(specs) > 0 && len(allTypeParams) > 0 {
+			widenConstraintForCombos(allTypeParams, allCombos)
+		}
+
+		groups = append(groups, DispatchGroup{
+			GroupName:       groupName,
+			Primary:         primary,
+			Specializations: specs,
+			AllCombos:       allCombos,
+			AllTypeParams:   allTypeParams,
+			Private:         primary.Private,
+		})
+	}
+
+	// Sort groups for deterministic output
+	slices.SortFunc(groups, func(a, b DispatchGroup) int {
+		return strings.Compare(a.GroupName, b.GroupName)
+	})
+
+	return groups, nil
+}
+
+// deriveFuncGroupName extracts the dispatch group name from a function name.
+// "BaseMatMul" → "MatMul", "baseSigmoid" → "Sigmoid"
+func deriveFuncGroupName(name string) string {
+	name = strings.TrimPrefix(name, "Base")
+	name = strings.TrimPrefix(name, "base")
+	// Ensure first letter is uppercase for consistent group names
+	if len(name) > 0 {
+		name = strings.ToUpper(name[:1]) + name[1:]
+	}
+	return name
+}
+
+// groupNames extracts sorted group names from a map for error messages.
+func groupNames[V any](m map[string]*V) []string {
+	names := make([]string, 0, len(m))
+	for k := range m {
+		names = append(names, k)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// validateSignatureCompatibility checks that a specialization function has a
+// compatible signature with its primary function.
+func validateSignatureCompatibility(primary, spec *ParsedFunc) error {
+	if len(primary.Params) != len(spec.Params) {
+		return fmt.Errorf("parameter count mismatch: primary has %d, specialization has %d",
+			len(primary.Params), len(spec.Params))
+	}
+	if len(primary.Returns) != len(spec.Returns) {
+		return fmt.Errorf("return count mismatch: primary has %d, specialization has %d",
+			len(primary.Returns), len(spec.Returns))
+	}
+	return nil
+}
+
+// computeUnionCombos returns the union of type combinations from the primary
+// function and all its specializations. Duplicate combos are removed.
+func computeUnionCombos(primary *ParsedFunc, specs []*ParsedFunc) []TypeCombination {
+	seen := make(map[string]bool)
+	var result []TypeCombination
+
+	addCombos := func(pf *ParsedFunc) {
+		for _, combo := range getTypeCombinations(pf) {
+			key := comboKey(combo)
+			if !seen[key] {
+				seen[key] = true
+				result = append(result, combo)
+			}
+		}
+	}
+
+	addCombos(primary)
+	for _, spec := range specs {
+		addCombos(spec)
+	}
+
+	return result
+}
+
+// comboKey produces a stable string key for a TypeCombination for deduplication.
+func comboKey(combo TypeCombination) string {
+	if len(combo.Types) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(combo.Types))
+	for k := range combo.Types {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, k+"="+combo.Types[k])
+	}
+	return strings.Join(parts, ",")
+}
+
+// combosEqual checks if two TypeCombinations have the same type mappings.
+func combosEqual(a, b TypeCombination) bool {
+	if len(a.Types) != len(b.Types) {
+		return false
+	}
+	for k, v := range a.Types {
+		if b.Types[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// widenConstraintForCombos widens type parameter constraints if the combo set
+// contains types not covered by the current constraint. For example, if the
+// primary has hwy.FloatsNative (float32/float64) but a specialization adds
+// hwy.Float16, the constraint is widened to hwy.Floats.
+func widenConstraintForCombos(typeParams []TypeParam, combos []TypeCombination) {
+	if len(typeParams) == 0 {
+		return
+	}
+
+	// Collect all concrete types used by the first type param
+	firstTP := typeParams[0].Name
+	hasHalf := false
+	hasNativeFloat := false
+	for _, combo := range combos {
+		t := combo.Types[firstTP]
+		switch t {
+		case "hwy.Float16", "hwy.BFloat16":
+			hasHalf = true
+		case "float32", "float64":
+			hasNativeFloat = true
+		}
+	}
+
+	// Widen if needed
+	if hasHalf && hasNativeFloat {
+		constraint := typeParams[0].Constraint
+		if strings.Contains(constraint, "FloatsNative") || strings.Contains(constraint, "HalfFloats") {
+			typeParams[0].Constraint = "hwy.Floats"
+		}
+	}
+}
+
+// selectSourceFunc returns the function whose body should be used to generate
+// code for the given target, mode, and type combination. Returns nil if no function
+// covers this combo on this target/mode.
+func selectSourceFunc(group *DispatchGroup, target Target, mode TargetMode, combo TypeCombination) (*ParsedFunc, error) {
+	type candidate struct {
+		pf    *ParsedFunc
+		score int // higher = more specific
+	}
+
+	var candidates []candidate
+
+	// Check specializations
+	for _, spec := range group.Specializations {
+		if !comboMatchesFunc(spec, combo) {
+			continue
+		}
+		if !targetAllowed(spec, target, mode) {
+			continue
+		}
+		score := 0
+		if len(spec.AllowedTargets) > 0 {
+			score++ // target-restricted is more specific
+		}
+		candidates = append(candidates, candidate{pf: spec, score: score})
+	}
+
+	// Check primary (always a candidate if it covers this combo)
+	if comboMatchesFunc(group.Primary, combo) {
+		candidates = append(candidates, candidate{pf: group.Primary, score: -1})
+	}
+
+	if len(candidates) == 0 {
+		// No function covers this combo on this target — skip silently.
+		return nil, nil
+	}
+
+	// Sort by score descending
+	slices.SortFunc(candidates, func(a, b candidate) int {
+		return b.score - a.score
+	})
+
+	// Check for ties at the top (among specializations, not primary)
+	if len(candidates) > 1 && candidates[0].score == candidates[1].score &&
+		candidates[0].score > 0 {
+		return nil, fmt.Errorf("ambiguous specialization for (%s, %v) in group %s: "+
+			"both %s and %s match with equal specificity",
+			target.Name, combo.Types, group.GroupName,
+			candidates[0].pf.Name, candidates[1].pf.Name)
+	}
+
+	return candidates[0].pf, nil
+}
+
+// comboMatchesFunc returns true if the function covers the given type combination.
+func comboMatchesFunc(pf *ParsedFunc, combo TypeCombination) bool {
+	funcCombos := getTypeCombinations(pf)
+	for _, fc := range funcCombos {
+		if combosEqual(fc, combo) {
+			return true
+		}
+	}
+	return false
+}
+
+// targetAllowed returns true if the function is allowed to run on the given target and mode.
+// If AllowedTargets is empty, the function runs on all targets.
+// Allowed targets may include mode suffixes (e.g., "neon:asm") which restrict matching
+// to that specific mode. Without a suffix, any mode matches.
+func targetAllowed(pf *ParsedFunc, target Target, mode TargetMode) bool {
+	if len(pf.AllowedTargets) == 0 {
+		return true
+	}
+	targetLower := strings.ToLower(target.Name)
+	for _, allowed := range pf.AllowedTargets {
+		name, allowedMode := parseTargetSpec(allowed)
+		if name == targetLower {
+			// No mode suffix (GoSimd is the default from parseTargetSpec) → matches any mode
+			if allowedMode == TargetModeGoSimd {
+				return true
+			}
+			// Mode suffix → must match exactly
+			if allowedMode == mode {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// synthPrimaryForDispatch creates a synthetic ParsedFunc from a DispatchGroup
+// that has the union of all type combinations and widened constraints. This
+// allows the existing emitter to generate correct dispatch without structural changes.
+func synthPrimaryForDispatch(group *DispatchGroup) ParsedFunc {
+	synth := *group.Primary // shallow copy
+	synth.TypeCombinations = group.AllCombos
+	synth.TypeParams = group.AllTypeParams
+	return synth
+}
+
 // Generator orchestrates the code generation process.
 type Generator struct {
 	InputFile      string       // Input Go source file
@@ -200,7 +524,15 @@ func (g *Generator) Run() error {
 		}
 	}
 
-	// 2. Go SIMD path: transform + emit for each Go SIMD target
+	// 2. Build dispatch groups from parsed functions.
+	// Functions with //hwy:specializes join the referenced group;
+	// all others form their own single-member groups.
+	groups, err := buildDispatchGroups(result.Funcs)
+	if err != nil {
+		return fmt.Errorf("build dispatch groups: %w", err)
+	}
+
+	// Go SIMD path: transform + emit for each Go SIMD target
 	var goSimdTargets []Target
 	for _, ts := range goSimdSpecs {
 		goSimdTargets = append(goSimdTargets, ts.Target)
@@ -226,35 +558,27 @@ func (g *Generator) Run() error {
 			genericHalfPrecFuncs = ComputeGenericHalfPrecFuncs(result.Funcs)
 		}
 
-		for _, pf := range result.Funcs {
-			if hasInterfaceTypeParams(pf.TypeParams) && target.Name != "Fallback" {
-				continue
-			}
-
-			// Get type combinations: explicit //hwy:gen combos, or derived from constraints
-			var combos []TypeCombination
-			if len(pf.TypeCombinations) > 0 {
-				combos = pf.TypeCombinations
-			} else if len(pf.TypeParams) > 0 {
-				concreteTypes := GetConcreteTypes(pf.TypeParams[0].Constraint)
-				combos = make([]TypeCombination, len(concreteTypes))
-				for i, ct := range concreteTypes {
-					combos[i] = TypeCombination{Types: map[string]string{pf.TypeParams[0].Name: ct}}
+		for _, group := range groups {
+			for _, combo := range group.AllCombos {
+				// Select which function body to use for this (target, combo)
+				sourcePF, err := selectSourceFunc(&group, target, TargetModeGoSimd, combo)
+				if err != nil {
+					return fmt.Errorf("select source: %w", err)
 				}
-			} else {
-				inferredTypes := inferTypesFromParams(pf.Params)
-				combos = make([]TypeCombination, len(inferredTypes))
-				for i, ct := range inferredTypes {
-					combos[i] = TypeCombination{Types: map[string]string{"": ct}}
+				if sourcePF == nil {
+					continue // no coverage on this target
 				}
-			}
 
-			for _, combo := range combos {
-				elemType := comboPrimaryType(combo, pf.TypeParams)
+				// Skip interface type params on non-Fallback targets
+				if hasInterfaceTypeParams(sourcePF.TypeParams) && target.Name != "Fallback" {
+					continue
+				}
+
+				elemType := comboPrimaryType(combo, group.AllTypeParams)
 
 				if target.Name == "NEON" &&
 					(elemType == "hwy.Float16" || elemType == "hwy.BFloat16") &&
-					genericHalfPrecFuncs[pf.Name] {
+					genericHalfPrecFuncs[sourcePF.Name] {
 					transformOpts.SkipHalfPrecNEON = true
 				} else {
 					transformOpts.SkipHalfPrecNEON = false
@@ -267,17 +591,20 @@ func (g *Generator) Run() error {
 					transformOpts.TypeMap = nil
 				}
 
-				transformResult := TransformWithOptions(&pf, target, elemType, transformOpts)
+				transformResult := TransformWithOptions(sourcePF, target, elemType, transformOpts)
 
-				// Add type suffix to function name
-				suffix := comboTypeSuffix(combo, pf.TypeParams)
-				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
-					transformResult.FuncDecl.Name.Name = transformResult.FuncDecl.Name.Name + "_" + suffix
+				// Name normalization: always use the Primary function's name for output.
+				// This ensures the emitter's impl-name construction works regardless of
+				// which source function body (primary or specialization) was used.
+				outName := group.Primary.Name + target.Suffix()
+				suffix := comboTypeSuffix(combo, group.AllTypeParams)
+				if suffix != "" && suffix != "Float32" && len(group.AllTypeParams) > 0 {
+					outName = outName + "_" + suffix
 				}
-
-				if pf.Private {
-					transformResult.FuncDecl.Name.Name = makeUnexported(transformResult.FuncDecl.Name.Name)
+				if group.Private {
+					outName = makeUnexported(outName)
 				}
+				transformResult.FuncDecl.Name.Name = outName
 
 				transformed = append(transformed, transformResult.FuncDecl)
 
@@ -337,8 +664,38 @@ func (g *Generator) Run() error {
 		}
 	}
 
-	// 6. Emit the dispatcher file with ASM adapter info
-	if err := EmitDispatcher(result.Funcs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters); err != nil {
+	// 6. Emit the dispatcher file with ASM adapter info.
+	// Build synthetic funcs that merge specialization groups: each group
+	// becomes a single ParsedFunc with the union of all type combinations
+	// and widened constraints. This lets the existing emitter work unchanged.
+	synthFuncs := make([]ParsedFunc, 0, len(groups))
+	for _, group := range groups {
+		synthFuncs = append(synthFuncs, synthPrimaryForDispatch(&group))
+	}
+
+	// Compute which combos have implementations on which targets.
+	// This prevents the emitter from generating init assignments for combos
+	// that only exist on restricted targets (e.g., Float16 on neon:asm only).
+	targetComboMap := make(map[string]map[string]bool)
+	for _, target := range allTargets {
+		mode := TargetModeGoSimd
+		if target.Mode == TargetModeAsm {
+			mode = TargetModeAsm
+		}
+		comboSet := make(map[string]bool)
+		for _, group := range groups {
+			synthPF := synthPrimaryForDispatch(&group)
+			for _, dc := range getDispatchCombos(synthPF) {
+				sourcePF, _ := selectSourceFunc(&group, target, mode, dc.Combo)
+				if sourcePF != nil {
+					comboSet[dc.DispatchName] = true
+				}
+			}
+		}
+		targetComboMap[target.Name] = comboSet
+	}
+
+	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters, targetComboMap); err != nil {
 		return fmt.Errorf("emit dispatcher: %w", err)
 	}
 

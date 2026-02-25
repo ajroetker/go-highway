@@ -83,6 +83,16 @@ When implementing a new SIMD feature:
 
 5. **Function signatures** should match: `func(src []T, m, k int, dst []T)` (src first, dst last).
 
+### hwygen Directives
+
+Directive comments placed within 5 lines above a `Base*` function:
+
+- `//hwy:gen T={float32, float64}` — explicit type expansion (cross-product for multi-param)
+- `//hwy:specializes <GroupName>` — joins a different `Base*` function's dispatch group (different body, same interface)
+- `//hwy:targets neon,sme` — restricts a function to specific SIMD targets
+
+Specializations are auto-discovered from sibling `*_base.go` files. See `specs/multi-dispatch.md` for details.
+
 ### Target Modes: `neon` vs `neon:asm`
 
 hwygen supports three generation modes, selected with a colon suffix on the target name:

@@ -6274,3 +6274,1055 @@ func TestCASTTranslatorResolveTypeParam(t *testing.T) {
 		}
 	})
 }
+
+// ---- Tests for //hwy:specializes and //hwy:targets directives ----
+
+func TestParseSpecializesDirective(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_base.go")
+	content := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={hwy.Float16, hwy.BFloat16}
+//hwy:specializes MatMul
+func BaseMatMulHalf[T hwy.Floats](a, b, c []T, m, n, k int) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	result, err := Parse(testFile)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(result.Funcs) != 1 {
+		t.Fatalf("got %d funcs, want 1", len(result.Funcs))
+	}
+
+	pf := result.Funcs[0]
+	if pf.SpecializesGroup != "MatMul" {
+		t.Errorf("SpecializesGroup = %q, want %q", pf.SpecializesGroup, "MatMul")
+	}
+	if len(pf.TypeCombinations) != 2 {
+		t.Errorf("got %d combos, want 2", len(pf.TypeCombinations))
+	}
+}
+
+func TestParseTargetsDirective(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_base.go")
+	content := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={hwy.Float16, hwy.BFloat16}
+//hwy:specializes MatMul
+//hwy:targets neon,avx512
+func BaseMatMulHalf[T hwy.Floats](a, b, c []T, m, n, k int) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	result, err := Parse(testFile)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(result.Funcs) != 1 {
+		t.Fatalf("got %d funcs, want 1", len(result.Funcs))
+	}
+
+	pf := result.Funcs[0]
+	if len(pf.AllowedTargets) != 2 {
+		t.Fatalf("got %d targets, want 2", len(pf.AllowedTargets))
+	}
+	if pf.AllowedTargets[0] != "neon" || pf.AllowedTargets[1] != "avx512" {
+		t.Errorf("AllowedTargets = %v, want [neon avx512]", pf.AllowedTargets)
+	}
+}
+
+func TestBuildDispatchGroups(t *testing.T) {
+	t.Run("single function no specializations", func(t *testing.T) {
+		funcs := []ParsedFunc{
+			{
+				Name:       "BaseMatMul",
+				TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+				TypeCombinations: []TypeCombination{
+					{Types: map[string]string{"T": "float32"}},
+					{Types: map[string]string{"T": "float64"}},
+				},
+			},
+		}
+
+		groups, err := buildDispatchGroups(funcs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(groups) != 1 {
+			t.Fatalf("got %d groups, want 1", len(groups))
+		}
+		if groups[0].GroupName != "MatMul" {
+			t.Errorf("GroupName = %q, want %q", groups[0].GroupName, "MatMul")
+		}
+		if len(groups[0].AllCombos) != 2 {
+			t.Errorf("AllCombos has %d entries, want 2", len(groups[0].AllCombos))
+		}
+		if len(groups[0].Specializations) != 0 {
+			t.Errorf("got %d specializations, want 0", len(groups[0].Specializations))
+		}
+	})
+
+	t.Run("primary with type specialization", func(t *testing.T) {
+		funcs := []ParsedFunc{
+			{
+				Name:       "BaseMatMul",
+				TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.FloatsNative"}},
+				TypeCombinations: []TypeCombination{
+					{Types: map[string]string{"T": "float32"}},
+					{Types: map[string]string{"T": "float64"}},
+				},
+				Params: []Param{{Name: "a", Type: "[]T"}, {Name: "b", Type: "[]T"}, {Name: "c", Type: "[]T"}, {Name: "m", Type: "int"}, {Name: "n", Type: "int"}, {Name: "k", Type: "int"}},
+			},
+			{
+				Name:             "BaseMatMulHalf",
+				TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+				SpecializesGroup: "MatMul",
+				TypeCombinations: []TypeCombination{
+					{Types: map[string]string{"T": "hwy.Float16"}},
+					{Types: map[string]string{"T": "hwy.BFloat16"}},
+				},
+				Params: []Param{{Name: "a", Type: "[]T"}, {Name: "b", Type: "[]T"}, {Name: "c", Type: "[]T"}, {Name: "m", Type: "int"}, {Name: "n", Type: "int"}, {Name: "k", Type: "int"}},
+			},
+		}
+
+		groups, err := buildDispatchGroups(funcs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(groups) != 1 {
+			t.Fatalf("got %d groups, want 1", len(groups))
+		}
+		g := groups[0]
+		if len(g.AllCombos) != 4 {
+			t.Errorf("AllCombos has %d entries, want 4", len(g.AllCombos))
+		}
+		if len(g.Specializations) != 1 {
+			t.Errorf("got %d specializations, want 1", len(g.Specializations))
+		}
+		// Constraint should be widened to hwy.Floats
+		if g.AllTypeParams[0].Constraint != "hwy.Floats" {
+			t.Errorf("constraint = %q, want %q", g.AllTypeParams[0].Constraint, "hwy.Floats")
+		}
+	})
+
+	t.Run("error on unknown group", func(t *testing.T) {
+		funcs := []ParsedFunc{
+			{
+				Name:             "BaseMatMulHalf",
+				TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+				SpecializesGroup: "NonExistent",
+				TypeCombinations: []TypeCombination{
+					{Types: map[string]string{"T": "hwy.Float16"}},
+				},
+			},
+		}
+
+		_, err := buildDispatchGroups(funcs)
+		if err == nil {
+			t.Fatal("expected error for unknown group, got nil")
+		}
+		if !strings.Contains(err.Error(), "unknown group") {
+			t.Errorf("error = %q, want it to contain 'unknown group'", err.Error())
+		}
+	})
+
+	t.Run("error on param count mismatch", func(t *testing.T) {
+		funcs := []ParsedFunc{
+			{
+				Name:       "BaseMatMul",
+				TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+				TypeCombinations: []TypeCombination{
+					{Types: map[string]string{"T": "float32"}},
+				},
+				Params: []Param{{Name: "a", Type: "[]T"}, {Name: "b", Type: "[]T"}},
+			},
+			{
+				Name:             "BaseMatMulHalf",
+				TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+				SpecializesGroup: "MatMul",
+				TypeCombinations: []TypeCombination{
+					{Types: map[string]string{"T": "hwy.Float16"}},
+				},
+				Params: []Param{{Name: "a", Type: "[]T"}}, // different count
+			},
+		}
+
+		_, err := buildDispatchGroups(funcs)
+		if err == nil {
+			t.Fatal("expected error for param mismatch, got nil")
+		}
+		if !strings.Contains(err.Error(), "parameter count mismatch") {
+			t.Errorf("error = %q, want it to contain 'parameter count mismatch'", err.Error())
+		}
+	})
+}
+
+func TestSelectSourceFunc(t *testing.T) {
+	primary := &ParsedFunc{
+		Name:       "BaseMatMul",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "float32"}},
+			{Types: map[string]string{"T": "float64"}},
+			{Types: map[string]string{"T": "hwy.Float16"}},
+			{Types: map[string]string{"T": "hwy.BFloat16"}},
+		},
+	}
+
+	specAllTargets := &ParsedFunc{
+		Name:             "BaseMatMulHalf",
+		TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+		SpecializesGroup: "MatMul",
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "hwy.Float16"}},
+			{Types: map[string]string{"T": "hwy.BFloat16"}},
+		},
+	}
+
+	specNeonOnly := &ParsedFunc{
+		Name:             "BaseMatMulNEONHalf",
+		TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+		SpecializesGroup: "MatMul",
+		AllowedTargets:   []string{"neon"},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "hwy.Float16"}},
+			{Types: map[string]string{"T": "hwy.BFloat16"}},
+		},
+	}
+
+	neonTarget, _ := GetTarget("neon")
+	avx2Target, _ := GetTarget("avx2")
+	fallbackTarget, _ := GetTarget("fallback")
+
+	t.Run("no specializations returns primary", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName: "MatMul",
+			Primary:   primary,
+			AllCombos: primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "float32"}}
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != primary {
+			t.Errorf("got %s, want %s", got.Name, primary.Name)
+		}
+	})
+
+	t.Run("type specialization matches", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAllTargets},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != specAllTargets {
+			t.Errorf("got %s, want %s", got.Name, specAllTargets.Name)
+		}
+	})
+
+	t.Run("type specialization does not match float32", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAllTargets},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "float32"}}
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != primary {
+			t.Errorf("got %s, want %s (primary)", got.Name, primary.Name)
+		}
+	})
+
+	t.Run("target-restricted specialization matches on neon", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specNeonOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != specNeonOnly {
+			t.Errorf("got %s, want %s", got.Name, specNeonOnly.Name)
+		}
+	})
+
+	t.Run("target-restricted falls through on avx2", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specNeonOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		got, err := selectSourceFunc(&group, avx2Target, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != primary {
+			t.Errorf("got %s, want %s (primary)", got.Name, primary.Name)
+		}
+	})
+
+	t.Run("target-restricted beats unrestricted", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAllTargets, specNeonOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != specNeonOnly {
+			t.Errorf("got %s, want %s (target-restricted)", got.Name, specNeonOnly.Name)
+		}
+	})
+
+	t.Run("no coverage returns nil", func(t *testing.T) {
+		group := DispatchGroup{
+			GroupName: "MatMul",
+			Primary:   primary,
+			AllCombos: primary.TypeCombinations,
+		}
+		// A combo not covered by the primary
+		combo := TypeCombination{Types: map[string]string{"T": "int32"}}
+		got, err := selectSourceFunc(&group, fallbackTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != nil {
+			t.Errorf("got %s, want nil", got.Name)
+		}
+	})
+
+	t.Run("mode-qualified neon:asm matches asm mode", func(t *testing.T) {
+		specAsmOnly := &ParsedFunc{
+			Name:             "BaseMatMulHalfAsm",
+			TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+			SpecializesGroup: "MatMul",
+			AllowedTargets:   []string{"neon:asm"},
+			TypeCombinations: []TypeCombination{
+				{Types: map[string]string{"T": "hwy.Float16"}},
+			},
+		}
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAsmOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		// Should match in asm mode
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeAsm, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != specAsmOnly {
+			name := "<nil>"
+			if got != nil {
+				name = got.Name
+			}
+			t.Errorf("got %s, want %s", name, specAsmOnly.Name)
+		}
+	})
+
+	t.Run("mode-qualified neon:asm does not match gosimd mode", func(t *testing.T) {
+		specAsmOnly := &ParsedFunc{
+			Name:             "BaseMatMulHalfAsm",
+			TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
+			SpecializesGroup: "MatMul",
+			AllowedTargets:   []string{"neon:asm"},
+			TypeCombinations: []TypeCombination{
+				{Types: map[string]string{"T": "hwy.Float16"}},
+			},
+		}
+		group := DispatchGroup{
+			GroupName:       "MatMul",
+			Primary:         primary,
+			Specializations: []*ParsedFunc{specAsmOnly},
+			AllCombos:       primary.TypeCombinations,
+		}
+		combo := TypeCombination{Types: map[string]string{"T": "hwy.Float16"}}
+		// Should NOT match in gosimd mode — falls through to primary
+		got, err := selectSourceFunc(&group, neonTarget, TargetModeGoSimd, combo)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != primary {
+			name := "<nil>"
+			if got != nil {
+				name = got.Name
+			}
+			t.Errorf("got %s, want %s (primary)", name, primary.Name)
+		}
+	})
+}
+
+func TestSpecializesEndToEnd(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write primary file
+	primaryFile := filepath.Join(tmpDir, "matmul_base.go")
+	primaryContent := `package testmatmul
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={float32, float64}
+func BaseMatMul[T hwy.Floats](a, b, c []T, m, n, k int) {
+	size := len(a)
+	vOne := hwy.Set(T(1))
+	for i := 0; i < size; i += vOne.NumElements() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		vr := hwy.Add(va, vb)
+		hwy.Store(vr, c[i:])
+	}
+}
+`
+	// Write specialization file
+	specFile := filepath.Join(tmpDir, "matmul_half_base.go")
+	specContent := `package testmatmul
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={hwy.Float16, hwy.BFloat16}
+//hwy:specializes MatMul
+func BaseMatMulHalf[T hwy.Floats](a, b, c []T, m, n, k int) {
+	size := len(a)
+	vOne := hwy.Set(T(1))
+	for i := 0; i < size; i += vOne.NumElements() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		vr := hwy.Mul(va, vb)
+		hwy.Store(vr, c[i:])
+	}
+}
+`
+	if err := os.WriteFile(primaryFile, []byte(primaryContent), 0644); err != nil {
+		t.Fatalf("Failed to write primary: %v", err)
+	}
+	if err := os.WriteFile(specFile, []byte(specContent), 0644); err != nil {
+		t.Fatalf("Failed to write spec: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   primaryFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2", "fallback"),
+	}
+
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	// Check dispatch file has all 4 type variants
+	dispatchPath := filepath.Join(tmpDir, "dispatch_matmul_amd64.gen.go")
+	dispatchContent, err := os.ReadFile(dispatchPath)
+	if err != nil {
+		t.Fatalf("Failed to read dispatcher: %v", err)
+	}
+	dispatchStr := string(dispatchContent)
+
+	// Should have dispatch vars for all 4 types
+	for _, expected := range []string{
+		"var MatMulFloat32 func",
+		"var MatMulFloat64 func",
+		"var MatMulFloat16 func",
+		"var MatMulBFloat16 func",
+	} {
+		if !strings.Contains(dispatchStr, expected) {
+			t.Errorf("Dispatcher missing %q", expected)
+		}
+	}
+
+	// Should have generic dispatcher with widened constraint
+	if !strings.Contains(dispatchStr, "func MatMul[T hwy.Floats]") {
+		t.Error("Dispatcher missing generic MatMul[T hwy.Floats] function")
+	}
+
+	// Check AVX2 impl file has all 4 types using Primary's name
+	avx2Path := filepath.Join(tmpDir, "matmul_base_avx2.gen.go")
+	avx2Content, err := os.ReadFile(avx2Path)
+	if err != nil {
+		t.Fatalf("Failed to read AVX2 file: %v", err)
+	}
+	avx2Str := string(avx2Content)
+
+	// Impls should use Primary's name (BaseMatMul), not the specialization's name
+	for _, expected := range []string{
+		"func BaseMatMul_avx2(",           // float32 (default suffix)
+		"func BaseMatMul_avx2_Float64(",   // float64
+		"func BaseMatMul_avx2_Float16(",   // from BaseMatMulHalf body, named as Primary
+		"func BaseMatMul_avx2_BFloat16(",  // from BaseMatMulHalf body, named as Primary
+	} {
+		if !strings.Contains(avx2Str, expected) {
+			t.Errorf("AVX2 file missing %q", expected)
+		}
+	}
+
+	// The specialization's original name should NOT appear in the generated code
+	if strings.Contains(avx2Str, "BaseMatMulHalf") {
+		t.Error("AVX2 file contains BaseMatMulHalf — name normalization failed")
+	}
+}
+
+func TestSpecializesWithTargets(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write primary file
+	primaryFile := filepath.Join(tmpDir, "op_base.go")
+	primaryContent := `package testop
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={float32, float64}
+func BaseOp[T hwy.Floats](a, b []T) {
+	size := len(a)
+	vOne := hwy.Set(T(1))
+	for i := 0; i < size; i += vOne.NumElements() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		vr := hwy.Add(va, vb)
+		hwy.Store(vr, a[i:])
+	}
+}
+`
+	// Write specialization with target restriction
+	specFile := filepath.Join(tmpDir, "op_neon_base.go")
+	specContent := `package testop
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={float32, float64}
+//hwy:specializes Op
+//hwy:targets neon
+func BaseOpNEON[T hwy.Floats](a, b []T) {
+	size := len(a)
+	vOne := hwy.Set(T(1))
+	for i := 0; i < size; i += vOne.NumElements() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		vr := hwy.Mul(va, vb)
+		hwy.Store(vr, a[i:])
+	}
+}
+`
+	if err := os.WriteFile(primaryFile, []byte(primaryContent), 0644); err != nil {
+		t.Fatalf("Failed to write primary: %v", err)
+	}
+	if err := os.WriteFile(specFile, []byte(specContent), 0644); err != nil {
+		t.Fatalf("Failed to write spec: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   primaryFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2", "neon", "fallback"),
+	}
+
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	// Check AVX2 file — should use Primary's body (hwy.Add), not specialization's (hwy.Mul)
+	avx2Path := filepath.Join(tmpDir, "op_base_avx2.gen.go")
+	avx2Content, err := os.ReadFile(avx2Path)
+	if err != nil {
+		t.Fatalf("Failed to read AVX2 file: %v", err)
+	}
+	avx2Str := string(avx2Content)
+
+	if !strings.Contains(avx2Str, "func BaseOp_avx2(") {
+		t.Error("AVX2 file missing BaseOp_avx2")
+	}
+	// AVX2 should NOT have the NEON-only specialization's name
+	if strings.Contains(avx2Str, "BaseOpNEON") {
+		t.Error("AVX2 file contains BaseOpNEON — target restriction failed")
+	}
+
+	// Check NEON file — should use specialization's body (hwy.Mul)
+	neonPath := filepath.Join(tmpDir, "op_base_neon.gen.go")
+	neonContent, err := os.ReadFile(neonPath)
+	if err != nil {
+		t.Fatalf("Failed to read NEON file: %v", err)
+	}
+	neonStr := string(neonContent)
+
+	if !strings.Contains(neonStr, "func BaseOp_neon(") {
+		t.Error("NEON file missing BaseOp_neon (normalized name)")
+	}
+	// NEON impl should use Mul (from specialization), not Add (from primary)
+	if strings.Contains(neonStr, ".Add(") {
+		t.Error("NEON file uses Add — specialization body was not selected")
+	}
+	if !strings.Contains(neonStr, ".Mul(") {
+		t.Error("NEON file missing Mul — specialization body was not used")
+	}
+}
+
+func TestScanSpecializations(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Primary file
+	primaryFile := filepath.Join(tmpDir, "main_base.go")
+	primaryContent := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={float32, float64}
+func BaseMain[T hwy.Floats](a []T) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+
+	// Sibling specialization file
+	specFile := filepath.Join(tmpDir, "special_base.go")
+	specContent := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={hwy.Float16, hwy.BFloat16}
+//hwy:specializes Main
+//hwy:targets neon
+func BaseMainHalf[T hwy.Floats](a []T) {
+	_ = hwy.Mul(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+	if err := os.WriteFile(primaryFile, []byte(primaryContent), 0644); err != nil {
+		t.Fatalf("Failed to write primary: %v", err)
+	}
+	if err := os.WriteFile(specFile, []byte(specContent), 0644); err != nil {
+		t.Fatalf("Failed to write spec: %v", err)
+	}
+
+	result, err := Parse(primaryFile)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Should have discovered the specialization from sibling file
+	if len(result.Funcs) != 2 {
+		t.Fatalf("got %d funcs, want 2 (primary + specialization)", len(result.Funcs))
+	}
+
+	// Find the specialization
+	var specFunc *ParsedFunc
+	for i := range result.Funcs {
+		if result.Funcs[i].SpecializesGroup == "Main" {
+			specFunc = &result.Funcs[i]
+			break
+		}
+	}
+	if specFunc == nil {
+		t.Fatal("specialization function not found in result.Funcs")
+	}
+	if specFunc.Name != "BaseMainHalf" {
+		t.Errorf("spec name = %q, want %q", specFunc.Name, "BaseMainHalf")
+	}
+	if len(specFunc.AllowedTargets) != 1 || specFunc.AllowedTargets[0] != "neon" {
+		t.Errorf("AllowedTargets = %v, want [neon]", specFunc.AllowedTargets)
+	}
+	if len(specFunc.TypeCombinations) != 2 {
+		t.Errorf("got %d combos, want 2", len(specFunc.TypeCombinations))
+	}
+}
+
+// TestCModeSpecializesVecVec verifies that the C generator applies dispatch
+// group name normalization to Vec→Vec functions. The Vec→Vec C emitter
+// generates code based on recognized function names (Exp, Sigmoid, etc.),
+// not the Go function body, so we verify name normalization rather than
+// body-specific intrinsics.
+func TestCModeSpecializesVecVec(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Primary: Vec→Vec using Mul
+	primaryFile := filepath.Join(tmpDir, "op_base.go")
+	primarySrc := `package testspec
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseOp[T hwy.FloatsNative](x hwy.Vec[T]) hwy.Vec[T] {
+	return hwy.Mul(x, x)
+}
+`
+	if err := os.WriteFile(primaryFile, []byte(primarySrc), 0644); err != nil {
+		t.Fatalf("write primary: %v", err)
+	}
+
+	// Specialization: Vec→Vec using Add, restricted to NEON
+	specFile := filepath.Join(tmpDir, "op_neon_base.go")
+	specSrc := `package testspec
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:specializes Op
+//hwy:targets neon
+func BaseOpNeon[T hwy.FloatsNative](x hwy.Vec[T]) hwy.Vec[T] {
+	return hwy.Add(x, x)
+}
+`
+	if err := os.WriteFile(specFile, []byte(specSrc), 0644); err != nil {
+		t.Fatalf("write specialization: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "out")
+	os.MkdirAll(outDir, 0o755)
+	gen := &Generator{
+		InputFile:   primaryFile,
+		OutputDir:   outDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	// Read the NEON f32 C file
+	f32Path := filepath.Join(outDir, "baseop_c_f32_neon_arm64.c")
+	f32Content, err := os.ReadFile(f32Path)
+	if err != nil {
+		t.Fatalf("read NEON f32 C file: %v", err)
+	}
+	content := string(f32Content)
+
+	// The C function name should use the primary name "op", not "opneon"
+	if !strings.Contains(content, "void op_c_f32_neon(") {
+		t.Error("function name should use primary name 'op'")
+	}
+	if strings.Contains(content, "opneon") {
+		t.Error("specialization name 'opneon' should not appear in output")
+	}
+
+	// Both f32 and f64 files should exist (the group covers FloatsNative)
+	f64Path := filepath.Join(outDir, "baseop_c_f64_neon_arm64.c")
+	if _, err := os.Stat(f64Path); err != nil {
+		t.Error("f64 C file should exist for FloatsNative group")
+	}
+}
+
+// TestCModeSpecializesTypeSelection verifies that the C generator produces
+// C files for the union of all type combos across a dispatch group.
+// Primary handles float32/float64, specialization handles Float16/BFloat16.
+// All output files use the primary's name.
+func TestCModeSpecializesTypeSelection(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Primary: Vec→Vec for native floats
+	primaryFile := filepath.Join(tmpDir, "vec_base.go")
+	primarySrc := `package testspec
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={float32, float64}
+func BaseVecOp[T hwy.FloatsNative](x hwy.Vec[T]) hwy.Vec[T] {
+	return hwy.Mul(x, x)
+}
+`
+	if err := os.WriteFile(primaryFile, []byte(primarySrc), 0644); err != nil {
+		t.Fatalf("write primary: %v", err)
+	}
+
+	// Specialization: Vec→Vec for half-precision types
+	specFile := filepath.Join(tmpDir, "vec_half_base.go")
+	specSrc := `package testspec
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={hwy.Float16, hwy.BFloat16}
+//hwy:specializes VecOp
+func BaseVecOpHalf[T hwy.HalfFloats](x hwy.Vec[T]) hwy.Vec[T] {
+	return hwy.Add(x, x)
+}
+`
+	if err := os.WriteFile(specFile, []byte(specSrc), 0644); err != nil {
+		t.Fatalf("write specialization: %v", err)
+	}
+
+	outDir := filepath.Join(tmpDir, "out")
+	os.MkdirAll(outDir, 0o755)
+	gen := &Generator{
+		InputFile:   primaryFile,
+		OutputDir:   outDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	// The union of combos produces all 4 type variants
+	expectedFiles := []struct {
+		name    string
+		elemSfx string
+	}{
+		{"basevecop_c_f32_neon_arm64.c", "f32"},
+		{"basevecop_c_f64_neon_arm64.c", "f64"},
+		{"basevecop_c_f16_neon_arm64.c", "f16"},
+		{"basevecop_c_bf16_neon_arm64.c", "bf16"},
+	}
+
+	for _, ef := range expectedFiles {
+		path := filepath.Join(outDir, ef.name)
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", ef.name, err)
+		}
+		s := string(content)
+
+		// All files should use the primary name "vecop", not "vecophalf"
+		if strings.Contains(s, "vecophalf") {
+			t.Errorf("%s: specialization name 'vecophalf' should not appear", ef.elemSfx)
+		}
+		// Function name should contain the primary-derived name
+		expectedFuncName := fmt.Sprintf("vecop_c_%s_neon", ef.elemSfx)
+		if !strings.Contains(s, expectedFuncName) {
+			t.Errorf("%s: expected function name containing %q", ef.elemSfx, expectedFuncName)
+		}
+	}
+}
+
+// TestCModeSpecializesAST verifies that the C generator handles AST-translated
+// function specializations (slice-based functions). The AST translator DOES
+// translate the Go function body to C, so we can verify that the correct body
+// is selected based on //hwy:targets restrictions.
+func TestCModeSpecializesAST(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Primary: slice-based function using hwy.Add in a loop
+	primaryFile := filepath.Join(tmpDir, "add_base.go")
+	primarySrc := `package testspec
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseAddSlice[T hwy.FloatsNative](a, b, c []T) {
+	n := len(a)
+	for i := 0; i < n; i += hwy.Lanes[T]() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		hwy.Store(hwy.Add(va, vb), c[i:])
+	}
+}
+`
+	if err := os.WriteFile(primaryFile, []byte(primarySrc), 0644); err != nil {
+		t.Fatalf("write primary: %v", err)
+	}
+
+	// Specialization: uses Mul instead of Add, restricted to NEON
+	specFile := filepath.Join(tmpDir, "add_neon_base.go")
+	specSrc := `package testspec
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:specializes AddSlice
+//hwy:targets neon
+func BaseAddSliceNeon[T hwy.FloatsNative](a, b, c []T) {
+	n := len(a)
+	for i := 0; i < n; i += hwy.Lanes[T]() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		hwy.Store(hwy.Mul(va, vb), c[i:])
+	}
+}
+`
+	if err := os.WriteFile(specFile, []byte(specSrc), 0644); err != nil {
+		t.Fatalf("write specialization: %v", err)
+	}
+
+	// Generate C for NEON — should use specialization body (Mul)
+	outDir := filepath.Join(tmpDir, "out")
+	os.MkdirAll(outDir, 0o755)
+	gen := &Generator{
+		InputFile:   primaryFile,
+		OutputDir:   outDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() for NEON failed: %v", err)
+	}
+
+	// Read the NEON f32 C file
+	f32Path := filepath.Join(outDir, "baseaddslice_c_f32_neon_arm64.c")
+	f32Content, err := os.ReadFile(f32Path)
+	if err != nil {
+		t.Fatalf("read NEON f32 C file: %v", err)
+	}
+	content := string(f32Content)
+
+	// NEON should use specialization body: vmulq_f32 (Mul) from hwy.Mul
+	if !strings.Contains(content, "vmulq_f32") {
+		t.Error("NEON f32: expected vmulq_f32 from specialization body (hwy.Mul)")
+	}
+	// The function name should use primary name "addslice", not "addsliceneon"
+	if !strings.Contains(content, "addslice_c_f32_neon") {
+		t.Error("NEON f32: function name should use primary name 'addslice'")
+	}
+	if strings.Contains(content, "addsliceneon") {
+		t.Error("NEON f32: specialization name 'addsliceneon' should not appear")
+	}
+}
+
+func TestComboAvailable(t *testing.T) {
+	t.Run("nil map allows all", func(t *testing.T) {
+		if !comboAvailable(nil, "AVX2", "MulAddFloat16") {
+			t.Error("nil targetComboMap should allow all combos")
+		}
+	})
+
+	t.Run("missing target allows all", func(t *testing.T) {
+		m := map[string]map[string]bool{
+			"AVX2": {"MulAddFloat32": true},
+		}
+		if !comboAvailable(m, "NEON", "MulAddFloat16") {
+			t.Error("missing target in map should allow all combos")
+		}
+	})
+
+	t.Run("present target filters combos", func(t *testing.T) {
+		m := map[string]map[string]bool{
+			"AVX2": {"MulAddFloat32": true, "MulAddFloat64": true},
+		}
+		if !comboAvailable(m, "AVX2", "MulAddFloat32") {
+			t.Error("MulAddFloat32 should be available on AVX2")
+		}
+		if comboAvailable(m, "AVX2", "MulAddFloat16") {
+			t.Error("MulAddFloat16 should NOT be available on AVX2")
+		}
+	})
+
+	t.Run("fallback target filters combos", func(t *testing.T) {
+		m := map[string]map[string]bool{
+			"Fallback": {"MulAddFloat32": true, "MulAddFloat64": true},
+			"NEON":     {"MulAddFloat32": true, "MulAddFloat64": true, "MulAddFloat16": true, "MulAddBFloat16": true},
+		}
+		if comboAvailable(m, "Fallback", "MulAddFloat16") {
+			t.Error("MulAddFloat16 should NOT be available on Fallback")
+		}
+		if !comboAvailable(m, "NEON", "MulAddFloat16") {
+			t.Error("MulAddFloat16 should be available on NEON")
+		}
+	})
+}
+
+func TestTargetComboMapIntegration(t *testing.T) {
+	// Simulate the specialize example: primary generates float32/float64,
+	// specialization adds Float16/BFloat16 on neon:asm only.
+	primary := ParsedFunc{
+		Name:       "BaseMulAdd",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params:     []Param{{Name: "x", Type: "[]T"}, {Name: "y", Type: "[]T"}, {Name: "out", Type: "[]T"}},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "float32"}},
+			{Types: map[string]string{"T": "float64"}},
+		},
+	}
+	spec := ParsedFunc{
+		Name:             "BaseMulAddHalf",
+		TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params:           []Param{{Name: "x", Type: "[]T"}, {Name: "y", Type: "[]T"}, {Name: "out", Type: "[]T"}},
+		SpecializesGroup: "MulAdd",
+		AllowedTargets:   []string{"neon:asm"},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "hwy.Float16"}},
+			{Types: map[string]string{"T": "hwy.BFloat16"}},
+		},
+	}
+
+	groups, err := buildDispatchGroups([]ParsedFunc{primary, spec})
+	if err != nil {
+		t.Fatalf("buildDispatchGroups: %v", err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	group := groups[0]
+
+	// Verify union has all 4 combos
+	if len(group.AllCombos) != 4 {
+		t.Fatalf("expected 4 AllCombos, got %d", len(group.AllCombos))
+	}
+
+	// Simulate target set: AVX2 (GoSimd), Fallback (GoSimd), NEON (Asm)
+	targets := []struct {
+		target Target
+		mode   TargetMode
+	}{
+		{Target{Name: "AVX2"}, TargetModeGoSimd},
+		{Target{Name: "Fallback"}, TargetModeGoSimd},
+		{Target{Name: "NEON"}, TargetModeAsm},
+	}
+
+	targetComboMap := make(map[string]map[string]bool)
+	for _, tt := range targets {
+		comboSet := make(map[string]bool)
+		synthPF := synthPrimaryForDispatch(&group)
+		for _, dc := range getDispatchCombos(synthPF) {
+			sourcePF, serr := selectSourceFunc(&group, tt.target, tt.mode, dc.Combo)
+			if serr != nil {
+				t.Fatalf("selectSourceFunc(%s, %v): %v", tt.target.Name, dc.Combo.Types, serr)
+			}
+			if sourcePF != nil {
+				comboSet[dc.DispatchName] = true
+			}
+		}
+		targetComboMap[tt.target.Name] = comboSet
+	}
+
+	// AVX2 should only have float32/float64
+	avx2Set := targetComboMap["AVX2"]
+	if !avx2Set["MulAddFloat32"] || !avx2Set["MulAddFloat64"] {
+		t.Errorf("AVX2 should have Float32 and Float64, got: %v", avx2Set)
+	}
+	if avx2Set["MulAddFloat16"] || avx2Set["MulAddBFloat16"] {
+		t.Errorf("AVX2 should NOT have Float16 or BFloat16, got: %v", avx2Set)
+	}
+
+	// Fallback should only have float32/float64
+	fbSet := targetComboMap["Fallback"]
+	if !fbSet["MulAddFloat32"] || !fbSet["MulAddFloat64"] {
+		t.Errorf("Fallback should have Float32 and Float64, got: %v", fbSet)
+	}
+	if fbSet["MulAddFloat16"] || fbSet["MulAddBFloat16"] {
+		t.Errorf("Fallback should NOT have Float16 or BFloat16, got: %v", fbSet)
+	}
+
+	// NEON:asm should have all 4
+	neonSet := targetComboMap["NEON"]
+	if !neonSet["MulAddFloat32"] || !neonSet["MulAddFloat64"] {
+		t.Errorf("NEON should have Float32 and Float64, got: %v", neonSet)
+	}
+	if !neonSet["MulAddFloat16"] || !neonSet["MulAddBFloat16"] {
+		t.Errorf("NEON should have Float16 and BFloat16, got: %v", neonSet)
+	}
+}
