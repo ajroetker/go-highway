@@ -4,11 +4,11 @@
 // 	clang   21.1.8
 // 	objdump 2.46.0.20260210
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
-// source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/bitpack/asm/baseunpack32_c_u8_neon_arm64.c
+// source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/bitpack/asm/baseunpack32_c_u32_neon_arm64.c
 
 package asm
 
 import "unsafe"
 
 //go:noescape
-func unpack32_c_u8_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result unsafe.Pointer)
+func unpack32_c_u32_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result unsafe.Pointer)

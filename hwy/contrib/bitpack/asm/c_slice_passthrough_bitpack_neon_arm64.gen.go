@@ -5,26 +5,6 @@ package asm
 
 import "unsafe"
 
-// Pack32_U32 calls the NEON SIMD assembly implementation.
-func Pack32_U32(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
-	pack32_c_u32_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
-}
-
-// Unpack32_U8 calls the NEON SIMD assembly implementation.
-func Unpack32_U8(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
-	unpack32_c_u8_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
-}
-
-// Pack64_U64 calls the NEON SIMD assembly implementation.
-func Pack64_U64(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
-	pack64_c_u64_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
-}
-
-// Unpack64_U8 calls the NEON SIMD assembly implementation.
-func Unpack64_U8(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
-	unpack64_c_u8_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
-}
-
 // DeltaEncode32_U32 calls the NEON SIMD assembly implementation.
 func DeltaEncode32_U32(src unsafe.Pointer, pbase unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer) {
 	deltaencode32_c_u32_neon(src, pbase, dst, plen_src, plen_dst)
@@ -33,5 +13,25 @@ func DeltaEncode32_U32(src unsafe.Pointer, pbase unsafe.Pointer, dst unsafe.Poin
 // DeltaEncode64_U64 calls the NEON SIMD assembly implementation.
 func DeltaEncode64_U64(src unsafe.Pointer, pbase unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer) {
 	deltaencode64_c_u64_neon(src, pbase, dst, plen_src, plen_dst)
+}
+
+// Pack32_U32 calls the NEON SIMD assembly implementation.
+func Pack32_U32(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
+	pack32_c_u32_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
+}
+
+// Pack64_U64 calls the NEON SIMD assembly implementation.
+func Pack64_U64(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
+	pack64_c_u64_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
+}
+
+// Unpack32_U32 calls the NEON SIMD assembly implementation.
+func Unpack32_U32(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
+	unpack32_c_u32_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
+}
+
+// Unpack64_U64 calls the NEON SIMD assembly implementation.
+func Unpack64_U64(src unsafe.Pointer, pbitWidth unsafe.Pointer, dst unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_result unsafe.Pointer) {
+	unpack64_c_u64_neon(src, pbitWidth, dst, plen_src, plen_dst, pout_result)
 }
 
