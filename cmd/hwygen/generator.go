@@ -672,7 +672,30 @@ func (g *Generator) Run() error {
 	for _, group := range groups {
 		synthFuncs = append(synthFuncs, synthPrimaryForDispatch(&group))
 	}
-	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters); err != nil {
+
+	// Compute which combos have implementations on which targets.
+	// This prevents the emitter from generating init assignments for combos
+	// that only exist on restricted targets (e.g., Float16 on neon:asm only).
+	targetComboMap := make(map[string]map[string]bool)
+	for _, target := range allTargets {
+		mode := TargetModeGoSimd
+		if target.Mode == TargetModeAsm {
+			mode = TargetModeAsm
+		}
+		comboSet := make(map[string]bool)
+		for _, group := range groups {
+			synthPF := synthPrimaryForDispatch(&group)
+			for _, dc := range getDispatchCombos(synthPF) {
+				sourcePF, _ := selectSourceFunc(&group, target, mode, dc.Combo)
+				if sourcePF != nil {
+					comboSet[dc.DispatchName] = true
+				}
+			}
+		}
+		targetComboMap[target.Name] = comboSet
+	}
+
+	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters, targetComboMap); err != nil {
 		return fmt.Errorf("emit dispatcher: %w", err)
 	}
 

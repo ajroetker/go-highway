@@ -7,70 +7,7 @@ package specialize
 import (
 	"simd/archsimd"
 	"unsafe"
-
-	"github.com/ajroetker/go-highway/hwy"
-	"github.com/ajroetker/go-highway/hwy/asm"
 )
-
-func BaseMulAdd_avx512_Float16(x []hwy.Float16, y []hwy.Float16, out []hwy.Float16) {
-	size := min(len(x), min(len(y), len(out)))
-	if size == 0 {
-		return
-	}
-	lanes := 16
-	var i int
-	for ; i+lanes*4 <= size; i += lanes * 4 {
-		vx := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&x[i:][0]))
-		vy := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&y[i:][0]))
-		vo := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&out[i:][0]))
-		vx.MulAdd(vy, vo).StorePtr(unsafe.Pointer(&out[i:][0]))
-		vx1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&x[i+16:][0]))
-		vy1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&y[i+16:][0]))
-		vo1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&out[i+16:][0]))
-		vx1.MulAdd(vy1, vo1).StorePtr(unsafe.Pointer(&out[i+16:][0]))
-		vx2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&x[i+32:][0]))
-		vy2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&y[i+32:][0]))
-		vo2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&out[i+32:][0]))
-		vx2.MulAdd(vy2, vo2).StorePtr(unsafe.Pointer(&out[i+32:][0]))
-		vx3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&x[i+48:][0]))
-		vy3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&y[i+48:][0]))
-		vo3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&out[i+48:][0]))
-		vx3.MulAdd(vy3, vo3).StorePtr(unsafe.Pointer(&out[i+48:][0]))
-	}
-	if i < size {
-		BaseMulAdd_fallback_Float16(x[i:size], y[i:size], out[i:size])
-	}
-}
-
-func BaseMulAdd_avx512_BFloat16(x []hwy.BFloat16, y []hwy.BFloat16, out []hwy.BFloat16) {
-	size := min(len(x), min(len(y), len(out)))
-	if size == 0 {
-		return
-	}
-	lanes := 16
-	var i int
-	for ; i+lanes*4 <= size; i += lanes * 4 {
-		vx := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&x[i:][0]))
-		vy := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&y[i:][0]))
-		vo := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&out[i:][0]))
-		vx.MulAdd(vy, vo).StorePtr(unsafe.Pointer(&out[i:][0]))
-		vx1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&x[i+16:][0]))
-		vy1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&y[i+16:][0]))
-		vo1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&out[i+16:][0]))
-		vx1.MulAdd(vy1, vo1).StorePtr(unsafe.Pointer(&out[i+16:][0]))
-		vx2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&x[i+32:][0]))
-		vy2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&y[i+32:][0]))
-		vo2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&out[i+32:][0]))
-		vx2.MulAdd(vy2, vo2).StorePtr(unsafe.Pointer(&out[i+32:][0]))
-		vx3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&x[i+48:][0]))
-		vy3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&y[i+48:][0]))
-		vo3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&out[i+48:][0]))
-		vx3.MulAdd(vy3, vo3).StorePtr(unsafe.Pointer(&out[i+48:][0]))
-	}
-	if i < size {
-		BaseMulAdd_fallback_BFloat16(x[i:size], y[i:size], out[i:size])
-	}
-}
 
 func BaseMulAdd_avx512(x []float32, y []float32, out []float32) {
 	size := min(len(x), min(len(y), len(out)))

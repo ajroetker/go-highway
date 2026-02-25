@@ -7192,3 +7192,137 @@ func BaseAddSliceNeon[T hwy.FloatsNative](a, b, c []T) {
 		t.Error("NEON f32: specialization name 'addsliceneon' should not appear")
 	}
 }
+
+func TestComboAvailable(t *testing.T) {
+	t.Run("nil map allows all", func(t *testing.T) {
+		if !comboAvailable(nil, "AVX2", "MulAddFloat16") {
+			t.Error("nil targetComboMap should allow all combos")
+		}
+	})
+
+	t.Run("missing target allows all", func(t *testing.T) {
+		m := map[string]map[string]bool{
+			"AVX2": {"MulAddFloat32": true},
+		}
+		if !comboAvailable(m, "NEON", "MulAddFloat16") {
+			t.Error("missing target in map should allow all combos")
+		}
+	})
+
+	t.Run("present target filters combos", func(t *testing.T) {
+		m := map[string]map[string]bool{
+			"AVX2": {"MulAddFloat32": true, "MulAddFloat64": true},
+		}
+		if !comboAvailable(m, "AVX2", "MulAddFloat32") {
+			t.Error("MulAddFloat32 should be available on AVX2")
+		}
+		if comboAvailable(m, "AVX2", "MulAddFloat16") {
+			t.Error("MulAddFloat16 should NOT be available on AVX2")
+		}
+	})
+
+	t.Run("fallback target filters combos", func(t *testing.T) {
+		m := map[string]map[string]bool{
+			"Fallback": {"MulAddFloat32": true, "MulAddFloat64": true},
+			"NEON":     {"MulAddFloat32": true, "MulAddFloat64": true, "MulAddFloat16": true, "MulAddBFloat16": true},
+		}
+		if comboAvailable(m, "Fallback", "MulAddFloat16") {
+			t.Error("MulAddFloat16 should NOT be available on Fallback")
+		}
+		if !comboAvailable(m, "NEON", "MulAddFloat16") {
+			t.Error("MulAddFloat16 should be available on NEON")
+		}
+	})
+}
+
+func TestTargetComboMapIntegration(t *testing.T) {
+	// Simulate the specialize example: primary generates float32/float64,
+	// specialization adds Float16/BFloat16 on neon:asm only.
+	primary := ParsedFunc{
+		Name:       "BaseMulAdd",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params:     []Param{{Name: "x", Type: "[]T"}, {Name: "y", Type: "[]T"}, {Name: "out", Type: "[]T"}},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "float32"}},
+			{Types: map[string]string{"T": "float64"}},
+		},
+	}
+	spec := ParsedFunc{
+		Name:             "BaseMulAddHalf",
+		TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params:           []Param{{Name: "x", Type: "[]T"}, {Name: "y", Type: "[]T"}, {Name: "out", Type: "[]T"}},
+		SpecializesGroup: "MulAdd",
+		AllowedTargets:   []string{"neon:asm"},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T": "hwy.Float16"}},
+			{Types: map[string]string{"T": "hwy.BFloat16"}},
+		},
+	}
+
+	groups, err := buildDispatchGroups([]ParsedFunc{primary, spec})
+	if err != nil {
+		t.Fatalf("buildDispatchGroups: %v", err)
+	}
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	group := groups[0]
+
+	// Verify union has all 4 combos
+	if len(group.AllCombos) != 4 {
+		t.Fatalf("expected 4 AllCombos, got %d", len(group.AllCombos))
+	}
+
+	// Simulate target set: AVX2 (GoSimd), Fallback (GoSimd), NEON (Asm)
+	targets := []struct {
+		target Target
+		mode   TargetMode
+	}{
+		{Target{Name: "AVX2"}, TargetModeGoSimd},
+		{Target{Name: "Fallback"}, TargetModeGoSimd},
+		{Target{Name: "NEON"}, TargetModeAsm},
+	}
+
+	targetComboMap := make(map[string]map[string]bool)
+	for _, tt := range targets {
+		comboSet := make(map[string]bool)
+		synthPF := synthPrimaryForDispatch(&group)
+		for _, dc := range getDispatchCombos(synthPF) {
+			sourcePF, serr := selectSourceFunc(&group, tt.target, tt.mode, dc.Combo)
+			if serr != nil {
+				t.Fatalf("selectSourceFunc(%s, %v): %v", tt.target.Name, dc.Combo.Types, serr)
+			}
+			if sourcePF != nil {
+				comboSet[dc.DispatchName] = true
+			}
+		}
+		targetComboMap[tt.target.Name] = comboSet
+	}
+
+	// AVX2 should only have float32/float64
+	avx2Set := targetComboMap["AVX2"]
+	if !avx2Set["MulAddFloat32"] || !avx2Set["MulAddFloat64"] {
+		t.Errorf("AVX2 should have Float32 and Float64, got: %v", avx2Set)
+	}
+	if avx2Set["MulAddFloat16"] || avx2Set["MulAddBFloat16"] {
+		t.Errorf("AVX2 should NOT have Float16 or BFloat16, got: %v", avx2Set)
+	}
+
+	// Fallback should only have float32/float64
+	fbSet := targetComboMap["Fallback"]
+	if !fbSet["MulAddFloat32"] || !fbSet["MulAddFloat64"] {
+		t.Errorf("Fallback should have Float32 and Float64, got: %v", fbSet)
+	}
+	if fbSet["MulAddFloat16"] || fbSet["MulAddBFloat16"] {
+		t.Errorf("Fallback should NOT have Float16 or BFloat16, got: %v", fbSet)
+	}
+
+	// NEON:asm should have all 4
+	neonSet := targetComboMap["NEON"]
+	if !neonSet["MulAddFloat32"] || !neonSet["MulAddFloat64"] {
+		t.Errorf("NEON should have Float32 and Float64, got: %v", neonSet)
+	}
+	if !neonSet["MulAddFloat16"] || !neonSet["MulAddBFloat16"] {
+		t.Errorf("NEON should have Float16 and BFloat16, got: %v", neonSet)
+	}
+}

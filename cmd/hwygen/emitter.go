@@ -247,13 +247,28 @@ func deriveDispatchPrefix(funcs []ParsedFunc) string {
 	return strings.ToLower(name)
 }
 
+// comboAvailable checks if a dispatch combo has an implementation on a target.
+// Returns true if targetComboMap is nil (no filtering) or the combo is in the map.
+func comboAvailable(targetComboMap map[string]map[string]bool, targetName, dispatchName string) bool {
+	if targetComboMap == nil {
+		return true
+	}
+	available, ok := targetComboMap[targetName]
+	if !ok {
+		return true // target not in map → assume all available
+	}
+	return available[dispatchName]
+}
+
 // EmitDispatcher generates the runtime dispatch file(s).
 // This generates architecture-specific dispatch files:
 // - dispatch_{prefix}_amd64.gen.go for AVX2/AVX512
 // - dispatch_{prefix}_arm64.gen.go for NEON
 // - dispatch_{prefix}.gen.go for fallback-only (no build tags)
 // If dispatchName is empty, derives prefix from function names.
-func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string, _ []AsmAdapterInfo) error {
+// targetComboMap maps target name → set of dispatch variable names that have
+// implementations on that target. If nil, all combos are assumed available.
+func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string, _ []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
 	// Use provided dispatch name or derive from function names
 	// Use provided dispatch name or derive from function names
 	prefix := dispatchName
@@ -284,14 +299,14 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 
 	// Generate amd64 dispatch if we have amd64 targets
 	if len(amd64Targets) > 0 {
-		if err := emitArchDispatcher(funcs, amd64Targets, hasFallback, pkgName, outPath, "amd64", prefix, useCustomPrefix); err != nil {
+		if err := emitArchDispatcher(funcs, amd64Targets, hasFallback, pkgName, outPath, "amd64", prefix, useCustomPrefix, targetComboMap); err != nil {
 			return err
 		}
 	}
 
 	// Generate arm64 dispatch if we have arm64 targets
 	if len(arm64Targets) > 0 {
-		if err := emitArchDispatcher(funcs, arm64Targets, hasFallback, pkgName, outPath, "arm64", prefix, useCustomPrefix); err != nil {
+		if err := emitArchDispatcher(funcs, arm64Targets, hasFallback, pkgName, outPath, "arm64", prefix, useCustomPrefix, targetComboMap); err != nil {
 			return err
 		}
 	}
@@ -317,7 +332,7 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 			suffix = "_other"
 		}
 
-		if err := emitFallbackOnlyDispatcher(funcs, pkgName, outPath, prefix, suffix, buildTag, useCustomPrefix); err != nil {
+		if err := emitFallbackOnlyDispatcher(funcs, pkgName, outPath, prefix, suffix, buildTag, useCustomPrefix, targetComboMap); err != nil {
 			return err
 		}
 	}
@@ -364,7 +379,8 @@ func filterDispatchableFuncs(funcs []ParsedFunc) []ParsedFunc {
 }
 
 // emitArchDispatcher generates an architecture-specific dispatch file.
-func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bool, pkgName, outPath, arch, prefix string, useCustomPrefix bool) error {
+// targetComboMap restricts which combos are wired in per-target init functions.
+func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bool, pkgName, outPath, arch, prefix string, useCustomPrefix bool, targetComboMap map[string]map[string]bool) error {
 	// Filter out Vec→Vec functions - they don't need dispatch
 	dispatchableFuncs := filterDispatchableFuncs(funcs)
 	if len(dispatchableFuncs) == 0 {
@@ -489,6 +505,9 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 		for _, pf := range dispatchableFuncs {
 			for _, dc := range getDispatchCombos(pf) {
+				if !comboAvailable(targetComboMap, target.Name, dc.DispatchName) {
+					continue
+				}
 				baseName := pf.Name
 				if pf.Private {
 					baseName = makeUnexported(baseName)
@@ -515,6 +534,9 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 		fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 		for _, pf := range dispatchableFuncs {
 			for _, dc := range getDispatchCombos(pf) {
+				if !comboAvailable(targetComboMap, "Fallback", dc.DispatchName) {
+					continue
+				}
 				baseName := pf.Name
 				if pf.Private {
 					baseName = makeUnexported(baseName)
@@ -552,7 +574,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 }
 
 // emitFallbackOnlyDispatcher generates a dispatch file with no build tags for fallback-only builds.
-func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, suffix, buildTag string, useCustomPrefix bool) error {
+func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, suffix, buildTag string, useCustomPrefix bool, targetComboMap map[string]map[string]bool) error {
 	// Filter out Vec→Vec functions - they don't need dispatch
 	dispatchableFuncs := filterDispatchableFuncs(funcs)
 	if len(dispatchableFuncs) == 0 {
@@ -606,6 +628,9 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
 	for _, pf := range dispatchableFuncs {
 		for _, dc := range getDispatchCombos(pf) {
+			if !comboAvailable(targetComboMap, "Fallback", dc.DispatchName) {
+				continue
+			}
 			baseName := pf.Name
 			if pf.Private {
 				baseName = makeUnexported(baseName)

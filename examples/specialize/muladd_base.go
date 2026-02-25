@@ -18,14 +18,15 @@
 // This example shows a fused multiply-add (MulAdd) with a primary generic
 // implementation and a NEON:asm specialization for half-precision types:
 //
-//   - Primary (this file): handles ALL float types on all targets using
+//   - Primary (this file): handles float32/float64 on all targets using
 //     generic hwy operations. On NEON:asm this compiles to assembly via
 //     GOAT; on AVX2/AVX-512 it uses Go's simd package; on fallback it
 //     uses scalar code.
 //
-//   - Specialization (muladd_half_base.go): overrides Float16/BFloat16
-//     on NEON:asm only, providing a body that the GOAT transpiler
-//     compiles to native fp16/bf16 instructions.
+//   - Specialization (muladd_half_base.go): adds Float16/BFloat16 on
+//     NEON:asm only, providing a body that the GOAT transpiler compiles
+//     to native fp16/bf16 instructions. These types are NOT available on
+//     AVX2/AVX-512/fallback targets.
 //
 // The dispatch group "MulAdd" unifies both under a single MulAdd[T]() entry point.
 //
@@ -42,9 +43,10 @@ import "github.com/ajroetker/go-highway/hwy"
 // BaseMulAdd computes element-wise fused multiply-add: out[i] += x[i] * y[i].
 //
 // Uses SIMD FMA instructions for vectorized throughput across all targets.
-// The hwy.Floats constraint generates for float32, float64, Float16, and BFloat16.
-// On NEON:asm, the Float16/BFloat16 variants are overridden by the specialization
-// in muladd_half_base.go which provides native fp16/bf16 instructions.
+// This primary generates for float32 and float64 only. Float16/BFloat16
+// are added by the specialization in muladd_half_base.go (NEON:asm only).
+//
+//hwy:gen T={float32, float64}
 func BaseMulAdd[T hwy.Floats](x, y, out []T) {
 	size := min(len(x), min(len(y), len(out)))
 	if size == 0 {

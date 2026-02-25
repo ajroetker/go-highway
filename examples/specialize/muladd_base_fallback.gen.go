@@ -2,46 +2,6 @@
 
 package specialize
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
-func BaseMulAdd_fallback_Float16(x []hwy.Float16, y []hwy.Float16, out []hwy.Float16) {
-	size := min(len(x), min(len(y), len(out)))
-	if size == 0 {
-		return
-	}
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	var i int
-	for ; i+lanes <= size; i += lanes {
-		vx := hwy.Load(x[i:])
-		vy := hwy.Load(y[i:])
-		vo := hwy.Load(out[i:])
-		hwy.Store(hwy.MulAdd(vx, vy, vo), out[i:])
-	}
-	for ; i < size; i++ {
-		out[i] = hwy.Float32ToFloat16(out[i].Float32() + x[i].Float32()*y[i].Float32())
-	}
-}
-
-func BaseMulAdd_fallback_BFloat16(x []hwy.BFloat16, y []hwy.BFloat16, out []hwy.BFloat16) {
-	size := min(len(x), min(len(y), len(out)))
-	if size == 0 {
-		return
-	}
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	var i int
-	for ; i+lanes <= size; i += lanes {
-		vx := hwy.Load(x[i:])
-		vy := hwy.Load(y[i:])
-		vo := hwy.Load(out[i:])
-		hwy.Store(hwy.MulAdd(vx, vy, vo), out[i:])
-	}
-	for ; i < size; i++ {
-		out[i] = hwy.Float32ToBFloat16(out[i].Float32() + x[i].Float32()*y[i].Float32())
-	}
-}
-
 func BaseMulAdd_fallback(x []float32, y []float32, out []float32) {
 	size := min(len(x), min(len(y), len(out)))
 	if size == 0 {
