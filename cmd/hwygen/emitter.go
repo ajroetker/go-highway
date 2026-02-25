@@ -83,6 +83,16 @@ type ContribPackages struct {
 	AsmPkg  bool // asm package needed (half-precision promoted types on AVX)
 }
 
+// isTileOp returns true if funcName is a tile operation that requires the asm package.
+func isTileOp(funcName string) bool {
+	switch funcName {
+	case "TileZero", "OuterProductAdd", "OuterProductSub",
+		"TileStoreRow", "TileReadRow", "TileLoadCol", "NewTile":
+		return true
+	}
+	return false
+}
+
 // detectContribPackages analyzes parsed functions to determine which contrib subpackages are used.
 // Returns the combined packages across all targets (for backward compatibility).
 func detectContribPackages(funcs []ParsedFunc, targets []Target) ContribPackages {
@@ -186,6 +196,10 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				// Track if core hwy operations are used (Load, Store, Add, etc.)
 				if call.Package == "hwy" {
 					pkgs.HwyCore = true
+				}
+				// Tile ops on archsimd targets (AVX2/AVX512) need asm package for tile types
+				if call.Package == "hwy" && target.VecPackage == "archsimd" && isTileOp(call.FuncName) {
+					pkgs.AsmPkg = true
 				}
 			} else if call.Package == "algo" && strings.HasPrefix(call.FuncName, "Base") {
 				// This is a contrib algo function reference (like algo.BaseApply)

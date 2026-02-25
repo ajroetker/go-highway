@@ -86,6 +86,9 @@ func AVX2Target() Target {
 			"uint64":       "Uint64x4",
 			"hwy.Float16":  "Float16x8AVX2",
 			"hwy.BFloat16": "BFloat16x8AVX2",
+			// Tile types
+			"tile_float32": "TileFloat32x8",
+			"tile_float64": "TileFloat64x4",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -192,6 +195,17 @@ func AVX2Target() Target {
 			// ===== Type references (not functions, but parser captures them) =====
 			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
 			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
+			"Tile": {Package: "special", Name: "Tile", IsMethod: false}, // Tile type reference
+
+			// ===== Tile operations =====
+			"NewTile":         {Package: "special", Name: "NewTile", IsMethod: false},
+			"TileDim":         {Package: "special", Name: "TileDim", IsMethod: false},
+			"TileZero":        {Name: "Zero", IsMethod: true},
+			"OuterProductAdd": {Name: "OuterProductAdd", IsMethod: true},
+			"OuterProductSub": {Name: "OuterProductSub", IsMethod: true},
+			"TileStoreRow":    {Name: "StoreRow", IsMethod: true},
+			"TileReadRow":     {Name: "ReadRow", IsMethod: true},
+			"TileLoadCol":     {Name: "LoadCol", IsMethod: true},
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -296,6 +310,9 @@ func AVX512Target() Target {
 			"uint64":       "Uint64x8",
 			"hwy.Float16":  "Float16x16AVX512",
 			"hwy.BFloat16": "BFloat16x16AVX512",
+			// Tile types
+			"tile_float32": "TileFloat32x16",
+			"tile_float64": "TileFloat64x8",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -403,6 +420,17 @@ func AVX512Target() Target {
 			// ===== Type references (not functions, but parser captures them) =====
 			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
 			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
+			"Tile": {Package: "special", Name: "Tile", IsMethod: false}, // Tile type reference
+
+			// ===== Tile operations =====
+			"NewTile":         {Package: "special", Name: "NewTile", IsMethod: false},
+			"TileDim":         {Package: "special", Name: "TileDim", IsMethod: false},
+			"TileZero":        {Name: "Zero", IsMethod: true},
+			"OuterProductAdd": {Name: "OuterProductAdd", IsMethod: true},
+			"OuterProductSub": {Name: "OuterProductSub", IsMethod: true},
+			"TileStoreRow":    {Name: "StoreRow", IsMethod: true},
+			"TileReadRow":     {Name: "ReadRow", IsMethod: true},
+			"TileLoadCol":     {Name: "LoadCol", IsMethod: true},
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -608,6 +636,17 @@ func FallbackTarget() Target {
 			// ===== Type references (not functions, but parser captures them) =====
 			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
 			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
+			"Tile": {Package: "special", Name: "Tile", IsMethod: false}, // Tile type reference
+
+			// ===== Tile operations (stay as hwy.* functions for fallback) =====
+			"NewTile":         {Package: "hwy", Name: "NewTile", IsMethod: false},
+			"TileDim":         {Package: "special", Name: "TileDim", IsMethod: false},
+			"TileZero":        {Package: "hwy", Name: "TileZero", IsMethod: false},
+			"OuterProductAdd": {Package: "hwy", Name: "OuterProductAdd", IsMethod: false},
+			"OuterProductSub": {Package: "hwy", Name: "OuterProductSub", IsMethod: false},
+			"TileStoreRow":    {Package: "hwy", Name: "TileStoreRow", IsMethod: false},
+			"TileReadRow":     {Package: "hwy", Name: "TileReadRow", IsMethod: false},
+			"TileLoadCol":     {Package: "hwy", Name: "TileLoadCol", IsMethod: false},
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Package: "hwy", Name: "Reverse", IsMethod: false},
@@ -708,6 +747,9 @@ func NEONTarget() Target {
 			"uint64":       "Uint64x2",
 			"hwy.Float16":  "Float16x8",  // Use concrete asm type with in-place methods
 			"hwy.BFloat16": "BFloat16x8", // Use concrete asm type with in-place methods
+			// Tile types
+			"tile_float32": "TileFloat32x4",
+			"tile_float64": "TileFloat64x2",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -821,6 +863,17 @@ func NEONTarget() Target {
 			// ===== Type references (not functions, but parser captures them) =====
 			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},  // Type, not function
 			"Mask": {Package: "special", Name: "Mask", IsMethod: false}, // Type, not function
+			"Tile": {Package: "special", Name: "Tile", IsMethod: false}, // Tile type reference
+
+			// ===== Tile operations =====
+			"NewTile":         {Package: "special", Name: "NewTile", IsMethod: false},
+			"TileDim":         {Package: "special", Name: "TileDim", IsMethod: false},
+			"TileZero":        {Name: "Zero", IsMethod: true},
+			"OuterProductAdd": {Name: "OuterProductAdd", IsMethod: true},
+			"OuterProductSub": {Name: "OuterProductSub", IsMethod: true},
+			"TileStoreRow":    {Name: "StoreRow", IsMethod: true},
+			"TileReadRow":     {Name: "ReadRow", IsMethod: true},
+			"TileLoadCol":     {Name: "LoadCol", IsMethod: true},
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -918,6 +971,9 @@ func SVEDarwinTarget() Target {
 			"uint64":       "Uint64x8",
 			"hwy.Float16":  "Float16x32",
 			"hwy.BFloat16": "BFloat16x32",
+			// Tile types (SVE on Darwin uses same 512-bit tile types as AVX512)
+			"tile_float32": "TileFloat32x16",
+			"tile_float64": "TileFloat64x8",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -1028,6 +1084,17 @@ func SVEDarwinTarget() Target {
 			// ===== Type references (not functions, but parser captures them) =====
 			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},
 			"Mask": {Package: "special", Name: "Mask", IsMethod: false},
+			"Tile": {Package: "special", Name: "Tile", IsMethod: false},
+
+			// ===== Tile operations =====
+			"NewTile":         {Package: "special", Name: "NewTile", IsMethod: false},
+			"TileDim":         {Package: "special", Name: "TileDim", IsMethod: false},
+			"TileZero":        {Name: "Zero", IsMethod: true},
+			"OuterProductAdd": {Name: "OuterProductAdd", IsMethod: true},
+			"OuterProductSub": {Name: "OuterProductSub", IsMethod: true},
+			"TileStoreRow":    {Name: "StoreRow", IsMethod: true},
+			"TileReadRow":     {Name: "ReadRow", IsMethod: true},
+			"TileLoadCol":     {Name: "LoadCol", IsMethod: true},
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -1124,6 +1191,9 @@ func SVELinuxTarget() Target {
 			"uint64":       "Uint64x8",
 			"hwy.Float16":  "Float16x32",
 			"hwy.BFloat16": "BFloat16x32",
+			// Tile types (SVE on Linux uses same 512-bit tile types)
+			"tile_float32": "TileFloat32x16",
+			"tile_float64": "TileFloat64x8",
 		},
 		OpMap: map[string]OpInfo{
 			// ===== Load/Store operations =====
@@ -1234,6 +1304,17 @@ func SVELinuxTarget() Target {
 			// ===== Type references (not functions, but parser captures them) =====
 			"Vec":  {Package: "special", Name: "Vec", IsMethod: false},
 			"Mask": {Package: "special", Name: "Mask", IsMethod: false},
+			"Tile": {Package: "special", Name: "Tile", IsMethod: false},
+
+			// ===== Tile operations =====
+			"NewTile":         {Package: "special", Name: "NewTile", IsMethod: false},
+			"TileDim":         {Package: "special", Name: "TileDim", IsMethod: false},
+			"TileZero":        {Name: "Zero", IsMethod: true},
+			"OuterProductAdd": {Name: "OuterProductAdd", IsMethod: true},
+			"OuterProductSub": {Name: "OuterProductSub", IsMethod: true},
+			"TileStoreRow":    {Name: "StoreRow", IsMethod: true},
+			"TileReadRow":     {Name: "ReadRow", IsMethod: true},
+			"TileLoadCol":     {Name: "LoadCol", IsMethod: true},
 
 			// ===== Permutation/Shuffle =====
 			"Reverse":            {Name: "Reverse", IsMethod: true},
@@ -1395,4 +1476,17 @@ func (t Target) LanesFor(elemType string) int {
 		return 1
 	}
 	return t.VecWidth / elemSize
+}
+
+// TileDim returns the tile dimension for the given element type.
+// Tile dimension equals the vector lane count (square tile matching vector width).
+func (t Target) TileDim(elemType string) int {
+	return t.LanesFor(elemType)
+}
+
+// TileTypeName returns the concrete tile type name for the given element type,
+// or empty string if not found.
+func (t Target) TileTypeName(elemType string) string {
+	tileKey := "tile_" + elemType
+	return t.TypeMap[tileKey]
 }
