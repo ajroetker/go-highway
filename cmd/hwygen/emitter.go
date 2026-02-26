@@ -137,6 +137,8 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 		"Log": true, "Log2": true, "Log10": true, "Log1p": true,
 		"Pow": true, "Hypot": true, "Erf": true, "Erfc": true,
 		"Copysign": true, "Signbit": true, "Max": true, "Min": true,
+		"Float32frombits": true, "Float32bits": true,
+		"Float64frombits": true, "Float64bits": true,
 	}
 
 	for _, pf := range funcs {
