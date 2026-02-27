@@ -332,8 +332,9 @@ var simpleOps = map[string]bool{
 	"And": true, "Or": true, "Xor": true, "AndNot": true, "Not": true,
 	"Load": true, "LoadSlice": true, "Store": true, "StoreSlice": true, "Set": true, "Zero": true,
 	// Meta-operations that don't affect complexity
-	"MaxLanes": true, "NumLanes": true, "Lanes": true,
-	"Vec": true, "Mask": true, // Type references
+	"MaxLanes": true, "NumLanes": true, "Lanes": true, "TileDim": true,
+	"Vec": true, "Mask": true, "Tile": true, // Type references
+	"NewTile": true, "TileZero": true, // Tile initialization
 }
 
 // complexOps are operations that use many registers (polynomial coefficients, etc.).
@@ -4676,6 +4677,25 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			call.Args = nil
 		}
 		return
+	case "NewTile":
+		// hwy.NewTile[float32]() -> asm.NewTileFloat32x8()
+		// Tile types always live in the asm package.
+		if opInfo.Package == "special" {
+			tileTypeName := ctx.target.TileTypeName(effectiveElemType)
+			if tileTypeName != "" {
+				fullName = "New" + tileTypeName
+				selExpr.X = ast.NewIdent("asm")
+				selExpr.Sel.Name = fullName
+				call.Args = nil
+				call.Fun = selExpr
+				return
+			}
+		}
+		// Fallback: keep as hwy.NewTile
+		selExpr.X = ast.NewIdent("hwy")
+		selExpr.Sel.Name = "NewTile"
+		call.Fun = selExpr
+		return
 	default:
 		// For contrib functions (SubPackage), use hwygen's naming convention:
 		// lowercase target, type suffix only for non-default types
@@ -4814,7 +4834,7 @@ func transformAssignStmt(stmt *ast.AssignStmt, ctx *transformContext) {
 			if indexExpr, ok := call.Fun.(*ast.IndexExpr); ok {
 				if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
 					if pkgIdent, ok := sel.X.(*ast.Ident); ok {
-						if pkgIdent.Name == "hwy" && (sel.Sel.Name == "Lanes" || sel.Sel.Name == "MaxLanes" || sel.Sel.Name == "NumLanes") {
+						if pkgIdent.Name == "hwy" && (sel.Sel.Name == "Lanes" || sel.Sel.Name == "MaxLanes" || sel.Sel.Name == "NumLanes" || sel.Sel.Name == "TileDim") {
 							// Extract the actual type parameter from hwy.NumLanes[T]()
 							// Use it instead of ctx.elemType to get correct lane count
 							effectiveElemType := ctx.elemType
@@ -6129,6 +6149,17 @@ func specializeVecType(typeStr string, elemType string, target Target, skipHalfP
 		if maskTypeName != "" {
 			concreteMaskType := pkgName + "." + maskTypeName
 			typeStr = strings.ReplaceAll(typeStr, maskPlaceholder, concreteMaskType)
+		}
+	}
+
+	// Transform hwy.Tile[elemType] to concrete tile type.
+	// Tile types always live in the asm package (not archsimd).
+	tilePlaceholder := "hwy.Tile[" + elemType + "]"
+	if strings.Contains(typeStr, tilePlaceholder) {
+		tileTypeName := target.TileTypeName(elemType)
+		if tileTypeName != "" {
+			concreteTileType := "asm." + tileTypeName
+			typeStr = strings.ReplaceAll(typeStr, tilePlaceholder, concreteTileType)
 		}
 	}
 

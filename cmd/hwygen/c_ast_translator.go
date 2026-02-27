@@ -3225,6 +3225,25 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 			return t.emitHwyIfThenElse([]ast.Expr{args[2], args[0], args[1]})
 		}
 		return "/* Merge: missing args */"
+
+	// Tile operations
+	case "TileZero":
+		return t.emitTileZero(args)
+	case "OuterProductAdd":
+		return t.emitTileOuterProduct(args, true)
+	case "OuterProductSub":
+		return t.emitTileOuterProduct(args, false)
+	case "TileStoreRow":
+		return t.emitTileStoreRow(args)
+	case "TileReadRow":
+		return t.emitTileReadRow(args)
+	case "TileLoadCol":
+		return t.emitTileLoadCol(args)
+	case "NewTile":
+		return t.emitTileNew()
+	case "TileDim":
+		return t.lanesExpr()
+
 	default:
 		// Unknown hwy call — emit as-is
 		var argStrs []string
@@ -4561,8 +4580,12 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 			// override below, which would incorrectly return a vector type for
 			// calls like hwy.NumLanes[uint8]().
 			switch sel.Sel.Name {
-			case "MaxLanes", "NumLanes", "GetLane":
+			case "MaxLanes", "NumLanes", "GetLane", "TileDim":
 				return cVarInfo{cType: "long"}
+			case "NewTile":
+				return cVarInfo{cType: tileStructName(t.profile)}
+			case "TileReadRow":
+				return cVarInfo{cType: vecType, isVector: true}
 			}
 
 			// Check for explicit type parameter that overrides the profile's vector type.
@@ -4807,8 +4830,192 @@ func (t *CASTTranslator) goTypeToCType(goType string) string {
 		if goType == "hwy.Mask[T]" || strings.HasPrefix(goType, "hwy.Mask[") {
 			return t.profile.VecTypes[t.tier]
 		}
+		// hwy.Tile[T] → tile struct type for the current profile
+		if goType == "hwy.Tile[T]" || strings.HasPrefix(goType, "hwy.Tile[") {
+			return tileStructName(t.profile)
+		}
 		return "long" // default for unknown types
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Tile operation helpers
+// ---------------------------------------------------------------------------
+
+// tileStructName returns the C typedef name for the tile type.
+// For NEON float32: "HwyTileF32x4", for SVE float32: "HwyTileF32x16", etc.
+func tileStructName(profile *CIntrinsicProfile) string {
+	suffix := "F32"
+	switch profile.ElemType {
+	case "float64":
+		suffix = "F64"
+	}
+	lanes := profile.Tiers[0].Lanes
+	return fmt.Sprintf("HwyTile%sx%d", suffix, lanes)
+}
+
+// tileLanes returns the number of tile rows (= vector lane count).
+func tileLanes(profile *CIntrinsicProfile) int {
+	return profile.Tiers[0].Lanes
+}
+
+// translateTileArg translates a tile pointer argument (e.g., &tile from
+// hwy.TileZero(&tile)) to the bare C variable name. In Go, tile ops take
+// *Tile via &tile, but in C the tile is a local struct and we use . access.
+func (t *CASTTranslator) translateTileArg(expr ast.Expr) string {
+	// Strip the & from &tile to get the bare identifier
+	if unary, ok := expr.(*ast.UnaryExpr); ok && unary.Op == token.AND {
+		return t.translateExpr(unary.X)
+	}
+	// Fallback: translate as-is (shouldn't normally happen for tile ops)
+	return t.translateExpr(expr)
+}
+
+// emitTileNew returns a zero-initialized tile struct literal.
+func (t *CASTTranslator) emitTileNew() string {
+	return fmt.Sprintf("(%s){{0}}", tileStructName(t.profile))
+}
+
+// emitTileZero emits code to zero all rows of a tile.
+// hwy.TileZero(&tile) → tile zero loop or unrolled zero
+func (t *CASTTranslator) emitTileZero(args []ast.Expr) string {
+	if len(args) < 1 {
+		return "/* TileZero: missing args */"
+	}
+	tileName := t.translateTileArg(args[0])
+	n := tileLanes(t.profile)
+	dupFn := t.profile.DupFn[t.tier]
+
+	var parts []string
+	for i := 0; i < n; i++ {
+		if t.profile.NeedsPredicate {
+			parts = append(parts, fmt.Sprintf("%s.rows[%d] = %s(0)", tileName, i, dupFn))
+		} else {
+			parts = append(parts, fmt.Sprintf("%s.rows[%d] = %s(0.0f)", tileName, i, dupFn))
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// emitTileOuterProduct emits code for OuterProductAdd or OuterProductSub.
+// hwy.OuterProductAdd(&tile, row, col) → broadcast+FMA per row
+// On NEON: uses vfmaq_laneq_f32 for lane broadcast+FMA (avoids explicit broadcast).
+// On SVE: uses explicit broadcast + svmla.
+func (t *CASTTranslator) emitTileOuterProduct(args []ast.Expr, isAdd bool) string {
+	if len(args) < 3 {
+		return "/* OuterProduct: missing args */"
+	}
+	tileName := t.translateTileArg(args[0])
+	rowVec := t.translateExpr(args[1])
+	colVec := t.translateExpr(args[2])
+	n := tileLanes(t.profile)
+
+	var parts []string
+	for i := 0; i < n; i++ {
+		if isAdd {
+			if t.profile.TargetName == "NEON" {
+				// NEON: vfmaq_laneq_f32(acc, col, row, lane)
+				fmaLaneFn := "vfmaq_laneq_f32"
+				if t.profile.ElemType == "float64" {
+					fmaLaneFn = "vfmaq_laneq_f64"
+				}
+				parts = append(parts, fmt.Sprintf(
+					"%s.rows[%d] = %s(%s.rows[%d], %s, %s, %d)",
+					tileName, i, fmaLaneFn, tileName, i, colVec, rowVec, i))
+			} else {
+				// SVE: broadcast lane, then FMA
+				dupFn := t.profile.DupFn[t.tier]
+				getLaneFn := t.profile.GetLaneFn[t.tier]
+				fmaFn := t.profile.FmaFn[t.tier]
+				parts = append(parts, fmt.Sprintf(
+					"%s.rows[%d] = %s(pg, %s.rows[%d], %s(%s(pg, %s, %d)), %s)",
+					tileName, i, fmaFn, tileName, i, dupFn, getLaneFn, rowVec, i, colVec))
+			}
+		} else {
+			// OuterProductSub: acc -= broadcast(row[i]) * col
+			if t.profile.TargetName == "NEON" {
+				mulLaneFn := "vmulq_laneq_f32"
+				subFn := "vsubq_f32"
+				if t.profile.ElemType == "float64" {
+					mulLaneFn = "vmulq_laneq_f64"
+					subFn = "vsubq_f64"
+				}
+				parts = append(parts, fmt.Sprintf(
+					"%s.rows[%d] = %s(%s.rows[%d], %s(%s, %s, %d))",
+					tileName, i, subFn, tileName, i, mulLaneFn, colVec, rowVec, i))
+			} else {
+				// SVE: broadcast, mul, sub
+				dupFn := t.profile.DupFn[t.tier]
+				getLaneFn := t.profile.GetLaneFn[t.tier]
+				mulFn := t.profile.MulFn[t.tier]
+				subFn := t.profile.SubFn[t.tier]
+				parts = append(parts, fmt.Sprintf(
+					"%s.rows[%d] = %s(pg, %s.rows[%d], %s(pg, %s(%s(pg, %s, %d)), %s))",
+					tileName, i, subFn, tileName, i, mulFn, dupFn, getLaneFn, rowVec, i, colVec))
+			}
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// emitTileStoreRow emits code to store a tile row to a destination slice.
+// hwy.TileStoreRow(&tile, idx, dst) → store(dst, tile.rows[idx])
+func (t *CASTTranslator) emitTileStoreRow(args []ast.Expr) string {
+	if len(args) < 3 {
+		return "/* TileStoreRow: missing args */"
+	}
+	tileName := t.translateTileArg(args[0])
+	idx := t.translateExpr(args[1])
+	dst := t.translateExpr(args[2])
+	storeFn := t.profile.StoreFn[t.tier]
+	if t.profile.NeedsPredicate {
+		return fmt.Sprintf("%s(pg, %s, %s.rows[%s])", storeFn, dst, tileName, idx)
+	}
+	return fmt.Sprintf("%s(%s, %s.rows[%s])", storeFn, dst, tileName, idx)
+}
+
+// emitTileReadRow emits code to read a tile row as a vector.
+// hwy.TileReadRow(&tile, idx) → tile.rows[idx]
+func (t *CASTTranslator) emitTileReadRow(args []ast.Expr) string {
+	if len(args) < 2 {
+		return "/* TileReadRow: missing args */"
+	}
+	tileName := t.translateTileArg(args[0])
+	idx := t.translateExpr(args[1])
+	return fmt.Sprintf("%s.rows[%s]", tileName, idx)
+}
+
+// emitTileLoadCol emits code to load a source slice into a tile column.
+// hwy.TileLoadCol(&tile, idx, src) → tile.rows[i] = insert(tile.rows[i], src[i], idx)
+func (t *CASTTranslator) emitTileLoadCol(args []ast.Expr) string {
+	if len(args) < 3 {
+		return "/* TileLoadCol: missing args */"
+	}
+	tileName := t.translateTileArg(args[0])
+	colIdx := t.translateExpr(args[1])
+	src := t.translateExpr(args[2])
+	n := tileLanes(t.profile)
+
+	var parts []string
+	for i := 0; i < n; i++ {
+		if t.profile.TargetName == "NEON" {
+			// NEON: vsetq_lane_f32(src[i], tile.rows[i], colIdx)
+			setLaneFn := "vsetq_lane_f32"
+			if t.profile.ElemType == "float64" {
+				setLaneFn = "vsetq_lane_f64"
+			}
+			parts = append(parts, fmt.Sprintf(
+				"%s.rows[%d] = %s(%s[%d], %s.rows[%d], %s)",
+				tileName, i, setLaneFn, src, i, tileName, i, colIdx))
+		} else {
+			// SVE: svdup + svsel to set one lane. For simplicity, use
+			// store-to-stack, modify, reload approach.
+			// TODO: implement proper SVE lane-set
+			parts = append(parts, fmt.Sprintf(
+				"/* TileLoadCol SVE row %d */ (void)0", i))
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // ---------------------------------------------------------------------------

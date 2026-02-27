@@ -1,6 +1,9 @@
 package main
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+)
 
 // CIntrinsicProfile defines the complete set of C intrinsics and metadata
 // for a specific target architecture + element type combination.
@@ -343,7 +346,7 @@ func neonF32Profile() *CIntrinsicProfile {
     __builtin_memcpy(&f, &bits, 4);
     return f;
 }`,
-		}, neonF32MathHelpers, scalarF64MathHelpers, neonF32MaskHelpers),
+		}, neonTileHelpers("float32"), neonF32MathHelpers, scalarF64MathHelpers, neonF32MaskHelpers),
 
 		MathStrategy:   "native",
 		FmaArgOrder:    "acc_first",
@@ -416,7 +419,7 @@ func neonF64Profile() *CIntrinsicProfile {
 		IotaFn:          map[string]string{"q": "hwy_iota_f64"},
 		CompressStoreFn: map[string]string{"q": "hwy_compress_store_f64"},
 
-		InlineHelpers: slices.Concat(neonF64MathHelpers, neonF64MaskHelpers),
+		InlineHelpers: slices.Concat(neonTileHelpers("float64"), neonF64MathHelpers, neonF64MaskHelpers),
 
 		MathStrategy:   "native",
 		FmaArgOrder:    "acc_first",
@@ -1317,6 +1320,8 @@ func sveDarwinF32Profile() *CIntrinsicProfile {
 		IfThenElseFn:      map[string]string{"sve": "svsel_f32"},
 		MaskType:          map[string]string{"sve": "svbool_t"},
 
+		InlineHelpers: sveTileHelpers("float32", 16),
+
 		MathStrategy:     "native",
 		NativeArithmetic: true,
 		FmaArgOrder:      "acc_first",
@@ -1376,6 +1381,8 @@ func sveDarwinF64Profile() *CIntrinsicProfile {
 		GreaterEqualFn:    map[string]string{"sve": "svcmpge_f64"},
 		IfThenElseFn:      map[string]string{"sve": "svsel_f64"},
 		MaskType:          map[string]string{"sve": "svbool_t"},
+
+		InlineHelpers: sveTileHelpers("float64", 8),
 
 		MathStrategy:     "native",
 		NativeArithmetic: true,
@@ -1779,4 +1786,35 @@ var avx512BF16ArithHelpers = []string{
     bits += 0x7FFF + lsb;
     return (unsigned short)(bits >> 16);
 }`,
+}
+
+// tileTypedef returns a C typedef string for the tile struct for a given
+// vector type name and lane count.
+// E.g., tileTypedef("float32x4_t", 4, "HwyTileF32x4") produces:
+//
+//	typedef struct { float32x4_t rows[4]; } HwyTileF32x4;
+func tileTypedef(vecType string, lanes int, structName string) string {
+	return fmt.Sprintf("typedef struct { %s rows[%d]; } %s;", vecType, lanes, structName)
+}
+
+// neonTileHelpers returns the tile typedef for NEON profiles.
+func neonTileHelpers(elemType string) []string {
+	switch elemType {
+	case "float32":
+		return []string{tileTypedef("float32x4_t", 4, "HwyTileF32x4")}
+	case "float64":
+		return []string{tileTypedef("float64x2_t", 2, "HwyTileF64x2")}
+	}
+	return nil
+}
+
+// sveTileHelpers returns the tile typedef for SVE profiles.
+func sveTileHelpers(elemType string, lanes int) []string {
+	switch elemType {
+	case "float32":
+		return []string{tileTypedef("svfloat32_t", lanes, fmt.Sprintf("HwyTileF32x%d", lanes))}
+	case "float64":
+		return []string{tileTypedef("svfloat64_t", lanes, fmt.Sprintf("HwyTileF64x%d", lanes))}
+	}
+	return nil
 }

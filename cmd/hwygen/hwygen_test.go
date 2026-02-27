@@ -7413,3 +7413,368 @@ func TestTargetComboMapIntegration(t *testing.T) {
 		t.Errorf("NEON should have Float16 and BFloat16, got: %v", neonSet)
 	}
 }
+
+// TestTileTransformation verifies that tile operations are correctly transformed
+// for all target types: AVX2 (archsimd vec + asm tile), NEON (asm), and Fallback (hwy).
+func TestTileTransformation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	inputFile := filepath.Join(tmpDir, "tile_kernel.go")
+	content := `package testtile
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseOuterProduct[T hwy.FloatsNative](a, b, c []T, m, n, k int) {
+	dim := hwy.TileDim[T]()
+	for i := 0; i < m; i += dim {
+		for j := 0; j < n; j += dim {
+			tile := hwy.NewTile[T]()
+			hwy.TileZero(&tile)
+			for p := 0; p < k; p++ {
+				aCol := hwy.Load[T](a[p*m+i:])
+				bRow := hwy.Load[T](b[p*n+j:])
+				hwy.OuterProductAdd(&tile, aCol, bRow)
+			}
+			for r := 0; r < dim; r++ {
+				row := hwy.TileReadRow(&tile, r)
+				existing := hwy.Load[T](c[(i+r)*n+j:])
+				result := hwy.Add(existing, row)
+				hwy.Store(result, c[(i+r)*n+j:])
+			}
+		}
+	}
+}
+`
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	// Test AVX2 target
+	t.Run("AVX2", func(t *testing.T) {
+		gen := &Generator{
+			InputFile:   inputFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2"),
+		}
+		if err := gen.Run(); err != nil {
+			t.Fatalf("Generator.Run() failed: %v", err)
+		}
+
+		avx2Path := filepath.Join(tmpDir, "tile_kernel_avx2.gen.go")
+		avx2Content, err := os.ReadFile(avx2Path)
+		if err != nil {
+			t.Fatalf("Failed to read AVX2 output: %v", err)
+		}
+		s := string(avx2Content)
+
+		// TileDim should be replaced with constant 8 (AVX2 float32 lanes)
+		if !strings.Contains(s, "dim := 8") && !strings.Contains(s, "dim = 8") {
+			t.Error("AVX2: TileDim[float32] should be replaced with 8")
+		}
+
+		// NewTile should be replaced with asm.NewTileFloat32x8()
+		if !strings.Contains(s, "asm.NewTileFloat32x8()") {
+			t.Error("AVX2: NewTile should become asm.NewTileFloat32x8()")
+		}
+
+		// TileZero should become method call: (&tile).Zero()
+		if !strings.Contains(s, ".Zero()") {
+			t.Error("AVX2: TileZero should become .Zero() method call")
+		}
+
+		// OuterProductAdd should become method call
+		if !strings.Contains(s, ".OuterProductAdd(") {
+			t.Error("AVX2: OuterProductAdd should become .OuterProductAdd() method call")
+		}
+
+		// TileReadRow should become method call
+		if !strings.Contains(s, ".ReadRow(") {
+			t.Error("AVX2: TileReadRow should become .ReadRow() method call")
+		}
+
+		// Should import asm package for tile types
+		if !strings.Contains(s, `"github.com/ajroetker/go-highway/hwy/asm"`) {
+			t.Error("AVX2: should import hwy/asm package for tile types")
+		}
+
+		// Type declaration should use asm.TileFloat32x8, not archsimd.TileFloat32x8
+		if strings.Contains(s, "archsimd.TileFloat32x8") {
+			t.Error("AVX2: tile type should use asm package, not archsimd")
+		}
+	})
+
+	// Test AVX512 target
+	t.Run("AVX512", func(t *testing.T) {
+		gen := &Generator{
+			InputFile:   inputFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx512"),
+		}
+		if err := gen.Run(); err != nil {
+			t.Fatalf("Generator.Run() failed: %v", err)
+		}
+
+		avx512Path := filepath.Join(tmpDir, "tile_kernel_avx512.gen.go")
+		avx512Content, err := os.ReadFile(avx512Path)
+		if err != nil {
+			t.Fatalf("Failed to read AVX512 output: %v", err)
+		}
+		s := string(avx512Content)
+
+		// float32: TileDim=16, TileFloat32x16
+		if !strings.Contains(s, "dim := 16") {
+			t.Error("AVX512: TileDim[float32] should be 16")
+		}
+		if !strings.Contains(s, "asm.NewTileFloat32x16()") {
+			t.Error("AVX512: NewTile should become asm.NewTileFloat32x16()")
+		}
+
+		// float64: TileDim=8, TileFloat64x8
+		if !strings.Contains(s, "dim := 8") {
+			t.Error("AVX512: TileDim[float64] should be 8")
+		}
+		if !strings.Contains(s, "asm.NewTileFloat64x8()") {
+			t.Error("AVX512: NewTile[float64] should become asm.NewTileFloat64x8()")
+		}
+
+		// Should import asm for tile types
+		if !strings.Contains(s, `"github.com/ajroetker/go-highway/hwy/asm"`) {
+			t.Error("AVX512: should import hwy/asm package for tile types")
+		}
+	})
+
+	// Test Fallback target
+	t.Run("Fallback", func(t *testing.T) {
+		gen := &Generator{
+			InputFile:   inputFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "fallback"),
+		}
+		if err := gen.Run(); err != nil {
+			t.Fatalf("Generator.Run() failed: %v", err)
+		}
+
+		fbPath := filepath.Join(tmpDir, "tile_kernel_fallback.gen.go")
+		fbContent, err := os.ReadFile(fbPath)
+		if err != nil {
+			t.Fatalf("Failed to read fallback output: %v", err)
+		}
+		s := string(fbContent)
+
+		// Fallback should use hwy.NewTile (not asm constructor)
+		if !strings.Contains(s, "hwy.NewTile") {
+			t.Error("Fallback: should use hwy.NewTile")
+		}
+
+		// Fallback should use hwy.TileZero (not method call)
+		if !strings.Contains(s, "hwy.TileZero(") {
+			t.Error("Fallback: should use hwy.TileZero function call")
+		}
+
+		// Fallback should use hwy.OuterProductAdd (not method call)
+		if !strings.Contains(s, "hwy.OuterProductAdd(") {
+			t.Error("Fallback: should use hwy.OuterProductAdd function call")
+		}
+
+		// Fallback should use hwy.TileReadRow (not method call)
+		if !strings.Contains(s, "hwy.TileReadRow(") {
+			t.Error("Fallback: should use hwy.TileReadRow function call")
+		}
+
+		// Fallback should NOT import asm
+		if strings.Contains(s, `"github.com/ajroetker/go-highway/hwy/asm"`) {
+			t.Error("Fallback: should not import hwy/asm")
+		}
+	})
+}
+
+// TestTileAllOps verifies all tile operations transform correctly, including
+// OuterProductSub, TileStoreRow, and TileLoadCol.
+func TestTileAllOps(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	inputFile := filepath.Join(tmpDir, "tile_ops.go")
+	content := `package testtileops
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseTileOps[T hwy.FloatsNative](a, b []T, m int) {
+	dim := hwy.TileDim[T]()
+	var tile hwy.Tile[T]
+	hwy.TileZero(&tile)
+
+	row := hwy.Load[T](a[:dim])
+	col := hwy.Load[T](b[:dim])
+	hwy.OuterProductAdd(&tile, row, col)
+	hwy.OuterProductSub(&tile, row, col)
+
+	dst := make([]T, dim)
+	hwy.TileStoreRow(&tile, 0, dst)
+
+	src := make([]T, dim)
+	hwy.TileLoadCol(&tile, 0, src)
+
+	v := hwy.TileReadRow(&tile, 0)
+	hwy.Store(v, a[:dim])
+}
+`
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	// Test AVX2: all ops become method calls
+	t.Run("AVX2_AllOps", func(t *testing.T) {
+		gen := &Generator{
+			InputFile:   inputFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2"),
+		}
+		if err := gen.Run(); err != nil {
+			t.Fatalf("Generator.Run() failed: %v", err)
+		}
+
+		avx2Path := filepath.Join(tmpDir, "tile_ops_avx2.gen.go")
+		avx2Content, err := os.ReadFile(avx2Path)
+		if err != nil {
+			t.Fatalf("Failed to read AVX2 output: %v", err)
+		}
+		s := string(avx2Content)
+
+		checks := map[string]string{
+			".OuterProductSub(": "OuterProductSub should become method call",
+			".StoreRow(":        "TileStoreRow should become .StoreRow() method call",
+			".LoadCol(":         "TileLoadCol should become .LoadCol() method call",
+			".ReadRow(":         "TileReadRow should become .ReadRow() method call",
+			".Zero()":           "TileZero should become .Zero() method call",
+		}
+		for pattern, msg := range checks {
+			if !strings.Contains(s, pattern) {
+				t.Errorf("AVX2: %s (missing %q)", msg, pattern)
+			}
+		}
+
+		// var tile declaration should use asm.TileFloat32x8
+		if !strings.Contains(s, "asm.TileFloat32x8") {
+			t.Error("AVX2: var tile should be asm.TileFloat32x8")
+		}
+	})
+
+	// Test Fallback: all ops remain as hwy package functions
+	t.Run("Fallback_AllOps", func(t *testing.T) {
+		gen := &Generator{
+			InputFile:   inputFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "fallback"),
+		}
+		if err := gen.Run(); err != nil {
+			t.Fatalf("Generator.Run() failed: %v", err)
+		}
+
+		fbPath := filepath.Join(tmpDir, "tile_ops_fallback.gen.go")
+		fbContent, err := os.ReadFile(fbPath)
+		if err != nil {
+			t.Fatalf("Failed to read fallback output: %v", err)
+		}
+		s := string(fbContent)
+
+		checks := map[string]string{
+			"hwy.OuterProductSub(": "OuterProductSub should stay as hwy function",
+			"hwy.TileStoreRow(":    "TileStoreRow should stay as hwy function",
+			"hwy.TileLoadCol(":     "TileLoadCol should stay as hwy function",
+			"hwy.TileReadRow(":     "TileReadRow should stay as hwy function",
+			"hwy.TileZero(":        "TileZero should stay as hwy function",
+		}
+		for pattern, msg := range checks {
+			if !strings.Contains(s, pattern) {
+				t.Errorf("Fallback: %s (missing %q)", msg, pattern)
+			}
+		}
+	})
+}
+
+func TestCModeTileGeneration(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	inputFile := filepath.Join(tmpDir, "tile_kernel_base.go")
+	content := `package testtile
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:gen T={float32}
+func BaseTileKernel[T hwy.Floats](a, b, c []T, m, n, k int) {
+	dim := hwy.TileDim[T]()
+	for i := 0; i < m; i += dim {
+		for j := 0; j < n; j += dim {
+			tile := hwy.NewTile[T]()
+			hwy.TileZero(&tile)
+			for p := 0; p < k; p++ {
+				aCol := hwy.Load[T](a[p*m+i:])
+				bRow := hwy.Load[T](b[p*n+j:])
+				hwy.OuterProductAdd(&tile, aCol, bRow)
+			}
+			for r := 0; r < dim; r++ {
+				existing := hwy.Load[T](c[(i+r)*n+j:])
+				row := hwy.TileReadRow(&tile, r)
+				hwy.Store(hwy.Add(existing, row), c[(i+r)*n+j:])
+			}
+		}
+	}
+}
+`
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
+	}
+
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() in CMode failed: %v", err)
+	}
+
+	f32Path := filepath.Join(tmpDir, "basetilekernel_c_f32_neon_arm64.c")
+	f32Content, err := os.ReadFile(f32Path)
+	if err != nil {
+		t.Fatalf("Failed to read f32 C file: %v", err)
+	}
+	f32 := string(f32Content)
+
+	// Verify tile struct typedef is present
+	if !strings.Contains(f32, "HwyTileF32x4") {
+		t.Error("f32: missing HwyTileF32x4 tile typedef")
+	}
+	if !strings.Contains(f32, "float32x4_t rows[4]") {
+		t.Error("f32: tile typedef should contain float32x4_t rows[4]")
+	}
+
+	// Verify tile zero uses vdupq_n_f32(0.0f)
+	if !strings.Contains(f32, "vdupq_n_f32(0.0f)") {
+		t.Error("f32: TileZero should use vdupq_n_f32(0.0f)")
+	}
+
+	// Verify outer product uses vfmaq_laneq_f32 (NEON lane-broadcast FMA)
+	if !strings.Contains(f32, "vfmaq_laneq_f32") {
+		t.Error("f32: OuterProductAdd should use vfmaq_laneq_f32")
+	}
+
+	// Verify tile row read pattern (tile->rows[r] or tile.rows[r])
+	if !strings.Contains(f32, ".rows[") && !strings.Contains(f32, "->rows[") {
+		t.Error("f32: TileReadRow should access tile rows array")
+	}
+
+	// Verify standard NEON intrinsics for load/store/add
+	for _, intrinsic := range []string{
+		"vld1q_f32",
+		"vst1q_f32",
+		"vaddq_f32",
+	} {
+		if !strings.Contains(f32, intrinsic) {
+			t.Errorf("f32: missing NEON intrinsic %q", intrinsic)
+		}
+	}
+
+	t.Logf("Generated C:\n%s", f32)
+}
