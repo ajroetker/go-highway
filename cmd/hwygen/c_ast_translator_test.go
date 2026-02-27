@@ -496,3 +496,77 @@ func TestGetLaneVariableIndex(t *testing.T) {
 		t.Errorf("expected store-to-stack pattern for variable index, got: %s", output)
 	}
 }
+
+// TestEmitFuncSignature_ScalarGenericReturn verifies that helper functions
+// returning a generic type T get the profile's scalar type (e.g., "float")
+// instead of defaulting to "long". This was the root cause of the NEON
+// normalize fcvtzs bug: BaseDot returned T which was emitted as "long",
+// causing the compiler to truncate the float result to an integer.
+func TestEmitFuncSignature_ScalarGenericReturn(t *testing.T) {
+	tests := []struct {
+		name       string
+		elemType   string
+		wantReturn string
+	}{
+		{"float32", "float32", "float BaseDot("},
+		{"float64", "float64", "double BaseDot("},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := testProfile(t, tt.elemType)
+			translator := NewCASTTranslator(profile, tt.elemType)
+			translator.helperMode = true
+
+			pf := &ParsedFunc{
+				Name: "BaseDot",
+				Params: []Param{
+					{Name: "a", Type: "[]T"},
+					{Name: "b", Type: "[]T"},
+				},
+				Returns: []Param{
+					{Name: "", Type: "T"},
+				},
+			}
+
+			translator.buildParamMap(pf)
+			translator.emitFuncSignature(pf)
+
+			output := translator.buf.String()
+			if !strings.Contains(output, tt.wantReturn) {
+				t.Errorf("expected return type %q in signature, got: %s", tt.wantReturn, output)
+			}
+			if strings.Contains(output, "long BaseDot(") {
+				t.Errorf("BaseDot should not return long (would cause fcvtzs truncation), got: %s", output)
+			}
+		})
+	}
+}
+
+// TestEmitFuncSignature_ScalarGenericReturn_BFloat16 verifies that BFloat16
+// helpers returning T get the scalar arithmetic type ("float"), not "long".
+func TestEmitFuncSignature_ScalarGenericReturn_BFloat16(t *testing.T) {
+	profile := testProfile(t, "hwy.BFloat16")
+	translator := NewCASTTranslator(profile, "hwy.BFloat16")
+	translator.helperMode = true
+
+	pf := &ParsedFunc{
+		Name: "BaseDot",
+		Params: []Param{
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+		},
+		Returns: []Param{
+			{Name: "", Type: "T"},
+		},
+	}
+
+	translator.buildParamMap(pf)
+	translator.emitFuncSignature(pf)
+
+	output := translator.buf.String()
+	// BFloat16 arithmetic is promoted to float, so BaseDot should return float
+	if strings.Contains(output, "long BaseDot(") {
+		t.Errorf("BFloat16 BaseDot should not return long, got: %s", output)
+	}
+}

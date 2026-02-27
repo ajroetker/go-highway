@@ -78,19 +78,8 @@ BB0_11:
 	BNE  BB0_11
 
 BB0_12:
-	WORD $0x9e380009 // fcvtzs	x9, s0
-	CBZ  R9, BB0_15
-	WORD $0x9e620120 // scvtf	d0, x9
-	WORD $0x1e61c000 // fsqrt	d0, d0
-	WORD $0x1e624000 // fcvt	s0, d0
-	WORD $0x1e2e1001 // fmov	s1, #1.00000000
-	WORD $0x1e201820 // fdiv	s0, s1, s0
-	WORD $0xf100111f // cmp	x8, #4
-	BGE  BB0_16
-	WORD $0xd280000c // mov	x12, #0                         ; =0x0
-	B    BB0_18
-
-BB0_15:
+	WORD $0x1e202008 // fcmp	s0, #0.0
+	BNE  BB0_14
 	WORD $0xbd400020 // ldr	s0, [x1]
 	WORD $0xbd000000 // str	s0, [x0]
 	WORD $0xbd400420 // ldr	s0, [x1, #4]
@@ -100,6 +89,17 @@ BB0_15:
 	WORD $0xbd400c20 // ldr	s0, [x1, #12]
 	WORD $0xbd000c00 // str	s0, [x0, #12]
 	RET
+
+BB0_14:
+	WORD $0x1e22c000 // fcvt	d0, s0
+	WORD $0x1e61c000 // fsqrt	d0, d0
+	WORD $0x1e624000 // fcvt	s0, d0
+	WORD $0x1e2e1001 // fmov	s1, #1.00000000
+	WORD $0x1e201820 // fdiv	s0, s1, s0
+	WORD $0xf100111f // cmp	x8, #4
+	BGE  BB0_16
+	WORD $0xd280000c // mov	x12, #0                         ; =0x0
+	B    BB0_18
 
 BB0_16:
 	WORD $0xd280000b // mov	x11, #0                         ; =0x0

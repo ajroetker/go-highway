@@ -83,9 +83,15 @@ BB0_11:
 	BNE  BB0_11
 
 BB0_12:
-	WORD $0x9e780009 // fcvtzs	x9, d0
-	CBZ  R9, BB0_15
-	WORD $0x9e620120 // scvtf	d0, x9
+	WORD $0x1e602008 // fcmp	d0, #0.0
+	BNE  BB0_14
+	WORD $0xfd400020 // ldr	d0, [x1]
+	WORD $0xfd000000 // str	d0, [x0]
+	WORD $0xfd400420 // ldr	d0, [x1, #8]
+	WORD $0xfd000400 // str	d0, [x0, #8]
+	RET
+
+BB0_14:
 	WORD $0x1e61c000 // fsqrt	d0, d0
 	WORD $0x1e6e1001 // fmov	d1, #1.00000000
 	WORD $0x1e601820 // fdiv	d0, d1, d0
@@ -93,13 +99,6 @@ BB0_12:
 	BGE  BB0_16
 	WORD $0xd280000c // mov	x12, #0                         ; =0x0
 	B    BB0_18
-
-BB0_15:
-	WORD $0xfd400020 // ldr	d0, [x1]
-	WORD $0xfd000000 // str	d0, [x0]
-	WORD $0xfd400420 // ldr	d0, [x1, #8]
-	WORD $0xfd000400 // str	d0, [x0, #8]
-	RET
 
 BB0_16:
 	WORD $0xd280000b // mov	x11, #0                         ; =0x0
