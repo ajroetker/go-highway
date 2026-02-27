@@ -18,33 +18,10 @@ func initEncodeNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	EncodeFloat32s = encodeFloat32sAsmU8
 	DecodeFloat32s = decodeFloat32sAsmF32
-	EncodeFloat64s = encodeFloat64sAsmU8
 	DecodeFloat64s = decodeFloat64sAsmF64
-}
-
-func encodeFloat32sAsmU8(dst []byte, src []float32) {
-	totalBytes := len(src) * 4
-	if len(dst) < totalBytes {
-		panic("dst is too short")
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	len_dstVal := int64(len(dst))
-	len_srcVal := int64(len(src))
-	asm.EncodeFloat32s_U8(
-		p_dst,
-		p_src,
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&len_srcVal),
-	)
+	EncodeFloat32s = encodeFloat32sAsmF32
+	EncodeFloat64s = encodeFloat64sAsmF64
 }
 
 func decodeFloat32sAsmF32(dst []float32, src []byte) {
@@ -70,29 +47,6 @@ func decodeFloat32sAsmF32(dst []float32, src []byte) {
 	)
 }
 
-func encodeFloat64sAsmU8(dst []byte, src []float64) {
-	totalBytes := len(src) * 8
-	if len(dst) < totalBytes {
-		panic("dst is too short")
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	len_dstVal := int64(len(dst))
-	len_srcVal := int64(len(src))
-	asm.EncodeFloat64s_U8(
-		p_dst,
-		p_src,
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&len_srcVal),
-	)
-}
-
 func decodeFloat64sAsmF64(dst []float64, src []byte) {
 	totalBytes := len(dst) * 8
 	if len(src) < totalBytes {
@@ -109,6 +63,52 @@ func decodeFloat64sAsmF64(dst []float64, src []byte) {
 	len_dstVal := int64(len(dst))
 	len_srcVal := int64(len(src))
 	asm.DecodeFloat64s_F64(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
+	)
+}
+
+func encodeFloat32sAsmF32(dst []byte, src []float32) {
+	totalBytes := len(src) * 4
+	if len(dst) < totalBytes {
+		panic("dst is too short")
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
+	asm.EncodeFloat32s_F32(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
+	)
+}
+
+func encodeFloat64sAsmF64(dst []byte, src []float64) {
+	totalBytes := len(src) * 8
+	if len(dst) < totalBytes {
+		panic("dst is too short")
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
+	asm.EncodeFloat64s_F64(
 		p_dst,
 		p_src,
 		unsafe.Pointer(&len_dstVal),

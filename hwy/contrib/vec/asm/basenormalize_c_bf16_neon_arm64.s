@@ -120,9 +120,8 @@ BB0_11:
 	BNE  BB0_11
 
 BB0_12:
-	WORD $0x9e380009 // fcvtzs	x9, s0
-	WORD $0xf2403d3f // tst	x9, #0xffff
-	BEQ  BB0_20
+	WORD $0x1e380009 // fcvtzs	w9, s0
+	CBZW R9, BB0_20
 	WORD $0x53103d29 // lsl	w9, w9, #16
 	WORD $0x1e270120 // fmov	s0, w9
 	WORD $0x1e21c000 // fsqrt	s0, s0

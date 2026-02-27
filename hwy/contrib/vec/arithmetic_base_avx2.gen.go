@@ -136,6 +136,118 @@ func BaseAdd_avx2_Float64(dst []float64, s []float64) {
 	}
 }
 
+func BaseAddConst_avx2_Float16(c hwy.Float16, dst []hwy.Float16) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := asm.BroadcastFloat16x8AVX2(uint16(c))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		result := vd.Add(vc)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		result1 := vd1.Add(vc)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
+		result2 := vd2.Add(vc)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
+		result3 := vd3.Add(vc)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseAddConst_fallback_Float16(c, dst[i:n])
+	}
+}
+
+func BaseAddConst_avx2_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := asm.BroadcastBFloat16x8AVX2(uint16(c))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		result := vd.Add(vc)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		result1 := vd1.Add(vc)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
+		result2 := vd2.Add(vc)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
+		result3 := vd3.Add(vc)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseAddConst_fallback_BFloat16(c, dst[i:n])
+	}
+}
+
+func BaseAddConst_avx2(c float32, dst []float32) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := archsimd.BroadcastFloat32x8(c)
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
+		result := vd.Add(vc)
+		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
+		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		result1 := vd1.Add(vc)
+		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		result2 := vd2.Add(vc)
+		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+		result3 := vd3.Add(vc)
+		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+	}
+	for ; i < n; i++ {
+		dst[i] += c
+	}
+}
+
+func BaseAddConst_avx2_Float64(c float64, dst []float64) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := archsimd.BroadcastFloat64x4(c)
+	lanes := 4
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
+		result := vd.Add(vc)
+		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
+		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		result1 := vd1.Add(vc)
+		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		result2 := vd2.Add(vc)
+		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+		result3 := vd3.Add(vc)
+		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+	}
+	for ; i < n; i++ {
+		dst[i] += c
+	}
+}
+
 func BaseAddTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
 	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
@@ -257,502 +369,6 @@ func BaseAddTo_avx2_Float64(dst []float64, a []float64, b []float64) {
 	}
 	if i < n {
 		BaseAddTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseSub_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		vs := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
-		result := vd.Sub(vs)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		vs1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
-		result1 := vd1.Sub(vs1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		vs2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
-		result2 := vd2.Sub(vs2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		vs3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
-		result3 := vd3.Sub(vs3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseSub_fallback_Float16(dst[i:n], s[i:n])
-	}
-}
-
-func BaseSub_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		vs := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
-		result := vd.Sub(vs)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		vs1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
-		result1 := vd1.Sub(vs1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		vs2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
-		result2 := vd2.Sub(vs2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		vs3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
-		result3 := vd3.Sub(vs3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseSub_fallback_BFloat16(dst[i:n], s[i:n])
-	}
-}
-
-func BaseSub_avx2(dst []float32, s []float32) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
-		vs := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i])))
-		result := vd.Sub(vs)
-		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
-		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		vs1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+8])))
-		result1 := vd1.Sub(vs1)
-		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		vs2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+16])))
-		result2 := vd2.Sub(vs2)
-		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-		vs3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+24])))
-		result3 := vd3.Sub(vs3)
-		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-	}
-	if i < n {
-		BaseSub_fallback(dst[i:n], s[i:n])
-	}
-}
-
-func BaseSub_avx2_Float64(dst []float64, s []float64) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 4
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
-		vs := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i])))
-		result := vd.Sub(vs)
-		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
-		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		vs1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+4])))
-		result1 := vd1.Sub(vs1)
-		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		vs2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+8])))
-		result2 := vd2.Sub(vs2)
-		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-		vs3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+12])))
-		result3 := vd3.Sub(vs3)
-		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-	}
-	if i < n {
-		BaseSub_fallback_Float64(dst[i:n], s[i:n])
-	}
-}
-
-func BaseSubTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
-		vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
-		result := va.Sub(vb)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		va1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
-		vb1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
-		result1 := va1.Sub(vb1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		va2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
-		vb2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
-		result2 := va2.Sub(vb2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		va3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
-		vb3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
-		result3 := va3.Sub(vb3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseSubTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseSubTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
-		vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
-		result := va.Sub(vb)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		va1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
-		vb1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
-		result1 := va1.Sub(vb1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		va2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
-		vb2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
-		result2 := va2.Sub(vb2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		va3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
-		vb3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
-		result3 := va3.Sub(vb3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseSubTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseSubTo_avx2(dst []float32, a []float32, b []float32) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i])))
-		result := va.Sub(vb)
-		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
-		va1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+8])))
-		vb1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+8])))
-		result1 := va1.Sub(vb1)
-		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		va2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+16])))
-		vb2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+16])))
-		result2 := va2.Sub(vb2)
-		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		va3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+24])))
-		vb3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+24])))
-		result3 := va3.Sub(vb3)
-		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-	}
-	if i < n {
-		BaseSubTo_fallback(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseSubTo_avx2_Float64(dst []float64, a []float64, b []float64) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 4
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i])))
-		result := va.Sub(vb)
-		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
-		va1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+4])))
-		vb1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+4])))
-		result1 := va1.Sub(vb1)
-		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		va2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+8])))
-		vb2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+8])))
-		result2 := va2.Sub(vb2)
-		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		va3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+12])))
-		vb3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+12])))
-		result3 := va3.Sub(vb3)
-		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-	}
-	if i < n {
-		BaseSubTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseMul_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		vs := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
-		result := vd.Mul(vs)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		vs1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
-		result1 := vd1.Mul(vs1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		vs2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
-		result2 := vd2.Mul(vs2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		vs3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
-		result3 := vd3.Mul(vs3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseMul_fallback_Float16(dst[i:n], s[i:n])
-	}
-}
-
-func BaseMul_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		vs := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
-		result := vd.Mul(vs)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		vs1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
-		result1 := vd1.Mul(vs1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		vs2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
-		result2 := vd2.Mul(vs2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		vs3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
-		result3 := vd3.Mul(vs3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseMul_fallback_BFloat16(dst[i:n], s[i:n])
-	}
-}
-
-func BaseMul_avx2(dst []float32, s []float32) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
-		vs := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i])))
-		result := vd.Mul(vs)
-		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
-		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		vs1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+8])))
-		result1 := vd1.Mul(vs1)
-		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		vs2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+16])))
-		result2 := vd2.Mul(vs2)
-		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-		vs3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+24])))
-		result3 := vd3.Mul(vs3)
-		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-	}
-	if i < n {
-		BaseMul_fallback(dst[i:n], s[i:n])
-	}
-}
-
-func BaseMul_avx2_Float64(dst []float64, s []float64) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := 4
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
-		vs := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i])))
-		result := vd.Mul(vs)
-		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
-		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		vs1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+4])))
-		result1 := vd1.Mul(vs1)
-		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		vs2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+8])))
-		result2 := vd2.Mul(vs2)
-		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-		vs3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+12])))
-		result3 := vd3.Mul(vs3)
-		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-	}
-	if i < n {
-		BaseMul_fallback_Float64(dst[i:n], s[i:n])
-	}
-}
-
-func BaseMulTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
-		vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
-		result := va.Mul(vb)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		va1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
-		vb1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
-		result1 := va1.Mul(vb1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		va2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
-		vb2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
-		result2 := va2.Mul(vb2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		va3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
-		vb3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
-		result3 := va3.Mul(vb3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseMulTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseMulTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
-		vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
-		result := va.Mul(vb)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		va1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
-		vb1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
-		result1 := va1.Mul(vb1)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		va2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
-		vb2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
-		result2 := va2.Mul(vb2)
-		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		va3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
-		vb3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
-		result3 := va3.Mul(vb3)
-		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
-	}
-	if i < n {
-		BaseMulTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseMulTo_avx2(dst []float32, a []float32, b []float32) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 8
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i])))
-		result := va.Mul(vb)
-		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
-		va1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+8])))
-		vb1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+8])))
-		result1 := va1.Mul(vb1)
-		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		va2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+16])))
-		vb2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+16])))
-		result2 := va2.Mul(vb2)
-		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		va3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+24])))
-		vb3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+24])))
-		result3 := va3.Mul(vb3)
-		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-	}
-	if i < n {
-		BaseMulTo_fallback(dst[i:n], a[i:n], b[i:n])
-	}
-}
-
-func BaseMulTo_avx2_Float64(dst []float64, a []float64, b []float64) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := 4
-	var i int
-	i = 0
-	for ; i+lanes*4 <= n; i += lanes * 4 {
-		va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i])))
-		result := va.Mul(vb)
-		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
-		va1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+4])))
-		vb1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+4])))
-		result1 := va1.Mul(vb1)
-		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		va2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+8])))
-		vb2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+8])))
-		result2 := va2.Mul(vb2)
-		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		va3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+12])))
-		vb3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+12])))
-		result3 := va3.Mul(vb3)
-		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-	}
-	if i < n {
-		BaseMulTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
 	}
 }
 
@@ -1004,6 +620,382 @@ func BaseDivTo_avx2_Float64(dst []float64, a []float64, b []float64) {
 	}
 }
 
+func BaseMul_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		vs := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
+		result := vd.Mul(vs)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		vs1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
+		result1 := vd1.Mul(vs1)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
+		vs2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
+		result2 := vd2.Mul(vs2)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
+		vs3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
+		result3 := vd3.Mul(vs3)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseMul_fallback_Float16(dst[i:n], s[i:n])
+	}
+}
+
+func BaseMul_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		vs := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
+		result := vd.Mul(vs)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		vs1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
+		result1 := vd1.Mul(vs1)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
+		vs2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
+		result2 := vd2.Mul(vs2)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
+		vs3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
+		result3 := vd3.Mul(vs3)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseMul_fallback_BFloat16(dst[i:n], s[i:n])
+	}
+}
+
+func BaseMul_avx2(dst []float32, s []float32) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
+		vs := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i])))
+		result := vd.Mul(vs)
+		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
+		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		vs1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+8])))
+		result1 := vd1.Mul(vs1)
+		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		vs2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+16])))
+		result2 := vd2.Mul(vs2)
+		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+		vs3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+24])))
+		result3 := vd3.Mul(vs3)
+		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+	}
+	if i < n {
+		BaseMul_fallback(dst[i:n], s[i:n])
+	}
+}
+
+func BaseMul_avx2_Float64(dst []float64, s []float64) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	lanes := 4
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
+		vs := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i])))
+		result := vd.Mul(vs)
+		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
+		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		vs1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+4])))
+		result1 := vd1.Mul(vs1)
+		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		vs2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+8])))
+		result2 := vd2.Mul(vs2)
+		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+		vs3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+12])))
+		result3 := vd3.Mul(vs3)
+		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+	}
+	if i < n {
+		BaseMul_fallback_Float64(dst[i:n], s[i:n])
+	}
+}
+
+func BaseMulConstAddTo_avx2_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := asm.BroadcastFloat16x8AVX2(uint16(a))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		vx := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i:][0]))
+		result := va.MulAdd(vx, vd)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		vx1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+8:][0]))
+		result1 := va.MulAdd(vx1, vd1)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
+		vx2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+16:][0]))
+		result2 := va.MulAdd(vx2, vd2)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
+		vx3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+24:][0]))
+		result3 := va.MulAdd(vx3, vd3)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseMulConstAddTo_fallback_Float16(dst[i:n], a, x[i:n])
+	}
+}
+
+func BaseMulConstAddTo_avx2_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := asm.BroadcastBFloat16x8AVX2(uint16(a))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		vx := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i:][0]))
+		result := va.MulAdd(vx, vd)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		vx1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+8:][0]))
+		result1 := va.MulAdd(vx1, vd1)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
+		vx2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+16:][0]))
+		result2 := va.MulAdd(vx2, vd2)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
+		vx3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+24:][0]))
+		result3 := va.MulAdd(vx3, vd3)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseMulConstAddTo_fallback_BFloat16(dst[i:n], a, x[i:n])
+	}
+}
+
+func BaseMulConstAddTo_avx2(dst []float32, a float32, x []float32) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := archsimd.BroadcastFloat32x8(a)
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
+		vx := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i])))
+		result := va.MulAdd(vx, vd)
+		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
+		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		vx1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i+8])))
+		result1 := va.MulAdd(vx1, vd1)
+		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		vx2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i+16])))
+		result2 := va.MulAdd(vx2, vd2)
+		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+		vx3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i+24])))
+		result3 := va.MulAdd(vx3, vd3)
+		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+	}
+	for ; i < n; i++ {
+		dst[i] += a * x[i]
+	}
+}
+
+func BaseMulConstAddTo_avx2_Float64(dst []float64, a float64, x []float64) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := archsimd.BroadcastFloat64x4(a)
+	lanes := 4
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
+		vx := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i])))
+		result := va.MulAdd(vx, vd)
+		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
+		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		vx1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i+4])))
+		result1 := va.MulAdd(vx1, vd1)
+		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		vx2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i+8])))
+		result2 := va.MulAdd(vx2, vd2)
+		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+		vx3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i+12])))
+		result3 := va.MulAdd(vx3, vd3)
+		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+	}
+	for ; i < n; i++ {
+		dst[i] += a * x[i]
+	}
+}
+
+func BaseMulTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
+		vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
+		result := va.Mul(vb)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		va1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
+		vb1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
+		result1 := va1.Mul(vb1)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		va2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
+		vb2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
+		result2 := va2.Mul(vb2)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		va3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
+		vb3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
+		result3 := va3.Mul(vb3)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseMulTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
+	}
+}
+
+func BaseMulTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
+		vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
+		result := va.Mul(vb)
+		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
+		va1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
+		vb1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
+		result1 := va1.Mul(vb1)
+		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		va2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
+		vb2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
+		result2 := va2.Mul(vb2)
+		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
+		va3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
+		vb3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
+		result3 := va3.Mul(vb3)
+		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
+	}
+	if i < n {
+		BaseMulTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
+	}
+}
+
+func BaseMulTo_avx2(dst []float32, a []float32, b []float32) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := 8
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i])))
+		result := va.Mul(vb)
+		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
+		va1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+8])))
+		vb1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+8])))
+		result1 := va1.Mul(vb1)
+		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		va2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+16])))
+		vb2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+16])))
+		result2 := va2.Mul(vb2)
+		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		va3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+24])))
+		vb3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+24])))
+		result3 := va3.Mul(vb3)
+		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+	}
+	if i < n {
+		BaseMulTo_fallback(dst[i:n], a[i:n], b[i:n])
+	}
+}
+
+func BaseMulTo_avx2_Float64(dst []float64, a []float64, b []float64) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := 4
+	var i int
+	i = 0
+	for ; i+lanes*4 <= n; i += lanes * 4 {
+		va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i])))
+		result := va.Mul(vb)
+		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
+		va1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+4])))
+		vb1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+4])))
+		result1 := va1.Mul(vb1)
+		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		va2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+8])))
+		vb2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+8])))
+		result2 := va2.Mul(vb2)
+		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		va3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+12])))
+		vb3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+12])))
+		result3 := va3.Mul(vb3)
+		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+	}
+	if i < n {
+		BaseMulTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
+	}
+}
+
 func BaseScale_avx2_Float16(c hwy.Float16, dst []hwy.Float16) {
 	if len(dst) == 0 {
 		return
@@ -1228,242 +1220,250 @@ func BaseScaleTo_avx2_Float64(dst []float64, c float64, s []float64) {
 	}
 }
 
-func BaseAddConst_avx2_Float16(c hwy.Float16, dst []hwy.Float16) {
-	if len(dst) == 0 {
+func BaseSub_avx2_Float16(dst []hwy.Float16, s []hwy.Float16) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := asm.BroadcastFloat16x8AVX2(uint16(c))
+	n := min(len(dst), len(s))
 	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		result := vd.Add(vc)
+		vs := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
+		result := vd.Sub(vs)
 		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
 		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		result1 := vd1.Add(vc)
+		vs1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
+		result1 := vd1.Sub(vs1)
 		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
 		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		result2 := vd2.Add(vc)
+		vs2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
+		result2 := vd2.Sub(vs2)
 		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
 		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		result3 := vd3.Add(vc)
+		vs3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
+		result3 := vd3.Sub(vs3)
 		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
 	}
 	if i < n {
-		BaseAddConst_fallback_Float16(c, dst[i:n])
+		BaseSub_fallback_Float16(dst[i:n], s[i:n])
 	}
 }
 
-func BaseAddConst_avx2_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
-	if len(dst) == 0 {
+func BaseSub_avx2_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := asm.BroadcastBFloat16x8AVX2(uint16(c))
+	n := min(len(dst), len(s))
 	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		result := vd.Add(vc)
+		vs := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i:][0]))
+		result := vd.Sub(vs)
 		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
 		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		result1 := vd1.Add(vc)
+		vs1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+8:][0]))
+		result1 := vd1.Sub(vs1)
 		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
 		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		result2 := vd2.Add(vc)
+		vs2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+16:][0]))
+		result2 := vd2.Sub(vs2)
 		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
 		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		result3 := vd3.Add(vc)
+		vs3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&s[i+24:][0]))
+		result3 := vd3.Sub(vs3)
 		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
 	}
 	if i < n {
-		BaseAddConst_fallback_BFloat16(c, dst[i:n])
+		BaseSub_fallback_BFloat16(dst[i:n], s[i:n])
 	}
 }
 
-func BaseAddConst_avx2(c float32, dst []float32) {
-	if len(dst) == 0 {
+func BaseSub_avx2(dst []float32, s []float32) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := archsimd.BroadcastFloat32x8(c)
+	n := min(len(dst), len(s))
 	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
-		result := vd.Add(vc)
+		vs := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i])))
+		result := vd.Sub(vs)
 		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
 		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		result1 := vd1.Add(vc)
+		vs1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+8])))
+		result1 := vd1.Sub(vs1)
 		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
 		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		result2 := vd2.Add(vc)
+		vs2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+16])))
+		result2 := vd2.Sub(vs2)
 		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
 		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-		result3 := vd3.Add(vc)
+		vs3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&s[i+24])))
+		result3 := vd3.Sub(vs3)
 		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
 	}
-	for ; i < n; i++ {
-		dst[i] += c
+	if i < n {
+		BaseSub_fallback(dst[i:n], s[i:n])
 	}
 }
 
-func BaseAddConst_avx2_Float64(c float64, dst []float64) {
-	if len(dst) == 0 {
+func BaseSub_avx2_Float64(dst []float64, s []float64) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := archsimd.BroadcastFloat64x4(c)
+	n := min(len(dst), len(s))
 	lanes := 4
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
 		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
-		result := vd.Add(vc)
+		vs := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i])))
+		result := vd.Sub(vs)
 		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
 		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		result1 := vd1.Add(vc)
+		vs1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+4])))
+		result1 := vd1.Sub(vs1)
 		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
 		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		result2 := vd2.Add(vc)
+		vs2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+8])))
+		result2 := vd2.Sub(vs2)
 		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
 		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-		result3 := vd3.Add(vc)
+		vs3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&s[i+12])))
+		result3 := vd3.Sub(vs3)
 		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
 	}
-	for ; i < n; i++ {
-		dst[i] += c
+	if i < n {
+		BaseSub_fallback_Float64(dst[i:n], s[i:n])
 	}
 }
 
-func BaseMulConstAddTo_avx2_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_avx2_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := asm.BroadcastFloat16x8AVX2(uint16(a))
+	n := min(len(dst), min(len(a), len(b)))
 	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		vx := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i:][0]))
-		result := va.MulAdd(vx, vd)
+		va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
+		vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
+		result := va.Sub(vb)
 		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vd1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		vx1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+8:][0]))
-		result1 := va.MulAdd(vx1, vd1)
+		va1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
+		vb1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
+		result1 := va1.Sub(vb1)
 		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		vd2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		vx2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+16:][0]))
-		result2 := va.MulAdd(vx2, vd2)
+		va2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
+		vb2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
+		result2 := va2.Sub(vb2)
 		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		vd3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		vx3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+24:][0]))
-		result3 := va.MulAdd(vx3, vd3)
+		va3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
+		vb3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
+		result3 := va3.Sub(vb3)
 		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
 	}
 	if i < n {
-		BaseMulConstAddTo_fallback_Float16(dst[i:n], a, x[i:n])
+		BaseSubTo_fallback_Float16(dst[i:n], a[i:n], b[i:n])
 	}
 }
 
-func BaseMulConstAddTo_avx2_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_avx2_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := asm.BroadcastBFloat16x8AVX2(uint16(a))
+	n := min(len(dst), min(len(a), len(b)))
 	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
-		vx := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i:][0]))
-		result := va.MulAdd(vx, vd)
+		va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
+		vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
+		result := va.Sub(vb)
 		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vd1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
-		vx1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+8:][0]))
-		result1 := va.MulAdd(vx1, vd1)
+		va1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+8:][0]))
+		vb1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+8:][0]))
+		result1 := va1.Sub(vb1)
 		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
-		vd2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+16:][0]))
-		vx2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+16:][0]))
-		result2 := va.MulAdd(vx2, vd2)
+		va2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+16:][0]))
+		vb2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+16:][0]))
+		result2 := va2.Sub(vb2)
 		result2.StorePtr(unsafe.Pointer(&dst[i+16:][0]))
-		vd3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+24:][0]))
-		vx3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&x[i+24:][0]))
-		result3 := va.MulAdd(vx3, vd3)
+		va3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i+24:][0]))
+		vb3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i+24:][0]))
+		result3 := va3.Sub(vb3)
 		result3.StorePtr(unsafe.Pointer(&dst[i+24:][0]))
 	}
 	if i < n {
-		BaseMulConstAddTo_fallback_BFloat16(dst[i:n], a, x[i:n])
+		BaseSubTo_fallback_BFloat16(dst[i:n], a[i:n], b[i:n])
 	}
 }
 
-func BaseMulConstAddTo_avx2(dst []float32, a float32, x []float32) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_avx2(dst []float32, a []float32, b []float32) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := archsimd.BroadcastFloat32x8(a)
+	n := min(len(dst), min(len(a), len(b)))
 	lanes := 8
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i])))
-		vx := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i])))
-		result := va.MulAdd(vx, vd)
+		va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i])))
+		result := va.Sub(vb)
 		result.Store((*[8]float32)(unsafe.Pointer(&dst[i])))
-		vd1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		vx1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i+8])))
-		result1 := va.MulAdd(vx1, vd1)
+		va1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+8])))
+		vb1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+8])))
+		result1 := va1.Sub(vb1)
 		result1.Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		vd2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		vx2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i+16])))
-		result2 := va.MulAdd(vx2, vd2)
+		va2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+16])))
+		vb2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+16])))
+		result2 := va2.Sub(vb2)
 		result2.Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		vd3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dst[i+24])))
-		vx3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[i+24])))
-		result3 := va.MulAdd(vx3, vd3)
+		va3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i+24])))
+		vb3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i+24])))
+		result3 := va3.Sub(vb3)
 		result3.Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
 	}
-	for ; i < n; i++ {
-		dst[i] += a * x[i]
+	if i < n {
+		BaseSubTo_fallback(dst[i:n], a[i:n], b[i:n])
 	}
 }
 
-func BaseMulConstAddTo_avx2_Float64(dst []float64, a float64, x []float64) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_avx2_Float64(dst []float64, a []float64, b []float64) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := archsimd.BroadcastFloat64x4(a)
+	n := min(len(dst), min(len(a), len(b)))
 	lanes := 4
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i])))
-		vx := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i])))
-		result := va.MulAdd(vx, vd)
+		va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i])))
+		result := va.Sub(vb)
 		result.Store((*[4]float64)(unsafe.Pointer(&dst[i])))
-		vd1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		vx1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i+4])))
-		result1 := va.MulAdd(vx1, vd1)
+		va1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+4])))
+		vb1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+4])))
+		result1 := va1.Sub(vb1)
 		result1.Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		vd2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		vx2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i+8])))
-		result2 := va.MulAdd(vx2, vd2)
+		va2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+8])))
+		vb2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+8])))
+		result2 := va2.Sub(vb2)
 		result2.Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		vd3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dst[i+12])))
-		vx3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[i+12])))
-		result3 := va.MulAdd(vx3, vd3)
+		va3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i+12])))
+		vb3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i+12])))
+		result3 := va3.Sub(vb3)
 		result3.Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
 	}
-	for ; i < n; i++ {
-		dst[i] += a * x[i]
+	if i < n {
+		BaseSubTo_fallback_Float64(dst[i:n], a[i:n], b[i:n])
 	}
 }

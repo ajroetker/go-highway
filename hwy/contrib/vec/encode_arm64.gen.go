@@ -8,10 +8,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var EncodeFloat32s func(dst []byte, src []float32)
 var DecodeFloat32s func(dst []float32, src []byte)
-var EncodeFloat64s func(dst []byte, src []float64)
 var DecodeFloat64s func(dst []float64, src []byte)
+var EncodeFloat32s func(dst []byte, src []float32)
+var EncodeFloat64s func(dst []byte, src []float64)
 
 func init() {
 	initEncodeAll()
@@ -22,20 +22,13 @@ func initEncodeAll() {
 		initEncodeFallback()
 		return
 	}
-	initEncodeNEON()
+	initEncodeFallback()
 	return
 }
 
-func initEncodeNEON() {
-	EncodeFloat32s = BaseEncodeFloat32s_neon
-	DecodeFloat32s = BaseDecodeFloat32s_neon
-	EncodeFloat64s = BaseEncodeFloat64s_neon
-	DecodeFloat64s = BaseDecodeFloat64s_neon
-}
-
 func initEncodeFallback() {
-	EncodeFloat32s = BaseEncodeFloat32s_fallback
 	DecodeFloat32s = BaseDecodeFloat32s_fallback
-	EncodeFloat64s = BaseEncodeFloat64s_fallback
 	DecodeFloat64s = BaseDecodeFloat64s_fallback
+	EncodeFloat32s = BaseEncodeFloat32s_fallback
+	EncodeFloat64s = BaseEncodeFloat64s_fallback
 }

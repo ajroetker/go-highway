@@ -10,44 +10,14 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var L2SquaredDistanceFloat16 func(a []hwy.Float16, b []hwy.Float16) hwy.Float16
-var L2SquaredDistanceBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16
-var L2SquaredDistanceFloat32 func(a []float32, b []float32) float32
-var L2SquaredDistanceFloat64 func(a []float64, b []float64) float64
 var L2DistanceFloat16 func(a []hwy.Float16, b []hwy.Float16) hwy.Float16
 var L2DistanceBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16
 var L2DistanceFloat32 func(a []float32, b []float32) float32
 var L2DistanceFloat64 func(a []float64, b []float64) float64
-
-// L2SquaredDistance computes the squared Euclidean distance between two slices.
-// The result is the sum of squared differences: sum((a[i] - b[i])^2).
-//
-// If the slices have different lengths, the computation uses the minimum length.
-// Returns 0 if either slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-// Works with float32 and float64 slices.
-//
-// Example:
-//
-//	a := []float32{1, 2, 3}
-//	b := []float32{4, 5, 6}
-//	result := L2SquaredDistance(a, b)  // (1-4)^2 + (2-5)^2 + (3-6)^2 = 9 + 9 + 9 = 27
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func L2SquaredDistance[T hwy.Floats](a []T, b []T) T {
-	switch any(a).(type) {
-	case []hwy.Float16:
-		return any(L2SquaredDistanceFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
-		return any(L2SquaredDistanceBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))).(T)
-	case []float32:
-		return any(L2SquaredDistanceFloat32(any(a).([]float32), any(b).([]float32))).(T)
-	case []float64:
-		return any(L2SquaredDistanceFloat64(any(a).([]float64), any(b).([]float64))).(T)
-	}
-	panic("unreachable")
-}
+var L2SquaredDistanceFloat16 func(a []hwy.Float16, b []hwy.Float16) hwy.Float16
+var L2SquaredDistanceBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16
+var L2SquaredDistanceFloat32 func(a []float32, b []float32) float32
+var L2SquaredDistanceFloat64 func(a []float64, b []float64) float64
 
 // L2Distance computes the Euclidean distance (L2 norm) between two slices.
 // The result is the square root of the sum of squared differences: sqrt(sum((a[i] - b[i])^2)).
@@ -79,6 +49,36 @@ func L2Distance[T hwy.Floats](a []T, b []T) T {
 	panic("unreachable")
 }
 
+// L2SquaredDistance computes the squared Euclidean distance between two slices.
+// The result is the sum of squared differences: sum((a[i] - b[i])^2).
+//
+// If the slices have different lengths, the computation uses the minimum length.
+// Returns 0 if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3}
+//	b := []float32{4, 5, 6}
+//	result := L2SquaredDistance(a, b)  // (1-4)^2 + (2-5)^2 + (3-6)^2 = 9 + 9 + 9 = 27
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func L2SquaredDistance[T hwy.Floats](a []T, b []T) T {
+	switch any(a).(type) {
+	case []hwy.Float16:
+		return any(L2SquaredDistanceFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16))).(T)
+	case []hwy.BFloat16:
+		return any(L2SquaredDistanceBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))).(T)
+	case []float32:
+		return any(L2SquaredDistanceFloat32(any(a).([]float32), any(b).([]float32))).(T)
+	case []float64:
+		return any(L2SquaredDistanceFloat64(any(a).([]float64), any(b).([]float64))).(T)
+	}
+	panic("unreachable")
+}
+
 func init() {
 	initDistanceAll()
 }
@@ -100,34 +100,34 @@ func initDistanceAll() {
 }
 
 func initDistanceAVX2() {
-	L2SquaredDistanceFloat16 = BaseL2SquaredDistance_avx2_Float16
-	L2SquaredDistanceBFloat16 = BaseL2SquaredDistance_avx2_BFloat16
-	L2SquaredDistanceFloat32 = BaseL2SquaredDistance_avx2
-	L2SquaredDistanceFloat64 = BaseL2SquaredDistance_avx2_Float64
 	L2DistanceFloat16 = BaseL2Distance_avx2_Float16
 	L2DistanceBFloat16 = BaseL2Distance_avx2_BFloat16
 	L2DistanceFloat32 = BaseL2Distance_avx2
 	L2DistanceFloat64 = BaseL2Distance_avx2_Float64
+	L2SquaredDistanceFloat16 = BaseL2SquaredDistance_avx2_Float16
+	L2SquaredDistanceBFloat16 = BaseL2SquaredDistance_avx2_BFloat16
+	L2SquaredDistanceFloat32 = BaseL2SquaredDistance_avx2
+	L2SquaredDistanceFloat64 = BaseL2SquaredDistance_avx2_Float64
 }
 
 func initDistanceAVX512() {
-	L2SquaredDistanceFloat16 = BaseL2SquaredDistance_avx512_Float16
-	L2SquaredDistanceBFloat16 = BaseL2SquaredDistance_avx512_BFloat16
-	L2SquaredDistanceFloat32 = BaseL2SquaredDistance_avx512
-	L2SquaredDistanceFloat64 = BaseL2SquaredDistance_avx512_Float64
 	L2DistanceFloat16 = BaseL2Distance_avx512_Float16
 	L2DistanceBFloat16 = BaseL2Distance_avx512_BFloat16
 	L2DistanceFloat32 = BaseL2Distance_avx512
 	L2DistanceFloat64 = BaseL2Distance_avx512_Float64
+	L2SquaredDistanceFloat16 = BaseL2SquaredDistance_avx512_Float16
+	L2SquaredDistanceBFloat16 = BaseL2SquaredDistance_avx512_BFloat16
+	L2SquaredDistanceFloat32 = BaseL2SquaredDistance_avx512
+	L2SquaredDistanceFloat64 = BaseL2SquaredDistance_avx512_Float64
 }
 
 func initDistanceFallback() {
-	L2SquaredDistanceFloat16 = BaseL2SquaredDistance_fallback_Float16
-	L2SquaredDistanceBFloat16 = BaseL2SquaredDistance_fallback_BFloat16
-	L2SquaredDistanceFloat32 = BaseL2SquaredDistance_fallback
-	L2SquaredDistanceFloat64 = BaseL2SquaredDistance_fallback_Float64
 	L2DistanceFloat16 = BaseL2Distance_fallback_Float16
 	L2DistanceBFloat16 = BaseL2Distance_fallback_BFloat16
 	L2DistanceFloat32 = BaseL2Distance_fallback
 	L2DistanceFloat64 = BaseL2Distance_fallback_Float64
+	L2SquaredDistanceFloat16 = BaseL2SquaredDistance_fallback_Float16
+	L2SquaredDistanceBFloat16 = BaseL2SquaredDistance_fallback_BFloat16
+	L2SquaredDistanceFloat32 = BaseL2SquaredDistance_fallback
+	L2SquaredDistanceFloat64 = BaseL2SquaredDistance_fallback_Float64
 }

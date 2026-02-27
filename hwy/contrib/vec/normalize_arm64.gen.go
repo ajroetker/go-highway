@@ -84,19 +84,8 @@ func initNormalizeAll() {
 		initNormalizeFallback()
 		return
 	}
-	initNormalizeNEON()
+	initNormalizeFallback()
 	return
-}
-
-func initNormalizeNEON() {
-	NormalizeFloat16 = BaseNormalize_neon_Float16
-	NormalizeBFloat16 = BaseNormalize_neon_BFloat16
-	NormalizeFloat32 = BaseNormalize_neon
-	NormalizeFloat64 = BaseNormalize_neon_Float64
-	NormalizeToFloat16 = BaseNormalizeTo_neon_Float16
-	NormalizeToBFloat16 = BaseNormalizeTo_neon_BFloat16
-	NormalizeToFloat32 = BaseNormalizeTo_neon
-	NormalizeToFloat64 = BaseNormalizeTo_neon_Float64
 }
 
 func initNormalizeFallback() {

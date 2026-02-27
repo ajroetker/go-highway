@@ -12,6 +12,142 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
+func BaseBatchDot_avx2_Float16(query []hwy.Float16, data []hwy.Float16, dots []hwy.Float16, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := asm.ZeroFloat16x8AVX2()
+	lanes := 8
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = asm.ZeroFloat16x8AVX2()
+		var j int
+		for j = 0; j+lanes <= dims; j += lanes {
+			vq := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
+			vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
+			prod := vq.Mul(vd)
+			sum = sum.Add(prod)
+		}
+		result := sum.ReduceSum()
+		for ; j < dims; j++ {
+			result += query[j].Float32() * dataVec[j].Float32()
+		}
+		dots[i] = hwy.Float32ToFloat16(result)
+	}
+}
+
+func BaseBatchDot_avx2_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, dots []hwy.BFloat16, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := asm.ZeroBFloat16x8AVX2()
+	lanes := 8
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = asm.ZeroBFloat16x8AVX2()
+		var j int
+		for j = 0; j+lanes <= dims; j += lanes {
+			vq := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
+			vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
+			prod := vq.Mul(vd)
+			sum = sum.Add(prod)
+		}
+		result := sum.ReduceSum()
+		for ; j < dims; j++ {
+			result += query[j].Float32() * dataVec[j].Float32()
+		}
+		dots[i] = hwy.Float32ToBFloat16(result)
+	}
+}
+
+func BaseBatchDot_avx2(query []float32, data []float32, dots []float32, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := archsimd.BroadcastFloat32x8(0)
+	lanes := 8
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = archsimd.BroadcastFloat32x8(0)
+		var j int
+		for j = 0; j+lanes <= dims; j += lanes {
+			vq := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&query[j])))
+			vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dataVec[j])))
+			prod := vq.Mul(vd)
+			sum = sum.Add(prod)
+		}
+		result := hwy.ReduceSum_AVX2_F32x8(sum)
+		for ; j < dims; j++ {
+			result += query[j] * dataVec[j]
+		}
+		dots[i] = result
+	}
+}
+
+func BaseBatchDot_avx2_Float64(query []float64, data []float64, dots []float64, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := archsimd.BroadcastFloat64x4(0)
+	lanes := 4
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = archsimd.BroadcastFloat64x4(0)
+		var j int
+		for j = 0; j+lanes <= dims; j += lanes {
+			vq := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&query[j])))
+			vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dataVec[j])))
+			prod := vq.Mul(vd)
+			sum = sum.Add(prod)
+		}
+		result := hwy.ReduceSum_AVX2_F64x4(sum)
+		for ; j < dims; j++ {
+			result += query[j] * dataVec[j]
+		}
+		dots[i] = result
+	}
+}
+
 func BaseBatchL2SquaredDistance_avx2_Float16(query []hwy.Float16, data []hwy.Float16, distances []hwy.Float16, count int, dims int) {
 	if count <= 0 || dims <= 0 {
 		return
@@ -153,141 +289,5 @@ func BaseBatchL2SquaredDistance_avx2_Float64(query []float64, data []float64, di
 			result += diff * diff
 		}
 		distances[i] = result
-	}
-}
-
-func BaseBatchDot_avx2_Float16(query []hwy.Float16, data []hwy.Float16, dots []hwy.Float16, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := asm.ZeroFloat16x8AVX2()
-	lanes := 8
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = asm.ZeroFloat16x8AVX2()
-		var j int
-		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
-			vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
-			prod := vq.Mul(vd)
-			sum = sum.Add(prod)
-		}
-		result := sum.ReduceSum()
-		for ; j < dims; j++ {
-			result += query[j].Float32() * dataVec[j].Float32()
-		}
-		dots[i] = hwy.Float32ToFloat16(result)
-	}
-}
-
-func BaseBatchDot_avx2_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, dots []hwy.BFloat16, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := asm.ZeroBFloat16x8AVX2()
-	lanes := 8
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = asm.ZeroBFloat16x8AVX2()
-		var j int
-		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
-			vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
-			prod := vq.Mul(vd)
-			sum = sum.Add(prod)
-		}
-		result := sum.ReduceSum()
-		for ; j < dims; j++ {
-			result += query[j].Float32() * dataVec[j].Float32()
-		}
-		dots[i] = hwy.Float32ToBFloat16(result)
-	}
-}
-
-func BaseBatchDot_avx2(query []float32, data []float32, dots []float32, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := archsimd.BroadcastFloat32x8(0)
-	lanes := 8
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = archsimd.BroadcastFloat32x8(0)
-		var j int
-		for j = 0; j+lanes <= dims; j += lanes {
-			vq := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&query[j])))
-			vd := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dataVec[j])))
-			prod := vq.Mul(vd)
-			sum = sum.Add(prod)
-		}
-		result := hwy.ReduceSum_AVX2_F32x8(sum)
-		for ; j < dims; j++ {
-			result += query[j] * dataVec[j]
-		}
-		dots[i] = result
-	}
-}
-
-func BaseBatchDot_avx2_Float64(query []float64, data []float64, dots []float64, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := archsimd.BroadcastFloat64x4(0)
-	lanes := 4
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = archsimd.BroadcastFloat64x4(0)
-		var j int
-		for j = 0; j+lanes <= dims; j += lanes {
-			vq := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&query[j])))
-			vd := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&dataVec[j])))
-			prod := vq.Mul(vd)
-			sum = sum.Add(prod)
-		}
-		result := hwy.ReduceSum_AVX2_F64x4(sum)
-		for ; j < dims; j++ {
-			result += query[j] * dataVec[j]
-		}
-		dots[i] = result
 	}
 }

@@ -10,81 +10,24 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var SumFloat16 func(v []hwy.Float16) hwy.Float16
-var SumBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
-var SumFloat32 func(v []float32) float32
-var SumFloat64 func(v []float64) float64
-var MinFloat16 func(v []hwy.Float16) hwy.Float16
-var MinBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
-var MinFloat32 func(v []float32) float32
-var MinFloat64 func(v []float64) float64
 var MaxFloat32 func(v []float32) float32
 var MaxFloat64 func(v []float64) float64
 var MaxInt32 func(v []int32) int32
 var MaxInt64 func(v []int64) int64
 var MaxUint32 func(v []uint32) uint32
 var MaxUint64 func(v []uint64) uint64
+var MinFloat16 func(v []hwy.Float16) hwy.Float16
+var MinBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
+var MinFloat32 func(v []float32) float32
+var MinFloat64 func(v []float64) float64
 var MinMaxFloat16 func(v []hwy.Float16) (minVal hwy.Float16, maxVal hwy.Float16)
 var MinMaxBFloat16 func(v []hwy.BFloat16) (minVal hwy.BFloat16, maxVal hwy.BFloat16)
 var MinMaxFloat32 func(v []float32) (minVal float32, maxVal float32)
 var MinMaxFloat64 func(v []float64) (minVal float64, maxVal float64)
-
-// Sum computes the sum of all elements in a slice using hwy primitives.
-//
-// Returns 0 if the slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-// Works with float32 and float64 slices.
-//
-// Example:
-//
-//	data := []float32{1, 2, 3, 4}
-//	result := Sum(data)  // 1 + 2 + 3 + 4 = 10
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Sum[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
-		return any(SumFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
-		return any(SumBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
-		return any(SumFloat32(any(v).([]float32))).(T)
-	case []float64:
-		return any(SumFloat64(any(v).([]float64))).(T)
-	}
-	panic("unreachable")
-}
-
-// Min returns the minimum value in a slice using hwy primitives.
-//
-// Panics if the slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-// Works with float32 and float64 slices.
-//
-// Note: For slices containing NaN values, behavior follows standard Go
-// comparison semantics where NaN comparisons return false.
-//
-// Example:
-//
-//	data := []float32{3, 1, 4, 1, 5}
-//	result := Min(data)  // 1
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Min[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
-		return any(MinFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
-		return any(MinBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
-		return any(MinFloat32(any(v).([]float32))).(T)
-	case []float64:
-		return any(MinFloat64(any(v).([]float64))).(T)
-	}
-	panic("unreachable")
-}
+var SumFloat16 func(v []hwy.Float16) hwy.Float16
+var SumBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
+var SumFloat32 func(v []float32) float32
+var SumFloat64 func(v []float64) float64
 
 // Max returns the maximum value in a slice using hwy primitives.
 //
@@ -117,6 +60,36 @@ func Max[T hwy.Lanes](v []T) T {
 		return any(MaxUint32(any(v).([]uint32))).(T)
 	case []uint64:
 		return any(MaxUint64(any(v).([]uint64))).(T)
+	}
+	panic("unreachable")
+}
+
+// Min returns the minimum value in a slice using hwy primitives.
+//
+// Panics if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Note: For slices containing NaN values, behavior follows standard Go
+// comparison semantics where NaN comparisons return false.
+//
+// Example:
+//
+//	data := []float32{3, 1, 4, 1, 5}
+//	result := Min(data)  // 1
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Min[T hwy.Floats](v []T) T {
+	switch any(v).(type) {
+	case []hwy.Float16:
+		return any(MinFloat16(any(v).([]hwy.Float16))).(T)
+	case []hwy.BFloat16:
+		return any(MinBFloat16(any(v).([]hwy.BFloat16))).(T)
+	case []float32:
+		return any(MinFloat32(any(v).([]float32))).(T)
+	case []float64:
+		return any(MinFloat64(any(v).([]float64))).(T)
 	}
 	panic("unreachable")
 }
@@ -158,6 +131,33 @@ func MinMax[T hwy.Floats](v []T) (minVal T, maxVal T) {
 	panic("unreachable")
 }
 
+// Sum computes the sum of all elements in a slice using hwy primitives.
+//
+// Returns 0 if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	data := []float32{1, 2, 3, 4}
+//	result := Sum(data)  // 1 + 2 + 3 + 4 = 10
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Sum[T hwy.Floats](v []T) T {
+	switch any(v).(type) {
+	case []hwy.Float16:
+		return any(SumFloat16(any(v).([]hwy.Float16))).(T)
+	case []hwy.BFloat16:
+		return any(SumBFloat16(any(v).([]hwy.BFloat16))).(T)
+	case []float32:
+		return any(SumFloat32(any(v).([]float32))).(T)
+	case []float64:
+		return any(SumFloat64(any(v).([]float64))).(T)
+	}
+	panic("unreachable")
+}
+
 func init() {
 	initReduceAll()
 }
@@ -179,64 +179,64 @@ func initReduceAll() {
 }
 
 func initReduceAVX2() {
-	SumFloat16 = BaseSum_avx2_Float16
-	SumBFloat16 = BaseSum_avx2_BFloat16
-	SumFloat32 = BaseSum_avx2
-	SumFloat64 = BaseSum_avx2_Float64
-	MinFloat16 = BaseMin_avx2_Float16
-	MinBFloat16 = BaseMin_avx2_BFloat16
-	MinFloat32 = BaseMin_avx2
-	MinFloat64 = BaseMin_avx2_Float64
 	MaxFloat32 = BaseMax_avx2
 	MaxFloat64 = BaseMax_avx2_Float64
 	MaxInt32 = BaseMax_avx2_Int32
 	MaxInt64 = BaseMax_avx2_Int64
 	MaxUint32 = BaseMax_avx2_Uint32
 	MaxUint64 = BaseMax_avx2_Uint64
+	MinFloat16 = BaseMin_avx2_Float16
+	MinBFloat16 = BaseMin_avx2_BFloat16
+	MinFloat32 = BaseMin_avx2
+	MinFloat64 = BaseMin_avx2_Float64
 	MinMaxFloat16 = BaseMinMax_avx2_Float16
 	MinMaxBFloat16 = BaseMinMax_avx2_BFloat16
 	MinMaxFloat32 = BaseMinMax_avx2
 	MinMaxFloat64 = BaseMinMax_avx2_Float64
+	SumFloat16 = BaseSum_avx2_Float16
+	SumBFloat16 = BaseSum_avx2_BFloat16
+	SumFloat32 = BaseSum_avx2
+	SumFloat64 = BaseSum_avx2_Float64
 }
 
 func initReduceAVX512() {
-	SumFloat16 = BaseSum_avx512_Float16
-	SumBFloat16 = BaseSum_avx512_BFloat16
-	SumFloat32 = BaseSum_avx512
-	SumFloat64 = BaseSum_avx512_Float64
-	MinFloat16 = BaseMin_avx512_Float16
-	MinBFloat16 = BaseMin_avx512_BFloat16
-	MinFloat32 = BaseMin_avx512
-	MinFloat64 = BaseMin_avx512_Float64
 	MaxFloat32 = BaseMax_avx512
 	MaxFloat64 = BaseMax_avx512_Float64
 	MaxInt32 = BaseMax_avx512_Int32
 	MaxInt64 = BaseMax_avx512_Int64
 	MaxUint32 = BaseMax_avx512_Uint32
 	MaxUint64 = BaseMax_avx512_Uint64
+	MinFloat16 = BaseMin_avx512_Float16
+	MinBFloat16 = BaseMin_avx512_BFloat16
+	MinFloat32 = BaseMin_avx512
+	MinFloat64 = BaseMin_avx512_Float64
 	MinMaxFloat16 = BaseMinMax_avx512_Float16
 	MinMaxBFloat16 = BaseMinMax_avx512_BFloat16
 	MinMaxFloat32 = BaseMinMax_avx512
 	MinMaxFloat64 = BaseMinMax_avx512_Float64
+	SumFloat16 = BaseSum_avx512_Float16
+	SumBFloat16 = BaseSum_avx512_BFloat16
+	SumFloat32 = BaseSum_avx512
+	SumFloat64 = BaseSum_avx512_Float64
 }
 
 func initReduceFallback() {
-	SumFloat16 = BaseSum_fallback_Float16
-	SumBFloat16 = BaseSum_fallback_BFloat16
-	SumFloat32 = BaseSum_fallback
-	SumFloat64 = BaseSum_fallback_Float64
-	MinFloat16 = BaseMin_fallback_Float16
-	MinBFloat16 = BaseMin_fallback_BFloat16
-	MinFloat32 = BaseMin_fallback
-	MinFloat64 = BaseMin_fallback_Float64
 	MaxFloat32 = BaseMax_fallback
 	MaxFloat64 = BaseMax_fallback_Float64
 	MaxInt32 = BaseMax_fallback_Int32
 	MaxInt64 = BaseMax_fallback_Int64
 	MaxUint32 = BaseMax_fallback_Uint32
 	MaxUint64 = BaseMax_fallback_Uint64
+	MinFloat16 = BaseMin_fallback_Float16
+	MinBFloat16 = BaseMin_fallback_BFloat16
+	MinFloat32 = BaseMin_fallback
+	MinFloat64 = BaseMin_fallback_Float64
 	MinMaxFloat16 = BaseMinMax_fallback_Float16
 	MinMaxBFloat16 = BaseMinMax_fallback_BFloat16
 	MinMaxFloat32 = BaseMinMax_fallback
 	MinMaxFloat64 = BaseMinMax_fallback_Float64
+	SumFloat16 = BaseSum_fallback_Float16
+	SumBFloat16 = BaseSum_fallback_BFloat16
+	SumFloat32 = BaseSum_fallback
+	SumFloat64 = BaseSum_fallback_Float64
 }

@@ -82,9 +82,8 @@ BB0_11:
 	BNE  BB0_11
 
 BB0_12:
-	WORD $0x9e780009 // fcvtzs	x9, d0
-	CBZ  R9, BB0_20
-	WORD $0x9e620120 // scvtf	d0, x9
+	WORD $0x1e602008 // fcmp	d0, #0.0
+	BEQ  BB0_20
 	WORD $0x1e61c000 // fsqrt	d0, d0
 	WORD $0x1e6e1001 // fmov	d1, #1.00000000
 	WORD $0x1e601820 // fdiv	d0, d1, d0

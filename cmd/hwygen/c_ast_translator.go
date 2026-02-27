@@ -1134,7 +1134,7 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 		} else if ret.Type == "float64" {
 			retType = "double"
 		} else {
-			retType = "long"
+			retType = t.goTypeToCType(ret.Type)
 		}
 	}
 

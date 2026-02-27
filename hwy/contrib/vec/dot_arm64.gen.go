@@ -52,15 +52,8 @@ func initDotAll() {
 		initDotFallback()
 		return
 	}
-	initDotNEON()
+	initDotFallback()
 	return
-}
-
-func initDotNEON() {
-	DotFloat16 = BaseDot_neon_Float16
-	DotBFloat16 = BaseDot_neon_BFloat16
-	DotFloat32 = BaseDot_neon
-	DotFloat64 = BaseDot_neon_Float64
 }
 
 func initDotFallback() {

@@ -8,22 +8,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseSquaredNorm_fallback_Float16(v []hwy.Float16) hwy.Float16 {
-	return BaseDot_fallback_Float16(v, v)
-}
-
-func BaseSquaredNorm_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	return BaseDot_fallback_BFloat16(v, v)
-}
-
-func BaseSquaredNorm_fallback(v []float32) float32 {
-	return BaseDot_fallback(v, v)
-}
-
-func BaseSquaredNorm_fallback_Float64(v []float64) float64 {
-	return BaseDot_fallback_Float64(v, v)
-}
-
 func BaseNorm_fallback_Float16(v []hwy.Float16) hwy.Float16 {
 	squaredNorm := BaseSquaredNorm_fallback_Float16(v)
 	if squaredNorm == 0 {
@@ -82,4 +66,20 @@ func BaseNorm_fallback_Float64(v []float64) float64 {
 	default:
 		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(float64)
 	}
+}
+
+func BaseSquaredNorm_fallback_Float16(v []hwy.Float16) hwy.Float16 {
+	return BaseDot_fallback_Float16(v, v)
+}
+
+func BaseSquaredNorm_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
+	return BaseDot_fallback_BFloat16(v, v)
+}
+
+func BaseSquaredNorm_fallback(v []float32) float32 {
+	return BaseDot_fallback(v, v)
+}
+
+func BaseSquaredNorm_fallback_Float64(v []float64) float64 {
+	return BaseDot_fallback_Float64(v, v)
 }

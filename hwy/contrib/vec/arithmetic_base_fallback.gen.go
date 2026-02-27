@@ -76,6 +76,76 @@ func BaseAdd_fallback_Float64(dst []float64, s []float64) {
 	}
 }
 
+func BaseAddConst_fallback_Float16(c hwy.Float16, dst []hwy.Float16) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := hwy.Set(c)
+	lanes := vc.NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		vd := hwy.Load(dst[i:])
+		result := hwy.Add(vd, vc)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + c.Float32())
+	}
+}
+
+func BaseAddConst_fallback_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := hwy.Set(c)
+	lanes := vc.NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		vd := hwy.Load(dst[i:])
+		result := hwy.Add(vd, vc)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + c.Float32())
+	}
+}
+
+func BaseAddConst_fallback(c float32, dst []float32) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := float32(c)
+	var i int
+	for i = 0; i < n; i++ {
+		vd := dst[i]
+		result := vd + vc
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] += c
+	}
+}
+
+func BaseAddConst_fallback_Float64(c float64, dst []float64) {
+	if len(dst) == 0 {
+		return
+	}
+	n := len(dst)
+	vc := float64(c)
+	var i int
+	for i = 0; i < n; i++ {
+		vd := dst[i]
+		result := vd + vc
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] += c
+	}
+}
+
 func BaseAddTo_fallback_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
 	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
@@ -143,286 +213,6 @@ func BaseAddTo_fallback_Float64(dst []float64, a []float64, b []float64) {
 	}
 	for ; i < n; i++ {
 		dst[i] = a[i] + b[i]
-	}
-}
-
-func BaseSub_fallback_Float16(dst []hwy.Float16, s []hwy.Float16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
-		result := hwy.Sub(vd, vs)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() - s[i].Float32())
-	}
-}
-
-func BaseSub_fallback_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
-		result := hwy.Sub(vd, vs)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() - s[i].Float32())
-	}
-}
-
-func BaseSub_fallback(dst []float32, s []float32) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	var i int
-	for i = 0; i < n; i++ {
-		vd := dst[i]
-		vs := s[i]
-		result := vd - vs
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] -= s[i]
-	}
-}
-
-func BaseSub_fallback_Float64(dst []float64, s []float64) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	var i int
-	for i = 0; i < n; i++ {
-		vd := dst[i]
-		vs := s[i]
-		result := vd - vs
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] -= s[i]
-	}
-}
-
-func BaseSubTo_fallback_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
-		result := hwy.Sub(va, vb)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(a[i].Float32() - b[i].Float32())
-	}
-}
-
-func BaseSubTo_fallback_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
-		result := hwy.Sub(va, vb)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() - b[i].Float32())
-	}
-}
-
-func BaseSubTo_fallback(dst []float32, a []float32, b []float32) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	var i int
-	for i = 0; i < n; i++ {
-		va := a[i]
-		vb := b[i]
-		result := va - vb
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] - b[i]
-	}
-}
-
-func BaseSubTo_fallback_Float64(dst []float64, a []float64, b []float64) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	var i int
-	for i = 0; i < n; i++ {
-		va := a[i]
-		vb := b[i]
-		result := va - vb
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] - b[i]
-	}
-}
-
-func BaseMul_fallback_Float16(dst []hwy.Float16, s []hwy.Float16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
-		result := hwy.Mul(vd, vs)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() * s[i].Float32())
-	}
-}
-
-func BaseMul_fallback_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vs := hwy.Load(s[i:])
-		result := hwy.Mul(vd, vs)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() * s[i].Float32())
-	}
-}
-
-func BaseMul_fallback(dst []float32, s []float32) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	var i int
-	for i = 0; i < n; i++ {
-		vd := dst[i]
-		vs := s[i]
-		result := vd * vs
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] *= s[i]
-	}
-}
-
-func BaseMul_fallback_Float64(dst []float64, s []float64) {
-	if len(dst) == 0 || len(s) == 0 {
-		return
-	}
-	n := min(len(dst), len(s))
-	var i int
-	for i = 0; i < n; i++ {
-		vd := dst[i]
-		vs := s[i]
-		result := vd * vs
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] *= s[i]
-	}
-}
-
-func BaseMulTo_fallback_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
-		result := hwy.Mul(va, vb)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(a[i].Float32() * b[i].Float32())
-	}
-}
-
-func BaseMulTo_fallback_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	var i int
-	for i = 0; i+lanes <= n; i += lanes {
-		va := hwy.Load(a[i:])
-		vb := hwy.Load(b[i:])
-		result := hwy.Mul(va, vb)
-		hwy.Store(result, dst[i:])
-	}
-	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() * b[i].Float32())
-	}
-}
-
-func BaseMulTo_fallback(dst []float32, a []float32, b []float32) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	var i int
-	for i = 0; i < n; i++ {
-		va := a[i]
-		vb := b[i]
-		result := va * vb
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] * b[i]
-	}
-}
-
-func BaseMulTo_fallback_Float64(dst []float64, a []float64, b []float64) {
-	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
-		return
-	}
-	n := min(len(dst), min(len(a), len(b)))
-	var i int
-	for i = 0; i < n; i++ {
-		va := a[i]
-		vb := b[i]
-		result := va * vb
-		dst[i] = result
-	}
-	for ; i < n; i++ {
-		dst[i] = a[i] * b[i]
 	}
 }
 
@@ -566,6 +356,220 @@ func BaseDivTo_fallback_Float64(dst []float64, a []float64, b []float64) {
 	}
 }
 
+func BaseMul_fallback_Float16(dst []hwy.Float16, s []hwy.Float16) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		vd := hwy.Load(dst[i:])
+		vs := hwy.Load(s[i:])
+		result := hwy.Mul(vd, vs)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() * s[i].Float32())
+	}
+}
+
+func BaseMul_fallback_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		vd := hwy.Load(dst[i:])
+		vs := hwy.Load(s[i:])
+		result := hwy.Mul(vd, vs)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() * s[i].Float32())
+	}
+}
+
+func BaseMul_fallback(dst []float32, s []float32) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	var i int
+	for i = 0; i < n; i++ {
+		vd := dst[i]
+		vs := s[i]
+		result := vd * vs
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] *= s[i]
+	}
+}
+
+func BaseMul_fallback_Float64(dst []float64, s []float64) {
+	if len(dst) == 0 || len(s) == 0 {
+		return
+	}
+	n := min(len(dst), len(s))
+	var i int
+	for i = 0; i < n; i++ {
+		vd := dst[i]
+		vs := s[i]
+		result := vd * vs
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] *= s[i]
+	}
+}
+
+func BaseMulConstAddTo_fallback_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := hwy.Set(a)
+	lanes := va.NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		vd := hwy.Load(dst[i:])
+		vx := hwy.Load(x[i:])
+		result := hwy.MulAdd(va, vx, vd)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + a.Float32()*x[i].Float32())
+	}
+}
+
+func BaseMulConstAddTo_fallback_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := hwy.Set(a)
+	lanes := va.NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		vd := hwy.Load(dst[i:])
+		vx := hwy.Load(x[i:])
+		result := hwy.MulAdd(va, vx, vd)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + a.Float32()*x[i].Float32())
+	}
+}
+
+func BaseMulConstAddTo_fallback(dst []float32, a float32, x []float32) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := float32(a)
+	var i int
+	for i = 0; i < n; i++ {
+		vd := dst[i]
+		vx := x[i]
+		result := va*vx + vd
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] += a * x[i]
+	}
+}
+
+func BaseMulConstAddTo_fallback_Float64(dst []float64, a float64, x []float64) {
+	if len(dst) == 0 || len(x) == 0 {
+		return
+	}
+	n := min(len(dst), len(x))
+	va := float64(a)
+	var i int
+	for i = 0; i < n; i++ {
+		vd := dst[i]
+		vx := x[i]
+		result := va*vx + vd
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] += a * x[i]
+	}
+}
+
+func BaseMulTo_fallback_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		result := hwy.Mul(va, vb)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToFloat16(a[i].Float32() * b[i].Float32())
+	}
+}
+
+func BaseMulTo_fallback_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	var i int
+	for i = 0; i+lanes <= n; i += lanes {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		result := hwy.Mul(va, vb)
+		hwy.Store(result, dst[i:])
+	}
+	for ; i < n; i++ {
+		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() * b[i].Float32())
+	}
+}
+
+func BaseMulTo_fallback(dst []float32, a []float32, b []float32) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	var i int
+	for i = 0; i < n; i++ {
+		va := a[i]
+		vb := b[i]
+		result := va * vb
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] = a[i] * b[i]
+	}
+}
+
+func BaseMulTo_fallback_Float64(dst []float64, a []float64, b []float64) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
+		return
+	}
+	n := min(len(dst), min(len(a), len(b)))
+	var i int
+	for i = 0; i < n; i++ {
+		va := a[i]
+		vb := b[i]
+		result := va * vb
+		dst[i] = result
+	}
+	for ; i < n; i++ {
+		dst[i] = a[i] * b[i]
+	}
+}
+
 func BaseScale_fallback_Float16(c hwy.Float16, dst []hwy.Float16) {
 	if len(dst) == 0 {
 		return
@@ -706,146 +710,142 @@ func BaseScaleTo_fallback_Float64(dst []float64, c float64, s []float64) {
 	}
 }
 
-func BaseAddConst_fallback_Float16(c hwy.Float16, dst []hwy.Float16) {
-	if len(dst) == 0 {
+func BaseSub_fallback_Float16(dst []hwy.Float16, s []hwy.Float16) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := hwy.Set(c)
-	lanes := vc.NumLanes()
+	n := min(len(dst), len(s))
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vd := hwy.Load(dst[i:])
-		result := hwy.Add(vd, vc)
+		vs := hwy.Load(s[i:])
+		result := hwy.Sub(vd, vs)
 		hwy.Store(result, dst[i:])
 	}
 	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + c.Float32())
+		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() - s[i].Float32())
 	}
 }
 
-func BaseAddConst_fallback_BFloat16(c hwy.BFloat16, dst []hwy.BFloat16) {
-	if len(dst) == 0 {
+func BaseSub_fallback_BFloat16(dst []hwy.BFloat16, s []hwy.BFloat16) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := hwy.Set(c)
-	lanes := vc.NumLanes()
+	n := min(len(dst), len(s))
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
 		vd := hwy.Load(dst[i:])
-		result := hwy.Add(vd, vc)
+		vs := hwy.Load(s[i:])
+		result := hwy.Sub(vd, vs)
 		hwy.Store(result, dst[i:])
 	}
 	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + c.Float32())
+		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() - s[i].Float32())
 	}
 }
 
-func BaseAddConst_fallback(c float32, dst []float32) {
-	if len(dst) == 0 {
+func BaseSub_fallback(dst []float32, s []float32) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := float32(c)
+	n := min(len(dst), len(s))
 	var i int
 	for i = 0; i < n; i++ {
 		vd := dst[i]
-		result := vd + vc
+		vs := s[i]
+		result := vd - vs
 		dst[i] = result
 	}
 	for ; i < n; i++ {
-		dst[i] += c
+		dst[i] -= s[i]
 	}
 }
 
-func BaseAddConst_fallback_Float64(c float64, dst []float64) {
-	if len(dst) == 0 {
+func BaseSub_fallback_Float64(dst []float64, s []float64) {
+	if len(dst) == 0 || len(s) == 0 {
 		return
 	}
-	n := len(dst)
-	vc := float64(c)
+	n := min(len(dst), len(s))
 	var i int
 	for i = 0; i < n; i++ {
 		vd := dst[i]
-		result := vd + vc
+		vs := s[i]
+		result := vd - vs
 		dst[i] = result
 	}
 	for ; i < n; i++ {
-		dst[i] += c
+		dst[i] -= s[i]
 	}
 }
 
-func BaseMulConstAddTo_fallback_Float16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_fallback_Float16(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := hwy.Set(a)
-	lanes := va.NumLanes()
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vx := hwy.Load(x[i:])
-		result := hwy.MulAdd(va, vx, vd)
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		result := hwy.Sub(va, vb)
 		hwy.Store(result, dst[i:])
 	}
 	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToFloat16(dst[i].Float32() + a.Float32()*x[i].Float32())
+		dst[i] = hwy.Float32ToFloat16(a[i].Float32() - b[i].Float32())
 	}
 }
 
-func BaseMulConstAddTo_fallback_BFloat16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_fallback_BFloat16(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := hwy.Set(a)
-	lanes := va.NumLanes()
+	n := min(len(dst), min(len(a), len(b)))
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vd := hwy.Load(dst[i:])
-		vx := hwy.Load(x[i:])
-		result := hwy.MulAdd(va, vx, vd)
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		result := hwy.Sub(va, vb)
 		hwy.Store(result, dst[i:])
 	}
 	for ; i < n; i++ {
-		dst[i] = hwy.Float32ToBFloat16(dst[i].Float32() + a.Float32()*x[i].Float32())
+		dst[i] = hwy.Float32ToBFloat16(a[i].Float32() - b[i].Float32())
 	}
 }
 
-func BaseMulConstAddTo_fallback(dst []float32, a float32, x []float32) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_fallback(dst []float32, a []float32, b []float32) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := float32(a)
+	n := min(len(dst), min(len(a), len(b)))
 	var i int
 	for i = 0; i < n; i++ {
-		vd := dst[i]
-		vx := x[i]
-		result := va*vx + vd
+		va := a[i]
+		vb := b[i]
+		result := va - vb
 		dst[i] = result
 	}
 	for ; i < n; i++ {
-		dst[i] += a * x[i]
+		dst[i] = a[i] - b[i]
 	}
 }
 
-func BaseMulConstAddTo_fallback_Float64(dst []float64, a float64, x []float64) {
-	if len(dst) == 0 || len(x) == 0 {
+func BaseSubTo_fallback_Float64(dst []float64, a []float64, b []float64) {
+	if len(dst) == 0 || len(a) == 0 || len(b) == 0 {
 		return
 	}
-	n := min(len(dst), len(x))
-	va := float64(a)
+	n := min(len(dst), min(len(a), len(b)))
 	var i int
 	for i = 0; i < n; i++ {
-		vd := dst[i]
-		vx := x[i]
-		result := va*vx + vd
+		va := a[i]
+		vb := b[i]
+		result := va - vb
 		dst[i] = result
 	}
 	for ; i < n; i++ {
-		dst[i] += a * x[i]
+		dst[i] = a[i] - b[i]
 	}
 }

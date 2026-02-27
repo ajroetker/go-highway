@@ -10,130 +10,6 @@ import (
 )
 
 // Public wrapper functions
-// BatchL2SquaredDistanceCF16 computes BatchL2SquaredDistance using NEON SIMD assembly.
-func BatchL2SquaredDistanceCF16(query, data, distances []hwy.Float16, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	batchl2squareddistance_c_f16_neon(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
-// BatchL2SquaredDistanceCBF16 computes BatchL2SquaredDistance using NEON SIMD assembly.
-func BatchL2SquaredDistanceCBF16(query, data, distances []hwy.BFloat16, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	batchl2squareddistance_c_bf16_neon(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
-// BatchL2SquaredDistanceCF32 computes BatchL2SquaredDistance using NEON SIMD assembly.
-func BatchL2SquaredDistanceCF32(query, data, distances []float32, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	batchl2squareddistance_c_f32_neon(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
-// BatchL2SquaredDistanceCF64 computes BatchL2SquaredDistance using NEON SIMD assembly.
-func BatchL2SquaredDistanceCF64(query, data, distances []float64, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	batchl2squareddistance_c_f64_neon(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
 // BatchDotCF16 computes BatchDot using NEON SIMD assembly.
 func BatchDotCF16(query, data, dots []hwy.Float16, count, dims int) {
 	var p_query unsafe.Pointer
@@ -255,6 +131,130 @@ func BatchDotCF64(query, data, dots []float64, count, dims int) {
 		unsafe.Pointer(&len_queryVal),
 		unsafe.Pointer(&len_dataVal),
 		unsafe.Pointer(&len_dotsVal),
+	)
+}
+
+// BatchL2SquaredDistanceCF16 computes BatchL2SquaredDistance using NEON SIMD assembly.
+func BatchL2SquaredDistanceCF16(query, data, distances []hwy.Float16, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	batchl2squareddistance_c_f16_neon(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
+	)
+}
+
+// BatchL2SquaredDistanceCBF16 computes BatchL2SquaredDistance using NEON SIMD assembly.
+func BatchL2SquaredDistanceCBF16(query, data, distances []hwy.BFloat16, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	batchl2squareddistance_c_bf16_neon(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
+	)
+}
+
+// BatchL2SquaredDistanceCF32 computes BatchL2SquaredDistance using NEON SIMD assembly.
+func BatchL2SquaredDistanceCF32(query, data, distances []float32, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	batchl2squareddistance_c_f32_neon(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
+	)
+}
+
+// BatchL2SquaredDistanceCF64 computes BatchL2SquaredDistance using NEON SIMD assembly.
+func BatchL2SquaredDistanceCF64(query, data, distances []float64, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	batchl2squareddistance_c_f64_neon(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
 	)
 }
 

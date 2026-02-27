@@ -10,22 +10,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseSquaredNorm_avx2_Float16(v []hwy.Float16) hwy.Float16 {
-	return BaseDot_avx2_Float16(v, v)
-}
-
-func BaseSquaredNorm_avx2_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	return BaseDot_avx2_BFloat16(v, v)
-}
-
-func BaseSquaredNorm_avx2(v []float32) float32 {
-	return BaseDot_avx2(v, v)
-}
-
-func BaseSquaredNorm_avx2_Float64(v []float64) float64 {
-	return BaseDot_avx2_Float64(v, v)
-}
-
 func BaseNorm_avx2_Float16(v []hwy.Float16) hwy.Float16 {
 	squaredNorm := BaseSquaredNorm_avx2_Float16(v)
 	if squaredNorm == 0 {
@@ -84,4 +68,20 @@ func BaseNorm_avx2_Float64(v []float64) float64 {
 	default:
 		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(float64)
 	}
+}
+
+func BaseSquaredNorm_avx2_Float16(v []hwy.Float16) hwy.Float16 {
+	return BaseDot_avx2_Float16(v, v)
+}
+
+func BaseSquaredNorm_avx2_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
+	return BaseDot_avx2_BFloat16(v, v)
+}
+
+func BaseSquaredNorm_avx2(v []float32) float32 {
+	return BaseDot_avx2(v, v)
+}
+
+func BaseSquaredNorm_avx2_Float64(v []float64) float64 {
+	return BaseDot_avx2_Float64(v, v)
 }

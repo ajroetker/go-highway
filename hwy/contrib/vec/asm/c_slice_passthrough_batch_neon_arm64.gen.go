@@ -5,26 +5,6 @@ package asm
 
 import "unsafe"
 
-// BatchL2SquaredDistance_F16 calls the NEON SIMD assembly implementation.
-func BatchL2SquaredDistance_F16(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
-	batchl2squareddistance_c_f16_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
-}
-
-// BatchL2SquaredDistance_BF16 calls the NEON SIMD assembly implementation.
-func BatchL2SquaredDistance_BF16(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
-	batchl2squareddistance_c_bf16_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
-}
-
-// BatchL2SquaredDistance_F32 calls the NEON SIMD assembly implementation.
-func BatchL2SquaredDistance_F32(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
-	batchl2squareddistance_c_f32_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
-}
-
-// BatchL2SquaredDistance_F64 calls the NEON SIMD assembly implementation.
-func BatchL2SquaredDistance_F64(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
-	batchl2squareddistance_c_f64_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
-}
-
 // BatchDot_F16 calls the NEON SIMD assembly implementation.
 func BatchDot_F16(query unsafe.Pointer, data unsafe.Pointer, dots unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_dots unsafe.Pointer) {
 	batchdot_c_f16_neon(query, data, dots, pcount, pdims, plen_query, plen_data, plen_dots)
@@ -43,5 +23,25 @@ func BatchDot_F32(query unsafe.Pointer, data unsafe.Pointer, dots unsafe.Pointer
 // BatchDot_F64 calls the NEON SIMD assembly implementation.
 func BatchDot_F64(query unsafe.Pointer, data unsafe.Pointer, dots unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_dots unsafe.Pointer) {
 	batchdot_c_f64_neon(query, data, dots, pcount, pdims, plen_query, plen_data, plen_dots)
+}
+
+// BatchL2SquaredDistance_F16 calls the NEON SIMD assembly implementation.
+func BatchL2SquaredDistance_F16(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
+	batchl2squareddistance_c_f16_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
+}
+
+// BatchL2SquaredDistance_BF16 calls the NEON SIMD assembly implementation.
+func BatchL2SquaredDistance_BF16(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
+	batchl2squareddistance_c_bf16_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
+}
+
+// BatchL2SquaredDistance_F32 calls the NEON SIMD assembly implementation.
+func BatchL2SquaredDistance_F32(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
+	batchl2squareddistance_c_f32_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
+}
+
+// BatchL2SquaredDistance_F64 calls the NEON SIMD assembly implementation.
+func BatchL2SquaredDistance_F64(query unsafe.Pointer, data unsafe.Pointer, distances unsafe.Pointer, pcount unsafe.Pointer, pdims unsafe.Pointer, plen_query unsafe.Pointer, plen_data unsafe.Pointer, plen_distances unsafe.Pointer) {
+	batchl2squareddistance_c_f64_neon(query, data, distances, pcount, pdims, plen_query, plen_data, plen_distances)
 }
 

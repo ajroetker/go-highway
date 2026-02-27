@@ -13,6 +13,26 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
+func BaseL2Distance_avx512_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
+	sqDist := BaseL2SquaredDistance_avx512_Float16(a, b)
+	return hwy.Float32ToFloat16(float32(stdmath.Sqrt(float64(sqDist))))
+}
+
+func BaseL2Distance_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 {
+	sqDist := BaseL2SquaredDistance_avx512_BFloat16(a, b)
+	return hwy.Float32ToBFloat16(float32(stdmath.Sqrt(float64(sqDist))))
+}
+
+func BaseL2Distance_avx512(a []float32, b []float32) float32 {
+	sqDist := BaseL2SquaredDistance_avx512(a, b)
+	return float32(stdmath.Sqrt(float64(sqDist)))
+}
+
+func BaseL2Distance_avx512_Float64(a []float64, b []float64) float64 {
+	sqDist := BaseL2SquaredDistance_avx512_Float64(a, b)
+	return float64(stdmath.Sqrt(float64(sqDist)))
+}
+
 func BaseL2SquaredDistance_avx512_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
 	if len(a) == 0 || len(b) == 0 {
 		return 0
@@ -179,24 +199,4 @@ func BaseL2SquaredDistance_avx512_Float64(a []float64, b []float64) float64 {
 		result += d * d
 	}
 	return result
-}
-
-func BaseL2Distance_avx512_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Float16 {
-	sqDist := BaseL2SquaredDistance_avx512_Float16(a, b)
-	return hwy.Float32ToFloat16(float32(stdmath.Sqrt(float64(sqDist))))
-}
-
-func BaseL2Distance_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy.BFloat16 {
-	sqDist := BaseL2SquaredDistance_avx512_BFloat16(a, b)
-	return hwy.Float32ToBFloat16(float32(stdmath.Sqrt(float64(sqDist))))
-}
-
-func BaseL2Distance_avx512(a []float32, b []float32) float32 {
-	sqDist := BaseL2SquaredDistance_avx512(a, b)
-	return float32(stdmath.Sqrt(float64(sqDist)))
-}
-
-func BaseL2Distance_avx512_Float64(a []float64, b []float64) float64 {
-	sqDist := BaseL2SquaredDistance_avx512_Float64(a, b)
-	return float64(stdmath.Sqrt(float64(sqDist)))
 }

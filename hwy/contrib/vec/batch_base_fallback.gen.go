@@ -6,6 +6,140 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseBatchDot_fallback_Float16(query []hwy.Float16, data []hwy.Float16, dots []hwy.Float16, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := hwy.Zero[hwy.Float16]()
+	lanes := sum.NumLanes()
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = hwy.Zero[hwy.Float16]()
+		var j int
+		for j = 0; j+lanes <= dims; j += lanes {
+			vq := hwy.Load(query[j:])
+			vd := hwy.Load(dataVec[j:])
+			prod := hwy.Mul(vq, vd)
+			sum = hwy.Add(sum, prod)
+		}
+		result := hwy.ReduceSum(sum).Float32()
+		for ; j < dims; j++ {
+			result += query[j].Float32() * dataVec[j].Float32()
+		}
+		dots[i] = hwy.Float32ToFloat16(result)
+	}
+}
+
+func BaseBatchDot_fallback_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, dots []hwy.BFloat16, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := hwy.Zero[hwy.BFloat16]()
+	lanes := sum.NumLanes()
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = hwy.Zero[hwy.BFloat16]()
+		var j int
+		for j = 0; j+lanes <= dims; j += lanes {
+			vq := hwy.Load(query[j:])
+			vd := hwy.Load(dataVec[j:])
+			prod := hwy.Mul(vq, vd)
+			sum = hwy.Add(sum, prod)
+		}
+		result := hwy.ReduceSum(sum).Float32()
+		for ; j < dims; j++ {
+			result += query[j].Float32() * dataVec[j].Float32()
+		}
+		dots[i] = hwy.Float32ToBFloat16(result)
+	}
+}
+
+func BaseBatchDot_fallback(query []float32, data []float32, dots []float32, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := float32(0)
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = float32(0)
+		var j int
+		for j = 0; j < dims; j++ {
+			vq := query[j]
+			vd := dataVec[j]
+			prod := vq * vd
+			sum = sum + prod
+		}
+		result := sum
+		for ; j < dims; j++ {
+			result += query[j] * dataVec[j]
+		}
+		dots[i] = result
+	}
+}
+
+func BaseBatchDot_fallback_Float64(query []float64, data []float64, dots []float64, count int, dims int) {
+	if count <= 0 || dims <= 0 {
+		return
+	}
+	if len(data) < count*dims {
+		return
+	}
+	if len(dots) < count {
+		return
+	}
+	if len(query) < dims {
+		return
+	}
+	sum := float64(0)
+	for i := range count {
+		dataStart := i * dims
+		dataVec := data[dataStart : dataStart+dims]
+		sum = float64(0)
+		var j int
+		for j = 0; j < dims; j++ {
+			vq := query[j]
+			vd := dataVec[j]
+			prod := vq * vd
+			sum = sum + prod
+		}
+		result := sum
+		for ; j < dims; j++ {
+			result += query[j] * dataVec[j]
+		}
+		dots[i] = result
+	}
+}
+
 func BaseBatchL2SquaredDistance_fallback_Float16(query []hwy.Float16, data []hwy.Float16, distances []hwy.Float16, count int, dims int) {
 	if count <= 0 || dims <= 0 {
 		return
@@ -145,139 +279,5 @@ func BaseBatchL2SquaredDistance_fallback_Float64(query []float64, data []float64
 			result += diff * diff
 		}
 		distances[i] = result
-	}
-}
-
-func BaseBatchDot_fallback_Float16(query []hwy.Float16, data []hwy.Float16, dots []hwy.Float16, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := sum.NumLanes()
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = hwy.Zero[hwy.Float16]()
-		var j int
-		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
-			prod := hwy.Mul(vq, vd)
-			sum = hwy.Add(sum, prod)
-		}
-		result := hwy.ReduceSum(sum).Float32()
-		for ; j < dims; j++ {
-			result += query[j].Float32() * dataVec[j].Float32()
-		}
-		dots[i] = hwy.Float32ToFloat16(result)
-	}
-}
-
-func BaseBatchDot_fallback_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, dots []hwy.BFloat16, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := sum.NumLanes()
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = hwy.Zero[hwy.BFloat16]()
-		var j int
-		for j = 0; j+lanes <= dims; j += lanes {
-			vq := hwy.Load(query[j:])
-			vd := hwy.Load(dataVec[j:])
-			prod := hwy.Mul(vq, vd)
-			sum = hwy.Add(sum, prod)
-		}
-		result := hwy.ReduceSum(sum).Float32()
-		for ; j < dims; j++ {
-			result += query[j].Float32() * dataVec[j].Float32()
-		}
-		dots[i] = hwy.Float32ToBFloat16(result)
-	}
-}
-
-func BaseBatchDot_fallback(query []float32, data []float32, dots []float32, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := float32(0)
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = float32(0)
-		var j int
-		for j = 0; j < dims; j++ {
-			vq := query[j]
-			vd := dataVec[j]
-			prod := vq * vd
-			sum = sum + prod
-		}
-		result := sum
-		for ; j < dims; j++ {
-			result += query[j] * dataVec[j]
-		}
-		dots[i] = result
-	}
-}
-
-func BaseBatchDot_fallback_Float64(query []float64, data []float64, dots []float64, count int, dims int) {
-	if count <= 0 || dims <= 0 {
-		return
-	}
-	if len(data) < count*dims {
-		return
-	}
-	if len(dots) < count {
-		return
-	}
-	if len(query) < dims {
-		return
-	}
-	sum := float64(0)
-	for i := range count {
-		dataStart := i * dims
-		dataVec := data[dataStart : dataStart+dims]
-		sum = float64(0)
-		var j int
-		for j = 0; j < dims; j++ {
-			vq := query[j]
-			vd := dataVec[j]
-			prod := vq * vd
-			sum = sum + prod
-		}
-		result := sum
-		for ; j < dims; j++ {
-			result += query[j] * dataVec[j]
-		}
-		dots[i] = result
 	}
 }

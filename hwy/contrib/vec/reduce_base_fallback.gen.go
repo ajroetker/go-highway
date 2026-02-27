@@ -6,190 +6,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseSum_fallback_Float16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := hwy.Zero[hwy.Float16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
-		sum = hwy.Add(sum, va)
-	}
-	result := hwy.ReduceSum(sum).Float32()
-	for ; i < len(v); i++ {
-		result += v[i].Float32()
-	}
-	return hwy.Float32ToFloat16(result)
-}
-
-func BaseSum_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := hwy.Zero[hwy.BFloat16]()
-	lanes := sum.NumLanes()
-	var i int
-	for i = 0; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
-		sum = hwy.Add(sum, va)
-	}
-	result := hwy.ReduceSum(sum).Float32()
-	for ; i < len(v); i++ {
-		result += v[i].Float32()
-	}
-	return hwy.Float32ToBFloat16(result)
-}
-
-func BaseSum_fallback(v []float32) float32 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := float32(0)
-	var i int
-	for i = 0; i < len(v); i++ {
-		va := v[i]
-		sum = sum + va
-	}
-	result := sum
-	for ; i < len(v); i++ {
-		result += v[i]
-	}
-	return result
-}
-
-func BaseSum_fallback_Float64(v []float64) float64 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := float64(0)
-	var i int
-	for i = 0; i < len(v); i++ {
-		va := v[i]
-		sum = sum + va
-	}
-	result := sum
-	for ; i < len(v); i++ {
-		result += v[i]
-	}
-	return result
-}
-
-func BaseMin_fallback_Float16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	if len(v) < lanes {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i].Float32() < result.Float32() {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := hwy.LoadSlice(v)
-	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
-		minVec = hwy.Min(minVec, va)
-	}
-	result := hwy.ReduceMin(minVec).Float32()
-	for ; i < len(v); i++ {
-		if v[i].Float32() < result {
-			result = v[i].Float32()
-		}
-	}
-	return hwy.Float32ToFloat16(result)
-}
-
-func BaseMin_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	if len(v) < lanes {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i].Float32() < result.Float32() {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := hwy.LoadSlice(v)
-	var i int
-	for i = lanes; i+lanes <= len(v); i += lanes {
-		va := hwy.Load(v[i:])
-		minVec = hwy.Min(minVec, va)
-	}
-	result := hwy.ReduceMin(minVec).Float32()
-	for ; i < len(v); i++ {
-		if v[i].Float32() < result {
-			result = v[i].Float32()
-		}
-	}
-	return hwy.Float32ToBFloat16(result)
-}
-
-func BaseMin_fallback(v []float32) float32 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	if len(v) < 1 {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i] < result {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := v[0]
-	var i int
-	for i = 1; i < len(v); i++ {
-		va := v[i]
-		minVec = min(minVec, va)
-	}
-	result := minVec
-	for ; i < len(v); i++ {
-		if v[i] < result {
-			result = v[i]
-		}
-	}
-	return result
-}
-
-func BaseMin_fallback_Float64(v []float64) float64 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	if len(v) < 1 {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i] < result {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := v[0]
-	var i int
-	for i = 1; i < len(v); i++ {
-		va := v[i]
-		minVec = min(minVec, va)
-	}
-	result := minVec
-	for ; i < len(v); i++ {
-		if v[i] < result {
-			result = v[i]
-		}
-	}
-	return result
-}
-
 func BaseMax_fallback(v []float32) float32 {
 	if len(v) == 0 {
 		panic("vec: Max called on empty slice")
@@ -358,6 +174,120 @@ func BaseMax_fallback_Uint64(v []uint64) uint64 {
 	return result
 }
 
+func BaseMin_fallback_Float16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	if len(v) < lanes {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i].Float32() < result.Float32() {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := hwy.LoadSlice(v)
+	var i int
+	for i = lanes; i+lanes <= len(v); i += lanes {
+		va := hwy.Load(v[i:])
+		minVec = hwy.Min(minVec, va)
+	}
+	result := hwy.ReduceMin(minVec).Float32()
+	for ; i < len(v); i++ {
+		if v[i].Float32() < result {
+			result = v[i].Float32()
+		}
+	}
+	return hwy.Float32ToFloat16(result)
+}
+
+func BaseMin_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	if len(v) < lanes {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i].Float32() < result.Float32() {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := hwy.LoadSlice(v)
+	var i int
+	for i = lanes; i+lanes <= len(v); i += lanes {
+		va := hwy.Load(v[i:])
+		minVec = hwy.Min(minVec, va)
+	}
+	result := hwy.ReduceMin(minVec).Float32()
+	for ; i < len(v); i++ {
+		if v[i].Float32() < result {
+			result = v[i].Float32()
+		}
+	}
+	return hwy.Float32ToBFloat16(result)
+}
+
+func BaseMin_fallback(v []float32) float32 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	if len(v) < 1 {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i] < result {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := v[0]
+	var i int
+	for i = 1; i < len(v); i++ {
+		va := v[i]
+		minVec = min(minVec, va)
+	}
+	result := minVec
+	for ; i < len(v); i++ {
+		if v[i] < result {
+			result = v[i]
+		}
+	}
+	return result
+}
+
+func BaseMin_fallback_Float64(v []float64) float64 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	if len(v) < 1 {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i] < result {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := v[0]
+	var i int
+	for i = 1; i < len(v); i++ {
+		va := v[i]
+		minVec = min(minVec, va)
+	}
+	result := minVec
+	for ; i < len(v); i++ {
+		if v[i] < result {
+			result = v[i]
+		}
+	}
+	return result
+}
+
 func BaseMinMax_fallback_Float16(v []hwy.Float16) (minVal hwy.Float16, maxVal hwy.Float16) {
 	if len(v) == 0 {
 		panic("vec: MinMax called on empty slice")
@@ -510,4 +440,74 @@ func BaseMinMax_fallback_Float64(v []float64) (minVal float64, maxVal float64) {
 		}
 	}
 	return minVal, maxVal
+}
+
+func BaseSum_fallback_Float16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := hwy.Zero[hwy.Float16]()
+	lanes := sum.NumLanes()
+	var i int
+	for i = 0; i+lanes <= len(v); i += lanes {
+		va := hwy.Load(v[i:])
+		sum = hwy.Add(sum, va)
+	}
+	result := hwy.ReduceSum(sum).Float32()
+	for ; i < len(v); i++ {
+		result += v[i].Float32()
+	}
+	return hwy.Float32ToFloat16(result)
+}
+
+func BaseSum_fallback_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := hwy.Zero[hwy.BFloat16]()
+	lanes := sum.NumLanes()
+	var i int
+	for i = 0; i+lanes <= len(v); i += lanes {
+		va := hwy.Load(v[i:])
+		sum = hwy.Add(sum, va)
+	}
+	result := hwy.ReduceSum(sum).Float32()
+	for ; i < len(v); i++ {
+		result += v[i].Float32()
+	}
+	return hwy.Float32ToBFloat16(result)
+}
+
+func BaseSum_fallback(v []float32) float32 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := float32(0)
+	var i int
+	for i = 0; i < len(v); i++ {
+		va := v[i]
+		sum = sum + va
+	}
+	result := sum
+	for ; i < len(v); i++ {
+		result += v[i]
+	}
+	return result
+}
+
+func BaseSum_fallback_Float64(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := float64(0)
+	var i int
+	for i = 0; i < len(v); i++ {
+		va := v[i]
+		sum = sum + va
+	}
+	result := sum
+	for ; i < len(v); i++ {
+		result += v[i]
+	}
+	return result
 }

@@ -94,6 +94,78 @@ func AddCF64(dst, s []float64) {
 	)
 }
 
+// AddConstCF16 computes AddConst using NEON SIMD assembly.
+func AddConstCF16(c hwy.Float16, dst []hwy.Float16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := uint16(c)
+	lenVal := int64(len(dst))
+	addconst_c_f16_neon(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// AddConstCBF16 computes AddConst using NEON SIMD assembly.
+func AddConstCBF16(c hwy.BFloat16, dst []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := uint16(c)
+	lenVal := int64(len(dst))
+	addconst_c_bf16_neon(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// AddConstCF32 computes AddConst using NEON SIMD assembly.
+func AddConstCF32(c float32, dst []float32) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := c
+	lenVal := int64(len(dst))
+	addconst_c_f32_neon(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// AddConstCF64 computes AddConst using NEON SIMD assembly.
+func AddConstCF64(c float64, dst []float64) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := c
+	lenVal := int64(len(dst))
+	addconst_c_f64_neon(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 // AddToCF16 computes AddTo using NEON SIMD assembly.
 func AddToCF16(dst, a, b []hwy.Float16) {
 	if len(dst) == 0 {
@@ -191,382 +263,6 @@ func AddToCF64(dst, a, b []float64) {
 	}
 	lenVal := int64(len(dst))
 	addto_c_f64_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubCF16 computes Sub using NEON SIMD assembly.
-func SubCF16(dst, s []hwy.Float16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	sub_c_f16_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubCBF16 computes Sub using NEON SIMD assembly.
-func SubCBF16(dst, s []hwy.BFloat16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	sub_c_bf16_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubCF32 computes Sub using NEON SIMD assembly.
-func SubCF32(dst, s []float32) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	sub_c_f32_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubCF64 computes Sub using NEON SIMD assembly.
-func SubCF64(dst, s []float64) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	sub_c_f64_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubToCF16 computes SubTo using NEON SIMD assembly.
-func SubToCF16(dst, a, b []hwy.Float16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	subto_c_f16_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubToCBF16 computes SubTo using NEON SIMD assembly.
-func SubToCBF16(dst, a, b []hwy.BFloat16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	subto_c_bf16_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubToCF32 computes SubTo using NEON SIMD assembly.
-func SubToCF32(dst, a, b []float32) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	subto_c_f32_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SubToCF64 computes SubTo using NEON SIMD assembly.
-func SubToCF64(dst, a, b []float64) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	subto_c_f64_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulCF16 computes Mul using NEON SIMD assembly.
-func MulCF16(dst, s []hwy.Float16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	mul_c_f16_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulCBF16 computes Mul using NEON SIMD assembly.
-func MulCBF16(dst, s []hwy.BFloat16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	mul_c_bf16_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulCF32 computes Mul using NEON SIMD assembly.
-func MulCF32(dst, s []float32) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	mul_c_f32_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulCF64 computes Mul using NEON SIMD assembly.
-func MulCF64(dst, s []float64) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	mul_c_f64_neon(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulToCF16 computes MulTo using NEON SIMD assembly.
-func MulToCF16(dst, a, b []hwy.Float16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	multo_c_f16_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulToCBF16 computes MulTo using NEON SIMD assembly.
-func MulToCBF16(dst, a, b []hwy.BFloat16) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	multo_c_bf16_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulToCF32 computes MulTo using NEON SIMD assembly.
-func MulToCF32(dst, a, b []float32) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	multo_c_f32_neon(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// MulToCF64 computes MulTo using NEON SIMD assembly.
-func MulToCF64(dst, a, b []float64) {
-	if len(dst) == 0 {
-		return
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	multo_c_f64_neon(
 		p_dst,
 		p_a,
 		p_b,
@@ -762,6 +458,286 @@ func DivToCF64(dst, a, b []float64) {
 	)
 }
 
+// MulCF16 computes Mul using NEON SIMD assembly.
+func MulCF16(dst, s []hwy.Float16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	mul_c_f16_neon(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulCBF16 computes Mul using NEON SIMD assembly.
+func MulCBF16(dst, s []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	mul_c_bf16_neon(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulCF32 computes Mul using NEON SIMD assembly.
+func MulCF32(dst, s []float32) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	mul_c_f32_neon(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulCF64 computes Mul using NEON SIMD assembly.
+func MulCF64(dst, s []float64) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	mul_c_f64_neon(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulConstAddToCF16 computes MulConstAddTo using NEON SIMD assembly.
+func MulConstAddToCF16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := uint16(a)
+	lenVal := int64(len(dst))
+	mulconstaddto_c_f16_neon(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulConstAddToCBF16 computes MulConstAddTo using NEON SIMD assembly.
+func MulConstAddToCBF16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := uint16(a)
+	lenVal := int64(len(dst))
+	mulconstaddto_c_bf16_neon(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulConstAddToCF32 computes MulConstAddTo using NEON SIMD assembly.
+func MulConstAddToCF32(dst []float32, a float32, x []float32) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := a
+	lenVal := int64(len(dst))
+	mulconstaddto_c_f32_neon(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulConstAddToCF64 computes MulConstAddTo using NEON SIMD assembly.
+func MulConstAddToCF64(dst []float64, a float64, x []float64) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := a
+	lenVal := int64(len(dst))
+	mulconstaddto_c_f64_neon(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulToCF16 computes MulTo using NEON SIMD assembly.
+func MulToCF16(dst, a, b []hwy.Float16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	multo_c_f16_neon(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulToCBF16 computes MulTo using NEON SIMD assembly.
+func MulToCBF16(dst, a, b []hwy.BFloat16) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	multo_c_bf16_neon(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulToCF32 computes MulTo using NEON SIMD assembly.
+func MulToCF32(dst, a, b []float32) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	multo_c_f32_neon(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// MulToCF64 computes MulTo using NEON SIMD assembly.
+func MulToCF64(dst, a, b []float64) {
+	if len(dst) == 0 {
+		return
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	multo_c_f64_neon(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 // ScaleCF16 computes Scale using NEON SIMD assembly.
 func ScaleCF16(c hwy.Float16, dst []hwy.Float16) {
 	if len(dst) == 0 {
@@ -926,8 +902,8 @@ func ScaleToCF64(dst []float64, c float64, s []float64) {
 	)
 }
 
-// AddConstCF16 computes AddConst using NEON SIMD assembly.
-func AddConstCF16(c hwy.Float16, dst []hwy.Float16) {
+// SubCF16 computes Sub using NEON SIMD assembly.
+func SubCF16(dst, s []hwy.Float16) {
 	if len(dst) == 0 {
 		return
 	}
@@ -935,17 +911,20 @@ func AddConstCF16(c hwy.Float16, dst []hwy.Float16) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := uint16(c)
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	addconst_c_f16_neon(
-		unsafe.Pointer(&cVal),
+	sub_c_f16_neon(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// AddConstCBF16 computes AddConst using NEON SIMD assembly.
-func AddConstCBF16(c hwy.BFloat16, dst []hwy.BFloat16) {
+// SubCBF16 computes Sub using NEON SIMD assembly.
+func SubCBF16(dst, s []hwy.BFloat16) {
 	if len(dst) == 0 {
 		return
 	}
@@ -953,17 +932,20 @@ func AddConstCBF16(c hwy.BFloat16, dst []hwy.BFloat16) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := uint16(c)
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	addconst_c_bf16_neon(
-		unsafe.Pointer(&cVal),
+	sub_c_bf16_neon(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// AddConstCF32 computes AddConst using NEON SIMD assembly.
-func AddConstCF32(c float32, dst []float32) {
+// SubCF32 computes Sub using NEON SIMD assembly.
+func SubCF32(dst, s []float32) {
 	if len(dst) == 0 {
 		return
 	}
@@ -971,17 +953,20 @@ func AddConstCF32(c float32, dst []float32) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := c
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	addconst_c_f32_neon(
-		unsafe.Pointer(&cVal),
+	sub_c_f32_neon(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// AddConstCF64 computes AddConst using NEON SIMD assembly.
-func AddConstCF64(c float64, dst []float64) {
+// SubCF64 computes Sub using NEON SIMD assembly.
+func SubCF64(dst, s []float64) {
 	if len(dst) == 0 {
 		return
 	}
@@ -989,17 +974,20 @@ func AddConstCF64(c float64, dst []float64) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := c
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	addconst_c_f64_neon(
-		unsafe.Pointer(&cVal),
+	sub_c_f64_neon(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// MulConstAddToCF16 computes MulConstAddTo using NEON SIMD assembly.
-func MulConstAddToCF16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
+// SubToCF16 computes SubTo using NEON SIMD assembly.
+func SubToCF16(dst, a, b []hwy.Float16) {
 	if len(dst) == 0 {
 		return
 	}
@@ -1007,22 +995,25 @@ func MulConstAddToCF16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := uint16(a)
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	mulconstaddto_c_f16_neon(
+	subto_c_f16_neon(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// MulConstAddToCBF16 computes MulConstAddTo using NEON SIMD assembly.
-func MulConstAddToCBF16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
+// SubToCBF16 computes SubTo using NEON SIMD assembly.
+func SubToCBF16(dst, a, b []hwy.BFloat16) {
 	if len(dst) == 0 {
 		return
 	}
@@ -1030,22 +1021,25 @@ func MulConstAddToCBF16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := uint16(a)
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	mulconstaddto_c_bf16_neon(
+	subto_c_bf16_neon(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// MulConstAddToCF32 computes MulConstAddTo using NEON SIMD assembly.
-func MulConstAddToCF32(dst []float32, a float32, x []float32) {
+// SubToCF32 computes SubTo using NEON SIMD assembly.
+func SubToCF32(dst, a, b []float32) {
 	if len(dst) == 0 {
 		return
 	}
@@ -1053,22 +1047,25 @@ func MulConstAddToCF32(dst []float32, a float32, x []float32) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := a
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	mulconstaddto_c_f32_neon(
+	subto_c_f32_neon(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// MulConstAddToCF64 computes MulConstAddTo using NEON SIMD assembly.
-func MulConstAddToCF64(dst []float64, a float64, x []float64) {
+// SubToCF64 computes SubTo using NEON SIMD assembly.
+func SubToCF64(dst, a, b []float64) {
 	if len(dst) == 0 {
 		return
 	}
@@ -1076,16 +1073,19 @@ func MulConstAddToCF64(dst []float64, a float64, x []float64) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := a
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	mulconstaddto_c_f64_neon(
+	subto_c_f64_neon(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }

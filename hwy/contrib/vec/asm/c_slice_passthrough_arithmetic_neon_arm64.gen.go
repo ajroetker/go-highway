@@ -25,6 +25,26 @@ func Add_F64(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
 	add_c_f64_neon(dst, s, plen)
 }
 
+// AddConst_F16 calls the NEON SIMD assembly implementation.
+func AddConst_F16(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
+	addconst_c_f16_neon(pc, dst, plen)
+}
+
+// AddConst_BF16 calls the NEON SIMD assembly implementation.
+func AddConst_BF16(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
+	addconst_c_bf16_neon(pc, dst, plen)
+}
+
+// AddConst_F32 calls the NEON SIMD assembly implementation.
+func AddConst_F32(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
+	addconst_c_f32_neon(pc, dst, plen)
+}
+
+// AddConst_F64 calls the NEON SIMD assembly implementation.
+func AddConst_F64(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
+	addconst_c_f64_neon(pc, dst, plen)
+}
+
 // AddTo_F16 calls the NEON SIMD assembly implementation.
 func AddTo_F16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
 	addto_c_f16_neon(dst, a, b, plen)
@@ -43,86 +63,6 @@ func AddTo_F32(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsa
 // AddTo_F64 calls the NEON SIMD assembly implementation.
 func AddTo_F64(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
 	addto_c_f64_neon(dst, a, b, plen)
-}
-
-// Sub_F16 calls the NEON SIMD assembly implementation.
-func Sub_F16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	sub_c_f16_neon(dst, s, plen)
-}
-
-// Sub_BF16 calls the NEON SIMD assembly implementation.
-func Sub_BF16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	sub_c_bf16_neon(dst, s, plen)
-}
-
-// Sub_F32 calls the NEON SIMD assembly implementation.
-func Sub_F32(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	sub_c_f32_neon(dst, s, plen)
-}
-
-// Sub_F64 calls the NEON SIMD assembly implementation.
-func Sub_F64(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	sub_c_f64_neon(dst, s, plen)
-}
-
-// SubTo_F16 calls the NEON SIMD assembly implementation.
-func SubTo_F16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	subto_c_f16_neon(dst, a, b, plen)
-}
-
-// SubTo_BF16 calls the NEON SIMD assembly implementation.
-func SubTo_BF16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	subto_c_bf16_neon(dst, a, b, plen)
-}
-
-// SubTo_F32 calls the NEON SIMD assembly implementation.
-func SubTo_F32(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	subto_c_f32_neon(dst, a, b, plen)
-}
-
-// SubTo_F64 calls the NEON SIMD assembly implementation.
-func SubTo_F64(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	subto_c_f64_neon(dst, a, b, plen)
-}
-
-// Mul_F16 calls the NEON SIMD assembly implementation.
-func Mul_F16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	mul_c_f16_neon(dst, s, plen)
-}
-
-// Mul_BF16 calls the NEON SIMD assembly implementation.
-func Mul_BF16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	mul_c_bf16_neon(dst, s, plen)
-}
-
-// Mul_F32 calls the NEON SIMD assembly implementation.
-func Mul_F32(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	mul_c_f32_neon(dst, s, plen)
-}
-
-// Mul_F64 calls the NEON SIMD assembly implementation.
-func Mul_F64(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
-	mul_c_f64_neon(dst, s, plen)
-}
-
-// MulTo_F16 calls the NEON SIMD assembly implementation.
-func MulTo_F16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	multo_c_f16_neon(dst, a, b, plen)
-}
-
-// MulTo_BF16 calls the NEON SIMD assembly implementation.
-func MulTo_BF16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	multo_c_bf16_neon(dst, a, b, plen)
-}
-
-// MulTo_F32 calls the NEON SIMD assembly implementation.
-func MulTo_F32(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	multo_c_f32_neon(dst, a, b, plen)
-}
-
-// MulTo_F64 calls the NEON SIMD assembly implementation.
-func MulTo_F64(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
-	multo_c_f64_neon(dst, a, b, plen)
 }
 
 // Div_F16 calls the NEON SIMD assembly implementation.
@@ -165,6 +105,66 @@ func DivTo_F64(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsa
 	divto_c_f64_neon(dst, a, b, plen)
 }
 
+// Mul_F16 calls the NEON SIMD assembly implementation.
+func Mul_F16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	mul_c_f16_neon(dst, s, plen)
+}
+
+// Mul_BF16 calls the NEON SIMD assembly implementation.
+func Mul_BF16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	mul_c_bf16_neon(dst, s, plen)
+}
+
+// Mul_F32 calls the NEON SIMD assembly implementation.
+func Mul_F32(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	mul_c_f32_neon(dst, s, plen)
+}
+
+// Mul_F64 calls the NEON SIMD assembly implementation.
+func Mul_F64(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	mul_c_f64_neon(dst, s, plen)
+}
+
+// MulConstAddTo_F16 calls the NEON SIMD assembly implementation.
+func MulConstAddTo_F16(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
+	mulconstaddto_c_f16_neon(dst, pa, x, plen)
+}
+
+// MulConstAddTo_BF16 calls the NEON SIMD assembly implementation.
+func MulConstAddTo_BF16(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
+	mulconstaddto_c_bf16_neon(dst, pa, x, plen)
+}
+
+// MulConstAddTo_F32 calls the NEON SIMD assembly implementation.
+func MulConstAddTo_F32(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
+	mulconstaddto_c_f32_neon(dst, pa, x, plen)
+}
+
+// MulConstAddTo_F64 calls the NEON SIMD assembly implementation.
+func MulConstAddTo_F64(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
+	mulconstaddto_c_f64_neon(dst, pa, x, plen)
+}
+
+// MulTo_F16 calls the NEON SIMD assembly implementation.
+func MulTo_F16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	multo_c_f16_neon(dst, a, b, plen)
+}
+
+// MulTo_BF16 calls the NEON SIMD assembly implementation.
+func MulTo_BF16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	multo_c_bf16_neon(dst, a, b, plen)
+}
+
+// MulTo_F32 calls the NEON SIMD assembly implementation.
+func MulTo_F32(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	multo_c_f32_neon(dst, a, b, plen)
+}
+
+// MulTo_F64 calls the NEON SIMD assembly implementation.
+func MulTo_F64(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	multo_c_f64_neon(dst, a, b, plen)
+}
+
 // Scale_F16 calls the NEON SIMD assembly implementation.
 func Scale_F16(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
 	scale_c_f16_neon(pc, dst, plen)
@@ -205,43 +205,43 @@ func ScaleTo_F64(dst unsafe.Pointer, pc unsafe.Pointer, s unsafe.Pointer, plen u
 	scaleto_c_f64_neon(dst, pc, s, plen)
 }
 
-// AddConst_F16 calls the NEON SIMD assembly implementation.
-func AddConst_F16(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
-	addconst_c_f16_neon(pc, dst, plen)
+// Sub_F16 calls the NEON SIMD assembly implementation.
+func Sub_F16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	sub_c_f16_neon(dst, s, plen)
 }
 
-// AddConst_BF16 calls the NEON SIMD assembly implementation.
-func AddConst_BF16(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
-	addconst_c_bf16_neon(pc, dst, plen)
+// Sub_BF16 calls the NEON SIMD assembly implementation.
+func Sub_BF16(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	sub_c_bf16_neon(dst, s, plen)
 }
 
-// AddConst_F32 calls the NEON SIMD assembly implementation.
-func AddConst_F32(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
-	addconst_c_f32_neon(pc, dst, plen)
+// Sub_F32 calls the NEON SIMD assembly implementation.
+func Sub_F32(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	sub_c_f32_neon(dst, s, plen)
 }
 
-// AddConst_F64 calls the NEON SIMD assembly implementation.
-func AddConst_F64(pc unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer) {
-	addconst_c_f64_neon(pc, dst, plen)
+// Sub_F64 calls the NEON SIMD assembly implementation.
+func Sub_F64(dst unsafe.Pointer, s unsafe.Pointer, plen unsafe.Pointer) {
+	sub_c_f64_neon(dst, s, plen)
 }
 
-// MulConstAddTo_F16 calls the NEON SIMD assembly implementation.
-func MulConstAddTo_F16(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
-	mulconstaddto_c_f16_neon(dst, pa, x, plen)
+// SubTo_F16 calls the NEON SIMD assembly implementation.
+func SubTo_F16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	subto_c_f16_neon(dst, a, b, plen)
 }
 
-// MulConstAddTo_BF16 calls the NEON SIMD assembly implementation.
-func MulConstAddTo_BF16(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
-	mulconstaddto_c_bf16_neon(dst, pa, x, plen)
+// SubTo_BF16 calls the NEON SIMD assembly implementation.
+func SubTo_BF16(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	subto_c_bf16_neon(dst, a, b, plen)
 }
 
-// MulConstAddTo_F32 calls the NEON SIMD assembly implementation.
-func MulConstAddTo_F32(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
-	mulconstaddto_c_f32_neon(dst, pa, x, plen)
+// SubTo_F32 calls the NEON SIMD assembly implementation.
+func SubTo_F32(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	subto_c_f32_neon(dst, a, b, plen)
 }
 
-// MulConstAddTo_F64 calls the NEON SIMD assembly implementation.
-func MulConstAddTo_F64(dst unsafe.Pointer, pa unsafe.Pointer, x unsafe.Pointer, plen unsafe.Pointer) {
-	mulconstaddto_c_f64_neon(dst, pa, x, plen)
+// SubTo_F64 calls the NEON SIMD assembly implementation.
+func SubTo_F64(dst unsafe.Pointer, a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer) {
+	subto_c_f64_neon(dst, a, b, plen)
 }
 
