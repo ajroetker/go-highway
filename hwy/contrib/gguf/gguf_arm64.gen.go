@@ -9,7 +9,12 @@ import (
 )
 
 var DequantizeIQ4NL func(data []uint8, output []float32)
+var DequantizeQ2K func(data []uint8, output []float32)
+var DequantizeQ3K func(data []uint8, output []float32)
+var DequantizeQ4K func(data []uint8, output []float32)
 var DequantizeQ4_0 func(data []uint8, output []float32)
+var DequantizeQ5K func(data []uint8, output []float32)
+var DequantizeQ6K func(data []uint8, output []float32)
 var DequantizeQ8_0 func(data []uint8, output []float32)
 
 func init() {
@@ -27,6 +32,11 @@ func initGgufAll() {
 
 func initGgufFallback() {
 	DequantizeIQ4NL = BaseDequantizeIQ4NL_fallback
+	DequantizeQ2K = BaseDequantizeQ2K_fallback
+	DequantizeQ3K = BaseDequantizeQ3K_fallback
+	DequantizeQ4K = BaseDequantizeQ4K_fallback
 	DequantizeQ4_0 = BaseDequantizeQ4_0_fallback
+	DequantizeQ5K = BaseDequantizeQ5K_fallback
+	DequantizeQ6K = BaseDequantizeQ6K_fallback
 	DequantizeQ8_0 = BaseDequantizeQ8_0_fallback
 }

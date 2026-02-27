@@ -26,6 +26,66 @@ func DequantizeIQ4NLCF32(data []uint8, output []float32) {
 	)
 }
 
+// DequantizeQ2KCF32 computes DequantizeQ2K using NEON SIMD assembly.
+func DequantizeQ2KCF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	dequantizeq2k_c_f32_neon(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// DequantizeQ3KCF32 computes DequantizeQ3K using NEON SIMD assembly.
+func DequantizeQ3KCF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	dequantizeq3k_c_f32_neon(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// DequantizeQ4KCF32 computes DequantizeQ4K using NEON SIMD assembly.
+func DequantizeQ4KCF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	dequantizeq4k_c_f32_neon(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
 // DequantizeQ4_0CF32 computes DequantizeQ4_0 using NEON SIMD assembly.
 func DequantizeQ4_0CF32(data []uint8, output []float32) {
 	var p_data unsafe.Pointer
@@ -39,6 +99,46 @@ func DequantizeQ4_0CF32(data []uint8, output []float32) {
 	len_dataVal := int64(len(data))
 	len_outputVal := int64(len(output))
 	dequantizeq4_0_c_f32_neon(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// DequantizeQ5KCF32 computes DequantizeQ5K using NEON SIMD assembly.
+func DequantizeQ5KCF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	dequantizeq5k_c_f32_neon(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// DequantizeQ6KCF32 computes DequantizeQ6K using NEON SIMD assembly.
+func DequantizeQ6KCF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	dequantizeq6k_c_f32_neon(
 		p_data,
 		p_output,
 		unsafe.Pointer(&len_dataVal),

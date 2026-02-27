@@ -19,7 +19,12 @@ func initGgufNeonCAsm() {
 		return
 	}
 	DequantizeIQ4NL = dequantizeIQ4NLAsmF32
+	DequantizeQ2K = dequantizeQ2KAsmF32
+	DequantizeQ3K = dequantizeQ3KAsmF32
+	DequantizeQ4K = dequantizeQ4KAsmF32
 	DequantizeQ4_0 = dequantizeQ4_0AsmF32
+	DequantizeQ5K = dequantizeQ5KAsmF32
+	DequantizeQ6K = dequantizeQ6KAsmF32
 	DequantizeQ8_0 = dequantizeQ8_0AsmF32
 }
 
@@ -42,6 +47,63 @@ func dequantizeIQ4NLAsmF32(data []uint8, output []float32) {
 	)
 }
 
+func dequantizeQ2KAsmF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	asm.DequantizeQ2K_F32(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func dequantizeQ3KAsmF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	asm.DequantizeQ3K_F32(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func dequantizeQ4KAsmF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	asm.DequantizeQ4K_F32(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
 func dequantizeQ4_0AsmF32(data []uint8, output []float32) {
 	var p_data unsafe.Pointer
 	if len(data) > 0 {
@@ -54,6 +116,44 @@ func dequantizeQ4_0AsmF32(data []uint8, output []float32) {
 	len_dataVal := int64(len(data))
 	len_outputVal := int64(len(output))
 	asm.DequantizeQ4_0_F32(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func dequantizeQ5KAsmF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	asm.DequantizeQ5K_F32(
+		p_data,
+		p_output,
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func dequantizeQ6KAsmF32(data []uint8, output []float32) {
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	len_dataVal := int64(len(data))
+	len_outputVal := int64(len(output))
+	asm.DequantizeQ6K_F32(
 		p_data,
 		p_output,
 		unsafe.Pointer(&len_dataVal),

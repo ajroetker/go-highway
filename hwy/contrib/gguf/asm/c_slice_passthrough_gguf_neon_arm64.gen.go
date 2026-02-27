@@ -10,9 +10,34 @@ func DequantizeIQ4NL_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data u
 	dequantizeiq4nl_c_f32_neon(data, output, plen_data, plen_output)
 }
 
+// DequantizeQ2K_F32 calls the NEON SIMD assembly implementation.
+func DequantizeQ2K_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data unsafe.Pointer, plen_output unsafe.Pointer) {
+	dequantizeq2k_c_f32_neon(data, output, plen_data, plen_output)
+}
+
+// DequantizeQ3K_F32 calls the NEON SIMD assembly implementation.
+func DequantizeQ3K_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data unsafe.Pointer, plen_output unsafe.Pointer) {
+	dequantizeq3k_c_f32_neon(data, output, plen_data, plen_output)
+}
+
+// DequantizeQ4K_F32 calls the NEON SIMD assembly implementation.
+func DequantizeQ4K_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data unsafe.Pointer, plen_output unsafe.Pointer) {
+	dequantizeq4k_c_f32_neon(data, output, plen_data, plen_output)
+}
+
 // DequantizeQ4_0_F32 calls the NEON SIMD assembly implementation.
 func DequantizeQ4_0_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data unsafe.Pointer, plen_output unsafe.Pointer) {
 	dequantizeq4_0_c_f32_neon(data, output, plen_data, plen_output)
+}
+
+// DequantizeQ5K_F32 calls the NEON SIMD assembly implementation.
+func DequantizeQ5K_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data unsafe.Pointer, plen_output unsafe.Pointer) {
+	dequantizeq5k_c_f32_neon(data, output, plen_data, plen_output)
+}
+
+// DequantizeQ6K_F32 calls the NEON SIMD assembly implementation.
+func DequantizeQ6K_F32(data unsafe.Pointer, output unsafe.Pointer, plen_data unsafe.Pointer, plen_output unsafe.Pointer) {
+	dequantizeq6k_c_f32_neon(data, output, plen_data, plen_output)
 }
 
 // DequantizeQ8_0_F32 calls the NEON SIMD assembly implementation.
