@@ -12,26 +12,14 @@ var AddFloat16 func(dst []hwy.Float16, s []hwy.Float16)
 var AddBFloat16 func(dst []hwy.BFloat16, s []hwy.BFloat16)
 var AddFloat32 func(dst []float32, s []float32)
 var AddFloat64 func(dst []float64, s []float64)
+var AddConstFloat16 func(c hwy.Float16, dst []hwy.Float16)
+var AddConstBFloat16 func(c hwy.BFloat16, dst []hwy.BFloat16)
+var AddConstFloat32 func(c float32, dst []float32)
+var AddConstFloat64 func(c float64, dst []float64)
 var AddToFloat16 func(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 var AddToBFloat16 func(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16)
 var AddToFloat32 func(dst []float32, a []float32, b []float32)
 var AddToFloat64 func(dst []float64, a []float64, b []float64)
-var SubFloat16 func(dst []hwy.Float16, s []hwy.Float16)
-var SubBFloat16 func(dst []hwy.BFloat16, s []hwy.BFloat16)
-var SubFloat32 func(dst []float32, s []float32)
-var SubFloat64 func(dst []float64, s []float64)
-var SubToFloat16 func(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
-var SubToBFloat16 func(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16)
-var SubToFloat32 func(dst []float32, a []float32, b []float32)
-var SubToFloat64 func(dst []float64, a []float64, b []float64)
-var MulFloat16 func(dst []hwy.Float16, s []hwy.Float16)
-var MulBFloat16 func(dst []hwy.BFloat16, s []hwy.BFloat16)
-var MulFloat32 func(dst []float32, s []float32)
-var MulFloat64 func(dst []float64, s []float64)
-var MulToFloat16 func(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
-var MulToBFloat16 func(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16)
-var MulToFloat32 func(dst []float32, a []float32, b []float32)
-var MulToFloat64 func(dst []float64, a []float64, b []float64)
 var DivFloat16 func(dst []hwy.Float16, s []hwy.Float16)
 var DivBFloat16 func(dst []hwy.BFloat16, s []hwy.BFloat16)
 var DivFloat32 func(dst []float32, s []float32)
@@ -40,6 +28,18 @@ var DivToFloat16 func(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
 var DivToBFloat16 func(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16)
 var DivToFloat32 func(dst []float32, a []float32, b []float32)
 var DivToFloat64 func(dst []float64, a []float64, b []float64)
+var MulFloat16 func(dst []hwy.Float16, s []hwy.Float16)
+var MulBFloat16 func(dst []hwy.BFloat16, s []hwy.BFloat16)
+var MulFloat32 func(dst []float32, s []float32)
+var MulFloat64 func(dst []float64, s []float64)
+var MulConstAddToFloat16 func(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16)
+var MulConstAddToBFloat16 func(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16)
+var MulConstAddToFloat32 func(dst []float32, a float32, x []float32)
+var MulConstAddToFloat64 func(dst []float64, a float64, x []float64)
+var MulToFloat16 func(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
+var MulToBFloat16 func(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16)
+var MulToFloat32 func(dst []float32, a []float32, b []float32)
+var MulToFloat64 func(dst []float64, a []float64, b []float64)
 var ScaleFloat16 func(c hwy.Float16, dst []hwy.Float16)
 var ScaleBFloat16 func(c hwy.BFloat16, dst []hwy.BFloat16)
 var ScaleFloat32 func(c float32, dst []float32)
@@ -48,14 +48,14 @@ var ScaleToFloat16 func(dst []hwy.Float16, c hwy.Float16, s []hwy.Float16)
 var ScaleToBFloat16 func(dst []hwy.BFloat16, c hwy.BFloat16, s []hwy.BFloat16)
 var ScaleToFloat32 func(dst []float32, c float32, s []float32)
 var ScaleToFloat64 func(dst []float64, c float64, s []float64)
-var AddConstFloat16 func(c hwy.Float16, dst []hwy.Float16)
-var AddConstBFloat16 func(c hwy.BFloat16, dst []hwy.BFloat16)
-var AddConstFloat32 func(c float32, dst []float32)
-var AddConstFloat64 func(c float64, dst []float64)
-var MulConstAddToFloat16 func(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16)
-var MulConstAddToBFloat16 func(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16)
-var MulConstAddToFloat32 func(dst []float32, a float32, x []float32)
-var MulConstAddToFloat64 func(dst []float64, a float64, x []float64)
+var SubFloat16 func(dst []hwy.Float16, s []hwy.Float16)
+var SubBFloat16 func(dst []hwy.BFloat16, s []hwy.BFloat16)
+var SubFloat32 func(dst []float32, s []float32)
+var SubFloat64 func(dst []float64, s []float64)
+var SubToFloat16 func(dst []hwy.Float16, a []hwy.Float16, b []hwy.Float16)
+var SubToBFloat16 func(dst []hwy.BFloat16, a []hwy.BFloat16, b []hwy.BFloat16)
+var SubToFloat32 func(dst []float32, a []float32, b []float32)
+var SubToFloat64 func(dst []float64, a []float64, b []float64)
 
 // Add performs in-place element-wise addition: dst[i] += s[i].
 //
@@ -84,6 +84,31 @@ func Add[T hwy.Floats](dst []T, s []T) {
 	}
 }
 
+// AddConst performs in-place scalar addition: dst[i] += c.
+//
+// Returns early if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	BaseAddConst(10, dst)  // dst is now {11, 12, 13, 14}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func AddConst[T hwy.Floats](c T, dst []T) {
+	switch any(c).(type) {
+	case hwy.Float16:
+		AddConstFloat16(any(c).(hwy.Float16), any(dst).([]hwy.Float16))
+	case hwy.BFloat16:
+		AddConstBFloat16(any(c).(hwy.BFloat16), any(dst).([]hwy.BFloat16))
+	case float32:
+		AddConstFloat32(any(c).(float32), any(dst).([]float32))
+	case float64:
+		AddConstFloat64(any(c).(float64), any(dst).([]float64))
+	}
+}
+
 // AddTo performs element-wise addition: dst[i] = a[i] + b[i].
 //
 // If the slices have different lengths, the operation uses the minimum length.
@@ -109,116 +134,6 @@ func AddTo[T hwy.Floats](dst []T, a []T, b []T) {
 		AddToFloat32(any(dst).([]float32), any(a).([]float32), any(b).([]float32))
 	case []float64:
 		AddToFloat64(any(dst).([]float64), any(a).([]float64), any(b).([]float64))
-	}
-}
-
-// Sub performs in-place element-wise subtraction: dst[i] -= s[i].
-//
-// If the slices have different lengths, the operation uses the minimum length.
-// Returns early if either slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-//
-// Example:
-//
-//	dst := []float32{10, 20, 30, 40}
-//	s := []float32{1, 2, 3, 4}
-//	BaseSub(dst, s)  // dst is now {9, 18, 27, 36}
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Sub[T hwy.Floats](dst []T, s []T) {
-	switch any(dst).(type) {
-	case []hwy.Float16:
-		SubFloat16(any(dst).([]hwy.Float16), any(s).([]hwy.Float16))
-	case []hwy.BFloat16:
-		SubBFloat16(any(dst).([]hwy.BFloat16), any(s).([]hwy.BFloat16))
-	case []float32:
-		SubFloat32(any(dst).([]float32), any(s).([]float32))
-	case []float64:
-		SubFloat64(any(dst).([]float64), any(s).([]float64))
-	}
-}
-
-// SubTo performs element-wise subtraction: dst[i] = a[i] - b[i].
-//
-// If the slices have different lengths, the operation uses the minimum length.
-// Returns early if any slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-//
-// Example:
-//
-//	a := []float32{10, 20, 30, 40}
-//	b := []float32{1, 2, 3, 4}
-//	dst := make([]float32, 4)
-//	BaseSubTo(dst, a, b)  // dst is now {9, 18, 27, 36}
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func SubTo[T hwy.Floats](dst []T, a []T, b []T) {
-	switch any(dst).(type) {
-	case []hwy.Float16:
-		SubToFloat16(any(dst).([]hwy.Float16), any(a).([]hwy.Float16), any(b).([]hwy.Float16))
-	case []hwy.BFloat16:
-		SubToBFloat16(any(dst).([]hwy.BFloat16), any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))
-	case []float32:
-		SubToFloat32(any(dst).([]float32), any(a).([]float32), any(b).([]float32))
-	case []float64:
-		SubToFloat64(any(dst).([]float64), any(a).([]float64), any(b).([]float64))
-	}
-}
-
-// Mul performs in-place element-wise multiplication: dst[i] *= s[i].
-//
-// If the slices have different lengths, the operation uses the minimum length.
-// Returns early if either slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-//
-// Example:
-//
-//	dst := []float32{1, 2, 3, 4}
-//	s := []float32{2, 3, 4, 5}
-//	BaseMul(dst, s)  // dst is now {2, 6, 12, 20}
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Mul[T hwy.Floats](dst []T, s []T) {
-	switch any(dst).(type) {
-	case []hwy.Float16:
-		MulFloat16(any(dst).([]hwy.Float16), any(s).([]hwy.Float16))
-	case []hwy.BFloat16:
-		MulBFloat16(any(dst).([]hwy.BFloat16), any(s).([]hwy.BFloat16))
-	case []float32:
-		MulFloat32(any(dst).([]float32), any(s).([]float32))
-	case []float64:
-		MulFloat64(any(dst).([]float64), any(s).([]float64))
-	}
-}
-
-// MulTo performs element-wise multiplication: dst[i] = a[i] * b[i].
-//
-// If the slices have different lengths, the operation uses the minimum length.
-// Returns early if any slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-//
-// Example:
-//
-//	a := []float32{1, 2, 3, 4}
-//	b := []float32{2, 3, 4, 5}
-//	dst := make([]float32, 4)
-//	BaseMulTo(dst, a, b)  // dst is now {2, 6, 12, 20}
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func MulTo[T hwy.Floats](dst []T, a []T, b []T) {
-	switch any(dst).(type) {
-	case []hwy.Float16:
-		MulToFloat16(any(dst).([]hwy.Float16), any(a).([]hwy.Float16), any(b).([]hwy.Float16))
-	case []hwy.BFloat16:
-		MulToBFloat16(any(dst).([]hwy.BFloat16), any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))
-	case []float32:
-		MulToFloat32(any(dst).([]float32), any(a).([]float32), any(b).([]float32))
-	case []float64:
-		MulToFloat64(any(dst).([]float64), any(a).([]float64), any(b).([]float64))
 	}
 }
 
@@ -283,6 +198,92 @@ func DivTo[T hwy.Floats](dst []T, a []T, b []T) {
 	}
 }
 
+// Mul performs in-place element-wise multiplication: dst[i] *= s[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	s := []float32{2, 3, 4, 5}
+//	BaseMul(dst, s)  // dst is now {2, 6, 12, 20}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Mul[T hwy.Floats](dst []T, s []T) {
+	switch any(dst).(type) {
+	case []hwy.Float16:
+		MulFloat16(any(dst).([]hwy.Float16), any(s).([]hwy.Float16))
+	case []hwy.BFloat16:
+		MulBFloat16(any(dst).([]hwy.BFloat16), any(s).([]hwy.BFloat16))
+	case []float32:
+		MulFloat32(any(dst).([]float32), any(s).([]float32))
+	case []float64:
+		MulFloat64(any(dst).([]float64), any(s).([]float64))
+	}
+}
+
+// MulConstAddTo performs fused multiply-add: dst[i] += a * x[i].
+//
+// This operation is also known as AXPY (a*x plus y) in BLAS terminology.
+// It uses fused multiply-add (FMA) instructions when available for better
+// performance and precision.
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if either slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	dst := []float32{1, 2, 3, 4}
+//	x := []float32{1, 1, 1, 1}
+//	BaseMulConstAddTo(dst, 10, x)  // dst is now {11, 12, 13, 14}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func MulConstAddTo[T hwy.Floats](dst []T, a T, x []T) {
+	switch any(dst).(type) {
+	case []hwy.Float16:
+		MulConstAddToFloat16(any(dst).([]hwy.Float16), any(a).(hwy.Float16), any(x).([]hwy.Float16))
+	case []hwy.BFloat16:
+		MulConstAddToBFloat16(any(dst).([]hwy.BFloat16), any(a).(hwy.BFloat16), any(x).([]hwy.BFloat16))
+	case []float32:
+		MulConstAddToFloat32(any(dst).([]float32), any(a).(float32), any(x).([]float32))
+	case []float64:
+		MulConstAddToFloat64(any(dst).([]float64), any(a).(float64), any(x).([]float64))
+	}
+}
+
+// MulTo performs element-wise multiplication: dst[i] = a[i] * b[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if any slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	a := []float32{1, 2, 3, 4}
+//	b := []float32{2, 3, 4, 5}
+//	dst := make([]float32, 4)
+//	BaseMulTo(dst, a, b)  // dst is now {2, 6, 12, 20}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func MulTo[T hwy.Floats](dst []T, a []T, b []T) {
+	switch any(dst).(type) {
+	case []hwy.Float16:
+		MulToFloat16(any(dst).([]hwy.Float16), any(a).([]hwy.Float16), any(b).([]hwy.Float16))
+	case []hwy.BFloat16:
+		MulToBFloat16(any(dst).([]hwy.BFloat16), any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))
+	case []float32:
+		MulToFloat32(any(dst).([]float32), any(a).([]float32), any(b).([]float32))
+	case []float64:
+		MulToFloat64(any(dst).([]float64), any(a).([]float64), any(b).([]float64))
+	}
+}
+
 // Scale performs in-place scalar multiplication: dst[i] *= c.
 //
 // Returns early if the slice is empty.
@@ -335,36 +336,7 @@ func ScaleTo[T hwy.Floats](dst []T, c T, s []T) {
 	}
 }
 
-// AddConst performs in-place scalar addition: dst[i] += c.
-//
-// Returns early if the slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-//
-// Example:
-//
-//	dst := []float32{1, 2, 3, 4}
-//	BaseAddConst(10, dst)  // dst is now {11, 12, 13, 14}
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func AddConst[T hwy.Floats](c T, dst []T) {
-	switch any(c).(type) {
-	case hwy.Float16:
-		AddConstFloat16(any(c).(hwy.Float16), any(dst).([]hwy.Float16))
-	case hwy.BFloat16:
-		AddConstBFloat16(any(c).(hwy.BFloat16), any(dst).([]hwy.BFloat16))
-	case float32:
-		AddConstFloat32(any(c).(float32), any(dst).([]float32))
-	case float64:
-		AddConstFloat64(any(c).(float64), any(dst).([]float64))
-	}
-}
-
-// MulConstAddTo performs fused multiply-add: dst[i] += a * x[i].
-//
-// This operation is also known as AXPY (a*x plus y) in BLAS terminology.
-// It uses fused multiply-add (FMA) instructions when available for better
-// performance and precision.
+// Sub performs in-place element-wise subtraction: dst[i] -= s[i].
 //
 // If the slices have different lengths, the operation uses the minimum length.
 // Returns early if either slice is empty.
@@ -373,21 +345,49 @@ func AddConst[T hwy.Floats](c T, dst []T) {
 //
 // Example:
 //
-//	dst := []float32{1, 2, 3, 4}
-//	x := []float32{1, 1, 1, 1}
-//	BaseMulConstAddTo(dst, 10, x)  // dst is now {11, 12, 13, 14}
+//	dst := []float32{10, 20, 30, 40}
+//	s := []float32{1, 2, 3, 4}
+//	BaseSub(dst, s)  // dst is now {9, 18, 27, 36}
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func MulConstAddTo[T hwy.Floats](dst []T, a T, x []T) {
+func Sub[T hwy.Floats](dst []T, s []T) {
 	switch any(dst).(type) {
 	case []hwy.Float16:
-		MulConstAddToFloat16(any(dst).([]hwy.Float16), any(a).(hwy.Float16), any(x).([]hwy.Float16))
+		SubFloat16(any(dst).([]hwy.Float16), any(s).([]hwy.Float16))
 	case []hwy.BFloat16:
-		MulConstAddToBFloat16(any(dst).([]hwy.BFloat16), any(a).(hwy.BFloat16), any(x).([]hwy.BFloat16))
+		SubBFloat16(any(dst).([]hwy.BFloat16), any(s).([]hwy.BFloat16))
 	case []float32:
-		MulConstAddToFloat32(any(dst).([]float32), any(a).(float32), any(x).([]float32))
+		SubFloat32(any(dst).([]float32), any(s).([]float32))
 	case []float64:
-		MulConstAddToFloat64(any(dst).([]float64), any(a).(float64), any(x).([]float64))
+		SubFloat64(any(dst).([]float64), any(s).([]float64))
+	}
+}
+
+// SubTo performs element-wise subtraction: dst[i] = a[i] - b[i].
+//
+// If the slices have different lengths, the operation uses the minimum length.
+// Returns early if any slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+//
+// Example:
+//
+//	a := []float32{10, 20, 30, 40}
+//	b := []float32{1, 2, 3, 4}
+//	dst := make([]float32, 4)
+//	BaseSubTo(dst, a, b)  // dst is now {9, 18, 27, 36}
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func SubTo[T hwy.Floats](dst []T, a []T, b []T) {
+	switch any(dst).(type) {
+	case []hwy.Float16:
+		SubToFloat16(any(dst).([]hwy.Float16), any(a).([]hwy.Float16), any(b).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SubToBFloat16(any(dst).([]hwy.BFloat16), any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))
+	case []float32:
+		SubToFloat32(any(dst).([]float32), any(a).([]float32), any(b).([]float32))
+	case []float64:
+		SubToFloat64(any(dst).([]float64), any(a).([]float64), any(b).([]float64))
 	}
 }
 
@@ -400,59 +400,8 @@ func initArithmeticAll() {
 		initArithmeticFallback()
 		return
 	}
-	initArithmeticNEON()
+	initArithmeticFallback()
 	return
-}
-
-func initArithmeticNEON() {
-	AddFloat16 = BaseAdd_neon_Float16
-	AddBFloat16 = BaseAdd_neon_BFloat16
-	AddFloat32 = BaseAdd_neon
-	AddFloat64 = BaseAdd_neon_Float64
-	AddToFloat16 = BaseAddTo_neon_Float16
-	AddToBFloat16 = BaseAddTo_neon_BFloat16
-	AddToFloat32 = BaseAddTo_neon
-	AddToFloat64 = BaseAddTo_neon_Float64
-	SubFloat16 = BaseSub_neon_Float16
-	SubBFloat16 = BaseSub_neon_BFloat16
-	SubFloat32 = BaseSub_neon
-	SubFloat64 = BaseSub_neon_Float64
-	SubToFloat16 = BaseSubTo_neon_Float16
-	SubToBFloat16 = BaseSubTo_neon_BFloat16
-	SubToFloat32 = BaseSubTo_neon
-	SubToFloat64 = BaseSubTo_neon_Float64
-	MulFloat16 = BaseMul_neon_Float16
-	MulBFloat16 = BaseMul_neon_BFloat16
-	MulFloat32 = BaseMul_neon
-	MulFloat64 = BaseMul_neon_Float64
-	MulToFloat16 = BaseMulTo_neon_Float16
-	MulToBFloat16 = BaseMulTo_neon_BFloat16
-	MulToFloat32 = BaseMulTo_neon
-	MulToFloat64 = BaseMulTo_neon_Float64
-	DivFloat16 = BaseDiv_neon_Float16
-	DivBFloat16 = BaseDiv_neon_BFloat16
-	DivFloat32 = BaseDiv_neon
-	DivFloat64 = BaseDiv_neon_Float64
-	DivToFloat16 = BaseDivTo_neon_Float16
-	DivToBFloat16 = BaseDivTo_neon_BFloat16
-	DivToFloat32 = BaseDivTo_neon
-	DivToFloat64 = BaseDivTo_neon_Float64
-	ScaleFloat16 = BaseScale_neon_Float16
-	ScaleBFloat16 = BaseScale_neon_BFloat16
-	ScaleFloat32 = BaseScale_neon
-	ScaleFloat64 = BaseScale_neon_Float64
-	ScaleToFloat16 = BaseScaleTo_neon_Float16
-	ScaleToBFloat16 = BaseScaleTo_neon_BFloat16
-	ScaleToFloat32 = BaseScaleTo_neon
-	ScaleToFloat64 = BaseScaleTo_neon_Float64
-	AddConstFloat16 = BaseAddConst_neon_Float16
-	AddConstBFloat16 = BaseAddConst_neon_BFloat16
-	AddConstFloat32 = BaseAddConst_neon
-	AddConstFloat64 = BaseAddConst_neon_Float64
-	MulConstAddToFloat16 = BaseMulConstAddTo_neon_Float16
-	MulConstAddToBFloat16 = BaseMulConstAddTo_neon_BFloat16
-	MulConstAddToFloat32 = BaseMulConstAddTo_neon
-	MulConstAddToFloat64 = BaseMulConstAddTo_neon_Float64
 }
 
 func initArithmeticFallback() {
@@ -460,26 +409,14 @@ func initArithmeticFallback() {
 	AddBFloat16 = BaseAdd_fallback_BFloat16
 	AddFloat32 = BaseAdd_fallback
 	AddFloat64 = BaseAdd_fallback_Float64
+	AddConstFloat16 = BaseAddConst_fallback_Float16
+	AddConstBFloat16 = BaseAddConst_fallback_BFloat16
+	AddConstFloat32 = BaseAddConst_fallback
+	AddConstFloat64 = BaseAddConst_fallback_Float64
 	AddToFloat16 = BaseAddTo_fallback_Float16
 	AddToBFloat16 = BaseAddTo_fallback_BFloat16
 	AddToFloat32 = BaseAddTo_fallback
 	AddToFloat64 = BaseAddTo_fallback_Float64
-	SubFloat16 = BaseSub_fallback_Float16
-	SubBFloat16 = BaseSub_fallback_BFloat16
-	SubFloat32 = BaseSub_fallback
-	SubFloat64 = BaseSub_fallback_Float64
-	SubToFloat16 = BaseSubTo_fallback_Float16
-	SubToBFloat16 = BaseSubTo_fallback_BFloat16
-	SubToFloat32 = BaseSubTo_fallback
-	SubToFloat64 = BaseSubTo_fallback_Float64
-	MulFloat16 = BaseMul_fallback_Float16
-	MulBFloat16 = BaseMul_fallback_BFloat16
-	MulFloat32 = BaseMul_fallback
-	MulFloat64 = BaseMul_fallback_Float64
-	MulToFloat16 = BaseMulTo_fallback_Float16
-	MulToBFloat16 = BaseMulTo_fallback_BFloat16
-	MulToFloat32 = BaseMulTo_fallback
-	MulToFloat64 = BaseMulTo_fallback_Float64
 	DivFloat16 = BaseDiv_fallback_Float16
 	DivBFloat16 = BaseDiv_fallback_BFloat16
 	DivFloat32 = BaseDiv_fallback
@@ -488,6 +425,18 @@ func initArithmeticFallback() {
 	DivToBFloat16 = BaseDivTo_fallback_BFloat16
 	DivToFloat32 = BaseDivTo_fallback
 	DivToFloat64 = BaseDivTo_fallback_Float64
+	MulFloat16 = BaseMul_fallback_Float16
+	MulBFloat16 = BaseMul_fallback_BFloat16
+	MulFloat32 = BaseMul_fallback
+	MulFloat64 = BaseMul_fallback_Float64
+	MulConstAddToFloat16 = BaseMulConstAddTo_fallback_Float16
+	MulConstAddToBFloat16 = BaseMulConstAddTo_fallback_BFloat16
+	MulConstAddToFloat32 = BaseMulConstAddTo_fallback
+	MulConstAddToFloat64 = BaseMulConstAddTo_fallback_Float64
+	MulToFloat16 = BaseMulTo_fallback_Float16
+	MulToBFloat16 = BaseMulTo_fallback_BFloat16
+	MulToFloat32 = BaseMulTo_fallback
+	MulToFloat64 = BaseMulTo_fallback_Float64
 	ScaleFloat16 = BaseScale_fallback_Float16
 	ScaleBFloat16 = BaseScale_fallback_BFloat16
 	ScaleFloat32 = BaseScale_fallback
@@ -496,12 +445,12 @@ func initArithmeticFallback() {
 	ScaleToBFloat16 = BaseScaleTo_fallback_BFloat16
 	ScaleToFloat32 = BaseScaleTo_fallback
 	ScaleToFloat64 = BaseScaleTo_fallback_Float64
-	AddConstFloat16 = BaseAddConst_fallback_Float16
-	AddConstBFloat16 = BaseAddConst_fallback_BFloat16
-	AddConstFloat32 = BaseAddConst_fallback
-	AddConstFloat64 = BaseAddConst_fallback_Float64
-	MulConstAddToFloat16 = BaseMulConstAddTo_fallback_Float16
-	MulConstAddToBFloat16 = BaseMulConstAddTo_fallback_BFloat16
-	MulConstAddToFloat32 = BaseMulConstAddTo_fallback
-	MulConstAddToFloat64 = BaseMulConstAddTo_fallback_Float64
+	SubFloat16 = BaseSub_fallback_Float16
+	SubBFloat16 = BaseSub_fallback_BFloat16
+	SubFloat32 = BaseSub_fallback
+	SubFloat64 = BaseSub_fallback_Float64
+	SubToFloat16 = BaseSubTo_fallback_Float16
+	SubToBFloat16 = BaseSubTo_fallback_BFloat16
+	SubToFloat32 = BaseSubTo_fallback
+	SubToFloat64 = BaseSubTo_fallback_Float64
 }

@@ -10,10 +10,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var EncodeFloat32s func(dst []byte, src []float32)
 var DecodeFloat32s func(dst []float32, src []byte)
-var EncodeFloat64s func(dst []byte, src []float64)
 var DecodeFloat64s func(dst []float64, src []byte)
+var EncodeFloat32s func(dst []byte, src []float32)
+var EncodeFloat64s func(dst []byte, src []float64)
 
 func init() {
 	initEncodeAll()
@@ -36,22 +36,22 @@ func initEncodeAll() {
 }
 
 func initEncodeAVX2() {
-	EncodeFloat32s = BaseEncodeFloat32s_avx2
 	DecodeFloat32s = BaseDecodeFloat32s_avx2
-	EncodeFloat64s = BaseEncodeFloat64s_avx2
 	DecodeFloat64s = BaseDecodeFloat64s_avx2
+	EncodeFloat32s = BaseEncodeFloat32s_avx2
+	EncodeFloat64s = BaseEncodeFloat64s_avx2
 }
 
 func initEncodeAVX512() {
-	EncodeFloat32s = BaseEncodeFloat32s_avx512
 	DecodeFloat32s = BaseDecodeFloat32s_avx512
-	EncodeFloat64s = BaseEncodeFloat64s_avx512
 	DecodeFloat64s = BaseDecodeFloat64s_avx512
+	EncodeFloat32s = BaseEncodeFloat32s_avx512
+	EncodeFloat64s = BaseEncodeFloat64s_avx512
 }
 
 func initEncodeFallback() {
-	EncodeFloat32s = BaseEncodeFloat32s_fallback
 	DecodeFloat32s = BaseDecodeFloat32s_fallback
-	EncodeFloat64s = BaseEncodeFloat64s_fallback
 	DecodeFloat64s = BaseDecodeFloat64s_fallback
+	EncodeFloat32s = BaseEncodeFloat32s_fallback
+	EncodeFloat64s = BaseEncodeFloat64s_fallback
 }

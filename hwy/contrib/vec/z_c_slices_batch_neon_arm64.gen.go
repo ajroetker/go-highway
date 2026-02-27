@@ -18,138 +18,18 @@ func initBatchNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	BatchL2SquaredDistanceFloat32 = batchL2SquaredDistanceAsmF32
-	BatchL2SquaredDistanceFloat64 = batchL2SquaredDistanceAsmF64
 	BatchDotFloat32 = batchDotAsmF32
 	BatchDotFloat64 = batchDotAsmF64
+	BatchL2SquaredDistanceFloat32 = batchL2SquaredDistanceAsmF32
+	BatchL2SquaredDistanceFloat64 = batchL2SquaredDistanceAsmF64
 	if hwy.HasARMFP16() {
-		BatchL2SquaredDistanceFloat16 = batchL2SquaredDistanceAsmF16
 		BatchDotFloat16 = batchDotAsmF16
+		BatchL2SquaredDistanceFloat16 = batchL2SquaredDistanceAsmF16
 	}
 	if hwy.HasARMBF16() {
-		BatchL2SquaredDistanceBFloat16 = batchL2SquaredDistanceAsmBF16
 		BatchDotBFloat16 = batchDotAsmBF16
+		BatchL2SquaredDistanceBFloat16 = batchL2SquaredDistanceAsmBF16
 	}
-}
-
-func batchL2SquaredDistanceAsmF16(query, data, distances []hwy.Float16, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	asm.BatchL2SquaredDistance_F16(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
-func batchL2SquaredDistanceAsmBF16(query, data, distances []hwy.BFloat16, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	asm.BatchL2SquaredDistance_BF16(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
-func batchL2SquaredDistanceAsmF32(query, data, distances []float32, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	asm.BatchL2SquaredDistance_F32(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
-}
-
-func batchL2SquaredDistanceAsmF64(query, data, distances []float64, count, dims int) {
-	var p_query unsafe.Pointer
-	if len(query) > 0 {
-		p_query = unsafe.Pointer(&query[0])
-	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	var p_distances unsafe.Pointer
-	if len(distances) > 0 {
-		p_distances = unsafe.Pointer(&distances[0])
-	}
-	countVal := int64(count)
-	dimsVal := int64(dims)
-	len_queryVal := int64(len(query))
-	len_dataVal := int64(len(data))
-	len_distancesVal := int64(len(distances))
-	asm.BatchL2SquaredDistance_F64(
-		p_query,
-		p_data,
-		p_distances,
-		unsafe.Pointer(&countVal),
-		unsafe.Pointer(&dimsVal),
-		unsafe.Pointer(&len_queryVal),
-		unsafe.Pointer(&len_dataVal),
-		unsafe.Pointer(&len_distancesVal),
-	)
 }
 
 func batchDotAsmF16(query, data, dots []hwy.Float16, count, dims int) {
@@ -269,6 +149,126 @@ func batchDotAsmF64(query, data, dots []float64, count, dims int) {
 		unsafe.Pointer(&len_queryVal),
 		unsafe.Pointer(&len_dataVal),
 		unsafe.Pointer(&len_dotsVal),
+	)
+}
+
+func batchL2SquaredDistanceAsmF16(query, data, distances []hwy.Float16, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	asm.BatchL2SquaredDistance_F16(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
+	)
+}
+
+func batchL2SquaredDistanceAsmBF16(query, data, distances []hwy.BFloat16, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	asm.BatchL2SquaredDistance_BF16(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
+	)
+}
+
+func batchL2SquaredDistanceAsmF32(query, data, distances []float32, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	asm.BatchL2SquaredDistance_F32(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
+	)
+}
+
+func batchL2SquaredDistanceAsmF64(query, data, distances []float64, count, dims int) {
+	var p_query unsafe.Pointer
+	if len(query) > 0 {
+		p_query = unsafe.Pointer(&query[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_distances unsafe.Pointer
+	if len(distances) > 0 {
+		p_distances = unsafe.Pointer(&distances[0])
+	}
+	countVal := int64(count)
+	dimsVal := int64(dims)
+	len_queryVal := int64(len(query))
+	len_dataVal := int64(len(data))
+	len_distancesVal := int64(len(distances))
+	asm.BatchL2SquaredDistance_F64(
+		p_query,
+		p_data,
+		p_distances,
+		unsafe.Pointer(&countVal),
+		unsafe.Pointer(&dimsVal),
+		unsafe.Pointer(&len_queryVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_distancesVal),
 	)
 }
 

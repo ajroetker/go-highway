@@ -12,226 +12,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-func BaseSum_avx512_Float16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := asm.ZeroFloat16x16AVX512()
-	lanes := 16
-	var i int
-	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
-		sum = sum.Add(va)
-		va1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
-		sum = sum.Add(va1)
-		va2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
-		sum = sum.Add(va2)
-	}
-	result := sum.ReduceSum()
-	for ; i < len(v); i++ {
-		result += v[i].Float32()
-	}
-	return hwy.Float32ToFloat16(result)
-}
-
-func BaseSum_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := asm.ZeroBFloat16x16AVX512()
-	lanes := 16
-	var i int
-	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
-		sum = sum.Add(va)
-		va1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
-		sum = sum.Add(va1)
-		va2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
-		sum = sum.Add(va2)
-	}
-	result := sum.ReduceSum()
-	for ; i < len(v); i++ {
-		result += v[i].Float32()
-	}
-	return hwy.Float32ToBFloat16(result)
-}
-
-func BaseSum_avx512(v []float32) float32 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := archsimd.BroadcastFloat32x16(0)
-	lanes := 16
-	var i int
-	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i])))
-		sum = sum.Add(va)
-		va1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+16])))
-		sum = sum.Add(va1)
-		va2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+32])))
-		sum = sum.Add(va2)
-	}
-	result := hwy.ReduceSum_AVX512_F32x16(sum)
-	for ; i < len(v); i++ {
-		result += v[i]
-	}
-	return result
-}
-
-func BaseSum_avx512_Float64(v []float64) float64 {
-	if len(v) == 0 {
-		return 0
-	}
-	sum := archsimd.BroadcastFloat64x8(0)
-	lanes := 8
-	var i int
-	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i])))
-		sum = sum.Add(va)
-		va1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+8])))
-		sum = sum.Add(va1)
-		va2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+16])))
-		sum = sum.Add(va2)
-	}
-	result := hwy.ReduceSum_AVX512_F64x8(sum)
-	for ; i < len(v); i++ {
-		result += v[i]
-	}
-	return result
-}
-
-func BaseMin_avx512_Float16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	lanes := 16
-	if len(v) < lanes {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i].Float32() < result.Float32() {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(v))), len(v)))
-	var i int
-	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
-		minVec = minVec.Min(va)
-		va1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
-		minVec = minVec.Min(va1)
-		va2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
-		minVec = minVec.Min(va2)
-	}
-	result := minVec.ReduceMin()
-	for ; i < len(v); i++ {
-		if v[i].Float32() < result {
-			result = v[i].Float32()
-		}
-	}
-	return hwy.Float32ToFloat16(result)
-}
-
-func BaseMin_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	lanes := 16
-	if len(v) < lanes {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i].Float32() < result.Float32() {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(v))), len(v)))
-	var i int
-	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
-		minVec = minVec.Min(va)
-		va1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
-		minVec = minVec.Min(va1)
-		va2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
-		minVec = minVec.Min(va2)
-	}
-	result := minVec.ReduceMin()
-	for ; i < len(v); i++ {
-		if v[i].Float32() < result {
-			result = v[i].Float32()
-		}
-	}
-	return hwy.Float32ToBFloat16(result)
-}
-
-func BaseMin_avx512(v []float32) float32 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	lanes := 16
-	if len(v) < lanes {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i] < result {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := archsimd.LoadFloat32x16Slice(v)
-	var i int
-	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i])))
-		minVec = minVec.Min(va)
-		va1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+16])))
-		minVec = minVec.Min(va1)
-		va2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+32])))
-		minVec = minVec.Min(va2)
-	}
-	result := hwy.ReduceMin_AVX512_F32x16(minVec)
-	for ; i < len(v); i++ {
-		if v[i] < result {
-			result = v[i]
-		}
-	}
-	return result
-}
-
-func BaseMin_avx512_Float64(v []float64) float64 {
-	if len(v) == 0 {
-		panic("vec: Min called on empty slice")
-	}
-	lanes := 8
-	if len(v) < lanes {
-		result := v[0]
-		for i := 1; i < len(v); i++ {
-			if v[i] < result {
-				result = v[i]
-			}
-		}
-		return result
-	}
-	minVec := archsimd.LoadFloat64x8Slice(v)
-	var i int
-	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
-		va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i])))
-		minVec = minVec.Min(va)
-		va1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+8])))
-		minVec = minVec.Min(va1)
-		va2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+16])))
-		minVec = minVec.Min(va2)
-	}
-	result := hwy.ReduceMin_AVX512_F64x8(minVec)
-	for ; i < len(v); i++ {
-		if v[i] < result {
-			result = v[i]
-		}
-	}
-	return result
-}
-
 func BaseMax_avx512(v []float32) float32 {
 	if len(v) == 0 {
 		panic("vec: Max called on empty slice")
@@ -430,6 +210,138 @@ func BaseMax_avx512_Uint64(v []uint64) uint64 {
 	return result
 }
 
+func BaseMin_avx512_Float16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	lanes := 16
+	if len(v) < lanes {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i].Float32() < result.Float32() {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := asm.LoadFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(v))), len(v)))
+	var i int
+	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
+		minVec = minVec.Min(va)
+		va1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
+		minVec = minVec.Min(va1)
+		va2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
+		minVec = minVec.Min(va2)
+	}
+	result := minVec.ReduceMin()
+	for ; i < len(v); i++ {
+		if v[i].Float32() < result {
+			result = v[i].Float32()
+		}
+	}
+	return hwy.Float32ToFloat16(result)
+}
+
+func BaseMin_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	lanes := 16
+	if len(v) < lanes {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i].Float32() < result.Float32() {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := asm.LoadBFloat16x16AVX512Slice(unsafe.Slice((*uint16)(unsafe.Pointer(unsafe.SliceData(v))), len(v)))
+	var i int
+	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
+		minVec = minVec.Min(va)
+		va1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
+		minVec = minVec.Min(va1)
+		va2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
+		minVec = minVec.Min(va2)
+	}
+	result := minVec.ReduceMin()
+	for ; i < len(v); i++ {
+		if v[i].Float32() < result {
+			result = v[i].Float32()
+		}
+	}
+	return hwy.Float32ToBFloat16(result)
+}
+
+func BaseMin_avx512(v []float32) float32 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	lanes := 16
+	if len(v) < lanes {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i] < result {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := archsimd.LoadFloat32x16Slice(v)
+	var i int
+	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i])))
+		minVec = minVec.Min(va)
+		va1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+16])))
+		minVec = minVec.Min(va1)
+		va2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+32])))
+		minVec = minVec.Min(va2)
+	}
+	result := hwy.ReduceMin_AVX512_F32x16(minVec)
+	for ; i < len(v); i++ {
+		if v[i] < result {
+			result = v[i]
+		}
+	}
+	return result
+}
+
+func BaseMin_avx512_Float64(v []float64) float64 {
+	if len(v) == 0 {
+		panic("vec: Min called on empty slice")
+	}
+	lanes := 8
+	if len(v) < lanes {
+		result := v[0]
+		for i := 1; i < len(v); i++ {
+			if v[i] < result {
+				result = v[i]
+			}
+		}
+		return result
+	}
+	minVec := archsimd.LoadFloat64x8Slice(v)
+	var i int
+	for i = lanes; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i])))
+		minVec = minVec.Min(va)
+		va1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+8])))
+		minVec = minVec.Min(va1)
+		va2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+16])))
+		minVec = minVec.Min(va2)
+	}
+	result := hwy.ReduceMin_AVX512_F64x8(minVec)
+	for ; i < len(v); i++ {
+		if v[i] < result {
+			result = v[i]
+		}
+	}
+	return result
+}
+
 func BaseMinMax_avx512_Float16(v []hwy.Float16) (minVal hwy.Float16, maxVal hwy.Float16) {
 	if len(v) == 0 {
 		panic("vec: MinMax called on empty slice")
@@ -608,4 +520,92 @@ func BaseMinMax_avx512_Float64(v []float64) (minVal float64, maxVal float64) {
 		}
 	}
 	return minVal, maxVal
+}
+
+func BaseSum_avx512_Float16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := asm.ZeroFloat16x16AVX512()
+	lanes := 16
+	var i int
+	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
+		sum = sum.Add(va)
+		va1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
+		sum = sum.Add(va1)
+		va2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
+		sum = sum.Add(va2)
+	}
+	result := sum.ReduceSum()
+	for ; i < len(v); i++ {
+		result += v[i].Float32()
+	}
+	return hwy.Float32ToFloat16(result)
+}
+
+func BaseSum_avx512_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := asm.ZeroBFloat16x16AVX512()
+	lanes := 16
+	var i int
+	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i:][0]))
+		sum = sum.Add(va)
+		va1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+16:][0]))
+		sum = sum.Add(va1)
+		va2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&v[i+32:][0]))
+		sum = sum.Add(va2)
+	}
+	result := sum.ReduceSum()
+	for ; i < len(v); i++ {
+		result += v[i].Float32()
+	}
+	return hwy.Float32ToBFloat16(result)
+}
+
+func BaseSum_avx512(v []float32) float32 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := archsimd.BroadcastFloat32x16(0)
+	lanes := 16
+	var i int
+	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i])))
+		sum = sum.Add(va)
+		va1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+16])))
+		sum = sum.Add(va1)
+		va2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&v[i+32])))
+		sum = sum.Add(va2)
+	}
+	result := hwy.ReduceSum_AVX512_F32x16(sum)
+	for ; i < len(v); i++ {
+		result += v[i]
+	}
+	return result
+}
+
+func BaseSum_avx512_Float64(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	sum := archsimd.BroadcastFloat64x8(0)
+	lanes := 8
+	var i int
+	for i = 0; i+lanes*3 <= len(v); i += lanes * 3 {
+		va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i])))
+		sum = sum.Add(va)
+		va1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+8])))
+		sum = sum.Add(va1)
+		va2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&v[i+16])))
+		sum = sum.Add(va2)
+	}
+	result := hwy.ReduceSum_AVX512_F64x8(sum)
+	for ; i < len(v); i++ {
+		result += v[i]
+	}
+	return result
 }

@@ -82,19 +82,8 @@ func initArgmaxAll() {
 		initArgmaxFallback()
 		return
 	}
-	initArgmaxNEON()
+	initArgmaxFallback()
 	return
-}
-
-func initArgmaxNEON() {
-	ArgmaxFloat16 = BaseArgmax_neon_Float16
-	ArgmaxBFloat16 = BaseArgmax_neon_BFloat16
-	ArgmaxFloat32 = BaseArgmax_neon
-	ArgmaxFloat64 = BaseArgmax_neon_Float64
-	ArgminFloat16 = BaseArgmin_neon_Float16
-	ArgminBFloat16 = BaseArgmin_neon_BFloat16
-	ArgminFloat32 = BaseArgmin_neon
-	ArgminFloat64 = BaseArgmin_neon_Float64
 }
 
 func initArgmaxFallback() {

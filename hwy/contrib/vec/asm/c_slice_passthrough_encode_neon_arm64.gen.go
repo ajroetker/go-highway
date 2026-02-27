@@ -5,23 +5,23 @@ package asm
 
 import "unsafe"
 
-// EncodeFloat32s_U8 calls the NEON SIMD assembly implementation.
-func EncodeFloat32s_U8(dst unsafe.Pointer, src unsafe.Pointer, plen_dst unsafe.Pointer, plen_src unsafe.Pointer) {
-	encodefloat32s_c_u8_neon(dst, src, plen_dst, plen_src)
-}
-
 // DecodeFloat32s_F32 calls the NEON SIMD assembly implementation.
 func DecodeFloat32s_F32(dst unsafe.Pointer, src unsafe.Pointer, plen_dst unsafe.Pointer, plen_src unsafe.Pointer) {
 	decodefloat32s_c_f32_neon(dst, src, plen_dst, plen_src)
 }
 
-// EncodeFloat64s_U8 calls the NEON SIMD assembly implementation.
-func EncodeFloat64s_U8(dst unsafe.Pointer, src unsafe.Pointer, plen_dst unsafe.Pointer, plen_src unsafe.Pointer) {
-	encodefloat64s_c_u8_neon(dst, src, plen_dst, plen_src)
-}
-
 // DecodeFloat64s_F64 calls the NEON SIMD assembly implementation.
 func DecodeFloat64s_F64(dst unsafe.Pointer, src unsafe.Pointer, plen_dst unsafe.Pointer, plen_src unsafe.Pointer) {
 	decodefloat64s_c_f64_neon(dst, src, plen_dst, plen_src)
+}
+
+// EncodeFloat32s_F32 calls the NEON SIMD assembly implementation.
+func EncodeFloat32s_F32(dst unsafe.Pointer, src unsafe.Pointer, plen_dst unsafe.Pointer, plen_src unsafe.Pointer) {
+	encodefloat32s_c_f32_neon(dst, src, plen_dst, plen_src)
+}
+
+// EncodeFloat64s_F64 calls the NEON SIMD assembly implementation.
+func EncodeFloat64s_F64(dst unsafe.Pointer, src unsafe.Pointer, plen_dst unsafe.Pointer, plen_src unsafe.Pointer) {
+	encodefloat64s_c_f64_neon(dst, src, plen_dst, plen_src)
 }
 

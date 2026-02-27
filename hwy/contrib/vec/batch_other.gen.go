@@ -8,63 +8,14 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var BatchL2SquaredDistanceFloat16 func(query []hwy.Float16, data []hwy.Float16, distances []hwy.Float16, count int, dims int)
-var BatchL2SquaredDistanceBFloat16 func(query []hwy.BFloat16, data []hwy.BFloat16, distances []hwy.BFloat16, count int, dims int)
-var BatchL2SquaredDistanceFloat32 func(query []float32, data []float32, distances []float32, count int, dims int)
-var BatchL2SquaredDistanceFloat64 func(query []float64, data []float64, distances []float64, count int, dims int)
 var BatchDotFloat16 func(query []hwy.Float16, data []hwy.Float16, dots []hwy.Float16, count int, dims int)
 var BatchDotBFloat16 func(query []hwy.BFloat16, data []hwy.BFloat16, dots []hwy.BFloat16, count int, dims int)
 var BatchDotFloat32 func(query []float32, data []float32, dots []float32, count int, dims int)
 var BatchDotFloat64 func(query []float64, data []float64, dots []float64, count int, dims int)
-
-// BatchL2SquaredDistance computes the L2 squared distance from a single query
-// vector to multiple data vectors using SIMD primitives.
-//
-// Parameters:
-//   - query: a single vector of length dims
-//   - data: a flattened array of count vectors, each of length dims (total: count*dims)
-//   - distances: output buffer of length count, must be pre-allocated
-//   - count: number of data vectors to compare against
-//   - dims: dimensionality of each vector
-//
-// For each i in [0, count):
-//
-//	distances[i] = sum((query[j] - data[i*dims + j])^2 for j in [0, dims))
-//
-// The computation is SIMD-accelerated along the dims dimension. The outer loop
-// over count is sequential, but each individual distance computation uses
-// vectorized operations.
-//
-// Edge cases:
-//   - Returns immediately if count <= 0 or dims <= 0
-//   - Validates that data has at least count*dims elements
-//   - Validates that distances has at least count elements
-//
-// Works with float32 and float64 slices.
-//
-// Example:
-//
-//	query := []float32{1, 2, 3}
-//	data := []float32{4, 5, 6, 1, 2, 3, 0, 0, 0}  // 3 vectors of dims=3
-//	distances := make([]float32, 3)
-//	BaseBatchL2SquaredDistance(query, data, distances, 3, 3)
-//	// distances[0] = (1-4)^2 + (2-5)^2 + (3-6)^2 = 27
-//	// distances[1] = 0 (same as query)
-//	// distances[2] = 1 + 4 + 9 = 14
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func BatchL2SquaredDistance[T hwy.Floats](query []T, data []T, distances []T, count int, dims int) {
-	switch any(query).(type) {
-	case []hwy.Float16:
-		BatchL2SquaredDistanceFloat16(any(query).([]hwy.Float16), any(data).([]hwy.Float16), any(distances).([]hwy.Float16), count, dims)
-	case []hwy.BFloat16:
-		BatchL2SquaredDistanceBFloat16(any(query).([]hwy.BFloat16), any(data).([]hwy.BFloat16), any(distances).([]hwy.BFloat16), count, dims)
-	case []float32:
-		BatchL2SquaredDistanceFloat32(any(query).([]float32), any(data).([]float32), any(distances).([]float32), count, dims)
-	case []float64:
-		BatchL2SquaredDistanceFloat64(any(query).([]float64), any(data).([]float64), any(distances).([]float64), count, dims)
-	}
-}
+var BatchL2SquaredDistanceFloat16 func(query []hwy.Float16, data []hwy.Float16, distances []hwy.Float16, count int, dims int)
+var BatchL2SquaredDistanceBFloat16 func(query []hwy.BFloat16, data []hwy.BFloat16, distances []hwy.BFloat16, count int, dims int)
+var BatchL2SquaredDistanceFloat32 func(query []float32, data []float32, distances []float32, count int, dims int)
+var BatchL2SquaredDistanceFloat64 func(query []float64, data []float64, distances []float64, count int, dims int)
 
 // BatchDot computes the dot product of a single query vector with multiple
 // data vectors using SIMD primitives.
@@ -115,6 +66,55 @@ func BatchDot[T hwy.Floats](query []T, data []T, dots []T, count int, dims int) 
 	}
 }
 
+// BatchL2SquaredDistance computes the L2 squared distance from a single query
+// vector to multiple data vectors using SIMD primitives.
+//
+// Parameters:
+//   - query: a single vector of length dims
+//   - data: a flattened array of count vectors, each of length dims (total: count*dims)
+//   - distances: output buffer of length count, must be pre-allocated
+//   - count: number of data vectors to compare against
+//   - dims: dimensionality of each vector
+//
+// For each i in [0, count):
+//
+//	distances[i] = sum((query[j] - data[i*dims + j])^2 for j in [0, dims))
+//
+// The computation is SIMD-accelerated along the dims dimension. The outer loop
+// over count is sequential, but each individual distance computation uses
+// vectorized operations.
+//
+// Edge cases:
+//   - Returns immediately if count <= 0 or dims <= 0
+//   - Validates that data has at least count*dims elements
+//   - Validates that distances has at least count elements
+//
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	query := []float32{1, 2, 3}
+//	data := []float32{4, 5, 6, 1, 2, 3, 0, 0, 0}  // 3 vectors of dims=3
+//	distances := make([]float32, 3)
+//	BaseBatchL2SquaredDistance(query, data, distances, 3, 3)
+//	// distances[0] = (1-4)^2 + (2-5)^2 + (3-6)^2 = 27
+//	// distances[1] = 0 (same as query)
+//	// distances[2] = 1 + 4 + 9 = 14
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func BatchL2SquaredDistance[T hwy.Floats](query []T, data []T, distances []T, count int, dims int) {
+	switch any(query).(type) {
+	case []hwy.Float16:
+		BatchL2SquaredDistanceFloat16(any(query).([]hwy.Float16), any(data).([]hwy.Float16), any(distances).([]hwy.Float16), count, dims)
+	case []hwy.BFloat16:
+		BatchL2SquaredDistanceBFloat16(any(query).([]hwy.BFloat16), any(data).([]hwy.BFloat16), any(distances).([]hwy.BFloat16), count, dims)
+	case []float32:
+		BatchL2SquaredDistanceFloat32(any(query).([]float32), any(data).([]float32), any(distances).([]float32), count, dims)
+	case []float64:
+		BatchL2SquaredDistanceFloat64(any(query).([]float64), any(data).([]float64), any(distances).([]float64), count, dims)
+	}
+}
+
 func init() {
 	initBatchAll()
 }
@@ -125,12 +125,12 @@ func initBatchAll() {
 }
 
 func initBatchFallback() {
-	BatchL2SquaredDistanceFloat16 = BaseBatchL2SquaredDistance_fallback_Float16
-	BatchL2SquaredDistanceBFloat16 = BaseBatchL2SquaredDistance_fallback_BFloat16
-	BatchL2SquaredDistanceFloat32 = BaseBatchL2SquaredDistance_fallback
-	BatchL2SquaredDistanceFloat64 = BaseBatchL2SquaredDistance_fallback_Float64
 	BatchDotFloat16 = BaseBatchDot_fallback_Float16
 	BatchDotBFloat16 = BaseBatchDot_fallback_BFloat16
 	BatchDotFloat32 = BaseBatchDot_fallback
 	BatchDotFloat64 = BaseBatchDot_fallback_Float64
+	BatchL2SquaredDistanceFloat16 = BaseBatchL2SquaredDistance_fallback_Float16
+	BatchL2SquaredDistanceBFloat16 = BaseBatchL2SquaredDistance_fallback_BFloat16
+	BatchL2SquaredDistanceFloat32 = BaseBatchL2SquaredDistance_fallback
+	BatchL2SquaredDistanceFloat64 = BaseBatchL2SquaredDistance_fallback_Float64
 }

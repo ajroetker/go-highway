@@ -6,26 +6,6 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
-// EncodeFloat32sCU8 computes EncodeFloat32s using NEON SIMD assembly.
-func EncodeFloat32sCU8(dst []byte, src []float32) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	len_dstVal := int64(len(dst))
-	len_srcVal := int64(len(src))
-	encodefloat32s_c_u8_neon(
-		p_dst,
-		p_src,
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&len_srcVal),
-	)
-}
-
 // DecodeFloat32sCF32 computes DecodeFloat32s using NEON SIMD assembly.
 func DecodeFloat32sCF32(dst []float32, src []byte) {
 	var p_dst unsafe.Pointer
@@ -46,26 +26,6 @@ func DecodeFloat32sCF32(dst []float32, src []byte) {
 	)
 }
 
-// EncodeFloat64sCU8 computes EncodeFloat64s using NEON SIMD assembly.
-func EncodeFloat64sCU8(dst []byte, src []float64) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	len_dstVal := int64(len(dst))
-	len_srcVal := int64(len(src))
-	encodefloat64s_c_u8_neon(
-		p_dst,
-		p_src,
-		unsafe.Pointer(&len_dstVal),
-		unsafe.Pointer(&len_srcVal),
-	)
-}
-
 // DecodeFloat64sCF64 computes DecodeFloat64s using NEON SIMD assembly.
 func DecodeFloat64sCF64(dst []float64, src []byte) {
 	var p_dst unsafe.Pointer
@@ -79,6 +39,46 @@ func DecodeFloat64sCF64(dst []float64, src []byte) {
 	len_dstVal := int64(len(dst))
 	len_srcVal := int64(len(src))
 	decodefloat64s_c_f64_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
+	)
+}
+
+// EncodeFloat32sCF32 computes EncodeFloat32s using NEON SIMD assembly.
+func EncodeFloat32sCF32(dst []byte, src []float32) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
+	encodefloat32s_c_f32_neon(
+		p_dst,
+		p_src,
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&len_srcVal),
+	)
+}
+
+// EncodeFloat64sCF64 computes EncodeFloat64s using NEON SIMD assembly.
+func EncodeFloat64sCF64(dst []byte, src []float64) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	len_dstVal := int64(len(dst))
+	len_srcVal := int64(len(src))
+	encodefloat64s_c_f64_neon(
 		p_dst,
 		p_src,
 		unsafe.Pointer(&len_dstVal),

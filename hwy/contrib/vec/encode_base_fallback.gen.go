@@ -6,25 +6,6 @@ import (
 	"unsafe"
 )
 
-func BaseEncodeFloat32s_fallback(dst []byte, src []float32) {
-	if len(src) == 0 {
-		return
-	}
-	totalBytes := len(src) * 4
-	if len(dst) < totalBytes {
-		panic("dst is too short")
-	}
-	srcBytes := unsafe.Slice((*byte)(unsafe.Pointer(&src[0])), totalBytes)
-	i := 0
-	for ; i < totalBytes; i++ {
-		v := srcBytes[i]
-		dst[i] = v
-	}
-	for ; i < totalBytes; i++ {
-		dst[i] = srcBytes[i]
-	}
-}
-
 func BaseDecodeFloat32s_fallback(dst []float32, src []byte) {
 	if len(dst) == 0 {
 		return
@@ -44,25 +25,6 @@ func BaseDecodeFloat32s_fallback(dst []float32, src []byte) {
 	}
 }
 
-func BaseEncodeFloat64s_fallback(dst []byte, src []float64) {
-	if len(src) == 0 {
-		return
-	}
-	totalBytes := len(src) * 8
-	if len(dst) < totalBytes {
-		panic("dst is too short")
-	}
-	srcBytes := unsafe.Slice((*byte)(unsafe.Pointer(&src[0])), totalBytes)
-	i := 0
-	for ; i < totalBytes; i++ {
-		v := srcBytes[i]
-		dst[i] = v
-	}
-	for ; i < totalBytes; i++ {
-		dst[i] = srcBytes[i]
-	}
-}
-
 func BaseDecodeFloat64s_fallback(dst []float64, src []byte) {
 	if len(dst) == 0 {
 		return
@@ -79,5 +41,43 @@ func BaseDecodeFloat64s_fallback(dst []float64, src []byte) {
 	}
 	for ; i < totalBytes; i++ {
 		dstBytes[i] = src[i]
+	}
+}
+
+func BaseEncodeFloat32s_fallback(dst []byte, src []float32) {
+	if len(src) == 0 {
+		return
+	}
+	totalBytes := len(src) * 4
+	if len(dst) < totalBytes {
+		panic("dst is too short")
+	}
+	srcBytes := unsafe.Slice((*byte)(unsafe.Pointer(&src[0])), totalBytes)
+	i := 0
+	for ; i < totalBytes; i++ {
+		v := srcBytes[i]
+		dst[i] = v
+	}
+	for ; i < totalBytes; i++ {
+		dst[i] = srcBytes[i]
+	}
+}
+
+func BaseEncodeFloat64s_fallback(dst []byte, src []float64) {
+	if len(src) == 0 {
+		return
+	}
+	totalBytes := len(src) * 8
+	if len(dst) < totalBytes {
+		panic("dst is too short")
+	}
+	srcBytes := unsafe.Slice((*byte)(unsafe.Pointer(&src[0])), totalBytes)
+	i := 0
+	for ; i < totalBytes; i++ {
+		v := srcBytes[i]
+		dst[i] = v
+	}
+	for ; i < totalBytes; i++ {
+		dst[i] = srcBytes[i]
 	}
 }

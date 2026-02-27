@@ -8,43 +8,14 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var SquaredNormFloat16 func(v []hwy.Float16) hwy.Float16
-var SquaredNormBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
-var SquaredNormFloat32 func(v []float32) float32
-var SquaredNormFloat64 func(v []float64) float64
 var NormFloat16 func(v []hwy.Float16) hwy.Float16
 var NormBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
 var NormFloat32 func(v []float32) float32
 var NormFloat64 func(v []float64) float64
-
-// SquaredNorm computes the squared L2 norm (sum of squares) of a vector
-// using hwy primitives.
-// The result is equivalent to Dot(v, v): Σ(v[i] * v[i]).
-//
-// Returns 0 if the slice is empty.
-//
-// Uses SIMD acceleration when available via the hwy package primitives.
-// Works with float32 and float64 slices.
-//
-// Example:
-//
-//	v := []float32{3, 4}
-//	result := SquaredNorm(v)  // 3*3 + 4*4 = 25
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func SquaredNorm[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
-		return any(SquaredNormFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
-		return any(SquaredNormBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
-		return any(SquaredNormFloat32(any(v).([]float32))).(T)
-	case []float64:
-		return any(SquaredNormFloat64(any(v).([]float64))).(T)
-	}
-	panic("unreachable")
-}
+var SquaredNormFloat16 func(v []hwy.Float16) hwy.Float16
+var SquaredNormBFloat16 func(v []hwy.BFloat16) hwy.BFloat16
+var SquaredNormFloat32 func(v []float32) float32
+var SquaredNormFloat64 func(v []float64) float64
 
 // Norm computes the L2 norm (Euclidean magnitude) of a vector using hwy
 // primitives.
@@ -75,6 +46,35 @@ func Norm[T hwy.Floats](v []T) T {
 	panic("unreachable")
 }
 
+// SquaredNorm computes the squared L2 norm (sum of squares) of a vector
+// using hwy primitives.
+// The result is equivalent to Dot(v, v): Σ(v[i] * v[i]).
+//
+// Returns 0 if the slice is empty.
+//
+// Uses SIMD acceleration when available via the hwy package primitives.
+// Works with float32 and float64 slices.
+//
+// Example:
+//
+//	v := []float32{3, 4}
+//	result := SquaredNorm(v)  // 3*3 + 4*4 = 25
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func SquaredNorm[T hwy.Floats](v []T) T {
+	switch any(v).(type) {
+	case []hwy.Float16:
+		return any(SquaredNormFloat16(any(v).([]hwy.Float16))).(T)
+	case []hwy.BFloat16:
+		return any(SquaredNormBFloat16(any(v).([]hwy.BFloat16))).(T)
+	case []float32:
+		return any(SquaredNormFloat32(any(v).([]float32))).(T)
+	case []float64:
+		return any(SquaredNormFloat64(any(v).([]float64))).(T)
+	}
+	panic("unreachable")
+}
+
 func init() {
 	initNormAll()
 }
@@ -85,12 +85,12 @@ func initNormAll() {
 }
 
 func initNormFallback() {
-	SquaredNormFloat16 = BaseSquaredNorm_fallback_Float16
-	SquaredNormBFloat16 = BaseSquaredNorm_fallback_BFloat16
-	SquaredNormFloat32 = BaseSquaredNorm_fallback
-	SquaredNormFloat64 = BaseSquaredNorm_fallback_Float64
 	NormFloat16 = BaseNorm_fallback_Float16
 	NormBFloat16 = BaseNorm_fallback_BFloat16
 	NormFloat32 = BaseNorm_fallback
 	NormFloat64 = BaseNorm_fallback_Float64
+	SquaredNormFloat16 = BaseSquaredNorm_fallback_Float16
+	SquaredNormBFloat16 = BaseSquaredNorm_fallback_BFloat16
+	SquaredNormFloat32 = BaseSquaredNorm_fallback
+	SquaredNormFloat64 = BaseSquaredNorm_fallback_Float64
 }

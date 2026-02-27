@@ -10,158 +10,6 @@ import (
 )
 
 // Public wrapper functions
-// SumCF16 computes Sum using NEON SIMD assembly.
-func SumCF16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	sum_c_f16_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return hwy.Float16(out_result)
-}
-
-// SumCBF16 computes Sum using NEON SIMD assembly.
-func SumCBF16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	sum_c_bf16_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return hwy.BFloat16(out_result)
-}
-
-// SumCF32 computes Sum using NEON SIMD assembly.
-func SumCF32(v []float32) float32 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	sum_c_f32_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return float32(out_result)
-}
-
-// SumCF64 computes Sum using NEON SIMD assembly.
-func SumCF64(v []float64) float64 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	sum_c_f64_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return float64(out_result)
-}
-
-// MinCF16 computes Min using NEON SIMD assembly.
-func MinCF16(v []hwy.Float16) hwy.Float16 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	min_c_f16_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return hwy.Float16(out_result)
-}
-
-// MinCBF16 computes Min using NEON SIMD assembly.
-func MinCBF16(v []hwy.BFloat16) hwy.BFloat16 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	min_c_bf16_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return hwy.BFloat16(out_result)
-}
-
-// MinCF32 computes Min using NEON SIMD assembly.
-func MinCF32(v []float32) float32 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	min_c_f32_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return float32(out_result)
-}
-
-// MinCF64 computes Min using NEON SIMD assembly.
-func MinCF64(v []float64) float64 {
-	if len(v) == 0 {
-		return 0
-	}
-	var p_v unsafe.Pointer
-	if len(v) > 0 {
-		p_v = unsafe.Pointer(&v[0])
-	}
-	lenVal := int64(len(v))
-	var out_result int64
-	min_c_f64_neon(
-		p_v,
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return float64(out_result)
-}
-
 // MaxCF32 computes Max using NEON SIMD assembly.
 func MaxCF32(v []float32) float32 {
 	if len(v) == 0 {
@@ -276,6 +124,82 @@ func MaxCU64(v []uint64) uint64 {
 	return uint64(out_result)
 }
 
+// MinCF16 computes Min using NEON SIMD assembly.
+func MinCF16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	min_c_f16_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
+}
+
+// MinCBF16 computes Min using NEON SIMD assembly.
+func MinCBF16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	min_c_bf16_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
+}
+
+// MinCF32 computes Min using NEON SIMD assembly.
+func MinCF32(v []float32) float32 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	min_c_f32_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
+// MinCF64 computes Min using NEON SIMD assembly.
+func MinCF64(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	min_c_f64_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
+}
+
 // MinMaxCF16 computes MinMax using NEON SIMD assembly.
 func MinMaxCF16(v []hwy.Float16) (hwy.Float16, hwy.Float16) {
 	if len(v) == 0 {
@@ -358,5 +282,81 @@ func MinMaxCF64(v []float64) (float64, float64) {
 		unsafe.Pointer(&out_maxVal),
 	)
 	return float64(out_minVal), float64(out_maxVal)
+}
+
+// SumCF16 computes Sum using NEON SIMD assembly.
+func SumCF16(v []hwy.Float16) hwy.Float16 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_f16_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
+}
+
+// SumCBF16 computes Sum using NEON SIMD assembly.
+func SumCBF16(v []hwy.BFloat16) hwy.BFloat16 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_bf16_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
+}
+
+// SumCF32 computes Sum using NEON SIMD assembly.
+func SumCF32(v []float32) float32 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_f32_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
+// SumCF64 computes Sum using NEON SIMD assembly.
+func SumCF64(v []float64) float64 {
+	if len(v) == 0 {
+		return 0
+	}
+	var p_v unsafe.Pointer
+	if len(v) > 0 {
+		p_v = unsafe.Pointer(&v[0])
+	}
+	lenVal := int64(len(v))
+	var out_result int64
+	sum_c_f64_neon(
+		p_v,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
 }
 

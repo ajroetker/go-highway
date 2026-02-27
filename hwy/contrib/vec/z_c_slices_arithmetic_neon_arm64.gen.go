@@ -20,55 +20,55 @@ func initArithmeticNeonCAsm() {
 	}
 	AddFloat32 = addAsmF32
 	AddFloat64 = addAsmF64
+	AddConstFloat32 = addConstAsmF32
+	AddConstFloat64 = addConstAsmF64
 	AddToFloat32 = addToAsmF32
 	AddToFloat64 = addToAsmF64
-	SubFloat32 = subAsmF32
-	SubFloat64 = subAsmF64
-	SubToFloat32 = subToAsmF32
-	SubToFloat64 = subToAsmF64
-	MulFloat32 = mulAsmF32
-	MulFloat64 = mulAsmF64
-	MulToFloat32 = mulToAsmF32
-	MulToFloat64 = mulToAsmF64
 	DivFloat32 = divAsmF32
 	DivFloat64 = divAsmF64
 	DivToFloat32 = divToAsmF32
 	DivToFloat64 = divToAsmF64
+	MulFloat32 = mulAsmF32
+	MulFloat64 = mulAsmF64
+	MulConstAddToFloat32 = mulConstAddToAsmF32
+	MulConstAddToFloat64 = mulConstAddToAsmF64
+	MulToFloat32 = mulToAsmF32
+	MulToFloat64 = mulToAsmF64
 	ScaleFloat32 = scaleAsmF32
 	ScaleFloat64 = scaleAsmF64
 	ScaleToFloat32 = scaleToAsmF32
 	ScaleToFloat64 = scaleToAsmF64
-	AddConstFloat32 = addConstAsmF32
-	AddConstFloat64 = addConstAsmF64
-	MulConstAddToFloat32 = mulConstAddToAsmF32
-	MulConstAddToFloat64 = mulConstAddToAsmF64
+	SubFloat32 = subAsmF32
+	SubFloat64 = subAsmF64
+	SubToFloat32 = subToAsmF32
+	SubToFloat64 = subToAsmF64
 	if hwy.HasARMFP16() {
 		AddFloat16 = addAsmF16
+		AddConstFloat16 = addConstAsmF16
 		AddToFloat16 = addToAsmF16
-		SubFloat16 = subAsmF16
-		SubToFloat16 = subToAsmF16
-		MulFloat16 = mulAsmF16
-		MulToFloat16 = mulToAsmF16
 		DivFloat16 = divAsmF16
 		DivToFloat16 = divToAsmF16
+		MulFloat16 = mulAsmF16
+		MulConstAddToFloat16 = mulConstAddToAsmF16
+		MulToFloat16 = mulToAsmF16
 		ScaleFloat16 = scaleAsmF16
 		ScaleToFloat16 = scaleToAsmF16
-		AddConstFloat16 = addConstAsmF16
-		MulConstAddToFloat16 = mulConstAddToAsmF16
+		SubFloat16 = subAsmF16
+		SubToFloat16 = subToAsmF16
 	}
 	if hwy.HasARMBF16() {
 		AddBFloat16 = addAsmBF16
+		AddConstBFloat16 = addConstAsmBF16
 		AddToBFloat16 = addToAsmBF16
-		SubBFloat16 = subAsmBF16
-		SubToBFloat16 = subToAsmBF16
-		MulBFloat16 = mulAsmBF16
-		MulToBFloat16 = mulToAsmBF16
 		DivBFloat16 = divAsmBF16
 		DivToBFloat16 = divToAsmBF16
+		MulBFloat16 = mulAsmBF16
+		MulConstAddToBFloat16 = mulConstAddToAsmBF16
+		MulToBFloat16 = mulToAsmBF16
 		ScaleBFloat16 = scaleAsmBF16
 		ScaleToBFloat16 = scaleToAsmBF16
-		AddConstBFloat16 = addConstAsmBF16
-		MulConstAddToBFloat16 = mulConstAddToAsmBF16
+		SubBFloat16 = subAsmBF16
+		SubToBFloat16 = subToAsmBF16
 	}
 }
 
@@ -136,6 +136,62 @@ func addAsmF64(dst, s []float64) {
 	asm.Add_F64(
 		p_dst,
 		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func addConstAsmF16(c hwy.Float16, dst []hwy.Float16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := uint16(c)
+	lenVal := int64(len(dst))
+	asm.AddConst_F16(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func addConstAsmBF16(c hwy.BFloat16, dst []hwy.BFloat16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := uint16(c)
+	lenVal := int64(len(dst))
+	asm.AddConst_BF16(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func addConstAsmF32(c float32, dst []float32) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := c
+	lenVal := int64(len(dst))
+	asm.AddConst_F32(
+		unsafe.Pointer(&cVal),
+		p_dst,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func addConstAsmF64(c float64, dst []float64) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	cVal := c
+	lenVal := int64(len(dst))
+	asm.AddConst_F64(
+		unsafe.Pointer(&cVal),
+		p_dst,
 		unsafe.Pointer(&lenVal),
 	)
 }
@@ -221,318 +277,6 @@ func addToAsmF64(dst, a, b []float64) {
 	}
 	lenVal := int64(len(dst))
 	asm.AddTo_F64(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subAsmF16(dst, s []hwy.Float16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Sub_F16(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subAsmBF16(dst, s []hwy.BFloat16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Sub_BF16(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subAsmF32(dst, s []float32) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Sub_F32(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subAsmF64(dst, s []float64) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Sub_F64(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subToAsmF16(dst, a, b []hwy.Float16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.SubTo_F16(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subToAsmBF16(dst, a, b []hwy.BFloat16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.SubTo_BF16(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subToAsmF32(dst, a, b []float32) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.SubTo_F32(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func subToAsmF64(dst, a, b []float64) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.SubTo_F64(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulAsmF16(dst, s []hwy.Float16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Mul_F16(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulAsmBF16(dst, s []hwy.BFloat16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Mul_BF16(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulAsmF32(dst, s []float32) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Mul_F32(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulAsmF64(dst, s []float64) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_s unsafe.Pointer
-	if len(s) > 0 {
-		p_s = unsafe.Pointer(&s[0])
-	}
-	lenVal := int64(len(dst))
-	asm.Mul_F64(
-		p_dst,
-		p_s,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulToAsmF16(dst, a, b []hwy.Float16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.MulTo_F16(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulToAsmBF16(dst, a, b []hwy.BFloat16) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.MulTo_BF16(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulToAsmF32(dst, a, b []float32) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.MulTo_F32(
-		p_dst,
-		p_a,
-		p_b,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func mulToAsmF64(dst, a, b []float64) {
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	var p_a unsafe.Pointer
-	if len(a) > 0 {
-		p_a = unsafe.Pointer(&a[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	lenVal := int64(len(dst))
-	asm.MulTo_F64(
 		p_dst,
 		p_a,
 		p_b,
@@ -696,6 +440,238 @@ func divToAsmF64(dst, a, b []float64) {
 	)
 }
 
+func mulAsmF16(dst, s []hwy.Float16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	asm.Mul_F16(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulAsmBF16(dst, s []hwy.BFloat16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	asm.Mul_BF16(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulAsmF32(dst, s []float32) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	asm.Mul_F32(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulAsmF64(dst, s []float64) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
+	lenVal := int64(len(dst))
+	asm.Mul_F64(
+		p_dst,
+		p_s,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulConstAddToAsmF16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := uint16(a)
+	lenVal := int64(len(dst))
+	asm.MulConstAddTo_F16(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulConstAddToAsmBF16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := uint16(a)
+	lenVal := int64(len(dst))
+	asm.MulConstAddTo_BF16(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulConstAddToAsmF32(dst []float32, a float32, x []float32) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := a
+	lenVal := int64(len(dst))
+	asm.MulConstAddTo_F32(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulConstAddToAsmF64(dst []float64, a float64, x []float64) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	aVal := a
+	lenVal := int64(len(dst))
+	asm.MulConstAddTo_F64(
+		p_dst,
+		unsafe.Pointer(&aVal),
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulToAsmF16(dst, a, b []hwy.Float16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	asm.MulTo_F16(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulToAsmBF16(dst, a, b []hwy.BFloat16) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	asm.MulTo_BF16(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulToAsmF32(dst, a, b []float32) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	asm.MulTo_F32(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func mulToAsmF64(dst, a, b []float64) {
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(dst))
+	asm.MulTo_F64(
+		p_dst,
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 func scaleAsmF16(c hwy.Float16, dst []hwy.Float16) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
@@ -828,134 +804,158 @@ func scaleToAsmF64(dst []float64, c float64, s []float64) {
 	)
 }
 
-func addConstAsmF16(c hwy.Float16, dst []hwy.Float16) {
+func subAsmF16(dst, s []hwy.Float16) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := uint16(c)
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	asm.AddConst_F16(
-		unsafe.Pointer(&cVal),
+	asm.Sub_F16(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func addConstAsmBF16(c hwy.BFloat16, dst []hwy.BFloat16) {
+func subAsmBF16(dst, s []hwy.BFloat16) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := uint16(c)
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	asm.AddConst_BF16(
-		unsafe.Pointer(&cVal),
+	asm.Sub_BF16(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func addConstAsmF32(c float32, dst []float32) {
+func subAsmF32(dst, s []float32) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := c
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	asm.AddConst_F32(
-		unsafe.Pointer(&cVal),
+	asm.Sub_F32(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func addConstAsmF64(c float64, dst []float64) {
+func subAsmF64(dst, s []float64) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	cVal := c
+	var p_s unsafe.Pointer
+	if len(s) > 0 {
+		p_s = unsafe.Pointer(&s[0])
+	}
 	lenVal := int64(len(dst))
-	asm.AddConst_F64(
-		unsafe.Pointer(&cVal),
+	asm.Sub_F64(
 		p_dst,
+		p_s,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func mulConstAddToAsmF16(dst []hwy.Float16, a hwy.Float16, x []hwy.Float16) {
+func subToAsmF16(dst, a, b []hwy.Float16) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := uint16(a)
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	asm.MulConstAddTo_F16(
+	asm.SubTo_F16(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func mulConstAddToAsmBF16(dst []hwy.BFloat16, a hwy.BFloat16, x []hwy.BFloat16) {
+func subToAsmBF16(dst, a, b []hwy.BFloat16) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := uint16(a)
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	asm.MulConstAddTo_BF16(
+	asm.SubTo_BF16(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func mulConstAddToAsmF32(dst []float32, a float32, x []float32) {
+func subToAsmF32(dst, a, b []float32) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := a
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	asm.MulConstAddTo_F32(
+	asm.SubTo_F32(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-func mulConstAddToAsmF64(dst []float64, a float64, x []float64) {
+func subToAsmF64(dst, a, b []float64) {
 	var p_dst unsafe.Pointer
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	var p_x unsafe.Pointer
-	if len(x) > 0 {
-		p_x = unsafe.Pointer(&x[0])
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
 	}
-	aVal := a
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
 	lenVal := int64(len(dst))
-	asm.MulConstAddTo_F64(
+	asm.SubTo_F64(
 		p_dst,
-		unsafe.Pointer(&aVal),
-		p_x,
+		p_a,
+		p_b,
 		unsafe.Pointer(&lenVal),
 	)
 }
