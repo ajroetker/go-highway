@@ -22,6 +22,20 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+// QuantType identifies a GGUF quantization format for dispatch.
+type QuantType int
+
+const (
+	TypeQ4_0  QuantType = iota
+	TypeQ8_0
+	TypeIQ4NL
+	TypeQ2_K
+	TypeQ3_K
+	TypeQ4_K
+	TypeQ5_K
+	TypeQ6_K
+)
+
 // Block sizes in bytes for each GGUF quantization format.
 const (
 	BlockSizeQ4_0  = 18 // fp16 scale (2) + 16 nibble bytes
@@ -36,7 +50,57 @@ const (
 	BlockSizeQ4K = 144 // d(2) + dmin(2) + scales(12) + qs(128)
 	BlockSizeQ5K = 176 // d(2) + dmin(2) + scales(12) + qs(128) + qh(32)
 	BlockSizeQ6K = 210 // ql(128) + qh(64) + scales(16) + d(2)
+
+	// Q8_K activation format for K-quant weight types.
+	// 256 values per block with per-sub-block int16 sums for K-quant compatibility.
+	// Layout: d(4 bytes float32) + qs(256 bytes int8) + bsums(16 * 2 bytes int16)
+	BlockSizeQ8K = 4 + 256 + 32 // 292 bytes
 )
+
+// ValuesPerBlock returns the number of float32 values represented by one block.
+func ValuesPerBlock(qt QuantType) int {
+	switch qt {
+	case TypeQ4_0, TypeQ8_0, TypeIQ4NL:
+		return QK
+	default:
+		return QK_K
+	}
+}
+
+// BytesPerBlock returns the byte size of one quantized block.
+func BytesPerBlock(qt QuantType) int {
+	switch qt {
+	case TypeQ4_0:
+		return BlockSizeQ4_0
+	case TypeQ8_0:
+		return BlockSizeQ8_0
+	case TypeIQ4NL:
+		return BlockSizeIQ4NL
+	case TypeQ2_K:
+		return BlockSizeQ2K
+	case TypeQ3_K:
+		return BlockSizeQ3K
+	case TypeQ4_K:
+		return BlockSizeQ4K
+	case TypeQ5_K:
+		return BlockSizeQ5K
+	case TypeQ6_K:
+		return BlockSizeQ6K
+	default:
+		return 0
+	}
+}
+
+// ActivationBlockSize returns the byte size of one activation block for the given weight type.
+// Tier 1 types (Q4_0, Q8_0, IQ4_NL) use Q8_0 activations; K-quant types use Q8_K.
+func ActivationBlockSize(qt QuantType) int {
+	switch qt {
+	case TypeQ4_0, TypeQ8_0, TypeIQ4NL:
+		return BlockSizeQ8_0
+	default:
+		return BlockSizeQ8K
+	}
+}
 
 // kvaluesIQ4NL is the non-linear lookup table for IQ4_NL dequantization.
 // From llama.cpp ggml-common.h kvalues_iq4nl.
