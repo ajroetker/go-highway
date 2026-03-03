@@ -18,18 +18,110 @@ func initTransposeNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	Transpose2DStridedFloat32 = transpose2DStridedAsmF32
-	Transpose2DStridedFloat64 = transpose2DStridedAsmF64
 	Transpose2DFloat32 = transpose2DAsmF32
 	Transpose2DFloat64 = transpose2DAsmF64
+	Transpose2DStridedFloat32 = transpose2DStridedAsmF32
+	Transpose2DStridedFloat64 = transpose2DStridedAsmF64
 	if hwy.HasARMFP16() {
-		Transpose2DStridedFloat16 = transpose2DStridedAsmF16
 		Transpose2DFloat16 = transpose2DAsmF16
+		Transpose2DStridedFloat16 = transpose2DStridedAsmF16
 	}
 	if hwy.HasARMBF16() {
-		Transpose2DStridedBFloat16 = transpose2DStridedAsmBF16
 		Transpose2DBFloat16 = transpose2DAsmBF16
+		Transpose2DStridedBFloat16 = transpose2DStridedAsmBF16
 	}
+}
+
+func transpose2DAsmF16(src []hwy.Float16, m, k int, dst []hwy.Float16) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	asm.Transpose2D_F16(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+func transpose2DAsmBF16(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	asm.Transpose2D_BF16(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+func transpose2DAsmF32(src []float32, m, k int, dst []float32) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	asm.Transpose2D_F32(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+func transpose2DAsmF64(src []float64, m, k int, dst []float64) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	asm.Transpose2D_F64(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
 }
 
 func transpose2DStridedAsmF16(src []hwy.Float16, rowStart, rowEnd, k, dstM int, dst []hwy.Float16) {
@@ -134,98 +226,6 @@ func transpose2DStridedAsmF64(src []float64, rowStart, rowEnd, k, dstM int, dst 
 		unsafe.Pointer(&rowEndVal),
 		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&dstMVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-func transpose2DAsmF16(src []hwy.Float16, m, k int, dst []hwy.Float16) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	asm.Transpose2D_F16(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-func transpose2DAsmBF16(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	asm.Transpose2D_BF16(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-func transpose2DAsmF32(src []float32, m, k int, dst []float32) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	asm.Transpose2D_F32(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-func transpose2DAsmF64(src []float64, m, k int, dst []float64) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	asm.Transpose2D_F64(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
 		p_dst,
 		unsafe.Pointer(&len_srcVal),
 		unsafe.Pointer(&len_dstVal),

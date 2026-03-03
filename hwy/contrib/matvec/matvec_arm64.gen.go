@@ -63,15 +63,8 @@ func initMatvecAll() {
 		initMatvecFallback()
 		return
 	}
-	initMatvecNEON()
+	initMatvecFallback()
 	return
-}
-
-func initMatvecNEON() {
-	MatVecFloat16 = BaseMatVec_neon_Float16
-	MatVecBFloat16 = BaseMatVec_neon_BFloat16
-	MatVecFloat32 = BaseMatVec_neon
-	MatVecFloat64 = BaseMatVec_neon_Float64
 }
 
 func initMatvecFallback() {

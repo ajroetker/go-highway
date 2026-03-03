@@ -18,12 +18,12 @@ func initLiftingNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	LiftUpdate53Int32 = liftUpdate53AsmS32
-	LiftUpdate53Int64 = liftUpdate53AsmS64
 	LiftPredict53Int32 = liftPredict53AsmS32
 	LiftPredict53Int64 = liftPredict53AsmS64
 	LiftStep97Float32 = liftStep97AsmF32
 	LiftStep97Float64 = liftStep97AsmF64
+	LiftUpdate53Int32 = liftUpdate53AsmS32
+	LiftUpdate53Int64 = liftUpdate53AsmS64
 	ScaleSliceFloat32 = scaleSliceAsmF32
 	ScaleSliceFloat64 = scaleSliceAsmF64
 	Synthesize53CoreInt32 = synthesize53CoreAsmS32
@@ -38,56 +38,6 @@ func initLiftingNeonCAsm() {
 		LiftStep97BFloat16 = liftStep97AsmBF16
 		ScaleSliceBFloat16 = scaleSliceAsmBF16
 	}
-}
-
-func liftUpdate53AsmS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
-	var p_target unsafe.Pointer
-	if len(target) > 0 {
-		p_target = unsafe.Pointer(&target[0])
-	}
-	var p_neighbor unsafe.Pointer
-	if len(neighbor) > 0 {
-		p_neighbor = unsafe.Pointer(&neighbor[0])
-	}
-	tLenVal := int64(tLen)
-	nLenVal := int64(nLen)
-	phaseVal := int64(phase)
-	len_targetVal := int64(len(target))
-	len_neighborVal := int64(len(neighbor))
-	asm.LiftUpdate53_S32(
-		p_target,
-		unsafe.Pointer(&tLenVal),
-		p_neighbor,
-		unsafe.Pointer(&nLenVal),
-		unsafe.Pointer(&phaseVal),
-		unsafe.Pointer(&len_targetVal),
-		unsafe.Pointer(&len_neighborVal),
-	)
-}
-
-func liftUpdate53AsmS64(target []int64, tLen int, neighbor []int64, nLen, phase int) {
-	var p_target unsafe.Pointer
-	if len(target) > 0 {
-		p_target = unsafe.Pointer(&target[0])
-	}
-	var p_neighbor unsafe.Pointer
-	if len(neighbor) > 0 {
-		p_neighbor = unsafe.Pointer(&neighbor[0])
-	}
-	tLenVal := int64(tLen)
-	nLenVal := int64(nLen)
-	phaseVal := int64(phase)
-	len_targetVal := int64(len(target))
-	len_neighborVal := int64(len(neighbor))
-	asm.LiftUpdate53_S64(
-		p_target,
-		unsafe.Pointer(&tLenVal),
-		p_neighbor,
-		unsafe.Pointer(&nLenVal),
-		unsafe.Pointer(&phaseVal),
-		unsafe.Pointer(&len_targetVal),
-		unsafe.Pointer(&len_neighborVal),
-	)
 }
 
 func liftPredict53AsmS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
@@ -242,6 +192,56 @@ func liftStep97AsmF64(target []float64, tLen int, neighbor []float64, nLen int, 
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&coeffVal),
+		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
+	)
+}
+
+func liftUpdate53AsmS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
+	var p_target unsafe.Pointer
+	if len(target) > 0 {
+		p_target = unsafe.Pointer(&target[0])
+	}
+	var p_neighbor unsafe.Pointer
+	if len(neighbor) > 0 {
+		p_neighbor = unsafe.Pointer(&neighbor[0])
+	}
+	tLenVal := int64(tLen)
+	nLenVal := int64(nLen)
+	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
+	asm.LiftUpdate53_S32(
+		p_target,
+		unsafe.Pointer(&tLenVal),
+		p_neighbor,
+		unsafe.Pointer(&nLenVal),
+		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
+	)
+}
+
+func liftUpdate53AsmS64(target []int64, tLen int, neighbor []int64, nLen, phase int) {
+	var p_target unsafe.Pointer
+	if len(target) > 0 {
+		p_target = unsafe.Pointer(&target[0])
+	}
+	var p_neighbor unsafe.Pointer
+	if len(neighbor) > 0 {
+		p_neighbor = unsafe.Pointer(&neighbor[0])
+	}
+	tLenVal := int64(tLen)
+	nLenVal := int64(nLen)
+	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
+	asm.LiftUpdate53_S64(
+		p_target,
+		unsafe.Pointer(&tLenVal),
+		p_neighbor,
+		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
 		unsafe.Pointer(&len_targetVal),
 		unsafe.Pointer(&len_neighborVal),

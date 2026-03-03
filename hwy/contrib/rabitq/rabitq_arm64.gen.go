@@ -20,13 +20,8 @@ func initRabitqAll() {
 		initRabitqFallback()
 		return
 	}
-	initRabitqNEON()
+	initRabitqFallback()
 	return
-}
-
-func initRabitqNEON() {
-	BitProduct = BaseBitProduct_neon
-	QuantizeVectors = BaseQuantizeVectors_neon
 }
 
 func initRabitqFallback() {

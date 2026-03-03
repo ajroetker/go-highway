@@ -18,14 +18,14 @@ func initColorNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	ForwardRCTInt32 = forwardRCTAsmS32
-	ForwardRCTInt64 = forwardRCTAsmS64
-	InverseRCTInt32 = inverseRCTAsmS32
-	InverseRCTInt64 = inverseRCTAsmS64
 	ForwardICTFloat32 = forwardICTAsmF32
 	ForwardICTFloat64 = forwardICTAsmF64
+	ForwardRCTInt32 = forwardRCTAsmS32
+	ForwardRCTInt64 = forwardRCTAsmS64
 	InverseICTFloat32 = inverseICTAsmF32
 	InverseICTFloat64 = inverseICTAsmF64
+	InverseRCTInt32 = inverseRCTAsmS32
+	InverseRCTInt64 = inverseRCTAsmS64
 	if hwy.HasARMFP16() {
 		ForwardICTFloat16 = forwardICTAsmF16
 		InverseICTFloat16 = inverseICTAsmF16
@@ -34,326 +34,6 @@ func initColorNeonCAsm() {
 		ForwardICTBFloat16 = forwardICTAsmBF16
 		InverseICTBFloat16 = inverseICTAsmBF16
 	}
-}
-
-func forwardRCTAsmS32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
-	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
-		return
-	}
-	cr := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&r.Row(0)[0]),
-		height: int64(r.height),
-		stride: int64(r.Stride()),
-		width: int64(r.width),
-	}
-	cg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&g.Row(0)[0]),
-		height: int64(g.height),
-		stride: int64(g.Stride()),
-		width: int64(g.width),
-	}
-	cb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&b.Row(0)[0]),
-		height: int64(b.height),
-		stride: int64(b.Stride()),
-		width: int64(b.width),
-	}
-	coutY := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outY.Row(0)[0]),
-		height: int64(outY.height),
-		stride: int64(outY.Stride()),
-		width: int64(outY.width),
-	}
-	coutCb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outCb.Row(0)[0]),
-		height: int64(outCb.height),
-		stride: int64(outCb.Stride()),
-		width: int64(outCb.width),
-	}
-	coutCr := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outCr.Row(0)[0]),
-		height: int64(outCr.height),
-		stride: int64(outCr.Stride()),
-		width: int64(outCr.width),
-	}
-	asm.ForwardRCT_S32(
-		unsafe.Pointer(&cr),
-		unsafe.Pointer(&cg),
-		unsafe.Pointer(&cb),
-		unsafe.Pointer(&coutY),
-		unsafe.Pointer(&coutCb),
-		unsafe.Pointer(&coutCr),
-	)
-}
-
-func forwardRCTAsmS64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
-	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
-		return
-	}
-	cr := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&r.Row(0)[0]),
-		height: int64(r.height),
-		stride: int64(r.Stride()),
-		width: int64(r.width),
-	}
-	cg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&g.Row(0)[0]),
-		height: int64(g.height),
-		stride: int64(g.Stride()),
-		width: int64(g.width),
-	}
-	cb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&b.Row(0)[0]),
-		height: int64(b.height),
-		stride: int64(b.Stride()),
-		width: int64(b.width),
-	}
-	coutY := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outY.Row(0)[0]),
-		height: int64(outY.height),
-		stride: int64(outY.Stride()),
-		width: int64(outY.width),
-	}
-	coutCb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outCb.Row(0)[0]),
-		height: int64(outCb.height),
-		stride: int64(outCb.Stride()),
-		width: int64(outCb.width),
-	}
-	coutCr := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outCr.Row(0)[0]),
-		height: int64(outCr.height),
-		stride: int64(outCr.Stride()),
-		width: int64(outCr.width),
-	}
-	asm.ForwardRCT_S64(
-		unsafe.Pointer(&cr),
-		unsafe.Pointer(&cg),
-		unsafe.Pointer(&cb),
-		unsafe.Pointer(&coutY),
-		unsafe.Pointer(&coutCb),
-		unsafe.Pointer(&coutCr),
-	)
-}
-
-func inverseRCTAsmS32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
-	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
-		return
-	}
-	cy := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&y.Row(0)[0]),
-		height: int64(y.height),
-		stride: int64(y.Stride()),
-		width: int64(y.width),
-	}
-	ccb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&cb.Row(0)[0]),
-		height: int64(cb.height),
-		stride: int64(cb.Stride()),
-		width: int64(cb.width),
-	}
-	ccr := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&cr.Row(0)[0]),
-		height: int64(cr.height),
-		stride: int64(cr.Stride()),
-		width: int64(cr.width),
-	}
-	coutR := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outR.Row(0)[0]),
-		height: int64(outR.height),
-		stride: int64(outR.Stride()),
-		width: int64(outR.width),
-	}
-	coutG := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outG.Row(0)[0]),
-		height: int64(outG.height),
-		stride: int64(outG.Stride()),
-		width: int64(outG.width),
-	}
-	coutB := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outB.Row(0)[0]),
-		height: int64(outB.height),
-		stride: int64(outB.Stride()),
-		width: int64(outB.width),
-	}
-	asm.InverseRCT_S32(
-		unsafe.Pointer(&cy),
-		unsafe.Pointer(&ccb),
-		unsafe.Pointer(&ccr),
-		unsafe.Pointer(&coutR),
-		unsafe.Pointer(&coutG),
-		unsafe.Pointer(&coutB),
-	)
-}
-
-func inverseRCTAsmS64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
-	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
-		return
-	}
-	cy := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&y.Row(0)[0]),
-		height: int64(y.height),
-		stride: int64(y.Stride()),
-		width: int64(y.width),
-	}
-	ccb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&cb.Row(0)[0]),
-		height: int64(cb.height),
-		stride: int64(cb.Stride()),
-		width: int64(cb.width),
-	}
-	ccr := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&cr.Row(0)[0]),
-		height: int64(cr.height),
-		stride: int64(cr.Stride()),
-		width: int64(cr.width),
-	}
-	coutR := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outR.Row(0)[0]),
-		height: int64(outR.height),
-		stride: int64(outR.Stride()),
-		width: int64(outR.width),
-	}
-	coutG := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outG.Row(0)[0]),
-		height: int64(outG.height),
-		stride: int64(outG.Stride()),
-		width: int64(outG.width),
-	}
-	coutB := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&outB.Row(0)[0]),
-		height: int64(outB.height),
-		stride: int64(outB.Stride()),
-		width: int64(outB.width),
-	}
-	asm.InverseRCT_S64(
-		unsafe.Pointer(&cy),
-		unsafe.Pointer(&ccb),
-		unsafe.Pointer(&ccr),
-		unsafe.Pointer(&coutR),
-		unsafe.Pointer(&coutG),
-		unsafe.Pointer(&coutB),
-	)
 }
 
 func forwardICTAsmF16(r *Image[hwy.Float16], g *Image[hwy.Float16], b *Image[hwy.Float16], outY *Image[hwy.Float16], outCb *Image[hwy.Float16], outCr *Image[hwy.Float16]) {
@@ -676,6 +356,166 @@ func forwardICTAsmF64(r *Image[float64], g *Image[float64], b *Image[float64], o
 	)
 }
 
+func forwardRCTAsmS32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
+	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
+		return
+	}
+	cr := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&r.Row(0)[0]),
+		height: int64(r.height),
+		stride: int64(r.Stride()),
+		width: int64(r.width),
+	}
+	cg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&g.Row(0)[0]),
+		height: int64(g.height),
+		stride: int64(g.Stride()),
+		width: int64(g.width),
+	}
+	cb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&b.Row(0)[0]),
+		height: int64(b.height),
+		stride: int64(b.Stride()),
+		width: int64(b.width),
+	}
+	coutY := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outY.Row(0)[0]),
+		height: int64(outY.height),
+		stride: int64(outY.Stride()),
+		width: int64(outY.width),
+	}
+	coutCb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outCb.Row(0)[0]),
+		height: int64(outCb.height),
+		stride: int64(outCb.Stride()),
+		width: int64(outCb.width),
+	}
+	coutCr := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outCr.Row(0)[0]),
+		height: int64(outCr.height),
+		stride: int64(outCr.Stride()),
+		width: int64(outCr.width),
+	}
+	asm.ForwardRCT_S32(
+		unsafe.Pointer(&cr),
+		unsafe.Pointer(&cg),
+		unsafe.Pointer(&cb),
+		unsafe.Pointer(&coutY),
+		unsafe.Pointer(&coutCb),
+		unsafe.Pointer(&coutCr),
+	)
+}
+
+func forwardRCTAsmS64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
+	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
+		return
+	}
+	cr := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&r.Row(0)[0]),
+		height: int64(r.height),
+		stride: int64(r.Stride()),
+		width: int64(r.width),
+	}
+	cg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&g.Row(0)[0]),
+		height: int64(g.height),
+		stride: int64(g.Stride()),
+		width: int64(g.width),
+	}
+	cb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&b.Row(0)[0]),
+		height: int64(b.height),
+		stride: int64(b.Stride()),
+		width: int64(b.width),
+	}
+	coutY := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outY.Row(0)[0]),
+		height: int64(outY.height),
+		stride: int64(outY.Stride()),
+		width: int64(outY.width),
+	}
+	coutCb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outCb.Row(0)[0]),
+		height: int64(outCb.height),
+		stride: int64(outCb.Stride()),
+		width: int64(outCb.width),
+	}
+	coutCr := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outCr.Row(0)[0]),
+		height: int64(outCr.height),
+		stride: int64(outCr.Stride()),
+		width: int64(outCr.width),
+	}
+	asm.ForwardRCT_S64(
+		unsafe.Pointer(&cr),
+		unsafe.Pointer(&cg),
+		unsafe.Pointer(&cb),
+		unsafe.Pointer(&coutY),
+		unsafe.Pointer(&coutCb),
+		unsafe.Pointer(&coutCr),
+	)
+}
+
 func inverseICTAsmF16(y *Image[hwy.Float16], cb *Image[hwy.Float16], cr *Image[hwy.Float16], outR *Image[hwy.Float16], outG *Image[hwy.Float16], outB *Image[hwy.Float16]) {
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
@@ -987,6 +827,166 @@ func inverseICTAsmF64(y *Image[float64], cb *Image[float64], cr *Image[float64],
 		width: int64(outB.width),
 	}
 	asm.InverseICT_F64(
+		unsafe.Pointer(&cy),
+		unsafe.Pointer(&ccb),
+		unsafe.Pointer(&ccr),
+		unsafe.Pointer(&coutR),
+		unsafe.Pointer(&coutG),
+		unsafe.Pointer(&coutB),
+	)
+}
+
+func inverseRCTAsmS32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
+	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
+		return
+	}
+	cy := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&y.Row(0)[0]),
+		height: int64(y.height),
+		stride: int64(y.Stride()),
+		width: int64(y.width),
+	}
+	ccb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&cb.Row(0)[0]),
+		height: int64(cb.height),
+		stride: int64(cb.Stride()),
+		width: int64(cb.width),
+	}
+	ccr := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&cr.Row(0)[0]),
+		height: int64(cr.height),
+		stride: int64(cr.Stride()),
+		width: int64(cr.width),
+	}
+	coutR := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outR.Row(0)[0]),
+		height: int64(outR.height),
+		stride: int64(outR.Stride()),
+		width: int64(outR.width),
+	}
+	coutG := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outG.Row(0)[0]),
+		height: int64(outG.height),
+		stride: int64(outG.Stride()),
+		width: int64(outG.width),
+	}
+	coutB := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outB.Row(0)[0]),
+		height: int64(outB.height),
+		stride: int64(outB.Stride()),
+		width: int64(outB.width),
+	}
+	asm.InverseRCT_S32(
+		unsafe.Pointer(&cy),
+		unsafe.Pointer(&ccb),
+		unsafe.Pointer(&ccr),
+		unsafe.Pointer(&coutR),
+		unsafe.Pointer(&coutG),
+		unsafe.Pointer(&coutB),
+	)
+}
+
+func inverseRCTAsmS64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
+	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
+		return
+	}
+	cy := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&y.Row(0)[0]),
+		height: int64(y.height),
+		stride: int64(y.Stride()),
+		width: int64(y.width),
+	}
+	ccb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&cb.Row(0)[0]),
+		height: int64(cb.height),
+		stride: int64(cb.Stride()),
+		width: int64(cb.width),
+	}
+	ccr := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&cr.Row(0)[0]),
+		height: int64(cr.height),
+		stride: int64(cr.Stride()),
+		width: int64(cr.width),
+	}
+	coutR := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outR.Row(0)[0]),
+		height: int64(outR.height),
+		stride: int64(outR.Stride()),
+		width: int64(outR.width),
+	}
+	coutG := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outG.Row(0)[0]),
+		height: int64(outG.height),
+		stride: int64(outG.Stride()),
+		width: int64(outG.width),
+	}
+	coutB := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&outB.Row(0)[0]),
+		height: int64(outB.height),
+		stride: int64(outB.Stride()),
+		width: int64(outB.width),
+	}
+	asm.InverseRCT_S64(
 		unsafe.Pointer(&cy),
 		unsafe.Pointer(&ccb),
 		unsafe.Pointer(&ccr),

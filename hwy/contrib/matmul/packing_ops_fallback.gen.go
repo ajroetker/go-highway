@@ -92,68 +92,6 @@ func BaseApplyPackedOutput_fallback_Float64(packedOutput []float64, output []flo
 	}
 }
 
-func BaseApplyPackedOutputSimple_fallback_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := hwy.Zero[hwy.Float16]().NumLanes()
-	for r := range height {
-		packedIdx := r * packedStride
-		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
-		c := 0
-		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
-		}
-		for ; c < width; c++ {
-			output[outputIdx+c] = hwy.Float32ToFloat16(packedOutput[packedIdx+c].Float32())
-		}
-	}
-}
-
-func BaseApplyPackedOutputSimple_fallback_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
-	for r := range height {
-		packedIdx := r * packedStride
-		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
-		c := 0
-		for ; c+lanes <= width; c += lanes {
-			v := hwy.Load(packedOutput[packedIdx+c:])
-			hwy.Store(v, output[outputIdx+c:])
-		}
-		for ; c < width; c++ {
-			output[outputIdx+c] = hwy.Float32ToBFloat16(packedOutput[packedIdx+c].Float32())
-		}
-	}
-}
-
-func BaseApplyPackedOutputSimple_fallback(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	for r := range height {
-		packedIdx := r * packedStride
-		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
-		c := 0
-		for ; c < width; c++ {
-			v := packedOutput[packedIdx+c]
-			output[outputIdx+c] = v
-		}
-		for ; c < width; c++ {
-			output[outputIdx+c] = packedOutput[packedIdx+c]
-		}
-	}
-}
-
-func BaseApplyPackedOutputSimple_fallback_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	for r := range height {
-		packedIdx := r * packedStride
-		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
-		c := 0
-		for ; c < width; c++ {
-			v := packedOutput[packedIdx+c]
-			output[outputIdx+c] = v
-		}
-		for ; c < width; c++ {
-			output[outputIdx+c] = packedOutput[packedIdx+c]
-		}
-	}
-}
-
 func BaseApplyPackedOutputAccum_fallback_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
 	lanes := hwy.Zero[hwy.Float16]().NumLanes()
 	for r := range height {
@@ -220,6 +158,68 @@ func BaseApplyPackedOutputAccum_fallback_Float64(packedOutput []float64, output 
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] += packedOutput[packedIdx+c]
+		}
+	}
+}
+
+func BaseApplyPackedOutputSimple_fallback_Float16(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
+	lanes := hwy.Zero[hwy.Float16]().NumLanes()
+	for r := range height {
+		packedIdx := r * packedStride
+		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
+		c := 0
+		for ; c+lanes <= width; c += lanes {
+			v := hwy.Load(packedOutput[packedIdx+c:])
+			hwy.Store(v, output[outputIdx+c:])
+		}
+		for ; c < width; c++ {
+			output[outputIdx+c] = hwy.Float32ToFloat16(packedOutput[packedIdx+c].Float32())
+		}
+	}
+}
+
+func BaseApplyPackedOutputSimple_fallback_BFloat16(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
+	lanes := hwy.Zero[hwy.BFloat16]().NumLanes()
+	for r := range height {
+		packedIdx := r * packedStride
+		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
+		c := 0
+		for ; c+lanes <= width; c += lanes {
+			v := hwy.Load(packedOutput[packedIdx+c:])
+			hwy.Store(v, output[outputIdx+c:])
+		}
+		for ; c < width; c++ {
+			output[outputIdx+c] = hwy.Float32ToBFloat16(packedOutput[packedIdx+c].Float32())
+		}
+	}
+}
+
+func BaseApplyPackedOutputSimple_fallback(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
+	for r := range height {
+		packedIdx := r * packedStride
+		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
+		c := 0
+		for ; c < width; c++ {
+			v := packedOutput[packedIdx+c]
+			output[outputIdx+c] = v
+		}
+		for ; c < width; c++ {
+			output[outputIdx+c] = packedOutput[packedIdx+c]
+		}
+	}
+}
+
+func BaseApplyPackedOutputSimple_fallback_Float64(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
+	for r := range height {
+		packedIdx := r * packedStride
+		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
+		c := 0
+		for ; c < width; c++ {
+			v := packedOutput[packedIdx+c]
+			output[outputIdx+c] = v
+		}
+		for ; c < width; c++ {
+			output[outputIdx+c] = packedOutput[packedIdx+c]
 		}
 	}
 }

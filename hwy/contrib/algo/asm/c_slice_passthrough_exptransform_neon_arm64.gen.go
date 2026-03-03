@@ -5,6 +5,46 @@ package asm
 
 import "unsafe"
 
+// CosTransform_F16 calls the NEON SIMD assembly implementation.
+func CosTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	costransform_c_f16_neon(in, out, plen)
+}
+
+// CosTransform_BF16 calls the NEON SIMD assembly implementation.
+func CosTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	costransform_c_bf16_neon(in, out, plen)
+}
+
+// CosTransform_F32 calls the NEON SIMD assembly implementation.
+func CosTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	costransform_c_f32_neon(in, out, plen)
+}
+
+// CosTransform_F64 calls the NEON SIMD assembly implementation.
+func CosTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	costransform_c_f64_neon(in, out, plen)
+}
+
+// ErfTransform_F16 calls the NEON SIMD assembly implementation.
+func ErfTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	erftransform_c_f16_neon(in, out, plen)
+}
+
+// ErfTransform_BF16 calls the NEON SIMD assembly implementation.
+func ErfTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	erftransform_c_bf16_neon(in, out, plen)
+}
+
+// ErfTransform_F32 calls the NEON SIMD assembly implementation.
+func ErfTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	erftransform_c_f32_neon(in, out, plen)
+}
+
+// ErfTransform_F64 calls the NEON SIMD assembly implementation.
+func ErfTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	erftransform_c_f64_neon(in, out, plen)
+}
+
 // ExpTransform_F16 calls the NEON SIMD assembly implementation.
 func ExpTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
 	exptransform_c_f16_neon(in, out, plen)
@@ -45,66 +85,6 @@ func LogTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer
 	logtransform_c_f64_neon(in, out, plen)
 }
 
-// SinTransform_F16 calls the NEON SIMD assembly implementation.
-func SinTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	sintransform_c_f16_neon(in, out, plen)
-}
-
-// SinTransform_BF16 calls the NEON SIMD assembly implementation.
-func SinTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	sintransform_c_bf16_neon(in, out, plen)
-}
-
-// SinTransform_F32 calls the NEON SIMD assembly implementation.
-func SinTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	sintransform_c_f32_neon(in, out, plen)
-}
-
-// SinTransform_F64 calls the NEON SIMD assembly implementation.
-func SinTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	sintransform_c_f64_neon(in, out, plen)
-}
-
-// CosTransform_F16 calls the NEON SIMD assembly implementation.
-func CosTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	costransform_c_f16_neon(in, out, plen)
-}
-
-// CosTransform_BF16 calls the NEON SIMD assembly implementation.
-func CosTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	costransform_c_bf16_neon(in, out, plen)
-}
-
-// CosTransform_F32 calls the NEON SIMD assembly implementation.
-func CosTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	costransform_c_f32_neon(in, out, plen)
-}
-
-// CosTransform_F64 calls the NEON SIMD assembly implementation.
-func CosTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	costransform_c_f64_neon(in, out, plen)
-}
-
-// TanhTransform_F16 calls the NEON SIMD assembly implementation.
-func TanhTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	tanhtransform_c_f16_neon(in, out, plen)
-}
-
-// TanhTransform_BF16 calls the NEON SIMD assembly implementation.
-func TanhTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	tanhtransform_c_bf16_neon(in, out, plen)
-}
-
-// TanhTransform_F32 calls the NEON SIMD assembly implementation.
-func TanhTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	tanhtransform_c_f32_neon(in, out, plen)
-}
-
-// TanhTransform_F64 calls the NEON SIMD assembly implementation.
-func TanhTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	tanhtransform_c_f64_neon(in, out, plen)
-}
-
 // SigmoidTransform_F16 calls the NEON SIMD assembly implementation.
 func SigmoidTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
 	sigmoidtransform_c_f16_neon(in, out, plen)
@@ -125,23 +105,43 @@ func SigmoidTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Poi
 	sigmoidtransform_c_f64_neon(in, out, plen)
 }
 
-// ErfTransform_F16 calls the NEON SIMD assembly implementation.
-func ErfTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	erftransform_c_f16_neon(in, out, plen)
+// SinTransform_F16 calls the NEON SIMD assembly implementation.
+func SinTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	sintransform_c_f16_neon(in, out, plen)
 }
 
-// ErfTransform_BF16 calls the NEON SIMD assembly implementation.
-func ErfTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	erftransform_c_bf16_neon(in, out, plen)
+// SinTransform_BF16 calls the NEON SIMD assembly implementation.
+func SinTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	sintransform_c_bf16_neon(in, out, plen)
 }
 
-// ErfTransform_F32 calls the NEON SIMD assembly implementation.
-func ErfTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	erftransform_c_f32_neon(in, out, plen)
+// SinTransform_F32 calls the NEON SIMD assembly implementation.
+func SinTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	sintransform_c_f32_neon(in, out, plen)
 }
 
-// ErfTransform_F64 calls the NEON SIMD assembly implementation.
-func ErfTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
-	erftransform_c_f64_neon(in, out, plen)
+// SinTransform_F64 calls the NEON SIMD assembly implementation.
+func SinTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	sintransform_c_f64_neon(in, out, plen)
+}
+
+// TanhTransform_F16 calls the NEON SIMD assembly implementation.
+func TanhTransform_F16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	tanhtransform_c_f16_neon(in, out, plen)
+}
+
+// TanhTransform_BF16 calls the NEON SIMD assembly implementation.
+func TanhTransform_BF16(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	tanhtransform_c_bf16_neon(in, out, plen)
+}
+
+// TanhTransform_F32 calls the NEON SIMD assembly implementation.
+func TanhTransform_F32(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	tanhtransform_c_f32_neon(in, out, plen)
+}
+
+// TanhTransform_F64 calls the NEON SIMD assembly implementation.
+func TanhTransform_F64(in unsafe.Pointer, out unsafe.Pointer, plen unsafe.Pointer) {
+	tanhtransform_c_f64_neon(in, out, plen)
 }
 

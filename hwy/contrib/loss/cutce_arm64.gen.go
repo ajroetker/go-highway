@@ -21,14 +21,8 @@ func initCutceAll() {
 		initCutceFallback()
 		return
 	}
-	initCutceNEON()
+	initCutceFallback()
 	return
-}
-
-func initCutceNEON() {
-	CutCrossEntropy = BaseCutCrossEntropy_neon
-	CutCrossEntropyGrad = BaseCutCrossEntropyGrad_neon
-	CutCrossEntropyWithLogits = BaseCutCrossEntropyWithLogits_neon
 }
 
 func initCutceFallback() {

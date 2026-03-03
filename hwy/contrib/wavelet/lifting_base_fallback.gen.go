@@ -6,138 +6,268 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseLiftUpdate53_fallback_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
-	if tLen == 0 || nLen == 0 {
-		return
-	}
-	twoVec := hwy.Set(int32(2))
-	lanes := hwy.MaxLanes[int32]()
-	start := 0
+func BaseDeinterleave_fallback(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
 	if phase == 0 {
-		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
-		start = 1
-	}
-	safeEnd := tLen
-	if phase == 0 {
-		if nLen < safeEnd {
-			safeEnd = nLen
+		for i := range sn {
+			low[i] = src[2*i]
+		}
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
 	} else {
-		if nLen-1 < safeEnd {
-			safeEnd = nLen - 1
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
 		}
 	}
-	i := start
-	for ; i+lanes <= safeEnd; i += lanes {
-		var n1, n2 hwy.Vec[int32]
-		if phase == 0 {
-			n1 = hwy.Load(neighbor[i-1:])
-			n2 = hwy.Load(neighbor[i:])
-		} else {
-			n1 = hwy.Load(neighbor[i:])
-			n2 = hwy.Load(neighbor[i+1:])
-		}
-		sum := hwy.Add(hwy.Add(n1, n2), twoVec)
-		update := hwy.ShiftRight(sum, 2)
-		t := hwy.Load(target[i:])
-		hwy.Store(hwy.Sub(t, update), target[i:])
-	}
-	for ; i < safeEnd; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
-		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
-	}
-	for ; i < tLen; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
-		}
-		if n1Idx >= nLen {
-			n1Idx = nLen - 1
-		}
-		if n2Idx >= nLen {
-			n2Idx = nLen - 1
-		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
-	}
-	_ = lanes
 }
 
-func BaseLiftUpdate53_fallback_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
-	if tLen == 0 || nLen == 0 {
-		return
-	}
-	twoVec := hwy.Set(int64(2))
-	lanes := hwy.MaxLanes[int64]()
-	start := 0
+func BaseDeinterleave_fallback_Float64(src []float64, low []float64, sn int, high []float64, dn int, phase int) {
 	if phase == 0 {
-		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
-		start = 1
-	}
-	safeEnd := tLen
-	if phase == 0 {
-		if nLen < safeEnd {
-			safeEnd = nLen
+		for i := range sn {
+			low[i] = src[2*i]
+		}
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
 	} else {
-		if nLen-1 < safeEnd {
-			safeEnd = nLen - 1
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
 		}
 	}
-	i := start
-	for ; i+lanes <= safeEnd; i += lanes {
-		var n1, n2 hwy.Vec[int64]
-		if phase == 0 {
-			n1 = hwy.Load(neighbor[i-1:])
-			n2 = hwy.Load(neighbor[i:])
-		} else {
-			n1 = hwy.Load(neighbor[i:])
-			n2 = hwy.Load(neighbor[i+1:])
+}
+
+func BaseDeinterleave_fallback_Int32(src []int32, low []int32, sn int, high []int32, dn int, phase int) {
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
 		}
-		sum := hwy.Add(hwy.Add(n1, n2), twoVec)
-		update := hwy.ShiftRight(sum, 2)
-		t := hwy.Load(target[i:])
-		hwy.Store(hwy.Sub(t, update), target[i:])
+		for i := range dn {
+			high[i] = src[2*i+1]
+		}
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
 	}
-	for ; i < safeEnd; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
+}
+
+func BaseDeinterleave_fallback_Int64(src []int64, low []int64, sn int, high []int64, dn int, phase int) {
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
 		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+		for i := range dn {
+			high[i] = src[2*i+1]
+		}
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
 	}
-	for ; i < tLen; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
+}
+
+func BaseDeinterleave_fallback_Uint32(src []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
 		}
-		if n1Idx >= nLen {
-			n1Idx = nLen - 1
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
-		if n2Idx >= nLen {
-			n2Idx = nLen - 1
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
 		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
 	}
-	_ = lanes
+}
+
+func BaseDeinterleave_fallback_Uint64(src []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
+		}
+		for i := range dn {
+			high[i] = src[2*i+1]
+		}
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
+	}
+}
+
+func BaseInterleave_fallback(dst []float32, low []float32, sn int, high []float32, dn int, phase int) {
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_fallback_Float64(dst []float64, low []float64, sn int, high []float64, dn int, phase int) {
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_fallback_Int32(dst []int32, low []int32, sn int, high []int32, dn int, phase int) {
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_fallback_Int64(dst []int64, low []int64, sn int, high []int64, dn int, phase int) {
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_fallback_Uint32(dst []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_fallback_Uint64(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
 }
 
 func BaseLiftPredict53_fallback_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
@@ -558,6 +688,140 @@ func BaseLiftStep97_fallback_Float64(target []float64, tLen int, neighbor []floa
 	_ = 1
 }
 
+func BaseLiftUpdate53_fallback_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
+	if tLen == 0 || nLen == 0 {
+		return
+	}
+	twoVec := hwy.Set(int32(2))
+	lanes := hwy.MaxLanes[int32]()
+	start := 0
+	if phase == 0 {
+		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
+		start = 1
+	}
+	safeEnd := tLen
+	if phase == 0 {
+		if nLen < safeEnd {
+			safeEnd = nLen
+		}
+	} else {
+		if nLen-1 < safeEnd {
+			safeEnd = nLen - 1
+		}
+	}
+	i := start
+	for ; i+lanes <= safeEnd; i += lanes {
+		var n1, n2 hwy.Vec[int32]
+		if phase == 0 {
+			n1 = hwy.Load(neighbor[i-1:])
+			n2 = hwy.Load(neighbor[i:])
+		} else {
+			n1 = hwy.Load(neighbor[i:])
+			n2 = hwy.Load(neighbor[i+1:])
+		}
+		sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+		update := hwy.ShiftRight(sum, 2)
+		t := hwy.Load(target[i:])
+		hwy.Store(hwy.Sub(t, update), target[i:])
+	}
+	for ; i < safeEnd; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	for ; i < tLen; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		if n1Idx >= nLen {
+			n1Idx = nLen - 1
+		}
+		if n2Idx >= nLen {
+			n2Idx = nLen - 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	_ = lanes
+}
+
+func BaseLiftUpdate53_fallback_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
+	if tLen == 0 || nLen == 0 {
+		return
+	}
+	twoVec := hwy.Set(int64(2))
+	lanes := hwy.MaxLanes[int64]()
+	start := 0
+	if phase == 0 {
+		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
+		start = 1
+	}
+	safeEnd := tLen
+	if phase == 0 {
+		if nLen < safeEnd {
+			safeEnd = nLen
+		}
+	} else {
+		if nLen-1 < safeEnd {
+			safeEnd = nLen - 1
+		}
+	}
+	i := start
+	for ; i+lanes <= safeEnd; i += lanes {
+		var n1, n2 hwy.Vec[int64]
+		if phase == 0 {
+			n1 = hwy.Load(neighbor[i-1:])
+			n2 = hwy.Load(neighbor[i:])
+		} else {
+			n1 = hwy.Load(neighbor[i:])
+			n2 = hwy.Load(neighbor[i+1:])
+		}
+		sum := hwy.Add(hwy.Add(n1, n2), twoVec)
+		update := hwy.ShiftRight(sum, 2)
+		t := hwy.Load(target[i:])
+		hwy.Store(hwy.Sub(t, update), target[i:])
+	}
+	for ; i < safeEnd; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	for ; i < tLen; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		if n1Idx >= nLen {
+			n1Idx = nLen - 1
+		}
+		if n2Idx >= nLen {
+			n2Idx = nLen - 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	_ = lanes
+}
+
 func BaseScaleSlice_fallback_Float16(data []hwy.Float16, n int, scale hwy.Float16) {
 	if n == 0 || data == nil {
 		return
@@ -621,162 +885,6 @@ func BaseScaleSlice_fallback_Float64(data []float64, n int, scale float64) {
 	}
 	for ; i < n; i++ {
 		data[i] *= scale
-	}
-}
-
-func BaseInterleave_fallback(dst []float32, low []float32, sn int, high []float32, dn int, phase int) {
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_fallback_Float64(dst []float64, low []float64, sn int, high []float64, dn int, phase int) {
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_fallback_Int32(dst []int32, low []int32, sn int, high []int32, dn int, phase int) {
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_fallback_Int64(dst []int64, low []int64, sn int, high []int64, dn int, phase int) {
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_fallback_Uint32(dst []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_fallback_Uint64(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
 	}
 }
 
@@ -1410,112 +1518,4 @@ func BaseSynthesize53CoreCols_fallback_Int64(colBuf []int64, height int, lowBuf 
 		}
 	}
 	_ = lanes
-}
-
-func BaseDeinterleave_fallback(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_fallback_Float64(src []float64, low []float64, sn int, high []float64, dn int, phase int) {
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_fallback_Int32(src []int32, low []int32, sn int, high []int32, dn int, phase int) {
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_fallback_Int64(src []int64, low []int64, sn int, high []int64, dn int, phase int) {
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_fallback_Uint32(src []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_fallback_Uint64(src []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
 }

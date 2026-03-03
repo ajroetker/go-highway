@@ -14,14 +14,14 @@ var PackedMatMulFloat16 func(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, 
 var PackedMatMulBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int)
 var PackedMatMulFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int)
 var PackedMatMulFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int)
-var PackedMatMulWithBuffersFloat16 func(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int, packedA []hwy.Float16, packedB []hwy.Float16, params CacheParams)
-var PackedMatMulWithBuffersBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int, packedA []hwy.BFloat16, packedB []hwy.BFloat16, params CacheParams)
-var PackedMatMulWithBuffersFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int, packedA []float32, packedB []float32, params CacheParams)
-var PackedMatMulWithBuffersFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int, packedA []float64, packedB []float64, params CacheParams)
 var PackedMatMulStripFloat16 func(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int, rowStart int, rowEnd int, packedA []hwy.Float16, packedB []hwy.Float16, params CacheParams)
 var PackedMatMulStripBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int, rowStart int, rowEnd int, packedA []hwy.BFloat16, packedB []hwy.BFloat16, params CacheParams)
 var PackedMatMulStripFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int, rowStart int, rowEnd int, packedA []float32, packedB []float32, params CacheParams)
 var PackedMatMulStripFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int, rowStart int, rowEnd int, packedA []float64, packedB []float64, params CacheParams)
+var PackedMatMulWithBuffersFloat16 func(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int, packedA []hwy.Float16, packedB []hwy.Float16, params CacheParams)
+var PackedMatMulWithBuffersBFloat16 func(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int, packedA []hwy.BFloat16, packedB []hwy.BFloat16, params CacheParams)
+var PackedMatMulWithBuffersFloat32 func(a []float32, b []float32, c []float32, m int, n int, k int, packedA []float32, packedB []float32, params CacheParams)
+var PackedMatMulWithBuffersFloat64 func(a []float64, b []float64, c []float64, m int, n int, k int, packedA []float64, packedB []float64, params CacheParams)
 
 // PackedMatMul computes C = A * B using the GotoBLAS-style 5-loop algorithm
 // with matrix packing for optimal cache utilization.
@@ -64,23 +64,6 @@ func PackedMatMul[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int) {
 	}
 }
 
-// PackedMatMulWithBuffers is like BasePackedMatMul but uses pre-allocated buffers.
-// This is useful for parallel execution where each worker has its own buffers.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func PackedMatMulWithBuffers[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, packedA []T, packedB []T, params CacheParams) {
-	switch any(a).(type) {
-	case []hwy.Float16:
-		PackedMatMulWithBuffersFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), m, n, k, any(packedA).([]hwy.Float16), any(packedB).([]hwy.Float16), params)
-	case []hwy.BFloat16:
-		PackedMatMulWithBuffersBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), m, n, k, any(packedA).([]hwy.BFloat16), any(packedB).([]hwy.BFloat16), params)
-	case []float32:
-		PackedMatMulWithBuffersFloat32(any(a).([]float32), any(b).([]float32), any(c).([]float32), m, n, k, any(packedA).([]float32), any(packedB).([]float32), params)
-	case []float64:
-		PackedMatMulWithBuffersFloat64(any(a).([]float64), any(b).([]float64), any(c).([]float64), m, n, k, any(packedA).([]float64), any(packedB).([]float64), params)
-	}
-}
-
 // PackedMatMulStrip computes a horizontal strip of C = A * B.
 // Used by parallel implementation to divide work across workers.
 //
@@ -102,6 +85,23 @@ func PackedMatMulStrip[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, r
 		PackedMatMulStripFloat32(any(a).([]float32), any(b).([]float32), any(c).([]float32), m, n, k, rowStart, rowEnd, any(packedA).([]float32), any(packedB).([]float32), params)
 	case []float64:
 		PackedMatMulStripFloat64(any(a).([]float64), any(b).([]float64), any(c).([]float64), m, n, k, rowStart, rowEnd, any(packedA).([]float64), any(packedB).([]float64), params)
+	}
+}
+
+// PackedMatMulWithBuffers is like BasePackedMatMul but uses pre-allocated buffers.
+// This is useful for parallel execution where each worker has its own buffers.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func PackedMatMulWithBuffers[T hwy.Floats](a []T, b []T, c []T, m int, n int, k int, packedA []T, packedB []T, params CacheParams) {
+	switch any(a).(type) {
+	case []hwy.Float16:
+		PackedMatMulWithBuffersFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), m, n, k, any(packedA).([]hwy.Float16), any(packedB).([]hwy.Float16), params)
+	case []hwy.BFloat16:
+		PackedMatMulWithBuffersBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), m, n, k, any(packedA).([]hwy.BFloat16), any(packedB).([]hwy.BFloat16), params)
+	case []float32:
+		PackedMatMulWithBuffersFloat32(any(a).([]float32), any(b).([]float32), any(c).([]float32), m, n, k, any(packedA).([]float32), any(packedB).([]float32), params)
+	case []float64:
+		PackedMatMulWithBuffersFloat64(any(a).([]float64), any(b).([]float64), any(c).([]float64), m, n, k, any(packedA).([]float64), any(packedB).([]float64), params)
 	}
 }
 
@@ -130,14 +130,14 @@ func initPackedmatmulAVX2() {
 	PackedMatMulBFloat16 = BasePackedMatMul_avx2_BFloat16
 	PackedMatMulFloat32 = BasePackedMatMul_avx2
 	PackedMatMulFloat64 = BasePackedMatMul_avx2_Float64
-	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_avx2_Float16
-	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_avx2_BFloat16
-	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_avx2
-	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_avx2_Float64
 	PackedMatMulStripFloat16 = BasePackedMatMulStrip_avx2_Float16
 	PackedMatMulStripBFloat16 = BasePackedMatMulStrip_avx2_BFloat16
 	PackedMatMulStripFloat32 = BasePackedMatMulStrip_avx2
 	PackedMatMulStripFloat64 = BasePackedMatMulStrip_avx2_Float64
+	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_avx2_Float16
+	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_avx2_BFloat16
+	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_avx2
+	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_avx2_Float64
 }
 
 func initPackedmatmulAVX512() {
@@ -145,14 +145,14 @@ func initPackedmatmulAVX512() {
 	PackedMatMulBFloat16 = BasePackedMatMul_avx512_BFloat16
 	PackedMatMulFloat32 = BasePackedMatMul_avx512
 	PackedMatMulFloat64 = BasePackedMatMul_avx512_Float64
-	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_avx512_Float16
-	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_avx512_BFloat16
-	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_avx512
-	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_avx512_Float64
 	PackedMatMulStripFloat16 = BasePackedMatMulStrip_avx512_Float16
 	PackedMatMulStripBFloat16 = BasePackedMatMulStrip_avx512_BFloat16
 	PackedMatMulStripFloat32 = BasePackedMatMulStrip_avx512
 	PackedMatMulStripFloat64 = BasePackedMatMulStrip_avx512_Float64
+	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_avx512_Float16
+	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_avx512_BFloat16
+	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_avx512
+	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_avx512_Float64
 }
 
 func initPackedmatmulFallback() {
@@ -160,12 +160,12 @@ func initPackedmatmulFallback() {
 	PackedMatMulBFloat16 = BasePackedMatMul_fallback_BFloat16
 	PackedMatMulFloat32 = BasePackedMatMul_fallback
 	PackedMatMulFloat64 = BasePackedMatMul_fallback_Float64
-	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_fallback_Float16
-	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_fallback_BFloat16
-	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_fallback
-	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_fallback_Float64
 	PackedMatMulStripFloat16 = BasePackedMatMulStrip_fallback_Float16
 	PackedMatMulStripBFloat16 = BasePackedMatMulStrip_fallback_BFloat16
 	PackedMatMulStripFloat32 = BasePackedMatMulStrip_fallback
 	PackedMatMulStripFloat64 = BasePackedMatMulStrip_fallback_Float64
+	PackedMatMulWithBuffersFloat16 = BasePackedMatMulWithBuffers_fallback_Float16
+	PackedMatMulWithBuffersBFloat16 = BasePackedMatMulWithBuffers_fallback_BFloat16
+	PackedMatMulWithBuffersFloat32 = BasePackedMatMulWithBuffers_fallback
+	PackedMatMulWithBuffersFloat64 = BasePackedMatMulWithBuffers_fallback_Float64
 }

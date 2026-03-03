@@ -29,8 +29,8 @@ func BasePackedMicroKernel4x2_avx2_Float16(packedA []hwy.Float16, packedB []hwy.
 	_ = packedB[panelK*nr-1].Float32()
 	p := 0
 	for ; p+3 < panelK; p += 4 {
-		bVec0_0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx:][0]))
-		bVec1_0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes:][0]))
+		bVec0_0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx]))
+		bVec1_0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes]))
 		a0_0 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx]))
 		a1_0 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+1]))
 		a2_0 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+2]))
@@ -43,8 +43,8 @@ func BasePackedMicroKernel4x2_avx2_Float16(packedA []hwy.Float16, packedB []hwy.
 		acc21 = a2_0.MulAdd(bVec1_0, acc21)
 		acc30 = a3_0.MulAdd(bVec0_0, acc30)
 		acc31 = a3_0.MulAdd(bVec1_0, acc31)
-		bVec0_1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr:][0]))
-		bVec1_1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr+lanes:][0]))
+		bVec0_1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr]))
+		bVec1_1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr+lanes]))
 		a0_1 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+mr]))
 		a1_1 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+mr+1]))
 		a2_1 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+mr+2]))
@@ -57,8 +57,8 @@ func BasePackedMicroKernel4x2_avx2_Float16(packedA []hwy.Float16, packedB []hwy.
 		acc21 = a2_1.MulAdd(bVec1_1, acc21)
 		acc30 = a3_1.MulAdd(bVec0_1, acc30)
 		acc31 = a3_1.MulAdd(bVec1_1, acc31)
-		bVec0_2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr:][0]))
-		bVec1_2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr+lanes:][0]))
+		bVec0_2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr]))
+		bVec1_2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr+lanes]))
 		a0_2 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+2*mr]))
 		a1_2 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+2*mr+1]))
 		a2_2 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+2*mr+2]))
@@ -71,8 +71,8 @@ func BasePackedMicroKernel4x2_avx2_Float16(packedA []hwy.Float16, packedB []hwy.
 		acc21 = a2_2.MulAdd(bVec1_2, acc21)
 		acc30 = a3_2.MulAdd(bVec0_2, acc30)
 		acc31 = a3_2.MulAdd(bVec1_2, acc31)
-		bVec0_3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr:][0]))
-		bVec1_3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr+lanes:][0]))
+		bVec0_3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr]))
+		bVec1_3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr+lanes]))
 		a0_3 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+3*mr]))
 		a1_3 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+3*mr+1]))
 		a2_3 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+3*mr+2]))
@@ -89,8 +89,8 @@ func BasePackedMicroKernel4x2_avx2_Float16(packedA []hwy.Float16, packedB []hwy.
 		bIdx += 4 * nr
 	}
 	for ; p < panelK; p++ {
-		bVec0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx:][0]))
-		bVec1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes:][0]))
+		bVec0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx]))
+		bVec1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes]))
 		bIdx += nr
 		a0 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx]))
 		a1 := asm.BroadcastFloat16x8AVX2(uint16(packedA[aIdx+1]))
@@ -110,14 +110,14 @@ func BasePackedMicroKernel4x2_avx2_Float16(packedA []hwy.Float16, packedB []hwy.
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.StorePtr(unsafe.Pointer(&output[outIdx0:][0]))
-	acc01.StorePtr(unsafe.Pointer(&output[outIdx0+lanes:][0]))
-	acc10.StorePtr(unsafe.Pointer(&output[outIdx1:][0]))
-	acc11.StorePtr(unsafe.Pointer(&output[outIdx1+lanes:][0]))
-	acc20.StorePtr(unsafe.Pointer(&output[outIdx2:][0]))
-	acc21.StorePtr(unsafe.Pointer(&output[outIdx2+lanes:][0]))
-	acc30.StorePtr(unsafe.Pointer(&output[outIdx3:][0]))
-	acc31.StorePtr(unsafe.Pointer(&output[outIdx3+lanes:][0]))
+	acc00.StorePtr(unsafe.Pointer(&output[outIdx0]))
+	acc01.StorePtr(unsafe.Pointer(&output[outIdx0+lanes]))
+	acc10.StorePtr(unsafe.Pointer(&output[outIdx1]))
+	acc11.StorePtr(unsafe.Pointer(&output[outIdx1+lanes]))
+	acc20.StorePtr(unsafe.Pointer(&output[outIdx2]))
+	acc21.StorePtr(unsafe.Pointer(&output[outIdx2+lanes]))
+	acc30.StorePtr(unsafe.Pointer(&output[outIdx3]))
+	acc31.StorePtr(unsafe.Pointer(&output[outIdx3+lanes]))
 }
 
 func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, output []hwy.BFloat16, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
@@ -137,8 +137,8 @@ func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hw
 	_ = packedB[panelK*nr-1].Float32()
 	p := 0
 	for ; p+3 < panelK; p += 4 {
-		bVec0_0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx:][0]))
-		bVec1_0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes:][0]))
+		bVec0_0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx]))
+		bVec1_0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes]))
 		a0_0 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx]))
 		a1_0 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+1]))
 		a2_0 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+2]))
@@ -151,8 +151,8 @@ func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hw
 		acc21 = a2_0.MulAdd(bVec1_0, acc21)
 		acc30 = a3_0.MulAdd(bVec0_0, acc30)
 		acc31 = a3_0.MulAdd(bVec1_0, acc31)
-		bVec0_1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr:][0]))
-		bVec1_1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr+lanes:][0]))
+		bVec0_1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr]))
+		bVec1_1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+nr+lanes]))
 		a0_1 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+mr]))
 		a1_1 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+mr+1]))
 		a2_1 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+mr+2]))
@@ -165,8 +165,8 @@ func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hw
 		acc21 = a2_1.MulAdd(bVec1_1, acc21)
 		acc30 = a3_1.MulAdd(bVec0_1, acc30)
 		acc31 = a3_1.MulAdd(bVec1_1, acc31)
-		bVec0_2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr:][0]))
-		bVec1_2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr+lanes:][0]))
+		bVec0_2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr]))
+		bVec1_2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+2*nr+lanes]))
 		a0_2 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+2*mr]))
 		a1_2 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+2*mr+1]))
 		a2_2 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+2*mr+2]))
@@ -179,8 +179,8 @@ func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hw
 		acc21 = a2_2.MulAdd(bVec1_2, acc21)
 		acc30 = a3_2.MulAdd(bVec0_2, acc30)
 		acc31 = a3_2.MulAdd(bVec1_2, acc31)
-		bVec0_3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr:][0]))
-		bVec1_3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr+lanes:][0]))
+		bVec0_3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr]))
+		bVec1_3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+3*nr+lanes]))
 		a0_3 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+3*mr]))
 		a1_3 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+3*mr+1]))
 		a2_3 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+3*mr+2]))
@@ -197,8 +197,8 @@ func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hw
 		bIdx += 4 * nr
 	}
 	for ; p < panelK; p++ {
-		bVec0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx:][0]))
-		bVec1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes:][0]))
+		bVec0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx]))
+		bVec1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&packedB[bIdx+lanes]))
 		bIdx += nr
 		a0 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx]))
 		a1 := asm.BroadcastBFloat16x8AVX2(uint16(packedA[aIdx+1]))
@@ -218,14 +218,14 @@ func BasePackedMicroKernel4x2_avx2_BFloat16(packedA []hwy.BFloat16, packedB []hw
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.StorePtr(unsafe.Pointer(&output[outIdx0:][0]))
-	acc01.StorePtr(unsafe.Pointer(&output[outIdx0+lanes:][0]))
-	acc10.StorePtr(unsafe.Pointer(&output[outIdx1:][0]))
-	acc11.StorePtr(unsafe.Pointer(&output[outIdx1+lanes:][0]))
-	acc20.StorePtr(unsafe.Pointer(&output[outIdx2:][0]))
-	acc21.StorePtr(unsafe.Pointer(&output[outIdx2+lanes:][0]))
-	acc30.StorePtr(unsafe.Pointer(&output[outIdx3:][0]))
-	acc31.StorePtr(unsafe.Pointer(&output[outIdx3+lanes:][0]))
+	acc00.StorePtr(unsafe.Pointer(&output[outIdx0]))
+	acc01.StorePtr(unsafe.Pointer(&output[outIdx0+lanes]))
+	acc10.StorePtr(unsafe.Pointer(&output[outIdx1]))
+	acc11.StorePtr(unsafe.Pointer(&output[outIdx1+lanes]))
+	acc20.StorePtr(unsafe.Pointer(&output[outIdx2]))
+	acc21.StorePtr(unsafe.Pointer(&output[outIdx2+lanes]))
+	acc30.StorePtr(unsafe.Pointer(&output[outIdx3]))
+	acc31.StorePtr(unsafe.Pointer(&output[outIdx3+lanes]))
 }
 
 func BasePackedMicroKernel4x2_avx2(packedA []float32, packedB []float32, output []float32, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
@@ -449,7 +449,7 @@ func BaseZeroSlice_avx2_Float16(s []hwy.Float16, n int) {
 	lanes := 8
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.StorePtr(unsafe.Pointer(&s[idx:][0]))
+		vZero.StorePtr(unsafe.Pointer(&s[idx]))
 	}
 	for ; idx < n; idx++ {
 		s[idx] = hwy.Float32ToFloat16(0)
@@ -461,7 +461,7 @@ func BaseZeroSlice_avx2_BFloat16(s []hwy.BFloat16, n int) {
 	lanes := 8
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.StorePtr(unsafe.Pointer(&s[idx:][0]))
+		vZero.StorePtr(unsafe.Pointer(&s[idx]))
 	}
 	for ; idx < n; idx++ {
 		s[idx] = hwy.Float32ToBFloat16(0)

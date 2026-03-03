@@ -6,6 +6,110 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseAbs_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			result := hwy.Abs(v)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]hwy.Float16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Abs(v)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseAbs_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			result := hwy.Abs(v)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]hwy.BFloat16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Abs(v)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseAbs_fallback(img *Image[float32], out *Image[float32]) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	lanes := hwy.MaxLanes[float32]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			result := hwy.Abs(v)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]float32, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Abs(v)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseAbs_fallback_Float64(img *Image[float64], out *Image[float64]) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	lanes := hwy.MaxLanes[float64]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			result := hwy.Abs(v)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]float64, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Abs(v)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
 func BaseBrightnessContrast_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16, offset hwy.Float16) {
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
@@ -226,13 +330,11 @@ func BaseClampImage_fallback_Float64(img *Image[float64], out *Image[float64], m
 	}
 }
 
-func BaseThreshold_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16) {
+func BaseGamma_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], gamma hwy.Float16) {
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	threshVec := hwy.Set(threshold)
-	belowVec := hwy.Set(below)
-	aboveVec := hwy.Set(above)
+	gammaVec := hwy.Set(gamma)
 	lanes := hwy.MaxLanes[hwy.Float16]()
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -241,29 +343,25 @@ func BaseThreshold_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Floa
 		i := 0
 		for ; i+lanes <= width; i += lanes {
 			v := hwy.Load(inRow[i:])
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := make([]hwy.Float16, lanes)
 			copy(buf, inRow[i:i+remaining])
 			v := hwy.Load(buf)
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, buf)
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }
 
-func BaseThreshold_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16) {
+func BaseGamma_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], gamma hwy.BFloat16) {
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	threshVec := hwy.Set(threshold)
-	belowVec := hwy.Set(below)
-	aboveVec := hwy.Set(above)
+	gammaVec := hwy.Set(gamma)
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -272,29 +370,25 @@ func BaseThreshold_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BF
 		i := 0
 		for ; i+lanes <= width; i += lanes {
 			v := hwy.Load(inRow[i:])
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := make([]hwy.BFloat16, lanes)
 			copy(buf, inRow[i:i+remaining])
 			v := hwy.Load(buf)
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, buf)
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }
 
-func BaseThreshold_fallback(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32) {
+func BaseGamma_fallback(img *Image[float32], out *Image[float32], gamma float32) {
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	threshVec := hwy.Set(threshold)
-	belowVec := hwy.Set(below)
-	aboveVec := hwy.Set(above)
+	gammaVec := hwy.Set(gamma)
 	lanes := hwy.MaxLanes[float32]()
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -303,29 +397,25 @@ func BaseThreshold_fallback(img *Image[float32], out *Image[float32], threshold 
 		i := 0
 		for ; i+lanes <= width; i += lanes {
 			v := hwy.Load(inRow[i:])
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := make([]float32, lanes)
 			copy(buf, inRow[i:i+remaining])
 			v := hwy.Load(buf)
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, buf)
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }
 
-func BaseThreshold_fallback_Float64(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64) {
+func BaseGamma_fallback_Float64(img *Image[float64], out *Image[float64], gamma float64) {
 	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	threshVec := hwy.Set(threshold)
-	belowVec := hwy.Set(below)
-	aboveVec := hwy.Set(above)
+	gammaVec := hwy.Set(gamma)
 	lanes := hwy.MaxLanes[float64]()
 	for y := 0; y < img.height; y++ {
 		inRow := img.Row(y)
@@ -334,16 +424,14 @@ func BaseThreshold_fallback_Float64(img *Image[float64], out *Image[float64], th
 		i := 0
 		for ; i+lanes <= width; i += lanes {
 			v := hwy.Load(inRow[i:])
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := make([]float64, lanes)
 			copy(buf, inRow[i:i+remaining])
 			v := hwy.Load(buf)
-			mask := hwy.GreaterEqual(v, threshVec)
-			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			result := hwy.Pow(v, gammaVec)
 			hwy.Store(result, buf)
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
@@ -456,426 +544,132 @@ func BaseInvert_fallback_Float64(img *Image[float64], out *Image[float64], maxVa
 	}
 }
 
-func BaseAbs_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
+func BaseMaxImage_fallback_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16]) {
+	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
 		return
 	}
 	lanes := hwy.MaxLanes[hwy.Float16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
+	height := min(a.height, b.height)
+	for y := range height {
+		aRow := a.Row(y)
+		bRow := b.Row(y)
 		outRow := out.Row(y)
-		width := img.width
+		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Abs(v)
+			va := hwy.Load(aRow[i:])
+			vb := hwy.Load(bRow[i:])
+			result := hwy.Max(va, vb)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.Float16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Abs(v)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
+			bufA := make([]hwy.Float16, lanes)
+			bufB := make([]hwy.Float16, lanes)
+			bufOut := make([]hwy.Float16, lanes)
+			copy(bufA, aRow[i:i+remaining])
+			copy(bufB, bRow[i:i+remaining])
+			va := hwy.Load(bufA)
+			vb := hwy.Load(bufB)
+			result := hwy.Max(va, vb)
+			hwy.Store(result, bufOut)
+			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
 }
 
-func BaseAbs_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
+func BaseMaxImage_fallback_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
+	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
 		return
 	}
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
+	height := min(a.height, b.height)
+	for y := range height {
+		aRow := a.Row(y)
+		bRow := b.Row(y)
 		outRow := out.Row(y)
-		width := img.width
+		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Abs(v)
+			va := hwy.Load(aRow[i:])
+			vb := hwy.Load(bRow[i:])
+			result := hwy.Max(va, vb)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.BFloat16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Abs(v)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
+			bufA := make([]hwy.BFloat16, lanes)
+			bufB := make([]hwy.BFloat16, lanes)
+			bufOut := make([]hwy.BFloat16, lanes)
+			copy(bufA, aRow[i:i+remaining])
+			copy(bufB, bRow[i:i+remaining])
+			va := hwy.Load(bufA)
+			vb := hwy.Load(bufB)
+			result := hwy.Max(va, vb)
+			hwy.Store(result, bufOut)
+			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
 }
 
-func BaseAbs_fallback(img *Image[float32], out *Image[float32]) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
+func BaseMaxImage_fallback(a *Image[float32], b *Image[float32], out *Image[float32]) {
+	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
 		return
 	}
-	lanes := hwy.MaxLanes[float32]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
+	height := min(a.height, b.height)
+	for y := range height {
+		aRow := a.Row(y)
+		bRow := b.Row(y)
 		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Abs(v)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]float32, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Abs(v)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseAbs_fallback_Float64(img *Image[float64], out *Image[float64]) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	lanes := hwy.MaxLanes[float64]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Abs(v)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]float64, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Abs(v)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseScale_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	scaleVec := hwy.Set(scale)
-	lanes := hwy.MaxLanes[hwy.Float16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Mul(v, scaleVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.Float16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Mul(v, scaleVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseScale_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	scaleVec := hwy.Set(scale)
-	lanes := hwy.MaxLanes[hwy.BFloat16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Mul(v, scaleVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.BFloat16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Mul(v, scaleVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseScale_fallback(img *Image[float32], out *Image[float32], scale float32) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	scaleVec := float32(scale)
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
+		width := min(a.width, b.width)
 		i := 0
 		for ; i < width; i++ {
-			v := inRow[i]
-			result := v * scaleVec
+			va := aRow[i]
+			vb := bRow[i]
+			result := max(va, vb)
 			outRow[i] = result
 		}
 		if remaining := width - i; remaining > 0 {
-			buf := make([]float32, 1)
-			copy(buf, inRow[i:i+remaining])
-			v := buf[0]
-			result := v * scaleVec
-			buf[0] = result
-			copy(outRow[i:i+remaining], buf[:remaining])
+			bufA := make([]float32, 1)
+			bufB := make([]float32, 1)
+			bufOut := make([]float32, 1)
+			copy(bufA, aRow[i:i+remaining])
+			copy(bufB, bRow[i:i+remaining])
+			va := bufA[0]
+			vb := bufB[0]
+			result := max(va, vb)
+			bufOut[0] = result
+			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
 }
 
-func BaseScale_fallback_Float64(img *Image[float64], out *Image[float64], scale float64) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
+func BaseMaxImage_fallback_Float64(a *Image[float64], b *Image[float64], out *Image[float64]) {
+	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
 		return
 	}
-	scaleVec := float64(scale)
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
+	height := min(a.height, b.height)
+	for y := range height {
+		aRow := a.Row(y)
+		bRow := b.Row(y)
 		outRow := out.Row(y)
-		width := img.width
+		width := min(a.width, b.width)
 		i := 0
 		for ; i < width; i++ {
-			v := inRow[i]
-			result := v * scaleVec
+			va := aRow[i]
+			vb := bRow[i]
+			result := max(va, vb)
 			outRow[i] = result
 		}
 		if remaining := width - i; remaining > 0 {
-			buf := make([]float64, 1)
-			copy(buf, inRow[i:i+remaining])
-			v := buf[0]
-			result := v * scaleVec
-			buf[0] = result
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseOffset_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	offsetVec := hwy.Set(offset)
-	lanes := hwy.MaxLanes[hwy.Float16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Add(v, offsetVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.Float16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Add(v, offsetVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseOffset_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	offsetVec := hwy.Set(offset)
-	lanes := hwy.MaxLanes[hwy.BFloat16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Add(v, offsetVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.BFloat16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Add(v, offsetVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseOffset_fallback(img *Image[float32], out *Image[float32], offset float32) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	offsetVec := float32(offset)
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i < width; i++ {
-			v := inRow[i]
-			result := v + offsetVec
-			outRow[i] = result
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]float32, 1)
-			copy(buf, inRow[i:i+remaining])
-			v := buf[0]
-			result := v + offsetVec
-			buf[0] = result
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseOffset_fallback_Float64(img *Image[float64], out *Image[float64], offset float64) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	offsetVec := float64(offset)
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i < width; i++ {
-			v := inRow[i]
-			result := v + offsetVec
-			outRow[i] = result
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]float64, 1)
-			copy(buf, inRow[i:i+remaining])
-			v := buf[0]
-			result := v + offsetVec
-			buf[0] = result
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseGamma_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], gamma hwy.Float16) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	gammaVec := hwy.Set(gamma)
-	lanes := hwy.MaxLanes[hwy.Float16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.Float16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseGamma_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], gamma hwy.BFloat16) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	gammaVec := hwy.Set(gamma)
-	lanes := hwy.MaxLanes[hwy.BFloat16]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]hwy.BFloat16, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseGamma_fallback(img *Image[float32], out *Image[float32], gamma float32) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	gammaVec := hwy.Set(gamma)
-	lanes := hwy.MaxLanes[float32]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]float32, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
-		}
-	}
-}
-
-func BaseGamma_fallback_Float64(img *Image[float64], out *Image[float64], gamma float64) {
-	if img == nil || out == nil || img.data == nil || out.data == nil {
-		return
-	}
-	gammaVec := hwy.Set(gamma)
-	lanes := hwy.MaxLanes[float64]()
-	for y := 0; y < img.height; y++ {
-		inRow := img.Row(y)
-		outRow := out.Row(y)
-		width := img.width
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			v := hwy.Load(inRow[i:])
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, outRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			buf := make([]float64, lanes)
-			copy(buf, inRow[i:i+remaining])
-			v := hwy.Load(buf)
-			result := hwy.Pow(v, gammaVec)
-			hwy.Store(result, buf)
-			copy(outRow[i:i+remaining], buf[:remaining])
+			bufA := make([]float64, 1)
+			bufB := make([]float64, 1)
+			bufOut := make([]float64, 1)
+			copy(bufA, aRow[i:i+remaining])
+			copy(bufB, bRow[i:i+remaining])
+			va := bufA[0]
+			vb := bufB[0]
+			result := max(va, vb)
+			bufOut[0] = result
+			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
 }
@@ -1010,132 +804,338 @@ func BaseMinImage_fallback_Float64(a *Image[float64], b *Image[float64], out *Im
 	}
 }
 
-func BaseMaxImage_fallback_Float16(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16]) {
-	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
+func BaseOffset_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
+	offsetVec := hwy.Set(offset)
 	lanes := hwy.MaxLanes[hwy.Float16]()
-	height := min(a.height, b.height)
-	for y := range height {
-		aRow := a.Row(y)
-		bRow := b.Row(y)
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
 		outRow := out.Row(y)
-		width := min(a.width, b.width)
+		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := hwy.Load(aRow[i:])
-			vb := hwy.Load(bRow[i:])
-			result := hwy.Max(va, vb)
+			v := hwy.Load(inRow[i:])
+			result := hwy.Add(v, offsetVec)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
-			bufA := make([]hwy.Float16, lanes)
-			bufB := make([]hwy.Float16, lanes)
-			bufOut := make([]hwy.Float16, lanes)
-			copy(bufA, aRow[i:i+remaining])
-			copy(bufB, bRow[i:i+remaining])
-			va := hwy.Load(bufA)
-			vb := hwy.Load(bufB)
-			result := hwy.Max(va, vb)
-			hwy.Store(result, bufOut)
-			copy(outRow[i:i+remaining], bufOut[:remaining])
+			buf := make([]hwy.Float16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Add(v, offsetVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }
 
-func BaseMaxImage_fallback_BFloat16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
-	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
+func BaseOffset_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
+	offsetVec := hwy.Set(offset)
 	lanes := hwy.MaxLanes[hwy.BFloat16]()
-	height := min(a.height, b.height)
-	for y := range height {
-		aRow := a.Row(y)
-		bRow := b.Row(y)
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
 		outRow := out.Row(y)
-		width := min(a.width, b.width)
+		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := hwy.Load(aRow[i:])
-			vb := hwy.Load(bRow[i:])
-			result := hwy.Max(va, vb)
+			v := hwy.Load(inRow[i:])
+			result := hwy.Add(v, offsetVec)
 			hwy.Store(result, outRow[i:])
 		}
 		if remaining := width - i; remaining > 0 {
-			bufA := make([]hwy.BFloat16, lanes)
-			bufB := make([]hwy.BFloat16, lanes)
-			bufOut := make([]hwy.BFloat16, lanes)
-			copy(bufA, aRow[i:i+remaining])
-			copy(bufB, bRow[i:i+remaining])
-			va := hwy.Load(bufA)
-			vb := hwy.Load(bufB)
-			result := hwy.Max(va, vb)
-			hwy.Store(result, bufOut)
-			copy(outRow[i:i+remaining], bufOut[:remaining])
+			buf := make([]hwy.BFloat16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Add(v, offsetVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }
 
-func BaseMaxImage_fallback(a *Image[float32], b *Image[float32], out *Image[float32]) {
-	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
+func BaseOffset_fallback(img *Image[float32], out *Image[float32], offset float32) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	height := min(a.height, b.height)
-	for y := range height {
-		aRow := a.Row(y)
-		bRow := b.Row(y)
+	offsetVec := float32(offset)
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
 		outRow := out.Row(y)
-		width := min(a.width, b.width)
+		width := img.width
 		i := 0
 		for ; i < width; i++ {
-			va := aRow[i]
-			vb := bRow[i]
-			result := max(va, vb)
+			v := inRow[i]
+			result := v + offsetVec
 			outRow[i] = result
 		}
 		if remaining := width - i; remaining > 0 {
-			bufA := make([]float32, 1)
-			bufB := make([]float32, 1)
-			bufOut := make([]float32, 1)
-			copy(bufA, aRow[i:i+remaining])
-			copy(bufB, bRow[i:i+remaining])
-			va := bufA[0]
-			vb := bufB[0]
-			result := max(va, vb)
-			bufOut[0] = result
-			copy(outRow[i:i+remaining], bufOut[:remaining])
+			buf := make([]float32, 1)
+			copy(buf, inRow[i:i+remaining])
+			v := buf[0]
+			result := v + offsetVec
+			buf[0] = result
+			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }
 
-func BaseMaxImage_fallback_Float64(a *Image[float64], b *Image[float64], out *Image[float64]) {
-	if a == nil || b == nil || out == nil || a.data == nil || b.data == nil || out.data == nil {
+func BaseOffset_fallback_Float64(img *Image[float64], out *Image[float64], offset float64) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
 		return
 	}
-	height := min(a.height, b.height)
-	for y := range height {
-		aRow := a.Row(y)
-		bRow := b.Row(y)
+	offsetVec := float64(offset)
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
 		outRow := out.Row(y)
-		width := min(a.width, b.width)
+		width := img.width
 		i := 0
 		for ; i < width; i++ {
-			va := aRow[i]
-			vb := bRow[i]
-			result := max(va, vb)
+			v := inRow[i]
+			result := v + offsetVec
 			outRow[i] = result
 		}
 		if remaining := width - i; remaining > 0 {
-			bufA := make([]float64, 1)
-			bufB := make([]float64, 1)
-			bufOut := make([]float64, 1)
-			copy(bufA, aRow[i:i+remaining])
-			copy(bufB, bRow[i:i+remaining])
-			va := bufA[0]
-			vb := bufB[0]
-			result := max(va, vb)
-			bufOut[0] = result
-			copy(outRow[i:i+remaining], bufOut[:remaining])
+			buf := make([]float64, 1)
+			copy(buf, inRow[i:i+remaining])
+			v := buf[0]
+			result := v + offsetVec
+			buf[0] = result
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseScale_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	scaleVec := hwy.Set(scale)
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			result := hwy.Mul(v, scaleVec)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]hwy.Float16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Mul(v, scaleVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseScale_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	scaleVec := hwy.Set(scale)
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			result := hwy.Mul(v, scaleVec)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]hwy.BFloat16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			result := hwy.Mul(v, scaleVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseScale_fallback(img *Image[float32], out *Image[float32], scale float32) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	scaleVec := float32(scale)
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i < width; i++ {
+			v := inRow[i]
+			result := v * scaleVec
+			outRow[i] = result
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]float32, 1)
+			copy(buf, inRow[i:i+remaining])
+			v := buf[0]
+			result := v * scaleVec
+			buf[0] = result
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseScale_fallback_Float64(img *Image[float64], out *Image[float64], scale float64) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	scaleVec := float64(scale)
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i < width; i++ {
+			v := inRow[i]
+			result := v * scaleVec
+			outRow[i] = result
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]float64, 1)
+			copy(buf, inRow[i:i+remaining])
+			v := buf[0]
+			result := v * scaleVec
+			buf[0] = result
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseThreshold_fallback_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	threshVec := hwy.Set(threshold)
+	belowVec := hwy.Set(below)
+	aboveVec := hwy.Set(above)
+	lanes := hwy.MaxLanes[hwy.Float16]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]hwy.Float16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseThreshold_fallback_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	threshVec := hwy.Set(threshold)
+	belowVec := hwy.Set(below)
+	aboveVec := hwy.Set(above)
+	lanes := hwy.MaxLanes[hwy.BFloat16]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]hwy.BFloat16, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseThreshold_fallback(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	threshVec := hwy.Set(threshold)
+	belowVec := hwy.Set(below)
+	aboveVec := hwy.Set(above)
+	lanes := hwy.MaxLanes[float32]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]float32, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
+		}
+	}
+}
+
+func BaseThreshold_fallback_Float64(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64) {
+	if img == nil || out == nil || img.data == nil || out.data == nil {
+		return
+	}
+	threshVec := hwy.Set(threshold)
+	belowVec := hwy.Set(below)
+	aboveVec := hwy.Set(above)
+	lanes := hwy.MaxLanes[float64]()
+	for y := 0; y < img.height; y++ {
+		inRow := img.Row(y)
+		outRow := out.Row(y)
+		width := img.width
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			v := hwy.Load(inRow[i:])
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, outRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			buf := make([]float64, lanes)
+			copy(buf, inRow[i:i+remaining])
+			v := hwy.Load(buf)
+			mask := hwy.GreaterEqual(v, threshVec)
+			result := hwy.IfThenElse(mask, aboveVec, belowVec)
+			hwy.Store(result, buf)
+			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
 }

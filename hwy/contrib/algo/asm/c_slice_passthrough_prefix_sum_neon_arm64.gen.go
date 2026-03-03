@@ -5,6 +5,26 @@ package asm
 
 import "unsafe"
 
+// DeltaDecode_S32 calls the NEON SIMD assembly implementation.
+func DeltaDecode_S32(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
+	deltadecode_c_s32_neon(data, pbase, plen)
+}
+
+// DeltaDecode_S64 calls the NEON SIMD assembly implementation.
+func DeltaDecode_S64(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
+	deltadecode_c_s64_neon(data, pbase, plen)
+}
+
+// DeltaDecode_U32 calls the NEON SIMD assembly implementation.
+func DeltaDecode_U32(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
+	deltadecode_c_u32_neon(data, pbase, plen)
+}
+
+// DeltaDecode_U64 calls the NEON SIMD assembly implementation.
+func DeltaDecode_U64(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
+	deltadecode_c_u64_neon(data, pbase, plen)
+}
+
 // PrefixSum_F32 calls the NEON SIMD assembly implementation.
 func PrefixSum_F32(data unsafe.Pointer, plen unsafe.Pointer) {
 	prefixsum_c_f32_neon(data, plen)
@@ -33,25 +53,5 @@ func PrefixSum_U32(data unsafe.Pointer, plen unsafe.Pointer) {
 // PrefixSum_U64 calls the NEON SIMD assembly implementation.
 func PrefixSum_U64(data unsafe.Pointer, plen unsafe.Pointer) {
 	prefixsum_c_u64_neon(data, plen)
-}
-
-// DeltaDecode_S32 calls the NEON SIMD assembly implementation.
-func DeltaDecode_S32(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
-	deltadecode_c_s32_neon(data, pbase, plen)
-}
-
-// DeltaDecode_S64 calls the NEON SIMD assembly implementation.
-func DeltaDecode_S64(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
-	deltadecode_c_s64_neon(data, pbase, plen)
-}
-
-// DeltaDecode_U32 calls the NEON SIMD assembly implementation.
-func DeltaDecode_U32(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
-	deltadecode_c_u32_neon(data, pbase, plen)
-}
-
-// DeltaDecode_U64 calls the NEON SIMD assembly implementation.
-func DeltaDecode_U64(data unsafe.Pointer, pbase unsafe.Pointer, plen unsafe.Pointer) {
-	deltadecode_c_u64_neon(data, pbase, plen)
 }
 

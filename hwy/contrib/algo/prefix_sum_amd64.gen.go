@@ -10,48 +10,16 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var DeltaDecodeInt32 func(data []int32, base int32)
+var DeltaDecodeInt64 func(data []int64, base int64)
+var DeltaDecodeUint32 func(data []uint32, base uint32)
+var DeltaDecodeUint64 func(data []uint64, base uint64)
 var PrefixSumFloat32 func(data []float32)
 var PrefixSumFloat64 func(data []float64)
 var PrefixSumInt32 func(data []int32)
 var PrefixSumInt64 func(data []int64)
 var PrefixSumUint32 func(data []uint32)
 var PrefixSumUint64 func(data []uint64)
-var DeltaDecodeInt32 func(data []int32, base int32)
-var DeltaDecodeInt64 func(data []int64, base int64)
-var DeltaDecodeUint32 func(data []uint32, base uint32)
-var DeltaDecodeUint64 func(data []uint64, base uint64)
-
-// PrefixSum computes the inclusive prefix sum in place.
-// Result[i] = data[0] + data[1] + ... + data[i]
-//
-// Example:
-//
-//	data := []int64{1, 2, 3, 4, 5, 6, 7, 8}
-//	BasePrefixSum(data)
-//	// data = [1, 3, 6, 10, 15, 21, 28, 36]
-//
-// If you need to preserve the original, copy first:
-//
-//	result := slices.Clone(src)
-//	BasePrefixSum(result)
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func PrefixSum[T hwy.Integers | hwy.FloatsNative](data []T) {
-	switch any(data).(type) {
-	case []float32:
-		PrefixSumFloat32(any(data).([]float32))
-	case []float64:
-		PrefixSumFloat64(any(data).([]float64))
-	case []int32:
-		PrefixSumInt32(any(data).([]int32))
-	case []int64:
-		PrefixSumInt64(any(data).([]int64))
-	case []uint32:
-		PrefixSumUint32(any(data).([]uint32))
-	case []uint64:
-		PrefixSumUint64(any(data).([]uint64))
-	}
-}
 
 // DeltaDecode decodes delta-encoded values in place.
 // Each value represents a delta from the previous value.
@@ -87,6 +55,38 @@ func DeltaDecode[T hwy.Integers](data []T, base T) {
 	}
 }
 
+// PrefixSum computes the inclusive prefix sum in place.
+// Result[i] = data[0] + data[1] + ... + data[i]
+//
+// Example:
+//
+//	data := []int64{1, 2, 3, 4, 5, 6, 7, 8}
+//	BasePrefixSum(data)
+//	// data = [1, 3, 6, 10, 15, 21, 28, 36]
+//
+// If you need to preserve the original, copy first:
+//
+//	result := slices.Clone(src)
+//	BasePrefixSum(result)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func PrefixSum[T hwy.Integers | hwy.FloatsNative](data []T) {
+	switch any(data).(type) {
+	case []float32:
+		PrefixSumFloat32(any(data).([]float32))
+	case []float64:
+		PrefixSumFloat64(any(data).([]float64))
+	case []int32:
+		PrefixSumInt32(any(data).([]int32))
+	case []int64:
+		PrefixSumInt64(any(data).([]int64))
+	case []uint32:
+		PrefixSumUint32(any(data).([]uint32))
+	case []uint64:
+		PrefixSumUint64(any(data).([]uint64))
+	}
+}
+
 func init() {
 	initPrefix_sumAll()
 }
@@ -108,40 +108,40 @@ func initPrefix_sumAll() {
 }
 
 func initPrefix_sumAVX2() {
+	DeltaDecodeInt32 = BaseDeltaDecode_avx2_Int32
+	DeltaDecodeInt64 = BaseDeltaDecode_avx2_Int64
+	DeltaDecodeUint32 = BaseDeltaDecode_avx2_Uint32
+	DeltaDecodeUint64 = BaseDeltaDecode_avx2_Uint64
 	PrefixSumFloat32 = BasePrefixSum_avx2
 	PrefixSumFloat64 = BasePrefixSum_avx2_Float64
 	PrefixSumInt32 = BasePrefixSum_avx2_Int32
 	PrefixSumInt64 = BasePrefixSum_avx2_Int64
 	PrefixSumUint32 = BasePrefixSum_avx2_Uint32
 	PrefixSumUint64 = BasePrefixSum_avx2_Uint64
-	DeltaDecodeInt32 = BaseDeltaDecode_avx2_Int32
-	DeltaDecodeInt64 = BaseDeltaDecode_avx2_Int64
-	DeltaDecodeUint32 = BaseDeltaDecode_avx2_Uint32
-	DeltaDecodeUint64 = BaseDeltaDecode_avx2_Uint64
 }
 
 func initPrefix_sumAVX512() {
+	DeltaDecodeInt32 = BaseDeltaDecode_avx512_Int32
+	DeltaDecodeInt64 = BaseDeltaDecode_avx512_Int64
+	DeltaDecodeUint32 = BaseDeltaDecode_avx512_Uint32
+	DeltaDecodeUint64 = BaseDeltaDecode_avx512_Uint64
 	PrefixSumFloat32 = BasePrefixSum_avx512
 	PrefixSumFloat64 = BasePrefixSum_avx512_Float64
 	PrefixSumInt32 = BasePrefixSum_avx512_Int32
 	PrefixSumInt64 = BasePrefixSum_avx512_Int64
 	PrefixSumUint32 = BasePrefixSum_avx512_Uint32
 	PrefixSumUint64 = BasePrefixSum_avx512_Uint64
-	DeltaDecodeInt32 = BaseDeltaDecode_avx512_Int32
-	DeltaDecodeInt64 = BaseDeltaDecode_avx512_Int64
-	DeltaDecodeUint32 = BaseDeltaDecode_avx512_Uint32
-	DeltaDecodeUint64 = BaseDeltaDecode_avx512_Uint64
 }
 
 func initPrefix_sumFallback() {
+	DeltaDecodeInt32 = BaseDeltaDecode_fallback_Int32
+	DeltaDecodeInt64 = BaseDeltaDecode_fallback_Int64
+	DeltaDecodeUint32 = BaseDeltaDecode_fallback_Uint32
+	DeltaDecodeUint64 = BaseDeltaDecode_fallback_Uint64
 	PrefixSumFloat32 = BasePrefixSum_fallback
 	PrefixSumFloat64 = BasePrefixSum_fallback_Float64
 	PrefixSumInt32 = BasePrefixSum_fallback_Int32
 	PrefixSumInt64 = BasePrefixSum_fallback_Int64
 	PrefixSumUint32 = BasePrefixSum_fallback_Uint32
 	PrefixSumUint64 = BasePrefixSum_fallback_Uint64
-	DeltaDecodeInt32 = BaseDeltaDecode_fallback_Int32
-	DeltaDecodeInt64 = BaseDeltaDecode_fallback_Int64
-	DeltaDecodeUint32 = BaseDeltaDecode_fallback_Uint32
-	DeltaDecodeUint64 = BaseDeltaDecode_fallback_Uint64
 }

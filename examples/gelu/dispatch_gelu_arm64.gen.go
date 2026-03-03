@@ -69,19 +69,8 @@ func initGeluAll() {
 		initGeluFallback()
 		return
 	}
-	initGeluNEON()
+	initGeluFallback()
 	return
-}
-
-func initGeluNEON() {
-	GELUFloat16 = BaseGELU_neon_Float16
-	GELUBFloat16 = BaseGELU_neon_BFloat16
-	GELUFloat32 = BaseGELU_neon
-	GELUFloat64 = BaseGELU_neon_Float64
-	GELUApproxFloat16 = BaseGELUApprox_neon_Float16
-	GELUApproxBFloat16 = BaseGELUApprox_neon_BFloat16
-	GELUApproxFloat32 = BaseGELUApprox_neon
-	GELUApproxFloat64 = BaseGELUApprox_neon_Float64
 }
 
 func initGeluFallback() {

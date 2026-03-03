@@ -52,15 +52,8 @@ func initQkvdenseAll() {
 		initQkvdenseFallback()
 		return
 	}
-	initQkvdenseNEON()
+	initQkvdenseFallback()
 	return
-}
-
-func initQkvdenseNEON() {
-	QKVDenseFloat16 = BaseQKVDense_neon_Float16
-	QKVDenseBFloat16 = BaseQKVDense_neon_BFloat16
-	QKVDenseFloat32 = BaseQKVDense_neon
-	QKVDenseFloat64 = BaseQKVDense_neon_Float64
 }
 
 func initQkvdenseFallback() {

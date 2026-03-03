@@ -298,6 +298,246 @@ func BasePackedMatMul_fallback_Float64(a []float64, b []float64, c []float64, m 
 	}
 }
 
+func BasePackedMatMulStrip_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int, rowStart int, rowEnd int, packedA []hwy.Float16, packedB []hwy.Float16, params CacheParams) {
+	mr, nr := params.Mr, params.Nr
+	kc, mc, nc := params.Kc, params.Mc, params.Nc
+	stripM := rowEnd - rowStart
+	{
+		vZero_1 := hwy.Zero[hwy.Float16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
+	for jc := 0; jc < n; jc += nc {
+		jcEnd := min(jc+nc, n)
+		panelCols := jcEnd - jc
+		for pc := 0; pc < k; pc += kc {
+			pcEnd := min(pc+kc, k)
+			panelK := pcEnd - pc
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
+			for ic := rowStart; ic < rowEnd; ic += mc {
+				icEnd := min(ic+mc, rowEnd)
+				panelRows := icEnd - ic
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := range numMicroPanelsB_2 {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := range numMicroPanelsA_2 {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func BasePackedMatMulStrip_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int, rowStart int, rowEnd int, packedA []hwy.BFloat16, packedB []hwy.BFloat16, params CacheParams) {
+	mr, nr := params.Mr, params.Nr
+	kc, mc, nc := params.Kc, params.Mc, params.Nc
+	stripM := rowEnd - rowStart
+	{
+		vZero_1 := hwy.Zero[hwy.BFloat16]()
+		lanes_1 := vZero_1.NumLanes()
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
+	for jc := 0; jc < n; jc += nc {
+		jcEnd := min(jc+nc, n)
+		panelCols := jcEnd - jc
+		for pc := 0; pc < k; pc += kc {
+			pcEnd := min(pc+kc, k)
+			panelK := pcEnd - pc
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
+			for ic := rowStart; ic < rowEnd; ic += mc {
+				icEnd := min(ic+mc, rowEnd)
+				panelRows := icEnd - ic
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := range numMicroPanelsB_2 {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := range numMicroPanelsA_2 {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func BasePackedMatMulStrip_fallback(a []float32, b []float32, c []float32, m int, n int, k int, rowStart int, rowEnd int, packedA []float32, packedB []float32, params CacheParams) {
+	mr, nr := params.Mr, params.Nr
+	kc, mc, nc := params.Kc, params.Mc, params.Nc
+	stripM := rowEnd - rowStart
+	{
+		vZero_1 := float32(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			c[rowStart*n : rowEnd*n][idx_1] = vZero_1
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
+	for jc := 0; jc < n; jc += nc {
+		jcEnd := min(jc+nc, n)
+		panelCols := jcEnd - jc
+		for pc := 0; pc < k; pc += kc {
+			pcEnd := min(pc+kc, k)
+			panelK := pcEnd - pc
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
+			for ic := rowStart; ic < rowEnd; ic += mc {
+				icEnd := min(ic+mc, rowEnd)
+				panelRows := icEnd - ic
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := range numMicroPanelsB_2 {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := range numMicroPanelsA_2 {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func BasePackedMatMulStrip_fallback_Float64(a []float64, b []float64, c []float64, m int, n int, k int, rowStart int, rowEnd int, packedA []float64, packedB []float64, params CacheParams) {
+	mr, nr := params.Mr, params.Nr
+	kc, mc, nc := params.Kc, params.Mc, params.Nc
+	stripM := rowEnd - rowStart
+	{
+		vZero_1 := float64(0)
+		lanes_1 := 1
+		var idx_1 int
+		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
+			c[rowStart*n : rowEnd*n][idx_1] = vZero_1
+		}
+		for ; idx_1 < stripM*n; idx_1++ {
+			c[rowStart*n : rowEnd*n][idx_1] = 0
+		}
+	}
+	for jc := 0; jc < n; jc += nc {
+		jcEnd := min(jc+nc, n)
+		panelCols := jcEnd - jc
+		for pc := 0; pc < k; pc += kc {
+			pcEnd := min(pc+kc, k)
+			panelK := pcEnd - pc
+			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
+			for ic := rowStart; ic < rowEnd; ic += mc {
+				icEnd := min(ic+mc, rowEnd)
+				panelRows := icEnd - ic
+				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
+				{
+					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
+					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
+					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
+					if activeColsLast_2 <= 0 {
+						activeColsLast_2 = nr
+					}
+					for jPanel_2 := range numMicroPanelsB_2 {
+						jr_2 := jc + jPanel_2*nr
+						bPanelOffset_2 := jPanel_2 * panelK * nr
+						activeCols_2 := nr
+						if jPanel_2 == numMicroPanelsB_2-1 {
+							activeCols_2 = activeColsLast_2
+						}
+						for iPanel_2 := range numMicroPanelsA_2 {
+							ir_2 := ic + iPanel_2*mr
+							aPanelOffset_2 := iPanel_2 * panelK * mr
+							activeRows_2 := mr
+							if iPanel_2 == numMicroPanelsA_2-1 {
+								activeRows_2 = activeRowsLast
+							}
+							if activeRows_2 == mr && activeCols_2 == nr {
+								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
+							} else {
+								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 func BasePackedMatMulWithBuffers_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int, packedA []hwy.Float16, packedB []hwy.Float16, params CacheParams) {
 	if len(a) < m*k {
 		panic("packedmatmul: A slice too short")
@@ -534,246 +774,6 @@ func BasePackedMatMulWithBuffers_fallback_Float64(a []float64, b []float64, c []
 			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
 			for ic := 0; ic < m; ic += mc {
 				icEnd := min(ic+mc, m)
-				panelRows := icEnd - ic
-				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				{
-					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
-					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
-					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
-					if activeColsLast_2 <= 0 {
-						activeColsLast_2 = nr
-					}
-					for jPanel_2 := range numMicroPanelsB_2 {
-						jr_2 := jc + jPanel_2*nr
-						bPanelOffset_2 := jPanel_2 * panelK * nr
-						activeCols_2 := nr
-						if jPanel_2 == numMicroPanelsB_2-1 {
-							activeCols_2 = activeColsLast_2
-						}
-						for iPanel_2 := range numMicroPanelsA_2 {
-							ir_2 := ic + iPanel_2*mr
-							aPanelOffset_2 := iPanel_2 * panelK * mr
-							activeRows_2 := mr
-							if iPanel_2 == numMicroPanelsA_2-1 {
-								activeRows_2 = activeRowsLast
-							}
-							if activeRows_2 == mr && activeCols_2 == nr {
-								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
-							} else {
-								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-func BasePackedMatMulStrip_fallback_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m int, n int, k int, rowStart int, rowEnd int, packedA []hwy.Float16, packedB []hwy.Float16, params CacheParams) {
-	mr, nr := params.Mr, params.Nr
-	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	stripM := rowEnd - rowStart
-	{
-		vZero_1 := hwy.Zero[hwy.Float16]()
-		lanes_1 := vZero_1.NumLanes()
-		var idx_1 int
-		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
-		}
-		for ; idx_1 < stripM*n; idx_1++ {
-			c[rowStart*n : rowEnd*n][idx_1] = 0
-		}
-	}
-	for jc := 0; jc < n; jc += nc {
-		jcEnd := min(jc+nc, n)
-		panelCols := jcEnd - jc
-		for pc := 0; pc < k; pc += kc {
-			pcEnd := min(pc+kc, k)
-			panelK := pcEnd - pc
-			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
-			for ic := rowStart; ic < rowEnd; ic += mc {
-				icEnd := min(ic+mc, rowEnd)
-				panelRows := icEnd - ic
-				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				{
-					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
-					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
-					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
-					if activeColsLast_2 <= 0 {
-						activeColsLast_2 = nr
-					}
-					for jPanel_2 := range numMicroPanelsB_2 {
-						jr_2 := jc + jPanel_2*nr
-						bPanelOffset_2 := jPanel_2 * panelK * nr
-						activeCols_2 := nr
-						if jPanel_2 == numMicroPanelsB_2-1 {
-							activeCols_2 = activeColsLast_2
-						}
-						for iPanel_2 := range numMicroPanelsA_2 {
-							ir_2 := ic + iPanel_2*mr
-							aPanelOffset_2 := iPanel_2 * panelK * mr
-							activeRows_2 := mr
-							if iPanel_2 == numMicroPanelsA_2-1 {
-								activeRows_2 = activeRowsLast
-							}
-							if activeRows_2 == mr && activeCols_2 == nr {
-								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
-							} else {
-								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-func BasePackedMatMulStrip_fallback_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m int, n int, k int, rowStart int, rowEnd int, packedA []hwy.BFloat16, packedB []hwy.BFloat16, params CacheParams) {
-	mr, nr := params.Mr, params.Nr
-	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	stripM := rowEnd - rowStart
-	{
-		vZero_1 := hwy.Zero[hwy.BFloat16]()
-		lanes_1 := vZero_1.NumLanes()
-		var idx_1 int
-		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			hwy.Store(vZero_1, c[rowStart*n : rowEnd*n][idx_1:])
-		}
-		for ; idx_1 < stripM*n; idx_1++ {
-			c[rowStart*n : rowEnd*n][idx_1] = 0
-		}
-	}
-	for jc := 0; jc < n; jc += nc {
-		jcEnd := min(jc+nc, n)
-		panelCols := jcEnd - jc
-		for pc := 0; pc < k; pc += kc {
-			pcEnd := min(pc+kc, k)
-			panelK := pcEnd - pc
-			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
-			for ic := rowStart; ic < rowEnd; ic += mc {
-				icEnd := min(ic+mc, rowEnd)
-				panelRows := icEnd - ic
-				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				{
-					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
-					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
-					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
-					if activeColsLast_2 <= 0 {
-						activeColsLast_2 = nr
-					}
-					for jPanel_2 := range numMicroPanelsB_2 {
-						jr_2 := jc + jPanel_2*nr
-						bPanelOffset_2 := jPanel_2 * panelK * nr
-						activeCols_2 := nr
-						if jPanel_2 == numMicroPanelsB_2-1 {
-							activeCols_2 = activeColsLast_2
-						}
-						for iPanel_2 := range numMicroPanelsA_2 {
-							ir_2 := ic + iPanel_2*mr
-							aPanelOffset_2 := iPanel_2 * panelK * mr
-							activeRows_2 := mr
-							if iPanel_2 == numMicroPanelsA_2-1 {
-								activeRows_2 = activeRowsLast
-							}
-							if activeRows_2 == mr && activeCols_2 == nr {
-								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
-							} else {
-								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-func BasePackedMatMulStrip_fallback(a []float32, b []float32, c []float32, m int, n int, k int, rowStart int, rowEnd int, packedA []float32, packedB []float32, params CacheParams) {
-	mr, nr := params.Mr, params.Nr
-	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	stripM := rowEnd - rowStart
-	{
-		vZero_1 := float32(0)
-		lanes_1 := 1
-		var idx_1 int
-		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			c[rowStart*n : rowEnd*n][idx_1] = vZero_1
-		}
-		for ; idx_1 < stripM*n; idx_1++ {
-			c[rowStart*n : rowEnd*n][idx_1] = 0
-		}
-	}
-	for jc := 0; jc < n; jc += nc {
-		jcEnd := min(jc+nc, n)
-		panelCols := jcEnd - jc
-		for pc := 0; pc < k; pc += kc {
-			pcEnd := min(pc+kc, k)
-			panelK := pcEnd - pc
-			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
-			for ic := rowStart; ic < rowEnd; ic += mc {
-				icEnd := min(ic+mc, rowEnd)
-				panelRows := icEnd - ic
-				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
-				{
-					numMicroPanelsA_2 := (panelRows + mr - 1) / mr
-					numMicroPanelsB_2 := (panelCols + nr - 1) / nr
-					activeColsLast_2 := panelCols - (numMicroPanelsB_2-1)*nr
-					if activeColsLast_2 <= 0 {
-						activeColsLast_2 = nr
-					}
-					for jPanel_2 := range numMicroPanelsB_2 {
-						jr_2 := jc + jPanel_2*nr
-						bPanelOffset_2 := jPanel_2 * panelK * nr
-						activeCols_2 := nr
-						if jPanel_2 == numMicroPanelsB_2-1 {
-							activeCols_2 = activeColsLast_2
-						}
-						for iPanel_2 := range numMicroPanelsA_2 {
-							ir_2 := ic + iPanel_2*mr
-							aPanelOffset_2 := iPanel_2 * panelK * mr
-							activeRows_2 := mr
-							if iPanel_2 == numMicroPanelsA_2-1 {
-								activeRows_2 = activeRowsLast
-							}
-							if activeRows_2 == mr && activeCols_2 == nr {
-								PackedMicroKernel(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr)
-							} else {
-								PackedMicroKernelPartial(packedA[aPanelOffset_2:], packedB[bPanelOffset_2:], c, n, ir_2, jr_2, panelK, mr, nr, activeRows_2, activeCols_2)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-func BasePackedMatMulStrip_fallback_Float64(a []float64, b []float64, c []float64, m int, n int, k int, rowStart int, rowEnd int, packedA []float64, packedB []float64, params CacheParams) {
-	mr, nr := params.Mr, params.Nr
-	kc, mc, nc := params.Kc, params.Mc, params.Nc
-	stripM := rowEnd - rowStart
-	{
-		vZero_1 := float64(0)
-		lanes_1 := 1
-		var idx_1 int
-		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			c[rowStart*n : rowEnd*n][idx_1] = vZero_1
-		}
-		for ; idx_1 < stripM*n; idx_1++ {
-			c[rowStart*n : rowEnd*n][idx_1] = 0
-		}
-	}
-	for jc := 0; jc < n; jc += nc {
-		jcEnd := min(jc+nc, n)
-		panelCols := jcEnd - jc
-		for pc := 0; pc < k; pc += kc {
-			pcEnd := min(pc+kc, k)
-			panelK := pcEnd - pc
-			PackRHSVec(b, packedB, n, pc, jc, panelK, panelCols, nr)
-			for ic := rowStart; ic < rowEnd; ic += mc {
-				icEnd := min(ic+mc, rowEnd)
 				panelRows := icEnd - ic
 				activeRowsLast := PackLHSVec(a, packedA, m, k, ic, pc, panelRows, panelK, mr)
 				{

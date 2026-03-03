@@ -10,132 +10,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-func BaseSortSmall_neon(data []float32) {
-	n := len(data)
-	if n <= 1 {
-		return
-	}
-	if n <= 4 {
-		InsertionSortSmall(data)
-		return
-	}
-	lanes := 4
-	if n <= lanes {
-		SortSingleVector(data)
-		return
-	}
-	if n <= lanes*2 {
-		SortTwoVectors(data)
-		return
-	}
-	InsertionSortSmall(data)
-}
-
-func BaseSortSmall_neon_Float64(data []float64) {
-	n := len(data)
-	if n <= 1 {
-		return
-	}
-	if n <= 4 {
-		InsertionSortSmall(data)
-		return
-	}
-	lanes := 2
-	if n <= lanes {
-		SortSingleVector(data)
-		return
-	}
-	if n <= lanes*2 {
-		SortTwoVectors(data)
-		return
-	}
-	InsertionSortSmall(data)
-}
-
-func BaseSortSmall_neon_Int32(data []int32) {
-	n := len(data)
-	if n <= 1 {
-		return
-	}
-	if n <= 4 {
-		InsertionSortSmall(data)
-		return
-	}
-	lanes := 4
-	if n <= lanes {
-		SortSingleVector(data)
-		return
-	}
-	if n <= lanes*2 {
-		SortTwoVectors(data)
-		return
-	}
-	InsertionSortSmall(data)
-}
-
-func BaseSortSmall_neon_Int64(data []int64) {
-	n := len(data)
-	if n <= 1 {
-		return
-	}
-	if n <= 4 {
-		InsertionSortSmall(data)
-		return
-	}
-	lanes := 2
-	if n <= lanes {
-		SortSingleVector(data)
-		return
-	}
-	if n <= lanes*2 {
-		SortTwoVectors(data)
-		return
-	}
-	InsertionSortSmall(data)
-}
-
-func BaseSortSmall_neon_Uint32(data []uint32) {
-	n := len(data)
-	if n <= 1 {
-		return
-	}
-	if n <= 4 {
-		InsertionSortSmall(data)
-		return
-	}
-	lanes := 4
-	if n <= lanes {
-		SortSingleVector(data)
-		return
-	}
-	if n <= lanes*2 {
-		SortTwoVectors(data)
-		return
-	}
-	InsertionSortSmall(data)
-}
-
-func BaseSortSmall_neon_Uint64(data []uint64) {
-	n := len(data)
-	if n <= 1 {
-		return
-	}
-	if n <= 4 {
-		InsertionSortSmall(data)
-		return
-	}
-	lanes := 2
-	if n <= lanes {
-		SortSingleVector(data)
-		return
-	}
-	if n <= lanes*2 {
-		SortTwoVectors(data)
-		return
-	}
-	InsertionSortSmall(data)
-}
-
 func BaseIsSorted_neon(data []float32) bool {
 	n := len(data)
 	if n <= 1 {
@@ -308,4 +182,130 @@ func BaseIsSorted_neon_Uint64(data []uint64) bool {
 		}
 	}
 	return true
+}
+
+func BaseSortSmall_neon(data []float32) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+	if n <= 4 {
+		InsertionSortSmall(data)
+		return
+	}
+	lanes := 4
+	if n <= lanes {
+		SortSingleVector(data)
+		return
+	}
+	if n <= lanes*2 {
+		SortTwoVectors(data)
+		return
+	}
+	InsertionSortSmall(data)
+}
+
+func BaseSortSmall_neon_Float64(data []float64) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+	if n <= 4 {
+		InsertionSortSmall(data)
+		return
+	}
+	lanes := 2
+	if n <= lanes {
+		SortSingleVector(data)
+		return
+	}
+	if n <= lanes*2 {
+		SortTwoVectors(data)
+		return
+	}
+	InsertionSortSmall(data)
+}
+
+func BaseSortSmall_neon_Int32(data []int32) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+	if n <= 4 {
+		InsertionSortSmall(data)
+		return
+	}
+	lanes := 4
+	if n <= lanes {
+		SortSingleVector(data)
+		return
+	}
+	if n <= lanes*2 {
+		SortTwoVectors(data)
+		return
+	}
+	InsertionSortSmall(data)
+}
+
+func BaseSortSmall_neon_Int64(data []int64) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+	if n <= 4 {
+		InsertionSortSmall(data)
+		return
+	}
+	lanes := 2
+	if n <= lanes {
+		SortSingleVector(data)
+		return
+	}
+	if n <= lanes*2 {
+		SortTwoVectors(data)
+		return
+	}
+	InsertionSortSmall(data)
+}
+
+func BaseSortSmall_neon_Uint32(data []uint32) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+	if n <= 4 {
+		InsertionSortSmall(data)
+		return
+	}
+	lanes := 4
+	if n <= lanes {
+		SortSingleVector(data)
+		return
+	}
+	if n <= lanes*2 {
+		SortTwoVectors(data)
+		return
+	}
+	InsertionSortSmall(data)
+}
+
+func BaseSortSmall_neon_Uint64(data []uint64) {
+	n := len(data)
+	if n <= 1 {
+		return
+	}
+	if n <= 4 {
+		InsertionSortSmall(data)
+		return
+	}
+	lanes := 2
+	if n <= lanes {
+		SortSingleVector(data)
+		return
+	}
+	if n <= lanes*2 {
+		SortTwoVectors(data)
+		return
+	}
+	InsertionSortSmall(data)
 }

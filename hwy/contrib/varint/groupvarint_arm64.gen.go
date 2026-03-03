@@ -20,13 +20,8 @@ func initGroupvarintAll() {
 		initGroupvarintFallback()
 		return
 	}
-	initGroupvarintNEON()
+	initGroupvarintFallback()
 	return
-}
-
-func initGroupvarintNEON() {
-	DecodeGroupVarint32 = BaseDecodeGroupVarint32_neon
-	DecodeGroupVarint64 = BaseDecodeGroupVarint64_neon
 }
 
 func initGroupvarintFallback() {

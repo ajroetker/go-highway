@@ -10,16 +10,16 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var FusedNF4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulReLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedInt4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulReLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
-var FusedNF4MatMulSwiGLU func(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulSwiGLU func(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulReLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulSiLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedNF4MatMulSwiGLU func(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
 	initFusednf4actmatmulAll()
@@ -42,40 +42,40 @@ func initFusednf4actmatmulAll() {
 }
 
 func initFusednf4actmatmulAVX2() {
-	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_avx2
-	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_avx2
-	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_avx2
-	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_avx2
-	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_avx2
 	FusedInt4MatMulGELU = BaseFusedInt4MatMulGELU_avx2
 	FusedInt4MatMulGELUApprox = BaseFusedInt4MatMulGELUApprox_avx2
 	FusedInt4MatMulReLU = BaseFusedInt4MatMulReLU_avx2
-	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_avx2
+	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_avx2
 	FusedInt4MatMulSwiGLU = BaseFusedInt4MatMulSwiGLU_avx2
+	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_avx2
+	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_avx2
+	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_avx2
+	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_avx2
+	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_avx2
 }
 
 func initFusednf4actmatmulAVX512() {
-	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_avx512
-	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_avx512
-	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_avx512
-	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_avx512
-	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_avx512
 	FusedInt4MatMulGELU = BaseFusedInt4MatMulGELU_avx512
 	FusedInt4MatMulGELUApprox = BaseFusedInt4MatMulGELUApprox_avx512
 	FusedInt4MatMulReLU = BaseFusedInt4MatMulReLU_avx512
-	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_avx512
+	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_avx512
 	FusedInt4MatMulSwiGLU = BaseFusedInt4MatMulSwiGLU_avx512
+	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_avx512
+	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_avx512
+	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_avx512
+	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_avx512
+	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_avx512
 }
 
 func initFusednf4actmatmulFallback() {
-	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_fallback
-	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_fallback
-	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_fallback
-	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_fallback
-	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_fallback
 	FusedInt4MatMulGELU = BaseFusedInt4MatMulGELU_fallback
 	FusedInt4MatMulGELUApprox = BaseFusedInt4MatMulGELUApprox_fallback
 	FusedInt4MatMulReLU = BaseFusedInt4MatMulReLU_fallback
-	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_fallback
+	FusedInt4MatMulSiLU = BaseFusedInt4MatMulSiLU_fallback
 	FusedInt4MatMulSwiGLU = BaseFusedInt4MatMulSwiGLU_fallback
+	FusedNF4MatMulGELU = BaseFusedNF4MatMulGELU_fallback
+	FusedNF4MatMulGELUApprox = BaseFusedNF4MatMulGELUApprox_fallback
+	FusedNF4MatMulReLU = BaseFusedNF4MatMulReLU_fallback
+	FusedNF4MatMulSiLU = BaseFusedNF4MatMulSiLU_fallback
+	FusedNF4MatMulSwiGLU = BaseFusedNF4MatMulSwiGLU_fallback
 }

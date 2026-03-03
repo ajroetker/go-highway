@@ -26,7 +26,7 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 		sumAcc := asm.ZeroFloat16x16AVX512()
 		ii := 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+			x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 			sumAcc = sumAcc.Add(x)
 		}
 		mean := sumAcc.ReduceSum()
@@ -38,7 +38,7 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 		varAcc := asm.ZeroFloat16x16AVX512()
 		ii = 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+			x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 			diff := x.Sub(vMean)
 			varAcc = diff.MulAdd(diff, varAcc)
 		}
@@ -53,13 +53,13 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
-				b := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&beta[ii:][0]))
+				g := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii]))
+				b := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&beta[ii]))
 				result := normed.MulAdd(g, b)
-				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
+				result.StorePtr(unsafe.Pointer(&output[off+ii]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
@@ -68,12 +68,12 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 		} else if gamma != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
+				g := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii]))
 				result := normed.Mul(g)
-				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
+				result.StorePtr(unsafe.Pointer(&output[off+ii]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
@@ -82,10 +82,10 @@ func BaseLayerNorm_avx512_Float16(input []hwy.Float16, output []hwy.Float16, nor
 		} else {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+				x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 				diff := x.Sub(vMean)
 				result := diff.Mul(vInvStd)
-				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
+				result.StorePtr(unsafe.Pointer(&output[off+ii]))
 			}
 			for i := ii; i < normSize; i++ {
 				output[off+i] = hwy.Float32ToFloat16((input[off+i].Float32() - mean) * invStd.Float32())
@@ -107,7 +107,7 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 		sumAcc := asm.ZeroBFloat16x16AVX512()
 		ii := 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+			x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 			sumAcc = sumAcc.Add(x)
 		}
 		mean := sumAcc.ReduceSum()
@@ -119,7 +119,7 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 		varAcc := asm.ZeroBFloat16x16AVX512()
 		ii = 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+			x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 			diff := x.Sub(vMean)
 			varAcc = diff.MulAdd(diff, varAcc)
 		}
@@ -134,13 +134,13 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
-				b := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&beta[ii:][0]))
+				g := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii]))
+				b := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&beta[ii]))
 				result := normed.MulAdd(g, b)
-				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
+				result.StorePtr(unsafe.Pointer(&output[off+ii]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
@@ -149,12 +149,12 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 		} else if gamma != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii:][0]))
+				g := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&gamma[ii]))
 				result := normed.Mul(g)
-				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
+				result.StorePtr(unsafe.Pointer(&output[off+ii]))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())
@@ -163,10 +163,10 @@ func BaseLayerNorm_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 		} else {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii:][0]))
+				x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&input[off+ii]))
 				diff := x.Sub(vMean)
 				result := diff.Mul(vInvStd)
-				result.StorePtr(unsafe.Pointer(&output[off+ii:][0]))
+				result.StorePtr(unsafe.Pointer(&output[off+ii]))
 			}
 			for i := ii; i < normSize; i++ {
 				output[off+i] = hwy.Float32ToBFloat16((input[off+i].Float32() - mean) * invStd.Float32())

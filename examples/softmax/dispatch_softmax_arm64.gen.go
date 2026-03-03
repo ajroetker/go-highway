@@ -65,19 +65,8 @@ func initSoftmaxAll() {
 		initSoftmaxFallback()
 		return
 	}
-	initSoftmaxNEON()
+	initSoftmaxFallback()
 	return
-}
-
-func initSoftmaxNEON() {
-	SoftmaxFloat16 = BaseSoftmax_neon_Float16
-	SoftmaxBFloat16 = BaseSoftmax_neon_BFloat16
-	SoftmaxFloat32 = BaseSoftmax_neon
-	SoftmaxFloat64 = BaseSoftmax_neon_Float64
-	SoftmaxScalarFloat16 = BaseSoftmaxScalar_neon_Float16
-	SoftmaxScalarBFloat16 = BaseSoftmaxScalar_neon_BFloat16
-	SoftmaxScalarFloat32 = BaseSoftmaxScalar_neon
-	SoftmaxScalarFloat64 = BaseSoftmaxScalar_neon_Float64
 }
 
 func initSoftmaxFallback() {

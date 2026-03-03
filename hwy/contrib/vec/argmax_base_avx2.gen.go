@@ -24,12 +24,12 @@ func BaseArgmax_avx2_Float16(v []hwy.Float16) int {
 	maxIdxs := asm.IotaFloat16x8AVX2()
 	i := lanes
 	for ; i+lanes*2 <= len(v); i += lanes * 2 {
-		vals := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i:][0]))
+		vals := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i]))
 		curIdxs := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float16(i))).Add(asm.IotaFloat16x8AVX2())
 		mask := vals.Greater(maxVals)
 		maxVals = vals.Merge(maxVals, mask)
 		maxIdxs = curIdxs.Merge(maxIdxs, mask)
-		vals1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8:][0]))
+		vals1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8]))
 		curIdxs1 := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float16(i))).Add(asm.IotaFloat16x8AVX2())
 		mask1 := vals1.Greater(maxVals)
 		maxVals = vals1.Merge(maxVals, mask1)
@@ -85,12 +85,12 @@ func BaseArgmax_avx2_BFloat16(v []hwy.BFloat16) int {
 	maxIdxs := asm.IotaBFloat16x8AVX2()
 	i := lanes
 	for ; i+lanes*2 <= len(v); i += lanes * 2 {
-		vals := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i:][0]))
+		vals := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i]))
 		curIdxs := asm.BroadcastBFloat16x8AVX2(uint16(hwy.BFloat16(i))).Add(asm.IotaBFloat16x8AVX2())
 		mask := vals.Greater(maxVals)
 		maxVals = vals.Merge(maxVals, mask)
 		maxIdxs = curIdxs.Merge(maxIdxs, mask)
-		vals1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8:][0]))
+		vals1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8]))
 		curIdxs1 := asm.BroadcastBFloat16x8AVX2(uint16(hwy.BFloat16(i))).Add(asm.IotaBFloat16x8AVX2())
 		mask1 := vals1.Greater(maxVals)
 		maxVals = vals1.Merge(maxVals, mask1)
@@ -268,12 +268,12 @@ func BaseArgmin_avx2_Float16(v []hwy.Float16) int {
 	minIdxs := asm.IotaFloat16x8AVX2()
 	i := lanes
 	for ; i+lanes*2 <= len(v); i += lanes * 2 {
-		vals := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i:][0]))
+		vals := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i]))
 		curIdxs := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float16(i))).Add(asm.IotaFloat16x8AVX2())
 		mask := vals.Less(minVals)
 		minVals = vals.Merge(minVals, mask)
 		minIdxs = curIdxs.Merge(minIdxs, mask)
-		vals1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8:][0]))
+		vals1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8]))
 		curIdxs1 := asm.BroadcastFloat16x8AVX2(uint16(hwy.Float16(i))).Add(asm.IotaFloat16x8AVX2())
 		mask1 := vals1.Less(minVals)
 		minVals = vals1.Merge(minVals, mask1)
@@ -329,12 +329,12 @@ func BaseArgmin_avx2_BFloat16(v []hwy.BFloat16) int {
 	minIdxs := asm.IotaBFloat16x8AVX2()
 	i := lanes
 	for ; i+lanes*2 <= len(v); i += lanes * 2 {
-		vals := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i:][0]))
+		vals := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i]))
 		curIdxs := asm.BroadcastBFloat16x8AVX2(uint16(hwy.BFloat16(i))).Add(asm.IotaBFloat16x8AVX2())
 		mask := vals.Less(minVals)
 		minVals = vals.Merge(minVals, mask)
 		minIdxs = curIdxs.Merge(minIdxs, mask)
-		vals1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8:][0]))
+		vals1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&v[i+8]))
 		curIdxs1 := asm.BroadcastBFloat16x8AVX2(uint16(hwy.BFloat16(i))).Add(asm.IotaBFloat16x8AVX2())
 		mask1 := vals1.Less(minVals)
 		minVals = vals1.Merge(minVals, mask1)

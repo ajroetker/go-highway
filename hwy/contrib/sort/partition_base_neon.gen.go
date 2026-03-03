@@ -10,6 +10,324 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
+func BasePartition_neon(data []float32, pivot float32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastFloat32x4(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if asm.AllTrueVal(mask) {
+			left += lanes
+			continue
+		}
+		if asm.AllFalseVal(mask) {
+			right -= lanes
+			vRight := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]float32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]float32)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_neon_Float64(data []float64, pivot float64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 2
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastFloat64x2(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if asm.AllTrueValFloat64(mask) {
+			left += lanes
+			continue
+		}
+		if asm.AllFalseValFloat64(mask) {
+			right -= lanes
+			vRight := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[right])))
+			v.Store((*[2]float64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[2]float64)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_neon_Int32(data []int32, pivot int32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastInt32x4(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if asm.AllTrueVal(mask) {
+			left += lanes
+			continue
+		}
+		if asm.AllFalseVal(mask) {
+			right -= lanes
+			vRight := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]int32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]int32)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_neon_Int64(data []int64, pivot int64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 2
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastInt64x2(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if asm.AllTrueValFloat64(mask) {
+			left += lanes
+			continue
+		}
+		if asm.AllFalseValFloat64(mask) {
+			right -= lanes
+			vRight := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[right])))
+			v.Store((*[2]int64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[2]int64)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_neon_Uint32(data []uint32, pivot uint32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastUint32x4(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if asm.AllTrueValUint32(mask) {
+			left += lanes
+			continue
+		}
+		if asm.AllFalseValUint32(mask) {
+			right -= lanes
+			vRight := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]uint32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]uint32)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_neon_Uint64(data []uint64, pivot uint64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 2
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := asm.BroadcastUint64x2(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if asm.AllTrueValUint64(mask) {
+			left += lanes
+			continue
+		}
+		if asm.AllFalseValUint64(mask) {
+			right -= lanes
+			vRight := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[right])))
+			v.Store((*[2]uint64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[2]uint64)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
 func BasePartition3Way_neon(data []float32, pivot float32) (int, int) {
 	n := len(data)
 	if n == 0 {
@@ -482,322 +800,4 @@ func BasePartition3Way_neon_Uint64(data []uint64, pivot uint64) (int, int) {
 		}
 	}
 	return lt, gt
-}
-
-func BasePartition_neon(data []float32, pivot float32) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 4
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := asm.BroadcastFloat32x4(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if asm.AllTrueVal(mask) {
-			left += lanes
-			continue
-		}
-		if asm.AllFalseVal(mask) {
-			right -= lanes
-			vRight := asm.LoadFloat32x4((*[4]float32)(unsafe.Pointer(&data[right])))
-			v.Store((*[4]float32)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[4]float32)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_neon_Float64(data []float64, pivot float64) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 2
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := asm.BroadcastFloat64x2(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if asm.AllTrueValFloat64(mask) {
-			left += lanes
-			continue
-		}
-		if asm.AllFalseValFloat64(mask) {
-			right -= lanes
-			vRight := asm.LoadFloat64x2((*[2]float64)(unsafe.Pointer(&data[right])))
-			v.Store((*[2]float64)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[2]float64)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_neon_Int32(data []int32, pivot int32) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 4
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := asm.BroadcastInt32x4(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if asm.AllTrueVal(mask) {
-			left += lanes
-			continue
-		}
-		if asm.AllFalseVal(mask) {
-			right -= lanes
-			vRight := asm.LoadInt32x4((*[4]int32)(unsafe.Pointer(&data[right])))
-			v.Store((*[4]int32)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[4]int32)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_neon_Int64(data []int64, pivot int64) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 2
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := asm.BroadcastInt64x2(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if asm.AllTrueValFloat64(mask) {
-			left += lanes
-			continue
-		}
-		if asm.AllFalseValFloat64(mask) {
-			right -= lanes
-			vRight := asm.LoadInt64x2((*[2]int64)(unsafe.Pointer(&data[right])))
-			v.Store((*[2]int64)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[2]int64)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_neon_Uint32(data []uint32, pivot uint32) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 4
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := asm.BroadcastUint32x4(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if asm.AllTrueValUint32(mask) {
-			left += lanes
-			continue
-		}
-		if asm.AllFalseValUint32(mask) {
-			right -= lanes
-			vRight := asm.LoadUint32x4((*[4]uint32)(unsafe.Pointer(&data[right])))
-			v.Store((*[4]uint32)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[4]uint32)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_neon_Uint64(data []uint64, pivot uint64) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 2
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := asm.BroadcastUint64x2(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if asm.AllTrueValUint64(mask) {
-			left += lanes
-			continue
-		}
-		if asm.AllFalseValUint64(mask) {
-			right -= lanes
-			vRight := asm.LoadUint64x2((*[2]uint64)(unsafe.Pointer(&data[right])))
-			v.Store((*[2]uint64)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[2]uint64)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
 }

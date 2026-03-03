@@ -164,10 +164,10 @@ func BasePackLHSVec_avx2_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k
 		row3 := (baseRow+3)*k + colStart
 		var kk int
 		for kk = 0; kk+lanes <= panelK; kk += lanes {
-			r0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row0+kk:][0]))
-			r1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row1+kk:][0]))
-			r2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row2+kk:][0]))
-			r3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row3+kk:][0]))
+			r0 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row0+kk]))
+			r1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row1+kk]))
+			r2 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row2+kk]))
+			r3 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[row3+kk]))
 			t0 := r0.InterleaveLower(r2)
 			t2 := r0.InterleaveUpper(r2)
 			t1 := r1.InterleaveLower(r3)
@@ -176,10 +176,10 @@ func BasePackLHSVec_avx2_Float16(a []hwy.Float16, packed []hwy.Float16, m int, k
 			c1 := t0.InterleaveUpper(t1)
 			c2 := t2.InterleaveLower(t3)
 			c3 := t2.InterleaveUpper(t3)
-			c0.StorePtr(unsafe.Pointer(&packed[packIdx:][0]))
-			c1.StorePtr(unsafe.Pointer(&packed[packIdx+lanes:][0]))
-			c2.StorePtr(unsafe.Pointer(&packed[packIdx+2*lanes:][0]))
-			c3.StorePtr(unsafe.Pointer(&packed[packIdx+3*lanes:][0]))
+			c0.StorePtr(unsafe.Pointer(&packed[packIdx]))
+			c1.StorePtr(unsafe.Pointer(&packed[packIdx+lanes]))
+			c2.StorePtr(unsafe.Pointer(&packed[packIdx+2*lanes]))
+			c3.StorePtr(unsafe.Pointer(&packed[packIdx+3*lanes]))
 			packIdx += lanes * mr
 		}
 		for ; kk < panelK; kk++ {
@@ -226,10 +226,10 @@ func BasePackLHSVec_avx2_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int
 		row3 := (baseRow+3)*k + colStart
 		var kk int
 		for kk = 0; kk+lanes <= panelK; kk += lanes {
-			r0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row0+kk:][0]))
-			r1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row1+kk:][0]))
-			r2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row2+kk:][0]))
-			r3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row3+kk:][0]))
+			r0 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row0+kk]))
+			r1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row1+kk]))
+			r2 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row2+kk]))
+			r3 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[row3+kk]))
 			t0 := r0.InterleaveLower(r2)
 			t2 := r0.InterleaveUpper(r2)
 			t1 := r1.InterleaveLower(r3)
@@ -238,10 +238,10 @@ func BasePackLHSVec_avx2_BFloat16(a []hwy.BFloat16, packed []hwy.BFloat16, m int
 			c1 := t0.InterleaveUpper(t1)
 			c2 := t2.InterleaveLower(t3)
 			c3 := t2.InterleaveUpper(t3)
-			c0.StorePtr(unsafe.Pointer(&packed[packIdx:][0]))
-			c1.StorePtr(unsafe.Pointer(&packed[packIdx+lanes:][0]))
-			c2.StorePtr(unsafe.Pointer(&packed[packIdx+2*lanes:][0]))
-			c3.StorePtr(unsafe.Pointer(&packed[packIdx+3*lanes:][0]))
+			c0.StorePtr(unsafe.Pointer(&packed[packIdx]))
+			c1.StorePtr(unsafe.Pointer(&packed[packIdx+lanes]))
+			c2.StorePtr(unsafe.Pointer(&packed[packIdx+2*lanes]))
+			c3.StorePtr(unsafe.Pointer(&packed[packIdx+3*lanes]))
 			packIdx += lanes * mr
 		}
 		for ; kk < panelK; kk++ {
@@ -404,8 +404,8 @@ func BasePackRHSVec_avx2_Float16(b []hwy.Float16, packed []hwy.Float16, n int, r
 			for kk := range panelK {
 				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcRow+baseCol+c:][0]))
-					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
+					v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcRow+baseCol+c]))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c]))
 				}
 				dstIdx += nr
 			}
@@ -439,8 +439,8 @@ func BasePackRHSVec_avx2_BFloat16(b []hwy.BFloat16, packed []hwy.BFloat16, n int
 			for kk := range panelK {
 				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcRow+baseCol+c:][0]))
-					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c:][0]))
+					v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[srcRow+baseCol+c]))
+					v.StorePtr(unsafe.Pointer(&packed[dstIdx+c]))
 				}
 				dstIdx += nr
 			}

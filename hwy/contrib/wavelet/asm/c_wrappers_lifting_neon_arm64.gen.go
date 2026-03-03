@@ -10,58 +10,6 @@ import (
 )
 
 // Public wrapper functions
-// LiftUpdate53CS32 computes LiftUpdate53 using NEON SIMD assembly.
-func LiftUpdate53CS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
-	var p_target unsafe.Pointer
-	if len(target) > 0 {
-		p_target = unsafe.Pointer(&target[0])
-	}
-	var p_neighbor unsafe.Pointer
-	if len(neighbor) > 0 {
-		p_neighbor = unsafe.Pointer(&neighbor[0])
-	}
-	tLenVal := int64(tLen)
-	nLenVal := int64(nLen)
-	phaseVal := int64(phase)
-	len_targetVal := int64(len(target))
-	len_neighborVal := int64(len(neighbor))
-	liftupdate53_c_s32_neon(
-		p_target,
-		unsafe.Pointer(&tLenVal),
-		p_neighbor,
-		unsafe.Pointer(&nLenVal),
-		unsafe.Pointer(&phaseVal),
-		unsafe.Pointer(&len_targetVal),
-		unsafe.Pointer(&len_neighborVal),
-	)
-}
-
-// LiftUpdate53CS64 computes LiftUpdate53 using NEON SIMD assembly.
-func LiftUpdate53CS64(target []int64, tLen int, neighbor []int64, nLen, phase int) {
-	var p_target unsafe.Pointer
-	if len(target) > 0 {
-		p_target = unsafe.Pointer(&target[0])
-	}
-	var p_neighbor unsafe.Pointer
-	if len(neighbor) > 0 {
-		p_neighbor = unsafe.Pointer(&neighbor[0])
-	}
-	tLenVal := int64(tLen)
-	nLenVal := int64(nLen)
-	phaseVal := int64(phase)
-	len_targetVal := int64(len(target))
-	len_neighborVal := int64(len(neighbor))
-	liftupdate53_c_s64_neon(
-		p_target,
-		unsafe.Pointer(&tLenVal),
-		p_neighbor,
-		unsafe.Pointer(&nLenVal),
-		unsafe.Pointer(&phaseVal),
-		unsafe.Pointer(&len_targetVal),
-		unsafe.Pointer(&len_neighborVal),
-	)
-}
-
 // LiftPredict53CS32 computes LiftPredict53 using NEON SIMD assembly.
 func LiftPredict53CS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
 	var p_target unsafe.Pointer
@@ -220,6 +168,58 @@ func LiftStep97CF64(target []float64, tLen int, neighbor []float64, nLen int, co
 		p_neighbor,
 		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&coeffVal),
+		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
+	)
+}
+
+// LiftUpdate53CS32 computes LiftUpdate53 using NEON SIMD assembly.
+func LiftUpdate53CS32(target []int32, tLen int, neighbor []int32, nLen, phase int) {
+	var p_target unsafe.Pointer
+	if len(target) > 0 {
+		p_target = unsafe.Pointer(&target[0])
+	}
+	var p_neighbor unsafe.Pointer
+	if len(neighbor) > 0 {
+		p_neighbor = unsafe.Pointer(&neighbor[0])
+	}
+	tLenVal := int64(tLen)
+	nLenVal := int64(nLen)
+	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
+	liftupdate53_c_s32_neon(
+		p_target,
+		unsafe.Pointer(&tLenVal),
+		p_neighbor,
+		unsafe.Pointer(&nLenVal),
+		unsafe.Pointer(&phaseVal),
+		unsafe.Pointer(&len_targetVal),
+		unsafe.Pointer(&len_neighborVal),
+	)
+}
+
+// LiftUpdate53CS64 computes LiftUpdate53 using NEON SIMD assembly.
+func LiftUpdate53CS64(target []int64, tLen int, neighbor []int64, nLen, phase int) {
+	var p_target unsafe.Pointer
+	if len(target) > 0 {
+		p_target = unsafe.Pointer(&target[0])
+	}
+	var p_neighbor unsafe.Pointer
+	if len(neighbor) > 0 {
+		p_neighbor = unsafe.Pointer(&neighbor[0])
+	}
+	tLenVal := int64(tLen)
+	nLenVal := int64(nLen)
+	phaseVal := int64(phase)
+	len_targetVal := int64(len(target))
+	len_neighborVal := int64(len(neighbor))
+	liftupdate53_c_s64_neon(
+		p_target,
+		unsafe.Pointer(&tLenVal),
+		p_neighbor,
+		unsafe.Pointer(&nLenVal),
 		unsafe.Pointer(&phaseVal),
 		unsafe.Pointer(&len_targetVal),
 		unsafe.Pointer(&len_neighborVal),

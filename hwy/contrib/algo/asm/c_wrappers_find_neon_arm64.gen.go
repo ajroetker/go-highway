@@ -6,132 +6,6 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
-// FindCF32 computes Find using NEON SIMD assembly.
-func FindCF32(slice []float32, value float32) int {
-	if len(slice) == 0 {
-		return 0
-	}
-	var p_slice unsafe.Pointer
-	if len(slice) > 0 {
-		p_slice = unsafe.Pointer(&slice[0])
-	}
-	valueVal := value
-	lenVal := int64(len(slice))
-	var out_result int64
-	find_c_f32_neon(
-		p_slice,
-		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// FindCF64 computes Find using NEON SIMD assembly.
-func FindCF64(slice []float64, value float64) int {
-	if len(slice) == 0 {
-		return 0
-	}
-	var p_slice unsafe.Pointer
-	if len(slice) > 0 {
-		p_slice = unsafe.Pointer(&slice[0])
-	}
-	valueVal := value
-	lenVal := int64(len(slice))
-	var out_result int64
-	find_c_f64_neon(
-		p_slice,
-		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// FindCS32 computes Find using NEON SIMD assembly.
-func FindCS32(slice []int32, value int32) int {
-	if len(slice) == 0 {
-		return 0
-	}
-	var p_slice unsafe.Pointer
-	if len(slice) > 0 {
-		p_slice = unsafe.Pointer(&slice[0])
-	}
-	valueVal := value
-	lenVal := int64(len(slice))
-	var out_result int64
-	find_c_s32_neon(
-		p_slice,
-		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// FindCS64 computes Find using NEON SIMD assembly.
-func FindCS64(slice []int64, value int64) int {
-	if len(slice) == 0 {
-		return 0
-	}
-	var p_slice unsafe.Pointer
-	if len(slice) > 0 {
-		p_slice = unsafe.Pointer(&slice[0])
-	}
-	valueVal := value
-	lenVal := int64(len(slice))
-	var out_result int64
-	find_c_s64_neon(
-		p_slice,
-		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// FindCU32 computes Find using NEON SIMD assembly.
-func FindCU32(slice []uint32, value uint32) int {
-	if len(slice) == 0 {
-		return 0
-	}
-	var p_slice unsafe.Pointer
-	if len(slice) > 0 {
-		p_slice = unsafe.Pointer(&slice[0])
-	}
-	valueVal := value
-	lenVal := int64(len(slice))
-	var out_result int64
-	find_c_u32_neon(
-		p_slice,
-		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
-// FindCU64 computes Find using NEON SIMD assembly.
-func FindCU64(slice []uint64, value uint64) int {
-	if len(slice) == 0 {
-		return 0
-	}
-	var p_slice unsafe.Pointer
-	if len(slice) > 0 {
-		p_slice = unsafe.Pointer(&slice[0])
-	}
-	valueVal := value
-	lenVal := int64(len(slice))
-	var out_result int64
-	find_c_u64_neon(
-		p_slice,
-		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&lenVal),
-		unsafe.Pointer(&out_result),
-	)
-	return int(out_result)
-}
-
 // CountCF32 computes Count using NEON SIMD assembly.
 func CountCF32(slice []float32, value float32) int {
 	if len(slice) == 0 {
@@ -250,6 +124,132 @@ func CountCU64(slice []uint64, value uint64) int {
 	lenVal := int64(len(slice))
 	var out_result int64
 	count_c_u64_neon(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// FindCF32 computes Find using NEON SIMD assembly.
+func FindCF32(slice []float32, value float32) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	find_c_f32_neon(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// FindCF64 computes Find using NEON SIMD assembly.
+func FindCF64(slice []float64, value float64) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	find_c_f64_neon(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// FindCS32 computes Find using NEON SIMD assembly.
+func FindCS32(slice []int32, value int32) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	find_c_s32_neon(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// FindCS64 computes Find using NEON SIMD assembly.
+func FindCS64(slice []int64, value int64) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	find_c_s64_neon(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// FindCU32 computes Find using NEON SIMD assembly.
+func FindCU32(slice []uint32, value uint32) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	find_c_u32_neon(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return int(out_result)
+}
+
+// FindCU64 computes Find using NEON SIMD assembly.
+func FindCU64(slice []uint64, value uint64) int {
+	if len(slice) == 0 {
+		return 0
+	}
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	find_c_u64_neon(
 		p_slice,
 		unsafe.Pointer(&valueVal),
 		unsafe.Pointer(&lenVal),

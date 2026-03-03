@@ -8,14 +8,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var SoftmaxFloat16 func(input []hwy.Float16, output []hwy.Float16)
-var SoftmaxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
-var SoftmaxFloat32 func(input []float32, output []float32)
-var SoftmaxFloat64 func(input []float64, output []float64)
-var SoftmaxInPlaceFloat16 func(x []hwy.Float16)
-var SoftmaxInPlaceBFloat16 func(x []hwy.BFloat16)
-var SoftmaxInPlaceFloat32 func(x []float32)
-var SoftmaxInPlaceFloat64 func(x []float64)
 var LogSoftmaxFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var LogSoftmaxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var LogSoftmaxFloat32 func(input []float32, output []float32)
@@ -24,6 +16,14 @@ var LogSoftmaxInPlaceFloat16 func(x []hwy.Float16)
 var LogSoftmaxInPlaceBFloat16 func(x []hwy.BFloat16)
 var LogSoftmaxInPlaceFloat32 func(x []float32)
 var LogSoftmaxInPlaceFloat64 func(x []float64)
+var SoftmaxFloat16 func(input []hwy.Float16, output []hwy.Float16)
+var SoftmaxBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
+var SoftmaxFloat32 func(input []float32, output []float32)
+var SoftmaxFloat64 func(input []float64, output []float64)
+var SoftmaxInPlaceFloat16 func(x []hwy.Float16)
+var SoftmaxInPlaceBFloat16 func(x []hwy.BFloat16)
+var SoftmaxInPlaceFloat32 func(x []float32)
+var SoftmaxInPlaceFloat64 func(x []float64)
 var SoftmaxScalarFloat16 func(input []hwy.Float16, output []hwy.Float16)
 var SoftmaxScalarBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16)
 var SoftmaxScalarFloat32 func(input []float32, output []float32)
@@ -32,48 +32,6 @@ var SoftmaxWithTemperatureFloat16 func(input []hwy.Float16, output []hwy.Float16
 var SoftmaxWithTemperatureBFloat16 func(input []hwy.BFloat16, output []hwy.BFloat16, temperature hwy.BFloat16)
 var SoftmaxWithTemperatureFloat32 func(input []float32, output []float32, temperature float32)
 var SoftmaxWithTemperatureFloat64 func(input []float64, output []float64, temperature float64)
-
-// Softmax computes the softmax function over the input slice.
-//
-// softmax(x_i) = exp(x_i - max(x)) / sum(exp(x_j - max(x)))
-//
-// The max subtraction provides numerical stability by preventing overflow
-// in the exponential computation.
-//
-// Uses a fused three-pass algorithm:
-//  1. Find max (scalar)
-//  2. Fused subtract-max + exp + accumulate sum (SIMD)
-//  3. Normalize by 1/sum (SIMD)
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Softmax[T hwy.Floats](input []T, output []T) {
-	switch any(input).(type) {
-	case []hwy.Float16:
-		SoftmaxFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
-	case []hwy.BFloat16:
-		SoftmaxBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
-	case []float32:
-		SoftmaxFloat32(any(input).([]float32), any(output).([]float32))
-	case []float64:
-		SoftmaxFloat64(any(input).([]float64), any(output).([]float64))
-	}
-}
-
-// SoftmaxInPlace applies softmax in-place, modifying the input slice.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func SoftmaxInPlace[T hwy.Floats](x []T) {
-	switch any(x).(type) {
-	case []hwy.Float16:
-		SoftmaxInPlaceFloat16(any(x).([]hwy.Float16))
-	case []hwy.BFloat16:
-		SoftmaxInPlaceBFloat16(any(x).([]hwy.BFloat16))
-	case []float32:
-		SoftmaxInPlaceFloat32(any(x).([]float32))
-	case []float64:
-		SoftmaxInPlaceFloat64(any(x).([]float64))
-	}
-}
 
 // LogSoftmax computes the log-softmax function over the input slice.
 //
@@ -114,6 +72,48 @@ func LogSoftmaxInPlace[T hwy.Floats](x []T) {
 		LogSoftmaxInPlaceFloat32(any(x).([]float32))
 	case []float64:
 		LogSoftmaxInPlaceFloat64(any(x).([]float64))
+	}
+}
+
+// Softmax computes the softmax function over the input slice.
+//
+// softmax(x_i) = exp(x_i - max(x)) / sum(exp(x_j - max(x)))
+//
+// The max subtraction provides numerical stability by preventing overflow
+// in the exponential computation.
+//
+// Uses a fused three-pass algorithm:
+//  1. Find max (scalar)
+//  2. Fused subtract-max + exp + accumulate sum (SIMD)
+//  3. Normalize by 1/sum (SIMD)
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Softmax[T hwy.Floats](input []T, output []T) {
+	switch any(input).(type) {
+	case []hwy.Float16:
+		SoftmaxFloat16(any(input).([]hwy.Float16), any(output).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SoftmaxBFloat16(any(input).([]hwy.BFloat16), any(output).([]hwy.BFloat16))
+	case []float32:
+		SoftmaxFloat32(any(input).([]float32), any(output).([]float32))
+	case []float64:
+		SoftmaxFloat64(any(input).([]float64), any(output).([]float64))
+	}
+}
+
+// SoftmaxInPlace applies softmax in-place, modifying the input slice.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func SoftmaxInPlace[T hwy.Floats](x []T) {
+	switch any(x).(type) {
+	case []hwy.Float16:
+		SoftmaxInPlaceFloat16(any(x).([]hwy.Float16))
+	case []hwy.BFloat16:
+		SoftmaxInPlaceBFloat16(any(x).([]hwy.BFloat16))
+	case []float32:
+		SoftmaxInPlaceFloat32(any(x).([]float32))
+	case []float64:
+		SoftmaxInPlaceFloat64(any(x).([]float64))
 	}
 }
 
@@ -170,46 +170,11 @@ func initSoftmaxAll() {
 		initSoftmaxFallback()
 		return
 	}
-	initSoftmaxNEON()
+	initSoftmaxFallback()
 	return
 }
 
-func initSoftmaxNEON() {
-	SoftmaxFloat16 = BaseSoftmax_neon_Float16
-	SoftmaxBFloat16 = BaseSoftmax_neon_BFloat16
-	SoftmaxFloat32 = BaseSoftmax_neon
-	SoftmaxFloat64 = BaseSoftmax_neon_Float64
-	SoftmaxInPlaceFloat16 = BaseSoftmaxInPlace_neon_Float16
-	SoftmaxInPlaceBFloat16 = BaseSoftmaxInPlace_neon_BFloat16
-	SoftmaxInPlaceFloat32 = BaseSoftmaxInPlace_neon
-	SoftmaxInPlaceFloat64 = BaseSoftmaxInPlace_neon_Float64
-	LogSoftmaxFloat16 = BaseLogSoftmax_neon_Float16
-	LogSoftmaxBFloat16 = BaseLogSoftmax_neon_BFloat16
-	LogSoftmaxFloat32 = BaseLogSoftmax_neon
-	LogSoftmaxFloat64 = BaseLogSoftmax_neon_Float64
-	LogSoftmaxInPlaceFloat16 = BaseLogSoftmaxInPlace_neon_Float16
-	LogSoftmaxInPlaceBFloat16 = BaseLogSoftmaxInPlace_neon_BFloat16
-	LogSoftmaxInPlaceFloat32 = BaseLogSoftmaxInPlace_neon
-	LogSoftmaxInPlaceFloat64 = BaseLogSoftmaxInPlace_neon_Float64
-	SoftmaxScalarFloat16 = BaseSoftmaxScalar_neon_Float16
-	SoftmaxScalarBFloat16 = BaseSoftmaxScalar_neon_BFloat16
-	SoftmaxScalarFloat32 = BaseSoftmaxScalar_neon
-	SoftmaxScalarFloat64 = BaseSoftmaxScalar_neon_Float64
-	SoftmaxWithTemperatureFloat16 = BaseSoftmaxWithTemperature_neon_Float16
-	SoftmaxWithTemperatureBFloat16 = BaseSoftmaxWithTemperature_neon_BFloat16
-	SoftmaxWithTemperatureFloat32 = BaseSoftmaxWithTemperature_neon
-	SoftmaxWithTemperatureFloat64 = BaseSoftmaxWithTemperature_neon_Float64
-}
-
 func initSoftmaxFallback() {
-	SoftmaxFloat16 = BaseSoftmax_fallback_Float16
-	SoftmaxBFloat16 = BaseSoftmax_fallback_BFloat16
-	SoftmaxFloat32 = BaseSoftmax_fallback
-	SoftmaxFloat64 = BaseSoftmax_fallback_Float64
-	SoftmaxInPlaceFloat16 = BaseSoftmaxInPlace_fallback_Float16
-	SoftmaxInPlaceBFloat16 = BaseSoftmaxInPlace_fallback_BFloat16
-	SoftmaxInPlaceFloat32 = BaseSoftmaxInPlace_fallback
-	SoftmaxInPlaceFloat64 = BaseSoftmaxInPlace_fallback_Float64
 	LogSoftmaxFloat16 = BaseLogSoftmax_fallback_Float16
 	LogSoftmaxBFloat16 = BaseLogSoftmax_fallback_BFloat16
 	LogSoftmaxFloat32 = BaseLogSoftmax_fallback
@@ -218,6 +183,14 @@ func initSoftmaxFallback() {
 	LogSoftmaxInPlaceBFloat16 = BaseLogSoftmaxInPlace_fallback_BFloat16
 	LogSoftmaxInPlaceFloat32 = BaseLogSoftmaxInPlace_fallback
 	LogSoftmaxInPlaceFloat64 = BaseLogSoftmaxInPlace_fallback_Float64
+	SoftmaxFloat16 = BaseSoftmax_fallback_Float16
+	SoftmaxBFloat16 = BaseSoftmax_fallback_BFloat16
+	SoftmaxFloat32 = BaseSoftmax_fallback
+	SoftmaxFloat64 = BaseSoftmax_fallback_Float64
+	SoftmaxInPlaceFloat16 = BaseSoftmaxInPlace_fallback_Float16
+	SoftmaxInPlaceBFloat16 = BaseSoftmaxInPlace_fallback_BFloat16
+	SoftmaxInPlaceFloat32 = BaseSoftmaxInPlace_fallback
+	SoftmaxInPlaceFloat64 = BaseSoftmaxInPlace_fallback_Float64
 	SoftmaxScalarFloat16 = BaseSoftmaxScalar_fallback_Float16
 	SoftmaxScalarBFloat16 = BaseSoftmaxScalar_fallback_BFloat16
 	SoftmaxScalarFloat32 = BaseSoftmaxScalar_fallback

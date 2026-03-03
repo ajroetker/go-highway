@@ -18,58 +18,10 @@ func initFusedint8actmatmulNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	FusedInt8MatMulSiLU = fusedInt8MatMulSiLUAsmF32
 	FusedInt8MatMulGELU = fusedInt8MatMulGELUAsmF32
 	FusedInt8MatMulGELUApprox = fusedInt8MatMulGELUApproxAsmF32
 	FusedInt8MatMulReLU = fusedInt8MatMulReLUAsmF32
-}
-
-func fusedInt8MatMulSiLUAsmF32(input []float32, weights []int8, scales, bias, output []float32, M, K, N, groupSize int) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_weights unsafe.Pointer
-	if len(weights) > 0 {
-		p_weights = unsafe.Pointer(&weights[0])
-	}
-	var p_scales unsafe.Pointer
-	if len(scales) > 0 {
-		p_scales = unsafe.Pointer(&scales[0])
-	}
-	var p_bias unsafe.Pointer
-	if len(bias) > 0 {
-		p_bias = unsafe.Pointer(&bias[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	MVal := int64(M)
-	KVal := int64(K)
-	NVal := int64(N)
-	groupSizeVal := int64(groupSize)
-	len_inputVal := int64(len(input))
-	len_weightsVal := int64(len(weights))
-	len_scalesVal := int64(len(scales))
-	len_biasVal := int64(len(bias))
-	len_outputVal := int64(len(output))
-	asm.FusedInt8MatMulSiLU_F32(
-		p_input,
-		p_weights,
-		p_scales,
-		p_bias,
-		p_output,
-		unsafe.Pointer(&MVal),
-		unsafe.Pointer(&KVal),
-		unsafe.Pointer(&NVal),
-		unsafe.Pointer(&groupSizeVal),
-		unsafe.Pointer(&len_inputVal),
-		unsafe.Pointer(&len_weightsVal),
-		unsafe.Pointer(&len_scalesVal),
-		unsafe.Pointer(&len_biasVal),
-		unsafe.Pointer(&len_outputVal),
-	)
+	FusedInt8MatMulSiLU = fusedInt8MatMulSiLUAsmF32
 }
 
 func fusedInt8MatMulGELUAsmF32(input []float32, weights []int8, scales, bias, output []float32, M, K, N, groupSize int) {
@@ -199,6 +151,54 @@ func fusedInt8MatMulReLUAsmF32(input []float32, weights []int8, scales, bias, ou
 	len_biasVal := int64(len(bias))
 	len_outputVal := int64(len(output))
 	asm.FusedInt8MatMulReLU_F32(
+		p_input,
+		p_weights,
+		p_scales,
+		p_bias,
+		p_output,
+		unsafe.Pointer(&MVal),
+		unsafe.Pointer(&KVal),
+		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_weightsVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func fusedInt8MatMulSiLUAsmF32(input []float32, weights []int8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	MVal := int64(M)
+	KVal := int64(K)
+	NVal := int64(N)
+	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_weightsVal := int64(len(weights))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
+	asm.FusedInt8MatMulSiLU_F32(
 		p_input,
 		p_weights,
 		p_scales,

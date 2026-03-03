@@ -11,6 +11,324 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BasePartition_avx2(data []float32, pivot float32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 8
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := archsimd.BroadcastFloat32x8(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if hwy.AllTrue_AVX2_F32x8(mask) {
+			left += lanes
+			continue
+		}
+		if hwy.AllFalse_AVX2_F32x8(mask) {
+			right -= lanes
+			vRight := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[right])))
+			v.Store((*[8]float32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[8]float32)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_avx2_Float64(data []float64, pivot float64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := archsimd.BroadcastFloat64x4(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if hwy.AllTrue_AVX2_F64x4(mask) {
+			left += lanes
+			continue
+		}
+		if hwy.AllFalse_AVX2_F64x4(mask) {
+			right -= lanes
+			vRight := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]float64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]float64)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_avx2_Int32(data []int32, pivot int32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 8
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := archsimd.BroadcastInt32x8(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if hwy.AllTrue_AVX2_I32x8(mask) {
+			left += lanes
+			continue
+		}
+		if hwy.AllFalse_AVX2_I32x8(mask) {
+			right -= lanes
+			vRight := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[right])))
+			v.Store((*[8]int32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[8]int32)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_avx2_Int64(data []int64, pivot int64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := archsimd.BroadcastInt64x4(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if hwy.AllTrue_AVX2_I64x4(mask) {
+			left += lanes
+			continue
+		}
+		if hwy.AllFalse_AVX2_I64x4(mask) {
+			right -= lanes
+			vRight := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]int64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]int64)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_avx2_Uint32(data []uint32, pivot uint32) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 8
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := archsimd.BroadcastUint32x8(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if hwy.AllTrue_AVX2_Uint32x8(mask) {
+			left += lanes
+			continue
+		}
+		if hwy.AllFalse_AVX2_Uint32x8(mask) {
+			right -= lanes
+			vRight := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[right])))
+			v.Store((*[8]uint32)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[8]uint32)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
+func BasePartition_avx2_Uint64(data []uint64, pivot uint64) int {
+	n := len(data)
+	if n == 0 {
+		return 0
+	}
+	lanes := 4
+	if n < lanes*4 {
+		return scalarPartition2Way(data, pivot)
+	}
+	pivotVec := archsimd.BroadcastUint64x4(pivot)
+	left := 0
+	right := n
+	for left+lanes <= right {
+		if right-lanes < left+lanes {
+			break
+		}
+		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[left])))
+		mask := v.LessEqual(pivotVec)
+		if hwy.AllTrue_AVX2_Uint64x4(mask) {
+			left += lanes
+			continue
+		}
+		if hwy.AllFalse_AVX2_Uint64x4(mask) {
+			right -= lanes
+			vRight := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[right])))
+			v.Store((*[4]uint64)(unsafe.Pointer(&data[right])))
+			vRight.Store((*[4]uint64)(unsafe.Pointer(&data[left])))
+			continue
+		}
+		end := min(left+lanes, right)
+		for left < end {
+			if data[left] <= pivot {
+				left++
+			} else {
+				right--
+				data[left], data[right] = data[right], data[left]
+				if right < end {
+					end = right
+				}
+			}
+		}
+	}
+	for left < right {
+		if data[left] <= pivot {
+			left++
+		} else {
+			right--
+			data[left], data[right] = data[right], data[left]
+		}
+	}
+	return left
+}
+
 func BasePartition3Way_avx2(data []float32, pivot float32) (int, int) {
 	n := len(data)
 	if n == 0 {
@@ -483,322 +801,4 @@ func BasePartition3Way_avx2_Uint64(data []uint64, pivot uint64) (int, int) {
 		}
 	}
 	return lt, gt
-}
-
-func BasePartition_avx2(data []float32, pivot float32) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 8
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := archsimd.BroadcastFloat32x8(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if hwy.AllTrue_AVX2_F32x8(mask) {
-			left += lanes
-			continue
-		}
-		if hwy.AllFalse_AVX2_F32x8(mask) {
-			right -= lanes
-			vRight := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[right])))
-			v.Store((*[8]float32)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[8]float32)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_avx2_Float64(data []float64, pivot float64) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 4
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := archsimd.BroadcastFloat64x4(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if hwy.AllTrue_AVX2_F64x4(mask) {
-			left += lanes
-			continue
-		}
-		if hwy.AllFalse_AVX2_F64x4(mask) {
-			right -= lanes
-			vRight := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[right])))
-			v.Store((*[4]float64)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[4]float64)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_avx2_Int32(data []int32, pivot int32) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 8
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := archsimd.BroadcastInt32x8(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if hwy.AllTrue_AVX2_I32x8(mask) {
-			left += lanes
-			continue
-		}
-		if hwy.AllFalse_AVX2_I32x8(mask) {
-			right -= lanes
-			vRight := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[right])))
-			v.Store((*[8]int32)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[8]int32)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_avx2_Int64(data []int64, pivot int64) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 4
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := archsimd.BroadcastInt64x4(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if hwy.AllTrue_AVX2_I64x4(mask) {
-			left += lanes
-			continue
-		}
-		if hwy.AllFalse_AVX2_I64x4(mask) {
-			right -= lanes
-			vRight := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[right])))
-			v.Store((*[4]int64)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[4]int64)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_avx2_Uint32(data []uint32, pivot uint32) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 8
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := archsimd.BroadcastUint32x8(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if hwy.AllTrue_AVX2_Uint32x8(mask) {
-			left += lanes
-			continue
-		}
-		if hwy.AllFalse_AVX2_Uint32x8(mask) {
-			right -= lanes
-			vRight := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[right])))
-			v.Store((*[8]uint32)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[8]uint32)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
-}
-
-func BasePartition_avx2_Uint64(data []uint64, pivot uint64) int {
-	n := len(data)
-	if n == 0 {
-		return 0
-	}
-	lanes := 4
-	if n < lanes*4 {
-		return scalarPartition2Way(data, pivot)
-	}
-	pivotVec := archsimd.BroadcastUint64x4(pivot)
-	left := 0
-	right := n
-	for left+lanes <= right {
-		if right-lanes < left+lanes {
-			break
-		}
-		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[left])))
-		mask := v.LessEqual(pivotVec)
-		if hwy.AllTrue_AVX2_Uint64x4(mask) {
-			left += lanes
-			continue
-		}
-		if hwy.AllFalse_AVX2_Uint64x4(mask) {
-			right -= lanes
-			vRight := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[right])))
-			v.Store((*[4]uint64)(unsafe.Pointer(&data[right])))
-			vRight.Store((*[4]uint64)(unsafe.Pointer(&data[left])))
-			continue
-		}
-		end := min(left+lanes, right)
-		for left < end {
-			if data[left] <= pivot {
-				left++
-			} else {
-				right--
-				data[left], data[right] = data[right], data[left]
-				if right < end {
-					end = right
-				}
-			}
-		}
-	}
-	for left < right {
-		if data[left] <= pivot {
-			left++
-		} else {
-			right--
-			data[left], data[right] = data[right], data[left]
-		}
-	}
-	return left
 }

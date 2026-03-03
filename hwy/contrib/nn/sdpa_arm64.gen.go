@@ -72,19 +72,8 @@ func initSdpaAll() {
 		initSdpaFallback()
 		return
 	}
-	initSdpaNEON()
+	initSdpaFallback()
 	return
-}
-
-func initSdpaNEON() {
-	SDPAFloat16 = BaseSDPA_neon_Float16
-	SDPABFloat16 = BaseSDPA_neon_BFloat16
-	SDPAFloat32 = BaseSDPA_neon
-	SDPAFloat64 = BaseSDPA_neon_Float64
-	SDPACausalFloat16 = BaseSDPACausal_neon_Float16
-	SDPACausalBFloat16 = BaseSDPACausal_neon_BFloat16
-	SDPACausalFloat32 = BaseSDPACausal_neon
-	SDPACausalFloat64 = BaseSDPACausal_neon_Float64
 }
 
 func initSdpaFallback() {

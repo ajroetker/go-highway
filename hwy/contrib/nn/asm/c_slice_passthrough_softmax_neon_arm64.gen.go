@@ -5,26 +5,6 @@ package asm
 
 import "unsafe"
 
-// Softmax_F16 calls the NEON SIMD assembly implementation.
-func Softmax_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	softmax_c_f16_neon(input, output, plen)
-}
-
-// Softmax_BF16 calls the NEON SIMD assembly implementation.
-func Softmax_BF16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	softmax_c_bf16_neon(input, output, plen)
-}
-
-// Softmax_F32 calls the NEON SIMD assembly implementation.
-func Softmax_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	softmax_c_f32_neon(input, output, plen)
-}
-
-// Softmax_F64 calls the NEON SIMD assembly implementation.
-func Softmax_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
-	softmax_c_f64_neon(input, output, plen)
-}
-
 // LogSoftmax_F16 calls the NEON SIMD assembly implementation.
 func LogSoftmax_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	logsoftmax_c_f16_neon(input, output, plen)
@@ -43,6 +23,26 @@ func LogSoftmax_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Poi
 // LogSoftmax_F64 calls the NEON SIMD assembly implementation.
 func LogSoftmax_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	logsoftmax_c_f64_neon(input, output, plen)
+}
+
+// Softmax_F16 calls the NEON SIMD assembly implementation.
+func Softmax_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softmax_c_f16_neon(input, output, plen)
+}
+
+// Softmax_BF16 calls the NEON SIMD assembly implementation.
+func Softmax_BF16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softmax_c_bf16_neon(input, output, plen)
+}
+
+// Softmax_F32 calls the NEON SIMD assembly implementation.
+func Softmax_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softmax_c_f32_neon(input, output, plen)
+}
+
+// Softmax_F64 calls the NEON SIMD assembly implementation.
+func Softmax_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
+	softmax_c_f64_neon(input, output, plen)
 }
 
 // SoftmaxWithTemperature_F16 calls the NEON SIMD assembly implementation.

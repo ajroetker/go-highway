@@ -33,8 +33,8 @@ func BaseBatchDot_avx2_Float16(query []hwy.Float16, data []hwy.Float16, dots []h
 		sum = asm.ZeroFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
-			vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
+			vq := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&query[j]))
+			vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j]))
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
@@ -67,8 +67,8 @@ func BaseBatchDot_avx2_BFloat16(query []hwy.BFloat16, data []hwy.BFloat16, dots 
 		sum = asm.ZeroBFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
-			vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
+			vq := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&query[j]))
+			vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j]))
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
@@ -169,8 +169,8 @@ func BaseBatchL2SquaredDistance_avx2_Float16(query []hwy.Float16, data []hwy.Flo
 		sum = asm.ZeroFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
-			vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
+			vq := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&query[j]))
+			vd := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j]))
 			diff := vq.Sub(vd)
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)
@@ -205,8 +205,8 @@ func BaseBatchL2SquaredDistance_avx2_BFloat16(query []hwy.BFloat16, data []hwy.B
 		sum = asm.ZeroBFloat16x8AVX2()
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&query[j:][0]))
-			vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j:][0]))
+			vq := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&query[j]))
+			vd := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dataVec[j]))
 			diff := vq.Sub(vd)
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)

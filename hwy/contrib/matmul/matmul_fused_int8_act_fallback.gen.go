@@ -9,95 +9,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-func BaseFusedInt8MatMulSiLU_fallback(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	if M == 0 || K == 0 || N == 0 {
-		return
-	}
-	numGroups := (N + groupSize - 1) / groupSize
-	lanes := hwy.Zero[float32]().NumLanes()
-	tileN := 4 * lanes
-	dequantBuf := make([]float32, tileN)
-	accBuf := make([]float32, N)
-	for m := range M {
-		inputRow := input[m*K : (m+1)*K]
-		outputRow := output[m*N : (m+1)*N]
-		for i := range N {
-			accBuf[i] = 0
-		}
-		for k := range K {
-			inputVal := hwy.Set(inputRow[k])
-			baseIdx := k * N
-			scaleBase := k * numGroups
-			var n int
-			for n = 0; n+tileN <= N; n += tileN {
-				for lane := range tileN {
-					colIdx := n + lane
-					weightIdx := baseIdx + colIdx
-					val := float32(weights[weightIdx])
-					groupIdx := colIdx / groupSize
-					scale := scales[scaleBase+groupIdx]
-					dequantBuf[lane] = val * scale
-				}
-				w0 := hwy.Load(dequantBuf[0:])
-				w1 := hwy.Load(dequantBuf[lanes:])
-				w2 := hwy.Load(dequantBuf[2*lanes:])
-				w3 := hwy.Load(dequantBuf[3*lanes:])
-				acc0 := hwy.Load(accBuf[n:])
-				acc1 := hwy.Load(accBuf[n+lanes:])
-				acc2 := hwy.Load(accBuf[n+2*lanes:])
-				acc3 := hwy.Load(accBuf[n+3*lanes:])
-				acc0 = hwy.MulAdd(inputVal, w0, acc0)
-				acc1 = hwy.MulAdd(inputVal, w1, acc1)
-				acc2 = hwy.MulAdd(inputVal, w2, acc2)
-				acc3 = hwy.MulAdd(inputVal, w3, acc3)
-				hwy.Store(acc0, accBuf[n:])
-				hwy.Store(acc1, accBuf[n+lanes:])
-				hwy.Store(acc2, accBuf[n+2*lanes:])
-				hwy.Store(acc3, accBuf[n+3*lanes:])
-			}
-			for ; n+lanes <= N; n += lanes {
-				for lane := range lanes {
-					colIdx := n + lane
-					weightIdx := baseIdx + colIdx
-					val := float32(weights[weightIdx])
-					groupIdx := colIdx / groupSize
-					scale := scales[scaleBase+groupIdx]
-					dequantBuf[lane] = val * scale
-				}
-				w := hwy.Load(dequantBuf)
-				acc := hwy.Load(accBuf[n:])
-				acc = hwy.MulAdd(inputVal, w, acc)
-				hwy.Store(acc, accBuf[n:])
-			}
-			for ; n < N; n++ {
-				weightIdx := baseIdx + n
-				val := float32(weights[weightIdx])
-				groupIdx := n / groupSize
-				scale := scales[scaleBase+groupIdx]
-				accBuf[n] += inputRow[k] * val * scale
-			}
-		}
-		var n int
-		for n = 0; n+lanes <= N; n += lanes {
-			acc := hwy.Load(accBuf[n:])
-			if bias != nil {
-				biasVec := hwy.Load(bias[n:])
-				acc = hwy.Add(acc, biasVec)
-			}
-			sig := math.BaseSigmoidVec_fallback(acc)
-			acc = hwy.Mul(acc, sig)
-			hwy.Store(acc, outputRow[n:])
-		}
-		for ; n < N; n++ {
-			sum := accBuf[n]
-			if bias != nil {
-				sum += bias[n]
-			}
-			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
-		}
-	}
-}
-
 func BaseFusedInt8MatMulGELU_fallback(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
 	if M == 0 || K == 0 || N == 0 {
 		return
@@ -366,6 +277,95 @@ func BaseFusedInt8MatMulReLU_fallback(input []float32, weights []int8, scales []
 				sum += bias[n]
 			}
 			outputRow[n] = float32(stdmath.Max(0, float64(sum)))
+		}
+	}
+}
+
+func BaseFusedInt8MatMulSiLU_fallback(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	if M == 0 || K == 0 || N == 0 {
+		return
+	}
+	numGroups := (N + groupSize - 1) / groupSize
+	lanes := hwy.Zero[float32]().NumLanes()
+	tileN := 4 * lanes
+	dequantBuf := make([]float32, tileN)
+	accBuf := make([]float32, N)
+	for m := range M {
+		inputRow := input[m*K : (m+1)*K]
+		outputRow := output[m*N : (m+1)*N]
+		for i := range N {
+			accBuf[i] = 0
+		}
+		for k := range K {
+			inputVal := hwy.Set(inputRow[k])
+			baseIdx := k * N
+			scaleBase := k * numGroups
+			var n int
+			for n = 0; n+tileN <= N; n += tileN {
+				for lane := range tileN {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					val := float32(weights[weightIdx])
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = val * scale
+				}
+				w0 := hwy.Load(dequantBuf[0:])
+				w1 := hwy.Load(dequantBuf[lanes:])
+				w2 := hwy.Load(dequantBuf[2*lanes:])
+				w3 := hwy.Load(dequantBuf[3*lanes:])
+				acc0 := hwy.Load(accBuf[n:])
+				acc1 := hwy.Load(accBuf[n+lanes:])
+				acc2 := hwy.Load(accBuf[n+2*lanes:])
+				acc3 := hwy.Load(accBuf[n+3*lanes:])
+				acc0 = hwy.MulAdd(inputVal, w0, acc0)
+				acc1 = hwy.MulAdd(inputVal, w1, acc1)
+				acc2 = hwy.MulAdd(inputVal, w2, acc2)
+				acc3 = hwy.MulAdd(inputVal, w3, acc3)
+				hwy.Store(acc0, accBuf[n:])
+				hwy.Store(acc1, accBuf[n+lanes:])
+				hwy.Store(acc2, accBuf[n+2*lanes:])
+				hwy.Store(acc3, accBuf[n+3*lanes:])
+			}
+			for ; n+lanes <= N; n += lanes {
+				for lane := range lanes {
+					colIdx := n + lane
+					weightIdx := baseIdx + colIdx
+					val := float32(weights[weightIdx])
+					groupIdx := colIdx / groupSize
+					scale := scales[scaleBase+groupIdx]
+					dequantBuf[lane] = val * scale
+				}
+				w := hwy.Load(dequantBuf)
+				acc := hwy.Load(accBuf[n:])
+				acc = hwy.MulAdd(inputVal, w, acc)
+				hwy.Store(acc, accBuf[n:])
+			}
+			for ; n < N; n++ {
+				weightIdx := baseIdx + n
+				val := float32(weights[weightIdx])
+				groupIdx := n / groupSize
+				scale := scales[scaleBase+groupIdx]
+				accBuf[n] += inputRow[k] * val * scale
+			}
+		}
+		var n int
+		for n = 0; n+lanes <= N; n += lanes {
+			acc := hwy.Load(accBuf[n:])
+			if bias != nil {
+				biasVec := hwy.Load(bias[n:])
+				acc = hwy.Add(acc, biasVec)
+			}
+			sig := math.BaseSigmoidVec_fallback(acc)
+			acc = hwy.Mul(acc, sig)
+			hwy.Store(acc, outputRow[n:])
+		}
+		for ; n < N; n++ {
+			sum := accBuf[n]
+			if bias != nil {
+				sum += bias[n]
+			}
+			outputRow[n] = sum / (1.0 + float32(stdmath.Exp(float64(-sum))))
 		}
 	}
 }

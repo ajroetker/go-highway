@@ -15,48 +15,6 @@ var (
 	BaseFindVarintEnds_AVX2_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
 )
 
-func BaseFindVarintEnds_avx2(src []byte) uint32 {
-	if len(src) == 0 {
-		return 0
-	}
-	n := min(len(src), 32)
-	if n == 32 {
-		threshold := BaseFindVarintEnds_AVX2_threshold_f32
-		v0 := archsimd.LoadUint8x16Slice(src[:16])
-		isTerminator0 := v0.Less(threshold)
-		mask0 := uint32(hwy.BitsFromMask_AVX2_Uint8x16(isTerminator0))
-		v1 := archsimd.LoadUint8x16Slice(src[16:32])
-		isTerminator1 := v1.Less(threshold)
-		mask1 := uint32(hwy.BitsFromMask_AVX2_Uint8x16(isTerminator1))
-		return mask0 | (mask1 << 16)
-	}
-	var mask uint32
-	for i := range n {
-		if src[i] < 0x80 {
-			mask |= 1 << uint(i)
-		}
-	}
-	return mask
-}
-
-func BaseDecodeUvarint64Batch_avx2(src []byte, dst []uint64, n int) (decoded int, consumed int) {
-	if len(src) == 0 || n == 0 || len(dst) == 0 {
-		return 0, 0
-	}
-	maxDecode := min(n, len(dst))
-	pos := 0
-	for decoded < maxDecode && pos < len(src) {
-		val, bytesRead := decodeOneUvarint64(src[pos:])
-		if bytesRead == 0 {
-			break
-		}
-		dst[decoded] = val
-		decoded++
-		pos += bytesRead
-	}
-	return decoded, pos
-}
-
 func BaseDecode2Uvarint64_avx2(src []byte) (v1 uint64, v2 uint64, consumed int) {
 	if len(src) == 0 {
 		return 0, 0, 0
@@ -94,6 +52,24 @@ func BaseDecode5Uvarint64_avx2(src []byte) (values [5]uint64, consumed int) {
 	return values, pos
 }
 
+func BaseDecodeUvarint64Batch_avx2(src []byte, dst []uint64, n int) (decoded int, consumed int) {
+	if len(src) == 0 || n == 0 || len(dst) == 0 {
+		return 0, 0
+	}
+	maxDecode := min(n, len(dst))
+	pos := 0
+	for decoded < maxDecode && pos < len(src) {
+		val, bytesRead := decodeOneUvarint64(src[pos:])
+		if bytesRead == 0 {
+			break
+		}
+		dst[decoded] = val
+		decoded++
+		pos += bytesRead
+	}
+	return decoded, pos
+}
+
 func BaseDecodeUvarint64BatchWithMask_avx2(src []byte, dst []uint64, mask uint32, n int) (decoded int, consumed int) {
 	if mask == 0 || len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
@@ -117,4 +93,28 @@ func BaseDecodeUvarint64BatchWithMask_avx2(src []byte, dst []uint64, mask uint32
 		mask &= mask - 1
 	}
 	return decoded, pos
+}
+
+func BaseFindVarintEnds_avx2(src []byte) uint32 {
+	if len(src) == 0 {
+		return 0
+	}
+	n := min(len(src), 32)
+	if n == 32 {
+		threshold := BaseFindVarintEnds_AVX2_threshold_f32
+		v0 := archsimd.LoadUint8x16Slice(src[:16])
+		isTerminator0 := v0.Less(threshold)
+		mask0 := uint32(hwy.BitsFromMask_AVX2_Uint8x16(isTerminator0))
+		v1 := archsimd.LoadUint8x16Slice(src[16:32])
+		isTerminator1 := v1.Less(threshold)
+		mask1 := uint32(hwy.BitsFromMask_AVX2_Uint8x16(isTerminator1))
+		return mask0 | (mask1 << 16)
+	}
+	var mask uint32
+	for i := range n {
+		if src[i] < 0x80 {
+			mask |= 1 << uint(i)
+		}
+	}
+	return mask
 }

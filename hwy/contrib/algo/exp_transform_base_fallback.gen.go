@@ -7,6 +7,38 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+func BaseCosTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_fallback_Float16(in, out, math.BaseCosVec_fallback_Float16)
+}
+
+func BaseCosTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_fallback_BFloat16(in, out, math.BaseCosVec_fallback_BFloat16)
+}
+
+func BaseCosTransform_fallback(in []float32, out []float32) {
+	BaseApply_fallback(in, out, math.BaseCosVec_fallback)
+}
+
+func BaseCosTransform_fallback_Float64(in []float64, out []float64) {
+	BaseApply_fallback_Float64(in, out, math.BaseCosVec_fallback_Float64)
+}
+
+func BaseErfTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_fallback_Float16(in, out, math.BaseErfVec_fallback_Float16)
+}
+
+func BaseErfTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_fallback_BFloat16(in, out, math.BaseErfVec_fallback_BFloat16)
+}
+
+func BaseErfTransform_fallback(in []float32, out []float32) {
+	BaseApply_fallback(in, out, math.BaseErfVec_fallback)
+}
+
+func BaseErfTransform_fallback_Float64(in []float64, out []float64) {
+	BaseApply_fallback_Float64(in, out, math.BaseErfVec_fallback_Float64)
+}
+
 func BaseExpTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
 	BaseApply_fallback_Float16(in, out, math.BaseExpVec_fallback_Float16)
 }
@@ -39,54 +71,6 @@ func BaseLogTransform_fallback_Float64(in []float64, out []float64) {
 	BaseApply_fallback_Float64(in, out, math.BaseLogVec_fallback_Float64)
 }
 
-func BaseSinTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_fallback_Float16(in, out, math.BaseSinVec_fallback_Float16)
-}
-
-func BaseSinTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_fallback_BFloat16(in, out, math.BaseSinVec_fallback_BFloat16)
-}
-
-func BaseSinTransform_fallback(in []float32, out []float32) {
-	BaseApply_fallback(in, out, math.BaseSinVec_fallback)
-}
-
-func BaseSinTransform_fallback_Float64(in []float64, out []float64) {
-	BaseApply_fallback_Float64(in, out, math.BaseSinVec_fallback_Float64)
-}
-
-func BaseCosTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_fallback_Float16(in, out, math.BaseCosVec_fallback_Float16)
-}
-
-func BaseCosTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_fallback_BFloat16(in, out, math.BaseCosVec_fallback_BFloat16)
-}
-
-func BaseCosTransform_fallback(in []float32, out []float32) {
-	BaseApply_fallback(in, out, math.BaseCosVec_fallback)
-}
-
-func BaseCosTransform_fallback_Float64(in []float64, out []float64) {
-	BaseApply_fallback_Float64(in, out, math.BaseCosVec_fallback_Float64)
-}
-
-func BaseTanhTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_fallback_Float16(in, out, math.BaseTanhVec_fallback_Float16)
-}
-
-func BaseTanhTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_fallback_BFloat16(in, out, math.BaseTanhVec_fallback_BFloat16)
-}
-
-func BaseTanhTransform_fallback(in []float32, out []float32) {
-	BaseApply_fallback(in, out, math.BaseTanhVec_fallback)
-}
-
-func BaseTanhTransform_fallback_Float64(in []float64, out []float64) {
-	BaseApply_fallback_Float64(in, out, math.BaseTanhVec_fallback_Float64)
-}
-
 func BaseSigmoidTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
 	BaseApply_fallback_Float16(in, out, math.BaseSigmoidVec_fallback_Float16)
 }
@@ -103,18 +87,34 @@ func BaseSigmoidTransform_fallback_Float64(in []float64, out []float64) {
 	BaseApply_fallback_Float64(in, out, math.BaseSigmoidVec_fallback_Float64)
 }
 
-func BaseErfTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_fallback_Float16(in, out, math.BaseErfVec_fallback_Float16)
+func BaseSinTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_fallback_Float16(in, out, math.BaseSinVec_fallback_Float16)
 }
 
-func BaseErfTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_fallback_BFloat16(in, out, math.BaseErfVec_fallback_BFloat16)
+func BaseSinTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_fallback_BFloat16(in, out, math.BaseSinVec_fallback_BFloat16)
 }
 
-func BaseErfTransform_fallback(in []float32, out []float32) {
-	BaseApply_fallback(in, out, math.BaseErfVec_fallback)
+func BaseSinTransform_fallback(in []float32, out []float32) {
+	BaseApply_fallback(in, out, math.BaseSinVec_fallback)
 }
 
-func BaseErfTransform_fallback_Float64(in []float64, out []float64) {
-	BaseApply_fallback_Float64(in, out, math.BaseErfVec_fallback_Float64)
+func BaseSinTransform_fallback_Float64(in []float64, out []float64) {
+	BaseApply_fallback_Float64(in, out, math.BaseSinVec_fallback_Float64)
+}
+
+func BaseTanhTransform_fallback_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_fallback_Float16(in, out, math.BaseTanhVec_fallback_Float16)
+}
+
+func BaseTanhTransform_fallback_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_fallback_BFloat16(in, out, math.BaseTanhVec_fallback_BFloat16)
+}
+
+func BaseTanhTransform_fallback(in []float32, out []float32) {
+	BaseApply_fallback(in, out, math.BaseTanhVec_fallback)
+}
+
+func BaseTanhTransform_fallback_Float64(in []float64, out []float64) {
+	BaseApply_fallback_Float64(in, out, math.BaseTanhVec_fallback_Float64)
 }

@@ -18,50 +18,178 @@ func initPointopsNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	AbsFloat32 = absAsmF32
+	AbsFloat64 = absAsmF64
 	BrightnessContrastFloat32 = brightnessContrastAsmF32
 	BrightnessContrastFloat64 = brightnessContrastAsmF64
 	ClampImageFloat32 = clampImageAsmF32
 	ClampImageFloat64 = clampImageAsmF64
-	ThresholdFloat32 = thresholdAsmF32
-	ThresholdFloat64 = thresholdAsmF64
-	InvertFloat32 = invertAsmF32
-	InvertFloat64 = invertAsmF64
-	AbsFloat32 = absAsmF32
-	AbsFloat64 = absAsmF64
-	ScaleFloat32 = scaleAsmF32
-	ScaleFloat64 = scaleAsmF64
-	OffsetFloat32 = offsetAsmF32
-	OffsetFloat64 = offsetAsmF64
 	GammaFloat32 = gammaAsmF32
 	GammaFloat64 = gammaAsmF64
-	MinImageFloat32 = minImageAsmF32
-	MinImageFloat64 = minImageAsmF64
+	InvertFloat32 = invertAsmF32
+	InvertFloat64 = invertAsmF64
 	MaxImageFloat32 = maxImageAsmF32
 	MaxImageFloat64 = maxImageAsmF64
+	MinImageFloat32 = minImageAsmF32
+	MinImageFloat64 = minImageAsmF64
+	OffsetFloat32 = offsetAsmF32
+	OffsetFloat64 = offsetAsmF64
+	ScaleFloat32 = scaleAsmF32
+	ScaleFloat64 = scaleAsmF64
+	ThresholdFloat32 = thresholdAsmF32
+	ThresholdFloat64 = thresholdAsmF64
 	if hwy.HasARMFP16() {
+		AbsFloat16 = absAsmF16
 		BrightnessContrastFloat16 = brightnessContrastAsmF16
 		ClampImageFloat16 = clampImageAsmF16
-		ThresholdFloat16 = thresholdAsmF16
-		InvertFloat16 = invertAsmF16
-		AbsFloat16 = absAsmF16
-		ScaleFloat16 = scaleAsmF16
-		OffsetFloat16 = offsetAsmF16
 		GammaFloat16 = gammaAsmF16
-		MinImageFloat16 = minImageAsmF16
+		InvertFloat16 = invertAsmF16
 		MaxImageFloat16 = maxImageAsmF16
+		MinImageFloat16 = minImageAsmF16
+		OffsetFloat16 = offsetAsmF16
+		ScaleFloat16 = scaleAsmF16
+		ThresholdFloat16 = thresholdAsmF16
 	}
 	if hwy.HasARMBF16() {
+		AbsBFloat16 = absAsmBF16
 		BrightnessContrastBFloat16 = brightnessContrastAsmBF16
 		ClampImageBFloat16 = clampImageAsmBF16
-		ThresholdBFloat16 = thresholdAsmBF16
-		InvertBFloat16 = invertAsmBF16
-		AbsBFloat16 = absAsmBF16
-		ScaleBFloat16 = scaleAsmBF16
-		OffsetBFloat16 = offsetAsmBF16
 		GammaBFloat16 = gammaAsmBF16
-		MinImageBFloat16 = minImageAsmBF16
+		InvertBFloat16 = invertAsmBF16
 		MaxImageBFloat16 = maxImageAsmBF16
+		MinImageBFloat16 = minImageAsmBF16
+		OffsetBFloat16 = offsetAsmBF16
+		ScaleBFloat16 = scaleAsmBF16
+		ThresholdBFloat16 = thresholdAsmBF16
 	}
+}
+
+func absAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Abs_F16(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+	)
+}
+
+func absAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Abs_BF16(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+	)
+}
+
+func absAsmF32(img *Image[float32], out *Image[float32]) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Abs_F32(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+	)
+}
+
+func absAsmF64(img *Image[float64], out *Image[float64]) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Abs_F64(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+	)
 }
 
 func brightnessContrastAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16, offset hwy.Float16) {
@@ -336,7 +464,7 @@ func clampImageAsmF64(img *Image[float64], out *Image[float64], minVal float64, 
 	)
 }
 
-func thresholdAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16) {
+func gammaAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], gamma hwy.Float16) {
 	if img == nil || out == nil {
 		return
 	}
@@ -362,16 +490,14 @@ func thresholdAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Threshold_F16(
+	asm.Gamma_F16(
 		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
-		unsafe.Pointer(&threshold),
-		unsafe.Pointer(&below),
-		unsafe.Pointer(&above),
+		unsafe.Pointer(&gamma),
 	)
 }
 
-func thresholdAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16) {
+func gammaAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], gamma hwy.BFloat16) {
 	if img == nil || out == nil {
 		return
 	}
@@ -397,16 +523,14 @@ func thresholdAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], thresh
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Threshold_BF16(
+	asm.Gamma_BF16(
 		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
-		unsafe.Pointer(&threshold),
-		unsafe.Pointer(&below),
-		unsafe.Pointer(&above),
+		unsafe.Pointer(&gamma),
 	)
 }
 
-func thresholdAsmF32(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32) {
+func gammaAsmF32(img *Image[float32], out *Image[float32], gamma float32) {
 	if img == nil || out == nil {
 		return
 	}
@@ -432,16 +556,14 @@ func thresholdAsmF32(img *Image[float32], out *Image[float32], threshold float32
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Threshold_F32(
+	asm.Gamma_F32(
 		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
-		unsafe.Pointer(&threshold),
-		unsafe.Pointer(&below),
-		unsafe.Pointer(&above),
+		unsafe.Pointer(&gamma),
 	)
 }
 
-func thresholdAsmF64(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64) {
+func gammaAsmF64(img *Image[float64], out *Image[float64], gamma float64) {
 	if img == nil || out == nil {
 		return
 	}
@@ -467,12 +589,10 @@ func thresholdAsmF64(img *Image[float64], out *Image[float64], threshold float64
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Threshold_F64(
+	asm.Gamma_F64(
 		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
-		unsafe.Pointer(&threshold),
-		unsafe.Pointer(&below),
-		unsafe.Pointer(&above),
+		unsafe.Pointer(&gamma),
 	)
 }
 
@@ -608,20 +728,31 @@ func invertAsmF64(img *Image[float64], out *Image[float64], maxVal float64) {
 	)
 }
 
-func absAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
-	if img == nil || out == nil {
+func maxImageAsmF16(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16]) {
+	if a == nil || b == nil || out == nil {
 		return
 	}
-	cimg := struct {
+	ca := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
+		data: unsafe.Pointer(&a.Row(0)[0]),
+		height: int64(a.height),
+		stride: int64(a.Stride()),
+		width: int64(a.width),
+	}
+	cb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&b.Row(0)[0]),
+		height: int64(b.height),
+		stride: int64(b.Stride()),
+		width: int64(b.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -634,26 +765,38 @@ func absAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16]) {
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Abs_F16(
-		unsafe.Pointer(&cimg),
+	asm.MaxImage_F16(
+		unsafe.Pointer(&ca),
+		unsafe.Pointer(&cb),
 		unsafe.Pointer(&cout),
 	)
 }
 
-func absAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
-	if img == nil || out == nil {
+func maxImageAsmBF16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
+	if a == nil || b == nil || out == nil {
 		return
 	}
-	cimg := struct {
+	ca := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
+		data: unsafe.Pointer(&a.Row(0)[0]),
+		height: int64(a.height),
+		stride: int64(a.Stride()),
+		width: int64(a.width),
+	}
+	cb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&b.Row(0)[0]),
+		height: int64(b.height),
+		stride: int64(b.Stride()),
+		width: int64(b.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -666,26 +809,38 @@ func absAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Abs_BF16(
-		unsafe.Pointer(&cimg),
+	asm.MaxImage_BF16(
+		unsafe.Pointer(&ca),
+		unsafe.Pointer(&cb),
 		unsafe.Pointer(&cout),
 	)
 }
 
-func absAsmF32(img *Image[float32], out *Image[float32]) {
-	if img == nil || out == nil {
+func maxImageAsmF32(a *Image[float32], b *Image[float32], out *Image[float32]) {
+	if a == nil || b == nil || out == nil {
 		return
 	}
-	cimg := struct {
+	ca := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
+		data: unsafe.Pointer(&a.Row(0)[0]),
+		height: int64(a.height),
+		stride: int64(a.Stride()),
+		width: int64(a.width),
+	}
+	cb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&b.Row(0)[0]),
+		height: int64(b.height),
+		stride: int64(b.Stride()),
+		width: int64(b.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -698,26 +853,38 @@ func absAsmF32(img *Image[float32], out *Image[float32]) {
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Abs_F32(
-		unsafe.Pointer(&cimg),
+	asm.MaxImage_F32(
+		unsafe.Pointer(&ca),
+		unsafe.Pointer(&cb),
 		unsafe.Pointer(&cout),
 	)
 }
 
-func absAsmF64(img *Image[float64], out *Image[float64]) {
-	if img == nil || out == nil {
+func maxImageAsmF64(a *Image[float64], b *Image[float64], out *Image[float64]) {
+	if a == nil || b == nil || out == nil {
 		return
 	}
-	cimg := struct {
+	ca := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
+		data: unsafe.Pointer(&a.Row(0)[0]),
+		height: int64(a.height),
+		stride: int64(a.Stride()),
+		width: int64(a.width),
+	}
+	cb := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&b.Row(0)[0]),
+		height: int64(b.height),
+		stride: int64(b.Stride()),
+		width: int64(b.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -730,405 +897,10 @@ func absAsmF64(img *Image[float64], out *Image[float64]) {
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.Abs_F64(
-		unsafe.Pointer(&cimg),
+	asm.MaxImage_F64(
+		unsafe.Pointer(&ca),
+		unsafe.Pointer(&cb),
 		unsafe.Pointer(&cout),
-	)
-}
-
-func scaleAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Scale_F16(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&scale),
-	)
-}
-
-func scaleAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Scale_BF16(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&scale),
-	)
-}
-
-func scaleAsmF32(img *Image[float32], out *Image[float32], scale float32) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Scale_F32(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&scale),
-	)
-}
-
-func scaleAsmF64(img *Image[float64], out *Image[float64], scale float64) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Scale_F64(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&scale),
-	)
-}
-
-func offsetAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Offset_F16(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&offset),
-	)
-}
-
-func offsetAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Offset_BF16(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&offset),
-	)
-}
-
-func offsetAsmF32(img *Image[float32], out *Image[float32], offset float32) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Offset_F32(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&offset),
-	)
-}
-
-func offsetAsmF64(img *Image[float64], out *Image[float64], offset float64) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Offset_F64(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&offset),
-	)
-}
-
-func gammaAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], gamma hwy.Float16) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Gamma_F16(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&gamma),
-	)
-}
-
-func gammaAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], gamma hwy.BFloat16) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Gamma_BF16(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&gamma),
-	)
-}
-
-func gammaAsmF32(img *Image[float32], out *Image[float32], gamma float32) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Gamma_F32(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&gamma),
-	)
-}
-
-func gammaAsmF64(img *Image[float64], out *Image[float64], gamma float64) {
-	if img == nil || out == nil {
-		return
-	}
-	cimg := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&img.Row(0)[0]),
-		height: int64(img.height),
-		stride: int64(img.Stride()),
-		width: int64(img.width),
-	}
-	cout := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&out.Row(0)[0]),
-		height: int64(out.height),
-		stride: int64(out.Stride()),
-		width: int64(out.width),
-	}
-	asm.Gamma_F64(
-		unsafe.Pointer(&cimg),
-		unsafe.Pointer(&cout),
-		unsafe.Pointer(&gamma),
 	)
 }
 
@@ -1308,31 +1080,20 @@ func minImageAsmF64(a *Image[float64], b *Image[float64], out *Image[float64]) {
 	)
 }
 
-func maxImageAsmF16(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16]) {
-	if a == nil || b == nil || out == nil {
+func offsetAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16) {
+	if img == nil || out == nil {
 		return
 	}
-	ca := struct {
+	cimg := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&a.Row(0)[0]),
-		height: int64(a.height),
-		stride: int64(a.Stride()),
-		width: int64(a.width),
-	}
-	cb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&b.Row(0)[0]),
-		height: int64(b.height),
-		stride: int64(b.Stride()),
-		width: int64(b.width),
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -1345,38 +1106,27 @@ func maxImageAsmF16(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.MaxImage_F16(
-		unsafe.Pointer(&ca),
-		unsafe.Pointer(&cb),
+	asm.Offset_F16(
+		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
+		unsafe.Pointer(&offset),
 	)
 }
 
-func maxImageAsmBF16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16]) {
-	if a == nil || b == nil || out == nil {
+func offsetAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16) {
+	if img == nil || out == nil {
 		return
 	}
-	ca := struct {
+	cimg := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&a.Row(0)[0]),
-		height: int64(a.height),
-		stride: int64(a.Stride()),
-		width: int64(a.width),
-	}
-	cb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&b.Row(0)[0]),
-		height: int64(b.height),
-		stride: int64(b.Stride()),
-		width: int64(b.width),
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -1389,38 +1139,27 @@ func maxImageAsmBF16(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.MaxImage_BF16(
-		unsafe.Pointer(&ca),
-		unsafe.Pointer(&cb),
+	asm.Offset_BF16(
+		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
+		unsafe.Pointer(&offset),
 	)
 }
 
-func maxImageAsmF32(a *Image[float32], b *Image[float32], out *Image[float32]) {
-	if a == nil || b == nil || out == nil {
+func offsetAsmF32(img *Image[float32], out *Image[float32], offset float32) {
+	if img == nil || out == nil {
 		return
 	}
-	ca := struct {
+	cimg := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&a.Row(0)[0]),
-		height: int64(a.height),
-		stride: int64(a.Stride()),
-		width: int64(a.width),
-	}
-	cb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&b.Row(0)[0]),
-		height: int64(b.height),
-		stride: int64(b.Stride()),
-		width: int64(b.width),
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -1433,38 +1172,27 @@ func maxImageAsmF32(a *Image[float32], b *Image[float32], out *Image[float32]) {
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.MaxImage_F32(
-		unsafe.Pointer(&ca),
-		unsafe.Pointer(&cb),
+	asm.Offset_F32(
+		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
+		unsafe.Pointer(&offset),
 	)
 }
 
-func maxImageAsmF64(a *Image[float64], b *Image[float64], out *Image[float64]) {
-	if a == nil || b == nil || out == nil {
+func offsetAsmF64(img *Image[float64], out *Image[float64], offset float64) {
+	if img == nil || out == nil {
 		return
 	}
-	ca := struct {
+	cimg := struct {
 		data unsafe.Pointer
 		height int64
 		stride int64
 		width int64
 	}{
-		data: unsafe.Pointer(&a.Row(0)[0]),
-		height: int64(a.height),
-		stride: int64(a.Stride()),
-		width: int64(a.width),
-	}
-	cb := struct {
-		data unsafe.Pointer
-		height int64
-		stride int64
-		width int64
-	}{
-		data: unsafe.Pointer(&b.Row(0)[0]),
-		height: int64(b.height),
-		stride: int64(b.Stride()),
-		width: int64(b.width),
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
 	}
 	cout := struct {
 		data unsafe.Pointer
@@ -1477,10 +1205,282 @@ func maxImageAsmF64(a *Image[float64], b *Image[float64], out *Image[float64]) {
 		stride: int64(out.Stride()),
 		width: int64(out.width),
 	}
-	asm.MaxImage_F64(
-		unsafe.Pointer(&ca),
-		unsafe.Pointer(&cb),
+	asm.Offset_F64(
+		unsafe.Pointer(&cimg),
 		unsafe.Pointer(&cout),
+		unsafe.Pointer(&offset),
+	)
+}
+
+func scaleAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Scale_F16(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&scale),
+	)
+}
+
+func scaleAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Scale_BF16(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&scale),
+	)
+}
+
+func scaleAsmF32(img *Image[float32], out *Image[float32], scale float32) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Scale_F32(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&scale),
+	)
+}
+
+func scaleAsmF64(img *Image[float64], out *Image[float64], scale float64) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Scale_F64(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&scale),
+	)
+}
+
+func thresholdAsmF16(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Threshold_F16(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&threshold),
+		unsafe.Pointer(&below),
+		unsafe.Pointer(&above),
+	)
+}
+
+func thresholdAsmBF16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Threshold_BF16(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&threshold),
+		unsafe.Pointer(&below),
+		unsafe.Pointer(&above),
+	)
+}
+
+func thresholdAsmF32(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Threshold_F32(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&threshold),
+		unsafe.Pointer(&below),
+		unsafe.Pointer(&above),
+	)
+}
+
+func thresholdAsmF64(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64) {
+	if img == nil || out == nil {
+		return
+	}
+	cimg := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&img.Row(0)[0]),
+		height: int64(img.height),
+		stride: int64(img.Stride()),
+		width: int64(img.width),
+	}
+	cout := struct {
+		data unsafe.Pointer
+		height int64
+		stride int64
+		width int64
+	}{
+		data: unsafe.Pointer(&out.Row(0)[0]),
+		height: int64(out.height),
+		stride: int64(out.Stride()),
+		width: int64(out.width),
+	}
+	asm.Threshold_F64(
+		unsafe.Pointer(&cimg),
+		unsafe.Pointer(&cout),
+		unsafe.Pointer(&threshold),
+		unsafe.Pointer(&below),
+		unsafe.Pointer(&above),
 	)
 }
 

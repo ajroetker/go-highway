@@ -11,6 +11,110 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseDeltaDecode_avx2_Int32(data []int32, base int32) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := 8
+	carry := base
+	i := 0
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i])))
+		prefixed := BasePrefixSumVec_avx2_Int32(v)
+		prefixed = prefixed.Add(archsimd.BroadcastInt32x8(carry))
+		prefixed.Store((*[8]int32)(unsafe.Pointer(&data[i])))
+		carry = hwy.GetLane_AVX2_I32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i+8])))
+		prefixed1 := BasePrefixSumVec_avx2_Int32(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastInt32x8(carry))
+		prefixed1.Store((*[8]int32)(unsafe.Pointer(&data[i+8])))
+		carry = hwy.GetLane_AVX2_I32x8(prefixed1, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
+func BaseDeltaDecode_avx2_Int64(data []int64, base int64) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := 4
+	carry := base
+	i := 0
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i])))
+		prefixed := BasePrefixSumVec_avx2_Int64(v)
+		prefixed = prefixed.Add(archsimd.BroadcastInt64x4(carry))
+		prefixed.Store((*[4]int64)(unsafe.Pointer(&data[i])))
+		carry = hwy.GetLane_AVX2_I64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i+4])))
+		prefixed1 := BasePrefixSumVec_avx2_Int64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastInt64x4(carry))
+		prefixed1.Store((*[4]int64)(unsafe.Pointer(&data[i+4])))
+		carry = hwy.GetLane_AVX2_I64x4(prefixed1, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
+func BaseDeltaDecode_avx2_Uint32(data []uint32, base uint32) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := 8
+	carry := base
+	i := 0
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i])))
+		prefixed := BasePrefixSumVec_avx2_Uint32(v)
+		prefixed = prefixed.Add(archsimd.BroadcastUint32x8(carry))
+		prefixed.Store((*[8]uint32)(unsafe.Pointer(&data[i])))
+		carry = hwy.GetLane_AVX2_Uint32x8(prefixed, lanes-1)
+		v1 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i+8])))
+		prefixed1 := BasePrefixSumVec_avx2_Uint32(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastUint32x8(carry))
+		prefixed1.Store((*[8]uint32)(unsafe.Pointer(&data[i+8])))
+		carry = hwy.GetLane_AVX2_Uint32x8(prefixed1, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
+func BaseDeltaDecode_avx2_Uint64(data []uint64, base uint64) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := 4
+	carry := base
+	i := 0
+	for ; i+lanes*2 <= n; i += lanes * 2 {
+		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i])))
+		prefixed := BasePrefixSumVec_avx2_Uint64(v)
+		prefixed = prefixed.Add(archsimd.BroadcastUint64x4(carry))
+		prefixed.Store((*[4]uint64)(unsafe.Pointer(&data[i])))
+		carry = hwy.GetLane_AVX2_Uint64x4(prefixed, lanes-1)
+		v1 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i+4])))
+		prefixed1 := BasePrefixSumVec_avx2_Uint64(v1)
+		prefixed1 = prefixed1.Add(archsimd.BroadcastUint64x4(carry))
+		prefixed1.Store((*[4]uint64)(unsafe.Pointer(&data[i+4])))
+		carry = hwy.GetLane_AVX2_Uint64x4(prefixed1, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
 func BasePrefixSum_avx2(data []float32) {
 	n := len(data)
 	if n == 0 {
@@ -148,110 +252,6 @@ func BasePrefixSum_avx2_Uint64(data []uint64) {
 	}
 	lanes := 4
 	carry := uint64(0)
-	i := 0
-	for ; i+lanes*2 <= n; i += lanes * 2 {
-		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i])))
-		prefixed := BasePrefixSumVec_avx2_Uint64(v)
-		prefixed = prefixed.Add(archsimd.BroadcastUint64x4(carry))
-		prefixed.Store((*[4]uint64)(unsafe.Pointer(&data[i])))
-		carry = hwy.GetLane_AVX2_Uint64x4(prefixed, lanes-1)
-		v1 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i+4])))
-		prefixed1 := BasePrefixSumVec_avx2_Uint64(v1)
-		prefixed1 = prefixed1.Add(archsimd.BroadcastUint64x4(carry))
-		prefixed1.Store((*[4]uint64)(unsafe.Pointer(&data[i+4])))
-		carry = hwy.GetLane_AVX2_Uint64x4(prefixed1, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_avx2_Int32(data []int32, base int32) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := 8
-	carry := base
-	i := 0
-	for ; i+lanes*2 <= n; i += lanes * 2 {
-		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i])))
-		prefixed := BasePrefixSumVec_avx2_Int32(v)
-		prefixed = prefixed.Add(archsimd.BroadcastInt32x8(carry))
-		prefixed.Store((*[8]int32)(unsafe.Pointer(&data[i])))
-		carry = hwy.GetLane_AVX2_I32x8(prefixed, lanes-1)
-		v1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i+8])))
-		prefixed1 := BasePrefixSumVec_avx2_Int32(v1)
-		prefixed1 = prefixed1.Add(archsimd.BroadcastInt32x8(carry))
-		prefixed1.Store((*[8]int32)(unsafe.Pointer(&data[i+8])))
-		carry = hwy.GetLane_AVX2_I32x8(prefixed1, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_avx2_Int64(data []int64, base int64) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := 4
-	carry := base
-	i := 0
-	for ; i+lanes*2 <= n; i += lanes * 2 {
-		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i])))
-		prefixed := BasePrefixSumVec_avx2_Int64(v)
-		prefixed = prefixed.Add(archsimd.BroadcastInt64x4(carry))
-		prefixed.Store((*[4]int64)(unsafe.Pointer(&data[i])))
-		carry = hwy.GetLane_AVX2_I64x4(prefixed, lanes-1)
-		v1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i+4])))
-		prefixed1 := BasePrefixSumVec_avx2_Int64(v1)
-		prefixed1 = prefixed1.Add(archsimd.BroadcastInt64x4(carry))
-		prefixed1.Store((*[4]int64)(unsafe.Pointer(&data[i+4])))
-		carry = hwy.GetLane_AVX2_I64x4(prefixed1, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_avx2_Uint32(data []uint32, base uint32) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := 8
-	carry := base
-	i := 0
-	for ; i+lanes*2 <= n; i += lanes * 2 {
-		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i])))
-		prefixed := BasePrefixSumVec_avx2_Uint32(v)
-		prefixed = prefixed.Add(archsimd.BroadcastUint32x8(carry))
-		prefixed.Store((*[8]uint32)(unsafe.Pointer(&data[i])))
-		carry = hwy.GetLane_AVX2_Uint32x8(prefixed, lanes-1)
-		v1 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i+8])))
-		prefixed1 := BasePrefixSumVec_avx2_Uint32(v1)
-		prefixed1 = prefixed1.Add(archsimd.BroadcastUint32x8(carry))
-		prefixed1.Store((*[8]uint32)(unsafe.Pointer(&data[i+8])))
-		carry = hwy.GetLane_AVX2_Uint32x8(prefixed1, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_avx2_Uint64(data []uint64, base uint64) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := 4
-	carry := base
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
 		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i])))

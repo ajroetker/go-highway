@@ -55,13 +55,15 @@ func encodeStreamVByte32GroupAsmU32(values []uint32, dst []uint8) (byte, int) {
 	if len(dst) > 0 {
 		p_dst = unsafe.Pointer(&dst[0])
 	}
-	lenVal := int64(len(values))
+	len_valuesVal := int64(len(values))
+	len_dstVal := int64(len(dst))
 	var out_ctrl int64
 	var out_n int64
 	asm.EncodeStreamVByte32Group_U32(
 		p_values,
 		p_dst,
-		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&len_valuesVal),
+		unsafe.Pointer(&len_dstVal),
 		unsafe.Pointer(&out_ctrl),
 		unsafe.Pointer(&out_n),
 	)

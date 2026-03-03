@@ -45,14 +45,14 @@ func BaseDequantizeUint8_avx512(input []uint8, output []float32, min float32, sc
 		v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
 		result := v.MulAdd(scaleVec, minVec)
 		result.Store((*[16]float32)(unsafe.Pointer(&output[i])))
-		for j := range lanes {
-			buf[j] = float32(input[i+j+16])
+		for j1 := range lanes {
+			buf[j1] = float32(input[i+j1+16])
 		}
 		v1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
 		result1 := v1.MulAdd(scaleVec, minVec)
 		result1.Store((*[16]float32)(unsafe.Pointer(&output[i+16])))
-		for j := range lanes {
-			buf[j] = float32(input[i+j+32])
+		for j2 := range lanes {
+			buf[j2] = float32(input[i+j2+32])
 		}
 		v2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
 		result2 := v2.MulAdd(scaleVec, minVec)
@@ -91,15 +91,15 @@ func BaseQuantizeFloat32_avx512(input []float32, output []uint8, min float32, sc
 		diff1 := v1.Sub(minVec).Mul(invScaleVec)
 		rounded1 := hwy.Round_AVX512_F32x16(diff1).Max(zeroVec).Min(max255Vec)
 		rounded1.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
-		for j := range lanes {
-			output[i+j+16] = uint8(buf[j])
+		for j1 := range lanes {
+			output[i+j1+16] = uint8(buf[j1])
 		}
 		v2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[i+32])))
 		diff2 := v2.Sub(minVec).Mul(invScaleVec)
 		rounded2 := hwy.Round_AVX512_F32x16(diff2).Max(zeroVec).Min(max255Vec)
 		rounded2.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
-		for j := range lanes {
-			output[i+j+32] = uint8(buf[j])
+		for j2 := range lanes {
+			output[i+j2+32] = uint8(buf[j2])
 		}
 	}
 	for ; i < n; i++ {

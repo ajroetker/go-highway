@@ -35,188 +35,280 @@ func _liftingBaseInitHoistedConstants() {
 	})
 }
 
-func BaseLiftUpdate53_avx512_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
+func BaseDeinterleave_avx512(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
 	_liftingBaseInitHoistedConstants()
-	if tLen == 0 || nLen == 0 {
-		return
-	}
-	twoVec := BaseLiftUpdate53_AVX512_twoVec_i32_f32
-	lanes := 16
-	start := 0
 	if phase == 0 {
-		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
-		start = 1
-	}
-	safeEnd := tLen
-	if phase == 0 {
-		if nLen < safeEnd {
-			safeEnd = nLen
+		for i := range sn {
+			low[i] = src[2*i]
+		}
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
 	} else {
-		if nLen-1 < safeEnd {
-			safeEnd = nLen - 1
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
 		}
 	}
-	i := start
-	for ; i+lanes*3 <= safeEnd; i += lanes * 3 {
-		var n1, n2 archsimd.Int32x16
-		if phase == 0 {
-			n1 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i])))
-		} else {
-			n1 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+1])))
-		}
-		sum := n1.Add(n2).Add(twoVec)
-		update := sum.ShiftAllRight(uint64(2))
-		t := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&target[i])))
-		t.Sub(update).Store((*[16]int32)(unsafe.Pointer(&target[i])))
-		var n11, n21 archsimd.Int32x16
-		if phase == 0 {
-			n11 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i-1+16])))
-			n21 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+16])))
-		} else {
-			n11 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+16])))
-			n21 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+1+16])))
-		}
-		sum1 := n11.Add(n21).Add(twoVec)
-		update1 := sum1.ShiftAllRight(uint64(2))
-		t1 := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&target[i+16])))
-		t1.Sub(update1).Store((*[16]int32)(unsafe.Pointer(&target[i+16])))
-		var n12, n22 archsimd.Int32x16
-		if phase == 0 {
-			n12 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i-1+32])))
-			n22 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+32])))
-		} else {
-			n12 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+32])))
-			n22 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+1+32])))
-		}
-		sum2 := n12.Add(n22).Add(twoVec)
-		update2 := sum2.ShiftAllRight(uint64(2))
-		t2 := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&target[i+32])))
-		t2.Sub(update2).Store((*[16]int32)(unsafe.Pointer(&target[i+32])))
-	}
-	for ; i < safeEnd; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
-		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
-	}
-	for ; i < tLen; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
-		}
-		if n1Idx >= nLen {
-			n1Idx = nLen - 1
-		}
-		if n2Idx >= nLen {
-			n2Idx = nLen - 1
-		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
-	}
-	_ = lanes
 }
 
-func BaseLiftUpdate53_avx512_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
+func BaseDeinterleave_avx512_Float64(src []float64, low []float64, sn int, high []float64, dn int, phase int) {
 	_liftingBaseInitHoistedConstants()
-	if tLen == 0 || nLen == 0 {
-		return
-	}
-	twoVec := BaseLiftUpdate53_AVX512_twoVec_f32
-	lanes := 8
-	start := 0
 	if phase == 0 {
-		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
-		start = 1
-	}
-	safeEnd := tLen
-	if phase == 0 {
-		if nLen < safeEnd {
-			safeEnd = nLen
+		for i := range sn {
+			low[i] = src[2*i]
+		}
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
 	} else {
-		if nLen-1 < safeEnd {
-			safeEnd = nLen - 1
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
 		}
 	}
-	i := start
-	for ; i+lanes*3 <= safeEnd; i += lanes * 3 {
-		var n1, n2 archsimd.Int64x8
-		if phase == 0 {
-			n1 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i])))
-		} else {
-			n1 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+1])))
+}
+
+func BaseDeinterleave_avx512_Int32(src []int32, low []int32, sn int, high []int32, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
 		}
-		sum := n1.Add(n2).Add(twoVec)
-		update := sum.ShiftAllRight(uint64(2))
-		t := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&target[i])))
-		t.Sub(update).Store((*[8]int64)(unsafe.Pointer(&target[i])))
-		var n11, n21 archsimd.Int64x8
-		if phase == 0 {
-			n11 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i-1+8])))
-			n21 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+8])))
-		} else {
-			n11 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+8])))
-			n21 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+1+8])))
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
-		sum1 := n11.Add(n21).Add(twoVec)
-		update1 := sum1.ShiftAllRight(uint64(2))
-		t1 := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&target[i+8])))
-		t1.Sub(update1).Store((*[8]int64)(unsafe.Pointer(&target[i+8])))
-		var n12, n22 archsimd.Int64x8
-		if phase == 0 {
-			n12 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i-1+16])))
-			n22 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+16])))
-		} else {
-			n12 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+16])))
-			n22 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+1+16])))
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
 		}
-		sum2 := n12.Add(n22).Add(twoVec)
-		update2 := sum2.ShiftAllRight(uint64(2))
-		t2 := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&target[i+16])))
-		t2.Sub(update2).Store((*[8]int64)(unsafe.Pointer(&target[i+16])))
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
 	}
-	for ; i < safeEnd; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
+}
+
+func BaseDeinterleave_avx512_Int64(src []int64, low []int64, sn int, high []int64, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
 		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+		for i := range dn {
+			high[i] = src[2*i+1]
+		}
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
 	}
-	for ; i < tLen; i++ {
-		var n1Idx, n2Idx int
-		if phase == 0 {
-			n1Idx = i - 1
-			n2Idx = i
-		} else {
-			n1Idx = i
-			n2Idx = i + 1
+}
+
+func BaseDeinterleave_avx512_Uint32(src []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
 		}
-		if n1Idx >= nLen {
-			n1Idx = nLen - 1
+		for i := range dn {
+			high[i] = src[2*i+1]
 		}
-		if n2Idx >= nLen {
-			n2Idx = nLen - 1
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
 		}
-		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
 	}
-	_ = lanes
+}
+
+func BaseDeinterleave_avx512_Uint64(src []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := range sn {
+			low[i] = src[2*i]
+		}
+		for i := range dn {
+			high[i] = src[2*i+1]
+		}
+	} else {
+		for i := range dn {
+			high[i] = src[2*i]
+		}
+		for i := range sn {
+			low[i] = src[2*i+1]
+		}
+	}
+}
+
+func BaseInterleave_avx512(dst []float32, low []float32, sn int, high []float32, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_avx512_Float64(dst []float64, low []float64, sn int, high []float64, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_avx512_Int32(dst []int32, low []int32, sn int, high []int32, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_avx512_Int64(dst []int64, low []int64, sn int, high []int64, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_avx512_Uint32(dst []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
+}
+
+func BaseInterleave_avx512_Uint64(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if phase == 0 {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = low[i]
+			dst[2*i+1] = high[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i+1] = high[i]
+		}
+	} else {
+		for i := 0; i < sn && i < dn; i++ {
+			dst[2*i] = high[i]
+			dst[2*i+1] = low[i]
+		}
+		for i := dn; i < sn; i++ {
+			dst[2*i+1] = low[i]
+		}
+		for i := sn; i < dn; i++ {
+			dst[2*i] = high[i]
+		}
+	}
 }
 
 func BaseLiftPredict53_avx512_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
@@ -427,52 +519,52 @@ func BaseLiftStep97_avx512_Float16(target []hwy.Float16, tLen int, neighbor []hw
 	for ; i+lanes*4 <= safeEnd; i += lanes * 4 {
 		var n1, n2 asm.Float16x16AVX512
 		if phase == 0 {
-			n1 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i:][0]))
-			n2 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1:][0]))
+			n1 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i]))
+			n2 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1]))
 		} else {
-			n1 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1:][0]))
-			n2 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i:][0]))
+			n1 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1]))
+			n2 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i]))
 		}
 		sum := n1.Add(n2)
 		update := coeffVec.Mul(sum)
-		t := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i:][0]))
-		t.Sub(update).StorePtr(unsafe.Pointer(&target[i:][0]))
+		t := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i]))
+		t.Sub(update).StorePtr(unsafe.Pointer(&target[i]))
 		var n11, n21 asm.Float16x16AVX512
 		if phase == 0 {
-			n11 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16:][0]))
-			n21 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+16:][0]))
+			n11 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16]))
+			n21 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+16]))
 		} else {
-			n11 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+16:][0]))
-			n21 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16:][0]))
+			n11 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+16]))
+			n21 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16]))
 		}
 		sum1 := n11.Add(n21)
 		update1 := coeffVec.Mul(sum1)
-		t1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+16:][0]))
-		t1.Sub(update1).StorePtr(unsafe.Pointer(&target[i+16:][0]))
+		t1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+16]))
+		t1.Sub(update1).StorePtr(unsafe.Pointer(&target[i+16]))
 		var n12, n22 asm.Float16x16AVX512
 		if phase == 0 {
-			n12 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32:][0]))
-			n22 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+32:][0]))
+			n12 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32]))
+			n22 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+32]))
 		} else {
-			n12 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+32:][0]))
-			n22 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32:][0]))
+			n12 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+32]))
+			n22 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32]))
 		}
 		sum2 := n12.Add(n22)
 		update2 := coeffVec.Mul(sum2)
-		t2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+32:][0]))
-		t2.Sub(update2).StorePtr(unsafe.Pointer(&target[i+32:][0]))
+		t2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+32]))
+		t2.Sub(update2).StorePtr(unsafe.Pointer(&target[i+32]))
 		var n13, n23 asm.Float16x16AVX512
 		if phase == 0 {
-			n13 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48:][0]))
-			n23 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+48:][0]))
+			n13 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48]))
+			n23 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+48]))
 		} else {
-			n13 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+48:][0]))
-			n23 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48:][0]))
+			n13 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+48]))
+			n23 = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48]))
 		}
 		sum3 := n13.Add(n23)
 		update3 := coeffVec.Mul(sum3)
-		t3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+48:][0]))
-		t3.Sub(update3).StorePtr(unsafe.Pointer(&target[i+48:][0]))
+		t3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+48]))
+		t3.Sub(update3).StorePtr(unsafe.Pointer(&target[i+48]))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -535,52 +627,52 @@ func BaseLiftStep97_avx512_BFloat16(target []hwy.BFloat16, tLen int, neighbor []
 	for ; i+lanes*4 <= safeEnd; i += lanes * 4 {
 		var n1, n2 asm.BFloat16x16AVX512
 		if phase == 0 {
-			n1 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i:][0]))
-			n2 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1:][0]))
+			n1 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i]))
+			n2 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1]))
 		} else {
-			n1 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1:][0]))
-			n2 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i:][0]))
+			n1 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1]))
+			n2 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i]))
 		}
 		sum := n1.Add(n2)
 		update := coeffVec.Mul(sum)
-		t := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i:][0]))
-		t.Sub(update).StorePtr(unsafe.Pointer(&target[i:][0]))
+		t := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i]))
+		t.Sub(update).StorePtr(unsafe.Pointer(&target[i]))
 		var n11, n21 asm.BFloat16x16AVX512
 		if phase == 0 {
-			n11 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16:][0]))
-			n21 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+16:][0]))
+			n11 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16]))
+			n21 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+16]))
 		} else {
-			n11 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+16:][0]))
-			n21 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16:][0]))
+			n11 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+16]))
+			n21 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+16]))
 		}
 		sum1 := n11.Add(n21)
 		update1 := coeffVec.Mul(sum1)
-		t1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+16:][0]))
-		t1.Sub(update1).StorePtr(unsafe.Pointer(&target[i+16:][0]))
+		t1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+16]))
+		t1.Sub(update1).StorePtr(unsafe.Pointer(&target[i+16]))
 		var n12, n22 asm.BFloat16x16AVX512
 		if phase == 0 {
-			n12 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32:][0]))
-			n22 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+32:][0]))
+			n12 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32]))
+			n22 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+32]))
 		} else {
-			n12 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+32:][0]))
-			n22 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32:][0]))
+			n12 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+32]))
+			n22 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+32]))
 		}
 		sum2 := n12.Add(n22)
 		update2 := coeffVec.Mul(sum2)
-		t2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+32:][0]))
-		t2.Sub(update2).StorePtr(unsafe.Pointer(&target[i+32:][0]))
+		t2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+32]))
+		t2.Sub(update2).StorePtr(unsafe.Pointer(&target[i+32]))
 		var n13, n23 asm.BFloat16x16AVX512
 		if phase == 0 {
-			n13 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48:][0]))
-			n23 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+48:][0]))
+			n13 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48]))
+			n23 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+1+48]))
 		} else {
-			n13 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+48:][0]))
-			n23 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48:][0]))
+			n13 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i-1+48]))
+			n23 = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&neighbor[i+48]))
 		}
 		sum3 := n13.Add(n23)
 		update3 := coeffVec.Mul(sum3)
-		t3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+48:][0]))
-		t3.Sub(update3).StorePtr(unsafe.Pointer(&target[i+48:][0]))
+		t3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&target[i+48]))
+		t3.Sub(update3).StorePtr(unsafe.Pointer(&target[i+48]))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -833,6 +925,190 @@ func BaseLiftStep97_avx512_Float64(target []float64, tLen int, neighbor []float6
 	_ = lanes
 }
 
+func BaseLiftUpdate53_avx512_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if tLen == 0 || nLen == 0 {
+		return
+	}
+	twoVec := BaseLiftUpdate53_AVX512_twoVec_i32_f32
+	lanes := 16
+	start := 0
+	if phase == 0 {
+		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
+		start = 1
+	}
+	safeEnd := tLen
+	if phase == 0 {
+		if nLen < safeEnd {
+			safeEnd = nLen
+		}
+	} else {
+		if nLen-1 < safeEnd {
+			safeEnd = nLen - 1
+		}
+	}
+	i := start
+	for ; i+lanes*3 <= safeEnd; i += lanes * 3 {
+		var n1, n2 archsimd.Int32x16
+		if phase == 0 {
+			n1 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i])))
+		} else {
+			n1 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+1])))
+		}
+		sum := n1.Add(n2).Add(twoVec)
+		update := sum.ShiftAllRight(uint64(2))
+		t := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&target[i])))
+		t.Sub(update).Store((*[16]int32)(unsafe.Pointer(&target[i])))
+		var n11, n21 archsimd.Int32x16
+		if phase == 0 {
+			n11 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i-1+16])))
+			n21 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+16])))
+		} else {
+			n11 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+16])))
+			n21 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+1+16])))
+		}
+		sum1 := n11.Add(n21).Add(twoVec)
+		update1 := sum1.ShiftAllRight(uint64(2))
+		t1 := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&target[i+16])))
+		t1.Sub(update1).Store((*[16]int32)(unsafe.Pointer(&target[i+16])))
+		var n12, n22 archsimd.Int32x16
+		if phase == 0 {
+			n12 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i-1+32])))
+			n22 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+32])))
+		} else {
+			n12 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+32])))
+			n22 = archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&neighbor[i+1+32])))
+		}
+		sum2 := n12.Add(n22).Add(twoVec)
+		update2 := sum2.ShiftAllRight(uint64(2))
+		t2 := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&target[i+32])))
+		t2.Sub(update2).Store((*[16]int32)(unsafe.Pointer(&target[i+32])))
+	}
+	for ; i < safeEnd; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	for ; i < tLen; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		if n1Idx >= nLen {
+			n1Idx = nLen - 1
+		}
+		if n2Idx >= nLen {
+			n2Idx = nLen - 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	_ = lanes
+}
+
+func BaseLiftUpdate53_avx512_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
+	_liftingBaseInitHoistedConstants()
+	if tLen == 0 || nLen == 0 {
+		return
+	}
+	twoVec := BaseLiftUpdate53_AVX512_twoVec_f32
+	lanes := 8
+	start := 0
+	if phase == 0 {
+		target[0] -= (neighbor[0] + neighbor[0] + 2) >> 2
+		start = 1
+	}
+	safeEnd := tLen
+	if phase == 0 {
+		if nLen < safeEnd {
+			safeEnd = nLen
+		}
+	} else {
+		if nLen-1 < safeEnd {
+			safeEnd = nLen - 1
+		}
+	}
+	i := start
+	for ; i+lanes*3 <= safeEnd; i += lanes * 3 {
+		var n1, n2 archsimd.Int64x8
+		if phase == 0 {
+			n1 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i])))
+		} else {
+			n1 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+1])))
+		}
+		sum := n1.Add(n2).Add(twoVec)
+		update := sum.ShiftAllRight(uint64(2))
+		t := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&target[i])))
+		t.Sub(update).Store((*[8]int64)(unsafe.Pointer(&target[i])))
+		var n11, n21 archsimd.Int64x8
+		if phase == 0 {
+			n11 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i-1+8])))
+			n21 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+8])))
+		} else {
+			n11 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+8])))
+			n21 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+1+8])))
+		}
+		sum1 := n11.Add(n21).Add(twoVec)
+		update1 := sum1.ShiftAllRight(uint64(2))
+		t1 := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&target[i+8])))
+		t1.Sub(update1).Store((*[8]int64)(unsafe.Pointer(&target[i+8])))
+		var n12, n22 archsimd.Int64x8
+		if phase == 0 {
+			n12 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i-1+16])))
+			n22 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+16])))
+		} else {
+			n12 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+16])))
+			n22 = archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&neighbor[i+1+16])))
+		}
+		sum2 := n12.Add(n22).Add(twoVec)
+		update2 := sum2.ShiftAllRight(uint64(2))
+		t2 := archsimd.LoadInt64x8((*[8]int64)(unsafe.Pointer(&target[i+16])))
+		t2.Sub(update2).Store((*[8]int64)(unsafe.Pointer(&target[i+16])))
+	}
+	for ; i < safeEnd; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	for ; i < tLen; i++ {
+		var n1Idx, n2Idx int
+		if phase == 0 {
+			n1Idx = i - 1
+			n2Idx = i
+		} else {
+			n1Idx = i
+			n2Idx = i + 1
+		}
+		if n1Idx >= nLen {
+			n1Idx = nLen - 1
+		}
+		if n2Idx >= nLen {
+			n2Idx = nLen - 1
+		}
+		target[i] -= (neighbor[n1Idx] + neighbor[n2Idx] + 2) >> 2
+	}
+	_ = lanes
+}
+
 func BaseScaleSlice_avx512_Float16(data []hwy.Float16, n int, scale hwy.Float16) {
 	_liftingBaseInitHoistedConstants()
 	if n == 0 || data == nil {
@@ -842,18 +1118,18 @@ func BaseScaleSlice_avx512_Float16(data []hwy.Float16, n int, scale hwy.Float16)
 	lanes := 16
 	i := 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		v := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i:][0]))
+		v := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i]))
 		result := v.Mul(scaleVec)
-		result.StorePtr(unsafe.Pointer(&data[i:][0]))
-		v1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+16:][0]))
+		result.StorePtr(unsafe.Pointer(&data[i]))
+		v1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+16]))
 		result1 := v1.Mul(scaleVec)
-		result1.StorePtr(unsafe.Pointer(&data[i+16:][0]))
-		v2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+32:][0]))
+		result1.StorePtr(unsafe.Pointer(&data[i+16]))
+		v2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+32]))
 		result2 := v2.Mul(scaleVec)
-		result2.StorePtr(unsafe.Pointer(&data[i+32:][0]))
-		v3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+48:][0]))
+		result2.StorePtr(unsafe.Pointer(&data[i+32]))
+		v3 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+48]))
 		result3 := v3.Mul(scaleVec)
-		result3.StorePtr(unsafe.Pointer(&data[i+48:][0]))
+		result3.StorePtr(unsafe.Pointer(&data[i+48]))
 	}
 	if i < n {
 		BaseScaleSlice_fallback_Float16(data[i:n], n, scale)
@@ -869,18 +1145,18 @@ func BaseScaleSlice_avx512_BFloat16(data []hwy.BFloat16, n int, scale hwy.BFloat
 	lanes := 16
 	i := 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		v := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i:][0]))
+		v := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i]))
 		result := v.Mul(scaleVec)
-		result.StorePtr(unsafe.Pointer(&data[i:][0]))
-		v1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+16:][0]))
+		result.StorePtr(unsafe.Pointer(&data[i]))
+		v1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+16]))
 		result1 := v1.Mul(scaleVec)
-		result1.StorePtr(unsafe.Pointer(&data[i+16:][0]))
-		v2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+32:][0]))
+		result1.StorePtr(unsafe.Pointer(&data[i+16]))
+		v2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+32]))
 		result2 := v2.Mul(scaleVec)
-		result2.StorePtr(unsafe.Pointer(&data[i+32:][0]))
-		v3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+48:][0]))
+		result2.StorePtr(unsafe.Pointer(&data[i+32]))
+		v3 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&data[i+48]))
 		result3 := v3.Mul(scaleVec)
-		result3.StorePtr(unsafe.Pointer(&data[i+48:][0]))
+		result3.StorePtr(unsafe.Pointer(&data[i+48]))
 	}
 	if i < n {
 		BaseScaleSlice_fallback_BFloat16(data[i:n], n, scale)
@@ -938,168 +1214,6 @@ func BaseScaleSlice_avx512_Float64(data []float64, n int, scale float64) {
 	}
 	for ; i < n; i++ {
 		data[i] *= scale
-	}
-}
-
-func BaseInterleave_avx512(dst []float32, low []float32, sn int, high []float32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_avx512_Float64(dst []float64, low []float64, sn int, high []float64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_avx512_Int32(dst []int32, low []int32, sn int, high []int32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_avx512_Int64(dst []int64, low []int64, sn int, high []int64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_avx512_Uint32(dst []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
-	}
-}
-
-func BaseInterleave_avx512_Uint64(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = low[i]
-			dst[2*i+1] = high[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i+1] = high[i]
-		}
-	} else {
-		for i := 0; i < sn && i < dn; i++ {
-			dst[2*i] = high[i]
-			dst[2*i+1] = low[i]
-		}
-		for i := dn; i < sn; i++ {
-			dst[2*i+1] = low[i]
-		}
-		for i := sn; i < dn; i++ {
-			dst[2*i] = high[i]
-		}
 	}
 }
 
@@ -1737,118 +1851,4 @@ func BaseSynthesize53CoreCols_avx512_Int64(colBuf []int64, height int, lowBuf []
 		}
 	}
 	_ = lanes
-}
-
-func BaseDeinterleave_avx512(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_avx512_Float64(src []float64, low []float64, sn int, high []float64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_avx512_Int32(src []int32, low []int32, sn int, high []int32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_avx512_Int64(src []int64, low []int64, sn int, high []int64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_avx512_Uint32(src []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
-}
-
-func BaseDeinterleave_avx512_Uint64(src []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
-	if phase == 0 {
-		for i := range sn {
-			low[i] = src[2*i]
-		}
-		for i := range dn {
-			high[i] = src[2*i+1]
-		}
-	} else {
-		for i := range dn {
-			high[i] = src[2*i]
-		}
-		for i := range sn {
-			low[i] = src[2*i+1]
-		}
-	}
 }

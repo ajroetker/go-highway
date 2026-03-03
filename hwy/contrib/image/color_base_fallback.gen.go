@@ -6,244 +6,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseForwardRCT_fallback_Int32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
-	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
-		return
-	}
-	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
-		return
-	}
-	twoVec := hwy.Set(int32(2))
-	lanes := hwy.MaxLanes[int32]()
-	height := r.height
-	width := r.width
-	for y := range height {
-		rRow := r.Row(y)
-		gRow := g.Row(y)
-		bRow := b.Row(y)
-		yRow := outY.Row(y)
-		cbRow := outCb.Row(y)
-		crRow := outCr.Row(y)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vr := hwy.Load(rRow[i:])
-			vg := hwy.Load(gRow[i:])
-			vb := hwy.Load(bRow[i:])
-			twoG := hwy.Mul(vg, twoVec)
-			sum := hwy.Add(hwy.Add(vr, twoG), vb)
-			vy := hwy.ShiftRight(sum, 2)
-			vcb := hwy.Sub(vb, vg)
-			vcr := hwy.Sub(vr, vg)
-			hwy.Store(vy, yRow[i:])
-			hwy.Store(vcb, cbRow[i:])
-			hwy.Store(vcr, crRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			bufR := make([]int32, lanes)
-			bufG := make([]int32, lanes)
-			bufB := make([]int32, lanes)
-			bufY := make([]int32, lanes)
-			bufCb := make([]int32, lanes)
-			bufCr := make([]int32, lanes)
-			copy(bufR, rRow[i:i+remaining])
-			copy(bufG, gRow[i:i+remaining])
-			copy(bufB, bRow[i:i+remaining])
-			vr := hwy.Load(bufR)
-			vg := hwy.Load(bufG)
-			vb := hwy.Load(bufB)
-			twoG := hwy.Mul(vg, twoVec)
-			sum := hwy.Add(hwy.Add(vr, twoG), vb)
-			vy := hwy.ShiftRight(sum, 2)
-			vcb := hwy.Sub(vb, vg)
-			vcr := hwy.Sub(vr, vg)
-			hwy.Store(vy, bufY)
-			hwy.Store(vcb, bufCb)
-			hwy.Store(vcr, bufCr)
-			copy(yRow[i:i+remaining], bufY[:remaining])
-			copy(cbRow[i:i+remaining], bufCb[:remaining])
-			copy(crRow[i:i+remaining], bufCr[:remaining])
-		}
-	}
-}
-
-func BaseForwardRCT_fallback_Int64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
-	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
-		return
-	}
-	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
-		return
-	}
-	twoVec := hwy.Set(int64(2))
-	lanes := hwy.MaxLanes[int64]()
-	height := r.height
-	width := r.width
-	for y := range height {
-		rRow := r.Row(y)
-		gRow := g.Row(y)
-		bRow := b.Row(y)
-		yRow := outY.Row(y)
-		cbRow := outCb.Row(y)
-		crRow := outCr.Row(y)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vr := hwy.Load(rRow[i:])
-			vg := hwy.Load(gRow[i:])
-			vb := hwy.Load(bRow[i:])
-			twoG := hwy.Mul(vg, twoVec)
-			sum := hwy.Add(hwy.Add(vr, twoG), vb)
-			vy := hwy.ShiftRight(sum, 2)
-			vcb := hwy.Sub(vb, vg)
-			vcr := hwy.Sub(vr, vg)
-			hwy.Store(vy, yRow[i:])
-			hwy.Store(vcb, cbRow[i:])
-			hwy.Store(vcr, crRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			bufR := make([]int64, lanes)
-			bufG := make([]int64, lanes)
-			bufB := make([]int64, lanes)
-			bufY := make([]int64, lanes)
-			bufCb := make([]int64, lanes)
-			bufCr := make([]int64, lanes)
-			copy(bufR, rRow[i:i+remaining])
-			copy(bufG, gRow[i:i+remaining])
-			copy(bufB, bRow[i:i+remaining])
-			vr := hwy.Load(bufR)
-			vg := hwy.Load(bufG)
-			vb := hwy.Load(bufB)
-			twoG := hwy.Mul(vg, twoVec)
-			sum := hwy.Add(hwy.Add(vr, twoG), vb)
-			vy := hwy.ShiftRight(sum, 2)
-			vcb := hwy.Sub(vb, vg)
-			vcr := hwy.Sub(vr, vg)
-			hwy.Store(vy, bufY)
-			hwy.Store(vcb, bufCb)
-			hwy.Store(vcr, bufCr)
-			copy(yRow[i:i+remaining], bufY[:remaining])
-			copy(cbRow[i:i+remaining], bufCb[:remaining])
-			copy(crRow[i:i+remaining], bufCr[:remaining])
-		}
-	}
-}
-
-func BaseInverseRCT_fallback_Int32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
-	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
-		return
-	}
-	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
-		return
-	}
-	lanes := hwy.MaxLanes[int32]()
-	height := y.height
-	width := y.width
-	for row := range height {
-		yRow := y.Row(row)
-		cbRow := cb.Row(row)
-		crRow := cr.Row(row)
-		rRow := outR.Row(row)
-		gRow := outG.Row(row)
-		bRow := outB.Row(row)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vy := hwy.Load(yRow[i:])
-			vcb := hwy.Load(cbRow[i:])
-			vcr := hwy.Load(crRow[i:])
-			cbPlusCr := hwy.Add(vcb, vcr)
-			shift := hwy.ShiftRight(cbPlusCr, 2)
-			vg := hwy.Sub(vy, shift)
-			vr := hwy.Add(vcr, vg)
-			vb := hwy.Add(vcb, vg)
-			hwy.Store(vr, rRow[i:])
-			hwy.Store(vg, gRow[i:])
-			hwy.Store(vb, bRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			bufY := make([]int32, lanes)
-			bufCb := make([]int32, lanes)
-			bufCr := make([]int32, lanes)
-			bufR := make([]int32, lanes)
-			bufG := make([]int32, lanes)
-			bufB := make([]int32, lanes)
-			copy(bufY, yRow[i:i+remaining])
-			copy(bufCb, cbRow[i:i+remaining])
-			copy(bufCr, crRow[i:i+remaining])
-			vy := hwy.Load(bufY)
-			vcb := hwy.Load(bufCb)
-			vcr := hwy.Load(bufCr)
-			cbPlusCr := hwy.Add(vcb, vcr)
-			shift := hwy.ShiftRight(cbPlusCr, 2)
-			vg := hwy.Sub(vy, shift)
-			vr := hwy.Add(vcr, vg)
-			vb := hwy.Add(vcb, vg)
-			hwy.Store(vr, bufR)
-			hwy.Store(vg, bufG)
-			hwy.Store(vb, bufB)
-			copy(rRow[i:i+remaining], bufR[:remaining])
-			copy(gRow[i:i+remaining], bufG[:remaining])
-			copy(bRow[i:i+remaining], bufB[:remaining])
-		}
-	}
-}
-
-func BaseInverseRCT_fallback_Int64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
-	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
-		return
-	}
-	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
-		return
-	}
-	lanes := hwy.MaxLanes[int64]()
-	height := y.height
-	width := y.width
-	for row := range height {
-		yRow := y.Row(row)
-		cbRow := cb.Row(row)
-		crRow := cr.Row(row)
-		rRow := outR.Row(row)
-		gRow := outG.Row(row)
-		bRow := outB.Row(row)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vy := hwy.Load(yRow[i:])
-			vcb := hwy.Load(cbRow[i:])
-			vcr := hwy.Load(crRow[i:])
-			cbPlusCr := hwy.Add(vcb, vcr)
-			shift := hwy.ShiftRight(cbPlusCr, 2)
-			vg := hwy.Sub(vy, shift)
-			vr := hwy.Add(vcr, vg)
-			vb := hwy.Add(vcb, vg)
-			hwy.Store(vr, rRow[i:])
-			hwy.Store(vg, gRow[i:])
-			hwy.Store(vb, bRow[i:])
-		}
-		if remaining := width - i; remaining > 0 {
-			bufY := make([]int64, lanes)
-			bufCb := make([]int64, lanes)
-			bufCr := make([]int64, lanes)
-			bufR := make([]int64, lanes)
-			bufG := make([]int64, lanes)
-			bufB := make([]int64, lanes)
-			copy(bufY, yRow[i:i+remaining])
-			copy(bufCb, cbRow[i:i+remaining])
-			copy(bufCr, crRow[i:i+remaining])
-			vy := hwy.Load(bufY)
-			vcb := hwy.Load(bufCb)
-			vcr := hwy.Load(bufCr)
-			cbPlusCr := hwy.Add(vcb, vcr)
-			shift := hwy.ShiftRight(cbPlusCr, 2)
-			vg := hwy.Sub(vy, shift)
-			vr := hwy.Add(vcr, vg)
-			vb := hwy.Add(vcb, vg)
-			hwy.Store(vr, bufR)
-			hwy.Store(vg, bufG)
-			hwy.Store(vb, bufB)
-			copy(rRow[i:i+remaining], bufR[:remaining])
-			copy(gRow[i:i+remaining], bufG[:remaining])
-			copy(bRow[i:i+remaining], bufB[:remaining])
-		}
-	}
-}
-
 func BaseForwardICT_fallback_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b *Image[hwy.Float16], outY *Image[hwy.Float16], outCb *Image[hwy.Float16], outCr *Image[hwy.Float16]) {
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
@@ -502,6 +264,126 @@ func BaseForwardICT_fallback_Float64(r *Image[float64], g *Image[float64], b *Im
 	}
 }
 
+func BaseForwardRCT_fallback_Int32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
+	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
+		return
+	}
+	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
+		return
+	}
+	twoVec := hwy.Set(int32(2))
+	lanes := hwy.MaxLanes[int32]()
+	height := r.height
+	width := r.width
+	for y := range height {
+		rRow := r.Row(y)
+		gRow := g.Row(y)
+		bRow := b.Row(y)
+		yRow := outY.Row(y)
+		cbRow := outCb.Row(y)
+		crRow := outCr.Row(y)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vr := hwy.Load(rRow[i:])
+			vg := hwy.Load(gRow[i:])
+			vb := hwy.Load(bRow[i:])
+			twoG := hwy.Mul(vg, twoVec)
+			sum := hwy.Add(hwy.Add(vr, twoG), vb)
+			vy := hwy.ShiftRight(sum, 2)
+			vcb := hwy.Sub(vb, vg)
+			vcr := hwy.Sub(vr, vg)
+			hwy.Store(vy, yRow[i:])
+			hwy.Store(vcb, cbRow[i:])
+			hwy.Store(vcr, crRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			bufR := make([]int32, lanes)
+			bufG := make([]int32, lanes)
+			bufB := make([]int32, lanes)
+			bufY := make([]int32, lanes)
+			bufCb := make([]int32, lanes)
+			bufCr := make([]int32, lanes)
+			copy(bufR, rRow[i:i+remaining])
+			copy(bufG, gRow[i:i+remaining])
+			copy(bufB, bRow[i:i+remaining])
+			vr := hwy.Load(bufR)
+			vg := hwy.Load(bufG)
+			vb := hwy.Load(bufB)
+			twoG := hwy.Mul(vg, twoVec)
+			sum := hwy.Add(hwy.Add(vr, twoG), vb)
+			vy := hwy.ShiftRight(sum, 2)
+			vcb := hwy.Sub(vb, vg)
+			vcr := hwy.Sub(vr, vg)
+			hwy.Store(vy, bufY)
+			hwy.Store(vcb, bufCb)
+			hwy.Store(vcr, bufCr)
+			copy(yRow[i:i+remaining], bufY[:remaining])
+			copy(cbRow[i:i+remaining], bufCb[:remaining])
+			copy(crRow[i:i+remaining], bufCr[:remaining])
+		}
+	}
+}
+
+func BaseForwardRCT_fallback_Int64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
+	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
+		return
+	}
+	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
+		return
+	}
+	twoVec := hwy.Set(int64(2))
+	lanes := hwy.MaxLanes[int64]()
+	height := r.height
+	width := r.width
+	for y := range height {
+		rRow := r.Row(y)
+		gRow := g.Row(y)
+		bRow := b.Row(y)
+		yRow := outY.Row(y)
+		cbRow := outCb.Row(y)
+		crRow := outCr.Row(y)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vr := hwy.Load(rRow[i:])
+			vg := hwy.Load(gRow[i:])
+			vb := hwy.Load(bRow[i:])
+			twoG := hwy.Mul(vg, twoVec)
+			sum := hwy.Add(hwy.Add(vr, twoG), vb)
+			vy := hwy.ShiftRight(sum, 2)
+			vcb := hwy.Sub(vb, vg)
+			vcr := hwy.Sub(vr, vg)
+			hwy.Store(vy, yRow[i:])
+			hwy.Store(vcb, cbRow[i:])
+			hwy.Store(vcr, crRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			bufR := make([]int64, lanes)
+			bufG := make([]int64, lanes)
+			bufB := make([]int64, lanes)
+			bufY := make([]int64, lanes)
+			bufCb := make([]int64, lanes)
+			bufCr := make([]int64, lanes)
+			copy(bufR, rRow[i:i+remaining])
+			copy(bufG, gRow[i:i+remaining])
+			copy(bufB, bRow[i:i+remaining])
+			vr := hwy.Load(bufR)
+			vg := hwy.Load(bufG)
+			vb := hwy.Load(bufB)
+			twoG := hwy.Mul(vg, twoVec)
+			sum := hwy.Add(hwy.Add(vr, twoG), vb)
+			vy := hwy.ShiftRight(sum, 2)
+			vcb := hwy.Sub(vb, vg)
+			vcr := hwy.Sub(vr, vg)
+			hwy.Store(vy, bufY)
+			hwy.Store(vcb, bufCb)
+			hwy.Store(vcr, bufCr)
+			copy(yRow[i:i+remaining], bufY[:remaining])
+			copy(cbRow[i:i+remaining], bufCb[:remaining])
+			copy(crRow[i:i+remaining], bufCr[:remaining])
+		}
+	}
+}
+
 func BaseInverseICT_fallback_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], cr *Image[hwy.Float16], outR *Image[hwy.Float16], outG *Image[hwy.Float16], outB *Image[hwy.Float16]) {
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
@@ -733,6 +615,124 @@ func BaseInverseICT_fallback_Float64(y *Image[float64], cb *Image[float64], cr *
 			bufR[0] = vr
 			bufG[0] = vg
 			bufB[0] = vb
+			copy(rRow[i:i+remaining], bufR[:remaining])
+			copy(gRow[i:i+remaining], bufG[:remaining])
+			copy(bRow[i:i+remaining], bufB[:remaining])
+		}
+	}
+}
+
+func BaseInverseRCT_fallback_Int32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
+	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
+		return
+	}
+	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
+		return
+	}
+	lanes := hwy.MaxLanes[int32]()
+	height := y.height
+	width := y.width
+	for row := range height {
+		yRow := y.Row(row)
+		cbRow := cb.Row(row)
+		crRow := cr.Row(row)
+		rRow := outR.Row(row)
+		gRow := outG.Row(row)
+		bRow := outB.Row(row)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vy := hwy.Load(yRow[i:])
+			vcb := hwy.Load(cbRow[i:])
+			vcr := hwy.Load(crRow[i:])
+			cbPlusCr := hwy.Add(vcb, vcr)
+			shift := hwy.ShiftRight(cbPlusCr, 2)
+			vg := hwy.Sub(vy, shift)
+			vr := hwy.Add(vcr, vg)
+			vb := hwy.Add(vcb, vg)
+			hwy.Store(vr, rRow[i:])
+			hwy.Store(vg, gRow[i:])
+			hwy.Store(vb, bRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			bufY := make([]int32, lanes)
+			bufCb := make([]int32, lanes)
+			bufCr := make([]int32, lanes)
+			bufR := make([]int32, lanes)
+			bufG := make([]int32, lanes)
+			bufB := make([]int32, lanes)
+			copy(bufY, yRow[i:i+remaining])
+			copy(bufCb, cbRow[i:i+remaining])
+			copy(bufCr, crRow[i:i+remaining])
+			vy := hwy.Load(bufY)
+			vcb := hwy.Load(bufCb)
+			vcr := hwy.Load(bufCr)
+			cbPlusCr := hwy.Add(vcb, vcr)
+			shift := hwy.ShiftRight(cbPlusCr, 2)
+			vg := hwy.Sub(vy, shift)
+			vr := hwy.Add(vcr, vg)
+			vb := hwy.Add(vcb, vg)
+			hwy.Store(vr, bufR)
+			hwy.Store(vg, bufG)
+			hwy.Store(vb, bufB)
+			copy(rRow[i:i+remaining], bufR[:remaining])
+			copy(gRow[i:i+remaining], bufG[:remaining])
+			copy(bRow[i:i+remaining], bufB[:remaining])
+		}
+	}
+}
+
+func BaseInverseRCT_fallback_Int64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
+	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
+		return
+	}
+	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
+		return
+	}
+	lanes := hwy.MaxLanes[int64]()
+	height := y.height
+	width := y.width
+	for row := range height {
+		yRow := y.Row(row)
+		cbRow := cb.Row(row)
+		crRow := cr.Row(row)
+		rRow := outR.Row(row)
+		gRow := outG.Row(row)
+		bRow := outB.Row(row)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vy := hwy.Load(yRow[i:])
+			vcb := hwy.Load(cbRow[i:])
+			vcr := hwy.Load(crRow[i:])
+			cbPlusCr := hwy.Add(vcb, vcr)
+			shift := hwy.ShiftRight(cbPlusCr, 2)
+			vg := hwy.Sub(vy, shift)
+			vr := hwy.Add(vcr, vg)
+			vb := hwy.Add(vcb, vg)
+			hwy.Store(vr, rRow[i:])
+			hwy.Store(vg, gRow[i:])
+			hwy.Store(vb, bRow[i:])
+		}
+		if remaining := width - i; remaining > 0 {
+			bufY := make([]int64, lanes)
+			bufCb := make([]int64, lanes)
+			bufCr := make([]int64, lanes)
+			bufR := make([]int64, lanes)
+			bufG := make([]int64, lanes)
+			bufB := make([]int64, lanes)
+			copy(bufY, yRow[i:i+remaining])
+			copy(bufCb, cbRow[i:i+remaining])
+			copy(bufCr, crRow[i:i+remaining])
+			vy := hwy.Load(bufY)
+			vcb := hwy.Load(bufCb)
+			vcr := hwy.Load(bufCr)
+			cbPlusCr := hwy.Add(vcb, vcr)
+			shift := hwy.ShiftRight(cbPlusCr, 2)
+			vg := hwy.Sub(vy, shift)
+			vr := hwy.Add(vcr, vg)
+			vb := hwy.Add(vcb, vg)
+			hwy.Store(vr, bufR)
+			hwy.Store(vg, bufG)
+			hwy.Store(vb, bufB)
 			copy(rRow[i:i+remaining], bufR[:remaining])
 			copy(gRow[i:i+remaining], bufG[:remaining])
 			copy(bRow[i:i+remaining], bufB[:remaining])

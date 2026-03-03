@@ -10,6 +10,174 @@ import (
 )
 
 // Public wrapper functions
+// CosTransformCF16 computes CosTransform using NEON SIMD assembly.
+func CosTransformCF16(in, out []hwy.Float16) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	costransform_c_f16_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// CosTransformCBF16 computes CosTransform using NEON SIMD assembly.
+func CosTransformCBF16(in, out []hwy.BFloat16) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	costransform_c_bf16_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// CosTransformCF32 computes CosTransform using NEON SIMD assembly.
+func CosTransformCF32(in, out []float32) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	costransform_c_f32_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// CosTransformCF64 computes CosTransform using NEON SIMD assembly.
+func CosTransformCF64(in, out []float64) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	costransform_c_f64_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ErfTransformCF16 computes ErfTransform using NEON SIMD assembly.
+func ErfTransformCF16(in, out []hwy.Float16) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	erftransform_c_f16_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ErfTransformCBF16 computes ErfTransform using NEON SIMD assembly.
+func ErfTransformCBF16(in, out []hwy.BFloat16) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	erftransform_c_bf16_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ErfTransformCF32 computes ErfTransform using NEON SIMD assembly.
+func ErfTransformCF32(in, out []float32) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	erftransform_c_f32_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// ErfTransformCF64 computes ErfTransform using NEON SIMD assembly.
+func ErfTransformCF64(in, out []float64) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	erftransform_c_f64_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 // ExpTransformCF16 computes ExpTransform using NEON SIMD assembly.
 func ExpTransformCF16(in, out []hwy.Float16) {
 	if len(in) == 0 {
@@ -178,258 +346,6 @@ func LogTransformCF64(in, out []float64) {
 	)
 }
 
-// SinTransformCF16 computes SinTransform using NEON SIMD assembly.
-func SinTransformCF16(in, out []hwy.Float16) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	sintransform_c_f16_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SinTransformCBF16 computes SinTransform using NEON SIMD assembly.
-func SinTransformCBF16(in, out []hwy.BFloat16) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	sintransform_c_bf16_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SinTransformCF32 computes SinTransform using NEON SIMD assembly.
-func SinTransformCF32(in, out []float32) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	sintransform_c_f32_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SinTransformCF64 computes SinTransform using NEON SIMD assembly.
-func SinTransformCF64(in, out []float64) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	sintransform_c_f64_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// CosTransformCF16 computes CosTransform using NEON SIMD assembly.
-func CosTransformCF16(in, out []hwy.Float16) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	costransform_c_f16_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// CosTransformCBF16 computes CosTransform using NEON SIMD assembly.
-func CosTransformCBF16(in, out []hwy.BFloat16) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	costransform_c_bf16_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// CosTransformCF32 computes CosTransform using NEON SIMD assembly.
-func CosTransformCF32(in, out []float32) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	costransform_c_f32_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// CosTransformCF64 computes CosTransform using NEON SIMD assembly.
-func CosTransformCF64(in, out []float64) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	costransform_c_f64_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// TanhTransformCF16 computes TanhTransform using NEON SIMD assembly.
-func TanhTransformCF16(in, out []hwy.Float16) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	tanhtransform_c_f16_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// TanhTransformCBF16 computes TanhTransform using NEON SIMD assembly.
-func TanhTransformCBF16(in, out []hwy.BFloat16) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	tanhtransform_c_bf16_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// TanhTransformCF32 computes TanhTransform using NEON SIMD assembly.
-func TanhTransformCF32(in, out []float32) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	tanhtransform_c_f32_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// TanhTransformCF64 computes TanhTransform using NEON SIMD assembly.
-func TanhTransformCF64(in, out []float64) {
-	if len(in) == 0 {
-		return
-	}
-	var p_in unsafe.Pointer
-	if len(in) > 0 {
-		p_in = unsafe.Pointer(&in[0])
-	}
-	var p_out unsafe.Pointer
-	if len(out) > 0 {
-		p_out = unsafe.Pointer(&out[0])
-	}
-	lenVal := int64(len(in))
-	tanhtransform_c_f64_neon(
-		p_in,
-		p_out,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
 // SigmoidTransformCF16 computes SigmoidTransform using NEON SIMD assembly.
 func SigmoidTransformCF16(in, out []hwy.Float16) {
 	if len(in) == 0 {
@@ -514,8 +430,8 @@ func SigmoidTransformCF64(in, out []float64) {
 	)
 }
 
-// ErfTransformCF16 computes ErfTransform using NEON SIMD assembly.
-func ErfTransformCF16(in, out []hwy.Float16) {
+// SinTransformCF16 computes SinTransform using NEON SIMD assembly.
+func SinTransformCF16(in, out []hwy.Float16) {
 	if len(in) == 0 {
 		return
 	}
@@ -528,15 +444,15 @@ func ErfTransformCF16(in, out []hwy.Float16) {
 		p_out = unsafe.Pointer(&out[0])
 	}
 	lenVal := int64(len(in))
-	erftransform_c_f16_neon(
+	sintransform_c_f16_neon(
 		p_in,
 		p_out,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// ErfTransformCBF16 computes ErfTransform using NEON SIMD assembly.
-func ErfTransformCBF16(in, out []hwy.BFloat16) {
+// SinTransformCBF16 computes SinTransform using NEON SIMD assembly.
+func SinTransformCBF16(in, out []hwy.BFloat16) {
 	if len(in) == 0 {
 		return
 	}
@@ -549,15 +465,15 @@ func ErfTransformCBF16(in, out []hwy.BFloat16) {
 		p_out = unsafe.Pointer(&out[0])
 	}
 	lenVal := int64(len(in))
-	erftransform_c_bf16_neon(
+	sintransform_c_bf16_neon(
 		p_in,
 		p_out,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// ErfTransformCF32 computes ErfTransform using NEON SIMD assembly.
-func ErfTransformCF32(in, out []float32) {
+// SinTransformCF32 computes SinTransform using NEON SIMD assembly.
+func SinTransformCF32(in, out []float32) {
 	if len(in) == 0 {
 		return
 	}
@@ -570,15 +486,15 @@ func ErfTransformCF32(in, out []float32) {
 		p_out = unsafe.Pointer(&out[0])
 	}
 	lenVal := int64(len(in))
-	erftransform_c_f32_neon(
+	sintransform_c_f32_neon(
 		p_in,
 		p_out,
 		unsafe.Pointer(&lenVal),
 	)
 }
 
-// ErfTransformCF64 computes ErfTransform using NEON SIMD assembly.
-func ErfTransformCF64(in, out []float64) {
+// SinTransformCF64 computes SinTransform using NEON SIMD assembly.
+func SinTransformCF64(in, out []float64) {
 	if len(in) == 0 {
 		return
 	}
@@ -591,7 +507,91 @@ func ErfTransformCF64(in, out []float64) {
 		p_out = unsafe.Pointer(&out[0])
 	}
 	lenVal := int64(len(in))
-	erftransform_c_f64_neon(
+	sintransform_c_f64_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// TanhTransformCF16 computes TanhTransform using NEON SIMD assembly.
+func TanhTransformCF16(in, out []hwy.Float16) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	tanhtransform_c_f16_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// TanhTransformCBF16 computes TanhTransform using NEON SIMD assembly.
+func TanhTransformCBF16(in, out []hwy.BFloat16) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	tanhtransform_c_bf16_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// TanhTransformCF32 computes TanhTransform using NEON SIMD assembly.
+func TanhTransformCF32(in, out []float32) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	tanhtransform_c_f32_neon(
+		p_in,
+		p_out,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// TanhTransformCF64 computes TanhTransform using NEON SIMD assembly.
+func TanhTransformCF64(in, out []float64) {
+	if len(in) == 0 {
+		return
+	}
+	var p_in unsafe.Pointer
+	if len(in) > 0 {
+		p_in = unsafe.Pointer(&in[0])
+	}
+	var p_out unsafe.Pointer
+	if len(out) > 0 {
+		p_out = unsafe.Pointer(&out[0])
+	}
+	lenVal := int64(len(in))
+	tanhtransform_c_f64_neon(
 		p_in,
 		p_out,
 		unsafe.Pointer(&lenVal),

@@ -11,120 +11,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseCompressPartition3Way_avx2(data []float32, pivot float32) (int, int) {
-	lt := 0
-	gt := len(data)
-	i := 0
-	for i < gt {
-		if data[i] < pivot {
-			data[lt], data[i] = data[i], data[lt]
-			lt++
-			i++
-		} else if data[i] > pivot {
-			gt--
-			data[i], data[gt] = data[gt], data[i]
-		} else {
-			i++
-		}
-	}
-	return lt, gt
-}
-
-func BaseCompressPartition3Way_avx2_Float64(data []float64, pivot float64) (int, int) {
-	lt := 0
-	gt := len(data)
-	i := 0
-	for i < gt {
-		if data[i] < pivot {
-			data[lt], data[i] = data[i], data[lt]
-			lt++
-			i++
-		} else if data[i] > pivot {
-			gt--
-			data[i], data[gt] = data[gt], data[i]
-		} else {
-			i++
-		}
-	}
-	return lt, gt
-}
-
-func BaseCompressPartition3Way_avx2_Int32(data []int32, pivot int32) (int, int) {
-	lt := 0
-	gt := len(data)
-	i := 0
-	for i < gt {
-		if data[i] < pivot {
-			data[lt], data[i] = data[i], data[lt]
-			lt++
-			i++
-		} else if data[i] > pivot {
-			gt--
-			data[i], data[gt] = data[gt], data[i]
-		} else {
-			i++
-		}
-	}
-	return lt, gt
-}
-
-func BaseCompressPartition3Way_avx2_Int64(data []int64, pivot int64) (int, int) {
-	lt := 0
-	gt := len(data)
-	i := 0
-	for i < gt {
-		if data[i] < pivot {
-			data[lt], data[i] = data[i], data[lt]
-			lt++
-			i++
-		} else if data[i] > pivot {
-			gt--
-			data[i], data[gt] = data[gt], data[i]
-		} else {
-			i++
-		}
-	}
-	return lt, gt
-}
-
-func BaseCompressPartition3Way_avx2_Uint32(data []uint32, pivot uint32) (int, int) {
-	lt := 0
-	gt := len(data)
-	i := 0
-	for i < gt {
-		if data[i] < pivot {
-			data[lt], data[i] = data[i], data[lt]
-			lt++
-			i++
-		} else if data[i] > pivot {
-			gt--
-			data[i], data[gt] = data[gt], data[i]
-		} else {
-			i++
-		}
-	}
-	return lt, gt
-}
-
-func BaseCompressPartition3Way_avx2_Uint64(data []uint64, pivot uint64) (int, int) {
-	lt := 0
-	gt := len(data)
-	i := 0
-	for i < gt {
-		if data[i] < pivot {
-			data[lt], data[i] = data[i], data[lt]
-			lt++
-			i++
-		} else if data[i] > pivot {
-			gt--
-			data[i], data[gt] = data[gt], data[i]
-		} else {
-			i++
-		}
-	}
-	return lt, gt
-}
-
 func BaseCompressPartition_avx2(data []float32, pivot float32) int {
 	n := len(data)
 	if n == 0 {
@@ -657,4 +543,118 @@ func BaseCompressPartition_avx2_Uint64(data []uint64, pivot uint64) int {
 	}
 	copy(data[writeL:], buf[:bufL])
 	return writeL + bufL
+}
+
+func BaseCompressPartition3Way_avx2(data []float32, pivot float32) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
+func BaseCompressPartition3Way_avx2_Float64(data []float64, pivot float64) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
+func BaseCompressPartition3Way_avx2_Int32(data []int32, pivot int32) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
+func BaseCompressPartition3Way_avx2_Int64(data []int64, pivot int64) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
+func BaseCompressPartition3Way_avx2_Uint32(data []uint32, pivot uint32) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
+}
+
+func BaseCompressPartition3Way_avx2_Uint64(data []uint64, pivot uint64) (int, int) {
+	lt := 0
+	gt := len(data)
+	i := 0
+	for i < gt {
+		if data[i] < pivot {
+			data[lt], data[i] = data[i], data[lt]
+			lt++
+			i++
+		} else if data[i] > pivot {
+			gt--
+			data[i], data[gt] = data[gt], data[i]
+		} else {
+			i++
+		}
+	}
+	return lt, gt
 }
