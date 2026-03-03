@@ -5641,6 +5641,38 @@ func TestGetCElemTypes(t *testing.T) {
 			},
 			want: []string{"float32"},
 		},
+		{
+			name: "non-generic uint8-only params infers float32 from hwy.Zero[float32] in body",
+			pf: ParsedFunc{
+				Name:   "BaseVecDot",
+				Params: []Param{{Name: "wdata", Type: "[]uint8"}, {Name: "adata", Type: "[]uint8"}, {Name: "n", Type: "int"}},
+				Body: mustParseBody(t, `{
+					accVec := hwy.Zero[float32]()
+					_ = accVec
+				}`),
+			},
+			want: []string{"float32"},
+		},
+		{
+			name: "non-generic uint8-only params infers float64 from hwy.NumLanes[float64] in body",
+			pf: ParsedFunc{
+				Name:   "BaseProcess",
+				Params: []Param{{Name: "data", Type: "[]uint8"}, {Name: "n", Type: "int"}},
+				Body: mustParseBody(t, `{
+					lanes := hwy.NumLanes[float64]()
+					_ = lanes
+				}`),
+			},
+			want: []string{"float64"},
+		},
+		{
+			name: "non-generic uint8-only params without hwy calls stays uint8",
+			pf: ParsedFunc{
+				Name:   "BaseCopy",
+				Params: []Param{{Name: "src", Type: "[]uint8"}, {Name: "dst", Type: "[]uint8"}, {Name: "n", Type: "int"}},
+			},
+			want: []string{"uint8"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -5656,6 +5688,25 @@ func TestGetCElemTypes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// mustParseBody parses a Go block statement (e.g., "{ x := 1 }") and returns
+// its AST. The source is wrapped in a function to make it a valid Go file.
+func mustParseBody(t *testing.T, src string) *ast.BlockStmt {
+	t.Helper()
+	wrapped := "package p\nimport \"github.com/ajroetker/go-highway/hwy\"\nfunc f() " + src
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "test.go", wrapped, 0)
+	if err != nil {
+		t.Fatalf("mustParseBody: %v", err)
+	}
+	for _, decl := range file.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "f" {
+			return fn.Body
+		}
+	}
+	t.Fatal("mustParseBody: no function found")
+	return nil
 }
 
 func TestGetTypeCombinationsBackwardCompat(t *testing.T) {

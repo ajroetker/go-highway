@@ -620,6 +620,10 @@ func (a *cProfileAdapter) GetZeroInit(tier string) string {
 // type (byte/uint8 slices are typically scalar staging buffers, not the
 // vectorized type).
 func getCElemTypes(pf *ParsedFunc) []string {
+	// Check for explicit //hwy:elemtype directive override.
+	if pf.ElemTypeOverride != "" {
+		return []string{pf.ElemTypeOverride}
+	}
 	if len(pf.TypeParams) > 0 {
 		return GetConcreteTypes(pf.TypeParams[0].Constraint)
 	}
@@ -660,10 +664,63 @@ func getCElemTypes(pf *ParsedFunc) []string {
 			best = candidate
 		}
 	}
+	// If parameter inference yielded only uint8 (packed data), check
+	// whether hwy.* calls in the function body use explicit type arguments
+	// that indicate a different SIMD element type. This matches C++ Highway's
+	// design where the element type is always explicit via the tag parameter.
+	if (best == "" || best == "uint8") && pf.Body != nil {
+		if bodyType := inferElemTypeFromBody(pf.Body); bodyType != "" {
+			best = bodyType
+		}
+	}
 	if best != "" {
 		return []string{best}
 	}
 	return []string{"float32"}
+}
+
+// inferElemTypeFromBody walks the function body AST looking for hwy.* calls
+// with explicit type arguments (e.g., hwy.Zero[float32](), hwy.NumLanes[float32]()).
+// Returns the element type if found, or empty string if not.
+//
+// This enables correct profile selection for functions that take []uint8 packed
+// data but perform float32 SIMD operations internally (e.g., quantized dot
+// products), matching C++ Highway's explicit tag-based type dispatch.
+func inferElemTypeFromBody(body *ast.BlockStmt) string {
+	var found string
+	ast.Inspect(body, func(n ast.Node) bool {
+		if found != "" {
+			return false // already found, stop walking
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		// Look for hwy.Func[T](...) pattern: ast.IndexExpr wrapping ast.SelectorExpr.
+		idx, ok := call.Fun.(*ast.IndexExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := idx.X.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		if !ok || pkg.Name != "hwy" {
+			return true
+		}
+		// Only consider functions whose type argument determines the SIMD
+		// element type: Zero[T], NumLanes[T], Set[T], Const[T].
+		switch sel.Sel.Name {
+		case "Zero", "NumLanes", "Set", "Const":
+			// Extract the type argument T.
+			if typeIdent, ok := idx.Index.(*ast.Ident); ok {
+				found = typeIdent.Name
+			}
+		}
+		return true
+	})
+	return found
 }
 
 // IsSliceFunction checks if a function operates on slices (not Vec) and is

@@ -22,6 +22,20 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+// QuantType identifies a GGUF quantization format for dispatch.
+type QuantType int
+
+const (
+	TypeQ4_0  QuantType = iota
+	TypeQ8_0
+	TypeIQ4NL
+	TypeQ2_K
+	TypeQ3_K
+	TypeQ4_K
+	TypeQ5_K
+	TypeQ6_K
+)
+
 // Block sizes in bytes for each GGUF quantization format.
 const (
 	BlockSizeQ4_0  = 18 // fp16 scale (2) + 16 nibble bytes
@@ -36,7 +50,72 @@ const (
 	BlockSizeQ4K = 144 // d(2) + dmin(2) + scales(12) + qs(128)
 	BlockSizeQ5K = 176 // d(2) + dmin(2) + scales(12) + qs(128) + qh(32)
 	BlockSizeQ6K = 210 // ql(128) + qh(64) + scales(16) + d(2)
+
+	// Q8_K activation format for K-quant weight types.
+	// 256 values per block with per-sub-block int16 sums for K-quant compatibility.
+	// Layout: d(4 bytes float32) + qs(256 bytes int8) + bsums(16 * 2 bytes int16)
+	BlockSizeQ8K = 4 + 256 + 32 // 292 bytes
 )
+
+// ValuesPerBlock returns the number of float32 values represented by one block.
+func ValuesPerBlock(qt QuantType) int {
+	switch qt {
+	case TypeQ4_0, TypeQ8_0, TypeIQ4NL:
+		return QK
+	default:
+		return QK_K
+	}
+}
+
+// BytesPerBlock returns the byte size of one quantized block.
+func BytesPerBlock(qt QuantType) int {
+	switch qt {
+	case TypeQ4_0:
+		return BlockSizeQ4_0
+	case TypeQ8_0:
+		return BlockSizeQ8_0
+	case TypeIQ4NL:
+		return BlockSizeIQ4NL
+	case TypeQ2_K:
+		return BlockSizeQ2K
+	case TypeQ3_K:
+		return BlockSizeQ3K
+	case TypeQ4_K:
+		return BlockSizeQ4K
+	case TypeQ5_K:
+		return BlockSizeQ5K
+	case TypeQ6_K:
+		return BlockSizeQ6K
+	default:
+		return 0
+	}
+}
+
+// ActivationBlockSize returns the byte size of one activation block for the given weight type.
+// Tier 1 types (Q4_0, Q8_0, IQ4_NL) use Q8_0 activations; K-quant types use Q8_K.
+func ActivationBlockSize(qt QuantType) int {
+	switch qt {
+	case TypeQ4_0, TypeQ8_0, TypeIQ4NL:
+		return BlockSizeQ8_0
+	default:
+		return BlockSizeQ8K
+	}
+}
+
+// fp16LE decodes a little-endian fp16 value from two bytes into float32.
+// Subnormals are flushed to ±0 (acceptable for GGUF scale values which are
+// always normal). This is a local helper that hwygen translates to a static
+// C function (inlined by clang -O3) for the neon:asm target.
+func fp16LE(lo, hi uint8) float32 {
+	raw := uint32(lo) | uint32(hi)<<8
+	sign := raw >> 15
+	exp := (raw >> 10) & 0x1F
+	mant := raw & 0x3FF
+	if exp == 0 {
+		return math.Float32frombits(sign << 31)
+	}
+	return math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
+}
 
 // kvaluesIQ4NL is the non-linear lookup table for IQ4_NL dequantization.
 // From llama.cpp ggml-common.h kvalues_iq4nl.
@@ -61,18 +140,7 @@ func BaseDequantizeQ8_0(data []uint8, output []float32) {
 	for b := range nblocks {
 		blockData := data[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
 
-		// Read fp16 scale (little-endian) and convert to float32.
-		// Inline bit manipulation instead of hwy.Float16ToFloat32 for C/GOAT compatibility.
-		raw := uint32(blockData[0]) | uint32(blockData[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[0], blockData[1])
 		scaleVec := hwy.Set(d)
 
 		qs := blockData[2:] // 32 int8 quants
@@ -114,17 +182,7 @@ func BaseDequantizeQ4_0(data []uint8, output []float32) {
 	for b := range nblocks {
 		blockData := data[b*BlockSizeQ4_0 : (b+1)*BlockSizeQ4_0]
 
-		// Read fp16 scale (little-endian) and convert to float32.
-		raw := uint32(blockData[0]) | uint32(blockData[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[0], blockData[1])
 		scaleVec := hwy.Set(d)
 
 		qs := blockData[2:] // 16 nibble bytes
@@ -203,17 +261,7 @@ func BaseDequantizeIQ4NL(data []uint8, output []float32) {
 	for b := range nblocks {
 		blockData := data[b*BlockSizeIQ4NL : (b+1)*BlockSizeIQ4NL]
 
-		// Read fp16 scale (little-endian) and convert to float32.
-		raw := uint32(blockData[0]) | uint32(blockData[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[0], blockData[1])
 		scaleVec := hwy.Set(d)
 
 		qs := blockData[2:] // 16 nibble bytes
@@ -274,17 +322,7 @@ func BaseDequantizeQ6K(data []uint8, output []float32) {
 		qh := blockData[128:192]
 		sc := blockData[192:208]
 
-		// Read fp16 scale (little-endian) at offset 208.
-		raw := uint32(blockData[208]) | uint32(blockData[209])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[208], blockData[209])
 
 		outOff := b * QK_K
 
@@ -352,29 +390,8 @@ func BaseDequantizeQ4K(data []uint8, output []float32) {
 	for b := range nblocks {
 		blockData := data[b*BlockSizeQ4K : (b+1)*BlockSizeQ4K]
 
-		// Read fp16 d at offset 0.
-		raw := uint32(blockData[0]) | uint32(blockData[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-
-		// Read fp16 dmin at offset 2.
-		raw = uint32(blockData[2]) | uint32(blockData[3])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var dmin float32
-		if exp == 0 {
-			dmin = math.Float32frombits(sign << 31)
-		} else {
-			dmin = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[0], blockData[1])
+		dmin := fp16LE(blockData[2], blockData[3])
 
 		scales := blockData[4:16]
 		qs := blockData[16:144]
@@ -462,29 +479,8 @@ func BaseDequantizeQ5K(data []uint8, output []float32) {
 	for b := range nblocks {
 		blockData := data[b*BlockSizeQ5K : (b+1)*BlockSizeQ5K]
 
-		// Read fp16 d at offset 0.
-		raw := uint32(blockData[0]) | uint32(blockData[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-
-		// Read fp16 dmin at offset 2.
-		raw = uint32(blockData[2]) | uint32(blockData[3])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var dmin float32
-		if exp == 0 {
-			dmin = math.Float32frombits(sign << 31)
-		} else {
-			dmin = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[0], blockData[1])
+		dmin := fp16LE(blockData[2], blockData[3])
 
 		scales := blockData[4:16]
 		ql := blockData[16:144]
@@ -587,29 +583,8 @@ func BaseDequantizeQ2K(data []uint8, output []float32) {
 
 		scalesRaw := blockData[0:16]
 
-		// Read fp16 d at offset 16.
-		raw := uint32(blockData[16]) | uint32(blockData[17])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-
-		// Read fp16 dmin at offset 18.
-		raw = uint32(blockData[18]) | uint32(blockData[19])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var dmin float32
-		if exp == 0 {
-			dmin = math.Float32frombits(sign << 31)
-		} else {
-			dmin = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[16], blockData[17])
+		dmin := fp16LE(blockData[18], blockData[19])
 
 		qs := blockData[20:84]
 		outOff := b * QK_K
@@ -676,16 +651,7 @@ func BaseDequantizeQ3K(data []uint8, output []float32) {
 		scaleData := blockData[96:108]
 
 		// Read fp16 d at offset 108.
-		raw := uint32(blockData[108]) | uint32(blockData[109])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var d float32
-		if exp == 0 {
-			d = math.Float32frombits(sign << 31)
-		} else {
-			d = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		d := fp16LE(blockData[108], blockData[109])
 
 		outOff := b * QK_K
 

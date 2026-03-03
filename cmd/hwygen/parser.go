@@ -48,6 +48,12 @@ type ParsedFunc struct {
 	// Set from //hwy:targets directive. Empty slice means all targets.
 	AllowedTargets []string
 
+	// ElemTypeOverride overrides the SIMD element type inferred from slice params.
+	// Set from //hwy:elemtype directive. Empty string means use default inference.
+	// Useful for functions whose slice params are uint8 (packed data) but whose
+	// SIMD operations are float32 (e.g., quantized dot products).
+	ElemTypeOverride string
+
 	// SourceFile records which file this function came from.
 	SourceFile string
 }
@@ -69,6 +75,12 @@ type TypeParam struct {
 type SpecializesDirective struct {
 	Line      int    // Line number of the directive
 	GroupName string // Dispatch group name (e.g., "MatMul")
+}
+
+// ElemTypeDirective represents a parsed //hwy:elemtype directive.
+type ElemTypeDirective struct {
+	Line     int    // Line number of the directive
+	ElemType string // Element type (e.g., "float32")
 }
 
 // TargetsDirective represents a parsed //hwy:targets directive.
@@ -276,6 +288,9 @@ func Parse(filename string) (*ParseResult, error) {
 	// Parse //hwy:targets directives from comments
 	targetsDirectives := parseTargetsDirectives(file, fset)
 
+	// Parse //hwy:elemtype directives from comments
+	elemTypeDirectives := parseElemTypeDirectives(file, fset)
+
 	for _, decl := range file.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
 		if !ok {
@@ -353,6 +368,11 @@ func Parse(filename string) (*ParseResult, error) {
 			for _, td := range targetsDirectives {
 				if td.Line >= funcLine-5 && td.Line < funcLine {
 					pf.AllowedTargets = td.Targets
+				}
+			}
+			for _, ed := range elemTypeDirectives {
+				if ed.Line >= funcLine-5 && ed.Line < funcLine {
+					pf.ElemTypeOverride = ed.ElemType
 				}
 			}
 		}
@@ -698,6 +718,38 @@ func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirect
 					Targets: targets,
 				})
 			}
+		}
+	}
+
+	return directives
+}
+
+// parseElemTypeDirectives scans all comments in the file for //hwy:elemtype directives.
+// Syntax: //hwy:elemtype float32
+//
+// This overrides the SIMD element type that would normally be inferred from
+// slice parameter types. Useful for functions that take []uint8 packed data
+// but perform float32 SIMD operations internally (e.g., quantized dot products).
+func parseElemTypeDirectives(file *ast.File, fset *token.FileSet) []ElemTypeDirective {
+	var directives []ElemTypeDirective
+
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+			line := fset.Position(c.Pos()).Line
+
+			after, ok := strings.CutPrefix(text, "hwy:elemtype ")
+			if !ok {
+				continue
+			}
+			after = strings.TrimSpace(after)
+			if after == "" {
+				continue
+			}
+			directives = append(directives, ElemTypeDirective{
+				Line:     line,
+				ElemType: after,
+			})
 		}
 	}
 
@@ -1511,6 +1563,7 @@ func scanSpecializations(filename string, result *ParseResult) {
 		}
 		genDirectives := parseGenDirectives(file, fset)
 		targetsDirectives := parseTargetsDirectives(file, fset)
+		elemTypeDirectivesSib := parseElemTypeDirectives(file, fset)
 		unrollDirectives := parseUnrollDirectives(file, fset)
 
 		for _, decl := range file.Decls {
@@ -1603,6 +1656,13 @@ func scanSpecializations(filename string, result *ParseResult) {
 			for _, td := range targetsDirectives {
 				if td.Line >= funcLine-5 && td.Line < funcLine {
 					pf.AllowedTargets = td.Targets
+				}
+			}
+
+			// Match //hwy:elemtype directives
+			for _, ed := range elemTypeDirectivesSib {
+				if ed.Line >= funcLine-5 && ed.Line < funcLine {
+					pf.ElemTypeOverride = ed.ElemType
 				}
 			}
 
