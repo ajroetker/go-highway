@@ -113,6 +113,76 @@ func convertToUnaryMethodCall(call *ast.CallExpr, methodName string) {
 	call.Args = nil
 }
 
+// transformMaskNot transforms hwy.MaskNot(mask) into mask.Xor(allTrue),
+// where allTrue = Broadcast(1).Equal(Broadcast(1)).
+// This pattern is used in both transformToMethod and transformToFunction.
+func transformMaskNot(call *ast.CallExpr, pkgName, vecTypeName, elemType string) {
+	mask := call.Args[0]
+
+	// Create pkg.Broadcast*(1.0) for float types or 1 for int types
+	var oneLit ast.Expr
+	if elemType == "float32" || elemType == "float64" {
+		oneLit = &ast.BasicLit{Kind: token.FLOAT, Value: "1.0"}
+	} else {
+		oneLit = &ast.BasicLit{Kind: token.INT, Value: "1"}
+	}
+	oneCall := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent(pkgName),
+			Sel: ast.NewIdent("Broadcast" + vecTypeName),
+		},
+		Args: []ast.Expr{oneLit},
+	}
+	// Create one.Equal(one) to get all-true mask
+	allTrue := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   oneCall,
+			Sel: ast.NewIdent("Equal"),
+		},
+		Args: []ast.Expr{cloneExpr(oneCall)},
+	}
+	// Create mask.Xor(allTrue) to invert
+	call.Fun = &ast.SelectorExpr{
+		X:   mask,
+		Sel: ast.NewIdent("Xor"),
+	}
+	call.Args = []ast.Expr{allTrue}
+}
+
+// hwyWrapperName returns the hwy wrapper function name for a given op, target, and element type.
+// This is the naming convention: OpName_TargetName_ShortTypeName (e.g., Compress_AVX2_F32x8).
+func hwyWrapperName(opName string, ctx *transformContext) string {
+	return fmt.Sprintf("%s_%s_%s", opName, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+}
+
+// arrayPointerCast builds a (*[lanes]elemType)(ptr) type conversion expression.
+// This casts an unsafe.Pointer to a fixed-size array pointer for SIMD load/store operations.
+func arrayPointerCast(lanes int, elemType string, ptr ast.Expr) *ast.CallExpr {
+	return &ast.CallExpr{
+		Fun: &ast.ParenExpr{
+			X: &ast.StarExpr{
+				X: &ast.ArrayType{
+					Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
+					Elt: ast.NewIdent(elemType),
+				},
+			},
+		},
+		Args: []ast.Expr{ptr},
+	}
+}
+
+// redirectToHwyWrapper rewrites a call expression to use a hwy wrapper function.
+// The wrapper name follows the pattern: FuncName_TargetName_VecTypeName (e.g., GetLane_AVX2_Float32x8).
+// Arguments are preserved as-is.
+func redirectToHwyWrapper(call *ast.CallExpr, funcName string, ctx *transformContext) {
+	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+	wrapperName := fmt.Sprintf("%s_%s_%s", funcName, ctx.target.Name, vecTypeName)
+	call.Fun = &ast.SelectorExpr{
+		X:   ast.NewIdent("hwy"),
+		Sel: ast.NewIdent(wrapperName),
+	}
+}
+
 // TransformResult contains the transformed function and any hoisted constants.
 type TransformResult struct {
 	FuncDecl      *ast.FuncDecl
@@ -1931,27 +2001,13 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 	if ctx.target.IsAVX() {
 		switch funcName {
 		case "ReduceMax":
-			// hwy.ReduceMax(v) -> hwy.ReduceMax_AVX2_Uint32x8(v) (unsigned only)
 			if isUnsignedIntType(ctx.elemType) && len(call.Args) >= 1 {
-				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-				wrapperName := fmt.Sprintf("ReduceMax_%s_%s", ctx.target.Name, vecTypeName)
-				call.Fun = &ast.SelectorExpr{
-					X:   ast.NewIdent("hwy"),
-					Sel: ast.NewIdent(wrapperName),
-				}
-				// Args stay as-is
+				redirectToHwyWrapper(call, "ReduceMax", ctx)
 				return
 			}
 		case "GetLane":
-			// hwy.GetLane(v, i) -> hwy.GetLane_AVX2_Float32x8(v, i) etc.
 			if len(call.Args) >= 2 {
-				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-				wrapperName := fmt.Sprintf("GetLane_%s_%s", ctx.target.Name, vecTypeName)
-				call.Fun = &ast.SelectorExpr{
-					X:   ast.NewIdent("hwy"),
-					Sel: ast.NewIdent(wrapperName),
-				}
-				// Args stay as-is
+				redirectToHwyWrapper(call, "GetLane", ctx)
 				return
 			}
 		}
@@ -1962,27 +2018,13 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 	if is64BitIntType(ctx.elemType) && ctx.target.IsAVX2() {
 		switch funcName {
 		case "Max":
-			// hwy.Max(a, b) -> hwy.Max_AVX2_Uint64x4(a, b) or hwy.Max_AVX2_Int64x4(a, b)
 			if len(call.Args) >= 2 {
-				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-				wrapperName := fmt.Sprintf("Max_%s_%s", ctx.target.Name, vecTypeName)
-				call.Fun = &ast.SelectorExpr{
-					X:   ast.NewIdent("hwy"),
-					Sel: ast.NewIdent(wrapperName),
-				}
-				// Args stay as-is
+				redirectToHwyWrapper(call, "Max", ctx)
 				return
 			}
 		case "Min":
-			// hwy.Min(a, b) -> hwy.Min_AVX2_Uint64x4(a, b) or hwy.Min_AVX2_Int64x4(a, b)
 			if len(call.Args) >= 2 {
-				vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-				wrapperName := fmt.Sprintf("Min_%s_%s", ctx.target.Name, vecTypeName)
-				call.Fun = &ast.SelectorExpr{
-					X:   ast.NewIdent("hwy"),
-					Sel: ast.NewIdent(wrapperName),
-				}
-				// Args stay as-is
+				redirectToHwyWrapper(call, "Min", ctx)
 				return
 			}
 		}
@@ -2011,21 +2053,9 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		}
 
 	case "Store":
-		// For NEON half-precision: hwy.StoreSlice(v, dst) -> v.StorePtr(unsafe.Pointer(&dst[0]))
-		if ctx.isHalfPrec && ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
-			if len(call.Args) >= 2 {
-				vecArg := call.Args[0]
-				sliceArg := call.Args[1]
-				call.Fun = &ast.SelectorExpr{
-					X:   vecArg,
-					Sel: ast.NewIdent("StorePtr"),
-				}
-				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
-			}
-			return
-		}
-		// For AVX promoted half-precision: hwy.StoreSlice(v, dst) -> v.StorePtr(unsafe.Pointer(&dst[0]))
-		if ctx.isAVXPromoted {
+		// For NEON half-precision or AVX promoted half-precision:
+		// hwy.StoreSlice(v, dst) -> v.StorePtr(unsafe.Pointer(&dst[0]))
+		if ctx.isNEONHalfPrec() || ctx.isAVXPromoted {
 			if len(call.Args) >= 2 {
 				vecArg := call.Args[0]
 				sliceArg := call.Args[1]
@@ -2044,28 +2074,13 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 
 		// hwy.StoreSlice(v, dst) -> v.Store((*[8]float32)(unsafe.Pointer(&dst[0])))
 		if len(call.Args) >= 2 {
-			methodName := "Store"
 			lanes := ctx.target.LanesFor(ctx.elemType)
-
 			dst := call.Args[1]
-			ptr := unsafeSlicePointer(dst)
-
-			// (*[lanes]T)(ptr)
-			cast := &ast.CallExpr{
-				Fun: &ast.ParenExpr{
-					X: &ast.StarExpr{
-						X: &ast.ArrayType{
-							Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
-							Elt: ast.NewIdent(ctx.elemType),
-						},
-					},
-				},
-				Args: []ast.Expr{ptr},
-			}
+			cast := arrayPointerCast(lanes, ctx.elemType, unsafeSlicePointer(dst))
 
 			call.Fun = &ast.SelectorExpr{
 				X:   call.Args[0],
-				Sel: ast.NewIdent(methodName),
+				Sel: ast.NewIdent("Store"),
 			}
 			call.Args = []ast.Expr{cast}
 		}
@@ -2413,41 +2428,8 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		}
 
 	case "MaskNot":
-		// hwy.MaskNot(mask) -> mask.Xor(allTrue)
-		// where allTrue = one.Equal(one) (comparing 1.0 == 1.0 gives all-true mask)
 		if opInfo.Package == "special" && len(call.Args) >= 1 {
-			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-			pkgName := getVecPackageName(ctx.target)
-			mask := call.Args[0]
-
-			// Create pkg.Broadcast*(1.0) for float types or 1 for int types
-			var oneLit ast.Expr
-			if ctx.elemType == "float32" || ctx.elemType == "float64" {
-				oneLit = &ast.BasicLit{Kind: token.FLOAT, Value: "1.0"}
-			} else {
-				oneLit = &ast.BasicLit{Kind: token.INT, Value: "1"}
-			}
-			oneCall := &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent(pkgName),
-					Sel: ast.NewIdent("Broadcast" + vecTypeName),
-				},
-				Args: []ast.Expr{oneLit},
-			}
-			// Create one.Equal(one) to get all-true mask
-			allTrue := &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   oneCall,
-					Sel: ast.NewIdent("Equal"),
-				},
-				Args: []ast.Expr{cloneExpr(oneCall)},
-			}
-			// Create mask.Xor(allTrue) to invert
-			call.Fun = &ast.SelectorExpr{
-				X:   mask,
-				Sel: ast.NewIdent("Xor"),
-			}
-			call.Args = []ast.Expr{allTrue}
+			transformMaskNot(call, getVecPackageName(ctx.target), getVectorTypeName(ctx.elemType, ctx.target), ctx.elemType)
 		}
 
 	case "IsInf":
@@ -2599,7 +2581,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				convertToMethodCall(call, opInfo.Name)
 			} else {
 				// hwy.And(a, b) -> hwy.And_AVX2_F32x8(a, b)
-				fullName := fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+				fullName := hwyWrapperName(opInfo.Name, ctx)
 				call.Fun = &ast.SelectorExpr{
 					X:   ast.NewIdent("hwy"),
 					Sel: ast.NewIdent(fullName),
@@ -2633,7 +2615,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// For float types on archsimd, use hwy wrappers.
 		if ctx.target.VecPackage == "archsimd" && (ctx.elemType == "float32" || ctx.elemType == "float64") {
 			// hwy.Not(a) -> hwy.Not_AVX2_F32x8(a)
-			fullName := fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			fullName := hwyWrapperName(opInfo.Name, ctx)
 			call.Fun = &ast.SelectorExpr{
 				X:   ast.NewIdent("hwy"),
 				Sel: ast.NewIdent(fullName),
@@ -2949,21 +2931,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 
 			// Transform argument to pointer cast
 			if len(call.Args) > 0 {
-				src := call.Args[0]
-				ptr := unsafeSlicePointer(src)
-				// (*[lanes]T)(ptr)
-				cast := &ast.CallExpr{
-					Fun: &ast.ParenExpr{
-						X: &ast.StarExpr{
-							X: &ast.ArrayType{
-								Len: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(lanes)},
-								Elt: ast.NewIdent(effectiveElemType),
-							},
-						},
-					},
-					Args: []ast.Expr{ptr},
-				}
-				call.Args[0] = cast
+				call.Args[0] = arrayPointerCast(lanes, effectiveElemType, unsafeSlicePointer(call.Args[0]))
 			}
 		} else {
 			// Fallback: keep generic hwy.Load
@@ -3053,7 +3021,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "Compress":
 		// Use hwy wrapper if configured
 		if opInfo.Package == "hwy" {
-			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			fullName = hwyWrapperName(opInfo.Name, ctx)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			// Compress returns (Vec, int). Maps to CompressKeysF32x4, etc.
@@ -3078,7 +3046,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "CompressStore":
 		// Use hwy wrapper if configured
 		if opInfo.Package == "hwy" {
-			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			fullName = hwyWrapperName(opInfo.Name, ctx)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			// CompressStore has type-specific versions: CompressStore (float32), CompressStoreFloat64, etc.
@@ -3103,7 +3071,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "FirstN":
 		// Use hwy wrapper if configured
 		if opInfo.Package == "hwy" {
-			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			fullName = hwyWrapperName(opInfo.Name, ctx)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			// FirstN returns a mask type: Int32x4 for 4-lane, Int64x2 for 2-lane
@@ -3124,7 +3092,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 	case "IfThenElse":
 		// Use hwy wrapper if configured
 		if opInfo.Package == "hwy" {
-			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			fullName = hwyWrapperName(opInfo.Name, ctx)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			// IfThenElse has type-specific versions for NEON
@@ -3238,40 +3206,8 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			selExpr.X = ast.NewIdent(pkgName)
 		}
 	case "MaskNot":
-		// MaskNot(mask) -> mask.Xor(allTrue)
-		// where allTrue = one.Equal(one) (comparing 1.0 == 1.0 gives all-true mask)
 		if opInfo.Package == "special" && len(call.Args) >= 1 {
-			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-			mask := call.Args[0]
-
-			// Create pkg.Broadcast*(1.0) for float types or 1 for int types
-			var oneLit ast.Expr
-			if ctx.elemType == "float32" || ctx.elemType == "float64" {
-				oneLit = &ast.BasicLit{Kind: token.FLOAT, Value: "1.0"}
-			} else {
-				oneLit = &ast.BasicLit{Kind: token.INT, Value: "1"}
-			}
-			oneCall := &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent(pkgName),
-					Sel: ast.NewIdent("Broadcast" + vecTypeName),
-				},
-				Args: []ast.Expr{oneLit},
-			}
-			// Create one.Equal(one) to get all-true mask
-			allTrue := &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   oneCall,
-					Sel: ast.NewIdent("Equal"),
-				},
-				Args: []ast.Expr{cloneExpr(oneCall)},
-			}
-			// Create mask.Xor(allTrue) to invert
-			call.Fun = &ast.SelectorExpr{
-				X:   mask,
-				Sel: ast.NewIdent("Xor"),
-			}
-			call.Args = []ast.Expr{allTrue}
+			transformMaskNot(call, pkgName, getVectorTypeName(ctx.elemType, ctx.target), ctx.elemType)
 		}
 		return // Don't set fullName, we've already transformed the call
 	case "ShiftRight", "ShiftLeft", "ShiftAllRight", "ShiftAllLeft":
@@ -3341,7 +3277,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			selExpr.X = ast.NewIdent(opInfo.SubPackage) // math, vec, matvec, algo
 		} else if opInfo.Package == "hwy" {
 			// Core ops from hwy package (e.g., hwy.Sqrt_AVX2_F32x8)
-			fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+			fullName = hwyWrapperName(opInfo.Name, ctx)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			fullName = opInfo.Name
@@ -3359,16 +3295,12 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 }
 
 // getVecPackageName returns the package name for vector types based on target.
-// Returns "archsimd" for AVX targets, "asm" for NEON.
+// Returns "archsimd" for AVX targets, "asm" for NEON, defaulting to "archsimd".
 func getVecPackageName(target Target) string {
-	switch target.VecPackage {
-	case "archsimd":
-		return "archsimd"
-	case "asm":
-		return "asm"
-	default:
-		return "archsimd" // default for compatibility
+	if target.VecPackage != "" {
+		return target.VecPackage
 	}
+	return "archsimd"
 }
 
 // getShortTypeName returns the short type name like F32x8 for contrib functions.
@@ -4018,7 +3950,7 @@ func insertTailHandling(body *ast.BlockStmt, loopInfo *LoopInfo, elemType string
 	simdLoopCount := 0
 	for _, stmt := range body.List {
 		if forStmt, ok := stmt.(*ast.ForStmt); ok {
-			if matchesLoopIterator(forStmt, loopInfo.Iterator) && isSimdStyleLoop(forStmt, loopInfo) {
+			if matchesLoopIterator(forStmt, loopInfo.Iterator) && isSimdStyleLoop(forStmt) {
 				simdLoopCount++
 			}
 		}
@@ -4306,7 +4238,7 @@ func usesExternalVariables(body *ast.BlockStmt, iterator string) bool {
 // to a scalar tail loop). SIMD loops typically have:
 // - A condition like i+lanes <= len(dst) (not i < len)
 // - A stride like i += lanes (not i++)
-func isSimdStyleLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo) bool {
+func isSimdStyleLoop(forStmt *ast.ForStmt) bool {
 	if forStmt == nil || forStmt.Cond == nil || forStmt.Post == nil {
 		return false
 	}
@@ -5342,30 +5274,6 @@ func cloneIfStmt(stmt *ast.IfStmt) *ast.IfStmt {
 	}
 }
 
-// buildResults builds the return type list for a function.
-func (pf *ParsedFunc) buildResults(elemType string) *ast.FieldList {
-	if len(pf.Returns) == 0 {
-		return nil
-	}
-
-	fieldList := &ast.FieldList{
-		List: make([]*ast.Field, 0, len(pf.Returns)),
-	}
-
-	for _, ret := range pf.Returns {
-		retType := specializeType(ret.Type, pf.TypeParams, elemType)
-		field := &ast.Field{
-			Type: parseTypeExpr(retType),
-		}
-		if ret.Name != "" {
-			field.Names = []*ast.Ident{ast.NewIdent(ret.Name)}
-		}
-		fieldList.List = append(fieldList.List, field)
-	}
-
-	return fieldList
-}
-
 // buildResultsWithTarget builds the return type list with target-specific Vec types.
 func (pf *ParsedFunc) buildResultsWithTarget(elemType string, target Target, skipHalfPrec bool, typeMap map[string]string) *ast.FieldList {
 	if len(pf.Returns) == 0 {
@@ -5401,7 +5309,6 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 	}
 
 	defaultLanes := ctx.target.LanesFor(ctx.elemType)
-	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
 
 	// Walk all statements and expressions, replacing as needed
 	ast.Inspect(node, func(n ast.Node) bool {
@@ -5426,7 +5333,7 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 					if call, ok := rhs.(*ast.CallExpr); ok {
 						if isReduceSumCall(call) {
 							// Transform to store + sum pattern
-							stmt.Rhs[i] = createReduceSumExpr(call, defaultLanes, vecTypeName, ctx.elemType)
+							stmt.Rhs[i] = createReduceSumExpr(call, defaultLanes, ctx.elemType)
 						}
 					}
 				}
@@ -5498,7 +5405,7 @@ func isReduceSumCall(call *ast.CallExpr) bool {
 // Actually, archsimd vectors don't have a built-in ReduceSum, so we need to
 // generate inline code that stores to temp and sums.
 // Since we can't inject statements here, we'll generate a compound expression.
-func createReduceSumExpr(call *ast.CallExpr, lanes int, vecTypeName, elemType string) ast.Expr {
+func createReduceSumExpr(call *ast.CallExpr, lanes int, elemType string) ast.Expr {
 	// Get the vector argument
 	var vecExpr ast.Expr
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
@@ -5891,22 +5798,22 @@ func generateScalarPredicateBody(pf *ParsedFunc, elemType string) *ast.BlockStmt
 	// Map function names to their scalar implementations
 	switch pf.Name {
 	case "BaseAll":
-		return generateScalarAll(pf, elemType)
+		return generateScalarAll(pf)
 	case "BaseAny":
-		return generateScalarAny(pf, elemType)
+		return generateScalarAny(pf)
 	case "BaseNone":
 		return generateScalarNone(pf, elemType)
 	case "BaseFindIf":
-		return generateScalarFindIf(pf, elemType)
+		return generateScalarFindIf(pf)
 	case "BaseCountIf":
-		return generateScalarCountIf(pf, elemType)
+		return generateScalarCountIf(pf)
 	default:
 		return nil
 	}
 }
 
 // generateScalarAll generates: for _, v := range slice { if !pred.Test(v) { return false } } return true
-func generateScalarAll(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+func generateScalarAll(pf *ParsedFunc) *ast.BlockStmt {
 	sliceParam := pf.Params[0].Name
 	predParam := pf.Params[1].Name
 
@@ -5951,7 +5858,7 @@ func generateScalarAll(pf *ParsedFunc, elemType string) *ast.BlockStmt {
 }
 
 // generateScalarAny generates: for _, v := range slice { if pred.Test(v) { return true } } return false
-func generateScalarAny(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+func generateScalarAny(pf *ParsedFunc) *ast.BlockStmt {
 	sliceParam := pf.Params[0].Name
 	predParam := pf.Params[1].Name
 
@@ -6016,7 +5923,7 @@ func generateScalarNone(pf *ParsedFunc, elemType string) *ast.BlockStmt {
 }
 
 // generateScalarFindIf generates: for i, v := range slice { if pred.Test(v) { return i } } return -1
-func generateScalarFindIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+func generateScalarFindIf(pf *ParsedFunc) *ast.BlockStmt {
 	sliceParam := pf.Params[0].Name
 	predParam := pf.Params[1].Name
 
@@ -6058,7 +5965,7 @@ func generateScalarFindIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
 }
 
 // generateScalarCountIf generates: count := 0; for _, v := range slice { if pred.Test(v) { count++ } } return count
-func generateScalarCountIf(pf *ParsedFunc, elemType string) *ast.BlockStmt {
+func generateScalarCountIf(pf *ParsedFunc) *ast.BlockStmt {
 	sliceParam := pf.Params[0].Name
 	predParam := pf.Params[1].Name
 
