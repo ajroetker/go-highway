@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -54,9 +55,9 @@ type CASTTranslator struct {
 
 	// Package-level array globals (e.g., nf4LookupTable).
 	// Set via SetPackageGlobals before TranslateToC.
-	packageGlobals    map[string]*PackageGlobal  // name → global
-	referencedGlobals map[string]bool            // globals actually used in function body
-	packageStructs    map[string]*PackageStruct  // struct type name → def (from struct-typed globals)
+	packageGlobals    map[string]*PackageGlobal // name → global
+	referencedGlobals map[string]bool           // globals actually used in function body
+	packageStructs    map[string]*PackageStruct // struct type name → def (from struct-typed globals)
 
 	// Package-level integer constants (e.g., BlockSize = 48).
 	// Set via SetPackageConsts before TranslateToC.
@@ -65,7 +66,7 @@ type CASTTranslator struct {
 
 	buf      *bytes.Buffer
 	indent   int
-	tmpCount int // counter for unique temporary variable names
+	tmpCount int      // counter for unique temporary variable names
 	errors   []string // translation errors collected during buildParamMap
 
 	// returnOrder stores return parameter map keys in declaration order
@@ -4281,9 +4282,7 @@ var mathFuncToC = func() map[string]string {
 		// Non-scalarizable contrib/math
 		"BaseSigmoidVec": "sigmoid",
 	}
-	for k, v := range baseVecMathFuncs {
-		m[k] = v
-	}
+	maps.Copy(m, baseVecMathFuncs)
 	return m
 }()
 

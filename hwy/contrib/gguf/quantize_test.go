@@ -46,7 +46,7 @@ func TestQuantizeQ8_0_RoundTrip(t *testing.T) {
 			}(),
 		},
 		{
-			name: "zeros",
+			name:  "zeros",
 			input: make([]float32, 32),
 		},
 		{
@@ -89,7 +89,7 @@ func TestQuantizeQ8_0_RoundTrip(t *testing.T) {
 			for b := range nblocks {
 				// Find max absolute value in this block.
 				var amax float32
-				for i := 0; i < QK; i++ {
+				for i := range QK {
 					av := tt.input[b*QK+i]
 					if av < 0 {
 						av = -av
@@ -103,7 +103,7 @@ func TestQuantizeQ8_0_RoundTrip(t *testing.T) {
 					tol = 1e-6
 				}
 
-				for i := 0; i < QK; i++ {
+				for i := range QK {
 					idx := b*QK + i
 					diff := math.Abs(float64(roundtrip[idx] - tt.input[idx]))
 					if diff > tol {

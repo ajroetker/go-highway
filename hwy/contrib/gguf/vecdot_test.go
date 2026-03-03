@@ -53,8 +53,8 @@ func TestVecDotQ4_0Q8_0(t *testing.T) {
 				wdata[off] = fp16One[0]
 				wdata[off+1] = fp16One[1]
 				// Nibbles: set each byte to (hi<<4 | lo)
-				for i := 0; i < 16; i++ {
-					lo := uint8((i + b) % 16)     // 0..15 -> dequant: lo-8
+				for i := range 16 {
+					lo := uint8((i + b) % 16)      // 0..15 -> dequant: lo-8
 					hi := uint8((15 - i + b) % 16) // reverse -> dequant: hi-8
 					wdata[off+2+i] = (hi << 4) | lo
 				}
