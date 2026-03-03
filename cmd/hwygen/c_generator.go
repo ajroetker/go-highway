@@ -1966,8 +1966,7 @@ func (g *Generator) resolveAsmImportPath() (string, error) {
 // structAsmExportedName builds the exported function name for asm/ passthrough.
 // E.g., BaseForwardICT + float32 → ForwardICT_F32
 func structAsmExportedName(baseName, elemType string) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	return name + "_" + cTypePublicSuffix(elemType)
 }
 
@@ -1977,8 +1976,7 @@ func structAsmExportedName(baseName, elemType string) string {
 // Unexported functions stay unexported: basePackedMicroKernelGeneral → packedMicroKernelGeneralFloat16
 func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
 	private := len(baseName) > 0 && baseName[0] >= 'a' && baseName[0] <= 'z'
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	if private {
 		name = makeUnexported(name)
 	}
@@ -1991,8 +1989,7 @@ func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
 // buildAdapterFuncName builds the unexported adapter function name.
 // E.g., BaseForwardICT + float32 → forwardICTAsmF32
 func buildAdapterFuncName(baseName, elemType string) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	// Lowercase first letter
 	if len(name) > 0 {
 		name = strings.ToLower(name[:1]) + name[1:]
@@ -2002,26 +1999,10 @@ func buildAdapterFuncName(baseName, elemType string) string {
 
 // typeNameToDispatchSuffix returns the suffix used in dispatch variable names.
 func typeNameToDispatchSuffix(elemType string) string {
-	switch elemType {
-	case "float32":
-		return "Float32"
-	case "float64":
-		return "Float64"
-	case "float16", "hwy.Float16":
-		return "Float16"
-	case "bfloat16", "hwy.BFloat16":
-		return "BFloat16"
-	case "int32":
-		return "Int32"
-	case "int64":
-		return "Int64"
-	case "uint32":
-		return "Uint32"
-	case "uint64":
-		return "Uint64"
-	default:
-		return "Float32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return info.FullPrefix
 	}
+	return "Float32"
 }
 
 // emitZCAdapterFunc generates an adapter function that converts *Image[T] params
@@ -2155,7 +2136,7 @@ func emitCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuffix 
 // buildCPublicName creates the public function name.
 // BaseExpVec -> ExpVecCF32, BaseGELU -> GELUCF32
 func buildCPublicName(baseName, elemType string) string {
-	name := strings.TrimPrefix(baseName, "Base")
+	name := stripBasePrefix(baseName)
 
 	typeSuffix := cTypePublicSuffix(elemType)
 
@@ -2173,54 +2154,18 @@ func cAsmFuncName(baseName, elemType, targetSuffix string) string {
 
 // cTypeSuffix returns the short type suffix for file naming.
 func cTypeSuffix(elemType string) string {
-	switch elemType {
-	case "float32":
-		return "f32"
-	case "float64":
-		return "f64"
-	case "float16", "hwy.Float16":
-		return "f16"
-	case "bfloat16", "hwy.BFloat16":
-		return "bf16"
-	case "int32":
-		return "s32"
-	case "int64":
-		return "s64"
-	case "uint64":
-		return "u64"
-	case "uint32":
-		return "u32"
-	case "uint8", "byte":
-		return "u8"
-	default:
-		return "f32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return info.CSuffix
 	}
+	return "f32"
 }
 
 // cTypePublicSuffix returns the public Go suffix for function names.
 func cTypePublicSuffix(elemType string) string {
-	switch elemType {
-	case "float32":
-		return "F32"
-	case "float64":
-		return "F64"
-	case "float16", "hwy.Float16":
-		return "F16"
-	case "bfloat16", "hwy.BFloat16":
-		return "BF16"
-	case "int32":
-		return "S32"
-	case "int64":
-		return "S64"
-	case "uint64":
-		return "U64"
-	case "uint32":
-		return "U32"
-	case "uint8", "byte":
-		return "U8"
-	default:
-		return "F32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return strings.ToUpper(info.CSuffix)
 	}
+	return "F32"
 }
 
 // isGoScalarIntType returns true for Go integer types that should be passed

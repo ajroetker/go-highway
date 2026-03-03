@@ -158,30 +158,9 @@ var nonScalarizableHwyOps = map[string]bool{
 	"MaxBF16":   true,
 }
 
-// scalarizableContribMath maps contrib math functions to stdlib equivalents.
+// scalarizableContribMath maps contrib math functions to Go stdlib equivalents.
 // These are Vec-to-Vec functions that can be replaced with stdlib calls.
-var scalarizableContribMath = map[string]string{
-	// Exp family
-	"BaseExpVec":   "Exp",
-	"BaseExp2Vec":  "Exp2",
-	"BaseExp10Vec": "Exp10",
-	// Log family
-	"BaseLogVec":   "Log",
-	"BaseLog2Vec":  "Log2",
-	"BaseLog10Vec": "Log10",
-	// Trig functions
-	"BaseSinVec":  "Sin",
-	"BaseCosVec":  "Cos",
-	"BaseTanhVec": "Tanh",
-	"BaseSinhVec": "Sinh",
-	"BaseCoshVec": "Cosh",
-	// Inverse hyperbolic
-	"BaseAsinhVec": "Asinh",
-	"BaseAcoshVec": "Acosh",
-	"BaseAtanhVec": "Atanh",
-	// Error function
-	"BaseErfVec": "Erf",
-}
+var scalarizableContribMath = baseVecMathGoNames()
 
 // containsVecType checks if a type expression contains hwy.Vec or hwy.Mask.
 func containsVecType(typeExpr ast.Expr) bool {

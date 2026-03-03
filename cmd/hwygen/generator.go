@@ -210,8 +210,7 @@ func buildDispatchGroups(funcs []ParsedFunc) ([]DispatchGroup, error) {
 // deriveFuncGroupName extracts the dispatch group name from a function name.
 // "BaseMatMul" → "MatMul", "baseSigmoid" → "Sigmoid"
 func deriveFuncGroupName(name string) string {
-	name = strings.TrimPrefix(name, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name = stripBasePrefix(name)
 	// Ensure first letter is uppercase for consistent group names
 	if len(name) > 0 {
 		name = strings.ToUpper(name[:1]) + name[1:]

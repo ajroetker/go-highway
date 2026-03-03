@@ -4269,31 +4269,23 @@ func (t *CASTTranslator) goTypeConvToCType(name string) string {
 // mathFuncToC maps single-arg Go math/stdmath functions and contrib/math Vec
 // functions to their C stdlib equivalents. The f32 variant is formed by appending "f".
 // Special cases (multi-arg, composite, non-standard naming) are handled in the switch.
-var mathFuncToC = map[string]string{
-	// stdmath
-	"Sqrt":  "sqrt",
-	"RSqrt": "rsqrt",
-	"Exp":   "exp",
-	"Log":   "log",
-	"Erf":   "erf",
-	"Tanh":  "tanh",
-	// contrib/math Vec wrappers
-	"BaseExpVec":   "exp",
-	"BaseExp2Vec":  "exp2",
-	"BaseLogVec":   "log",
-	"BaseLog2Vec":  "log2",
-	"BaseLog10Vec": "log10",
-	"BaseSinVec":   "sin",
-	"BaseCosVec":   "cos",
-	"BaseTanhVec":  "tanh",
-	"BaseSinhVec":  "sinh",
-	"BaseCoshVec":  "cosh",
-	"BaseAsinhVec": "asinh",
-	"BaseAcoshVec": "acosh",
-	"BaseAtanhVec":    "atanh",
-	"BaseSigmoidVec": "sigmoid",
-	"BaseErfVec":     "erf",
-}
+var mathFuncToC = func() map[string]string {
+	m := map[string]string{
+		// stdmath single-arg functions
+		"Sqrt":  "sqrt",
+		"RSqrt": "rsqrt",
+		"Exp":   "exp",
+		"Log":   "log",
+		"Erf":   "erf",
+		"Tanh":  "tanh",
+		// Non-scalarizable contrib/math
+		"BaseSigmoidVec": "sigmoid",
+	}
+	for k, v := range baseVecMathFuncs {
+		m[k] = v
+	}
+	return m
+}()
 
 // bitsOnesCountToBuiltin maps Go math/bits popcount functions to GCC builtins.
 func bitsOnesCountToBuiltin(funcName string) string {

@@ -628,7 +628,7 @@ func (e *CEmitter) getLaneIntrinsic() string {
 
 func (e *CEmitter) cFuncName(baseName string) string {
 	// BaseExpVec -> expvec_c_f32_neon, BasePrefixSum -> prefixsum_c_f32_neon
-	name := strings.TrimPrefix(baseName, "Base")
+	name := stripBasePrefix(baseName)
 	targetSuffix := "neon"
 	if e.profile != nil {
 		targetSuffix = strings.ToLower(e.profile.TargetName)

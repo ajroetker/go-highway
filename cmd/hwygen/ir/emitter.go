@@ -595,6 +595,7 @@ func (e *Emitter) emitScalarArith(op *IRNode, scalarType string) {
 var scalarizableCallToC = map[string]string{
 	"BaseExpVec":   "exp",
 	"BaseExp2Vec":  "exp2",
+	"BaseExp10Vec": "exp10",
 	"BaseLogVec":   "log",
 	"BaseLog2Vec":  "log2",
 	"BaseLog10Vec": "log10",

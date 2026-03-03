@@ -456,6 +456,12 @@ func hasBasePrefix(name string) bool {
 	return strings.HasPrefix(name, "Base") || strings.HasPrefix(name, "base")
 }
 
+// stripBasePrefix removes the "Base" or "base" prefix from a function name.
+func stripBasePrefix(name string) string {
+	name = strings.TrimPrefix(name, "Base")
+	return strings.TrimPrefix(name, "base")
+}
+
 // isBuiltinOrCommon returns true if the name is a built-in function or common identifier
 // that should not be tracked as a local helper function.
 // Uses go/ast's IsExported as a heuristic: unexported names starting with lowercase
@@ -1389,34 +1395,10 @@ func (pc *ParsedCondition) Evaluate(targetName, elemType string) bool {
 // GetTypeSuffix returns the type suffix for a given element type.
 // E.g., "float32" -> "f32", "float64" -> "f64"
 func GetTypeSuffix(elemType string) string {
-	switch elemType {
-	case "float16", "hwy.Float16", "Float16":
-		return "f16"
-	case "bfloat16", "hwy.BFloat16", "BFloat16":
-		return "bf16"
-	case "float32":
-		return "f32"
-	case "float64":
-		return "f64"
-	case "int8":
-		return "i8"
-	case "int16":
-		return "i16"
-	case "int32":
-		return "i32"
-	case "int64":
-		return "i64"
-	case "uint8":
-		return "u8"
-	case "uint16":
-		return "u16"
-	case "uint32":
-		return "u32"
-	case "uint64":
-		return "u64"
-	default:
-		return "f32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return info.GoSuffix
 	}
+	return "f32"
 }
 
 // scanPackageFuncs scans sibling *_base.go files in the same directory as

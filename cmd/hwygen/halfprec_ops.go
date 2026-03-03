@@ -37,7 +37,7 @@ func transformHalfPrecMerge(call *ast.CallExpr, funcName string, ctx *transformC
 	}
 
 	// For NEON target, convert Merge/IfThenElse to asm.IfThenElseFloat16/BFloat16
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		if funcName == "Merge" {
 			asmFunc := "IfThenElseFloat16"
 			if isBFloat16Type(ctx.elemType) {
@@ -140,7 +140,7 @@ func transformHalfPrecF16FuncOps(call *ast.CallExpr, funcName string, ctx *trans
 	}
 
 	// For NEON and AVX promoted targets, use method calls on asm types
-	if (ctx.target.IsNEON() && !ctx.skipHalfPrecNEON) || ctx.isAVXPromoted {
+	if ctx.isNEONHalfPrec() || ctx.isAVXPromoted {
 		switch funcName {
 		case "Add", "Sub", "Mul", "Div", "Min", "Max":
 			if len(call.Args) >= 2 {
@@ -239,7 +239,7 @@ func transformHalfPrecNot(call *ast.CallExpr, funcName string, ctx *transformCon
 	if funcName != "Not" {
 		return false
 	}
-	if (ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && ctx.isHalfPrec) || ctx.isAVXPromoted {
+	if ctx.isNEONHalfPrec() || ctx.isAVXPromoted {
 		if len(call.Args) >= 1 {
 			convertToUnaryMethodCall(call, "Not")
 			return true
@@ -257,7 +257,7 @@ func transformHalfPrecBinaryBitwise(call *ast.CallExpr, funcName string, ctx *tr
 	if funcName != "Xor" && funcName != "And" {
 		return false
 	}
-	if (ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && ctx.isHalfPrec) || ctx.isAVXPromoted {
+	if ctx.isNEONHalfPrec() || ctx.isAVXPromoted {
 		if len(call.Args) >= 2 {
 			convertToMethodCall(call, funcName)
 			return true
@@ -384,7 +384,7 @@ func transformHalfPrecStoreMethod(call *ast.CallExpr, funcName string, ctx *tran
 		return false
 	}
 	// For NEON target, convert to method call with unsafe.Pointer
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && len(call.Args) >= 2 {
+	if ctx.isNEONHalfPrec() && len(call.Args) >= 2 {
 		vecArg := call.Args[0]
 		sliceArg := call.Args[1]
 		call.Fun = &ast.SelectorExpr{
@@ -419,7 +419,7 @@ func transformHalfPrecStoreFunc(call *ast.CallExpr, funcName string, ctx *transf
 		return false
 	}
 	// For NEON target, convert to method call with pointer access
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && len(call.Args) >= 2 {
+	if ctx.isNEONHalfPrec() && len(call.Args) >= 2 {
 		vecArg := call.Args[0]
 		sliceArg := call.Args[1]
 		call.Fun = &ast.SelectorExpr{
@@ -453,7 +453,7 @@ func transformHalfPrecStoreSliceFunc(call *ast.CallExpr, funcName string, ctx *t
 		return false
 	}
 	// For NEON target, convert to slice-based method call
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && len(call.Args) >= 2 {
+	if ctx.isNEONHalfPrec() && len(call.Args) >= 2 {
 		call.Fun = &ast.SelectorExpr{
 			X:   call.Args[0],
 			Sel: ast.NewIdent("StoreSlice"),
@@ -523,7 +523,7 @@ func transformHalfPrecSignBit(call *ast.CallExpr, funcName string, ctx *transfor
 		return false
 	}
 	// For NEON target with asm types
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		signBitFuncName := "SignBitFloat16x8"
 		if isBFloat16Type(ctx.elemType) {
 			signBitFuncName = "SignBitBFloat16x8"
@@ -565,7 +565,7 @@ func transformHalfPrecZero(call *ast.CallExpr, funcName string, ctx *transformCo
 	if funcName != "Zero" {
 		return false
 	}
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		zeroFuncName := "ZeroFloat16x8"
 		if isBFloat16Type(ctx.elemType) {
 			zeroFuncName = "ZeroBFloat16x8"
@@ -601,7 +601,7 @@ func transformHalfPrecSet(call *ast.CallExpr, funcName string, ctx *transformCon
 	if funcName != "Set" {
 		return false
 	}
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		broadcastFuncName := "BroadcastFloat16x8"
 		if isBFloat16Type(ctx.elemType) {
 			broadcastFuncName = "BroadcastBFloat16x8"
@@ -648,7 +648,7 @@ func transformHalfPrecConst(call *ast.CallExpr, funcName string, ctx *transformC
 	if funcName != "Const" {
 		return false
 	}
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		broadcastFuncName := "BroadcastFloat16x8"
 		if isBFloat16Type(ctx.elemType) {
 			broadcastFuncName = "BroadcastBFloat16x8"
@@ -687,7 +687,7 @@ func transformHalfPrecLoadSlice(call *ast.CallExpr, ctx *transformContext) bool 
 	if len(call.Args) < 1 {
 		return false
 	}
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		loadFuncName := "LoadFloat16x8Slice"
 		if isBFloat16Type(ctx.elemType) {
 			loadFuncName = "LoadBFloat16x8Slice"
@@ -722,7 +722,7 @@ func transformHalfPrecLoadPtr(call *ast.CallExpr, ctx *transformContext, setHwyF
 	if len(call.Args) < 1 {
 		return false
 	}
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+	if ctx.isNEONHalfPrec() {
 		loadFuncName := "LoadFloat16x8Ptr"
 		if isBFloat16Type(ctx.elemType) {
 			loadFuncName = "LoadBFloat16x8Ptr"
@@ -759,7 +759,7 @@ func transformHalfPrecInterleave(call *ast.CallExpr, funcName string, ctx *trans
 		return false
 	}
 	if len(call.Args) >= 2 {
-		if (ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && ctx.isHalfPrec) || ctx.isAVXPromoted {
+		if ctx.isNEONHalfPrec() || ctx.isAVXPromoted {
 			convertToMethodCall(call, funcName)
 			return true
 		}
@@ -778,7 +778,7 @@ func transformHalfPrecLoad4(call *ast.CallExpr, funcName string, ctx *transformC
 		return false
 	}
 	// For NEON target
-	if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && len(call.Args) >= 1 {
+	if ctx.isNEONHalfPrec() && len(call.Args) >= 1 {
 		load4Func := "Load4Float16x8"
 		if isBFloat16Type(ctx.elemType) {
 			load4Func = "Load4BFloat16x8"

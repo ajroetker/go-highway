@@ -339,7 +339,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			}
 			sliceArg := call.Args[1]
 			// For NEON and AVX promoted half-precision: cast []hwy.Float16/[]hwy.BFloat16 -> []uint16
-			if (ctx.isHalfPrec && ctx.target.IsNEON() && !ctx.skipHalfPrecNEON) || ctx.isAVXPromoted {
+			if ctx.isNEONHalfPrec() || ctx.isAVXPromoted {
 				sliceArg = halfPrecSliceToUint16(sliceArg)
 			}
 			call.Args = []ast.Expr{sliceArg}

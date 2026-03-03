@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -514,66 +515,27 @@ func collectLocalVariables(node ast.Node, ctx *transformContext) {
 		return
 	}
 
+	// Collect all declared variable names
+	maps.Copy(ctx.localVars, collectDeclaredNames(node))
+
+	// Separate pass for type inference on := assignments
 	ast.Inspect(node, func(n ast.Node) bool {
-		switch stmt := n.(type) {
-		case *ast.AssignStmt:
-			// Collect all LHS identifiers from := and = assignments
-			// Only := definitely defines new variables, but we track both to be safe
-			if stmt.Tok == token.DEFINE {
-				for i, lhs := range stmt.Lhs {
-					if ident, ok := lhs.(*ast.Ident); ok {
-						ctx.localVars[ident.Name] = true
-						// Track variable types for type inference
-						if i < len(stmt.Rhs) {
-							if inferredType := inferTypeFromExpr(stmt.Rhs[i], ctx); inferredType != "" {
-								ctx.varTypes[ident.Name] = inferredType
-							}
-							// Track vector lanes and element type for variables assigned from Load
-							if loadInfo := inferVecLanesFromLoad(stmt.Rhs[i], ctx); loadInfo.lanes > 0 {
-								ctx.varVecLanes[ident.Name] = loadInfo.lanes
-								if loadInfo.elemType != "" {
-									ctx.varVecElemType[ident.Name] = loadInfo.elemType
-								}
-								// Set function-wide inferred lanes on first detection
-								if ctx.inferredFuncLanes == 0 {
-									ctx.inferredFuncLanes = loadInfo.lanes
-								}
-							}
-						}
+		stmt, ok := n.(*ast.AssignStmt)
+		if !ok || stmt.Tok != token.DEFINE {
+			return true
+		}
+		for i, lhs := range stmt.Lhs {
+			if ident, ok := lhs.(*ast.Ident); ok && i < len(stmt.Rhs) {
+				if inferredType := inferTypeFromExpr(stmt.Rhs[i], ctx); inferredType != "" {
+					ctx.varTypes[ident.Name] = inferredType
+				}
+				if loadInfo := inferVecLanesFromLoad(stmt.Rhs[i], ctx); loadInfo.lanes > 0 {
+					ctx.varVecLanes[ident.Name] = loadInfo.lanes
+					if loadInfo.elemType != "" {
+						ctx.varVecElemType[ident.Name] = loadInfo.elemType
 					}
-				}
-			}
-		case *ast.DeclStmt:
-			// var declarations
-			if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok {
-				if genDecl.Tok == token.VAR {
-					for _, spec := range genDecl.Specs {
-						if valueSpec, ok := spec.(*ast.ValueSpec); ok {
-							for _, name := range valueSpec.Names {
-								ctx.localVars[name.Name] = true
-							}
-						}
-					}
-				}
-			}
-		case *ast.RangeStmt:
-			// for k, v := range ...
-			if stmt.Tok == token.DEFINE {
-				if ident, ok := stmt.Key.(*ast.Ident); ok && ident.Name != "_" {
-					ctx.localVars[ident.Name] = true
-				}
-				if ident, ok := stmt.Value.(*ast.Ident); ok && ident.Name != "_" {
-					ctx.localVars[ident.Name] = true
-				}
-			}
-		case *ast.ForStmt:
-			// for i := 0; ... - the init statement
-			if stmt.Init != nil {
-				if assign, ok := stmt.Init.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
-					for _, lhs := range assign.Lhs {
-						if ident, ok := lhs.(*ast.Ident); ok {
-							ctx.localVars[ident.Name] = true
-						}
+					if ctx.inferredFuncLanes == 0 {
+						ctx.inferredFuncLanes = loadInfo.lanes
 					}
 				}
 			}
@@ -881,7 +843,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 			switch funcName {
 			case "Const":
 				// For NEON target with asm types, convert to asm.BroadcastFloat16x8/BFloat16x8
-				if ctx.target.IsNEON() && !ctx.skipHalfPrecNEON {
+				if ctx.isNEONHalfPrec() {
 					broadcastFuncName := "BroadcastFloat16x8"
 					if isBFloat16Type(ctx.elemType) {
 						broadcastFuncName = "BroadcastBFloat16x8"

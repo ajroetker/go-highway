@@ -358,30 +358,8 @@ func unrollLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo, unrollFactor int, lane
 // collectDeclaredVars finds all variable names declared with := or var in the statements.
 // It excludes the blank identifier "_" which should never be renamed.
 func collectDeclaredVars(stmts []ast.Stmt) map[string]bool {
-	vars := make(map[string]bool)
-	block := &ast.BlockStmt{List: stmts}
-	ast.Inspect(block, func(n ast.Node) bool {
-		if assign, ok := n.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
-			for _, lhs := range assign.Lhs {
-				if ident, ok := lhs.(*ast.Ident); ok && ident.Name != "_" {
-					vars[ident.Name] = true
-				}
-			}
-		}
-		// Also collect names from "var x, y Type" declarations
-		if decl, ok := n.(*ast.GenDecl); ok && decl.Tok == token.VAR {
-			for _, spec := range decl.Specs {
-				if vs, ok := spec.(*ast.ValueSpec); ok {
-					for _, name := range vs.Names {
-						if name.Name != "_" {
-							vars[name.Name] = true
-						}
-					}
-				}
-			}
-		}
-		return true
-	})
+	vars := collectDeclaredNames(&ast.BlockStmt{List: stmts})
+	delete(vars, "_")
 	return vars
 }
 
@@ -1756,47 +1734,47 @@ func inlineHelper(helper *ParsedFunc, call *ast.CallExpr, ctx *transformContext)
 	return clonedBody.List
 }
 
-// collectLocalVariablesFromBlock collects all variable names defined in a block.
-func collectLocalVariablesFromBlock(block *ast.BlockStmt, vars map[string]bool) {
-	if block == nil {
-		return
-	}
-
-	ast.Inspect(block, func(n ast.Node) bool {
-		switch node := n.(type) {
+// collectDeclaredNames walks an AST and returns all variable names introduced by
+// := assignments, var declarations, for-range, and for-init statements.
+func collectDeclaredNames(node ast.Node) map[string]bool {
+	names := make(map[string]bool)
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch stmt := n.(type) {
 		case *ast.AssignStmt:
-			if node.Tok == token.DEFINE {
-				for _, lhs := range node.Lhs {
+			if stmt.Tok == token.DEFINE {
+				for _, lhs := range stmt.Lhs {
 					if ident, ok := lhs.(*ast.Ident); ok {
-						vars[ident.Name] = true
+						names[ident.Name] = true
 					}
 				}
 			}
 		case *ast.DeclStmt:
-			if genDecl, ok := node.Decl.(*ast.GenDecl); ok {
-				if genDecl.Tok == token.VAR {
-					for _, spec := range genDecl.Specs {
-						if valueSpec, ok := spec.(*ast.ValueSpec); ok {
-							for _, name := range valueSpec.Names {
-								vars[name.Name] = true
-							}
+			if genDecl, ok := stmt.Decl.(*ast.GenDecl); ok && genDecl.Tok == token.VAR {
+				for _, spec := range genDecl.Specs {
+					if vs, ok := spec.(*ast.ValueSpec); ok {
+						for _, name := range vs.Names {
+							names[name.Name] = true
 						}
 					}
 				}
 			}
 		case *ast.RangeStmt:
-			if ident, ok := node.Key.(*ast.Ident); ok {
-				vars[ident.Name] = true
-			}
-			if ident, ok := node.Value.(*ast.Ident); ok {
-				vars[ident.Name] = true
+			if stmt.Tok == token.DEFINE {
+				if ident, ok := stmt.Key.(*ast.Ident); ok {
+					names[ident.Name] = true
+				}
+				if stmt.Value != nil {
+					if ident, ok := stmt.Value.(*ast.Ident); ok {
+						names[ident.Name] = true
+					}
+				}
 			}
 		case *ast.ForStmt:
-			if assignStmt, ok := node.Init.(*ast.AssignStmt); ok {
-				if assignStmt.Tok == token.DEFINE {
-					for _, lhs := range assignStmt.Lhs {
+			if stmt.Init != nil {
+				if assign, ok := stmt.Init.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
+					for _, lhs := range assign.Lhs {
 						if ident, ok := lhs.(*ast.Ident); ok {
-							vars[ident.Name] = true
+							names[ident.Name] = true
 						}
 					}
 				}
@@ -1804,6 +1782,15 @@ func collectLocalVariablesFromBlock(block *ast.BlockStmt, vars map[string]bool) 
 		}
 		return true
 	})
+	return names
+}
+
+// collectLocalVariablesFromBlock collects all variable names defined in a block.
+func collectLocalVariablesFromBlock(block *ast.BlockStmt, vars map[string]bool) {
+	if block == nil {
+		return
+	}
+	maps.Copy(vars, collectDeclaredNames(block))
 }
 
 // substituteAndRename walks the AST and:

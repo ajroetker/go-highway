@@ -1256,8 +1256,7 @@ func containsSpecificTypeParam(typeStr, paramName string) bool {
 //	BaseDecodeStreamVByte32Into -> DecodeStreamVByte32Into
 func buildDispatchFuncName(baseName, elemType string, isGeneric, private bool) string {
 	// Remove "Base" or "base" prefix
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 
 	if private {
 		name = makeUnexported(name)
@@ -1275,8 +1274,7 @@ func buildDispatchFuncName(baseName, elemType string, isGeneric, private bool) s
 // BaseSigmoid -> Sigmoid, baseSigmoid -> sigmoid
 // BaseAll -> AllP (functions with interface type params get P suffix)
 func buildGenericFuncName(baseName string, hasInterfaceParams, private bool) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	if hasInterfaceParams {
 		name = name + "P"
 	}
@@ -1290,8 +1288,7 @@ func buildGenericFuncName(baseName string, hasInterfaceParams, private bool) str
 // For single-type combos, behaves like buildDispatchFuncName.
 // For multi-type combos, appends all type suffixes concatenated (e.g., "DotGeneralFloat16Float32").
 func buildDispatchFuncNameCombo(baseName string, combo TypeCombination, typeParams []TypeParam, private bool) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	if private {
 		name = makeUnexported(name)
 	}

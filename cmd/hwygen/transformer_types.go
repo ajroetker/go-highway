@@ -43,22 +43,30 @@ type elemTypeEntry struct {
 	FullPrefix   string // Full prefix for vector type names: "Float32", "Int32", "Uint8"
 	HwygenSuffix string // Suffix for hwygen-generated functions: "", "_Float64", "_Int32"
 	SizeBytes    int    // Size in bytes: 4, 8, 1, 2
+	GoSuffix     string // Go-convention suffix: "f32", "i32", "u8"
+	CSuffix      string // C-convention suffix: "f32", "s32", "u8" (uses 's' for signed)
 }
 
 // elemTypeTable maps element type strings to their code generation metadata.
 var elemTypeTable = map[string]elemTypeEntry{
-	"float32":      {"F32", "Float32", "", 4},
-	"float64":      {"F64", "Float64", "_Float64", 8},
-	"int8":         {"Int8", "Int8", "_Int8", 1},
-	"int16":        {"Int16", "Int16", "_Int16", 2},
-	"int32":        {"I32", "Int32", "_Int32", 4},
-	"int64":        {"I64", "Int64", "_Int64", 8},
-	"uint8":        {"Uint8", "Uint8", "_Uint8", 1},
-	"uint16":       {"Uint16", "Uint16", "_Uint16", 2},
-	"uint32":       {"Uint32", "Uint32", "_Uint32", 4},
-	"uint64":       {"Uint64", "Uint64", "_Uint64", 8},
-	"hwy.Float16":  {"F16", "Float16", "_Float16", 2},
-	"hwy.BFloat16": {"BF16", "BFloat16", "_BFloat16", 2},
+	"float32":      {"F32", "Float32", "", 4, "f32", "f32"},
+	"float64":      {"F64", "Float64", "_Float64", 8, "f64", "f64"},
+	"int8":         {"Int8", "Int8", "_Int8", 1, "i8", "s8"},
+	"int16":        {"Int16", "Int16", "_Int16", 2, "i16", "s16"},
+	"int32":        {"I32", "Int32", "_Int32", 4, "i32", "s32"},
+	"int64":        {"I64", "Int64", "_Int64", 8, "i64", "s64"},
+	"uint8":        {"Uint8", "Uint8", "_Uint8", 1, "u8", "u8"},
+	"uint16":       {"Uint16", "Uint16", "_Uint16", 2, "u16", "u16"},
+	"uint32":       {"Uint32", "Uint32", "_Uint32", 4, "u32", "u32"},
+	"uint64":       {"Uint64", "Uint64", "_Uint64", 8, "u64", "u64"},
+	"hwy.Float16":  {"F16", "Float16", "_Float16", 2, "f16", "f16"},
+	"hwy.BFloat16": {"BF16", "BFloat16", "_BFloat16", 2, "bf16", "bf16"},
+	// Aliases for unqualified type names
+	"float16":  {"F16", "Float16", "_Float16", 2, "f16", "f16"},
+	"Float16":  {"F16", "Float16", "_Float16", 2, "f16", "f16"},
+	"bfloat16": {"BF16", "BFloat16", "_BFloat16", 2, "bf16", "bf16"},
+	"BFloat16": {"BF16", "BFloat16", "_BFloat16", 2, "bf16", "bf16"},
+	"byte":     {"Uint8", "Uint8", "_Uint8", 1, "u8", "u8"},
 }
 
 // getShortTypeNameForLanes returns the short type name for a specific lane count.
