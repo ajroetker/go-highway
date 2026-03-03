@@ -2,10 +2,6 @@
 
 package gguf
 
-import (
-	stdmath "math"
-)
-
 func BaseVecDotQ4_0Q8_0_fallback(wdata []uint8, adata []uint8, nblocks int) float32 {
 	var sumf float32
 	wbuf := make([]float32, 1)
@@ -13,26 +9,8 @@ func BaseVecDotQ4_0Q8_0_fallback(wdata []uint8, adata []uint8, nblocks int) floa
 	for b := range nblocks {
 		wb := wdata[b*BlockSizeQ4_0 : (b+1)*BlockSizeQ4_0]
 		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
-		raw := uint32(wb[0]) | uint32(wb[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var dw float32
-		if exp == 0 {
-			dw = stdmath.Float32frombits(sign << 31)
-		} else {
-			dw = stdmath.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-		raw = uint32(ab[0]) | uint32(ab[1])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var da float32
-		if exp == 0 {
-			da = stdmath.Float32frombits(sign << 31)
-		} else {
-			da = stdmath.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
 		wqs := wb[2:]
 		aqs := ab[2:]
 		accVec := float32(0)
@@ -80,26 +58,8 @@ func BaseVecDotQ8_0Q8_0_fallback(wdata []uint8, adata []uint8, nblocks int) floa
 	for b := range nblocks {
 		wb := wdata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
 		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
-		raw := uint32(wb[0]) | uint32(wb[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var dw float32
-		if exp == 0 {
-			dw = stdmath.Float32frombits(sign << 31)
-		} else {
-			dw = stdmath.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-		raw = uint32(ab[0]) | uint32(ab[1])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var da float32
-		if exp == 0 {
-			da = stdmath.Float32frombits(sign << 31)
-		} else {
-			da = stdmath.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
 		wqs := wb[2:]
 		aqs := ab[2:]
 		accVec := float32(0)

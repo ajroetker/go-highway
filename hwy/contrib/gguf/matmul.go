@@ -15,6 +15,8 @@
 package gguf
 
 import (
+	"fmt"
+
 	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
@@ -39,27 +41,30 @@ func GGUFMatMul(input []float32, weights []uint8, output []float32, M, K, N int,
 	}
 
 	valsPerBlock := ValuesPerBlock(qt)
+	if K%valsPerBlock != 0 {
+		panic(fmt.Sprintf("gguf: K=%d is not a multiple of ValuesPerBlock=%d for QuantType %d", K, valsPerBlock, qt))
+	}
+
+	vecDot := getVecDot(qt)
+	quantize := getQuantize(qt)
+	if vecDot == nil || quantize == nil {
+		panic(fmt.Sprintf("gguf: unsupported QuantType %d for matmul", qt))
+	}
+
 	nblocks := K / valsPerBlock
 	wBlockBytes := BytesPerBlock(qt)
 	aBlockBytes := ActivationBlockSize(qt)
 	wRowBytes := nblocks * wBlockBytes
 	aRowBytes := nblocks * aBlockBytes
 
-	vecDot := getVecDot(qt)
-	quantize := getQuantize(qt)
-
-	// Quantize all input rows to activation format.
-	qInput := make([]uint8, M*aRowBytes)
+	// Fused quantize+compute per row to avoid allocating the full M*aRowBytes
+	// intermediate buffer and to keep the quantized row in cache.
+	qRow := make([]uint8, aRowBytes)
 	for m := range M {
-		quantize(input[m*K:(m+1)*K], qInput[m*aRowBytes:(m+1)*aRowBytes])
-	}
-
-	// Compute output[m, n] = vecDot(weights[n], qInput[m], nblocks).
-	for m := range M {
-		aRow := qInput[m*aRowBytes : (m+1)*aRowBytes]
+		quantize(input[m*K:(m+1)*K], qRow)
 		for n := range N {
 			wRow := weights[n*wRowBytes : (n+1)*wRowBytes]
-			output[m*N+n] = vecDot(wRow, aRow, nblocks)
+			output[m*N+n] = vecDot(wRow, qRow, nblocks)
 		}
 	}
 }
@@ -72,30 +77,31 @@ func ParallelGGUFMatMul(pool workerpool.Executor, input []float32, weights []uin
 	}
 
 	valsPerBlock := ValuesPerBlock(qt)
+	if K%valsPerBlock != 0 {
+		panic(fmt.Sprintf("gguf: K=%d is not a multiple of ValuesPerBlock=%d for QuantType %d", K, valsPerBlock, qt))
+	}
+
+	vecDot := getVecDot(qt)
+	quantize := getQuantize(qt)
+	if vecDot == nil || quantize == nil {
+		panic(fmt.Sprintf("gguf: unsupported QuantType %d for matmul", qt))
+	}
+
 	nblocks := K / valsPerBlock
 	wBlockBytes := BytesPerBlock(qt)
 	aBlockBytes := ActivationBlockSize(qt)
 	wRowBytes := nblocks * wBlockBytes
 	aRowBytes := nblocks * aBlockBytes
 
-	vecDot := getVecDot(qt)
-	quantize := getQuantize(qt)
-
-	// Quantize all input rows in parallel.
-	qInput := make([]uint8, M*aRowBytes)
+	// Fused quantize+compute per worker chunk. Each worker allocates its own
+	// qRow buffer to avoid contention.
 	pool.ParallelFor(M, func(mStart, mEnd int) {
+		qRow := make([]uint8, aRowBytes)
 		for m := mStart; m < mEnd; m++ {
-			quantize(input[m*K:(m+1)*K], qInput[m*aRowBytes:(m+1)*aRowBytes])
-		}
-	})
-
-	// Compute matmul in parallel across M rows.
-	pool.ParallelFor(M, func(mStart, mEnd int) {
-		for m := mStart; m < mEnd; m++ {
-			aRow := qInput[m*aRowBytes : (m+1)*aRowBytes]
+			quantize(input[m*K:(m+1)*K], qRow)
 			for n := range N {
 				wRow := weights[n*wRowBytes : (n+1)*wRowBytes]
-				output[m*N+n] = vecDot(wRow, aRow, nblocks)
+				output[m*N+n] = vecDot(wRow, qRow, nblocks)
 			}
 		}
 	})

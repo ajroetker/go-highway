@@ -17,8 +17,6 @@ package gguf
 //go:generate go run ../../../cmd/hwygen -input vecdot_base.go -output . -targets avx2,avx512,neon:asm,fallback -dispatch ggufvecdot
 
 import (
-	"math"
-
 	"github.com/ajroetker/go-highway/hwy"
 )
 
@@ -44,29 +42,9 @@ func BaseVecDotQ4_0Q8_0(wdata []uint8, adata []uint8, nblocks int) float32 {
 		wb := wdata[b*BlockSizeQ4_0 : (b+1)*BlockSizeQ4_0]
 		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
 
-		// Extract fp16 weight scale.
-		raw := uint32(wb[0]) | uint32(wb[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var dw float32
-		if exp == 0 {
-			dw = math.Float32frombits(sign << 31)
-		} else {
-			dw = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-
-		// Extract fp16 activation scale.
-		raw = uint32(ab[0]) | uint32(ab[1])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var da float32
-		if exp == 0 {
-			da = math.Float32frombits(sign << 31)
-		} else {
-			da = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		// Extract fp16 scales.
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
 
 		wqs := wb[2:]  // 16 nibble bytes
 		aqs := ab[2:]  // 32 int8 quants
@@ -135,29 +113,9 @@ func BaseVecDotQ8_0Q8_0(wdata []uint8, adata []uint8, nblocks int) float32 {
 		wb := wdata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
 		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
 
-		// Extract fp16 weight scale.
-		raw := uint32(wb[0]) | uint32(wb[1])<<8
-		sign := raw >> 15
-		exp := (raw >> 10) & 0x1F
-		mant := raw & 0x3FF
-		var dw float32
-		if exp == 0 {
-			dw = math.Float32frombits(sign << 31)
-		} else {
-			dw = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
-
-		// Extract fp16 activation scale.
-		raw = uint32(ab[0]) | uint32(ab[1])<<8
-		sign = raw >> 15
-		exp = (raw >> 10) & 0x1F
-		mant = raw & 0x3FF
-		var da float32
-		if exp == 0 {
-			da = math.Float32frombits(sign << 31)
-		} else {
-			da = math.Float32frombits((sign << 31) | ((exp + 112) << 23) | (mant << 13))
-		}
+		// Extract fp16 scales.
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
 
 		wqs := wb[2:] // 32 int8 quants
 		aqs := ab[2:] // 32 int8 quants
