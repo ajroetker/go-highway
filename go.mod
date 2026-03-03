@@ -9,9 +9,9 @@ require (
 )
 
 require (
+	github.com/ajroetker/go-highway/hwy/goat v0.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/gorse-io/goat v0.1.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -30,7 +30,6 @@ require (
 	modernc.org/token v1.1.0 // indirect
 )
 
-// Use ajroetker/goat fork with SVE/SME streaming mode, FP16 headers, ABI offset fixes, int32_t support, size-appropriate load instructions, stack frame fixes, Go reserved register fixes, and CBZ/CBNZ/TBZ/TBNZ branch support
-replace github.com/gorse-io/goat => github.com/ajroetker/goat v0.0.1-antfly009
+replace github.com/ajroetker/go-highway/hwy/goat => ./hwy/goat
 
-tool github.com/gorse-io/goat
+tool github.com/ajroetker/go-highway/hwy/goat

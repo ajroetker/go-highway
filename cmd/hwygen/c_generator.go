@@ -797,7 +797,7 @@ func getCProfileForFile(cFile string, target Target) *CIntrinsicProfile {
 }
 
 // runGOAT invokes the GOAT tool to compile a C file to Go assembly.
-// It uses `go tool github.com/gorse-io/goat` which requires goat to be
+// It uses `go tool github.com/ajroetker/go-highway/hwy/goat` which requires goat to be
 // declared as a tool dependency in go.mod (via `go get -tool`).
 func runGOAT(cFile string, profile *CIntrinsicProfile) error {
 	// Use the Go binary from GOROOT (same toolchain that built hwygen)
@@ -823,7 +823,7 @@ func runGOAT(cFile string, profile *CIntrinsicProfile) error {
 	if profile != nil && profile.GoatTarget != "" {
 		goatTarget = profile.GoatTarget
 	}
-	args := []string{"tool", "github.com/gorse-io/goat", absCFile,
+	args := []string{"tool", "github.com/ajroetker/go-highway/hwy/goat", absCFile,
 		"-O3",
 		"-t", goatTarget,
 		"-o", filepath.Dir(absCFile),
