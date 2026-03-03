@@ -2272,7 +2272,7 @@ func TestTranslateIntegerProfiles(t *testing.T) {
 		wantVec  string
 		wantLoad string
 	}{
-		{"uint64", "unsigned long", "uint64x2_t", "vld1q_u64"},
+		{"uint64", "unsigned long long", "uint64x2_t", "vld1q_u64"},
 		{"uint8", "unsigned char", "uint8x16_t", "vld1q_u8"},
 		{"uint32", "unsigned int", "uint32x4_t", "vld1q_u32"},
 	}
@@ -2419,8 +2419,8 @@ func TestTranslateMixedTypeParams(t *testing.T) {
 	if !strings.Contains(cCode, "float *vectors") {
 		t.Error("missing float *vectors")
 	}
-	if !strings.Contains(cCode, "unsigned long *codes") {
-		t.Error("missing unsigned long *codes")
+	if !strings.Contains(cCode, "unsigned long long *codes") {
+		t.Error("missing unsigned long long *codes")
 	}
 	if !strings.Contains(cCode, "unsigned int *counts") {
 		t.Error("missing unsigned int *counts")
@@ -2644,8 +2644,8 @@ func BaseTest(a []uint64, n int) {
 
 	t.Logf("Generated C:\n%s", cCode)
 
-	// Verify type conversion: uint64(s) → (unsigned long)(s)
-	if !strings.Contains(cCode, "(unsigned long)(") {
+	// Verify type conversion: uint64(s) → (unsigned long long)(s)
+	if !strings.Contains(cCode, "(unsigned long long)(") {
 		t.Error("missing C cast for uint64() type conversion")
 	}
 }
@@ -2966,8 +2966,8 @@ func TestTranslateRaBitQBitProduct(t *testing.T) {
 	if !strings.Contains(cCode, "void bitproduct_c_u64_neon(") {
 		t.Error("missing function name: bitproduct_c_u64_neon")
 	}
-	if !strings.Contains(cCode, "unsigned long *code") {
-		t.Error("missing 'unsigned long *code' param")
+	if !strings.Contains(cCode, "unsigned long long *code") {
+		t.Error("missing 'unsigned long long *code' param")
 	}
 	if !strings.Contains(cCode, "long *pout_result") {
 		t.Error("missing output pointer 'long *pout_result'")
@@ -3169,16 +3169,16 @@ func TestTranslateRaBitQQuantizeVectors(t *testing.T) {
 	if !strings.Contains(cCode, "float *unitVectors") {
 		t.Error("missing float *unitVectors param")
 	}
-	if !strings.Contains(cCode, "unsigned long *codes") {
-		t.Error("missing unsigned long *codes param")
+	if !strings.Contains(cCode, "unsigned long long *codes") {
+		t.Error("missing unsigned long long *codes param")
 	}
 	if !strings.Contains(cCode, "unsigned int *codeCounts") {
 		t.Error("missing unsigned int *codeCounts param")
 	}
 
-	// Verify mixed-type slice reslicing: codes → unsigned long *, not float *
-	if !strings.Contains(cCode, "unsigned long *code = codes") {
-		t.Error("code slice should be typed as unsigned long *, not float *")
+	// Verify mixed-type slice reslicing: codes → unsigned long long *, not float *
+	if !strings.Contains(cCode, "unsigned long long *code = codes") {
+		t.Error("code slice should be typed as unsigned long long *, not float *")
 	}
 	if !strings.Contains(cCode, "float *vec = unitVectors") {
 		t.Error("vec slice should be typed as float *")

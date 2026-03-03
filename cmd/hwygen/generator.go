@@ -547,6 +547,7 @@ func (g *Generator) Run() error {
 		FileSet:            result.FileSet,
 		Imports:            result.Imports,
 		AllFuncs:           result.AllFuncs,
+		PackageConsts:      result.PackageConsts,
 	}
 
 	for _, target := range goSimdTargets {

@@ -2218,11 +2218,11 @@ func goElemTypeToCType(elemType string) string {
 	case "int32":
 		return "int"
 	case "int64":
-		return "long"
+		return "long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint8", "byte":
 		return "unsigned char"
 	default:

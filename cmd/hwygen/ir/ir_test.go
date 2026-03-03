@@ -251,7 +251,7 @@ func TestFusionCandidates(t *testing.T) {
 	// Check that we found the Elem+Elem pattern
 	found := false
 	for _, c := range candidates {
-		if c.Pattern == "Elem+Elem" {
+		if c.Pattern == PatternElemElem {
 			found = true
 			if c.Producer != node1 || c.Consumer != node2 {
 				t.Error("incorrect producer/consumer in candidate")

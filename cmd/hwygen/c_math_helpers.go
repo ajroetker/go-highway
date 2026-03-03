@@ -891,7 +891,7 @@ var neonU64MaskQueryHelpers = []string{
 }`,
 	`static inline uint64x2_t hwy_first_n_u64(long n) {
     uint64x2_t iota = {0, 1};
-    return vcltq_u64(iota, vdupq_n_u64((unsigned long)n));
+    return vcltq_u64(iota, vdupq_n_u64((unsigned long long)n));
 }`,
 }
 
@@ -1003,14 +1003,14 @@ var neonU64MaxMinHelpers = []string{
     uint64x2_t mask = vcltq_u64(a, b);
     return vbslq_u64(mask, a, b);
 }`,
-	`static inline unsigned long hwy_reducemax_u64(uint64x2_t v) {
-    unsigned long a = vgetq_lane_u64(v, 0);
-    unsigned long b = vgetq_lane_u64(v, 1);
+	`static inline unsigned long long hwy_reducemax_u64(uint64x2_t v) {
+    unsigned long long a = vgetq_lane_u64(v, 0);
+    unsigned long long b = vgetq_lane_u64(v, 1);
     return a > b ? a : b;
 }`,
-	`static inline unsigned long hwy_reducemin_u64(uint64x2_t v) {
-    unsigned long a = vgetq_lane_u64(v, 0);
-    unsigned long b = vgetq_lane_u64(v, 1);
+	`static inline unsigned long long hwy_reducemin_u64(uint64x2_t v) {
+    unsigned long long a = vgetq_lane_u64(v, 0);
+    unsigned long long b = vgetq_lane_u64(v, 1);
     return a < b ? a : b;
 }`,
 }
@@ -1024,7 +1024,7 @@ var neonS64MaskHelpers = slices.Concat(neonU64MaskQueryHelpers, []string{
     int64x2_t v = {0, 1};
     return v;
 }`,
-	`static inline long hwy_compress_store_s64(int64x2_t v, uint64x2_t mask, long *dst) {
+	`static inline long hwy_compress_store_s64(int64x2_t v, uint64x2_t mask, long long *dst) {
     long count = 0;
     if (vgetq_lane_u64(mask, 0)) { dst[count++] = vgetq_lane_s64(v, 0); }
     if (vgetq_lane_u64(mask, 1)) { dst[count++] = vgetq_lane_s64(v, 1); }
@@ -1041,7 +1041,7 @@ var neonU64MaskHelpers = slices.Concat(neonU64MaskQueryHelpers, []string{
     uint64x2_t v = {0, 1};
     return v;
 }`,
-	`static inline long hwy_compress_store_u64(uint64x2_t v, uint64x2_t mask, unsigned long *dst) {
+	`static inline long hwy_compress_store_u64(uint64x2_t v, uint64x2_t mask, unsigned long long *dst) {
     long count = 0;
     if (vgetq_lane_u64(mask, 0)) { dst[count++] = vgetq_lane_u64(v, 0); }
     if (vgetq_lane_u64(mask, 1)) { dst[count++] = vgetq_lane_u64(v, 1); }

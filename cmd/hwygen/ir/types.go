@@ -361,6 +361,24 @@ func (f *IRFunction) GetNode(id int) *IRNode {
 	return f.AllNodes[id]
 }
 
+// WalkNodes calls fn on every node in the tree rooted at nodes,
+// recursively visiting each node's Children in pre-order.
+func WalkNodes(nodes []*IRNode, fn func(*IRNode)) {
+	for _, node := range nodes {
+		fn(node)
+		WalkNodes(node.Children, fn)
+	}
+}
+
+// Fusion pattern constants used by analysis, fusion rules, and the emitter.
+const (
+	PatternElemElem   = "Elem+Elem"
+	PatternElemReduce = "Elem+Reduce"
+	PatternAllocElim  = "AllocElim"
+	PatternLoadElem   = "Load+Elem"
+	PatternElemStore  = "Elem+Store"
+)
+
 // FusionGroup describes a set of nodes that will be fused together.
 type FusionGroup struct {
 	// ID is the fusion group identifier (matches IRNode.FusionGroup).

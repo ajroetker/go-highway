@@ -81,6 +81,18 @@ func optimizeSliceToPointer(expr ast.Expr) *ast.UnaryExpr {
 	}
 }
 
+// unsafeSlicePointer builds the AST for unsafe.Pointer(&slice[idx]),
+// using optimizeSliceToPointer to handle sub-slice expressions efficiently.
+func unsafeSlicePointer(sliceExpr ast.Expr) *ast.CallExpr {
+	return &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X:   ast.NewIdent("unsafe"),
+			Sel: ast.NewIdent("Pointer"),
+		},
+		Args: []ast.Expr{optimizeSliceToPointer(sliceExpr)},
+	}
+}
+
 // TransformResult contains the transformed function and any hoisted constants.
 type TransformResult struct {
 	FuncDecl      *ast.FuncDecl
@@ -104,6 +116,7 @@ type TransformOptions struct {
 	AllFuncs           map[string]*ParsedFunc // All functions in file for inlining helpers
 	SkipHalfPrecNEON   bool                   // Skip NEON asm specialization for this half-precision function
 	TypeMap            map[string]string      // Per-type-param concrete types (from //hwy:gen); nil for single-type functions
+	PackageConsts      []PackageConst         // Package-level constants from sibling files for deterministic hoisting
 }
 
 // Transform transforms a parsed function for a specific target and element type.
@@ -163,6 +176,12 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		}
 	}
 
+	// Build package-level constant lookup map for deterministic hoisting
+	packageConsts := make(map[string]bool, len(opts.PackageConsts))
+	for _, pc := range opts.PackageConsts {
+		packageConsts[pc.Name] = true
+	}
+
 	// Transform the function body
 	ctx := &transformContext{
 		target:                  target,
@@ -186,6 +205,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		varVecElemType:          make(map[string]string),
 		allFuncs:                opts.AllFuncs,
 		skipHalfPrecNEON:        opts.SkipHalfPrecNEON,
+		packageConsts:           packageConsts,
 	}
 
 	// Add function parameters to localVars to prevent them from being hoisted
@@ -323,6 +343,18 @@ const (
 	// ComplexityReduction: reductions (Sum, Min, Max) - data dependencies limit ILP
 	ComplexityReduction
 )
+
+// goBuiltinIdents contains Go's predeclared identifiers (types, functions, constants).
+var goBuiltinIdents = map[string]bool{
+	"true": true, "false": true, "nil": true,
+	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
+	"float32": true, "float64": true, "complex64": true, "complex128": true,
+	"string": true, "bool": true, "byte": true, "rune": true,
+	"len": true, "cap": true, "make": true, "new": true, "append": true,
+	"copy": true, "delete": true, "panic": true, "recover": true, "close": true,
+	"print": true, "println": true,
+}
 
 // simpleOps are operations with low register pressure that can be heavily unrolled.
 var simpleOps = map[string]bool{
@@ -633,30 +665,29 @@ func unrollLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo, unrollFactor int, lane
 // It excludes the blank identifier "_" which should never be renamed.
 func collectDeclaredVars(stmts []ast.Stmt) map[string]bool {
 	vars := make(map[string]bool)
-	for _, stmt := range stmts {
-		ast.Inspect(stmt, func(n ast.Node) bool {
-			if assign, ok := n.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
-				for _, lhs := range assign.Lhs {
-					if ident, ok := lhs.(*ast.Ident); ok && ident.Name != "_" {
-						vars[ident.Name] = true
-					}
+	block := &ast.BlockStmt{List: stmts}
+	ast.Inspect(block, func(n ast.Node) bool {
+		if assign, ok := n.(*ast.AssignStmt); ok && assign.Tok == token.DEFINE {
+			for _, lhs := range assign.Lhs {
+				if ident, ok := lhs.(*ast.Ident); ok && ident.Name != "_" {
+					vars[ident.Name] = true
 				}
 			}
-			// Also collect names from "var x, y Type" declarations
-			if decl, ok := n.(*ast.GenDecl); ok && decl.Tok == token.VAR {
-				for _, spec := range decl.Specs {
-					if vs, ok := spec.(*ast.ValueSpec); ok {
-						for _, name := range vs.Names {
-							if name.Name != "_" {
-								vars[name.Name] = true
-							}
+		}
+		// Also collect names from "var x, y Type" declarations
+		if decl, ok := n.(*ast.GenDecl); ok && decl.Tok == token.VAR {
+			for _, spec := range decl.Specs {
+				if vs, ok := spec.(*ast.ValueSpec); ok {
+					for _, name := range vs.Names {
+						if name.Name != "_" {
+							vars[name.Name] = true
 						}
 					}
 				}
 			}
-			return true
-		})
-	}
+		}
+		return true
+	})
 	return vars
 }
 
@@ -772,6 +803,7 @@ type transformContext struct {
 	allFuncs                map[string]*ParsedFunc        // All functions in file for inlining helpers
 	inlineCounter           int                           // Counter for unique variable naming during inlining
 	skipHalfPrecNEON        bool                          // Skip NEON asm specialization for half-precision (use generic hwy.Vec[T] path)
+	packageConsts           map[string]bool               // Package-level constant/var names for deterministic hoisting
 }
 
 // vecLoadInfo contains inferred information from an hwy.Load call.
@@ -1176,22 +1208,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 			// Concrete functions like BaseEncodeStreamVByte32GroupSIMD([]uint32) don't
 			// have type variants, so their internal Base* calls shouldn't add type suffix.
 			if len(ctx.typeParams) > 0 {
-				switch ctx.elemType {
-				case "float64":
-					suffix = suffix + "_Float64"
-				case "hwy.Float16":
-					suffix = suffix + "_Float16"
-				case "hwy.BFloat16":
-					suffix = suffix + "_BFloat16"
-				case "int32":
-					suffix = suffix + "_Int32"
-				case "int64":
-					suffix = suffix + "_Int64"
-				case "uint32":
-					suffix = suffix + "_Uint32"
-				case "uint64":
-					suffix = suffix + "_Uint64"
-				}
+				suffix += getHwygenTypeSuffix(ctx.elemType)
 			}
 			ident.Name = ident.Name + suffix
 		}
@@ -1241,24 +1258,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 	if indexExpr, ok := call.Fun.(*ast.IndexExpr); ok {
 		if ident, ok := indexExpr.X.(*ast.Ident); ok {
 			if strings.HasPrefix(ident.Name, "Base") {
-				suffix := ctx.target.Suffix()
-				// Add type suffix for non-float32 types
-				switch ctx.elemType {
-				case "float64":
-					suffix = suffix + "_Float64"
-				case "hwy.Float16":
-					suffix = suffix + "_Float16"
-				case "hwy.BFloat16":
-					suffix = suffix + "_BFloat16"
-				case "int32":
-					suffix = suffix + "_Int32"
-				case "int64":
-					suffix = suffix + "_Int64"
-				case "uint32":
-					suffix = suffix + "_Uint32"
-				case "uint64":
-					suffix = suffix + "_Uint64"
-				}
+				suffix := ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
 				// Strip the type param and add suffix
 				call.Fun = ast.NewIdent(ident.Name + suffix)
 			}
@@ -1527,14 +1527,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 	// Handle cross-package Base* function calls (e.g., algo.BaseApply, math.BaseExpVec)
 	// These need target suffix added, similar to same-package Base* calls
 	if strings.HasPrefix(funcName, "Base") {
-		suffix := ctx.target.Suffix()
-		if ctx.elemType == "float64" {
-			suffix = suffix + "_Float64"
-		} else if isFloat16Type(ctx.elemType) {
-			suffix = suffix + "_Float16"
-		} else if isBFloat16Type(ctx.elemType) {
-			suffix = suffix + "_BFloat16"
-		}
+		suffix := ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
 		selExpr.Sel.Name = funcName + suffix
 		// Strip the IndexExpr (type parameter) if present, since the
 		// target-specific variant is a concrete function, not generic.
@@ -2198,23 +2191,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 					X:   vecArg,
 					Sel: ast.NewIdent("StorePtr"),
 				}
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			// For AVX promoted types, convert to pointer-based method call: v.StorePtr(ptr)
@@ -2225,24 +2202,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 					X:   vecArg,
 					Sel: ast.NewIdent("StorePtr"),
 				}
-				// unsafe.Pointer(&dst[0])
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			// For Fallback, keep hwy.StoreSlice(v, dst) as-is
@@ -2500,23 +2460,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 					X:   vecArg,
 					Sel: ast.NewIdent("StorePtr"),
 				}
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 			}
 			return
 		}
@@ -2529,17 +2473,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 					X:   vecArg,
 					Sel: ast.NewIdent("StorePtr"),
 				}
-				// unsafe.Pointer(&dst[0])
-				addrExpr := optimizeSliceToPointer(sliceArg)
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{addrExpr},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 			}
 			return
 		}
@@ -2553,16 +2487,8 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			methodName := "Store"
 			lanes := ctx.target.LanesFor(ctx.elemType)
 
-			// unsafe.Pointer(&dst[idx]) - optimized to avoid &dst[i:][0]
 			dst := call.Args[1]
-			addrExpr := optimizeSliceToPointer(dst)
-			ptr := &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   ast.NewIdent("unsafe"),
-					Sel: ast.NewIdent("Pointer"),
-				},
-				Args: []ast.Expr{addrExpr},
-			}
+			ptr := unsafeSlicePointer(dst)
 
 			// (*[lanes]T)(ptr)
 			cast := &ast.CallExpr{
@@ -3463,24 +3389,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(loadFuncName),
 				}
-				// Wrap arg with unsafe.Pointer(&slice[0])
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			// For AVX promoted types, use pointer-based asm load
@@ -3491,24 +3400,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(loadFuncName),
 				}
-				// unsafe.Pointer(&slice[0])
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			selExpr.X = ast.NewIdent("hwy")
@@ -3556,24 +3448,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   vecArg,
 					Sel: ast.NewIdent("StorePtr"),
 				}
-				// Wrap dst with unsafe.Pointer(&dst[0])
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			// For AVX promoted types, convert to pointer-based method call: v.StorePtr(ptr)
@@ -3584,24 +3459,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   vecArg,
 					Sel: ast.NewIdent("StorePtr"),
 				}
-				// unsafe.Pointer(&dst[0])
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			selExpr.X = ast.NewIdent("hwy")
@@ -4001,24 +3859,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(load4Func),
 				}
-				sliceArg := call.Args[0]
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(call.Args[0])}
 				return
 			}
 			// For AVX promoted types, use asm.Load4Float16x8AVX2Slice etc.
@@ -4150,23 +3991,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(loadFuncName),
 				}
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{
-							&ast.UnaryExpr{
-								Op: token.AND,
-								X: &ast.IndexExpr{
-									X:     sliceArg,
-									Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-								},
-							},
-						},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			// AVX2/AVX512: use asm load functions with pointer-based access (no bounds check)
@@ -4177,17 +4002,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(loadFuncName),
 				}
-				// unsafe.Pointer(&slice[0])
-				addrExpr := optimizeSliceToPointer(sliceArg)
-				call.Args = []ast.Expr{
-					&ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   ast.NewIdent("unsafe"),
-							Sel: ast.NewIdent("Pointer"),
-						},
-						Args: []ast.Expr{addrExpr},
-					},
-				}
+				call.Args = []ast.Expr{unsafeSlicePointer(sliceArg)}
 				return
 			}
 			// Fallback: keep hwy.LoadSlice() for half-precision
@@ -4206,15 +4021,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			// Transform argument to pointer cast
 			if len(call.Args) > 0 {
 				src := call.Args[0]
-				// unsafe.Pointer(&src[idx]) - optimized to avoid &src[i:][0]
-				addrExpr := optimizeSliceToPointer(src)
-				ptr := &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("unsafe"),
-						Sel: ast.NewIdent("Pointer"),
-					},
-					Args: []ast.Expr{addrExpr},
-				}
+				ptr := unsafeSlicePointer(src)
 				// (*[lanes]T)(ptr)
 				cast := &ast.CallExpr{
 					Fun: &ast.ParenExpr{
@@ -4239,14 +4046,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			// Transform argument to pointer cast
 			if len(call.Args) > 0 {
 				src := call.Args[0]
-				addrExpr := optimizeSliceToPointer(src)
-				ptr := &ast.CallExpr{
-					Fun: &ast.SelectorExpr{
-						X:   ast.NewIdent("unsafe"),
-						Sel: ast.NewIdent("Pointer"),
-					},
-					Args: []ast.Expr{addrExpr},
-				}
+				ptr := unsafeSlicePointer(src)
 				// (*[lanes]T)(ptr)
 				cast := &ast.CallExpr{
 					Fun: &ast.ParenExpr{
@@ -4286,26 +4086,8 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(load4Func),
 				}
-				// Transform arg: slice -> unsafe.Pointer(&slice[0])
 				if len(call.Args) > 0 {
-					sliceArg := call.Args[0]
-					call.Args = []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   ast.NewIdent("unsafe"),
-								Sel: ast.NewIdent("Pointer"),
-							},
-							Args: []ast.Expr{
-								&ast.UnaryExpr{
-									Op: token.AND,
-									X: &ast.IndexExpr{
-										X:     sliceArg,
-										Index: &ast.BasicLit{Kind: token.INT, Value: "0"},
-									},
-								},
-							},
-						},
-					}
+					call.Args = []ast.Expr{unsafeSlicePointer(call.Args[0])}
 				}
 				return
 			}
@@ -4346,26 +4128,15 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			fullName = fmt.Sprintf("Zero%s", vecTypeName)
 			selExpr.X = ast.NewIdent(pkgName)
 		}
-	case "SlideUpLanes":
-		// For NEON: hwy.SlideUpLanes(v, offset) -> asm.SlideUpLanesFloat32x4(v, offset)
-		// For AVX2/AVX512: hwy.SlideUpLanes(v, offset) -> hwy.SlideUpLanes_AVX2_F32x8(v, offset)
+	case "SlideUpLanes", "SlideDownLanes":
+		// For NEON: hwy.Slide*Lanes(v, offset) -> asm.Slide*LanesFloat32x4(v, offset)
+		// For AVX2/AVX512: hwy.Slide*Lanes(v, offset) -> hwy.Slide*Lanes_AVX2_F32x8(v, offset)
 		if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
 			shortTypeName := getShortTypeName(ctx.elemType, ctx.target)
-			fullName = fmt.Sprintf("SlideUpLanes_%s_%s", ctx.target.Name, shortTypeName)
+			fullName = fmt.Sprintf("%s_%s_%s", funcName, ctx.target.Name, shortTypeName)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
-			fullName = fmt.Sprintf("SlideUpLanes%s", vecTypeName)
-			selExpr.X = ast.NewIdent(pkgName)
-		}
-	case "SlideDownLanes":
-		// For NEON: hwy.SlideDownLanes(v, offset) -> asm.SlideDownLanesFloat32x4(v, offset)
-		// For AVX2/AVX512: hwy.SlideDownLanes(v, offset) -> hwy.SlideDownLanes_AVX2_F32x8(v, offset)
-		if ctx.target.Name == "AVX2" || ctx.target.Name == "AVX512" {
-			shortTypeName := getShortTypeName(ctx.elemType, ctx.target)
-			fullName = fmt.Sprintf("SlideDownLanes_%s_%s", ctx.target.Name, shortTypeName)
-			selExpr.X = ast.NewIdent("hwy")
-		} else {
-			fullName = fmt.Sprintf("SlideDownLanes%s", vecTypeName)
+			fullName = fmt.Sprintf("%s%s", funcName, vecTypeName)
 			selExpr.X = ast.NewIdent(pkgName)
 		}
 	case "InsertLane":
@@ -4467,36 +4238,21 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			}
 			selExpr.X = ast.NewIdent(pkgName)
 		}
-	case "AllTrue":
-		// AllTrue has type-specific versions for inlining:
-		// AllTrueVal for Int32x4 masks, AllTrueValFloat64 for Int64x2 masks
+	case "AllTrue", "AllFalse":
+		// AllTrue/AllFalse have type-specific versions for inlining:
+		// e.g. AllTrueVal for Int32x4 masks, AllTrueValFloat64 for Int64x2 masks
+		baseName := funcName + "Val" // AllTrueVal or AllFalseVal
 		switch ctx.elemType {
 		case "float32", "int32":
-			fullName = "AllTrueVal"
+			fullName = baseName
 		case "float64", "int64":
-			fullName = "AllTrueValFloat64"
+			fullName = baseName + "Float64"
 		case "uint32":
-			fullName = "AllTrueValUint32"
+			fullName = baseName + "Uint32"
 		case "uint64":
-			fullName = "AllTrueValUint64"
+			fullName = baseName + "Uint64"
 		default:
-			fullName = "AllTrueVal"
-		}
-		selExpr.X = ast.NewIdent(pkgName)
-	case "AllFalse":
-		// AllFalse has type-specific versions for inlining:
-		// AllFalseVal for Int32x4 masks, AllFalseValFloat64 for Int64x2 masks
-		switch ctx.elemType {
-		case "float32", "int32":
-			fullName = "AllFalseVal"
-		case "float64", "int64":
-			fullName = "AllFalseValFloat64"
-		case "uint32":
-			fullName = "AllFalseValUint32"
-		case "uint64":
-			fullName = "AllFalseValUint64"
-		default:
-			fullName = "AllFalseVal"
+			fullName = baseName
 		}
 		selExpr.X = ast.NewIdent(pkgName)
 	case "SignBit":
@@ -4746,17 +4502,29 @@ func getShortTypeNameForLanes(elemType string, lanes int) string {
 }
 
 // getHwygenTypeSuffix returns the type suffix used by hwygen for generated functions.
-// float32 is the default (no suffix), other types get _Float64, _Int32, _Int64.
+// float32 is the default (no suffix), other types get a type-specific suffix.
 func getHwygenTypeSuffix(elemType string) string {
 	switch elemType {
 	case "float32":
-		return "" // default type, no suffix
+		return ""
 	case "float64":
 		return "_Float64"
+	case "hwy.Float16":
+		return "_Float16"
+	case "hwy.BFloat16":
+		return "_BFloat16"
 	case "int32":
 		return "_Int32"
 	case "int64":
 		return "_Int64"
+	case "uint8":
+		return "_Uint8"
+	case "uint16":
+		return "_Uint16"
+	case "uint32":
+		return "_Uint32"
+	case "uint64":
+		return "_Uint64"
 	default:
 		return ""
 	}
@@ -5254,13 +5022,12 @@ func extractConstantValue(expr ast.Expr, elemType string, ctx *transformContext)
 			}
 		}
 	case *ast.Ident:
-		// Variable reference - only hoist if it's NOT a local variable
+		// Variable reference - only hoist if it's a known package-level constant
 		name := e.Name
 		if ctx.localVars[name] {
-			// This is a locally-defined variable, not a package-level constant
 			return ""
 		}
-		if isLikelyConstant(name) {
+		if ctx.packageConsts[name] {
 			// Add type conversion in case the var type differs from target type
 			return fmt.Sprintf("%s(%s)", elemType, name)
 		}
@@ -5281,67 +5048,14 @@ func extractConstantValueRaw(expr ast.Expr, ctx *transformContext) string {
 		}
 	case *ast.Ident:
 		name := e.Name
-		// Skip if it's a locally-defined variable
 		if ctx != nil && ctx.localVars[name] {
 			return ""
 		}
-		if isLikelyConstant(name) {
+		if ctx != nil && ctx.packageConsts[name] {
 			return name
 		}
 	}
 	return ""
-}
-
-// isLikelyConstant checks if a name looks like a package-level constant.
-// This is a heuristic - constants typically have specific naming patterns.
-// Note: This function is only called AFTER checking that the name is not
-// in ctx.localVars, so locally-defined variables are already excluded.
-func isLikelyConstant(name string) bool {
-	// Skip very common short names that are almost never constants
-	skipNames := map[string]bool{
-		"i": true, "j": true, "k": true, "ii": true, "jj": true,
-		"x": true, "y": true, "z": true, "n": true, "m": true,
-		"a": true, "b": true, "c": true, "v": true, "w": true,
-		"err": true, "ok": true,
-	}
-	if skipNames[name] {
-		return false
-	}
-
-	// Constants typically:
-	// 1. Contain digits (e.g., sigmoidC1, ln2Hi, exp2bias, c1, c2)
-	// 2. Are all uppercase (e.g., PI, MAX_VALUE)
-	hasDigit := false
-	hasLower := false
-	hasUpper := false
-	for _, r := range name {
-		if r >= '0' && r <= '9' {
-			hasDigit = true
-		} else if r >= 'a' && r <= 'z' {
-			hasLower = true
-		} else if r >= 'A' && r <= 'Z' {
-			hasUpper = true
-		}
-	}
-
-	// Accept if it has a digit (like sigmoidC1, ln2Hi)
-	if hasDigit {
-		return true
-	}
-
-	// Accept if all uppercase (like PI, MAX_VALUE)
-	if hasUpper && !hasLower {
-		return true
-	}
-
-	// Reject short lowercase names that look like local variables
-	if len(name) <= 4 && hasLower {
-		return false
-	}
-
-	// Accept longer camelCase names that look like package-level constants
-	// (e.g., sigmoidScale, expBias, tanhClamp)
-	return len(name) > 4
 }
 
 // matchesLoopIterator checks if a for loop uses the given iterator name.
@@ -5684,18 +5398,7 @@ func usesExternalVariables(body *ast.BlockStmt, iterator string) bool {
 			return true
 		}
 
-		// Skip built-in identifiers
-		builtins := map[string]bool{
-			"true": true, "false": true, "nil": true,
-			"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
-			"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
-			"float32": true, "float64": true, "complex64": true, "complex128": true,
-			"string": true, "bool": true, "byte": true, "rune": true,
-			"len": true, "cap": true, "make": true, "new": true, "append": true,
-			"copy": true, "delete": true, "panic": true, "recover": true, "close": true,
-			"print": true, "println": true,
-		}
-		if builtins[name] {
+		if goBuiltinIdents[name] {
 			return true
 		}
 
@@ -5756,15 +5459,13 @@ func isSimdStyleLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo) bool {
 	return false
 }
 
-// specializeType replaces generic type parameters with concrete types.
-// For SIMD targets, also transforms hwy.Vec[T] to archsimd/asm vector types.
-func specializeType(typeStr string, typeParams []TypeParam, elemType string) string {
-	// First, identify which type parameters are element types vs interface types
-	elementTypeParams := make(map[string]bool)
-	interfaceTypeParams := make(map[string]string) // maps param name to constraint
-
+// classifyTypeParams separates type parameters into element-type params
+// (constrained by Lanes, Floats, Integers, etc.) and interface-type params
+// (constrained by other interfaces like Predicate[T]).
+func classifyTypeParams(typeParams []TypeParam) (elementTypeParams map[string]bool, interfaceTypeParams map[string]string) {
+	elementTypeParams = make(map[string]bool)
+	interfaceTypeParams = make(map[string]string)
 	for _, tp := range typeParams {
-		// Element type constraints
 		if strings.Contains(tp.Constraint, "Lanes") ||
 			strings.Contains(tp.Constraint, "Floats") ||
 			strings.Contains(tp.Constraint, "Integers") ||
@@ -5772,10 +5473,16 @@ func specializeType(typeStr string, typeParams []TypeParam, elemType string) str
 			strings.Contains(tp.Constraint, "UnsignedInts") {
 			elementTypeParams[tp.Name] = true
 		} else {
-			// Interface constraint (like Predicate[T])
 			interfaceTypeParams[tp.Name] = tp.Constraint
 		}
 	}
+	return
+}
+
+// specializeType replaces generic type parameters with concrete types.
+// For SIMD targets, also transforms hwy.Vec[T] to archsimd/asm vector types.
+func specializeType(typeStr string, typeParams []TypeParam, elemType string) string {
+	elementTypeParams, interfaceTypeParams := classifyTypeParams(typeParams)
 
 	// Replace element type parameters and hwy.Vec[T]/hwy.Mask[T]
 	for _, tp := range typeParams {
@@ -5818,21 +5525,7 @@ func specializeTypeWithMap(typeStr string, typeParams []TypeParam, elemType stri
 		return specializeType(typeStr, typeParams, elemType)
 	}
 
-	// Identify which type parameters are element types vs interface types
-	elementTypeParams := make(map[string]bool)
-	interfaceTypeParams := make(map[string]string)
-
-	for _, tp := range typeParams {
-		if strings.Contains(tp.Constraint, "Lanes") ||
-			strings.Contains(tp.Constraint, "Floats") ||
-			strings.Contains(tp.Constraint, "Integers") ||
-			strings.Contains(tp.Constraint, "SignedInts") ||
-			strings.Contains(tp.Constraint, "UnsignedInts") {
-			elementTypeParams[tp.Name] = true
-		} else {
-			interfaceTypeParams[tp.Name] = tp.Constraint
-		}
-	}
+	elementTypeParams, interfaceTypeParams := classifyTypeParams(typeParams)
 
 	// Replace element type parameters using typeMap for per-param resolution
 	for _, tp := range typeParams {
@@ -5873,23 +5566,25 @@ func specializeTypeWithMap(typeStr string, typeParams []TypeParam, elemType stri
 // being careful to only replace it when it appears as a standalone type
 // (not as part of another identifier).
 func replaceTypeParam(typeStr, paramName, elemType string) string {
-	// Simple approach: replace when the parameter appears alone or as a type argument
-	// This handles cases like "T", "[T]", "[]T", "func(T)"
+	// Replace T when it's the whole string
+	if typeStr == paramName {
+		return elemType
+	}
+
 	result := typeStr
 
 	// Replace [T] with [elemType]
 	result = strings.ReplaceAll(result, "["+paramName+"]", "["+elemType+"]")
 
-	// Replace T when it's the whole string
-	if result == paramName {
-		return elemType
-	}
-
 	// Replace T in slice types []T
 	result = strings.ReplaceAll(result, "[]"+paramName, "[]"+elemType)
 
+	// Early exit if paramName no longer appears
+	if !strings.Contains(result, paramName) {
+		return result
+	}
+
 	// Replace T in function types and map value types - look for patterns like "T)" or "T," or "(T" or "]T"
-	// This is a simple heuristic that works for most cases
 	for _, suffix := range []string{")", ",", " ", ""} {
 		for _, prefix := range []string{"(", ",", " ", "]"} {
 			old := prefix + paramName + suffix
@@ -7285,15 +6980,7 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 				case "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
 					if strings.HasPrefix(sel.Sel.Name, "Base") {
 						// Transform math.BaseExpVec to math.BaseExpVec_avx2
-						suffix := ctx.target.Suffix()
-						if ctx.elemType == "float64" {
-							suffix = suffix + "_Float64"
-						} else if isFloat16Type(ctx.elemType) {
-							suffix = suffix + "_Float16"
-						} else if isBFloat16Type(ctx.elemType) {
-							suffix = suffix + "_BFloat16"
-						}
-						sel.Sel.Name = sel.Sel.Name + suffix
+						sel.Sel.Name = sel.Sel.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
 					}
 				}
 			}
@@ -7306,17 +6993,8 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 					switch ident.Name {
 					case "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
 						if strings.HasPrefix(sel.Sel.Name, "Base") {
-							// Transform to non-generic version with suffix
-							suffix := ctx.target.Suffix()
-							if ctx.elemType == "float64" {
-								suffix = suffix + "_Float64"
-							} else if isFloat16Type(ctx.elemType) {
-								suffix = suffix + "_Float16"
-							} else if isBFloat16Type(ctx.elemType) {
-								suffix = suffix + "_BFloat16"
-							}
 							// Replace the IndexExpr with just the SelectorExpr (strip type param)
-							sel.Sel.Name = sel.Sel.Name + suffix
+							sel.Sel.Name = sel.Sel.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
 							call.Args[i] = sel
 						}
 					}
@@ -7328,17 +7006,8 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 		if indexExpr, ok := arg.(*ast.IndexExpr); ok {
 			if ident, ok := indexExpr.X.(*ast.Ident); ok {
 				if strings.HasPrefix(ident.Name, "Base") {
-					// Transform BaseFunc[T] to BaseFunc_avx2
-					suffix := ctx.target.Suffix()
-					if ctx.elemType == "float64" {
-						suffix = suffix + "_Float64"
-					} else if isFloat16Type(ctx.elemType) {
-						suffix = suffix + "_Float16"
-					} else if isBFloat16Type(ctx.elemType) {
-						suffix = suffix + "_BFloat16"
-					}
 					// Replace the IndexExpr with just the Ident
-					call.Args[i] = ast.NewIdent(ident.Name + suffix)
+					call.Args[i] = ast.NewIdent(ident.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType))
 				}
 			}
 		}
@@ -7348,19 +7017,8 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 // hasPredicateParam returns true if the function has a predicate-type parameter
 // (i.e., a type parameter with a non-Lanes constraint like Predicate[T]).
 func hasPredicateParam(pf *ParsedFunc) bool {
-	for _, tp := range pf.TypeParams {
-		// Skip element type constraints
-		if strings.Contains(tp.Constraint, "Lanes") ||
-			strings.Contains(tp.Constraint, "Floats") ||
-			strings.Contains(tp.Constraint, "Integers") ||
-			strings.Contains(tp.Constraint, "SignedInts") ||
-			strings.Contains(tp.Constraint, "UnsignedInts") {
-			continue
-		}
-		// This is likely a predicate or other interface type param
-		return true
-	}
-	return false
+	_, interfaceTypeParams := classifyTypeParams(pf.TypeParams)
+	return len(interfaceTypeParams) > 0
 }
 
 // generateScalarPredicateBody generates a scalar loop body for predicate functions

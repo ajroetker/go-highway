@@ -209,7 +209,7 @@ func TestMapReduceFusion(t *testing.T) {
 	foundMapReduce := false
 	for _, c := range candidates {
 		t.Logf("Candidate: %s (producer=%s, consumer=%s)", c.Pattern, c.Producer.Op, c.Consumer.Op)
-		if c.Pattern == "Elem+Reduce" && c.Producer == expNode && c.Consumer == reduceNode {
+		if c.Pattern == PatternElemReduce && c.Producer == expNode && c.Consumer == reduceNode {
 			foundMapReduce = true
 		}
 	}

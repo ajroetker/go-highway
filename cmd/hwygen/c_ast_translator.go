@@ -722,12 +722,14 @@ func goPkgGlobalElemToCType(goType string) string {
 		return "double"
 	case "int32":
 		return "int"
-	case "int64", "int":
+	case "int64":
+		return "long long"
+	case "int":
 		return "long"
 	case "uint32":
 		return "unsigned int"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint8", "byte":
 		return "unsigned char"
 	case "int8":
@@ -975,13 +977,13 @@ func goSliceElemToCType(elemType string, profile *CIntrinsicProfile) string {
 	case "float64":
 		return "double"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint8", "byte":
 		return "unsigned char"
 	case "int64":
-		return "long"
+		return "long long"
 	case "int32":
 		return "int"
 	case "int16":
@@ -1025,7 +1027,8 @@ func goReturnTypeToCPtrType(goType, elemType string) string {
 // isScalarCType returns true for C scalar types that should be zero-initialized.
 func isScalarCType(cType string) bool {
 	switch cType {
-	case "long", "int", "unsigned long", "unsigned int", "unsigned char",
+	case "long", "long long", "int", "unsigned long", "unsigned long long",
+		"unsigned int", "unsigned char",
 		"float", "double", "short", "unsigned short", "signed char":
 		return true
 	default:
@@ -1056,11 +1059,11 @@ func cTypeShortSuffix(cType string) string {
 		return "F64"
 	case "int":
 		return "I32"
-	case "long":
+	case "long", "long long":
 		return "I64"
 	case "unsigned int":
 		return "U32"
-	case "unsigned long":
+	case "unsigned long", "unsigned long long":
 		return "U64"
 	case "unsigned short":
 		return "F16" // Used for hwy.Float16
@@ -1427,8 +1430,8 @@ func (t *CASTTranslator) translateBlockStmtContents(block *ast.BlockStmt) {
 		if len(sharedAccums) > 0 && i == lastLoopIdx {
 			// Emit finalization AFTER the last loop
 			for _, acc := range sharedAccums {
-				t.writef("%s += (unsigned long)(%s(%s));\n",
-					acc.scalarVar, t.profile.AccReduceFn[t.tier], acc.accVar)
+				t.writef("%s += (%s)(%s(%s));\n",
+					acc.scalarVar, t.profile.CType, t.profile.AccReduceFn[t.tier], acc.accVar)
 			}
 			t.deferredAccums = nil
 		}
@@ -2105,8 +2108,8 @@ func (t *CASTTranslator) translateForStmt(s *ast.ForStmt) {
 	// Only reduce and clear if this loop owns the accumulators
 	if !externalAccums && t.deferredAccums != nil {
 		for _, acc := range t.deferredAccumsOrdered() {
-			t.writef("%s += (unsigned long)(%s(%s));\n",
-				acc.scalarVar, t.profile.AccReduceFn[t.tier], acc.accVar)
+			t.writef("%s += (%s)(%s(%s));\n",
+				acc.scalarVar, t.profile.CType, t.profile.AccReduceFn[t.tier], acc.accVar)
 		}
 		t.deferredAccums = nil
 	}
@@ -4239,7 +4242,7 @@ func (t *CASTTranslator) resolveTypeParam(name string) string {
 func (t *CASTTranslator) goTypeConvToCType(name string) string {
 	switch name {
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint16":
@@ -4247,7 +4250,7 @@ func (t *CASTTranslator) goTypeConvToCType(name string) string {
 	case "uint8", "byte":
 		return "unsigned char"
 	case "int64":
-		return "long"
+		return "long long"
 	case "int32":
 		return "int"
 	case "int16":
@@ -4422,14 +4425,14 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		return t.inferCallType(e)
 	case *ast.SliceExpr:
 		// Infer pointer type from the base expression (e.g., codes[i*w:(i+1)*w]
-		// where codes is unsigned long * should yield unsigned long *, not float *).
+		// where codes is unsigned long long * should yield unsigned long long *, not float *).
 		if baseType := t.inferPtrType(e.X); baseType != "" {
 			return cVarInfo{cType: baseType, isPtr: true}
 		}
 		return cVarInfo{cType: t.profile.CType + " *", isPtr: true}
 	case *ast.IndexExpr:
 		// Infer element type from the base expression (e.g., codes[i]
-		// where codes is unsigned long * should yield unsigned long).
+		// where codes is unsigned long long * should yield unsigned long long).
 		if baseType := t.inferPtrType(e.X); baseType != "" {
 			elemType := strings.TrimSuffix(strings.TrimSpace(baseType), "*")
 			return cVarInfo{cType: strings.TrimSpace(elemType)}
@@ -4763,8 +4766,10 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 // goTypeToCType converts Go type names to C type names.
 func (t *CASTTranslator) goTypeToCType(goType string) string {
 	switch goType {
-	case "int", "int64":
+	case "int":
 		return "long"
+	case "int64":
+		return "long long"
 	case "int32":
 		return "int"
 	case "float32":
@@ -4772,7 +4777,7 @@ func (t *CASTTranslator) goTypeToCType(goType string) string {
 	case "float64":
 		return "double"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint16":
