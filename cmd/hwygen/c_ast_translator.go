@@ -1362,24 +1362,15 @@ func (t *CASTTranslator) emitParamDerefs() {
 	}
 }
 
-// sortedParams returns params in stable order (by original param order in the function).
-// We iterate over t.params, but need deterministic order. We reconstruct from params.
+// sortedParams returns params in stable order, sorted by goName for deterministic output.
 func sortedParams(params map[string]cParamInfo) []cParamInfo {
-	// Since we need order, collect values sorted by goName which gives deterministic output.
-	// In practice the caller should use the original pf.Params order, but since we
-	// only have the map here, we need a stable approach.
-	var result []cParamInfo
+	result := make([]cParamInfo, 0, len(params))
 	for _, v := range params {
 		result = append(result, v)
 	}
-	// Sort by cName for stable output
-	for i := range result {
-		for j := i + 1; j < len(result); j++ {
-			if result[i].goName > result[j].goName {
-				result[i], result[j] = result[j], result[i]
-			}
-		}
-	}
+	slices.SortFunc(result, func(a, b cParamInfo) int {
+		return strings.Compare(a.goName, b.goName)
+	})
 	return result
 }
 
