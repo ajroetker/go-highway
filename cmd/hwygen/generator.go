@@ -578,7 +578,7 @@ func (g *Generator) Run() error {
 				}
 
 				// Skip interface type params on non-Fallback targets
-				if hasInterfaceTypeParams(sourcePF.TypeParams) && target.Name != "Fallback" {
+				if hasInterfaceTypeParams(sourcePF.TypeParams) && !target.IsFallback() {
 					continue
 				}
 

@@ -409,7 +409,7 @@ func Parse(filename string) (*ParseResult, error) {
 		}
 
 		// Find hwy.* and contrib.* calls
-		pf.HwyCalls = findHwyCalls(funcDecl.Body)
+		pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
 
 		// Detect main vectorized loop (with unroll directive support)
 		pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
@@ -476,7 +476,8 @@ func isBuiltinOrCommon(name string) bool {
 
 // findHwyCalls walks the AST and finds all hwy.* and contrib.* calls and references.
 // Also detects calls to Base*/base* functions and local helper functions within the same package.
-func findHwyCalls(node ast.Node) []HwyCall {
+// The imports map is used to dynamically recognise contrib sub-packages.
+func findHwyCalls(node ast.Node, imports map[string]string) []HwyCall {
 	var calls []HwyCall
 	seen := make(map[string]bool) // Avoid duplicates
 
@@ -566,10 +567,9 @@ func findHwyCalls(node ast.Node) []HwyCall {
 			return true
 		}
 
-		// Recognize hwy package and contrib subpackages
-		// Also recognize "stdmath" as an alias for stdlib math package
-		switch ident.Name {
-		case "hwy", "contrib", "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort", "stdmath":
+		// Recognize hwy package, contrib subpackages, and "stdmath" (stdlib math alias).
+		// Contrib packages are discovered dynamically from the file's import declarations.
+		if ident.Name == "hwy" || ident.Name == "contrib" || ident.Name == "stdmath" || isContribImport(ident.Name, imports) {
 			key := ident.Name + "." + selExpr.Sel.Name
 			if !seen[key] {
 				seen[key] = true
@@ -1516,7 +1516,7 @@ func scanPackageFuncs(filename string, result *ParseResult) {
 			}
 
 			// Find hwy calls
-			pf.HwyCalls = findHwyCalls(funcDecl.Body)
+			pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
 
 			result.AllFuncs[funcName] = &pf
 		}
@@ -1694,7 +1694,7 @@ func scanSpecializations(filename string, result *ParseResult) {
 			}
 
 			// Find hwy.* calls
-			pf.HwyCalls = findHwyCalls(funcDecl.Body)
+			pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
 
 			// Detect main vectorized loop
 			pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)

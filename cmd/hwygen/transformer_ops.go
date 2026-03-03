@@ -173,7 +173,7 @@ func arrayPointerCast(lanes int, elemType string, ptr ast.Expr) *ast.CallExpr {
 // The wrapper name follows the pattern: FuncName_TargetName_VecTypeName (e.g., GetLane_AVX2_Float32x8).
 // Arguments are preserved as-is.
 func redirectToHwyWrapper(call *ast.CallExpr, funcName string, ctx *transformContext) {
-	vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
+	vecTypeName := ctx.vecTypeName
 	wrapperName := fmt.Sprintf("%s_%s_%s", funcName, ctx.target.Name, vecTypeName)
 	call.Fun = &ast.SelectorExpr{
 		X:   ast.NewIdent("hwy"),
@@ -392,8 +392,8 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// hwy.Neg(x) -> pkg.BroadcastFloat32x8(0).Sub(x) for SIMD
 		// (archsimd/asm types don't have a Neg method, so we use 0 - x)
 		if len(call.Args) >= 1 {
-			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-			pkgName := getVecPackageName(ctx.target)
+			vecTypeName := ctx.vecTypeName
+			pkgName := ctx.vecPkgName
 			// Create pkg.BroadcastFloat32x8(0)
 			zeroLit := &ast.BasicLit{Kind: token.INT, Value: "0"}
 			zeroCall := &ast.CallExpr{
@@ -446,7 +446,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			if effectiveElem == "float64" {
 				intVecTypeName = getVectorTypeNameForInt("int64", effectiveElem, ctx.target)
 			}
-			pkgName := getVecPackageName(ctx.target)
+			pkgName := ctx.vecPkgName
 
 			// 1. x.AsInt32() / x.AsInt64()
 			var asIntMethod string
@@ -548,7 +548,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			if effectiveElem == "float64" {
 				intVecTypeName = getVectorTypeNameForInt("int64", effectiveElem, ctx.target)
 			}
-			pkgName := getVecPackageName(ctx.target)
+			pkgName := ctx.vecPkgName
 
 			var asIntMethod string
 			var mask string
@@ -646,8 +646,8 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// hwy.Abs(x) -> x.Max(negX) where negX = pkg.Broadcast*(0).Sub(x)
 		// archsimd doesn't have Abs method, so we implement |x| = max(x, -x)
 		if opInfo.Package == "special" && len(call.Args) >= 1 {
-			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-			pkgName := getVecPackageName(ctx.target)
+			vecTypeName := ctx.vecTypeName
+			pkgName := ctx.vecPkgName
 			x := call.Args[0]
 			// Create pkg.Broadcast*(0)
 			zeroLit := &ast.BasicLit{Kind: token.INT, Value: "0"}
@@ -684,8 +684,8 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// NaN != NaN, so x.Equal(x) is false (all 0s) for NaN elements
 		// We XOR with all-true mask to invert, giving true for NaN
 		if opInfo.Package == "special" && len(call.Args) >= 1 {
-			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-			pkgName := getVecPackageName(ctx.target)
+			vecTypeName := ctx.vecTypeName
+			pkgName := ctx.vecPkgName
 			x := call.Args[0]
 			// Create pkg.Broadcast*(1.0)
 			oneLit := &ast.BasicLit{Kind: token.FLOAT, Value: "1.0"}
@@ -722,15 +722,15 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 
 	case "MaskNot":
 		if opInfo.Package == "special" && len(call.Args) >= 1 {
-			transformMaskNot(call, getVecPackageName(ctx.target), getVectorTypeName(ctx.elemType, ctx.target), ctx.elemType)
+			transformMaskNot(call, ctx.vecPkgName, ctx.vecTypeName, ctx.elemType)
 		}
 
 	case "IsInf":
 		// hwy.IsInf(x, sign) -> compare with +Inf and/or -Inf
 		// sign=0: either +Inf or -Inf, sign=1: +Inf only, sign=-1: -Inf only
 		if opInfo.Package == "special" && len(call.Args) >= 2 {
-			vecTypeName := getVectorTypeName(ctx.elemType, ctx.target)
-			pkgName := getVecPackageName(ctx.target)
+			vecTypeName := ctx.vecTypeName
+			pkgName := ctx.vecPkgName
 			x := call.Args[0]
 			signArg := call.Args[1]
 
@@ -1116,7 +1116,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		effectiveElemType = explicitTypeParam
 	}
 	vecTypeName := getVectorTypeName(effectiveElemType, ctx.target)
-	pkgName := getVecPackageName(ctx.target)
+	pkgName := ctx.vecPkgName
 
 	// Check if this op should be redirected to hwy wrappers (archsimd doesn't have it)
 	if opInfo.Package == "hwy" && opInfo.SubPackage == "" {
@@ -1500,7 +1500,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		}
 	case "MaskNot":
 		if opInfo.Package == "special" && len(call.Args) >= 1 {
-			transformMaskNot(call, pkgName, getVectorTypeName(ctx.elemType, ctx.target), ctx.elemType)
+			transformMaskNot(call, pkgName, ctx.vecTypeName, ctx.elemType)
 		}
 		return // Don't set fullName, we've already transformed the call
 	case "ShiftRight", "ShiftLeft", "ShiftAllRight", "ShiftAllLeft":

@@ -144,6 +144,8 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		packageConsts:           packageConsts,
 		isHalfPrec:              isHalfPrecisionType(elemType),
 		isAVXPromoted:           isAVXPromotedHalfPrec(target, elemType),
+		vecPkgName:              getVecPackageName(target),
+		vecTypeName:             getVectorTypeName(elemType, target),
 		inPlaceLookup:           buildInPlaceLookup(target.OpMap),
 	}
 
@@ -214,12 +216,12 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	}
 
 	// Post-process to replace NumLanes() calls and ReduceSum() calls
-	if target.Name != "Fallback" {
+	if !target.IsFallback() {
 		postProcessSIMD(funcDecl.Body, ctx)
 	}
 
 	// Post-process to convert stack array usages to slice expressions
-	if target.Name != "Fallback" && len(ctx.stackArrayVars) > 0 {
+	if !target.IsFallback() && len(ctx.stackArrayVars) > 0 {
 		convertStackArrayUsages(funcDecl.Body, ctx)
 	}
 
@@ -235,7 +237,7 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	}
 
 	// Apply loop unrolling if there's a SIMD loop (not for fallback)
-	if pf.LoopInfo != nil && target.Name != "Fallback" {
+	if pf.LoopInfo != nil && !target.IsFallback() {
 		lanes := target.LanesFor(elemType)
 		unrollFactor := computeUnrollFactor(pf.LoopInfo, pf.HwyCalls, target)
 		if unrollFactor > 1 {
@@ -297,6 +299,8 @@ type transformContext struct {
 	packageConsts           map[string]bool               // Package-level constant/var names for deterministic hoisting
 	isHalfPrec              bool                          // Cached isHalfPrecisionType(elemType)
 	isAVXPromoted           bool                          // Cached isAVXPromotedHalfPrec(target, elemType)
+	vecPkgName              string                        // Cached getVecPackageName(target)
+	vecTypeName             string                        // Cached getVectorTypeName(elemType, target)
 	inPlaceLookup           map[string]inPlaceEntry       // Reverse lookup: InPlaceOf value → in-place op
 }
 
@@ -310,6 +314,21 @@ type inPlaceEntry struct {
 // asm types (not the generic hwy.Vec[T] path).
 func (ctx *transformContext) isNEONHalfPrec() bool {
 	return ctx.target.IsNEON() && !ctx.skipHalfPrecNEON && ctx.isHalfPrec
+}
+
+// isContribPackage returns true if localName refers to an hwy/contrib sub-package
+// according to the file's import declarations. This is dynamic — any new contrib
+// package will be recognised automatically when imported.
+func (ctx *transformContext) isContribPackage(localName string) bool {
+	return isContribImport(localName, ctx.imports)
+}
+
+// isContribImport returns true if localName maps to an hwy/contrib/* import path.
+func isContribImport(localName string, imports map[string]string) bool {
+	if imports == nil {
+		return false
+	}
+	return strings.Contains(imports[localName], "/hwy/contrib/")
 }
 
 // clone creates a shallow copy of the context with fresh maps for per-function
@@ -739,7 +758,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 	// Transform Vec method calls like .Store() -> .StoreSlice() for SIMD targets
 	// This handles cases like fn(x).Store(dst) where fn returns a Vec
 	// Skip this for package-level function calls like hwy.StoreSlice() which are handled later
-	if ctx.target.Name != "Fallback" {
+	if !ctx.target.IsFallback() {
 		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 			// Don't transform package-level function calls
 			if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "hwy" {
@@ -993,10 +1012,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 	}
 
 	// Handle hwy.* and contrib subpackage calls
-	switch ident.Name {
-	case "hwy", "contrib", "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
-		// Continue processing
-	default:
+	if ident.Name != "hwy" && ident.Name != "contrib" && !ctx.isContribPackage(ident.Name) {
 		return
 	}
 
@@ -1155,7 +1171,7 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 
 	// Use Int32 vector for extraction to match most masks used with GetBit
 	intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
-	pkgName := getVecPackageName(ctx.target)
+	pkgName := ctx.vecPkgName
 
 	// func() bool {
 	//   vOne := pkg.BroadcastInt32x4(1)
@@ -1734,7 +1750,7 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 		}
 	}
 	vecTypeName := getVectorTypeNameForLanes(actualElemType, useLanes)
-	pkgName := getVecPackageName(ctx.target)
+	pkgName := ctx.vecPkgName
 	broadcastFunc := fmt.Sprintf("%s.Broadcast%s", pkgName, vecTypeName)
 
 	// Register the hoisted constant

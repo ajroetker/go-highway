@@ -115,6 +115,10 @@ func specializeTypeWithMap(typeStr string, typeParams []TypeParam, elemType stri
 		if !elementTypeParams[tp.Name] {
 			continue
 		}
+		// Skip string operations when the type parameter name doesn't appear at all
+		if !strings.Contains(typeStr, tp.Name) {
+			continue
+		}
 		resolvedType := elemType
 		if typeMap != nil {
 			if ct, ok := typeMap[tp.Name]; ok {
@@ -356,6 +360,12 @@ func extractVecElemType(specializedType, primaryElemType string) string {
 func specializeVecType(typeStr string, elemType string, target Target, skipHalfPrec ...bool) string {
 	if target.IsFallback() {
 		// For fallback, keep hwy.Vec[float32], hwy.Mask[float32] etc.
+		return typeStr
+	}
+
+	// Fast path: skip all placeholder construction and scanning for types that
+	// cannot contain hwy.Vec or hwy.Mask (scalar types, slice types, etc.).
+	if !strings.Contains(typeStr, "hwy.") {
 		return typeStr
 	}
 

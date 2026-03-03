@@ -287,7 +287,7 @@ func unrollLoop(forStmt *ast.ForStmt, loopInfo *LoopInfo, unrollFactor int, lane
 	declaredVars := collectDeclaredVars(origBody)
 
 	// Build the unrolled body
-	var unrolledBody []ast.Stmt
+	unrolledBody := make([]ast.Stmt, 0, len(origBody)*unrollFactor)
 
 	for u := range unrollFactor {
 		for _, stmt := range origBody {
@@ -1348,12 +1348,9 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 		if sel, ok := arg.(*ast.SelectorExpr); ok {
 			if ident, ok := sel.X.(*ast.Ident); ok {
 				// Check if it's a contrib package with a Base* function
-				switch ident.Name {
-				case "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
-					if strings.HasPrefix(sel.Sel.Name, "Base") {
-						// Transform math.BaseExpVec to math.BaseExpVec_avx2
-						sel.Sel.Name = sel.Sel.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
-					}
+				if ctx.isContribPackage(ident.Name) && strings.HasPrefix(sel.Sel.Name, "Base") {
+					// Transform math.BaseExpVec to math.BaseExpVec_avx2
+					sel.Sel.Name = sel.Sel.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
 				}
 			}
 		}
@@ -1362,13 +1359,10 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 		if indexExpr, ok := arg.(*ast.IndexExpr); ok {
 			if sel, ok := indexExpr.X.(*ast.SelectorExpr); ok {
 				if ident, ok := sel.X.(*ast.Ident); ok {
-					switch ident.Name {
-					case "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort":
-						if strings.HasPrefix(sel.Sel.Name, "Base") {
-							// Replace the IndexExpr with just the SelectorExpr (strip type param)
-							sel.Sel.Name = sel.Sel.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
-							call.Args[i] = sel
-						}
+					if ctx.isContribPackage(ident.Name) && strings.HasPrefix(sel.Sel.Name, "Base") {
+						// Replace the IndexExpr with just the SelectorExpr (strip type param)
+						sel.Sel.Name = sel.Sel.Name + ctx.target.Suffix() + getHwygenTypeSuffix(ctx.elemType)
+						call.Args[i] = sel
 					}
 				}
 			}

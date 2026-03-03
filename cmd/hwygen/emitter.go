@@ -182,7 +182,7 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 					pkgs.Sort = true
 				}
 				// Check if this is a hwy package function (like RoundToEven for AVX512) for this target
-				if opInfo.Package == "hwy" && !opInfo.IsMethod && target.Name != "Fallback" {
+				if opInfo.Package == "hwy" && !opInfo.IsMethod && !target.IsFallback() {
 					pkgs.HwyPkg = true
 				}
 				// Track if core hwy operations are used (Load, Store, Add, etc.)
@@ -196,7 +196,7 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				// Other hwy package references (operations not in OpMap)
 				pkgs.HwyCore = true
 				// For non-Fallback targets, we need hwy import for unmapped operations
-				if target.Name != "Fallback" {
+				if !target.IsFallback() {
 					pkgs.HwyPkg = true
 				}
 			}
@@ -209,7 +209,7 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 			for _, combo := range getTypeCombinations(&pf) {
 				ct := comboPrimaryType(combo, pf.TypeParams)
 				if ct == "hwy.Float16" || ct == "hwy.BFloat16" {
-					if target.Name != "Fallback" {
+					if !target.IsFallback() {
 						pkgs.HwyPkg = true
 					} else {
 						// Fallback needs hwy import for Float16/BFloat16 types
@@ -293,7 +293,7 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 		case "arm64":
 			arm64Targets = append(arm64Targets, target)
 		default:
-			if target.Name == "Fallback" {
+			if target.IsFallback() {
 				hasFallback = true
 			}
 		}
@@ -684,7 +684,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	// Build import list
 	imports := []string{}
 
-	if target.Name != "Fallback" {
+	if !target.IsFallback() {
 		// Import the appropriate vector package only if core hwy ops are used
 		if contribPkgs.HwyCore {
 			switch target.VecPackage {
@@ -824,7 +824,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	fmt.Fprintf(&buf, ")\n\n")
 
 	// Emit hoisted constants as package-level pre-broadcasted vectors
-	if len(hoistedConsts) > 0 && target.Name != "Fallback" {
+	if len(hoistedConsts) > 0 && !target.IsFallback() {
 		emitHoistedConstants(&buf, hoistedConsts, target, baseName)
 	}
 

@@ -318,7 +318,7 @@ func transformHalfPrecPow(call *ast.CallExpr, funcName string, ctx *transformCon
 		wrapFunc := fmt.Sprintf("%sFromFloat32x%d", asmType, lanes)
 		loadFunc := fmt.Sprintf("LoadFloat32x%dSlice", lanes)
 		asF32Method := fmt.Sprintf("AsFloat32x%d", lanes)
-		vecPkg := getVecPackageName(ctx.target)
+		vecPkg := ctx.vecPkgName
 		lanesStr := strconv.Itoa(lanes)
 		baseArg := call.Args[0]
 		expArg := call.Args[1]
