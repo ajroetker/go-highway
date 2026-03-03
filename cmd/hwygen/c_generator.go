@@ -1772,7 +1772,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	// These ensure the asm adapter preserves the same safety guarantees as
 	// the base Go implementation.
 	if preconditions := extractPanicPreconditions(pf.Body); preconditions != "" {
-		for _, line := range strings.Split(strings.TrimRight(preconditions, "\n"), "\n") {
+		for line := range strings.SplitSeq(strings.TrimRight(preconditions, "\n"), "\n") {
 			fmt.Fprintf(buf, "\t%s\n", line)
 		}
 	}
@@ -2187,8 +2187,8 @@ func isGoScalarIntType(goType string) bool {
 func hasMixedSliceTypes(pf *ParsedFunc) bool {
 	var firstElem string
 	for _, p := range pf.Params {
-		if strings.HasPrefix(p.Type, "[]") {
-			elem := strings.TrimPrefix(p.Type, "[]")
+		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
+			elem := after
 			if firstElem == "" {
 				firstElem = elem
 			} else if elem != firstElem {

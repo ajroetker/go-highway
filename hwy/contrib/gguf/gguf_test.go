@@ -168,8 +168,8 @@ func TestDequantizeQ4_0(t *testing.T) {
 			want: func() []float32 {
 				out := make([]float32, 32)
 				for i := range 16 {
-					out[i] = float32(0 - 8)   // lo=0 -> -8
-					out[16+i] = float32(15-8)  // hi=15 -> 7
+					out[i] = float32(0 - 8)     // lo=0 -> -8
+					out[16+i] = float32(15 - 8) // hi=15 -> 7
 				}
 				return out
 			}(),
@@ -316,7 +316,7 @@ func TestDequantizeIQ4NL(t *testing.T) {
 			want: func() []float32 {
 				out := make([]float32, 64)
 				for i := range 32 {
-					out[i] = float32(kvaluesIQ4NL[0])   // -127
+					out[i] = float32(kvaluesIQ4NL[0])     // -127
 					out[32+i] = float32(kvaluesIQ4NL[15]) // 113
 				}
 				return out
@@ -347,8 +347,8 @@ func TestDequantizeQ4_0_SplitLayout(t *testing.T) {
 	// and byte[i] high nibble -> output[i+16] (last 16)
 	var nibbles [16]byte
 	for i := range 16 {
-		lo := byte(i)        // 0..15
-		hi := byte(15 - i)   // 15..0
+		lo := byte(i)      // 0..15
+		hi := byte(15 - i) // 15..0
 		nibbles[i] = lo | (hi << 4)
 	}
 	data := makeQ4_0Block(fp16One[0], fp16One[1], nibbles)
@@ -656,12 +656,12 @@ func TestDequantizeQ6K(t *testing.T) {
 		DequantizeQ6K(data, got)
 		// Block 1: all quants=0, scale=1 → value = 1 * 1 * (0-32) = -32
 		// Block 2: all quants=0, scale=1 → value = 2 * 1 * (0-32) = -64
-		for i := 0; i < QK_K; i++ {
+		for i := range QK_K {
 			if math.Abs(float64(got[i]-(-32))) > 1e-3 {
 				t.Errorf("block1 index %d: got %f, want %f", i, got[i], float32(-32))
 			}
 		}
-		for i := 0; i < QK_K; i++ {
+		for i := range QK_K {
 			if math.Abs(float64(got[QK_K+i]-(-64))) > 1e-3 {
 				t.Errorf("block2 index %d: got %f, want %f", i, got[QK_K+i], float32(-64))
 			}
@@ -707,12 +707,12 @@ func TestDequantizeQ4K(t *testing.T) {
 		// Sub-block 0: d*sc*0 - 0 = 0; Sub-block 1: d*sc*0 - 0 = 0
 		var scales [12]byte
 		// For j=0..3: scales[j] = sc & 63 = 1, scales[j+4] = m & 63 = 0
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scales[j] = 1
 		}
 		// For j=4..7: sc from bytes 8-11 low nibble + bytes 0-3 high 2 bits
 		// Set scales[8..11] low nibble = 1
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scales[8+j] = 1
 		}
 		var qs [128]byte
@@ -731,9 +731,9 @@ func TestDequantizeQ4K(t *testing.T) {
 		// Set known scale values and verify dequantization uses correct ones.
 		var scales [12]byte
 		// j=0: sc = scales[0] & 63, m = scales[4] & 63
-		scales[0] = 2   // sc=2
-		scales[4] = 3   // m=3
-		scales[1] = 0   // rest = 0
+		scales[0] = 2 // sc=2
+		scales[4] = 3 // m=3
+		scales[1] = 0 // rest = 0
 		scales[2] = 0
 		scales[3] = 0
 		scales[5] = 0
@@ -746,14 +746,14 @@ func TestDequantizeQ4K(t *testing.T) {
 
 		var qs [128]byte
 		// First chunk, sub-block 0 (low nibbles of qs[0:32]): set all to 5
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			qs[i] = 5 // low nibble = 5, high nibble = 0
 		}
 		data := makeQ4KBlock(1.0, 1.0, scales, qs)
 		got := make([]float32, QK_K)
 		DequantizeQ4K(data, got)
 		// Sub-block 0 (values 0-31): d*sc*q - dmin*m = 1*2*5 - 1*3 = 7
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			want := float32(7)
 			if math.Abs(float64(got[i]-want)) > 1e-3 {
 				t.Errorf("index %d: got %f, want %f", i, got[i], want)
@@ -763,7 +763,7 @@ func TestDequantizeQ4K(t *testing.T) {
 
 	t.Run("two blocks", func(t *testing.T) {
 		var scales [12]byte
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scales[j] = 1
 			scales[8+j] = 1
 		}
@@ -812,7 +812,7 @@ func TestDequantizeQ5K(t *testing.T) {
 	t.Run("single block d=1 dmin=0 low nibbles only", func(t *testing.T) {
 		// All qh=0 → high bits are 0, so quant = low nibble only (0..15 range)
 		var scales [12]byte
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scales[j] = 1
 			scales[8+j] = 1
 		}
@@ -826,7 +826,7 @@ func TestDequantizeQ5K(t *testing.T) {
 		got := make([]float32, QK_K)
 		DequantizeQ5K(data, got)
 		// Sub-block 0 (low nibbles): d*sc*7 = 7
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			want := float32(7)
 			if math.Abs(float64(got[i]-want)) > 1e-3 {
 				t.Errorf("index %d: got %f, want %f", i, got[i], want)
@@ -836,21 +836,21 @@ func TestDequantizeQ5K(t *testing.T) {
 
 	t.Run("high bit adds 16", func(t *testing.T) {
 		var scales [12]byte
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scales[j] = 1
 			scales[8+j] = 1
 		}
 		var qs [128]byte // all zeros → low nibble = 0
 		var qh [32]byte
 		// Set high bit for sub-block 0 (u1=1, chunk=0): qh[l] bit 0
-		for l := 0; l < 32; l++ {
+		for l := range 32 {
 			qh[l] = 1 // bit 0 set → u1 match for chunk 0
 		}
 		data := makeQ5KBlock(1.0, 0.0, scales, qs, qh)
 		got := make([]float32, QK_K)
 		DequantizeQ5K(data, got)
 		// Sub-block 0: quant = 0 + 16 = 16, value = 1*1*16 = 16
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			want := float32(16)
 			if math.Abs(float64(got[i]-want)) > 1e-3 {
 				t.Errorf("index %d: got %f, want %f", i, got[i], want)
@@ -860,7 +860,7 @@ func TestDequantizeQ5K(t *testing.T) {
 
 	t.Run("two blocks", func(t *testing.T) {
 		var scales [12]byte
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scales[j] = 1
 			scales[8+j] = 1
 		}
@@ -871,7 +871,7 @@ func TestDequantizeQ5K(t *testing.T) {
 		data := append(b1, b2...)
 		got := make([]float32, 2*QK_K)
 		DequantizeQ5K(data, got)
-		for i := 0; i < QK_K; i++ {
+		for i := range QK_K {
 			if math.Abs(float64(got[i])) > 1e-3 {
 				t.Errorf("block1 index %d: got %f, want 0", i, got[i])
 			}
@@ -1020,10 +1020,10 @@ func TestDequantizeQ3K(t *testing.T) {
 		// Want rawScales[j] = 33 for all j. 33 = 0x21
 		// For i<4: (r[i]&0x0F) | ((r[8+i]&0x03)<<4) = 1 | (2<<4) = 1|32 = 33 ✓
 		// So r[0..3] low nibble = 1, r[8..11] low 2 bits = 2
-		for i := 0; i < 4; i++ {
-			scaleData[i] = 0x01     // low 4 bits = 1
-			scaleData[4+i] = 0x01   // low 4 bits = 1 (for scales 4-7)
-			scaleData[8+i] = 0x0A   // bits: 00 00 10 10 → low 2 = 2, bits 2-3 = 2, bits 4-5 = 0, bits 6-7 = 0
+		for i := range 4 {
+			scaleData[i] = 0x01   // low 4 bits = 1
+			scaleData[4+i] = 0x01 // low 4 bits = 1 (for scales 4-7)
+			scaleData[8+i] = 0x0A // bits: 00 00 10 10 → low 2 = 2, bits 2-3 = 2, bits 4-5 = 0, bits 6-7 = 0
 		}
 		// This gives rawScales[0..3] = 1 | (2<<4) = 33
 		// rawScales[4..7] = 1 | ((10>>2 & 3)<<4) = 1 | (2<<4) = 33
@@ -1053,13 +1053,13 @@ func TestDequantizeQ3K(t *testing.T) {
 		var scaleData [12]byte
 		// Want rawScales[0] = 33 (so scale-32 = 1)
 		// rawScales[0] = (scaleData[0]&0x0F) | ((scaleData[8]&0x03)<<4)
-		scaleData[0] = 1  // low nibble = 1
-		scaleData[8] = 2  // low 2 bits = 2 → (2<<4) = 32 → total = 33
+		scaleData[0] = 1 // low nibble = 1
+		scaleData[8] = 2 // low 2 bits = 2 → (2<<4) = 32 → total = 33
 		data := makeQ3KBlock(1.0, hmask, qs, scaleData)
 		got := make([]float32, QK_K)
 		DequantizeQ3K(data, got)
 		// Sub-block 0 (values 0-15): d * (33-32) * (-4) = 1 * 1 * -4 = -4
-		for i := 0; i < 16; i++ {
+		for i := range 16 {
 			want := float32(-4)
 			if math.Abs(float64(got[i]-want)) > 1e-3 {
 				t.Errorf("index %d: got %f, want %f", i, got[i], want)

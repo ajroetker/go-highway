@@ -19,6 +19,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -146,13 +147,13 @@ type ConditionalBlock struct {
 // PackageGlobal represents a package-level variable with a fixed-size array type
 // and constant initializers. Used to emit `static const` in generated C code.
 type PackageGlobal struct {
-	Name      string   // e.g., "nf4LookupTable"
-	ElemType  string   // e.g., "float32" or "maskedVByte12Lookup" (struct name)
-	Size      int      // e.g., 16 (outer dimension)
-	InnerSize int      // inner dimension for 2D arrays (0 for 1D)
-	Values    []string // raw Go literal values (flattened for 2D: Size*InnerSize elements; for struct arrays: Size*FlatSize)
-	IsStruct  bool             // true when element type is a struct
-	StructDef *PackageStruct   // struct definition (non-nil when IsStruct)
+	Name      string         // e.g., "nf4LookupTable"
+	ElemType  string         // e.g., "float32" or "maskedVByte12Lookup" (struct name)
+	Size      int            // e.g., 16 (outer dimension)
+	InnerSize int            // inner dimension for 2D arrays (0 for 1D)
+	Values    []string       // raw Go literal values (flattened for 2D: Size*InnerSize elements; for struct arrays: Size*FlatSize)
+	IsStruct  bool           // true when element type is a struct
+	StructDef *PackageStruct // struct definition (non-nil when IsStruct)
 }
 
 // PackageConst represents a package-level integer constant (e.g., BlockSize = 48).
@@ -194,7 +195,7 @@ type PackageStructField struct {
 // ParseResult contains all parsed information from a source file.
 type ParseResult struct {
 	Funcs              []ParsedFunc
-	AllFuncs           map[string]*ParsedFunc        // ALL functions in file, keyed by name (for inlining)
+	AllFuncs           map[string]*ParsedFunc // ALL functions in file, keyed by name (for inlining)
 	PackageName        string
 	TypeSpecificConsts map[string]*TypeSpecificConst // map[base_name]variants
 	ConditionalBlocks  []ConditionalBlock
@@ -686,7 +687,7 @@ func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirect
 				continue
 			}
 			var targets []string
-			for _, t := range strings.Split(after, ",") {
+			for t := range strings.SplitSeq(after, ",") {
 				t = strings.TrimSpace(t)
 				if t != "" {
 					targets = append(targets, strings.ToLower(t))
@@ -730,12 +731,12 @@ func parseGenDirective(text string) ([]TypeCombination, error) {
 		if tok == "" {
 			continue
 		}
-		eqIdx := strings.IndexByte(tok, '=')
-		if eqIdx < 0 {
+		before, after, ok := strings.Cut(tok, "=")
+		if !ok {
 			return nil, fmt.Errorf("invalid assignment (no '='): %q", tok)
 		}
-		name := strings.TrimSpace(tok[:eqIdx])
-		spec := strings.TrimSpace(tok[eqIdx+1:])
+		name := strings.TrimSpace(before)
+		spec := strings.TrimSpace(after)
 		if name == "" || spec == "" {
 			return nil, fmt.Errorf("invalid assignment: %q", tok)
 		}
@@ -744,7 +745,7 @@ func parseGenDirective(text string) ([]TypeCombination, error) {
 		if strings.HasPrefix(spec, "{") && strings.HasSuffix(spec, "}") {
 			// Set: parse interior comma-separated values
 			interior := spec[1 : len(spec)-1]
-			for _, v := range strings.Split(interior, ",") {
+			for v := range strings.SplitSeq(interior, ",") {
 				v = strings.TrimSpace(v)
 				if v != "" {
 					values = append(values, v)
@@ -813,9 +814,7 @@ func splitAssignments(text string) []string {
 // cloneTypeCombination creates a deep copy of a TypeCombination.
 func cloneTypeCombination(tc TypeCombination) TypeCombination {
 	clone := TypeCombination{Types: make(map[string]string, len(tc.Types))}
-	for k, v := range tc.Types {
-		clone.Types[k] = v
-	}
+	maps.Copy(clone.Types, tc.Types)
 	return clone
 }
 
