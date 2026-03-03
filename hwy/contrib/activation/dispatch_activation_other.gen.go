@@ -232,15 +232,15 @@ func Tanh[T hwy.Floats](input []T, output []T) {
 }
 
 func init() {
-	initEluAll()
+	initActivationAll()
 }
 
-func initEluAll() {
+func initActivationAll() {
 	_ = hwy.NoSimdEnv // silence unused import
-	initEluFallback()
+	initActivationFallback()
 }
 
-func initEluFallback() {
+func initActivationFallback() {
 	ELUFloat16 = BaseELU_fallback_Float16
 	ELUBFloat16 = BaseELU_fallback_BFloat16
 	ELUFloat32 = BaseELU_fallback

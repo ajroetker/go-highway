@@ -1,0 +1,66 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/ajroetker/go-highway/hwy/contrib/matmul
+cpu: Apple M4 Max
+BenchmarkMatMulBFloat16/128-14       	  176637	     20696 ns/op	       202.7 GFLOPS
+BenchmarkMatMulBFloat16/128-14       	  161971	     22170 ns/op	       189.2 GFLOPS
+BenchmarkMatMulBFloat16/128-14       	  158145	     22157 ns/op	       189.3 GFLOPS
+BenchmarkMatMulBFloat16/128-14       	  164127	     20483 ns/op	       204.8 GFLOPS
+BenchmarkMatMulBFloat16/128-14       	  179012	     20335 ns/op	       206.3 GFLOPS
+BenchmarkMatMulBFloat16/128-14       	  177600	     20272 ns/op	       206.9 GFLOPS
+BenchmarkMatMulBFloat16/256-14       	   37312	     96725 ns/op	       346.9 GFLOPS
+BenchmarkMatMulBFloat16/256-14       	   38511	     95774 ns/op	       350.3 GFLOPS
+BenchmarkMatMulBFloat16/256-14       	   37244	     97630 ns/op	       343.7 GFLOPS
+BenchmarkMatMulBFloat16/256-14       	   37183	     97002 ns/op	       345.9 GFLOPS
+BenchmarkMatMulBFloat16/256-14       	   36984	     96607 ns/op	       347.3 GFLOPS
+BenchmarkMatMulBFloat16/256-14       	   37384	     96947 ns/op	       346.1 GFLOPS
+BenchmarkMatMulBFloat16/512-14       	    9403	    382005 ns/op	       702.7 GFLOPS
+BenchmarkMatMulBFloat16/512-14       	    9402	    379902 ns/op	       706.6 GFLOPS
+BenchmarkMatMulBFloat16/512-14       	    9638	    376899 ns/op	       712.2 GFLOPS
+BenchmarkMatMulBFloat16/512-14       	    9392	    379328 ns/op	       707.7 GFLOPS
+BenchmarkMatMulBFloat16/512-14       	    9151	    379968 ns/op	       706.5 GFLOPS
+BenchmarkMatMulBFloat16/512-14       	    9540	    376916 ns/op	       712.2 GFLOPS
+BenchmarkMatMulNEON/032-14           	 3339297	      1079 ns/op	11388.28 MB/s	        60.74 GFLOPS
+BenchmarkMatMulNEON/032-14           	 3351483	      1079 ns/op	11390.82 MB/s	        60.75 GFLOPS
+BenchmarkMatMulNEON/032-14           	 3346980	      1084 ns/op	11336.92 MB/s	        60.46 GFLOPS
+BenchmarkMatMulNEON/032-14           	 3345838	      1077 ns/op	11407.57 MB/s	        60.84 GFLOPS
+BenchmarkMatMulNEON/032-14           	 3323102	      1081 ns/op	11372.29 MB/s	        60.65 GFLOPS
+BenchmarkMatMulNEON/032-14           	 3348657	      1079 ns/op	11387.48 MB/s	        60.73 GFLOPS
+BenchmarkMatMulDispatch/064-14       	 1976350	      1813 ns/op	27105.86 MB/s	       289.1 GFLOPS
+BenchmarkMatMulDispatch/064-14       	 1968849	      1819 ns/op	27016.85 MB/s	       288.2 GFLOPS
+BenchmarkMatMulDispatch/064-14       	 1985294	      1821 ns/op	26988.11 MB/s	       287.9 GFLOPS
+BenchmarkMatMulDispatch/064-14       	 1998915	      1804 ns/op	27241.53 MB/s	       290.6 GFLOPS
+BenchmarkMatMulDispatch/064-14       	 1989247	      1846 ns/op	26632.66 MB/s	       284.1 GFLOPS
+BenchmarkMatMulDispatch/064-14       	 1777339	      2033 ns/op	24178.89 MB/s	       257.9 GFLOPS
+BenchmarkMatMulDispatch/128-14       	  332101	     10479 ns/op	18761.77 MB/s	       400.3 GFLOPS
+BenchmarkMatMulDispatch/128-14       	  358524	     10027 ns/op	19607.64 MB/s	       418.3 GFLOPS
+BenchmarkMatMulDispatch/128-14       	  359078	     10017 ns/op	19626.57 MB/s	       418.7 GFLOPS
+BenchmarkMatMulDispatch/128-14       	  359644	     10031 ns/op	19600.90 MB/s	       418.2 GFLOPS
+BenchmarkMatMulDispatch/128-14       	  358015	     10009 ns/op	19642.60 MB/s	       419.0 GFLOPS
+BenchmarkMatMulDispatch/128-14       	  360127	     10051 ns/op	19561.82 MB/s	       417.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14         	 3340495	      1080 ns/op	11380.87 MB/s	        60.70 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14         	 3340702	      1079 ns/op	11384.14 MB/s	        60.72 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14         	 3331288	      1080 ns/op	11378.63 MB/s	        60.69 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14         	 3339772	      1079 ns/op	11389.20 MB/s	        60.74 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14         	 3341001	      1079 ns/op	11390.58 MB/s	        60.75 GFLOPS
+BenchmarkBlockedMatMulDispatch/032-14         	 3345386	      1078 ns/op	11403.56 MB/s	        60.82 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14         	 1732245	      2079 ns/op	13299.88 MB/s	       106.4 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14         	 1731043	      2076 ns/op	13315.79 MB/s	       106.5 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14         	 1737814	      2075 ns/op	13322.15 MB/s	       106.6 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14         	 1730245	      2078 ns/op	13307.55 MB/s	       106.5 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14         	 1725256	      2080 ns/op	13295.12 MB/s	       106.4 GFLOPS
+BenchmarkBlockedMatMulDispatch/048-14         	 1733769	      2074 ns/op	13328.35 MB/s	       106.6 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14         	 1000000	      3533 ns/op	13914.01 MB/s	       148.4 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14         	 1000000	      3540 ns/op	13886.65 MB/s	       148.1 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14         	 1000000	      3541 ns/op	13879.95 MB/s	       148.1 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14         	 1000000	      3536 ns/op	13900.33 MB/s	       148.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14         	 1000000	      3550 ns/op	13845.05 MB/s	       147.7 GFLOPS
+BenchmarkBlockedMatMulDispatch/064-14         	  980865	      3538 ns/op	13893.40 MB/s	       148.2 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14         	  234135	     15289 ns/op	12859.13 MB/s	       274.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14         	  234903	     15299 ns/op	12850.78 MB/s	       274.2 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14         	  233409	     17030 ns/op	11544.96 MB/s	       246.3 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14         	  214512	     16635 ns/op	11818.77 MB/s	       252.1 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14         	  235935	     15300 ns/op	12850.00 MB/s	       274.1 GFLOPS
+BenchmarkBlockedMatMulDispatch/128-14         	  235245	     16077 ns/op	12229.36 MB/s	       260.9 GFLOPS
+PASS
+ok  	github.com/ajroetker/go-highway/hwy/contrib/matmul	292.379s

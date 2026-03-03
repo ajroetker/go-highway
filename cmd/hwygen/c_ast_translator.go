@@ -476,8 +476,16 @@ func (t *CASTTranslator) emitStructTypedefs() {
 		return
 	}
 
+	// Sort for deterministic output
+	names := make([]string, 0, len(t.requiredStructTypes))
+	for name := range t.requiredStructTypes {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
 	t.writef("// Struct typedefs for C-compatible parameter passing\n")
-	for cTypeName, info := range t.requiredStructTypes {
+	for _, cTypeName := range names {
+		info := t.requiredStructTypes[cTypeName]
 		if len(info.fields) == 0 {
 			continue
 		}
