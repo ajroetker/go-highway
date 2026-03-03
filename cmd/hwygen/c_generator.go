@@ -2186,7 +2186,15 @@ func isGoScalarIntType(goType string) bool {
 // different element types (e.g., []byte and []float32). When true, each slice
 // needs its own length parameter because len([]byte) and len([]float32) have
 // different semantics (byte count vs element count).
+//
+// When ElemTypeOverride is set (via //hwy:elemtype), the developer has
+// explicitly declared the SIMD element type, so all slices are treated as
+// having compatible types. This ensures the generated wrappers use a single
+// shared length parameter, matching the C/assembly calling convention.
 func hasMixedSliceTypes(pf *ParsedFunc) bool {
+	if pf.ElemTypeOverride != "" {
+		return false
+	}
 	var firstElem string
 	for _, p := range pf.Params {
 		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {

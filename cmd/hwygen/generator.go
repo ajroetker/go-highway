@@ -712,7 +712,7 @@ func (g *Generator) Run() error {
 		targetComboMap[target.Name] = comboSet
 	}
 
-	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters, targetComboMap); err != nil {
+	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, g.InputFile, asmAdapters, targetComboMap); err != nil {
 		return fmt.Errorf("emit dispatcher: %w", err)
 	}
 

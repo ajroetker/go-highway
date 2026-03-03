@@ -249,6 +249,22 @@ func deriveDispatchPrefix(funcs []ParsedFunc) string {
 	return strings.ToLower(name)
 }
 
+// deriveDispatchPrefixFromFile derives a stable dispatch prefix from the input
+// filename. For example, "exp_transform_base.go" -> "exp_transform".
+// This is more stable than deriving from function names because the filename
+// doesn't change when functions are reordered or new functions are added.
+func deriveDispatchPrefixFromFile(inputFile string) string {
+	base := filepath.Base(inputFile)
+	// Remove .go extension
+	name := strings.TrimSuffix(base, ".go")
+	// Remove _base suffix (common convention for hwygen input files)
+	name = strings.TrimSuffix(name, "_base")
+	// Replace underscores and hyphens for a clean prefix
+	name = strings.ReplaceAll(name, "-", "")
+	name = strings.ReplaceAll(name, "_", "")
+	return strings.ToLower(name)
+}
+
 // comboAvailable checks if a dispatch combo has an implementation on a target.
 // Returns true if targetComboMap is nil (no filtering) or the combo is in the map.
 func comboAvailable(targetComboMap map[string]map[string]bool, targetName, dispatchName string) bool {
@@ -267,16 +283,21 @@ func comboAvailable(targetComboMap map[string]map[string]bool, targetName, dispa
 // - dispatch_{prefix}_amd64.gen.go for AVX2/AVX512
 // - dispatch_{prefix}_arm64.gen.go for NEON
 // - dispatch_{prefix}.gen.go for fallback-only (no build tags)
-// If dispatchName is empty, derives prefix from function names.
-// targetComboMap maps target name → set of dispatch variable names that have
+// If dispatchName is empty, derives prefix from the input filename (stable)
+// or falls back to function names.
+// targetComboMap maps target name -> set of dispatch variable names that have
 // implementations on that target. If nil, all combos are assumed available.
-func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string, _ []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
-	// Use provided dispatch name or derive from function names
-	// Use provided dispatch name or derive from function names
+func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName, inputFile string, _ []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
+	// Use provided dispatch name or derive from input filename / function names
 	prefix := dispatchName
 	useCustomPrefix := false
 	if prefix == "" {
-		prefix = deriveDispatchPrefix(funcs)
+		// Derive from input filename for stability — the filename doesn't change
+		// when functions are reordered or new functions are added to the file.
+		prefix = deriveDispatchPrefixFromFile(inputFile)
+		if prefix == "" {
+			prefix = deriveDispatchPrefix(funcs)
+		}
 	} else {
 		useCustomPrefix = true
 	}

@@ -175,6 +175,7 @@ func BaseDecodeStreamVByte32Into(control []byte, data []uint8, dst []uint32) (de
 // dst: output slice for 4 decoded uint32 values
 //
 // Returns the number of data bytes consumed.
+//hwy:elemtype uint8
 func BaseDecodeStreamVByte32GroupSIMD(ctrl byte, data []uint8, dst []uint32) int {
 	dataLen := int(streamVByte32DataLen[ctrl])
 	if len(data) < dataLen || len(dst) < 4 {
