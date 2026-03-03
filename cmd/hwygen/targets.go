@@ -59,6 +59,21 @@ type Target struct {
 	Mode       TargetMode        // GoSimd, Asm, or C — controls dispatch generation
 }
 
+// IsFallback returns true if this is the scalar fallback target.
+func (t Target) IsFallback() bool { return t.Name == "Fallback" }
+
+// IsNEON returns true if this is the ARM64 NEON target.
+func (t Target) IsNEON() bool { return t.Name == "NEON" }
+
+// IsAVX2 returns true if this is the x86-64 AVX2 target.
+func (t Target) IsAVX2() bool { return t.Name == "AVX2" }
+
+// IsAVX512 returns true if this is the x86-64 AVX-512 target.
+func (t Target) IsAVX512() bool { return t.Name == "AVX512" }
+
+// IsAVX returns true if this is an AVX target (AVX2 or AVX-512).
+func (t Target) IsAVX() bool { return t.IsAVX2() || t.IsAVX512() }
+
 // OpInfo describes how to transform a hwy operation for this target.
 type OpInfo struct {
 	Package    string // "" for archsimd methods, "hwy" for core package, "math"/"vec" for contrib

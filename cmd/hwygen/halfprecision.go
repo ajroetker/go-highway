@@ -86,6 +86,36 @@ func halfPrecSliceToUint16(sliceExpr ast.Expr) ast.Expr {
 	}
 }
 
+// wrapConstForHalfPrecBroadcast wraps an argument expression with the AST for
+//
+//	uint16(hwy.Float32ToFloat16(float32(arg)))
+//
+// (or Float32ToBFloat16 for BFloat16). Used when converting Const/Set literal
+// arguments for asm.Broadcast* calls on half-precision types.
+func wrapConstForHalfPrecBroadcast(arg ast.Expr, elemType string) ast.Expr {
+	convFunc := "Float32ToFloat16"
+	if isBFloat16Type(elemType) {
+		convFunc = "Float32ToBFloat16"
+	}
+	return &ast.CallExpr{
+		Fun: ast.NewIdent("uint16"),
+		Args: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent(convFunc),
+				},
+				Args: []ast.Expr{
+					&ast.CallExpr{
+						Fun:  ast.NewIdent("float32"),
+						Args: []ast.Expr{arg},
+					},
+				},
+			},
+		},
+	}
+}
+
 // isHalfPrecisionSliceType checks if a parameter type is a slice of half-precision elements.
 // It handles both concrete types like "[]hwy.Float16" and generic types like "[]T" when
 // elemType is a half-precision type.

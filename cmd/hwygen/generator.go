@@ -541,6 +541,12 @@ func (g *Generator) Run() error {
 	targetFuncs := make(map[string][]*ast.FuncDecl)
 	targetHoisted := make(map[string][]HoistedConst)
 
+	// Pre-build the package consts lookup map once (shared across all targets/functions)
+	packageConstsMap := make(map[string]bool, len(result.PackageConsts))
+	for _, pc := range result.PackageConsts {
+		packageConstsMap[pc.Name] = true
+	}
+
 	transformOpts := &TransformOptions{
 		TypeSpecificConsts: result.TypeSpecificConsts,
 		ConditionalBlocks:  result.ConditionalBlocks,
@@ -548,6 +554,7 @@ func (g *Generator) Run() error {
 		Imports:            result.Imports,
 		AllFuncs:           result.AllFuncs,
 		PackageConsts:      result.PackageConsts,
+		PackageConstsMap:   packageConstsMap,
 	}
 
 	for _, target := range goSimdTargets {
