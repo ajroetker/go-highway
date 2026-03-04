@@ -5,6 +5,26 @@ package asm
 
 import "unsafe"
 
+// Abs_F16 calls the NEON SIMD assembly implementation.
+func Abs_F16(img, out unsafe.Pointer) {
+	abs_c_f16_neon(img, out)
+}
+
+// Abs_BF16 calls the NEON SIMD assembly implementation.
+func Abs_BF16(img, out unsafe.Pointer) {
+	abs_c_bf16_neon(img, out)
+}
+
+// Abs_F32 calls the NEON SIMD assembly implementation.
+func Abs_F32(img, out unsafe.Pointer) {
+	abs_c_f32_neon(img, out)
+}
+
+// Abs_F64 calls the NEON SIMD assembly implementation.
+func Abs_F64(img, out unsafe.Pointer) {
+	abs_c_f64_neon(img, out)
+}
+
 // BrightnessContrast_F16 calls the NEON SIMD assembly implementation.
 func BrightnessContrast_F16(img, out, pscale, poffset unsafe.Pointer) {
 	brightnesscontrast_c_f16_neon(img, out, pscale, poffset)
@@ -45,24 +65,24 @@ func ClampImage_F64(img, out, pminVal, pmaxVal unsafe.Pointer) {
 	clampimage_c_f64_neon(img, out, pminVal, pmaxVal)
 }
 
-// Threshold_F16 calls the NEON SIMD assembly implementation.
-func Threshold_F16(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
-	threshold_c_f16_neon(img, out, pthreshold, pbelow, pabove)
+// Gamma_F16 calls the NEON SIMD assembly implementation.
+func Gamma_F16(img, out, pgamma unsafe.Pointer) {
+	gamma_c_f16_neon(img, out, pgamma)
 }
 
-// Threshold_BF16 calls the NEON SIMD assembly implementation.
-func Threshold_BF16(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
-	threshold_c_bf16_neon(img, out, pthreshold, pbelow, pabove)
+// Gamma_BF16 calls the NEON SIMD assembly implementation.
+func Gamma_BF16(img, out, pgamma unsafe.Pointer) {
+	gamma_c_bf16_neon(img, out, pgamma)
 }
 
-// Threshold_F32 calls the NEON SIMD assembly implementation.
-func Threshold_F32(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
-	threshold_c_f32_neon(img, out, pthreshold, pbelow, pabove)
+// Gamma_F32 calls the NEON SIMD assembly implementation.
+func Gamma_F32(img, out, pgamma unsafe.Pointer) {
+	gamma_c_f32_neon(img, out, pgamma)
 }
 
-// Threshold_F64 calls the NEON SIMD assembly implementation.
-func Threshold_F64(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
-	threshold_c_f64_neon(img, out, pthreshold, pbelow, pabove)
+// Gamma_F64 calls the NEON SIMD assembly implementation.
+func Gamma_F64(img, out, pgamma unsafe.Pointer) {
+	gamma_c_f64_neon(img, out, pgamma)
 }
 
 // Invert_F16 calls the NEON SIMD assembly implementation.
@@ -85,84 +105,24 @@ func Invert_F64(img, out, pmaxVal unsafe.Pointer) {
 	invert_c_f64_neon(img, out, pmaxVal)
 }
 
-// Abs_F16 calls the NEON SIMD assembly implementation.
-func Abs_F16(img, out unsafe.Pointer) {
-	abs_c_f16_neon(img, out)
+// MaxImage_F16 calls the NEON SIMD assembly implementation.
+func MaxImage_F16(a, b, out unsafe.Pointer) {
+	maximage_c_f16_neon(a, b, out)
 }
 
-// Abs_BF16 calls the NEON SIMD assembly implementation.
-func Abs_BF16(img, out unsafe.Pointer) {
-	abs_c_bf16_neon(img, out)
+// MaxImage_BF16 calls the NEON SIMD assembly implementation.
+func MaxImage_BF16(a, b, out unsafe.Pointer) {
+	maximage_c_bf16_neon(a, b, out)
 }
 
-// Abs_F32 calls the NEON SIMD assembly implementation.
-func Abs_F32(img, out unsafe.Pointer) {
-	abs_c_f32_neon(img, out)
+// MaxImage_F32 calls the NEON SIMD assembly implementation.
+func MaxImage_F32(a, b, out unsafe.Pointer) {
+	maximage_c_f32_neon(a, b, out)
 }
 
-// Abs_F64 calls the NEON SIMD assembly implementation.
-func Abs_F64(img, out unsafe.Pointer) {
-	abs_c_f64_neon(img, out)
-}
-
-// Scale_F16 calls the NEON SIMD assembly implementation.
-func Scale_F16(img, out, pscale unsafe.Pointer) {
-	scale_c_f16_neon(img, out, pscale)
-}
-
-// Scale_BF16 calls the NEON SIMD assembly implementation.
-func Scale_BF16(img, out, pscale unsafe.Pointer) {
-	scale_c_bf16_neon(img, out, pscale)
-}
-
-// Scale_F32 calls the NEON SIMD assembly implementation.
-func Scale_F32(img, out, pscale unsafe.Pointer) {
-	scale_c_f32_neon(img, out, pscale)
-}
-
-// Scale_F64 calls the NEON SIMD assembly implementation.
-func Scale_F64(img, out, pscale unsafe.Pointer) {
-	scale_c_f64_neon(img, out, pscale)
-}
-
-// Offset_F16 calls the NEON SIMD assembly implementation.
-func Offset_F16(img, out, poffset unsafe.Pointer) {
-	offset_c_f16_neon(img, out, poffset)
-}
-
-// Offset_BF16 calls the NEON SIMD assembly implementation.
-func Offset_BF16(img, out, poffset unsafe.Pointer) {
-	offset_c_bf16_neon(img, out, poffset)
-}
-
-// Offset_F32 calls the NEON SIMD assembly implementation.
-func Offset_F32(img, out, poffset unsafe.Pointer) {
-	offset_c_f32_neon(img, out, poffset)
-}
-
-// Offset_F64 calls the NEON SIMD assembly implementation.
-func Offset_F64(img, out, poffset unsafe.Pointer) {
-	offset_c_f64_neon(img, out, poffset)
-}
-
-// Gamma_F16 calls the NEON SIMD assembly implementation.
-func Gamma_F16(img, out, pgamma unsafe.Pointer) {
-	gamma_c_f16_neon(img, out, pgamma)
-}
-
-// Gamma_BF16 calls the NEON SIMD assembly implementation.
-func Gamma_BF16(img, out, pgamma unsafe.Pointer) {
-	gamma_c_bf16_neon(img, out, pgamma)
-}
-
-// Gamma_F32 calls the NEON SIMD assembly implementation.
-func Gamma_F32(img, out, pgamma unsafe.Pointer) {
-	gamma_c_f32_neon(img, out, pgamma)
-}
-
-// Gamma_F64 calls the NEON SIMD assembly implementation.
-func Gamma_F64(img, out, pgamma unsafe.Pointer) {
-	gamma_c_f64_neon(img, out, pgamma)
+// MaxImage_F64 calls the NEON SIMD assembly implementation.
+func MaxImage_F64(a, b, out unsafe.Pointer) {
+	maximage_c_f64_neon(a, b, out)
 }
 
 // MinImage_F16 calls the NEON SIMD assembly implementation.
@@ -185,23 +145,63 @@ func MinImage_F64(a, b, out unsafe.Pointer) {
 	minimage_c_f64_neon(a, b, out)
 }
 
-// MaxImage_F16 calls the NEON SIMD assembly implementation.
-func MaxImage_F16(a, b, out unsafe.Pointer) {
-	maximage_c_f16_neon(a, b, out)
+// Offset_F16 calls the NEON SIMD assembly implementation.
+func Offset_F16(img, out, poffset unsafe.Pointer) {
+	offset_c_f16_neon(img, out, poffset)
 }
 
-// MaxImage_BF16 calls the NEON SIMD assembly implementation.
-func MaxImage_BF16(a, b, out unsafe.Pointer) {
-	maximage_c_bf16_neon(a, b, out)
+// Offset_BF16 calls the NEON SIMD assembly implementation.
+func Offset_BF16(img, out, poffset unsafe.Pointer) {
+	offset_c_bf16_neon(img, out, poffset)
 }
 
-// MaxImage_F32 calls the NEON SIMD assembly implementation.
-func MaxImage_F32(a, b, out unsafe.Pointer) {
-	maximage_c_f32_neon(a, b, out)
+// Offset_F32 calls the NEON SIMD assembly implementation.
+func Offset_F32(img, out, poffset unsafe.Pointer) {
+	offset_c_f32_neon(img, out, poffset)
 }
 
-// MaxImage_F64 calls the NEON SIMD assembly implementation.
-func MaxImage_F64(a, b, out unsafe.Pointer) {
-	maximage_c_f64_neon(a, b, out)
+// Offset_F64 calls the NEON SIMD assembly implementation.
+func Offset_F64(img, out, poffset unsafe.Pointer) {
+	offset_c_f64_neon(img, out, poffset)
+}
+
+// Scale_F16 calls the NEON SIMD assembly implementation.
+func Scale_F16(img, out, pscale unsafe.Pointer) {
+	scale_c_f16_neon(img, out, pscale)
+}
+
+// Scale_BF16 calls the NEON SIMD assembly implementation.
+func Scale_BF16(img, out, pscale unsafe.Pointer) {
+	scale_c_bf16_neon(img, out, pscale)
+}
+
+// Scale_F32 calls the NEON SIMD assembly implementation.
+func Scale_F32(img, out, pscale unsafe.Pointer) {
+	scale_c_f32_neon(img, out, pscale)
+}
+
+// Scale_F64 calls the NEON SIMD assembly implementation.
+func Scale_F64(img, out, pscale unsafe.Pointer) {
+	scale_c_f64_neon(img, out, pscale)
+}
+
+// Threshold_F16 calls the NEON SIMD assembly implementation.
+func Threshold_F16(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
+	threshold_c_f16_neon(img, out, pthreshold, pbelow, pabove)
+}
+
+// Threshold_BF16 calls the NEON SIMD assembly implementation.
+func Threshold_BF16(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
+	threshold_c_bf16_neon(img, out, pthreshold, pbelow, pabove)
+}
+
+// Threshold_F32 calls the NEON SIMD assembly implementation.
+func Threshold_F32(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
+	threshold_c_f32_neon(img, out, pthreshold, pbelow, pabove)
+}
+
+// Threshold_F64 calls the NEON SIMD assembly implementation.
+func Threshold_F64(img, out, pthreshold, pbelow, pabove unsafe.Pointer) {
+	threshold_c_f64_neon(img, out, pthreshold, pbelow, pabove)
 }
 

@@ -18,244 +18,6 @@ var (
 	BaseForwardRCT_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
 )
 
-func BaseForwardRCT_avx2_Int32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
-	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
-		return
-	}
-	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
-		return
-	}
-	twoVec := BaseForwardRCT_AVX2_twoVec_i32_f32
-	lanes := 8
-	height := r.height
-	width := r.width
-	for y := range height {
-		rRow := r.Row(y)
-		gRow := g.Row(y)
-		bRow := b.Row(y)
-		yRow := outY.Row(y)
-		cbRow := outCb.Row(y)
-		crRow := outCr.Row(y)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&rRow[i])))
-			vg := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&gRow[i])))
-			vb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bRow[i])))
-			twoG := vg.Mul(twoVec)
-			sum := vr.Add(twoG).Add(vb)
-			vy := sum.ShiftAllRight(uint64(2))
-			vcb := vb.Sub(vg)
-			vcr := vr.Sub(vg)
-			vy.Store((*[8]int32)(unsafe.Pointer(&yRow[i])))
-			vcb.Store((*[8]int32)(unsafe.Pointer(&cbRow[i])))
-			vcr.Store((*[8]int32)(unsafe.Pointer(&crRow[i])))
-		}
-		if remaining := width - i; remaining > 0 {
-			bufR := [8]int32{}
-			bufG := [8]int32{}
-			bufB := [8]int32{}
-			bufY := [8]int32{}
-			bufCb := [8]int32{}
-			bufCr := [8]int32{}
-			copy(bufR[:], rRow[i:i+remaining])
-			copy(bufG[:], gRow[i:i+remaining])
-			copy(bufB[:], bRow[i:i+remaining])
-			vr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufR[0])))
-			vg := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufG[0])))
-			vb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufB[0])))
-			twoG := vg.Mul(twoVec)
-			sum := vr.Add(twoG).Add(vb)
-			vy := sum.ShiftAllRight(uint64(2))
-			vcb := vb.Sub(vg)
-			vcr := vr.Sub(vg)
-			vy.Store((*[8]int32)(unsafe.Pointer(&bufY[0])))
-			vcb.Store((*[8]int32)(unsafe.Pointer(&bufCb[0])))
-			vcr.Store((*[8]int32)(unsafe.Pointer(&bufCr[0])))
-			copy(yRow[i:i+remaining], bufY[:remaining])
-			copy(cbRow[i:i+remaining], bufCb[:remaining])
-			copy(crRow[i:i+remaining], bufCr[:remaining])
-		}
-	}
-}
-
-func BaseForwardRCT_avx2_Int64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
-	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
-		return
-	}
-	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
-		return
-	}
-	twoVec := BaseForwardRCT_AVX2_twoVec_f32
-	lanes := 4
-	height := r.height
-	width := r.width
-	for y := range height {
-		rRow := r.Row(y)
-		gRow := g.Row(y)
-		bRow := b.Row(y)
-		yRow := outY.Row(y)
-		cbRow := outCb.Row(y)
-		crRow := outCr.Row(y)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&rRow[i])))
-			vg := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&gRow[i])))
-			vb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bRow[i])))
-			twoG := vg.Mul(twoVec)
-			sum := vr.Add(twoG).Add(vb)
-			vy := sum.ShiftAllRight(uint64(2))
-			vcb := vb.Sub(vg)
-			vcr := vr.Sub(vg)
-			vy.Store((*[4]int64)(unsafe.Pointer(&yRow[i])))
-			vcb.Store((*[4]int64)(unsafe.Pointer(&cbRow[i])))
-			vcr.Store((*[4]int64)(unsafe.Pointer(&crRow[i])))
-		}
-		if remaining := width - i; remaining > 0 {
-			bufR := [4]int64{}
-			bufG := [4]int64{}
-			bufB := [4]int64{}
-			bufY := [4]int64{}
-			bufCb := [4]int64{}
-			bufCr := [4]int64{}
-			copy(bufR[:], rRow[i:i+remaining])
-			copy(bufG[:], gRow[i:i+remaining])
-			copy(bufB[:], bRow[i:i+remaining])
-			vr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufR[0])))
-			vg := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufG[0])))
-			vb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufB[0])))
-			twoG := vg.Mul(twoVec)
-			sum := vr.Add(twoG).Add(vb)
-			vy := sum.ShiftAllRight(uint64(2))
-			vcb := vb.Sub(vg)
-			vcr := vr.Sub(vg)
-			vy.Store((*[4]int64)(unsafe.Pointer(&bufY[0])))
-			vcb.Store((*[4]int64)(unsafe.Pointer(&bufCb[0])))
-			vcr.Store((*[4]int64)(unsafe.Pointer(&bufCr[0])))
-			copy(yRow[i:i+remaining], bufY[:remaining])
-			copy(cbRow[i:i+remaining], bufCb[:remaining])
-			copy(crRow[i:i+remaining], bufCr[:remaining])
-		}
-	}
-}
-
-func BaseInverseRCT_avx2_Int32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
-	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
-		return
-	}
-	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
-		return
-	}
-	lanes := 8
-	height := y.height
-	width := y.width
-	for row := range height {
-		yRow := y.Row(row)
-		cbRow := cb.Row(row)
-		crRow := cr.Row(row)
-		rRow := outR.Row(row)
-		gRow := outG.Row(row)
-		bRow := outB.Row(row)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vy := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&yRow[i])))
-			vcb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&cbRow[i])))
-			vcr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&crRow[i])))
-			cbPlusCr := vcb.Add(vcr)
-			shift := cbPlusCr.ShiftAllRight(uint64(2))
-			vg := vy.Sub(shift)
-			vr := vcr.Add(vg)
-			vb := vcb.Add(vg)
-			vr.Store((*[8]int32)(unsafe.Pointer(&rRow[i])))
-			vg.Store((*[8]int32)(unsafe.Pointer(&gRow[i])))
-			vb.Store((*[8]int32)(unsafe.Pointer(&bRow[i])))
-		}
-		if remaining := width - i; remaining > 0 {
-			bufY := [8]int32{}
-			bufCb := [8]int32{}
-			bufCr := [8]int32{}
-			bufR := [8]int32{}
-			bufG := [8]int32{}
-			bufB := [8]int32{}
-			copy(bufY[:], yRow[i:i+remaining])
-			copy(bufCb[:], cbRow[i:i+remaining])
-			copy(bufCr[:], crRow[i:i+remaining])
-			vy := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufY[0])))
-			vcb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufCb[0])))
-			vcr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufCr[0])))
-			cbPlusCr := vcb.Add(vcr)
-			shift := cbPlusCr.ShiftAllRight(uint64(2))
-			vg := vy.Sub(shift)
-			vr := vcr.Add(vg)
-			vb := vcb.Add(vg)
-			vr.Store((*[8]int32)(unsafe.Pointer(&bufR[0])))
-			vg.Store((*[8]int32)(unsafe.Pointer(&bufG[0])))
-			vb.Store((*[8]int32)(unsafe.Pointer(&bufB[0])))
-			copy(rRow[i:i+remaining], bufR[:remaining])
-			copy(gRow[i:i+remaining], bufG[:remaining])
-			copy(bRow[i:i+remaining], bufB[:remaining])
-		}
-	}
-}
-
-func BaseInverseRCT_avx2_Int64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
-	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
-		return
-	}
-	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
-		return
-	}
-	lanes := 4
-	height := y.height
-	width := y.width
-	for row := range height {
-		yRow := y.Row(row)
-		cbRow := cb.Row(row)
-		crRow := cr.Row(row)
-		rRow := outR.Row(row)
-		gRow := outG.Row(row)
-		bRow := outB.Row(row)
-		i := 0
-		for ; i+lanes <= width; i += lanes {
-			vy := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&yRow[i])))
-			vcb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&cbRow[i])))
-			vcr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&crRow[i])))
-			cbPlusCr := vcb.Add(vcr)
-			shift := cbPlusCr.ShiftAllRight(uint64(2))
-			vg := vy.Sub(shift)
-			vr := vcr.Add(vg)
-			vb := vcb.Add(vg)
-			vr.Store((*[4]int64)(unsafe.Pointer(&rRow[i])))
-			vg.Store((*[4]int64)(unsafe.Pointer(&gRow[i])))
-			vb.Store((*[4]int64)(unsafe.Pointer(&bRow[i])))
-		}
-		if remaining := width - i; remaining > 0 {
-			bufY := [4]int64{}
-			bufCb := [4]int64{}
-			bufCr := [4]int64{}
-			bufR := [4]int64{}
-			bufG := [4]int64{}
-			bufB := [4]int64{}
-			copy(bufY[:], yRow[i:i+remaining])
-			copy(bufCb[:], cbRow[i:i+remaining])
-			copy(bufCr[:], crRow[i:i+remaining])
-			vy := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufY[0])))
-			vcb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufCb[0])))
-			vcr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufCr[0])))
-			cbPlusCr := vcb.Add(vcr)
-			shift := cbPlusCr.ShiftAllRight(uint64(2))
-			vg := vy.Sub(shift)
-			vr := vcr.Add(vg)
-			vb := vcb.Add(vg)
-			vr.Store((*[4]int64)(unsafe.Pointer(&bufR[0])))
-			vg.Store((*[4]int64)(unsafe.Pointer(&bufG[0])))
-			vb.Store((*[4]int64)(unsafe.Pointer(&bufB[0])))
-			copy(rRow[i:i+remaining], bufR[:remaining])
-			copy(gRow[i:i+remaining], bufG[:remaining])
-			copy(bRow[i:i+remaining], bufB[:remaining])
-		}
-	}
-}
-
 func BaseForwardICT_avx2_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b *Image[hwy.Float16], outY *Image[hwy.Float16], outCb *Image[hwy.Float16], outCr *Image[hwy.Float16]) {
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
@@ -285,15 +47,15 @@ func BaseForwardICT_avx2_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b
 		crRow := outCr.Row(row)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			vr := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&rRow[i:][0]))
-			vg := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&gRow[i:][0]))
-			vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i:][0]))
+			vr := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&rRow[i]))
+			vg := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&gRow[i]))
+			vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i]))
 			vy := vr.MulAdd(rToYVec, vg.MulAdd(gToYVec, vb.Mul(bToYVec)))
 			vcb := vr.MulAdd(rToCbVec, vg.MulAdd(gToCbVec, vb.Mul(bToCbVec)))
 			vcr := vr.MulAdd(rToCrVec, vg.MulAdd(gToCrVec, vb.Mul(bToCrVec)))
-			vy.StorePtr(unsafe.Pointer(&yRow[i:][0]))
-			vcb.StorePtr(unsafe.Pointer(&cbRow[i:][0]))
-			vcr.StorePtr(unsafe.Pointer(&crRow[i:][0]))
+			vy.StorePtr(unsafe.Pointer(&yRow[i]))
+			vcb.StorePtr(unsafe.Pointer(&cbRow[i]))
+			vcr.StorePtr(unsafe.Pointer(&crRow[i]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufR := [8]hwy.Float16{}
@@ -350,15 +112,15 @@ func BaseForwardICT_avx2_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat16]
 		crRow := outCr.Row(row)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			vr := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&rRow[i:][0]))
-			vg := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&gRow[i:][0]))
-			vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i:][0]))
+			vr := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&rRow[i]))
+			vg := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&gRow[i]))
+			vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&bRow[i]))
 			vy := vr.MulAdd(rToYVec, vg.MulAdd(gToYVec, vb.Mul(bToYVec)))
 			vcb := vr.MulAdd(rToCbVec, vg.MulAdd(gToCbVec, vb.Mul(bToCbVec)))
 			vcr := vr.MulAdd(rToCrVec, vg.MulAdd(gToCrVec, vb.Mul(bToCrVec)))
-			vy.StorePtr(unsafe.Pointer(&yRow[i:][0]))
-			vcb.StorePtr(unsafe.Pointer(&cbRow[i:][0]))
-			vcr.StorePtr(unsafe.Pointer(&crRow[i:][0]))
+			vy.StorePtr(unsafe.Pointer(&yRow[i]))
+			vcb.StorePtr(unsafe.Pointer(&cbRow[i]))
+			vcr.StorePtr(unsafe.Pointer(&crRow[i]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufR := [8]hwy.BFloat16{}
@@ -516,6 +278,126 @@ func BaseForwardICT_avx2_Float64(r *Image[float64], g *Image[float64], b *Image[
 	}
 }
 
+func BaseForwardRCT_avx2_Int32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
+	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
+		return
+	}
+	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
+		return
+	}
+	twoVec := BaseForwardRCT_AVX2_twoVec_i32_f32
+	lanes := 8
+	height := r.height
+	width := r.width
+	for y := range height {
+		rRow := r.Row(y)
+		gRow := g.Row(y)
+		bRow := b.Row(y)
+		yRow := outY.Row(y)
+		cbRow := outCb.Row(y)
+		crRow := outCr.Row(y)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&rRow[i])))
+			vg := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&gRow[i])))
+			vb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bRow[i])))
+			twoG := vg.Mul(twoVec)
+			sum := vr.Add(twoG).Add(vb)
+			vy := sum.ShiftAllRight(uint64(2))
+			vcb := vb.Sub(vg)
+			vcr := vr.Sub(vg)
+			vy.Store((*[8]int32)(unsafe.Pointer(&yRow[i])))
+			vcb.Store((*[8]int32)(unsafe.Pointer(&cbRow[i])))
+			vcr.Store((*[8]int32)(unsafe.Pointer(&crRow[i])))
+		}
+		if remaining := width - i; remaining > 0 {
+			bufR := [8]int32{}
+			bufG := [8]int32{}
+			bufB := [8]int32{}
+			bufY := [8]int32{}
+			bufCb := [8]int32{}
+			bufCr := [8]int32{}
+			copy(bufR[:], rRow[i:i+remaining])
+			copy(bufG[:], gRow[i:i+remaining])
+			copy(bufB[:], bRow[i:i+remaining])
+			vr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufR[0])))
+			vg := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufG[0])))
+			vb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufB[0])))
+			twoG := vg.Mul(twoVec)
+			sum := vr.Add(twoG).Add(vb)
+			vy := sum.ShiftAllRight(uint64(2))
+			vcb := vb.Sub(vg)
+			vcr := vr.Sub(vg)
+			vy.Store((*[8]int32)(unsafe.Pointer(&bufY[0])))
+			vcb.Store((*[8]int32)(unsafe.Pointer(&bufCb[0])))
+			vcr.Store((*[8]int32)(unsafe.Pointer(&bufCr[0])))
+			copy(yRow[i:i+remaining], bufY[:remaining])
+			copy(cbRow[i:i+remaining], bufCb[:remaining])
+			copy(crRow[i:i+remaining], bufCr[:remaining])
+		}
+	}
+}
+
+func BaseForwardRCT_avx2_Int64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
+	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
+		return
+	}
+	if r.data == nil || g.data == nil || b.data == nil || outY.data == nil || outCb.data == nil || outCr.data == nil {
+		return
+	}
+	twoVec := BaseForwardRCT_AVX2_twoVec_f32
+	lanes := 4
+	height := r.height
+	width := r.width
+	for y := range height {
+		rRow := r.Row(y)
+		gRow := g.Row(y)
+		bRow := b.Row(y)
+		yRow := outY.Row(y)
+		cbRow := outCb.Row(y)
+		crRow := outCr.Row(y)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&rRow[i])))
+			vg := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&gRow[i])))
+			vb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bRow[i])))
+			twoG := vg.Mul(twoVec)
+			sum := vr.Add(twoG).Add(vb)
+			vy := sum.ShiftAllRight(uint64(2))
+			vcb := vb.Sub(vg)
+			vcr := vr.Sub(vg)
+			vy.Store((*[4]int64)(unsafe.Pointer(&yRow[i])))
+			vcb.Store((*[4]int64)(unsafe.Pointer(&cbRow[i])))
+			vcr.Store((*[4]int64)(unsafe.Pointer(&crRow[i])))
+		}
+		if remaining := width - i; remaining > 0 {
+			bufR := [4]int64{}
+			bufG := [4]int64{}
+			bufB := [4]int64{}
+			bufY := [4]int64{}
+			bufCb := [4]int64{}
+			bufCr := [4]int64{}
+			copy(bufR[:], rRow[i:i+remaining])
+			copy(bufG[:], gRow[i:i+remaining])
+			copy(bufB[:], bRow[i:i+remaining])
+			vr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufR[0])))
+			vg := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufG[0])))
+			vb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufB[0])))
+			twoG := vg.Mul(twoVec)
+			sum := vr.Add(twoG).Add(vb)
+			vy := sum.ShiftAllRight(uint64(2))
+			vcb := vb.Sub(vg)
+			vcr := vr.Sub(vg)
+			vy.Store((*[4]int64)(unsafe.Pointer(&bufY[0])))
+			vcb.Store((*[4]int64)(unsafe.Pointer(&bufCb[0])))
+			vcr.Store((*[4]int64)(unsafe.Pointer(&bufCr[0])))
+			copy(yRow[i:i+remaining], bufY[:remaining])
+			copy(cbRow[i:i+remaining], bufCb[:remaining])
+			copy(crRow[i:i+remaining], bufCr[:remaining])
+		}
+	}
+}
+
 func BaseInverseICT_avx2_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], cr *Image[hwy.Float16], outR *Image[hwy.Float16], outG *Image[hwy.Float16], outB *Image[hwy.Float16]) {
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
@@ -540,15 +422,15 @@ func BaseInverseICT_avx2_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], 
 		bRow := outB.Row(row)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			vy := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&yRow[i:][0]))
-			vcb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&cbRow[i:][0]))
-			vcr := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&crRow[i:][0]))
+			vy := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&yRow[i]))
+			vcb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&cbRow[i]))
+			vcr := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&crRow[i]))
 			vr := vcr.MulAdd(crToRVec, vy)
 			vg := vcb.MulAdd(cbToGVec, vcr.MulAdd(crToGVec, vy))
 			vb := vcb.MulAdd(cbToBVec, vy)
-			vr.StorePtr(unsafe.Pointer(&rRow[i:][0]))
-			vg.StorePtr(unsafe.Pointer(&gRow[i:][0]))
-			vb.StorePtr(unsafe.Pointer(&bRow[i:][0]))
+			vr.StorePtr(unsafe.Pointer(&rRow[i]))
+			vg.StorePtr(unsafe.Pointer(&gRow[i]))
+			vb.StorePtr(unsafe.Pointer(&bRow[i]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufY := [8]hwy.Float16{}
@@ -600,15 +482,15 @@ func BaseInverseICT_avx2_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat16
 		bRow := outB.Row(row)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			vy := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&yRow[i:][0]))
-			vcb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&cbRow[i:][0]))
-			vcr := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&crRow[i:][0]))
+			vy := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&yRow[i]))
+			vcb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&cbRow[i]))
+			vcr := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&crRow[i]))
 			vr := vcr.MulAdd(crToRVec, vy)
 			vg := vcb.MulAdd(cbToGVec, vcr.MulAdd(crToGVec, vy))
 			vb := vcb.MulAdd(cbToBVec, vy)
-			vr.StorePtr(unsafe.Pointer(&rRow[i:][0]))
-			vg.StorePtr(unsafe.Pointer(&gRow[i:][0]))
-			vb.StorePtr(unsafe.Pointer(&bRow[i:][0]))
+			vr.StorePtr(unsafe.Pointer(&rRow[i]))
+			vg.StorePtr(unsafe.Pointer(&gRow[i]))
+			vb.StorePtr(unsafe.Pointer(&bRow[i]))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufY := [8]hwy.BFloat16{}
@@ -749,6 +631,124 @@ func BaseInverseICT_avx2_Float64(y *Image[float64], cb *Image[float64], cr *Imag
 			vr.Store((*[4]float64)(unsafe.Pointer(&bufR[0])))
 			vg.Store((*[4]float64)(unsafe.Pointer(&bufG[0])))
 			vb.Store((*[4]float64)(unsafe.Pointer(&bufB[0])))
+			copy(rRow[i:i+remaining], bufR[:remaining])
+			copy(gRow[i:i+remaining], bufG[:remaining])
+			copy(bRow[i:i+remaining], bufB[:remaining])
+		}
+	}
+}
+
+func BaseInverseRCT_avx2_Int32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
+	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
+		return
+	}
+	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
+		return
+	}
+	lanes := 8
+	height := y.height
+	width := y.width
+	for row := range height {
+		yRow := y.Row(row)
+		cbRow := cb.Row(row)
+		crRow := cr.Row(row)
+		rRow := outR.Row(row)
+		gRow := outG.Row(row)
+		bRow := outB.Row(row)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vy := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&yRow[i])))
+			vcb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&cbRow[i])))
+			vcr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&crRow[i])))
+			cbPlusCr := vcb.Add(vcr)
+			shift := cbPlusCr.ShiftAllRight(uint64(2))
+			vg := vy.Sub(shift)
+			vr := vcr.Add(vg)
+			vb := vcb.Add(vg)
+			vr.Store((*[8]int32)(unsafe.Pointer(&rRow[i])))
+			vg.Store((*[8]int32)(unsafe.Pointer(&gRow[i])))
+			vb.Store((*[8]int32)(unsafe.Pointer(&bRow[i])))
+		}
+		if remaining := width - i; remaining > 0 {
+			bufY := [8]int32{}
+			bufCb := [8]int32{}
+			bufCr := [8]int32{}
+			bufR := [8]int32{}
+			bufG := [8]int32{}
+			bufB := [8]int32{}
+			copy(bufY[:], yRow[i:i+remaining])
+			copy(bufCb[:], cbRow[i:i+remaining])
+			copy(bufCr[:], crRow[i:i+remaining])
+			vy := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufY[0])))
+			vcb := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufCb[0])))
+			vcr := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&bufCr[0])))
+			cbPlusCr := vcb.Add(vcr)
+			shift := cbPlusCr.ShiftAllRight(uint64(2))
+			vg := vy.Sub(shift)
+			vr := vcr.Add(vg)
+			vb := vcb.Add(vg)
+			vr.Store((*[8]int32)(unsafe.Pointer(&bufR[0])))
+			vg.Store((*[8]int32)(unsafe.Pointer(&bufG[0])))
+			vb.Store((*[8]int32)(unsafe.Pointer(&bufB[0])))
+			copy(rRow[i:i+remaining], bufR[:remaining])
+			copy(gRow[i:i+remaining], bufG[:remaining])
+			copy(bRow[i:i+remaining], bufB[:remaining])
+		}
+	}
+}
+
+func BaseInverseRCT_avx2_Int64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
+	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
+		return
+	}
+	if y.data == nil || cb.data == nil || cr.data == nil || outR.data == nil || outG.data == nil || outB.data == nil {
+		return
+	}
+	lanes := 4
+	height := y.height
+	width := y.width
+	for row := range height {
+		yRow := y.Row(row)
+		cbRow := cb.Row(row)
+		crRow := cr.Row(row)
+		rRow := outR.Row(row)
+		gRow := outG.Row(row)
+		bRow := outB.Row(row)
+		i := 0
+		for ; i+lanes <= width; i += lanes {
+			vy := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&yRow[i])))
+			vcb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&cbRow[i])))
+			vcr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&crRow[i])))
+			cbPlusCr := vcb.Add(vcr)
+			shift := cbPlusCr.ShiftAllRight(uint64(2))
+			vg := vy.Sub(shift)
+			vr := vcr.Add(vg)
+			vb := vcb.Add(vg)
+			vr.Store((*[4]int64)(unsafe.Pointer(&rRow[i])))
+			vg.Store((*[4]int64)(unsafe.Pointer(&gRow[i])))
+			vb.Store((*[4]int64)(unsafe.Pointer(&bRow[i])))
+		}
+		if remaining := width - i; remaining > 0 {
+			bufY := [4]int64{}
+			bufCb := [4]int64{}
+			bufCr := [4]int64{}
+			bufR := [4]int64{}
+			bufG := [4]int64{}
+			bufB := [4]int64{}
+			copy(bufY[:], yRow[i:i+remaining])
+			copy(bufCb[:], cbRow[i:i+remaining])
+			copy(bufCr[:], crRow[i:i+remaining])
+			vy := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufY[0])))
+			vcb := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufCb[0])))
+			vcr := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&bufCr[0])))
+			cbPlusCr := vcb.Add(vcr)
+			shift := cbPlusCr.ShiftAllRight(uint64(2))
+			vg := vy.Sub(shift)
+			vr := vcr.Add(vg)
+			vb := vcb.Add(vg)
+			vr.Store((*[4]int64)(unsafe.Pointer(&bufR[0])))
+			vg.Store((*[4]int64)(unsafe.Pointer(&bufG[0])))
+			vb.Store((*[4]int64)(unsafe.Pointer(&bufB[0])))
 			copy(rRow[i:i+remaining], bufR[:remaining])
 			copy(gRow[i:i+remaining], bufG[:remaining])
 			copy(bRow[i:i+remaining], bufB[:remaining])

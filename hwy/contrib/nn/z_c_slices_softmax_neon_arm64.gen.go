@@ -18,90 +18,22 @@ func initSoftmaxNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	SoftmaxFloat32 = softmaxAsmF32
-	SoftmaxFloat64 = softmaxAsmF64
 	LogSoftmaxFloat32 = logSoftmaxAsmF32
 	LogSoftmaxFloat64 = logSoftmaxAsmF64
+	SoftmaxFloat32 = softmaxAsmF32
+	SoftmaxFloat64 = softmaxAsmF64
 	SoftmaxWithTemperatureFloat32 = softmaxWithTemperatureAsmF32
 	SoftmaxWithTemperatureFloat64 = softmaxWithTemperatureAsmF64
 	if hwy.HasARMFP16() {
-		SoftmaxFloat16 = softmaxAsmF16
 		LogSoftmaxFloat16 = logSoftmaxAsmF16
+		SoftmaxFloat16 = softmaxAsmF16
 		SoftmaxWithTemperatureFloat16 = softmaxWithTemperatureAsmF16
 	}
 	if hwy.HasARMBF16() {
-		SoftmaxBFloat16 = softmaxAsmBF16
 		LogSoftmaxBFloat16 = logSoftmaxAsmBF16
+		SoftmaxBFloat16 = softmaxAsmBF16
 		SoftmaxWithTemperatureBFloat16 = softmaxWithTemperatureAsmBF16
 	}
-}
-
-func softmaxAsmF16(input, output []hwy.Float16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.Softmax_F16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxAsmBF16(input, output []hwy.BFloat16) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.Softmax_BF16(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxAsmF32(input, output []float32) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.Softmax_F32(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-func softmaxAsmF64(input, output []float64) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	asm.Softmax_F64(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
 }
 
 func logSoftmaxAsmF16(input, output []hwy.Float16) {
@@ -166,6 +98,74 @@ func logSoftmaxAsmF64(input, output []float64) {
 	}
 	lenVal := int64(len(input))
 	asm.LogSoftmax_F64(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxAsmF16(input, output []hwy.Float16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.Softmax_F16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxAsmBF16(input, output []hwy.BFloat16) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.Softmax_BF16(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxAsmF32(input, output []float32) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.Softmax_F32(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxAsmF64(input, output []float64) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	asm.Softmax_F64(
 		p_input,
 		p_output,
 		unsafe.Pointer(&lenVal),

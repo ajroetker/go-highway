@@ -25,26 +25,6 @@ func ApplyPackedOutput_F64(packedOutput unsafe.Pointer, output unsafe.Pointer, p
 	applypackedoutput_c_f64_neon(packedOutput, output, palpha, pbeta, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
 }
 
-// ApplyPackedOutputSimple_F16 calls the NEON SIMD assembly implementation.
-func ApplyPackedOutputSimple_F16(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
-	applypackedoutputsimple_c_f16_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
-}
-
-// ApplyPackedOutputSimple_BF16 calls the NEON SIMD assembly implementation.
-func ApplyPackedOutputSimple_BF16(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
-	applypackedoutputsimple_c_bf16_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
-}
-
-// ApplyPackedOutputSimple_F32 calls the NEON SIMD assembly implementation.
-func ApplyPackedOutputSimple_F32(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
-	applypackedoutputsimple_c_f32_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
-}
-
-// ApplyPackedOutputSimple_F64 calls the NEON SIMD assembly implementation.
-func ApplyPackedOutputSimple_F64(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
-	applypackedoutputsimple_c_f64_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
-}
-
 // ApplyPackedOutputAccum_F16 calls the NEON SIMD assembly implementation.
 func ApplyPackedOutputAccum_F16(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
 	applypackedoutputaccum_c_f16_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
@@ -63,5 +43,25 @@ func ApplyPackedOutputAccum_F32(packedOutput unsafe.Pointer, output unsafe.Point
 // ApplyPackedOutputAccum_F64 calls the NEON SIMD assembly implementation.
 func ApplyPackedOutputAccum_F64(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
 	applypackedoutputaccum_c_f64_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutputSimple_F16 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutputSimple_F16(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutputsimple_c_f16_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutputSimple_BF16 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutputSimple_BF16(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutputsimple_c_bf16_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutputSimple_F32 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutputSimple_F32(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutputsimple_c_f32_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
+}
+
+// ApplyPackedOutputSimple_F64 calls the NEON SIMD assembly implementation.
+func ApplyPackedOutputSimple_F64(packedOutput unsafe.Pointer, output unsafe.Pointer, ppackedStride unsafe.Pointer, poutputRowOffset unsafe.Pointer, poutputColOffset unsafe.Pointer, poutputStride unsafe.Pointer, pheight unsafe.Pointer, pwidth unsafe.Pointer, plen_packedOutput unsafe.Pointer, plen_output unsafe.Pointer) {
+	applypackedoutputsimple_c_f64_neon(packedOutput, output, ppackedStride, poutputRowOffset, poutputColOffset, poutputStride, pheight, pwidth, plen_packedOutput, plen_output)
 }
 

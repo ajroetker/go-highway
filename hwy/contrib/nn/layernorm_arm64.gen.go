@@ -46,15 +46,8 @@ func initLayernormAll() {
 		initLayernormFallback()
 		return
 	}
-	initLayernormNEON()
+	initLayernormFallback()
 	return
-}
-
-func initLayernormNEON() {
-	LayerNormFloat16 = BaseLayerNorm_neon_Float16
-	LayerNormBFloat16 = BaseLayerNorm_neon_BFloat16
-	LayerNormFloat32 = BaseLayerNorm_neon
-	LayerNormFloat64 = BaseLayerNorm_neon_Float64
 }
 
 func initLayernormFallback() {

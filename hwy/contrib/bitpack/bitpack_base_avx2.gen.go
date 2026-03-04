@@ -134,8 +134,8 @@ func BasePack32_avx2(src []uint32, bitWidth int, dst []byte) int {
 		}
 		v1 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&src[i+8])))
 		v1 = v1.And(maskVec)
-		for lane := range lanes {
-			val1 := hwy.GetLane_AVX2_Uint32x8(v1, lane)
+		for lane1 := range lanes {
+			val1 := hwy.GetLane_AVX2_Uint32x8(v1, lane1)
 			{
 				remaining_11 := bitWidth
 				for remaining_11 > 0 {
@@ -224,8 +224,8 @@ func BasePack64_avx2(src []uint64, bitWidth int, dst []byte) int {
 		}
 		v1 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&src[i+4])))
 		v1 = v1.And(maskVec)
-		for lane := range lanes {
-			val1 := hwy.GetLane_AVX2_Uint64x4(v1, lane)
+		for lane1 := range lanes {
+			val1 := hwy.GetLane_AVX2_Uint64x4(v1, lane1)
 			{
 				remaining_11 := bitWidth
 				for remaining_11 > 0 {

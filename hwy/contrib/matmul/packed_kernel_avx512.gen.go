@@ -38,8 +38,8 @@ func BasePackedMicroKernel_avx512_Float16(packedA []hwy.Float16, packedB []hwy.F
 		vA1 := asm.BroadcastFloat16x16AVX512(uint16(a1))
 		vA2 := asm.BroadcastFloat16x16AVX512(uint16(a2))
 		vA3 := asm.BroadcastFloat16x16AVX512(uint16(a3))
-		vB0 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx:][0]))
-		vB1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx+lanes:][0]))
+		vB0 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx]))
+		vB1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx+lanes]))
 		bIdx += nr
 		acc00 = vA0.MulAdd(vB0, acc00)
 		acc01 = vA0.MulAdd(vB1, acc01)
@@ -54,30 +54,30 @@ func BasePackedMicroKernel_avx512_Float16(packedA []hwy.Float16, packedB []hwy.F
 	cRow1 := (ir + 1) * n
 	cRow2 := (ir + 2) * n
 	cRow3 := (ir + 3) * n
-	vC := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr:][0]))
+	vC := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr]))
 	vC = vC.Add(acc00)
-	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr+lanes]))
 	vC = vC.Add(acc01)
-	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr+lanes:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr+lanes]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr]))
 	vC = vC.Add(acc10)
-	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr+lanes]))
 	vC = vC.Add(acc11)
-	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr+lanes:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr+lanes]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr]))
 	vC = vC.Add(acc20)
-	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr+lanes]))
 	vC = vC.Add(acc21)
-	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr+lanes:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr+lanes]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr]))
 	vC = vC.Add(acc30)
-	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr:][0]))
-	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr]))
+	vC = asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr+lanes]))
 	vC = vC.Add(acc31)
-	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr+lanes]))
 }
 
 func BasePackedMicroKernel_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy.BFloat16, c []hwy.BFloat16, n int, ir int, jr int, kc int, mr int, nr int) {
@@ -106,8 +106,8 @@ func BasePackedMicroKernel_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy
 		vA1 := asm.BroadcastBFloat16x16AVX512(uint16(a1))
 		vA2 := asm.BroadcastBFloat16x16AVX512(uint16(a2))
 		vA3 := asm.BroadcastBFloat16x16AVX512(uint16(a3))
-		vB0 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx:][0]))
-		vB1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx+lanes:][0]))
+		vB0 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx]))
+		vB1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[bIdx+lanes]))
 		bIdx += nr
 		acc00 = vA0.MulAdd(vB0, acc00)
 		acc01 = vA0.MulAdd(vB1, acc01)
@@ -122,30 +122,30 @@ func BasePackedMicroKernel_avx512_BFloat16(packedA []hwy.BFloat16, packedB []hwy
 	cRow1 := (ir + 1) * n
 	cRow2 := (ir + 2) * n
 	cRow3 := (ir + 3) * n
-	vC := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr:][0]))
+	vC := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr]))
 	vC = vC.Add(acc00)
-	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow0+jr+lanes]))
 	vC = vC.Add(acc01)
-	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr+lanes:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow0+jr+lanes]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr]))
 	vC = vC.Add(acc10)
-	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow1+jr+lanes]))
 	vC = vC.Add(acc11)
-	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr+lanes:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow1+jr+lanes]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr]))
 	vC = vC.Add(acc20)
-	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow2+jr+lanes]))
 	vC = vC.Add(acc21)
-	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr+lanes:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow2+jr+lanes]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr]))
 	vC = vC.Add(acc30)
-	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr:][0]))
-	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr]))
+	vC = asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRow3+jr+lanes]))
 	vC = vC.Add(acc31)
-	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr+lanes:][0]))
+	vC.StorePtr(unsafe.Pointer(&c[cRow3+jr+lanes]))
 }
 
 func BasePackedMicroKernel_avx512(packedA []float32, packedB []float32, c []float32, n int, ir int, jr int, kc int, mr int, nr int) {
@@ -294,12 +294,12 @@ func basePackedMicroKernelGeneral_avx512_Float16(packedA []hwy.Float16, packedB 
 			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat16x16AVX512(uint16(aVal))
-				vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
+				vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col]))
 				acc = vA.MulAdd(vB, acc)
 			}
-			vC := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col]))
 			vC = vC.Add(acc)
-			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col]))
 		}
 		for ; col < nr; col++ {
 			var sum float32
@@ -321,12 +321,12 @@ func basePackedMicroKernelGeneral_avx512_BFloat16(packedA []hwy.BFloat16, packed
 			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastBFloat16x16AVX512(uint16(aVal))
-				vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
+				vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col]))
 				acc = vA.MulAdd(vB, acc)
 			}
-			vC := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col]))
 			vC = vC.Add(acc)
-			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col]))
 		}
 		for ; col < nr; col++ {
 			var sum float32
@@ -402,12 +402,12 @@ func BasePackedMicroKernelPartial_avx512_Float16(packedA []hwy.Float16, packedB 
 			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastFloat16x16AVX512(uint16(aVal))
-				vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
+				vB := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col]))
 				acc = vA.MulAdd(vB, acc)
 			}
-			vC := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col]))
 			vC = vC.Add(acc)
-			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col]))
 		}
 		for ; col < activeCols; col++ {
 			var sum float32
@@ -429,12 +429,12 @@ func BasePackedMicroKernelPartial_avx512_BFloat16(packedA []hwy.BFloat16, packed
 			for p := range kc {
 				aVal := packedA[p*mr+r]
 				vA := asm.BroadcastBFloat16x16AVX512(uint16(aVal))
-				vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col:][0]))
+				vB := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&packedB[p*nr+col]))
 				acc = vA.MulAdd(vB, acc)
 			}
-			vC := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&c[cRowStart+jr+col]))
 			vC = vC.Add(acc)
-			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col:][0]))
+			vC.StorePtr(unsafe.Pointer(&c[cRowStart+jr+col]))
 		}
 		for ; col < activeCols; col++ {
 			var sum float32

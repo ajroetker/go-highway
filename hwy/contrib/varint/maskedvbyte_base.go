@@ -135,6 +135,7 @@ func BaseMaskedVByteDecodeBatch32(src []byte, dst []uint32, n int) (decoded int,
 // This uses SIMD to find varint terminators (bytes < 0x80) and extract them as a bitmask.
 // On x86, this uses PMOVMSKB which is very efficient.
 // On ARM, there's no equivalent instruction so this may be slower than scalar.
+//hwy:elemtype uint8
 func BaseMaskedVByteDecodeGroup(src []byte, dst []uint32) (decoded int, consumed int) {
 	if len(src) < 16 || len(dst) < 4 {
 		return 0, 0

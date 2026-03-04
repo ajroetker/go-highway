@@ -338,7 +338,7 @@ func BaseDequantizeQ6K(data []uint8, output []float32) {
 		//   qhOff      = half * 32
 		//   nibbleShift = (group/2) * 4  (0 for low nibble, 4 for high)
 		//   qhShift    = group * 2
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			scaleVal := d * float32(int8(sc[j]))
 			scaleVec := hwy.Set(scaleVal)
 			baseOut := outOff + j*16
@@ -400,7 +400,7 @@ func BaseDequantizeQ4K(data []uint8, output []float32) {
 		// get_scale_min_k4 from llama.cpp.
 		var scs [8]float32
 		var mns [8]float32
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scs[j] = float32(scales[j] & 63)
 			mns[j] = float32(scales[j+4] & 63)
 		}
@@ -414,7 +414,7 @@ func BaseDequantizeQ4K(data []uint8, output []float32) {
 		// Process 4 chunks of 64 values (2 sub-blocks of 32 each).
 		qOff := 0
 		outIdx := outOff
-		for chunk := 0; chunk < 4; chunk++ {
+		for chunk := range 4 {
 			is := chunk * 2
 			dsc0 := d * scs[is]
 			dmm0 := dmin * mns[is]
@@ -489,7 +489,7 @@ func BaseDequantizeQ5K(data []uint8, output []float32) {
 		// Unpack 8 (scale, min) pairs — same as Q4_K.
 		var scs [8]float32
 		var mns [8]float32
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scs[j] = float32(scales[j] & 63)
 			mns[j] = float32(scales[j+4] & 63)
 		}
@@ -507,7 +507,7 @@ func BaseDequantizeQ5K(data []uint8, output []float32) {
 		// a C operator precedence issue (& vs != in generated C code).
 		qlOff := 0
 		outIdx := outOff
-		for chunk := 0; chunk < 4; chunk++ {
+		for chunk := range 4 {
 			is := chunk * 2
 			dsc0 := d * scs[is]
 			dmm0 := dmin * mns[is]
@@ -597,7 +597,7 @@ func BaseDequantizeQ2K(data []uint8, output []float32) {
 		//   group = (is % 8) / 2
 		//   lBase = (is % 2) * 16
 		//   q = (qs[chunk*32 + lBase + i] >> (group*2)) & 3
-		for is := 0; is < 16; is++ {
+		for is := range 16 {
 			sc := float32(scalesRaw[is] & 0x0F)
 			m := float32(scalesRaw[is] >> 4)
 			dsc := d * sc
@@ -658,7 +658,7 @@ func BaseDequantizeQ3K(data []uint8, output []float32) {
 		// Unpack 16 six-bit scale values from 12 bytes.
 		// Each scale is 0..63, with -32 applied during dequantization.
 		var rawScales [16]int
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			rawScales[i] = int(scaleData[i]&0x0F) | (int(scaleData[8+i]&0x03) << 4)
 			rawScales[i+4] = int(scaleData[4+i]&0x0F) | (int((scaleData[8+i]>>2)&0x03) << 4)
 			rawScales[i+8] = int((scaleData[i]>>4)&0x0F) | (int((scaleData[8+i]>>4)&0x03) << 4)
@@ -677,7 +677,7 @@ func BaseDequantizeQ3K(data []uint8, output []float32) {
 		//   low2 = (qs[chunk*32 + l] >> shift) & 3
 		//   high1 = (hmask[l] >> hmBit) & 1
 		//   q = low2 + high1*4 - 4
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			scaleVal := d * float32(rawScales[j]-32)
 			scaleVec := hwy.Set(scaleVal)
 			baseOut := outOff + j*16

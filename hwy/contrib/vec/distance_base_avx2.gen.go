@@ -58,8 +58,8 @@ func BaseL2SquaredDistance_avx2_Float16(a []hwy.Float16, b []hwy.Float16) hwy.Fl
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
-		vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
+		va := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&a[i]))
+		vb := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&b[i]))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes
@@ -100,8 +100,8 @@ func BaseL2SquaredDistance_avx2_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16) hwy
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i:][0]))
-		vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i:][0]))
+		va := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&a[i]))
+		vb := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&b[i]))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes

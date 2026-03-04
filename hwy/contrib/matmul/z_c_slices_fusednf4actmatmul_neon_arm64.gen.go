@@ -18,19 +18,19 @@ func initFusednf4actmatmulNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	FusedNF4MatMulSiLU = fusedNF4MatMulSiLUAsmF32
-	FusedNF4MatMulGELU = fusedNF4MatMulGELUAsmF32
-	FusedNF4MatMulGELUApprox = fusedNF4MatMulGELUApproxAsmF32
-	FusedNF4MatMulReLU = fusedNF4MatMulReLUAsmF32
-	FusedInt4MatMulSiLU = fusedInt4MatMulSiLUAsmF32
 	FusedInt4MatMulGELU = fusedInt4MatMulGELUAsmF32
 	FusedInt4MatMulGELUApprox = fusedInt4MatMulGELUApproxAsmF32
 	FusedInt4MatMulReLU = fusedInt4MatMulReLUAsmF32
-	FusedNF4MatMulSwiGLU = fusedNF4MatMulSwiGLUAsmF32
+	FusedInt4MatMulSiLU = fusedInt4MatMulSiLUAsmF32
 	FusedInt4MatMulSwiGLU = fusedInt4MatMulSwiGLUAsmF32
+	FusedNF4MatMulGELU = fusedNF4MatMulGELUAsmF32
+	FusedNF4MatMulGELUApprox = fusedNF4MatMulGELUApproxAsmF32
+	FusedNF4MatMulReLU = fusedNF4MatMulReLUAsmF32
+	FusedNF4MatMulSiLU = fusedNF4MatMulSiLUAsmF32
+	FusedNF4MatMulSwiGLU = fusedNF4MatMulSwiGLUAsmF32
 }
 
-func fusedNF4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+func fusedInt4MatMulGELUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
 		p_input = unsafe.Pointer(&input[0])
@@ -60,7 +60,7 @@ func fusedNF4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, out
 	len_scalesVal := int64(len(scales))
 	len_biasVal := int64(len(bias))
 	len_outputVal := int64(len(output))
-	asm.FusedNF4MatMulSiLU_F32(
+	asm.FusedInt4MatMulGELU_F32(
 		p_input,
 		p_packed,
 		p_scales,
@@ -74,6 +74,205 @@ func fusedNF4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, out
 		unsafe.Pointer(&len_packedVal),
 		unsafe.Pointer(&len_scalesVal),
 		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func fusedInt4MatMulGELUApproxAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	MVal := int64(M)
+	KVal := int64(K)
+	NVal := int64(N)
+	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
+	asm.FusedInt4MatMulGELUApprox_F32(
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
+		unsafe.Pointer(&MVal),
+		unsafe.Pointer(&KVal),
+		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func fusedInt4MatMulReLUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	MVal := int64(M)
+	KVal := int64(K)
+	NVal := int64(N)
+	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
+	asm.FusedInt4MatMulReLU_F32(
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
+		unsafe.Pointer(&MVal),
+		unsafe.Pointer(&KVal),
+		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func fusedInt4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_packed unsafe.Pointer
+	if len(packed) > 0 {
+		p_packed = unsafe.Pointer(&packed[0])
+	}
+	var p_scales unsafe.Pointer
+	if len(scales) > 0 {
+		p_scales = unsafe.Pointer(&scales[0])
+	}
+	var p_bias unsafe.Pointer
+	if len(bias) > 0 {
+		p_bias = unsafe.Pointer(&bias[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	MVal := int64(M)
+	KVal := int64(K)
+	NVal := int64(N)
+	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_packedVal := int64(len(packed))
+	len_scalesVal := int64(len(scales))
+	len_biasVal := int64(len(bias))
+	len_outputVal := int64(len(output))
+	asm.FusedInt4MatMulSiLU_F32(
+		p_input,
+		p_packed,
+		p_scales,
+		p_bias,
+		p_output,
+		unsafe.Pointer(&MVal),
+		unsafe.Pointer(&KVal),
+		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_packedVal),
+		unsafe.Pointer(&len_scalesVal),
+		unsafe.Pointer(&len_biasVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+func fusedInt4MatMulSwiGLUAsmF32(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales, output []float32, M, K, N, groupSize int) {
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_gatePacked unsafe.Pointer
+	if len(gatePacked) > 0 {
+		p_gatePacked = unsafe.Pointer(&gatePacked[0])
+	}
+	var p_gateScales unsafe.Pointer
+	if len(gateScales) > 0 {
+		p_gateScales = unsafe.Pointer(&gateScales[0])
+	}
+	var p_upPacked unsafe.Pointer
+	if len(upPacked) > 0 {
+		p_upPacked = unsafe.Pointer(&upPacked[0])
+	}
+	var p_upScales unsafe.Pointer
+	if len(upScales) > 0 {
+		p_upScales = unsafe.Pointer(&upScales[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	MVal := int64(M)
+	KVal := int64(K)
+	NVal := int64(N)
+	groupSizeVal := int64(groupSize)
+	len_inputVal := int64(len(input))
+	len_gatePackedVal := int64(len(gatePacked))
+	len_gateScalesVal := int64(len(gateScales))
+	len_upPackedVal := int64(len(upPacked))
+	len_upScalesVal := int64(len(upScales))
+	len_outputVal := int64(len(output))
+	asm.FusedInt4MatMulSwiGLU_F32(
+		p_input,
+		p_gatePacked,
+		p_gateScales,
+		p_upPacked,
+		p_upScales,
+		p_output,
+		unsafe.Pointer(&MVal),
+		unsafe.Pointer(&KVal),
+		unsafe.Pointer(&NVal),
+		unsafe.Pointer(&groupSizeVal),
+		unsafe.Pointer(&len_inputVal),
+		unsafe.Pointer(&len_gatePackedVal),
+		unsafe.Pointer(&len_gateScalesVal),
+		unsafe.Pointer(&len_upPackedVal),
+		unsafe.Pointer(&len_upScalesVal),
 		unsafe.Pointer(&len_outputVal),
 	)
 }
@@ -222,7 +421,7 @@ func fusedNF4MatMulReLUAsmF32(input []float32, packed []uint8, scales, bias, out
 	)
 }
 
-func fusedInt4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
+func fusedNF4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
 		p_input = unsafe.Pointer(&input[0])
@@ -252,151 +451,7 @@ func fusedInt4MatMulSiLUAsmF32(input []float32, packed []uint8, scales, bias, ou
 	len_scalesVal := int64(len(scales))
 	len_biasVal := int64(len(bias))
 	len_outputVal := int64(len(output))
-	asm.FusedInt4MatMulSiLU_F32(
-		p_input,
-		p_packed,
-		p_scales,
-		p_bias,
-		p_output,
-		unsafe.Pointer(&MVal),
-		unsafe.Pointer(&KVal),
-		unsafe.Pointer(&NVal),
-		unsafe.Pointer(&groupSizeVal),
-		unsafe.Pointer(&len_inputVal),
-		unsafe.Pointer(&len_packedVal),
-		unsafe.Pointer(&len_scalesVal),
-		unsafe.Pointer(&len_biasVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-func fusedInt4MatMulGELUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	var p_scales unsafe.Pointer
-	if len(scales) > 0 {
-		p_scales = unsafe.Pointer(&scales[0])
-	}
-	var p_bias unsafe.Pointer
-	if len(bias) > 0 {
-		p_bias = unsafe.Pointer(&bias[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	MVal := int64(M)
-	KVal := int64(K)
-	NVal := int64(N)
-	groupSizeVal := int64(groupSize)
-	len_inputVal := int64(len(input))
-	len_packedVal := int64(len(packed))
-	len_scalesVal := int64(len(scales))
-	len_biasVal := int64(len(bias))
-	len_outputVal := int64(len(output))
-	asm.FusedInt4MatMulGELU_F32(
-		p_input,
-		p_packed,
-		p_scales,
-		p_bias,
-		p_output,
-		unsafe.Pointer(&MVal),
-		unsafe.Pointer(&KVal),
-		unsafe.Pointer(&NVal),
-		unsafe.Pointer(&groupSizeVal),
-		unsafe.Pointer(&len_inputVal),
-		unsafe.Pointer(&len_packedVal),
-		unsafe.Pointer(&len_scalesVal),
-		unsafe.Pointer(&len_biasVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-func fusedInt4MatMulGELUApproxAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	var p_scales unsafe.Pointer
-	if len(scales) > 0 {
-		p_scales = unsafe.Pointer(&scales[0])
-	}
-	var p_bias unsafe.Pointer
-	if len(bias) > 0 {
-		p_bias = unsafe.Pointer(&bias[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	MVal := int64(M)
-	KVal := int64(K)
-	NVal := int64(N)
-	groupSizeVal := int64(groupSize)
-	len_inputVal := int64(len(input))
-	len_packedVal := int64(len(packed))
-	len_scalesVal := int64(len(scales))
-	len_biasVal := int64(len(bias))
-	len_outputVal := int64(len(output))
-	asm.FusedInt4MatMulGELUApprox_F32(
-		p_input,
-		p_packed,
-		p_scales,
-		p_bias,
-		p_output,
-		unsafe.Pointer(&MVal),
-		unsafe.Pointer(&KVal),
-		unsafe.Pointer(&NVal),
-		unsafe.Pointer(&groupSizeVal),
-		unsafe.Pointer(&len_inputVal),
-		unsafe.Pointer(&len_packedVal),
-		unsafe.Pointer(&len_scalesVal),
-		unsafe.Pointer(&len_biasVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-func fusedInt4MatMulReLUAsmF32(input []float32, packed []uint8, scales, bias, output []float32, M, K, N, groupSize int) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_packed unsafe.Pointer
-	if len(packed) > 0 {
-		p_packed = unsafe.Pointer(&packed[0])
-	}
-	var p_scales unsafe.Pointer
-	if len(scales) > 0 {
-		p_scales = unsafe.Pointer(&scales[0])
-	}
-	var p_bias unsafe.Pointer
-	if len(bias) > 0 {
-		p_bias = unsafe.Pointer(&bias[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	MVal := int64(M)
-	KVal := int64(K)
-	NVal := int64(N)
-	groupSizeVal := int64(groupSize)
-	len_inputVal := int64(len(input))
-	len_packedVal := int64(len(packed))
-	len_scalesVal := int64(len(scales))
-	len_biasVal := int64(len(bias))
-	len_outputVal := int64(len(output))
-	asm.FusedInt4MatMulReLU_F32(
+	asm.FusedNF4MatMulSiLU_F32(
 		p_input,
 		p_packed,
 		p_scales,
@@ -450,61 +505,6 @@ func fusedNF4MatMulSwiGLUAsmF32(input []float32, gatePacked []uint8, gateScales 
 	len_upScalesVal := int64(len(upScales))
 	len_outputVal := int64(len(output))
 	asm.FusedNF4MatMulSwiGLU_F32(
-		p_input,
-		p_gatePacked,
-		p_gateScales,
-		p_upPacked,
-		p_upScales,
-		p_output,
-		unsafe.Pointer(&MVal),
-		unsafe.Pointer(&KVal),
-		unsafe.Pointer(&NVal),
-		unsafe.Pointer(&groupSizeVal),
-		unsafe.Pointer(&len_inputVal),
-		unsafe.Pointer(&len_gatePackedVal),
-		unsafe.Pointer(&len_gateScalesVal),
-		unsafe.Pointer(&len_upPackedVal),
-		unsafe.Pointer(&len_upScalesVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-func fusedInt4MatMulSwiGLUAsmF32(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales, output []float32, M, K, N, groupSize int) {
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_gatePacked unsafe.Pointer
-	if len(gatePacked) > 0 {
-		p_gatePacked = unsafe.Pointer(&gatePacked[0])
-	}
-	var p_gateScales unsafe.Pointer
-	if len(gateScales) > 0 {
-		p_gateScales = unsafe.Pointer(&gateScales[0])
-	}
-	var p_upPacked unsafe.Pointer
-	if len(upPacked) > 0 {
-		p_upPacked = unsafe.Pointer(&upPacked[0])
-	}
-	var p_upScales unsafe.Pointer
-	if len(upScales) > 0 {
-		p_upScales = unsafe.Pointer(&upScales[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	MVal := int64(M)
-	KVal := int64(K)
-	NVal := int64(N)
-	groupSizeVal := int64(groupSize)
-	len_inputVal := int64(len(input))
-	len_gatePackedVal := int64(len(gatePacked))
-	len_gateScalesVal := int64(len(gateScales))
-	len_upPackedVal := int64(len(upPacked))
-	len_upScalesVal := int64(len(upScales))
-	len_outputVal := int64(len(output))
-	asm.FusedInt4MatMulSwiGLU_F32(
 		p_input,
 		p_gatePacked,
 		p_gateScales,

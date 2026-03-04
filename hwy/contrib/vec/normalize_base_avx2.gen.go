@@ -28,12 +28,12 @@ func BaseNormalize_avx2_Float16(dst []hwy.Float16) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= len(dst); i += lanes * 2 {
-		vec := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		vec := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i]))
 		result := vec.Mul(scaleVec)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vec1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		result.StorePtr(unsafe.Pointer(&dst[i]))
+		vec1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8]))
 		result1 := vec1.Mul(scaleVec)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		result1.StorePtr(unsafe.Pointer(&dst[i+8]))
 	}
 	if i < len(dst) {
 		BaseNormalize_fallback_Float16(dst[i:len(dst)])
@@ -55,12 +55,12 @@ func BaseNormalize_avx2_BFloat16(dst []hwy.BFloat16) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= len(dst); i += lanes * 2 {
-		vec := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i:][0]))
+		vec := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i]))
 		result := vec.Mul(scaleVec)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vec1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8:][0]))
+		result.StorePtr(unsafe.Pointer(&dst[i]))
+		vec1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&dst[i+8]))
 		result1 := vec1.Mul(scaleVec)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		result1.StorePtr(unsafe.Pointer(&dst[i+8]))
 	}
 	if i < len(dst) {
 		BaseNormalize_fallback_BFloat16(dst[i:len(dst)])
@@ -138,12 +138,12 @@ func BaseNormalizeTo_avx2_Float16(dst []hwy.Float16, src []hwy.Float16) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		vec := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[i:][0]))
+		vec := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[i]))
 		result := vec.Mul(scaleVec)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vec1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[i+8:][0]))
+		result.StorePtr(unsafe.Pointer(&dst[i]))
+		vec1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[i+8]))
 		result1 := vec1.Mul(scaleVec)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		result1.StorePtr(unsafe.Pointer(&dst[i+8]))
 	}
 	if i < n {
 		BaseNormalizeTo_fallback_Float16(dst[i:n], src[i:n])
@@ -167,12 +167,12 @@ func BaseNormalizeTo_avx2_BFloat16(dst []hwy.BFloat16, src []hwy.BFloat16) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		vec := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[i:][0]))
+		vec := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[i]))
 		result := vec.Mul(scaleVec)
-		result.StorePtr(unsafe.Pointer(&dst[i:][0]))
-		vec1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[i+8:][0]))
+		result.StorePtr(unsafe.Pointer(&dst[i]))
+		vec1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[i+8]))
 		result1 := vec1.Mul(scaleVec)
-		result1.StorePtr(unsafe.Pointer(&dst[i+8:][0]))
+		result1.StorePtr(unsafe.Pointer(&dst[i+8]))
 	}
 	if i < n {
 		BaseNormalizeTo_fallback_BFloat16(dst[i:n], src[i:n])

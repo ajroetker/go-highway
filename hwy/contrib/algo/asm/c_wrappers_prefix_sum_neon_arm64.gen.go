@@ -6,70 +6,76 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
-// PrefixSumVecCF32 computes BasePrefixSumVec for entire arrays using NEON SIMD.
-func PrefixSumVecCF32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// DeltaDecodeCS32 computes DeltaDecode using NEON SIMD assembly.
+func DeltaDecodeCS32(data []int32, base int32) {
+	if len(data) == 0 {
+		return
 	}
-	n := int64(len(input))
-	prefixsumvec_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	deltadecode_c_s32_neon(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// PrefixSumVecCF64 computes BasePrefixSumVec for entire arrays using NEON SIMD.
-func PrefixSumVecCF64(input []float64) []float64 {
-	result := make([]float64, len(input))
-	if len(input) == 0 {
-		return result
+// DeltaDecodeCS64 computes DeltaDecode using NEON SIMD assembly.
+func DeltaDecodeCS64(data []int64, base int64) {
+	if len(data) == 0 {
+		return
 	}
-	n := int64(len(input))
-	prefixsumvec_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	deltadecode_c_s64_neon(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// PrefixSumVecCS32 computes BasePrefixSumVec for entire arrays using NEON SIMD.
-func PrefixSumVecCS32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// DeltaDecodeCU32 computes DeltaDecode using NEON SIMD assembly.
+func DeltaDecodeCU32(data []uint32, base uint32) {
+	if len(data) == 0 {
+		return
 	}
-	n := int64(len(input))
-	prefixsumvec_c_s32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	baseVal := base
+	lenVal := int64(len(data))
+	deltadecode_c_u32_neon(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
-// PrefixSumVecCS64 computes BasePrefixSumVec for entire arrays using NEON SIMD.
-func PrefixSumVecCS64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+// DeltaDecodeCU64 computes DeltaDecode using NEON SIMD assembly.
+func DeltaDecodeCU64(data []uint64, base uint64) {
+	if len(data) == 0 {
+		return
 	}
-	n := int64(len(input))
-	prefixsumvec_c_s64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// PrefixSumVecCU32 computes BasePrefixSumVec for entire arrays using NEON SIMD.
-func PrefixSumVecCU32(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
 	}
-	n := int64(len(input))
-	prefixsumvec_c_u32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
-}
-
-// PrefixSumVecCU64 computes BasePrefixSumVec for entire arrays using NEON SIMD.
-func PrefixSumVecCU64(input []float32) []float32 {
-	result := make([]float32, len(input))
-	if len(input) == 0 {
-		return result
-	}
-	n := int64(len(input))
-	prefixsumvec_c_u64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
-	return result
+	baseVal := base
+	lenVal := int64(len(data))
+	deltadecode_c_u64_neon(
+		p_data,
+		unsafe.Pointer(&baseVal),
+		unsafe.Pointer(&lenVal),
+	)
 }
 
 // PrefixSumCF32 computes PrefixSum using NEON SIMD assembly.
@@ -168,75 +174,69 @@ func PrefixSumCU64(data []uint64) {
 	)
 }
 
-// DeltaDecodeCS32 computes DeltaDecode using NEON SIMD assembly.
-func DeltaDecodeCS32(data []int32, base int32) {
-	if len(data) == 0 {
-		return
+// PrefixSumVecCF32 computes BasePrefixSumVec for entire arrays using NEON SIMD.
+func PrefixSumVecCF32(input []float32) []float32 {
+	result := make([]float32, len(input))
+	if len(input) == 0 {
+		return result
 	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	baseVal := base
-	lenVal := int64(len(data))
-	deltadecode_c_s32_neon(
-		p_data,
-		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&lenVal),
-	)
+	n := int64(len(input))
+	prefixsumvec_c_f32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return result
 }
 
-// DeltaDecodeCS64 computes DeltaDecode using NEON SIMD assembly.
-func DeltaDecodeCS64(data []int64, base int64) {
-	if len(data) == 0 {
-		return
+// PrefixSumVecCF64 computes BasePrefixSumVec for entire arrays using NEON SIMD.
+func PrefixSumVecCF64(input []float64) []float64 {
+	result := make([]float64, len(input))
+	if len(input) == 0 {
+		return result
 	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	baseVal := base
-	lenVal := int64(len(data))
-	deltadecode_c_s64_neon(
-		p_data,
-		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&lenVal),
-	)
+	n := int64(len(input))
+	prefixsumvec_c_f64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return result
 }
 
-// DeltaDecodeCU32 computes DeltaDecode using NEON SIMD assembly.
-func DeltaDecodeCU32(data []uint32, base uint32) {
-	if len(data) == 0 {
-		return
+// PrefixSumVecCS32 computes BasePrefixSumVec for entire arrays using NEON SIMD.
+func PrefixSumVecCS32(input []float32) []float32 {
+	result := make([]float32, len(input))
+	if len(input) == 0 {
+		return result
 	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
-	}
-	baseVal := base
-	lenVal := int64(len(data))
-	deltadecode_c_u32_neon(
-		p_data,
-		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&lenVal),
-	)
+	n := int64(len(input))
+	prefixsumvec_c_s32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return result
 }
 
-// DeltaDecodeCU64 computes DeltaDecode using NEON SIMD assembly.
-func DeltaDecodeCU64(data []uint64, base uint64) {
-	if len(data) == 0 {
-		return
+// PrefixSumVecCS64 computes BasePrefixSumVec for entire arrays using NEON SIMD.
+func PrefixSumVecCS64(input []float32) []float32 {
+	result := make([]float32, len(input))
+	if len(input) == 0 {
+		return result
 	}
-	var p_data unsafe.Pointer
-	if len(data) > 0 {
-		p_data = unsafe.Pointer(&data[0])
+	n := int64(len(input))
+	prefixsumvec_c_s64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return result
+}
+
+// PrefixSumVecCU32 computes BasePrefixSumVec for entire arrays using NEON SIMD.
+func PrefixSumVecCU32(input []float32) []float32 {
+	result := make([]float32, len(input))
+	if len(input) == 0 {
+		return result
 	}
-	baseVal := base
-	lenVal := int64(len(data))
-	deltadecode_c_u64_neon(
-		p_data,
-		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&lenVal),
-	)
+	n := int64(len(input))
+	prefixsumvec_c_u32_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return result
+}
+
+// PrefixSumVecCU64 computes BasePrefixSumVec for entire arrays using NEON SIMD.
+func PrefixSumVecCU64(input []float32) []float32 {
+	result := make([]float32, len(input))
+	if len(input) == 0 {
+		return result
+	}
+	n := int64(len(input))
+	prefixsumvec_c_u64_neon(unsafe.Pointer(&input[0]), unsafe.Pointer(&result[0]), unsafe.Pointer(&n))
+	return result
 }
 

@@ -154,134 +154,6 @@ func ApplyPackedOutputCF64(packedOutput, output []float64, alpha, beta float64, 
 	)
 }
 
-// ApplyPackedOutputSimpleCF16 computes ApplyPackedOutputSimple using NEON SIMD assembly.
-func ApplyPackedOutputSimpleCF16(packedOutput, output []hwy.Float16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
-	var p_packedOutput unsafe.Pointer
-	if len(packedOutput) > 0 {
-		p_packedOutput = unsafe.Pointer(&packedOutput[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	packedStrideVal := int64(packedStride)
-	outputRowOffsetVal := int64(outputRowOffset)
-	outputColOffsetVal := int64(outputColOffset)
-	outputStrideVal := int64(outputStride)
-	heightVal := int64(height)
-	widthVal := int64(width)
-	len_packedOutputVal := int64(len(packedOutput))
-	len_outputVal := int64(len(output))
-	applypackedoutputsimple_c_f16_neon(
-		p_packedOutput,
-		p_output,
-		unsafe.Pointer(&packedStrideVal),
-		unsafe.Pointer(&outputRowOffsetVal),
-		unsafe.Pointer(&outputColOffsetVal),
-		unsafe.Pointer(&outputStrideVal),
-		unsafe.Pointer(&heightVal),
-		unsafe.Pointer(&widthVal),
-		unsafe.Pointer(&len_packedOutputVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-// ApplyPackedOutputSimpleCBF16 computes ApplyPackedOutputSimple using NEON SIMD assembly.
-func ApplyPackedOutputSimpleCBF16(packedOutput, output []hwy.BFloat16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
-	var p_packedOutput unsafe.Pointer
-	if len(packedOutput) > 0 {
-		p_packedOutput = unsafe.Pointer(&packedOutput[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	packedStrideVal := int64(packedStride)
-	outputRowOffsetVal := int64(outputRowOffset)
-	outputColOffsetVal := int64(outputColOffset)
-	outputStrideVal := int64(outputStride)
-	heightVal := int64(height)
-	widthVal := int64(width)
-	len_packedOutputVal := int64(len(packedOutput))
-	len_outputVal := int64(len(output))
-	applypackedoutputsimple_c_bf16_neon(
-		p_packedOutput,
-		p_output,
-		unsafe.Pointer(&packedStrideVal),
-		unsafe.Pointer(&outputRowOffsetVal),
-		unsafe.Pointer(&outputColOffsetVal),
-		unsafe.Pointer(&outputStrideVal),
-		unsafe.Pointer(&heightVal),
-		unsafe.Pointer(&widthVal),
-		unsafe.Pointer(&len_packedOutputVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-// ApplyPackedOutputSimpleCF32 computes ApplyPackedOutputSimple using NEON SIMD assembly.
-func ApplyPackedOutputSimpleCF32(packedOutput, output []float32, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
-	var p_packedOutput unsafe.Pointer
-	if len(packedOutput) > 0 {
-		p_packedOutput = unsafe.Pointer(&packedOutput[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	packedStrideVal := int64(packedStride)
-	outputRowOffsetVal := int64(outputRowOffset)
-	outputColOffsetVal := int64(outputColOffset)
-	outputStrideVal := int64(outputStride)
-	heightVal := int64(height)
-	widthVal := int64(width)
-	len_packedOutputVal := int64(len(packedOutput))
-	len_outputVal := int64(len(output))
-	applypackedoutputsimple_c_f32_neon(
-		p_packedOutput,
-		p_output,
-		unsafe.Pointer(&packedStrideVal),
-		unsafe.Pointer(&outputRowOffsetVal),
-		unsafe.Pointer(&outputColOffsetVal),
-		unsafe.Pointer(&outputStrideVal),
-		unsafe.Pointer(&heightVal),
-		unsafe.Pointer(&widthVal),
-		unsafe.Pointer(&len_packedOutputVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
-// ApplyPackedOutputSimpleCF64 computes ApplyPackedOutputSimple using NEON SIMD assembly.
-func ApplyPackedOutputSimpleCF64(packedOutput, output []float64, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
-	var p_packedOutput unsafe.Pointer
-	if len(packedOutput) > 0 {
-		p_packedOutput = unsafe.Pointer(&packedOutput[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	packedStrideVal := int64(packedStride)
-	outputRowOffsetVal := int64(outputRowOffset)
-	outputColOffsetVal := int64(outputColOffset)
-	outputStrideVal := int64(outputStride)
-	heightVal := int64(height)
-	widthVal := int64(width)
-	len_packedOutputVal := int64(len(packedOutput))
-	len_outputVal := int64(len(output))
-	applypackedoutputsimple_c_f64_neon(
-		p_packedOutput,
-		p_output,
-		unsafe.Pointer(&packedStrideVal),
-		unsafe.Pointer(&outputRowOffsetVal),
-		unsafe.Pointer(&outputColOffsetVal),
-		unsafe.Pointer(&outputStrideVal),
-		unsafe.Pointer(&heightVal),
-		unsafe.Pointer(&widthVal),
-		unsafe.Pointer(&len_packedOutputVal),
-		unsafe.Pointer(&len_outputVal),
-	)
-}
-
 // ApplyPackedOutputAccumCF16 computes ApplyPackedOutputAccum using NEON SIMD assembly.
 func ApplyPackedOutputAccumCF16(packedOutput, output []hwy.Float16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
 	var p_packedOutput unsafe.Pointer
@@ -397,6 +269,134 @@ func ApplyPackedOutputAccumCF64(packedOutput, output []float64, packedStride, ou
 	len_packedOutputVal := int64(len(packedOutput))
 	len_outputVal := int64(len(output))
 	applypackedoutputaccum_c_f64_neon(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// ApplyPackedOutputSimpleCF16 computes ApplyPackedOutputSimple using NEON SIMD assembly.
+func ApplyPackedOutputSimpleCF16(packedOutput, output []hwy.Float16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	applypackedoutputsimple_c_f16_neon(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// ApplyPackedOutputSimpleCBF16 computes ApplyPackedOutputSimple using NEON SIMD assembly.
+func ApplyPackedOutputSimpleCBF16(packedOutput, output []hwy.BFloat16, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	applypackedoutputsimple_c_bf16_neon(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// ApplyPackedOutputSimpleCF32 computes ApplyPackedOutputSimple using NEON SIMD assembly.
+func ApplyPackedOutputSimpleCF32(packedOutput, output []float32, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	applypackedoutputsimple_c_f32_neon(
+		p_packedOutput,
+		p_output,
+		unsafe.Pointer(&packedStrideVal),
+		unsafe.Pointer(&outputRowOffsetVal),
+		unsafe.Pointer(&outputColOffsetVal),
+		unsafe.Pointer(&outputStrideVal),
+		unsafe.Pointer(&heightVal),
+		unsafe.Pointer(&widthVal),
+		unsafe.Pointer(&len_packedOutputVal),
+		unsafe.Pointer(&len_outputVal),
+	)
+}
+
+// ApplyPackedOutputSimpleCF64 computes ApplyPackedOutputSimple using NEON SIMD assembly.
+func ApplyPackedOutputSimpleCF64(packedOutput, output []float64, packedStride, outputRowOffset, outputColOffset, outputStride, height, width int) {
+	var p_packedOutput unsafe.Pointer
+	if len(packedOutput) > 0 {
+		p_packedOutput = unsafe.Pointer(&packedOutput[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	packedStrideVal := int64(packedStride)
+	outputRowOffsetVal := int64(outputRowOffset)
+	outputColOffsetVal := int64(outputColOffset)
+	outputStrideVal := int64(outputStride)
+	heightVal := int64(height)
+	widthVal := int64(width)
+	len_packedOutputVal := int64(len(packedOutput))
+	len_outputVal := int64(len(output))
+	applypackedoutputsimple_c_f64_neon(
 		p_packedOutput,
 		p_output,
 		unsafe.Pointer(&packedStrideVal),

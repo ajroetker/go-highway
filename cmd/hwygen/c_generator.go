@@ -797,7 +797,7 @@ func getCProfileForFile(cFile string, target Target) *CIntrinsicProfile {
 }
 
 // runGOAT invokes the GOAT tool to compile a C file to Go assembly.
-// It uses `go tool github.com/gorse-io/goat` which requires goat to be
+// It uses `go tool github.com/ajroetker/go-highway/hwy/goat` which requires goat to be
 // declared as a tool dependency in go.mod (via `go get -tool`).
 func runGOAT(cFile string, profile *CIntrinsicProfile) error {
 	// Use the Go binary from GOROOT (same toolchain that built hwygen)
@@ -823,7 +823,7 @@ func runGOAT(cFile string, profile *CIntrinsicProfile) error {
 	if profile != nil && profile.GoatTarget != "" {
 		goatTarget = profile.GoatTarget
 	}
-	args := []string{"tool", "github.com/gorse-io/goat", absCFile,
+	args := []string{"tool", "github.com/ajroetker/go-highway/hwy/goat", absCFile,
 		"-O3",
 		"-t", goatTarget,
 		"-o", filepath.Dir(absCFile),
@@ -1829,7 +1829,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	// These ensure the asm adapter preserves the same safety guarantees as
 	// the base Go implementation.
 	if preconditions := extractPanicPreconditions(pf.Body); preconditions != "" {
-		for _, line := range strings.Split(strings.TrimRight(preconditions, "\n"), "\n") {
+		for line := range strings.SplitSeq(strings.TrimRight(preconditions, "\n"), "\n") {
 			fmt.Fprintf(buf, "\t%s\n", line)
 		}
 	}
@@ -1966,8 +1966,7 @@ func (g *Generator) resolveAsmImportPath() (string, error) {
 // structAsmExportedName builds the exported function name for asm/ passthrough.
 // E.g., BaseForwardICT + float32 → ForwardICT_F32
 func structAsmExportedName(baseName, elemType string) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	return name + "_" + cTypePublicSuffix(elemType)
 }
 
@@ -1977,8 +1976,7 @@ func structAsmExportedName(baseName, elemType string) string {
 // Unexported functions stay unexported: basePackedMicroKernelGeneral → packedMicroKernelGeneralFloat16
 func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
 	private := len(baseName) > 0 && baseName[0] >= 'a' && baseName[0] <= 'z'
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	if private {
 		name = makeUnexported(name)
 	}
@@ -1991,8 +1989,7 @@ func buildDispatchVarName(baseName, elemType string, isGeneric bool) string {
 // buildAdapterFuncName builds the unexported adapter function name.
 // E.g., BaseForwardICT + float32 → forwardICTAsmF32
 func buildAdapterFuncName(baseName, elemType string) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	// Lowercase first letter
 	if len(name) > 0 {
 		name = strings.ToLower(name[:1]) + name[1:]
@@ -2002,26 +1999,10 @@ func buildAdapterFuncName(baseName, elemType string) string {
 
 // typeNameToDispatchSuffix returns the suffix used in dispatch variable names.
 func typeNameToDispatchSuffix(elemType string) string {
-	switch elemType {
-	case "float32":
-		return "Float32"
-	case "float64":
-		return "Float64"
-	case "float16", "hwy.Float16":
-		return "Float16"
-	case "bfloat16", "hwy.BFloat16":
-		return "BFloat16"
-	case "int32":
-		return "Int32"
-	case "int64":
-		return "Int64"
-	case "uint32":
-		return "Uint32"
-	case "uint64":
-		return "Uint64"
-	default:
-		return "Float32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return info.FullPrefix
 	}
+	return "Float32"
 }
 
 // emitZCAdapterFunc generates an adapter function that converts *Image[T] params
@@ -2155,7 +2136,7 @@ func emitCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuffix 
 // buildCPublicName creates the public function name.
 // BaseExpVec -> ExpVecCF32, BaseGELU -> GELUCF32
 func buildCPublicName(baseName, elemType string) string {
-	name := strings.TrimPrefix(baseName, "Base")
+	name := stripBasePrefix(baseName)
 
 	typeSuffix := cTypePublicSuffix(elemType)
 
@@ -2173,54 +2154,18 @@ func cAsmFuncName(baseName, elemType, targetSuffix string) string {
 
 // cTypeSuffix returns the short type suffix for file naming.
 func cTypeSuffix(elemType string) string {
-	switch elemType {
-	case "float32":
-		return "f32"
-	case "float64":
-		return "f64"
-	case "float16", "hwy.Float16":
-		return "f16"
-	case "bfloat16", "hwy.BFloat16":
-		return "bf16"
-	case "int32":
-		return "s32"
-	case "int64":
-		return "s64"
-	case "uint64":
-		return "u64"
-	case "uint32":
-		return "u32"
-	case "uint8", "byte":
-		return "u8"
-	default:
-		return "f32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return info.CSuffix
 	}
+	return "f32"
 }
 
 // cTypePublicSuffix returns the public Go suffix for function names.
 func cTypePublicSuffix(elemType string) string {
-	switch elemType {
-	case "float32":
-		return "F32"
-	case "float64":
-		return "F64"
-	case "float16", "hwy.Float16":
-		return "F16"
-	case "bfloat16", "hwy.BFloat16":
-		return "BF16"
-	case "int32":
-		return "S32"
-	case "int64":
-		return "S64"
-	case "uint64":
-		return "U64"
-	case "uint32":
-		return "U32"
-	case "uint8", "byte":
-		return "U8"
-	default:
-		return "F32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return strings.ToUpper(info.CSuffix)
 	}
+	return "F32"
 }
 
 // isGoScalarIntType returns true for Go integer types that should be passed
@@ -2241,11 +2186,19 @@ func isGoScalarIntType(goType string) bool {
 // different element types (e.g., []byte and []float32). When true, each slice
 // needs its own length parameter because len([]byte) and len([]float32) have
 // different semantics (byte count vs element count).
+//
+// When ElemTypeOverride is set (via //hwy:elemtype), the developer has
+// explicitly declared the SIMD element type, so all slices are treated as
+// having compatible types. This ensures the generated wrappers use a single
+// shared length parameter, matching the C/assembly calling convention.
 func hasMixedSliceTypes(pf *ParsedFunc) bool {
+	if pf.ElemTypeOverride != "" {
+		return false
+	}
 	var firstElem string
 	for _, p := range pf.Params {
-		if strings.HasPrefix(p.Type, "[]") {
-			elem := strings.TrimPrefix(p.Type, "[]")
+		if after, ok := strings.CutPrefix(p.Type, "[]"); ok {
+			elem := after
 			if firstElem == "" {
 				firstElem = elem
 			} else if elem != firstElem {
@@ -2275,11 +2228,11 @@ func goElemTypeToCType(elemType string) string {
 	case "int32":
 		return "int"
 	case "int64":
-		return "long"
+		return "long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint8", "byte":
 		return "unsigned char"
 	default:

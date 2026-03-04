@@ -5,16 +5,6 @@ package asm
 
 import "unsafe"
 
-// LiftUpdate53_S32 calls the NEON SIMD assembly implementation.
-func LiftUpdate53_S32(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
-	liftupdate53_c_s32_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor)
-}
-
-// LiftUpdate53_S64 calls the NEON SIMD assembly implementation.
-func LiftUpdate53_S64(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
-	liftupdate53_c_s64_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor)
-}
-
 // LiftPredict53_S32 calls the NEON SIMD assembly implementation.
 func LiftPredict53_S32(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
 	liftpredict53_c_s32_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor)
@@ -43,6 +33,16 @@ func LiftStep97_F32(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe
 // LiftStep97_F64 calls the NEON SIMD assembly implementation.
 func LiftStep97_F64(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pcoeff unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
 	liftstep97_c_f64_neon(target, ptLen, neighbor, pnLen, pcoeff, pphase, plen_target, plen_neighbor)
+}
+
+// LiftUpdate53_S32 calls the NEON SIMD assembly implementation.
+func LiftUpdate53_S32(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
+	liftupdate53_c_s32_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor)
+}
+
+// LiftUpdate53_S64 calls the NEON SIMD assembly implementation.
+func LiftUpdate53_S64(target unsafe.Pointer, ptLen unsafe.Pointer, neighbor unsafe.Pointer, pnLen unsafe.Pointer, pphase unsafe.Pointer, plen_target unsafe.Pointer, plen_neighbor unsafe.Pointer) {
+	liftupdate53_c_s64_neon(target, ptLen, neighbor, pnLen, pphase, plen_target, plen_neighbor)
 }
 
 // ScaleSlice_F16 calls the NEON SIMD assembly implementation.

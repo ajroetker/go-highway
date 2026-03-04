@@ -20,6 +20,27 @@ func BaseDecodeStreamVByte32_avx512(control []byte, data []uint8, n int) []uint3
 	return result
 }
 
+func BaseDecodeStreamVByte32GroupSIMD_avx512(ctrl byte, data []uint8, dst []uint32) int {
+	dataLen := int(streamVByte32DataLen[ctrl])
+	if len(data) < dataLen || len(dst) < 4 {
+		return 0
+	}
+	if len(data) < 16 {
+		return decodeGroupScalarInto(ctrl, data, dst)
+	}
+	dataVec := archsimd.LoadUint8x16Slice(data[:16])
+	maskSlice := streamVByte32ShuffleMasks[ctrl][:]
+	maskVec := archsimd.LoadUint8x16Slice(maskSlice)
+	shuffled := hwy.TableLookupBytes_AVX512_Uint8x16(dataVec, maskVec)
+	var result [16]uint8
+	shuffled.StoreSlice(result[:])
+	dst[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
+	dst[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
+	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
+	dst[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
+	return dataLen
+}
+
 func BaseDecodeStreamVByte32Into_avx512(control []byte, data []uint8, dst []uint32) (decoded int, dataConsumed int) {
 	if len(dst) == 0 || len(control) == 0 {
 		return 0, 0
@@ -63,27 +84,6 @@ func BaseDecodeStreamVByte32Into_avx512(control []byte, data []uint8, dst []uint
 	return dstPos, dataPos
 }
 
-func BaseDecodeStreamVByte32GroupSIMD_avx512(ctrl byte, data []uint8, dst []uint32) int {
-	dataLen := int(streamVByte32DataLen[ctrl])
-	if len(data) < dataLen || len(dst) < 4 {
-		return 0
-	}
-	if len(data) < 16 {
-		return decodeGroupScalarInto(ctrl, data, dst)
-	}
-	dataVec := archsimd.LoadUint8x16Slice(data[:16])
-	maskSlice := streamVByte32ShuffleMasks[ctrl][:]
-	maskVec := archsimd.LoadUint8x16Slice(maskSlice)
-	shuffled := hwy.TableLookupBytes_AVX512_Uint8x16(dataVec, maskVec)
-	var result [16]uint8
-	shuffled.StoreSlice(result[:])
-	dst[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
-	dst[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
-	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
-	dst[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
-	return dataLen
-}
-
 func BaseEncodeStreamVByte32_avx512(values []uint32) (control []byte, data []byte) {
 	if len(values) == 0 {
 		return nil, nil
@@ -108,6 +108,32 @@ func BaseEncodeStreamVByte32_avx512(values []uint32) (control []byte, data []byt
 		}
 	}
 	return control, data
+}
+
+func BaseEncodeStreamVByte32Group_avx512(values []uint32, dst []uint8) (ctrl byte, n int) {
+	if len(values) < 4 || len(dst) < 16 {
+		return 0, 0
+	}
+	combined := values[0] | values[1] | values[2] | values[3]
+	if combined <= 0xFF {
+		dst[0] = byte(values[0])
+		dst[1] = byte(values[1])
+		dst[2] = byte(values[2])
+		dst[3] = byte(values[3])
+		return 0, 4
+	}
+	ctrl = 0
+	for i := range 4 {
+		length := encodedLengthU32(values[i])
+		ctrl |= byte(length-1) << (i * 2)
+	}
+	n = int(streamVByte32DataLen[ctrl])
+	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
+	inputVec := archsimd.LoadUint8x16Slice(inputBytes[:16])
+	maskVec := archsimd.LoadUint8x16Slice(streamVByte32EncodeShuffleMasks[ctrl][:16])
+	shuffled := hwy.TableLookupBytes_AVX512_Uint8x16(inputVec, maskVec)
+	shuffled.StoreSlice(dst[:16])
+	return ctrl, n
 }
 
 func BaseEncodeStreamVByte32Into_avx512(values []uint32, controlBuf []byte, dataBuf []byte) (control []byte, data []byte) {
@@ -143,30 +169,4 @@ func BaseEncodeStreamVByte32Into_avx512(values []uint32, controlBuf []byte, data
 		}
 	}
 	return controlBuf, dataBuf[:dataPos]
-}
-
-func BaseEncodeStreamVByte32Group_avx512(values []uint32, dst []uint8) (ctrl byte, n int) {
-	if len(values) < 4 || len(dst) < 16 {
-		return 0, 0
-	}
-	combined := values[0] | values[1] | values[2] | values[3]
-	if combined <= 0xFF {
-		dst[0] = byte(values[0])
-		dst[1] = byte(values[1])
-		dst[2] = byte(values[2])
-		dst[3] = byte(values[3])
-		return 0, 4
-	}
-	ctrl = 0
-	for i := range 4 {
-		length := encodedLengthU32(values[i])
-		ctrl |= byte(length-1) << (i * 2)
-	}
-	n = int(streamVByte32DataLen[ctrl])
-	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
-	inputVec := archsimd.LoadUint8x16Slice(inputBytes[:16])
-	maskVec := archsimd.LoadUint8x16Slice(streamVByte32EncodeShuffleMasks[ctrl][:16])
-	shuffled := hwy.TableLookupBytes_AVX512_Uint8x16(inputVec, maskVec)
-	shuffled.StoreSlice(dst[:16])
-	return ctrl, n
 }

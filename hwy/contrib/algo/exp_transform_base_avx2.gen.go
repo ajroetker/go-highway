@@ -9,6 +9,38 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+func BaseCosTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx2_Float16(in, out, math.BaseCosVec_avx2_Float16)
+}
+
+func BaseCosTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx2_BFloat16(in, out, math.BaseCosVec_avx2_BFloat16)
+}
+
+func BaseCosTransform_avx2(in []float32, out []float32) {
+	BaseApply_avx2(in, out, math.BaseCosVec_avx2)
+}
+
+func BaseCosTransform_avx2_Float64(in []float64, out []float64) {
+	BaseApply_avx2_Float64(in, out, math.BaseCosVec_avx2_Float64)
+}
+
+func BaseErfTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx2_Float16(in, out, math.BaseErfVec_avx2_Float16)
+}
+
+func BaseErfTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx2_BFloat16(in, out, math.BaseErfVec_avx2_BFloat16)
+}
+
+func BaseErfTransform_avx2(in []float32, out []float32) {
+	BaseApply_avx2(in, out, math.BaseErfVec_avx2)
+}
+
+func BaseErfTransform_avx2_Float64(in []float64, out []float64) {
+	BaseApply_avx2_Float64(in, out, math.BaseErfVec_avx2_Float64)
+}
+
 func BaseExpTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
 	BaseApply_avx2_Float16(in, out, math.BaseExpVec_avx2_Float16)
 }
@@ -41,54 +73,6 @@ func BaseLogTransform_avx2_Float64(in []float64, out []float64) {
 	BaseApply_avx2_Float64(in, out, math.BaseLogVec_avx2_Float64)
 }
 
-func BaseSinTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_avx2_Float16(in, out, math.BaseSinVec_avx2_Float16)
-}
-
-func BaseSinTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_avx2_BFloat16(in, out, math.BaseSinVec_avx2_BFloat16)
-}
-
-func BaseSinTransform_avx2(in []float32, out []float32) {
-	BaseApply_avx2(in, out, math.BaseSinVec_avx2)
-}
-
-func BaseSinTransform_avx2_Float64(in []float64, out []float64) {
-	BaseApply_avx2_Float64(in, out, math.BaseSinVec_avx2_Float64)
-}
-
-func BaseCosTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_avx2_Float16(in, out, math.BaseCosVec_avx2_Float16)
-}
-
-func BaseCosTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_avx2_BFloat16(in, out, math.BaseCosVec_avx2_BFloat16)
-}
-
-func BaseCosTransform_avx2(in []float32, out []float32) {
-	BaseApply_avx2(in, out, math.BaseCosVec_avx2)
-}
-
-func BaseCosTransform_avx2_Float64(in []float64, out []float64) {
-	BaseApply_avx2_Float64(in, out, math.BaseCosVec_avx2_Float64)
-}
-
-func BaseTanhTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_avx2_Float16(in, out, math.BaseTanhVec_avx2_Float16)
-}
-
-func BaseTanhTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_avx2_BFloat16(in, out, math.BaseTanhVec_avx2_BFloat16)
-}
-
-func BaseTanhTransform_avx2(in []float32, out []float32) {
-	BaseApply_avx2(in, out, math.BaseTanhVec_avx2)
-}
-
-func BaseTanhTransform_avx2_Float64(in []float64, out []float64) {
-	BaseApply_avx2_Float64(in, out, math.BaseTanhVec_avx2_Float64)
-}
-
 func BaseSigmoidTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
 	BaseApply_avx2_Float16(in, out, math.BaseSigmoidVec_avx2_Float16)
 }
@@ -105,18 +89,34 @@ func BaseSigmoidTransform_avx2_Float64(in []float64, out []float64) {
 	BaseApply_avx2_Float64(in, out, math.BaseSigmoidVec_avx2_Float64)
 }
 
-func BaseErfTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
-	BaseApply_avx2_Float16(in, out, math.BaseErfVec_avx2_Float16)
+func BaseSinTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx2_Float16(in, out, math.BaseSinVec_avx2_Float16)
 }
 
-func BaseErfTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
-	BaseApply_avx2_BFloat16(in, out, math.BaseErfVec_avx2_BFloat16)
+func BaseSinTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx2_BFloat16(in, out, math.BaseSinVec_avx2_BFloat16)
 }
 
-func BaseErfTransform_avx2(in []float32, out []float32) {
-	BaseApply_avx2(in, out, math.BaseErfVec_avx2)
+func BaseSinTransform_avx2(in []float32, out []float32) {
+	BaseApply_avx2(in, out, math.BaseSinVec_avx2)
 }
 
-func BaseErfTransform_avx2_Float64(in []float64, out []float64) {
-	BaseApply_avx2_Float64(in, out, math.BaseErfVec_avx2_Float64)
+func BaseSinTransform_avx2_Float64(in []float64, out []float64) {
+	BaseApply_avx2_Float64(in, out, math.BaseSinVec_avx2_Float64)
+}
+
+func BaseTanhTransform_avx2_Float16(in []hwy.Float16, out []hwy.Float16) {
+	BaseApply_avx2_Float16(in, out, math.BaseTanhVec_avx2_Float16)
+}
+
+func BaseTanhTransform_avx2_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16) {
+	BaseApply_avx2_BFloat16(in, out, math.BaseTanhVec_avx2_BFloat16)
+}
+
+func BaseTanhTransform_avx2(in []float32, out []float32) {
+	BaseApply_avx2(in, out, math.BaseTanhVec_avx2)
+}
+
+func BaseTanhTransform_avx2_Float64(in []float64, out []float64) {
+	BaseApply_avx2_Float64(in, out, math.BaseTanhVec_avx2_Float64)
 }

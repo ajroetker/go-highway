@@ -199,6 +199,618 @@ var (
 	BaseTanhVec_NEON_two_f64         = asm.BroadcastFloat64x2(2.0)
 )
 
+func BaseAcoshVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	one := hwy.Const[hwy.Float16](1.0)
+	zero := hwy.Const[hwy.Float16](0.0)
+	x2 := hwy.MulF16(x, x)
+	x2Minus1 := hwy.SubF16(x2, one)
+	sqrtPart := hwy.SqrtF16(x2Minus1)
+	arg := hwy.AddF16(x, sqrtPart)
+	result := BaseLogVec_neon_Float16(arg)
+	oneMask := hwy.EqualF16(x, one)
+	result = hwy.IfThenElseF16(oneMask, zero, result)
+	return result
+}
+
+func BaseAcoshVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	one := hwy.Const[hwy.BFloat16](1.0)
+	zero := hwy.Const[hwy.BFloat16](0.0)
+	x2 := hwy.MulBF16(x, x)
+	x2Minus1 := hwy.SubBF16(x2, one)
+	sqrtPart := hwy.SqrtBF16(x2Minus1)
+	arg := hwy.AddBF16(x, sqrtPart)
+	result := BaseLogVec_neon_BFloat16(arg)
+	oneMask := hwy.EqualBF16(x, one)
+	result = hwy.IfThenElseBF16(oneMask, zero, result)
+	return result
+}
+
+func BaseAcoshVec_neon(x asm.Float32x4) asm.Float32x4 {
+	one := BaseAcoshVec_NEON_one_f32
+	zero := BaseAcoshVec_NEON_zero_f32
+	x2 := x.Mul(x)
+	x2Minus1 := x2.Sub(one)
+	sqrtPart := x2Minus1.Sqrt()
+	arg := x.Add(sqrtPart)
+	result := BaseLogVec_neon(arg)
+	oneMask := x.Equal(one)
+	result = zero.Merge(result, oneMask)
+	return result
+}
+
+func BaseAcoshVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	one := BaseAcoshVec_NEON_one_f64
+	zero := BaseAcoshVec_NEON_zero_f64
+	x2 := x.Mul(x)
+	x2Minus1 := x2.Sub(one)
+	sqrtPart := x2Minus1.Sqrt()
+	arg := x.Add(sqrtPart)
+	result := BaseLogVec_neon_Float64(arg)
+	oneMask := x.Equal(one)
+	result = zero.Merge(result, oneMask)
+	return result
+}
+
+func BaseAsinhVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	one := hwy.Const[hwy.Float16](1.0)
+	x2 := hwy.MulF16(x, x)
+	x2Plus1 := hwy.AddF16(x2, one)
+	sqrtPart := hwy.SqrtF16(x2Plus1)
+	arg := hwy.AddF16(x, sqrtPart)
+	return BaseLogVec_neon_Float16(arg)
+}
+
+func BaseAsinhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	one := hwy.Const[hwy.BFloat16](1.0)
+	x2 := hwy.MulBF16(x, x)
+	x2Plus1 := hwy.AddBF16(x2, one)
+	sqrtPart := hwy.SqrtBF16(x2Plus1)
+	arg := hwy.AddBF16(x, sqrtPart)
+	return BaseLogVec_neon_BFloat16(arg)
+}
+
+func BaseAsinhVec_neon(x asm.Float32x4) asm.Float32x4 {
+	one := BaseAsinhVec_NEON_one_f32
+	x2 := x.Mul(x)
+	x2Plus1 := x2.Add(one)
+	sqrtPart := x2Plus1.Sqrt()
+	arg := x.Add(sqrtPart)
+	return BaseLogVec_neon(arg)
+}
+
+func BaseAsinhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	one := BaseAsinhVec_NEON_one_f64
+	x2 := x.Mul(x)
+	x2Plus1 := x2.Add(one)
+	sqrtPart := x2Plus1.Sqrt()
+	arg := x.Add(sqrtPart)
+	return BaseLogVec_neon_Float64(arg)
+}
+
+func BaseAtanhVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	one := hwy.Const[hwy.Float16](1.0)
+	half := hwy.Const[hwy.Float16](0.5)
+	zero := hwy.Const[hwy.Float16](0.0)
+	onePlusX := hwy.AddF16(one, x)
+	oneMinusX := hwy.SubF16(one, x)
+	ratio := hwy.DivF16(onePlusX, oneMinusX)
+	logRatio := BaseLogVec_neon_Float16(ratio)
+	result := hwy.MulF16(half, logRatio)
+	zeroMask := hwy.EqualF16(x, zero)
+	result = hwy.IfThenElseF16(zeroMask, zero, result)
+	return result
+}
+
+func BaseAtanhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	one := hwy.Const[hwy.BFloat16](1.0)
+	half := hwy.Const[hwy.BFloat16](0.5)
+	zero := hwy.Const[hwy.BFloat16](0.0)
+	onePlusX := hwy.AddBF16(one, x)
+	oneMinusX := hwy.SubBF16(one, x)
+	ratio := hwy.DivBF16(onePlusX, oneMinusX)
+	logRatio := BaseLogVec_neon_BFloat16(ratio)
+	result := hwy.MulBF16(half, logRatio)
+	zeroMask := hwy.EqualBF16(x, zero)
+	result = hwy.IfThenElseBF16(zeroMask, zero, result)
+	return result
+}
+
+func BaseAtanhVec_neon(x asm.Float32x4) asm.Float32x4 {
+	one := BaseAtanhVec_NEON_one_f32
+	half := BaseAtanhVec_NEON_half_f32
+	zero := BaseAtanhVec_NEON_zero_f32
+	onePlusX := one.Add(x)
+	oneMinusX := one.Sub(x)
+	ratio := onePlusX.Div(oneMinusX)
+	logRatio := BaseLogVec_neon(ratio)
+	result := half.Mul(logRatio)
+	zeroMask := x.Equal(zero)
+	result = zero.Merge(result, zeroMask)
+	return result
+}
+
+func BaseAtanhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	one := BaseAtanhVec_NEON_one_f64
+	half := BaseAtanhVec_NEON_half_f64
+	zero := BaseAtanhVec_NEON_zero_f64
+	onePlusX := one.Add(x)
+	oneMinusX := one.Sub(x)
+	ratio := onePlusX.Div(oneMinusX)
+	logRatio := BaseLogVec_neon_Float64(ratio)
+	result := half.Mul(logRatio)
+	zeroMask := x.Equal(zero)
+	result = zero.Merge(result, zeroMask)
+	return result
+}
+
+func BaseCosVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	twoOverPi := hwy.Set[hwy.Float16](trig2OverPi_f16)
+	piOver2Hi := hwy.Set[hwy.Float16](trigPiOver2Hi_f16)
+	piOver2Lo := hwy.Set[hwy.Float16](trigPiOver2Lo_f16)
+	one := hwy.Set[hwy.Float16](trigOne_f16)
+	s1 := hwy.Set[hwy.Float16](trigS1_f16)
+	s2 := hwy.Set[hwy.Float16](trigS2_f16)
+	s3 := hwy.Set[hwy.Float16](trigS3_f16)
+	s4 := hwy.Set[hwy.Float16](trigS4_f16)
+	c1 := hwy.Set[hwy.Float16](trigC1_f16)
+	c2 := hwy.Set[hwy.Float16](trigC2_f16)
+	c3 := hwy.Set[hwy.Float16](trigC3_f16)
+	c4 := hwy.Set[hwy.Float16](trigC4_f16)
+	intOne := hwy.Set[int32](1)
+	intTwo := hwy.Set[int32](2)
+	intThree := hwy.Set[int32](3)
+	kFloat := hwy.RoundToEven(hwy.MulF16(x, twoOverPi))
+	kInt := hwy.ConvertToInt32(kFloat)
+	r := hwy.SubF16(x, hwy.MulF16(kFloat, piOver2Hi))
+	r = hwy.SubF16(r, hwy.MulF16(kFloat, piOver2Lo))
+	r2 := hwy.MulF16(r, r)
+	sinPoly := hwy.FMAF16(s4, r2, s3)
+	sinPoly = hwy.FMAF16(sinPoly, r2, s2)
+	sinPoly = hwy.FMAF16(sinPoly, r2, s1)
+	sinPoly = hwy.FMAF16(sinPoly, r2, one)
+	sinR := hwy.MulF16(r, sinPoly)
+	cosPoly := hwy.FMAF16(c4, r2, c3)
+	cosPoly = hwy.FMAF16(cosPoly, r2, c2)
+	cosPoly = hwy.FMAF16(cosPoly, r2, c1)
+	cosR := hwy.FMAF16(cosPoly, r2, one)
+	cosOctant := hwy.And(hwy.Add(kInt, intOne), intThree)
+	useCosMask := hwy.Equal(hwy.And(cosOctant, intOne), intOne)
+	negateMask := hwy.Equal(hwy.And(cosOctant, intTwo), intTwo)
+	sinRData := func() []hwy.Float16 {
+		var _simd_tmp [8]hwy.Float16
+		hwy.Store(sinR, _simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	cosRData := func() []hwy.Float16 {
+		var _simd_tmp [8]hwy.Float16
+		hwy.Store(cosR, _simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	resultData := make([]hwy.Float16, len(sinRData))
+	for i := range sinRData {
+		if useCosMask.GetBit(i) {
+			resultData[i] = cosRData[i]
+		} else {
+			resultData[i] = sinRData[i]
+		}
+	}
+	result := hwy.LoadSlice(resultData)
+	negResult := hwy.NegF16(result)
+	negResultData := func() []hwy.Float16 {
+		var _simd_tmp [8]hwy.Float16
+		hwy.Store(negResult, _simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	for i := range resultData {
+		if negateMask.GetBit(i) {
+			resultData[i] = negResultData[i]
+		}
+	}
+	return hwy.LoadSlice(resultData)
+}
+
+func BaseCosVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	twoOverPi := hwy.Set[hwy.BFloat16](trig2OverPi_bf16)
+	piOver2Hi := hwy.Set[hwy.BFloat16](trigPiOver2Hi_bf16)
+	piOver2Lo := hwy.Set[hwy.BFloat16](trigPiOver2Lo_bf16)
+	one := hwy.Set[hwy.BFloat16](trigOne_bf16)
+	s1 := hwy.Set[hwy.BFloat16](trigS1_bf16)
+	s2 := hwy.Set[hwy.BFloat16](trigS2_bf16)
+	s3 := hwy.Set[hwy.BFloat16](trigS3_bf16)
+	s4 := hwy.Set[hwy.BFloat16](trigS4_bf16)
+	c1 := hwy.Set[hwy.BFloat16](trigC1_bf16)
+	c2 := hwy.Set[hwy.BFloat16](trigC2_bf16)
+	c3 := hwy.Set[hwy.BFloat16](trigC3_bf16)
+	c4 := hwy.Set[hwy.BFloat16](trigC4_bf16)
+	intOne := hwy.Set[int32](1)
+	intTwo := hwy.Set[int32](2)
+	intThree := hwy.Set[int32](3)
+	kFloat := hwy.RoundToEven(hwy.MulBF16(x, twoOverPi))
+	kInt := hwy.ConvertToInt32(kFloat)
+	r := hwy.SubBF16(x, hwy.MulBF16(kFloat, piOver2Hi))
+	r = hwy.SubBF16(r, hwy.MulBF16(kFloat, piOver2Lo))
+	r2 := hwy.MulBF16(r, r)
+	sinPoly := hwy.FMABF16(s4, r2, s3)
+	sinPoly = hwy.FMABF16(sinPoly, r2, s2)
+	sinPoly = hwy.FMABF16(sinPoly, r2, s1)
+	sinPoly = hwy.FMABF16(sinPoly, r2, one)
+	sinR := hwy.MulBF16(r, sinPoly)
+	cosPoly := hwy.FMABF16(c4, r2, c3)
+	cosPoly = hwy.FMABF16(cosPoly, r2, c2)
+	cosPoly = hwy.FMABF16(cosPoly, r2, c1)
+	cosR := hwy.FMABF16(cosPoly, r2, one)
+	cosOctant := hwy.And(hwy.Add(kInt, intOne), intThree)
+	useCosMask := hwy.Equal(hwy.And(cosOctant, intOne), intOne)
+	negateMask := hwy.Equal(hwy.And(cosOctant, intTwo), intTwo)
+	sinRData := func() []hwy.BFloat16 {
+		var _simd_tmp [8]hwy.BFloat16
+		hwy.Store(sinR, _simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	cosRData := func() []hwy.BFloat16 {
+		var _simd_tmp [8]hwy.BFloat16
+		hwy.Store(cosR, _simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	resultData := make([]hwy.BFloat16, len(sinRData))
+	for i := range sinRData {
+		if useCosMask.GetBit(i) {
+			resultData[i] = cosRData[i]
+		} else {
+			resultData[i] = sinRData[i]
+		}
+	}
+	result := hwy.LoadSlice(resultData)
+	negResult := hwy.NegBF16(result)
+	negResultData := func() []hwy.BFloat16 {
+		var _simd_tmp [8]hwy.BFloat16
+		hwy.Store(negResult, _simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	for i := range resultData {
+		if negateMask.GetBit(i) {
+			resultData[i] = negResultData[i]
+		}
+	}
+	return hwy.LoadSlice(resultData)
+}
+
+func BaseCosVec_neon(x asm.Float32x4) asm.Float32x4 {
+	twoOverPi := BaseCosVec_NEON_twoOverPi_f32
+	piOver2Hi := BaseCosVec_NEON_piOver2Hi_f32
+	piOver2Lo := BaseCosVec_NEON_piOver2Lo_f32
+	one := BaseCosVec_NEON_one_f32
+	s1 := BaseCosVec_NEON_s1_f32
+	s2 := BaseCosVec_NEON_s2_f32
+	s3 := BaseCosVec_NEON_s3_f32
+	s4 := BaseCosVec_NEON_s4_f32
+	c1 := BaseCosVec_NEON_c1_f32
+	c2 := BaseCosVec_NEON_c2_f32
+	c3 := BaseCosVec_NEON_c3_f32
+	c4 := BaseCosVec_NEON_c4_f32
+	intOne := BaseCosVec_NEON_intOne_i32_f32
+	intTwo := BaseCosVec_NEON_intTwo_i32_f32
+	intThree := BaseCosVec_NEON_intThree_i32_f32
+	kFloat := x.Mul(twoOverPi).RoundToEven()
+	kInt := kFloat.ConvertToInt32()
+	r := x.Sub(kFloat.Mul(piOver2Hi))
+	r = r.Sub(kFloat.Mul(piOver2Lo))
+	r2 := r.Mul(r)
+	sinPoly := s4.MulAdd(r2, s3)
+	sinPoly = sinPoly.MulAdd(r2, s2)
+	sinPoly = sinPoly.MulAdd(r2, s1)
+	sinPoly = sinPoly.MulAdd(r2, one)
+	sinR := r.Mul(sinPoly)
+	cosPoly := c4.MulAdd(r2, c3)
+	cosPoly = cosPoly.MulAdd(r2, c2)
+	cosPoly = cosPoly.MulAdd(r2, c1)
+	cosR := cosPoly.MulAdd(r2, one)
+	cosOctant := kInt.Add(intOne).And(intThree)
+	useCosMask := cosOctant.And(intOne).Equal(intOne)
+	negateMask := cosOctant.And(intTwo).Equal(intTwo)
+	sinRData := func() []float32 {
+		var _simd_tmp [4]float32
+		sinR.StoreSlice(_simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	cosRData := func() []float32 {
+		var _simd_tmp [4]float32
+		cosR.StoreSlice(_simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	resultData := make([]float32, len(sinRData))
+	for i := range sinRData {
+		if func() bool {
+			_vOne := asm.BroadcastInt32x4(1)
+			_vZero := asm.BroadcastInt32x4(0)
+			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			var _simd_mask_tmp [4]int32
+			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			return _simd_mask_tmp[i] != 0
+		}() {
+			resultData[i] = cosRData[i]
+		} else {
+			resultData[i] = sinRData[i]
+		}
+	}
+	result := asm.LoadFloat32x4Slice(resultData)
+	negResult := asm.BroadcastFloat32x4(0).Sub(result)
+	negResultData := func() []float32 {
+		var _simd_tmp [4]float32
+		negResult.StoreSlice(_simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	for i := range resultData {
+		if func() bool {
+			_vOne := asm.BroadcastInt32x4(1)
+			_vZero := asm.BroadcastInt32x4(0)
+			_vMasked := _vOne.Merge(_vZero, negateMask)
+			var _simd_mask_tmp [4]int32
+			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			return _simd_mask_tmp[i] != 0
+		}() {
+			resultData[i] = negResultData[i]
+		}
+	}
+	return asm.LoadFloat32x4Slice(resultData)
+}
+
+func BaseCosVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	twoOverPi := BaseCosVec_NEON_twoOverPi_f64
+	piOver2Hi := BaseCosVec_NEON_piOver2Hi_f64
+	piOver2Lo := BaseCosVec_NEON_piOver2Lo_f64
+	one := BaseCosVec_NEON_one_f64
+	s1 := BaseCosVec_NEON_s1_f64
+	s2 := BaseCosVec_NEON_s2_f64
+	s3 := BaseCosVec_NEON_s3_f64
+	s4 := BaseCosVec_NEON_s4_f64
+	c1 := BaseCosVec_NEON_c1_f64
+	c2 := BaseCosVec_NEON_c2_f64
+	c3 := BaseCosVec_NEON_c3_f64
+	c4 := BaseCosVec_NEON_c4_f64
+	intOne := BaseCosVec_NEON_intOne_i32_f64
+	intTwo := BaseCosVec_NEON_intTwo_i32_f64
+	intThree := BaseCosVec_NEON_intThree_i32_f64
+	kFloat := x.Mul(twoOverPi).RoundToEven()
+	kInt := kFloat.ConvertToInt32()
+	r := x.Sub(kFloat.Mul(piOver2Hi))
+	r = r.Sub(kFloat.Mul(piOver2Lo))
+	r2 := r.Mul(r)
+	sinPoly := s4.MulAdd(r2, s3)
+	sinPoly = sinPoly.MulAdd(r2, s2)
+	sinPoly = sinPoly.MulAdd(r2, s1)
+	sinPoly = sinPoly.MulAdd(r2, one)
+	sinR := r.Mul(sinPoly)
+	cosPoly := c4.MulAdd(r2, c3)
+	cosPoly = cosPoly.MulAdd(r2, c2)
+	cosPoly = cosPoly.MulAdd(r2, c1)
+	cosR := cosPoly.MulAdd(r2, one)
+	cosOctant := kInt.Add(intOne).And(intThree)
+	useCosMask := cosOctant.And(intOne).Equal(intOne)
+	negateMask := cosOctant.And(intTwo).Equal(intTwo)
+	sinRData := func() []float64 {
+		var _simd_tmp [2]float64
+		sinR.StoreSlice(_simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	cosRData := func() []float64 {
+		var _simd_tmp [2]float64
+		cosR.StoreSlice(_simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	resultData := make([]float64, len(sinRData))
+	for i := range sinRData {
+		if func() bool {
+			_vOne := asm.BroadcastInt32x2(1)
+			_vZero := asm.BroadcastInt32x2(0)
+			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			var _simd_mask_tmp [2]int32
+			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			return _simd_mask_tmp[i] != 0
+		}() {
+			resultData[i] = cosRData[i]
+		} else {
+			resultData[i] = sinRData[i]
+		}
+	}
+	result := asm.LoadFloat64x2Slice(resultData)
+	negResult := asm.BroadcastFloat64x2(0).Sub(result)
+	negResultData := func() []float64 {
+		var _simd_tmp [2]float64
+		negResult.StoreSlice(_simd_tmp[:])
+		return _simd_tmp[:]
+	}()
+	for i := range resultData {
+		if func() bool {
+			_vOne := asm.BroadcastInt32x2(1)
+			_vZero := asm.BroadcastInt32x2(0)
+			_vMasked := _vOne.Merge(_vZero, negateMask)
+			var _simd_mask_tmp [2]int32
+			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			return _simd_mask_tmp[i] != 0
+		}() {
+			resultData[i] = negResultData[i]
+		}
+	}
+	return asm.LoadFloat64x2Slice(resultData)
+}
+
+func BaseCoshVec_neon_Float16(x asm.Float16x8) asm.Float16x8 {
+	one := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(1.0))))
+	c2 := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.5))))
+	c4 := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.041666666666666664))))
+	c6 := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.001388888888888889))))
+	x2 := x.Mul(x)
+	poly := c6.MulAdd(x2, c4)
+	poly = poly.MulAdd(x2, c2)
+	return poly.MulAdd(x2, one)
+}
+
+func BaseCoshVec_neon_BFloat16(x asm.BFloat16x8) asm.BFloat16x8 {
+	one := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(1.0))))
+	c2 := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.5))))
+	c4 := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.041666666666666664))))
+	c6 := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.001388888888888889))))
+	x2 := x.Mul(x)
+	poly := c6.MulAdd(x2, c4)
+	poly = poly.MulAdd(x2, c2)
+	return poly.MulAdd(x2, one)
+}
+
+func BaseCoshVec_neon(x asm.Float32x4) asm.Float32x4 {
+	one := BaseCoshVec_NEON_one_f32
+	c2 := BaseCoshVec_NEON_c2_f32
+	c4 := BaseCoshVec_NEON_c4_f32
+	c6 := BaseCoshVec_NEON_c6_f32
+	x2 := x.Mul(x)
+	poly := c6.MulAdd(x2, c4)
+	poly = poly.MulAdd(x2, c2)
+	return poly.MulAdd(x2, one)
+}
+
+func BaseCoshVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	one := BaseCoshVec_NEON_one_f64
+	c2 := BaseCoshVec_NEON_c2_f64
+	c4 := BaseCoshVec_NEON_c4_f64
+	c6 := BaseCoshVec_NEON_c6_f64
+	x2 := x.Mul(x)
+	poly := c6.MulAdd(x2, c4)
+	poly = poly.MulAdd(x2, c2)
+	return poly.MulAdd(x2, one)
+}
+
+func BaseErfVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	a1 := hwy.Set[hwy.Float16](erfA1_f16)
+	a2 := hwy.Set[hwy.Float16](erfA2_f16)
+	a3 := hwy.Set[hwy.Float16](erfA3_f16)
+	a4 := hwy.Set[hwy.Float16](erfA4_f16)
+	a5 := hwy.Set[hwy.Float16](erfA5_f16)
+	p := hwy.Set[hwy.Float16](erfP_f16)
+	one := hwy.Set[hwy.Float16](erfOne_f16)
+	zero := hwy.Set[hwy.Float16](erfZero_f16)
+	absX := hwy.AbsF16(x)
+	signMask := hwy.LessThanF16(x, zero)
+	t := hwy.DivF16(one, hwy.AddF16(one, hwy.MulF16(p, absX)))
+	poly := hwy.FMAF16(a5, t, a4)
+	poly = hwy.FMAF16(poly, t, a3)
+	poly = hwy.FMAF16(poly, t, a2)
+	poly = hwy.FMAF16(poly, t, a1)
+	poly = hwy.MulF16(poly, t)
+	x2 := hwy.MulF16(absX, absX)
+	negX2 := hwy.SubF16(zero, x2)
+	expNegX2 := BaseExpVec_neon_Float16(negX2)
+	erfAbs := hwy.SubF16(one, hwy.MulF16(poly, expNegX2))
+	erfAbs = hwy.MaxF16(hwy.MinF16(erfAbs, one), zero)
+	negErfAbs := hwy.SubF16(zero, erfAbs)
+	result := hwy.IfThenElseF16(signMask, negErfAbs, erfAbs)
+	return result
+}
+
+func BaseErfVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	a1 := hwy.Set[hwy.BFloat16](erfA1_bf16)
+	a2 := hwy.Set[hwy.BFloat16](erfA2_bf16)
+	a3 := hwy.Set[hwy.BFloat16](erfA3_bf16)
+	a4 := hwy.Set[hwy.BFloat16](erfA4_bf16)
+	a5 := hwy.Set[hwy.BFloat16](erfA5_bf16)
+	p := hwy.Set[hwy.BFloat16](erfP_bf16)
+	one := hwy.Set[hwy.BFloat16](erfOne_bf16)
+	zero := hwy.Set[hwy.BFloat16](erfZero_bf16)
+	absX := hwy.AbsBF16(x)
+	signMask := hwy.LessThanBF16(x, zero)
+	t := hwy.DivBF16(one, hwy.AddBF16(one, hwy.MulBF16(p, absX)))
+	poly := hwy.FMABF16(a5, t, a4)
+	poly = hwy.FMABF16(poly, t, a3)
+	poly = hwy.FMABF16(poly, t, a2)
+	poly = hwy.FMABF16(poly, t, a1)
+	poly = hwy.MulBF16(poly, t)
+	x2 := hwy.MulBF16(absX, absX)
+	negX2 := hwy.SubBF16(zero, x2)
+	expNegX2 := BaseExpVec_neon_BFloat16(negX2)
+	erfAbs := hwy.SubBF16(one, hwy.MulBF16(poly, expNegX2))
+	erfAbs = hwy.MaxBF16(hwy.MinBF16(erfAbs, one), zero)
+	negErfAbs := hwy.SubBF16(zero, erfAbs)
+	result := hwy.IfThenElseBF16(signMask, negErfAbs, erfAbs)
+	return result
+}
+
+func BaseErfVec_neon(x asm.Float32x4) asm.Float32x4 {
+	a1 := BaseErfVec_NEON_a1_f32
+	a2 := BaseErfVec_NEON_a2_f32
+	a3 := BaseErfVec_NEON_a3_f32
+	a4 := BaseErfVec_NEON_a4_f32
+	a5 := BaseErfVec_NEON_a5_f32
+	p := BaseErfVec_NEON_p_f32
+	one := BaseErfVec_NEON_one_f32
+	zero := BaseErfVec_NEON_zero_f32
+	absX := x.Abs()
+	signMask := x.Less(zero)
+	t := one.Div(one.Add(p.Mul(absX)))
+	poly := a5.MulAdd(t, a4)
+	poly = poly.MulAdd(t, a3)
+	poly = poly.MulAdd(t, a2)
+	poly = poly.MulAdd(t, a1)
+	poly = poly.Mul(t)
+	x2 := absX.Mul(absX)
+	negX2 := zero.Sub(x2)
+	expNegX2 := BaseExpVec_neon(negX2)
+	erfAbs := one.Sub(poly.Mul(expNegX2))
+	erfAbs = erfAbs.Min(one).Max(zero)
+	negErfAbs := zero.Sub(erfAbs)
+	result := negErfAbs.Merge(erfAbs, signMask)
+	return result
+}
+
+func BaseErfVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	a1 := BaseErfVec_NEON_a1_f64
+	a2 := BaseErfVec_NEON_a2_f64
+	a3 := BaseErfVec_NEON_a3_f64
+	a4 := BaseErfVec_NEON_a4_f64
+	a5 := BaseErfVec_NEON_a5_f64
+	p := BaseErfVec_NEON_p_f64
+	one := BaseErfVec_NEON_one_f64
+	zero := BaseErfVec_NEON_zero_f64
+	absX := x.Abs()
+	signMask := x.Less(zero)
+	t := one.Div(one.Add(p.Mul(absX)))
+	poly := a5.MulAdd(t, a4)
+	poly = poly.MulAdd(t, a3)
+	poly = poly.MulAdd(t, a2)
+	poly = poly.MulAdd(t, a1)
+	poly = poly.Mul(t)
+	x2 := absX.Mul(absX)
+	negX2 := zero.Sub(x2)
+	expNegX2 := BaseExpVec_neon_Float64(negX2)
+	erfAbs := one.Sub(poly.Mul(expNegX2))
+	erfAbs = erfAbs.Min(one).Max(zero)
+	negErfAbs := zero.Sub(erfAbs)
+	result := negErfAbs.Merge(erfAbs, signMask)
+	return result
+}
+
+func BaseExp2Vec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	ln2 := hwy.Set[hwy.Float16](ln2_f16)
+	xLn2 := hwy.MulF16(x, ln2)
+	return BaseExpVec_neon_Float16(xLn2)
+}
+
+func BaseExp2Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	ln2 := hwy.Set[hwy.BFloat16](ln2_bf16)
+	xLn2 := hwy.MulBF16(x, ln2)
+	return BaseExpVec_neon_BFloat16(xLn2)
+}
+
+func BaseExp2Vec_neon(x asm.Float32x4) asm.Float32x4 {
+	ln2 := BaseExp2Vec_NEON_ln2_f32
+	xLn2 := x.Mul(ln2)
+	return BaseExpVec_neon(xLn2)
+}
+
+func BaseExp2Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	ln2 := BaseExp2Vec_NEON_ln2_f64
+	xLn2 := x.Mul(ln2)
+	return BaseExpVec_neon_Float64(xLn2)
+}
+
 func BaseExpVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
 	overflow := hwy.Set[hwy.Float16](expOverflow_f16)
 	underflow := hwy.Set[hwy.Float16](expUnderflow_f16)
@@ -335,116 +947,52 @@ func BaseExpVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
 	return result
 }
 
-func BaseSigmoidVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	one := hwy.Set[hwy.Float16](sigmoidOne_f16)
-	zero := hwy.Set[hwy.Float16](sigmoidZero_f16)
-	satHi := hwy.Set[hwy.Float16](sigmoidSatHi_f16)
-	satLo := hwy.Set[hwy.Float16](sigmoidSatLo_f16)
-	clampedX := hwy.MaxF16(hwy.MinF16(x, satHi), satLo)
-	negX := hwy.SubF16(zero, clampedX)
-	expNegX := BaseExpVec_neon_Float16(negX)
-	result := hwy.DivF16(one, hwy.AddF16(one, expNegX))
-	result = hwy.IfThenElseF16(hwy.GreaterThanF16(x, satHi), one, result)
-	result = hwy.IfThenElseF16(hwy.LessThanF16(x, satLo), zero, result)
-	return result
+func BaseLog10Vec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	log10E := hwy.Set[hwy.Float16](log10E_f16)
+	lnX := BaseLogVec_neon_Float16(x)
+	return hwy.MulF16(lnX, log10E)
 }
 
-func BaseSigmoidVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	one := hwy.Set[hwy.BFloat16](sigmoidOne_bf16)
-	zero := hwy.Set[hwy.BFloat16](sigmoidZero_bf16)
-	satHi := hwy.Set[hwy.BFloat16](sigmoidSatHi_bf16)
-	satLo := hwy.Set[hwy.BFloat16](sigmoidSatLo_bf16)
-	clampedX := hwy.MaxBF16(hwy.MinBF16(x, satHi), satLo)
-	negX := hwy.SubBF16(zero, clampedX)
-	expNegX := BaseExpVec_neon_BFloat16(negX)
-	result := hwy.DivBF16(one, hwy.AddBF16(one, expNegX))
-	result = hwy.IfThenElseBF16(hwy.GreaterThanBF16(x, satHi), one, result)
-	result = hwy.IfThenElseBF16(hwy.LessThanBF16(x, satLo), zero, result)
-	return result
+func BaseLog10Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	log10E := hwy.Set[hwy.BFloat16](log10E_bf16)
+	lnX := BaseLogVec_neon_BFloat16(x)
+	return hwy.MulBF16(lnX, log10E)
 }
 
-func BaseSigmoidVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := BaseSigmoidVec_NEON_one_f32
-	zero := BaseSigmoidVec_NEON_zero_f32
-	satHi := BaseSigmoidVec_NEON_satHi_f32
-	satLo := BaseSigmoidVec_NEON_satLo_f32
-	clampedX := x.Min(satHi).Max(satLo)
-	negX := zero.Sub(clampedX)
-	expNegX := BaseExpVec_neon(negX)
-	result := one.Div(one.Add(expNegX))
-	result = one.Merge(result, x.Greater(satHi))
-	result = zero.Merge(result, x.Less(satLo))
-	return result
+func BaseLog10Vec_neon(x asm.Float32x4) asm.Float32x4 {
+	log10E := BaseLog10Vec_NEON_log10E_f32
+	lnX := BaseLogVec_neon(x)
+	return lnX.Mul(log10E)
 }
 
-func BaseSigmoidVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := BaseSigmoidVec_NEON_one_f64
-	zero := BaseSigmoidVec_NEON_zero_f64
-	satHi := BaseSigmoidVec_NEON_satHi_f64
-	satLo := BaseSigmoidVec_NEON_satLo_f64
-	clampedX := x.Min(satHi).Max(satLo)
-	negX := zero.Sub(clampedX)
-	expNegX := BaseExpVec_neon_Float64(negX)
-	result := one.Div(one.Add(expNegX))
-	result = one.Merge(result, x.Greater(satHi))
-	result = zero.Merge(result, x.Less(satLo))
-	return result
+func BaseLog10Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	log10E := BaseLog10Vec_NEON_log10E_f64
+	lnX := BaseLogVec_neon_Float64(x)
+	return lnX.Mul(log10E)
 }
 
-func BaseTanhVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	two := hwy.Const[hwy.Float16](2.0)
-	one := hwy.Set[hwy.Float16](tanhOne_f16)
-	negOne := hwy.Set[hwy.Float16](tanhNegOne_f16)
-	threshold := hwy.Set[hwy.Float16](tanhClamp_f16)
-	negThreshold := hwy.NegF16(threshold)
-	twoX := hwy.MulF16(two, x)
-	sigTwoX := BaseSigmoidVec_neon_Float16(twoX)
-	result := hwy.SubF16(hwy.MulF16(two, sigTwoX), one)
-	result = hwy.IfThenElseF16(hwy.GreaterThanF16(x, threshold), one, result)
-	result = hwy.IfThenElseF16(hwy.LessThanF16(x, negThreshold), negOne, result)
-	return result
+func BaseLog2Vec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	log2E := hwy.Set[hwy.Float16](log2E_f16)
+	lnX := BaseLogVec_neon_Float16(x)
+	return hwy.MulF16(lnX, log2E)
 }
 
-func BaseTanhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	two := hwy.Const[hwy.BFloat16](2.0)
-	one := hwy.Set[hwy.BFloat16](tanhOne_bf16)
-	negOne := hwy.Set[hwy.BFloat16](tanhNegOne_bf16)
-	threshold := hwy.Set[hwy.BFloat16](tanhClamp_bf16)
-	negThreshold := hwy.NegBF16(threshold)
-	twoX := hwy.MulBF16(two, x)
-	sigTwoX := BaseSigmoidVec_neon_BFloat16(twoX)
-	result := hwy.SubBF16(hwy.MulBF16(two, sigTwoX), one)
-	result = hwy.IfThenElseBF16(hwy.GreaterThanBF16(x, threshold), one, result)
-	result = hwy.IfThenElseBF16(hwy.LessThanBF16(x, negThreshold), negOne, result)
-	return result
+func BaseLog2Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	log2E := hwy.Set[hwy.BFloat16](log2E_bf16)
+	lnX := BaseLogVec_neon_BFloat16(x)
+	return hwy.MulBF16(lnX, log2E)
 }
 
-func BaseTanhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	two := BaseTanhVec_NEON_two_f32
-	one := BaseTanhVec_NEON_one_f32
-	negOne := BaseTanhVec_NEON_negOne_f32
-	threshold := BaseTanhVec_NEON_threshold_f32
-	negThreshold := asm.BroadcastFloat32x4(0).Sub(threshold)
-	twoX := two.Mul(x)
-	sigTwoX := BaseSigmoidVec_neon(twoX)
-	result := two.Mul(sigTwoX).Sub(one)
-	result = one.Merge(result, x.Greater(threshold))
-	result = negOne.Merge(result, x.Less(negThreshold))
-	return result
+func BaseLog2Vec_neon(x asm.Float32x4) asm.Float32x4 {
+	log2E := BaseLog2Vec_NEON_log2E_f32
+	lnX := BaseLogVec_neon(x)
+	return lnX.Mul(log2E)
 }
 
-func BaseTanhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	two := BaseTanhVec_NEON_two_f64
-	one := BaseTanhVec_NEON_one_f64
-	negOne := BaseTanhVec_NEON_negOne_f64
-	threshold := BaseTanhVec_NEON_threshold_f64
-	negThreshold := asm.BroadcastFloat64x2(0).Sub(threshold)
-	twoX := two.Mul(x)
-	sigTwoX := BaseSigmoidVec_neon_Float64(twoX)
-	result := two.Mul(sigTwoX).Sub(one)
-	result = one.Merge(result, x.Greater(threshold))
-	result = negOne.Merge(result, x.Less(negThreshold))
-	return result
+func BaseLog2Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	log2E := BaseLog2Vec_NEON_log2E_f64
+	lnX := BaseLogVec_neon_Float64(x)
+	return lnX.Mul(log2E)
 }
 
 func BaseLogVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
@@ -604,6 +1152,130 @@ func BaseLogVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
 	result = negInf.Merge(result, zeroMask)
 	result = nan.Merge(result, negMask)
 	result = zero.Merge(result, oneMask)
+	return result
+}
+
+func BasePowVec_neon_Float16(base hwy.Vec[hwy.Float16], exp hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	one := hwy.Const[hwy.Float16](1.0)
+	zero := hwy.Const[hwy.Float16](0.0)
+	logBase := BaseLogVec_neon_Float16(base)
+	expTimesLog := hwy.MulF16(exp, logBase)
+	result := BaseExpVec_neon_Float16(expTimesLog)
+	expZeroMask := hwy.EqualF16(exp, zero)
+	result = hwy.IfThenElseF16(expZeroMask, one, result)
+	baseOneMask := hwy.EqualF16(base, one)
+	result = hwy.IfThenElseF16(baseOneMask, one, result)
+	baseZeroMask := hwy.EqualF16(base, zero)
+	expPosMask := hwy.GreaterThanF16(exp, zero)
+	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
+	result = hwy.IfThenElseF16(baseZeroExpPosMask, zero, result)
+	return result
+}
+
+func BasePowVec_neon_BFloat16(base hwy.Vec[hwy.BFloat16], exp hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	one := hwy.Const[hwy.BFloat16](1.0)
+	zero := hwy.Const[hwy.BFloat16](0.0)
+	logBase := BaseLogVec_neon_BFloat16(base)
+	expTimesLog := hwy.MulBF16(exp, logBase)
+	result := BaseExpVec_neon_BFloat16(expTimesLog)
+	expZeroMask := hwy.EqualBF16(exp, zero)
+	result = hwy.IfThenElseBF16(expZeroMask, one, result)
+	baseOneMask := hwy.EqualBF16(base, one)
+	result = hwy.IfThenElseBF16(baseOneMask, one, result)
+	baseZeroMask := hwy.EqualBF16(base, zero)
+	expPosMask := hwy.GreaterThanBF16(exp, zero)
+	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
+	result = hwy.IfThenElseBF16(baseZeroExpPosMask, zero, result)
+	return result
+}
+
+func BasePowVec_neon(base asm.Float32x4, exp asm.Float32x4) asm.Float32x4 {
+	one := BasePowVec_NEON_one_f32
+	zero := BasePowVec_NEON_zero_f32
+	logBase := BaseLogVec_neon(base)
+	expTimesLog := exp.Mul(logBase)
+	result := BaseExpVec_neon(expTimesLog)
+	expZeroMask := exp.Equal(zero)
+	result = one.Merge(result, expZeroMask)
+	baseOneMask := base.Equal(one)
+	result = one.Merge(result, baseOneMask)
+	baseZeroMask := base.Equal(zero)
+	expPosMask := exp.GreaterThan(zero)
+	baseZeroExpPosMask := baseZeroMask.And(expPosMask)
+	result = zero.Merge(result, baseZeroExpPosMask)
+	return result
+}
+
+func BasePowVec_neon_Float64(base asm.Float64x2, exp asm.Float64x2) asm.Float64x2 {
+	one := BasePowVec_NEON_one_f64
+	zero := BasePowVec_NEON_zero_f64
+	logBase := BaseLogVec_neon_Float64(base)
+	expTimesLog := exp.Mul(logBase)
+	result := BaseExpVec_neon_Float64(expTimesLog)
+	expZeroMask := exp.Equal(zero)
+	result = one.Merge(result, expZeroMask)
+	baseOneMask := base.Equal(one)
+	result = one.Merge(result, baseOneMask)
+	baseZeroMask := base.Equal(zero)
+	expPosMask := exp.GreaterThan(zero)
+	baseZeroExpPosMask := baseZeroMask.And(expPosMask)
+	result = zero.Merge(result, baseZeroExpPosMask)
+	return result
+}
+
+func BaseSigmoidVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	one := hwy.Set[hwy.Float16](sigmoidOne_f16)
+	zero := hwy.Set[hwy.Float16](sigmoidZero_f16)
+	satHi := hwy.Set[hwy.Float16](sigmoidSatHi_f16)
+	satLo := hwy.Set[hwy.Float16](sigmoidSatLo_f16)
+	clampedX := hwy.MaxF16(hwy.MinF16(x, satHi), satLo)
+	negX := hwy.SubF16(zero, clampedX)
+	expNegX := BaseExpVec_neon_Float16(negX)
+	result := hwy.DivF16(one, hwy.AddF16(one, expNegX))
+	result = hwy.IfThenElseF16(hwy.GreaterThanF16(x, satHi), one, result)
+	result = hwy.IfThenElseF16(hwy.LessThanF16(x, satLo), zero, result)
+	return result
+}
+
+func BaseSigmoidVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	one := hwy.Set[hwy.BFloat16](sigmoidOne_bf16)
+	zero := hwy.Set[hwy.BFloat16](sigmoidZero_bf16)
+	satHi := hwy.Set[hwy.BFloat16](sigmoidSatHi_bf16)
+	satLo := hwy.Set[hwy.BFloat16](sigmoidSatLo_bf16)
+	clampedX := hwy.MaxBF16(hwy.MinBF16(x, satHi), satLo)
+	negX := hwy.SubBF16(zero, clampedX)
+	expNegX := BaseExpVec_neon_BFloat16(negX)
+	result := hwy.DivBF16(one, hwy.AddBF16(one, expNegX))
+	result = hwy.IfThenElseBF16(hwy.GreaterThanBF16(x, satHi), one, result)
+	result = hwy.IfThenElseBF16(hwy.LessThanBF16(x, satLo), zero, result)
+	return result
+}
+
+func BaseSigmoidVec_neon(x asm.Float32x4) asm.Float32x4 {
+	one := BaseSigmoidVec_NEON_one_f32
+	zero := BaseSigmoidVec_NEON_zero_f32
+	satHi := BaseSigmoidVec_NEON_satHi_f32
+	satLo := BaseSigmoidVec_NEON_satLo_f32
+	clampedX := x.Min(satHi).Max(satLo)
+	negX := zero.Sub(clampedX)
+	expNegX := BaseExpVec_neon(negX)
+	result := one.Div(one.Add(expNegX))
+	result = one.Merge(result, x.Greater(satHi))
+	result = zero.Merge(result, x.Less(satLo))
+	return result
+}
+
+func BaseSigmoidVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	one := BaseSigmoidVec_NEON_one_f64
+	zero := BaseSigmoidVec_NEON_zero_f64
+	satHi := BaseSigmoidVec_NEON_satHi_f64
+	satLo := BaseSigmoidVec_NEON_satLo_f64
+	clampedX := x.Min(satHi).Max(satLo)
+	negX := zero.Sub(clampedX)
+	expNegX := BaseExpVec_neon_Float64(negX)
+	result := one.Div(one.Add(expNegX))
+	result = one.Merge(result, x.Greater(satHi))
+	result = zero.Merge(result, x.Less(satLo))
 	return result
 }
 
@@ -899,478 +1571,6 @@ func BaseSinVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
 	return asm.LoadFloat64x2Slice(resultData)
 }
 
-func BaseCosVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	twoOverPi := hwy.Set[hwy.Float16](trig2OverPi_f16)
-	piOver2Hi := hwy.Set[hwy.Float16](trigPiOver2Hi_f16)
-	piOver2Lo := hwy.Set[hwy.Float16](trigPiOver2Lo_f16)
-	one := hwy.Set[hwy.Float16](trigOne_f16)
-	s1 := hwy.Set[hwy.Float16](trigS1_f16)
-	s2 := hwy.Set[hwy.Float16](trigS2_f16)
-	s3 := hwy.Set[hwy.Float16](trigS3_f16)
-	s4 := hwy.Set[hwy.Float16](trigS4_f16)
-	c1 := hwy.Set[hwy.Float16](trigC1_f16)
-	c2 := hwy.Set[hwy.Float16](trigC2_f16)
-	c3 := hwy.Set[hwy.Float16](trigC3_f16)
-	c4 := hwy.Set[hwy.Float16](trigC4_f16)
-	intOne := hwy.Set[int32](1)
-	intTwo := hwy.Set[int32](2)
-	intThree := hwy.Set[int32](3)
-	kFloat := hwy.RoundToEven(hwy.MulF16(x, twoOverPi))
-	kInt := hwy.ConvertToInt32(kFloat)
-	r := hwy.SubF16(x, hwy.MulF16(kFloat, piOver2Hi))
-	r = hwy.SubF16(r, hwy.MulF16(kFloat, piOver2Lo))
-	r2 := hwy.MulF16(r, r)
-	sinPoly := hwy.FMAF16(s4, r2, s3)
-	sinPoly = hwy.FMAF16(sinPoly, r2, s2)
-	sinPoly = hwy.FMAF16(sinPoly, r2, s1)
-	sinPoly = hwy.FMAF16(sinPoly, r2, one)
-	sinR := hwy.MulF16(r, sinPoly)
-	cosPoly := hwy.FMAF16(c4, r2, c3)
-	cosPoly = hwy.FMAF16(cosPoly, r2, c2)
-	cosPoly = hwy.FMAF16(cosPoly, r2, c1)
-	cosR := hwy.FMAF16(cosPoly, r2, one)
-	cosOctant := hwy.And(hwy.Add(kInt, intOne), intThree)
-	useCosMask := hwy.Equal(hwy.And(cosOctant, intOne), intOne)
-	negateMask := hwy.Equal(hwy.And(cosOctant, intTwo), intTwo)
-	sinRData := func() []hwy.Float16 {
-		var _simd_tmp [8]hwy.Float16
-		hwy.Store(sinR, _simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	cosRData := func() []hwy.Float16 {
-		var _simd_tmp [8]hwy.Float16
-		hwy.Store(cosR, _simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	resultData := make([]hwy.Float16, len(sinRData))
-	for i := range sinRData {
-		if useCosMask.GetBit(i) {
-			resultData[i] = cosRData[i]
-		} else {
-			resultData[i] = sinRData[i]
-		}
-	}
-	result := hwy.LoadSlice(resultData)
-	negResult := hwy.NegF16(result)
-	negResultData := func() []hwy.Float16 {
-		var _simd_tmp [8]hwy.Float16
-		hwy.Store(negResult, _simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	for i := range resultData {
-		if negateMask.GetBit(i) {
-			resultData[i] = negResultData[i]
-		}
-	}
-	return hwy.LoadSlice(resultData)
-}
-
-func BaseCosVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	twoOverPi := hwy.Set[hwy.BFloat16](trig2OverPi_bf16)
-	piOver2Hi := hwy.Set[hwy.BFloat16](trigPiOver2Hi_bf16)
-	piOver2Lo := hwy.Set[hwy.BFloat16](trigPiOver2Lo_bf16)
-	one := hwy.Set[hwy.BFloat16](trigOne_bf16)
-	s1 := hwy.Set[hwy.BFloat16](trigS1_bf16)
-	s2 := hwy.Set[hwy.BFloat16](trigS2_bf16)
-	s3 := hwy.Set[hwy.BFloat16](trigS3_bf16)
-	s4 := hwy.Set[hwy.BFloat16](trigS4_bf16)
-	c1 := hwy.Set[hwy.BFloat16](trigC1_bf16)
-	c2 := hwy.Set[hwy.BFloat16](trigC2_bf16)
-	c3 := hwy.Set[hwy.BFloat16](trigC3_bf16)
-	c4 := hwy.Set[hwy.BFloat16](trigC4_bf16)
-	intOne := hwy.Set[int32](1)
-	intTwo := hwy.Set[int32](2)
-	intThree := hwy.Set[int32](3)
-	kFloat := hwy.RoundToEven(hwy.MulBF16(x, twoOverPi))
-	kInt := hwy.ConvertToInt32(kFloat)
-	r := hwy.SubBF16(x, hwy.MulBF16(kFloat, piOver2Hi))
-	r = hwy.SubBF16(r, hwy.MulBF16(kFloat, piOver2Lo))
-	r2 := hwy.MulBF16(r, r)
-	sinPoly := hwy.FMABF16(s4, r2, s3)
-	sinPoly = hwy.FMABF16(sinPoly, r2, s2)
-	sinPoly = hwy.FMABF16(sinPoly, r2, s1)
-	sinPoly = hwy.FMABF16(sinPoly, r2, one)
-	sinR := hwy.MulBF16(r, sinPoly)
-	cosPoly := hwy.FMABF16(c4, r2, c3)
-	cosPoly = hwy.FMABF16(cosPoly, r2, c2)
-	cosPoly = hwy.FMABF16(cosPoly, r2, c1)
-	cosR := hwy.FMABF16(cosPoly, r2, one)
-	cosOctant := hwy.And(hwy.Add(kInt, intOne), intThree)
-	useCosMask := hwy.Equal(hwy.And(cosOctant, intOne), intOne)
-	negateMask := hwy.Equal(hwy.And(cosOctant, intTwo), intTwo)
-	sinRData := func() []hwy.BFloat16 {
-		var _simd_tmp [8]hwy.BFloat16
-		hwy.Store(sinR, _simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	cosRData := func() []hwy.BFloat16 {
-		var _simd_tmp [8]hwy.BFloat16
-		hwy.Store(cosR, _simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	resultData := make([]hwy.BFloat16, len(sinRData))
-	for i := range sinRData {
-		if useCosMask.GetBit(i) {
-			resultData[i] = cosRData[i]
-		} else {
-			resultData[i] = sinRData[i]
-		}
-	}
-	result := hwy.LoadSlice(resultData)
-	negResult := hwy.NegBF16(result)
-	negResultData := func() []hwy.BFloat16 {
-		var _simd_tmp [8]hwy.BFloat16
-		hwy.Store(negResult, _simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	for i := range resultData {
-		if negateMask.GetBit(i) {
-			resultData[i] = negResultData[i]
-		}
-	}
-	return hwy.LoadSlice(resultData)
-}
-
-func BaseCosVec_neon(x asm.Float32x4) asm.Float32x4 {
-	twoOverPi := BaseCosVec_NEON_twoOverPi_f32
-	piOver2Hi := BaseCosVec_NEON_piOver2Hi_f32
-	piOver2Lo := BaseCosVec_NEON_piOver2Lo_f32
-	one := BaseCosVec_NEON_one_f32
-	s1 := BaseCosVec_NEON_s1_f32
-	s2 := BaseCosVec_NEON_s2_f32
-	s3 := BaseCosVec_NEON_s3_f32
-	s4 := BaseCosVec_NEON_s4_f32
-	c1 := BaseCosVec_NEON_c1_f32
-	c2 := BaseCosVec_NEON_c2_f32
-	c3 := BaseCosVec_NEON_c3_f32
-	c4 := BaseCosVec_NEON_c4_f32
-	intOne := BaseCosVec_NEON_intOne_i32_f32
-	intTwo := BaseCosVec_NEON_intTwo_i32_f32
-	intThree := BaseCosVec_NEON_intThree_i32_f32
-	kFloat := x.Mul(twoOverPi).RoundToEven()
-	kInt := kFloat.ConvertToInt32()
-	r := x.Sub(kFloat.Mul(piOver2Hi))
-	r = r.Sub(kFloat.Mul(piOver2Lo))
-	r2 := r.Mul(r)
-	sinPoly := s4.MulAdd(r2, s3)
-	sinPoly = sinPoly.MulAdd(r2, s2)
-	sinPoly = sinPoly.MulAdd(r2, s1)
-	sinPoly = sinPoly.MulAdd(r2, one)
-	sinR := r.Mul(sinPoly)
-	cosPoly := c4.MulAdd(r2, c3)
-	cosPoly = cosPoly.MulAdd(r2, c2)
-	cosPoly = cosPoly.MulAdd(r2, c1)
-	cosR := cosPoly.MulAdd(r2, one)
-	cosOctant := kInt.Add(intOne).And(intThree)
-	useCosMask := cosOctant.And(intOne).Equal(intOne)
-	negateMask := cosOctant.And(intTwo).Equal(intTwo)
-	sinRData := func() []float32 {
-		var _simd_tmp [4]float32
-		sinR.StoreSlice(_simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	cosRData := func() []float32 {
-		var _simd_tmp [4]float32
-		cosR.StoreSlice(_simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	resultData := make([]float32, len(sinRData))
-	for i := range sinRData {
-		if func() bool {
-			_vOne := asm.BroadcastInt32x4(1)
-			_vZero := asm.BroadcastInt32x4(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
-			var _simd_mask_tmp [4]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
-			return _simd_mask_tmp[i] != 0
-		}() {
-			resultData[i] = cosRData[i]
-		} else {
-			resultData[i] = sinRData[i]
-		}
-	}
-	result := asm.LoadFloat32x4Slice(resultData)
-	negResult := asm.BroadcastFloat32x4(0).Sub(result)
-	negResultData := func() []float32 {
-		var _simd_tmp [4]float32
-		negResult.StoreSlice(_simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	for i := range resultData {
-		if func() bool {
-			_vOne := asm.BroadcastInt32x4(1)
-			_vZero := asm.BroadcastInt32x4(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
-			var _simd_mask_tmp [4]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
-			return _simd_mask_tmp[i] != 0
-		}() {
-			resultData[i] = negResultData[i]
-		}
-	}
-	return asm.LoadFloat32x4Slice(resultData)
-}
-
-func BaseCosVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	twoOverPi := BaseCosVec_NEON_twoOverPi_f64
-	piOver2Hi := BaseCosVec_NEON_piOver2Hi_f64
-	piOver2Lo := BaseCosVec_NEON_piOver2Lo_f64
-	one := BaseCosVec_NEON_one_f64
-	s1 := BaseCosVec_NEON_s1_f64
-	s2 := BaseCosVec_NEON_s2_f64
-	s3 := BaseCosVec_NEON_s3_f64
-	s4 := BaseCosVec_NEON_s4_f64
-	c1 := BaseCosVec_NEON_c1_f64
-	c2 := BaseCosVec_NEON_c2_f64
-	c3 := BaseCosVec_NEON_c3_f64
-	c4 := BaseCosVec_NEON_c4_f64
-	intOne := BaseCosVec_NEON_intOne_i32_f64
-	intTwo := BaseCosVec_NEON_intTwo_i32_f64
-	intThree := BaseCosVec_NEON_intThree_i32_f64
-	kFloat := x.Mul(twoOverPi).RoundToEven()
-	kInt := kFloat.ConvertToInt32()
-	r := x.Sub(kFloat.Mul(piOver2Hi))
-	r = r.Sub(kFloat.Mul(piOver2Lo))
-	r2 := r.Mul(r)
-	sinPoly := s4.MulAdd(r2, s3)
-	sinPoly = sinPoly.MulAdd(r2, s2)
-	sinPoly = sinPoly.MulAdd(r2, s1)
-	sinPoly = sinPoly.MulAdd(r2, one)
-	sinR := r.Mul(sinPoly)
-	cosPoly := c4.MulAdd(r2, c3)
-	cosPoly = cosPoly.MulAdd(r2, c2)
-	cosPoly = cosPoly.MulAdd(r2, c1)
-	cosR := cosPoly.MulAdd(r2, one)
-	cosOctant := kInt.Add(intOne).And(intThree)
-	useCosMask := cosOctant.And(intOne).Equal(intOne)
-	negateMask := cosOctant.And(intTwo).Equal(intTwo)
-	sinRData := func() []float64 {
-		var _simd_tmp [2]float64
-		sinR.StoreSlice(_simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	cosRData := func() []float64 {
-		var _simd_tmp [2]float64
-		cosR.StoreSlice(_simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	resultData := make([]float64, len(sinRData))
-	for i := range sinRData {
-		if func() bool {
-			_vOne := asm.BroadcastInt32x2(1)
-			_vZero := asm.BroadcastInt32x2(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
-			var _simd_mask_tmp [2]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
-			return _simd_mask_tmp[i] != 0
-		}() {
-			resultData[i] = cosRData[i]
-		} else {
-			resultData[i] = sinRData[i]
-		}
-	}
-	result := asm.LoadFloat64x2Slice(resultData)
-	negResult := asm.BroadcastFloat64x2(0).Sub(result)
-	negResultData := func() []float64 {
-		var _simd_tmp [2]float64
-		negResult.StoreSlice(_simd_tmp[:])
-		return _simd_tmp[:]
-	}()
-	for i := range resultData {
-		if func() bool {
-			_vOne := asm.BroadcastInt32x2(1)
-			_vZero := asm.BroadcastInt32x2(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
-			var _simd_mask_tmp [2]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
-			return _simd_mask_tmp[i] != 0
-		}() {
-			resultData[i] = negResultData[i]
-		}
-	}
-	return asm.LoadFloat64x2Slice(resultData)
-}
-
-func BaseErfVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	a1 := hwy.Set[hwy.Float16](erfA1_f16)
-	a2 := hwy.Set[hwy.Float16](erfA2_f16)
-	a3 := hwy.Set[hwy.Float16](erfA3_f16)
-	a4 := hwy.Set[hwy.Float16](erfA4_f16)
-	a5 := hwy.Set[hwy.Float16](erfA5_f16)
-	p := hwy.Set[hwy.Float16](erfP_f16)
-	one := hwy.Set[hwy.Float16](erfOne_f16)
-	zero := hwy.Set[hwy.Float16](erfZero_f16)
-	absX := hwy.AbsF16(x)
-	signMask := hwy.LessThanF16(x, zero)
-	t := hwy.DivF16(one, hwy.AddF16(one, hwy.MulF16(p, absX)))
-	poly := hwy.FMAF16(a5, t, a4)
-	poly = hwy.FMAF16(poly, t, a3)
-	poly = hwy.FMAF16(poly, t, a2)
-	poly = hwy.FMAF16(poly, t, a1)
-	poly = hwy.MulF16(poly, t)
-	x2 := hwy.MulF16(absX, absX)
-	negX2 := hwy.SubF16(zero, x2)
-	expNegX2 := BaseExpVec_neon_Float16(negX2)
-	erfAbs := hwy.SubF16(one, hwy.MulF16(poly, expNegX2))
-	erfAbs = hwy.MaxF16(hwy.MinF16(erfAbs, one), zero)
-	negErfAbs := hwy.SubF16(zero, erfAbs)
-	result := hwy.IfThenElseF16(signMask, negErfAbs, erfAbs)
-	return result
-}
-
-func BaseErfVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	a1 := hwy.Set[hwy.BFloat16](erfA1_bf16)
-	a2 := hwy.Set[hwy.BFloat16](erfA2_bf16)
-	a3 := hwy.Set[hwy.BFloat16](erfA3_bf16)
-	a4 := hwy.Set[hwy.BFloat16](erfA4_bf16)
-	a5 := hwy.Set[hwy.BFloat16](erfA5_bf16)
-	p := hwy.Set[hwy.BFloat16](erfP_bf16)
-	one := hwy.Set[hwy.BFloat16](erfOne_bf16)
-	zero := hwy.Set[hwy.BFloat16](erfZero_bf16)
-	absX := hwy.AbsBF16(x)
-	signMask := hwy.LessThanBF16(x, zero)
-	t := hwy.DivBF16(one, hwy.AddBF16(one, hwy.MulBF16(p, absX)))
-	poly := hwy.FMABF16(a5, t, a4)
-	poly = hwy.FMABF16(poly, t, a3)
-	poly = hwy.FMABF16(poly, t, a2)
-	poly = hwy.FMABF16(poly, t, a1)
-	poly = hwy.MulBF16(poly, t)
-	x2 := hwy.MulBF16(absX, absX)
-	negX2 := hwy.SubBF16(zero, x2)
-	expNegX2 := BaseExpVec_neon_BFloat16(negX2)
-	erfAbs := hwy.SubBF16(one, hwy.MulBF16(poly, expNegX2))
-	erfAbs = hwy.MaxBF16(hwy.MinBF16(erfAbs, one), zero)
-	negErfAbs := hwy.SubBF16(zero, erfAbs)
-	result := hwy.IfThenElseBF16(signMask, negErfAbs, erfAbs)
-	return result
-}
-
-func BaseErfVec_neon(x asm.Float32x4) asm.Float32x4 {
-	a1 := BaseErfVec_NEON_a1_f32
-	a2 := BaseErfVec_NEON_a2_f32
-	a3 := BaseErfVec_NEON_a3_f32
-	a4 := BaseErfVec_NEON_a4_f32
-	a5 := BaseErfVec_NEON_a5_f32
-	p := BaseErfVec_NEON_p_f32
-	one := BaseErfVec_NEON_one_f32
-	zero := BaseErfVec_NEON_zero_f32
-	absX := x.Abs()
-	signMask := x.Less(zero)
-	t := one.Div(one.Add(p.Mul(absX)))
-	poly := a5.MulAdd(t, a4)
-	poly = poly.MulAdd(t, a3)
-	poly = poly.MulAdd(t, a2)
-	poly = poly.MulAdd(t, a1)
-	poly = poly.Mul(t)
-	x2 := absX.Mul(absX)
-	negX2 := zero.Sub(x2)
-	expNegX2 := BaseExpVec_neon(negX2)
-	erfAbs := one.Sub(poly.Mul(expNegX2))
-	erfAbs = erfAbs.Min(one).Max(zero)
-	negErfAbs := zero.Sub(erfAbs)
-	result := negErfAbs.Merge(erfAbs, signMask)
-	return result
-}
-
-func BaseErfVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	a1 := BaseErfVec_NEON_a1_f64
-	a2 := BaseErfVec_NEON_a2_f64
-	a3 := BaseErfVec_NEON_a3_f64
-	a4 := BaseErfVec_NEON_a4_f64
-	a5 := BaseErfVec_NEON_a5_f64
-	p := BaseErfVec_NEON_p_f64
-	one := BaseErfVec_NEON_one_f64
-	zero := BaseErfVec_NEON_zero_f64
-	absX := x.Abs()
-	signMask := x.Less(zero)
-	t := one.Div(one.Add(p.Mul(absX)))
-	poly := a5.MulAdd(t, a4)
-	poly = poly.MulAdd(t, a3)
-	poly = poly.MulAdd(t, a2)
-	poly = poly.MulAdd(t, a1)
-	poly = poly.Mul(t)
-	x2 := absX.Mul(absX)
-	negX2 := zero.Sub(x2)
-	expNegX2 := BaseExpVec_neon_Float64(negX2)
-	erfAbs := one.Sub(poly.Mul(expNegX2))
-	erfAbs = erfAbs.Min(one).Max(zero)
-	negErfAbs := zero.Sub(erfAbs)
-	result := negErfAbs.Merge(erfAbs, signMask)
-	return result
-}
-
-func BaseLog2Vec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	log2E := hwy.Set[hwy.Float16](log2E_f16)
-	lnX := BaseLogVec_neon_Float16(x)
-	return hwy.MulF16(lnX, log2E)
-}
-
-func BaseLog2Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	log2E := hwy.Set[hwy.BFloat16](log2E_bf16)
-	lnX := BaseLogVec_neon_BFloat16(x)
-	return hwy.MulBF16(lnX, log2E)
-}
-
-func BaseLog2Vec_neon(x asm.Float32x4) asm.Float32x4 {
-	log2E := BaseLog2Vec_NEON_log2E_f32
-	lnX := BaseLogVec_neon(x)
-	return lnX.Mul(log2E)
-}
-
-func BaseLog2Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	log2E := BaseLog2Vec_NEON_log2E_f64
-	lnX := BaseLogVec_neon_Float64(x)
-	return lnX.Mul(log2E)
-}
-
-func BaseLog10Vec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	log10E := hwy.Set[hwy.Float16](log10E_f16)
-	lnX := BaseLogVec_neon_Float16(x)
-	return hwy.MulF16(lnX, log10E)
-}
-
-func BaseLog10Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	log10E := hwy.Set[hwy.BFloat16](log10E_bf16)
-	lnX := BaseLogVec_neon_BFloat16(x)
-	return hwy.MulBF16(lnX, log10E)
-}
-
-func BaseLog10Vec_neon(x asm.Float32x4) asm.Float32x4 {
-	log10E := BaseLog10Vec_NEON_log10E_f32
-	lnX := BaseLogVec_neon(x)
-	return lnX.Mul(log10E)
-}
-
-func BaseLog10Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	log10E := BaseLog10Vec_NEON_log10E_f64
-	lnX := BaseLogVec_neon_Float64(x)
-	return lnX.Mul(log10E)
-}
-
-func BaseExp2Vec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	ln2 := hwy.Set[hwy.Float16](ln2_f16)
-	xLn2 := hwy.MulF16(x, ln2)
-	return BaseExpVec_neon_Float16(xLn2)
-}
-
-func BaseExp2Vec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	ln2 := hwy.Set[hwy.BFloat16](ln2_bf16)
-	xLn2 := hwy.MulBF16(x, ln2)
-	return BaseExpVec_neon_BFloat16(xLn2)
-}
-
-func BaseExp2Vec_neon(x asm.Float32x4) asm.Float32x4 {
-	ln2 := BaseExp2Vec_NEON_ln2_f32
-	xLn2 := x.Mul(ln2)
-	return BaseExpVec_neon(xLn2)
-}
-
-func BaseExp2Vec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	ln2 := BaseExp2Vec_NEON_ln2_f64
-	xLn2 := x.Mul(ln2)
-	return BaseExpVec_neon_Float64(xLn2)
-}
-
 func BaseSinhVec_neon_Float16(x asm.Float16x8) asm.Float16x8 {
 	one := asm.BroadcastFloat16x8(uint16(sinhOne_f16))
 	c3 := asm.BroadcastFloat16x8(uint16(sinhC3_f16))
@@ -1419,258 +1619,58 @@ func BaseSinhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
 	return x.Mul(poly)
 }
 
-func BaseCoshVec_neon_Float16(x asm.Float16x8) asm.Float16x8 {
-	one := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(1.0))))
-	c2 := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.5))))
-	c4 := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.041666666666666664))))
-	c6 := asm.BroadcastFloat16x8(uint16(hwy.Float32ToFloat16(float32(0.001388888888888889))))
-	x2 := x.Mul(x)
-	poly := c6.MulAdd(x2, c4)
-	poly = poly.MulAdd(x2, c2)
-	return poly.MulAdd(x2, one)
-}
-
-func BaseCoshVec_neon_BFloat16(x asm.BFloat16x8) asm.BFloat16x8 {
-	one := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(1.0))))
-	c2 := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.5))))
-	c4 := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.041666666666666664))))
-	c6 := asm.BroadcastBFloat16x8(uint16(hwy.Float32ToBFloat16(float32(0.001388888888888889))))
-	x2 := x.Mul(x)
-	poly := c6.MulAdd(x2, c4)
-	poly = poly.MulAdd(x2, c2)
-	return poly.MulAdd(x2, one)
-}
-
-func BaseCoshVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := BaseCoshVec_NEON_one_f32
-	c2 := BaseCoshVec_NEON_c2_f32
-	c4 := BaseCoshVec_NEON_c4_f32
-	c6 := BaseCoshVec_NEON_c6_f32
-	x2 := x.Mul(x)
-	poly := c6.MulAdd(x2, c4)
-	poly = poly.MulAdd(x2, c2)
-	return poly.MulAdd(x2, one)
-}
-
-func BaseCoshVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := BaseCoshVec_NEON_one_f64
-	c2 := BaseCoshVec_NEON_c2_f64
-	c4 := BaseCoshVec_NEON_c4_f64
-	c6 := BaseCoshVec_NEON_c6_f64
-	x2 := x.Mul(x)
-	poly := c6.MulAdd(x2, c4)
-	poly = poly.MulAdd(x2, c2)
-	return poly.MulAdd(x2, one)
-}
-
-func BaseAsinhVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	one := hwy.Const[hwy.Float16](1.0)
-	x2 := hwy.MulF16(x, x)
-	x2Plus1 := hwy.AddF16(x2, one)
-	sqrtPart := hwy.SqrtF16(x2Plus1)
-	arg := hwy.AddF16(x, sqrtPart)
-	return BaseLogVec_neon_Float16(arg)
-}
-
-func BaseAsinhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	one := hwy.Const[hwy.BFloat16](1.0)
-	x2 := hwy.MulBF16(x, x)
-	x2Plus1 := hwy.AddBF16(x2, one)
-	sqrtPart := hwy.SqrtBF16(x2Plus1)
-	arg := hwy.AddBF16(x, sqrtPart)
-	return BaseLogVec_neon_BFloat16(arg)
-}
-
-func BaseAsinhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := BaseAsinhVec_NEON_one_f32
-	x2 := x.Mul(x)
-	x2Plus1 := x2.Add(one)
-	sqrtPart := x2Plus1.Sqrt()
-	arg := x.Add(sqrtPart)
-	return BaseLogVec_neon(arg)
-}
-
-func BaseAsinhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := BaseAsinhVec_NEON_one_f64
-	x2 := x.Mul(x)
-	x2Plus1 := x2.Add(one)
-	sqrtPart := x2Plus1.Sqrt()
-	arg := x.Add(sqrtPart)
-	return BaseLogVec_neon_Float64(arg)
-}
-
-func BaseAcoshVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	one := hwy.Const[hwy.Float16](1.0)
-	zero := hwy.Const[hwy.Float16](0.0)
-	x2 := hwy.MulF16(x, x)
-	x2Minus1 := hwy.SubF16(x2, one)
-	sqrtPart := hwy.SqrtF16(x2Minus1)
-	arg := hwy.AddF16(x, sqrtPart)
-	result := BaseLogVec_neon_Float16(arg)
-	oneMask := hwy.EqualF16(x, one)
-	result = hwy.IfThenElseF16(oneMask, zero, result)
+func BaseTanhVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
+	two := hwy.Const[hwy.Float16](2.0)
+	one := hwy.Set[hwy.Float16](tanhOne_f16)
+	negOne := hwy.Set[hwy.Float16](tanhNegOne_f16)
+	threshold := hwy.Set[hwy.Float16](tanhClamp_f16)
+	negThreshold := hwy.NegF16(threshold)
+	twoX := hwy.MulF16(two, x)
+	sigTwoX := BaseSigmoidVec_neon_Float16(twoX)
+	result := hwy.SubF16(hwy.MulF16(two, sigTwoX), one)
+	result = hwy.IfThenElseF16(hwy.GreaterThanF16(x, threshold), one, result)
+	result = hwy.IfThenElseF16(hwy.LessThanF16(x, negThreshold), negOne, result)
 	return result
 }
 
-func BaseAcoshVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	one := hwy.Const[hwy.BFloat16](1.0)
-	zero := hwy.Const[hwy.BFloat16](0.0)
-	x2 := hwy.MulBF16(x, x)
-	x2Minus1 := hwy.SubBF16(x2, one)
-	sqrtPart := hwy.SqrtBF16(x2Minus1)
-	arg := hwy.AddBF16(x, sqrtPart)
-	result := BaseLogVec_neon_BFloat16(arg)
-	oneMask := hwy.EqualBF16(x, one)
-	result = hwy.IfThenElseBF16(oneMask, zero, result)
+func BaseTanhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
+	two := hwy.Const[hwy.BFloat16](2.0)
+	one := hwy.Set[hwy.BFloat16](tanhOne_bf16)
+	negOne := hwy.Set[hwy.BFloat16](tanhNegOne_bf16)
+	threshold := hwy.Set[hwy.BFloat16](tanhClamp_bf16)
+	negThreshold := hwy.NegBF16(threshold)
+	twoX := hwy.MulBF16(two, x)
+	sigTwoX := BaseSigmoidVec_neon_BFloat16(twoX)
+	result := hwy.SubBF16(hwy.MulBF16(two, sigTwoX), one)
+	result = hwy.IfThenElseBF16(hwy.GreaterThanBF16(x, threshold), one, result)
+	result = hwy.IfThenElseBF16(hwy.LessThanBF16(x, negThreshold), negOne, result)
 	return result
 }
 
-func BaseAcoshVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := BaseAcoshVec_NEON_one_f32
-	zero := BaseAcoshVec_NEON_zero_f32
-	x2 := x.Mul(x)
-	x2Minus1 := x2.Sub(one)
-	sqrtPart := x2Minus1.Sqrt()
-	arg := x.Add(sqrtPart)
-	result := BaseLogVec_neon(arg)
-	oneMask := x.Equal(one)
-	result = zero.Merge(result, oneMask)
+func BaseTanhVec_neon(x asm.Float32x4) asm.Float32x4 {
+	two := BaseTanhVec_NEON_two_f32
+	one := BaseTanhVec_NEON_one_f32
+	negOne := BaseTanhVec_NEON_negOne_f32
+	threshold := BaseTanhVec_NEON_threshold_f32
+	negThreshold := asm.BroadcastFloat32x4(0).Sub(threshold)
+	twoX := two.Mul(x)
+	sigTwoX := BaseSigmoidVec_neon(twoX)
+	result := two.Mul(sigTwoX).Sub(one)
+	result = one.Merge(result, x.Greater(threshold))
+	result = negOne.Merge(result, x.Less(negThreshold))
 	return result
 }
 
-func BaseAcoshVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := BaseAcoshVec_NEON_one_f64
-	zero := BaseAcoshVec_NEON_zero_f64
-	x2 := x.Mul(x)
-	x2Minus1 := x2.Sub(one)
-	sqrtPart := x2Minus1.Sqrt()
-	arg := x.Add(sqrtPart)
-	result := BaseLogVec_neon_Float64(arg)
-	oneMask := x.Equal(one)
-	result = zero.Merge(result, oneMask)
-	return result
-}
-
-func BaseAtanhVec_neon_Float16(x hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	one := hwy.Const[hwy.Float16](1.0)
-	half := hwy.Const[hwy.Float16](0.5)
-	zero := hwy.Const[hwy.Float16](0.0)
-	onePlusX := hwy.AddF16(one, x)
-	oneMinusX := hwy.SubF16(one, x)
-	ratio := hwy.DivF16(onePlusX, oneMinusX)
-	logRatio := BaseLogVec_neon_Float16(ratio)
-	result := hwy.MulF16(half, logRatio)
-	zeroMask := hwy.EqualF16(x, zero)
-	result = hwy.IfThenElseF16(zeroMask, zero, result)
-	return result
-}
-
-func BaseAtanhVec_neon_BFloat16(x hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	one := hwy.Const[hwy.BFloat16](1.0)
-	half := hwy.Const[hwy.BFloat16](0.5)
-	zero := hwy.Const[hwy.BFloat16](0.0)
-	onePlusX := hwy.AddBF16(one, x)
-	oneMinusX := hwy.SubBF16(one, x)
-	ratio := hwy.DivBF16(onePlusX, oneMinusX)
-	logRatio := BaseLogVec_neon_BFloat16(ratio)
-	result := hwy.MulBF16(half, logRatio)
-	zeroMask := hwy.EqualBF16(x, zero)
-	result = hwy.IfThenElseBF16(zeroMask, zero, result)
-	return result
-}
-
-func BaseAtanhVec_neon(x asm.Float32x4) asm.Float32x4 {
-	one := BaseAtanhVec_NEON_one_f32
-	half := BaseAtanhVec_NEON_half_f32
-	zero := BaseAtanhVec_NEON_zero_f32
-	onePlusX := one.Add(x)
-	oneMinusX := one.Sub(x)
-	ratio := onePlusX.Div(oneMinusX)
-	logRatio := BaseLogVec_neon(ratio)
-	result := half.Mul(logRatio)
-	zeroMask := x.Equal(zero)
-	result = zero.Merge(result, zeroMask)
-	return result
-}
-
-func BaseAtanhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
-	one := BaseAtanhVec_NEON_one_f64
-	half := BaseAtanhVec_NEON_half_f64
-	zero := BaseAtanhVec_NEON_zero_f64
-	onePlusX := one.Add(x)
-	oneMinusX := one.Sub(x)
-	ratio := onePlusX.Div(oneMinusX)
-	logRatio := BaseLogVec_neon_Float64(ratio)
-	result := half.Mul(logRatio)
-	zeroMask := x.Equal(zero)
-	result = zero.Merge(result, zeroMask)
-	return result
-}
-
-func BasePowVec_neon_Float16(base hwy.Vec[hwy.Float16], exp hwy.Vec[hwy.Float16]) hwy.Vec[hwy.Float16] {
-	one := hwy.Const[hwy.Float16](1.0)
-	zero := hwy.Const[hwy.Float16](0.0)
-	logBase := BaseLogVec_neon_Float16(base)
-	expTimesLog := hwy.MulF16(exp, logBase)
-	result := BaseExpVec_neon_Float16(expTimesLog)
-	expZeroMask := hwy.EqualF16(exp, zero)
-	result = hwy.IfThenElseF16(expZeroMask, one, result)
-	baseOneMask := hwy.EqualF16(base, one)
-	result = hwy.IfThenElseF16(baseOneMask, one, result)
-	baseZeroMask := hwy.EqualF16(base, zero)
-	expPosMask := hwy.GreaterThanF16(exp, zero)
-	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
-	result = hwy.IfThenElseF16(baseZeroExpPosMask, zero, result)
-	return result
-}
-
-func BasePowVec_neon_BFloat16(base hwy.Vec[hwy.BFloat16], exp hwy.Vec[hwy.BFloat16]) hwy.Vec[hwy.BFloat16] {
-	one := hwy.Const[hwy.BFloat16](1.0)
-	zero := hwy.Const[hwy.BFloat16](0.0)
-	logBase := BaseLogVec_neon_BFloat16(base)
-	expTimesLog := hwy.MulBF16(exp, logBase)
-	result := BaseExpVec_neon_BFloat16(expTimesLog)
-	expZeroMask := hwy.EqualBF16(exp, zero)
-	result = hwy.IfThenElseBF16(expZeroMask, one, result)
-	baseOneMask := hwy.EqualBF16(base, one)
-	result = hwy.IfThenElseBF16(baseOneMask, one, result)
-	baseZeroMask := hwy.EqualBF16(base, zero)
-	expPosMask := hwy.GreaterThanBF16(exp, zero)
-	baseZeroExpPosMask := hwy.MaskAnd(baseZeroMask, expPosMask)
-	result = hwy.IfThenElseBF16(baseZeroExpPosMask, zero, result)
-	return result
-}
-
-func BasePowVec_neon(base asm.Float32x4, exp asm.Float32x4) asm.Float32x4 {
-	one := BasePowVec_NEON_one_f32
-	zero := BasePowVec_NEON_zero_f32
-	logBase := BaseLogVec_neon(base)
-	expTimesLog := exp.Mul(logBase)
-	result := BaseExpVec_neon(expTimesLog)
-	expZeroMask := exp.Equal(zero)
-	result = one.Merge(result, expZeroMask)
-	baseOneMask := base.Equal(one)
-	result = one.Merge(result, baseOneMask)
-	baseZeroMask := base.Equal(zero)
-	expPosMask := exp.GreaterThan(zero)
-	baseZeroExpPosMask := baseZeroMask.And(expPosMask)
-	result = zero.Merge(result, baseZeroExpPosMask)
-	return result
-}
-
-func BasePowVec_neon_Float64(base asm.Float64x2, exp asm.Float64x2) asm.Float64x2 {
-	one := BasePowVec_NEON_one_f64
-	zero := BasePowVec_NEON_zero_f64
-	logBase := BaseLogVec_neon_Float64(base)
-	expTimesLog := exp.Mul(logBase)
-	result := BaseExpVec_neon_Float64(expTimesLog)
-	expZeroMask := exp.Equal(zero)
-	result = one.Merge(result, expZeroMask)
-	baseOneMask := base.Equal(one)
-	result = one.Merge(result, baseOneMask)
-	baseZeroMask := base.Equal(zero)
-	expPosMask := exp.GreaterThan(zero)
-	baseZeroExpPosMask := baseZeroMask.And(expPosMask)
-	result = zero.Merge(result, baseZeroExpPosMask)
+func BaseTanhVec_neon_Float64(x asm.Float64x2) asm.Float64x2 {
+	two := BaseTanhVec_NEON_two_f64
+	one := BaseTanhVec_NEON_one_f64
+	negOne := BaseTanhVec_NEON_negOne_f64
+	threshold := BaseTanhVec_NEON_threshold_f64
+	negThreshold := asm.BroadcastFloat64x2(0).Sub(threshold)
+	twoX := two.Mul(x)
+	sigTwoX := BaseSigmoidVec_neon_Float64(twoX)
+	result := two.Mul(sigTwoX).Sub(one)
+	result = one.Merge(result, x.Greater(threshold))
+	result = negOne.Merge(result, x.Less(negThreshold))
 	return result
 }

@@ -154,12 +154,14 @@ func (e *Emitter) goTypeToCType(goType string) string {
 		return "float"
 	case "float64":
 		return "double"
-	case "int", "int64":
+	case "int":
 		return "long"
+	case "int64":
+		return "long long"
 	case "int32":
 		return "int"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint8", "byte":
@@ -593,6 +595,7 @@ func (e *Emitter) emitScalarArith(op *IRNode, scalarType string) {
 var scalarizableCallToC = map[string]string{
 	"BaseExpVec":   "exp",
 	"BaseExp2Vec":  "exp2",
+	"BaseExp10Vec": "exp10",
 	"BaseLogVec":   "log",
 	"BaseLog2Vec":  "log2",
 	"BaseLog10Vec": "log10",
@@ -721,11 +724,11 @@ func (e *Emitter) emitFusedGroup(fn *IRFunction, groupID int) {
 
 	// Emit based on pattern
 	switch group.Pattern {
-	case "Elem+Elem":
+	case PatternElemElem:
 		e.emitFusedElemElem(fn, group)
-	case "Elem+Reduce":
+	case PatternElemReduce:
 		e.emitFusedMapReduce(fn, group)
-	case "AllocElim":
+	case PatternAllocElim:
 		e.emitWithAllocElimination(fn, group)
 	default:
 		// Emit unfused

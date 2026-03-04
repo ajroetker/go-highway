@@ -166,8 +166,8 @@ func PackedMicroKernelCF64(packedA, packedB, c []float64, n, ir, jr, kc, mr, nr 
 	)
 }
 
-// basePackedMicroKernelGeneralCF16 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
-func basePackedMicroKernelGeneralCF16(packedA, packedB, c []hwy.Float16, n, ir, jr, kc, mr, nr int) {
+// PackedMicroKernelGeneralCF16 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
+func PackedMicroKernelGeneralCF16(packedA, packedB, c []hwy.Float16, n, ir, jr, kc, mr, nr int) {
 	var p_packedA unsafe.Pointer
 	if len(packedA) > 0 {
 		p_packedA = unsafe.Pointer(&packedA[0])
@@ -205,8 +205,8 @@ func basePackedMicroKernelGeneralCF16(packedA, packedB, c []hwy.Float16, n, ir, 
 	)
 }
 
-// basePackedMicroKernelGeneralCBF16 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
-func basePackedMicroKernelGeneralCBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
+// PackedMicroKernelGeneralCBF16 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
+func PackedMicroKernelGeneralCBF16(packedA, packedB, c []hwy.BFloat16, n, ir, jr, kc, mr, nr int) {
 	var p_packedA unsafe.Pointer
 	if len(packedA) > 0 {
 		p_packedA = unsafe.Pointer(&packedA[0])
@@ -244,8 +244,8 @@ func basePackedMicroKernelGeneralCBF16(packedA, packedB, c []hwy.BFloat16, n, ir
 	)
 }
 
-// basePackedMicroKernelGeneralCF32 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
-func basePackedMicroKernelGeneralCF32(packedA, packedB, c []float32, n, ir, jr, kc, mr, nr int) {
+// PackedMicroKernelGeneralCF32 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
+func PackedMicroKernelGeneralCF32(packedA, packedB, c []float32, n, ir, jr, kc, mr, nr int) {
 	var p_packedA unsafe.Pointer
 	if len(packedA) > 0 {
 		p_packedA = unsafe.Pointer(&packedA[0])
@@ -283,8 +283,8 @@ func basePackedMicroKernelGeneralCF32(packedA, packedB, c []float32, n, ir, jr, 
 	)
 }
 
-// basePackedMicroKernelGeneralCF64 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
-func basePackedMicroKernelGeneralCF64(packedA, packedB, c []float64, n, ir, jr, kc, mr, nr int) {
+// PackedMicroKernelGeneralCF64 computes basePackedMicroKernelGeneral using NEON SIMD assembly.
+func PackedMicroKernelGeneralCF64(packedA, packedB, c []float64, n, ir, jr, kc, mr, nr int) {
 	var p_packedA unsafe.Pointer
 	if len(packedA) > 0 {
 		p_packedA = unsafe.Pointer(&packedA[0])

@@ -32,6 +32,24 @@ func BaseMaskedVByteDecodeBatch32_fallback(src []byte, dst []uint32, n int) (dec
 	return decoded, pos
 }
 
+func BaseMaskedVByteDecodeBatch64_fallback(src []byte, dst []uint64, n int) (decoded int, consumed int) {
+	if len(src) == 0 || n == 0 || len(dst) == 0 {
+		return 0, 0
+	}
+	maxDecode := min(n, len(dst))
+	pos := 0
+	for decoded < maxDecode && pos < len(src) {
+		val, bytesRead := baseMaskedVByteDecodeOne64(src[pos:])
+		if bytesRead == 0 {
+			break
+		}
+		dst[decoded] = val
+		decoded++
+		pos += bytesRead
+	}
+	return decoded, pos
+}
+
 func BaseMaskedVByteDecodeGroup_fallback(src []byte, dst []uint32) (decoded int, consumed int) {
 	if len(src) < 16 || len(dst) < 4 {
 		return 0, 0
@@ -76,24 +94,6 @@ func baseMaskedVByteDecodeOne32_fallback(src []byte) (uint32, int) {
 		s += 7
 	}
 	return 0, 0
-}
-
-func BaseMaskedVByteDecodeBatch64_fallback(src []byte, dst []uint64, n int) (decoded int, consumed int) {
-	if len(src) == 0 || n == 0 || len(dst) == 0 {
-		return 0, 0
-	}
-	maxDecode := min(n, len(dst))
-	pos := 0
-	for decoded < maxDecode && pos < len(src) {
-		val, bytesRead := baseMaskedVByteDecodeOne64(src[pos:])
-		if bytesRead == 0 {
-			break
-		}
-		dst[decoded] = val
-		decoded++
-		pos += bytesRead
-	}
-	return decoded, pos
 }
 
 func baseMaskedVByteDecodeOne64_fallback(src []byte) (uint64, int) {

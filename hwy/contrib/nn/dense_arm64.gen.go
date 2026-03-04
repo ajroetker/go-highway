@@ -46,15 +46,8 @@ func initDenseAll() {
 		initDenseFallback()
 		return
 	}
-	initDenseNEON()
+	initDenseFallback()
 	return
-}
-
-func initDenseNEON() {
-	DenseFloat16 = BaseDense_neon_Float16
-	DenseBFloat16 = BaseDense_neon_BFloat16
-	DenseFloat32 = BaseDense_neon
-	DenseFloat64 = BaseDense_neon_Float64
 }
 
 func initDenseFallback() {

@@ -35,23 +35,23 @@ func BaseMatMul_avx512_Float16(a []hwy.Float16, b []hwy.Float16, c []hwy.Float16
 			for p := range k {
 				vA := asm.BroadcastFloat16x16AVX512(uint16(a[i*k+p]))
 				bRow := b[p*n:]
-				acc0 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j:][0])), acc0)
-				acc1 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+lanes:][0])), acc1)
-				acc2 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+2*lanes:][0])), acc2)
-				acc3 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+3*lanes:][0])), acc3)
+				acc0 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j])), acc0)
+				acc1 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+lanes])), acc1)
+				acc2 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+2*lanes])), acc2)
+				acc3 = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+3*lanes])), acc3)
 			}
-			acc0.StorePtr(unsafe.Pointer(&cRow[j:][0]))
-			acc1.StorePtr(unsafe.Pointer(&cRow[j+lanes:][0]))
-			acc2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes:][0]))
-			acc3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes:][0]))
+			acc0.StorePtr(unsafe.Pointer(&cRow[j]))
+			acc1.StorePtr(unsafe.Pointer(&cRow[j+lanes]))
+			acc2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes]))
+			acc3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes]))
 		}
 		for ; j+lanes <= n; j += lanes {
 			acc := asm.ZeroFloat16x16AVX512()
 			for p := range k {
 				vA := asm.BroadcastFloat16x16AVX512(uint16(a[i*k+p]))
-				acc = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[p*n+j:][0])), acc)
+				acc = vA.MulAdd(asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&b[p*n+j])), acc)
 			}
-			acc.StorePtr(unsafe.Pointer(&cRow[j:][0]))
+			acc.StorePtr(unsafe.Pointer(&cRow[j]))
 		}
 		for ; j < n; j++ {
 			var sum float32
@@ -86,23 +86,23 @@ func BaseMatMul_avx512_BFloat16(a []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFlo
 			for p := range k {
 				vA := asm.BroadcastBFloat16x16AVX512(uint16(a[i*k+p]))
 				bRow := b[p*n:]
-				acc0 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j:][0])), acc0)
-				acc1 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+lanes:][0])), acc1)
-				acc2 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+2*lanes:][0])), acc2)
-				acc3 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+3*lanes:][0])), acc3)
+				acc0 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j])), acc0)
+				acc1 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+lanes])), acc1)
+				acc2 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+2*lanes])), acc2)
+				acc3 = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&bRow[j+3*lanes])), acc3)
 			}
-			acc0.StorePtr(unsafe.Pointer(&cRow[j:][0]))
-			acc1.StorePtr(unsafe.Pointer(&cRow[j+lanes:][0]))
-			acc2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes:][0]))
-			acc3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes:][0]))
+			acc0.StorePtr(unsafe.Pointer(&cRow[j]))
+			acc1.StorePtr(unsafe.Pointer(&cRow[j+lanes]))
+			acc2.StorePtr(unsafe.Pointer(&cRow[j+2*lanes]))
+			acc3.StorePtr(unsafe.Pointer(&cRow[j+3*lanes]))
 		}
 		for ; j+lanes <= n; j += lanes {
 			acc := asm.ZeroBFloat16x16AVX512()
 			for p := range k {
 				vA := asm.BroadcastBFloat16x16AVX512(uint16(a[i*k+p]))
-				acc = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[p*n+j:][0])), acc)
+				acc = vA.MulAdd(asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&b[p*n+j])), acc)
 			}
-			acc.StorePtr(unsafe.Pointer(&cRow[j:][0]))
+			acc.StorePtr(unsafe.Pointer(&cRow[j]))
 		}
 		for ; j < n; j++ {
 			var sum float32

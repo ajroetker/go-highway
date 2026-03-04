@@ -10,6 +10,102 @@ import (
 )
 
 // Public wrapper functions
+// Transpose2DCF16 computes Transpose2D using NEON SIMD assembly.
+func Transpose2DCF16(src []hwy.Float16, m, k int, dst []hwy.Float16) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	transpose2d_c_f16_neon(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+// Transpose2DCBF16 computes Transpose2D using NEON SIMD assembly.
+func Transpose2DCBF16(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	transpose2d_c_bf16_neon(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+// Transpose2DCF32 computes Transpose2D using NEON SIMD assembly.
+func Transpose2DCF32(src []float32, m, k int, dst []float32) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	transpose2d_c_f32_neon(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
+// Transpose2DCF64 computes Transpose2D using NEON SIMD assembly.
+func Transpose2DCF64(src []float64, m, k int, dst []float64) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	mVal := int64(m)
+	kVal := int64(k)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	transpose2d_c_f64_neon(
+		p_src,
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&kVal),
+		p_dst,
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+	)
+}
+
 // Transpose2DStridedCF16 computes Transpose2DStrided using NEON SIMD assembly.
 func Transpose2DStridedCF16(src []hwy.Float16, rowStart, rowEnd, k, dstM int, dst []hwy.Float16) {
 	var p_src unsafe.Pointer
@@ -116,102 +212,6 @@ func Transpose2DStridedCF64(src []float64, rowStart, rowEnd, k, dstM int, dst []
 		unsafe.Pointer(&rowEndVal),
 		unsafe.Pointer(&kVal),
 		unsafe.Pointer(&dstMVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-// Transpose2DCF16 computes Transpose2D using NEON SIMD assembly.
-func Transpose2DCF16(src []hwy.Float16, m, k int, dst []hwy.Float16) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	transpose2d_c_f16_neon(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-// Transpose2DCBF16 computes Transpose2D using NEON SIMD assembly.
-func Transpose2DCBF16(src []hwy.BFloat16, m, k int, dst []hwy.BFloat16) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	transpose2d_c_bf16_neon(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-// Transpose2DCF32 computes Transpose2D using NEON SIMD assembly.
-func Transpose2DCF32(src []float32, m, k int, dst []float32) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	transpose2d_c_f32_neon(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
-		p_dst,
-		unsafe.Pointer(&len_srcVal),
-		unsafe.Pointer(&len_dstVal),
-	)
-}
-
-// Transpose2DCF64 computes Transpose2D using NEON SIMD assembly.
-func Transpose2DCF64(src []float64, m, k int, dst []float64) {
-	var p_src unsafe.Pointer
-	if len(src) > 0 {
-		p_src = unsafe.Pointer(&src[0])
-	}
-	var p_dst unsafe.Pointer
-	if len(dst) > 0 {
-		p_dst = unsafe.Pointer(&dst[0])
-	}
-	mVal := int64(m)
-	kVal := int64(k)
-	len_srcVal := int64(len(src))
-	len_dstVal := int64(len(dst))
-	transpose2d_c_f64_neon(
-		p_src,
-		unsafe.Pointer(&mVal),
-		unsafe.Pointer(&kVal),
 		p_dst,
 		unsafe.Pointer(&len_srcVal),
 		unsafe.Pointer(&len_dstVal),

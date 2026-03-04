@@ -10,90 +10,6 @@ import (
 )
 
 // Public wrapper functions
-// SoftmaxCF16 computes Softmax using NEON SIMD assembly.
-func SoftmaxCF16(input, output []hwy.Float16) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	softmax_c_f16_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SoftmaxCBF16 computes Softmax using NEON SIMD assembly.
-func SoftmaxCBF16(input, output []hwy.BFloat16) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	softmax_c_bf16_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SoftmaxCF32 computes Softmax using NEON SIMD assembly.
-func SoftmaxCF32(input, output []float32) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	softmax_c_f32_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
-// SoftmaxCF64 computes Softmax using NEON SIMD assembly.
-func SoftmaxCF64(input, output []float64) {
-	if len(input) == 0 {
-		return
-	}
-	var p_input unsafe.Pointer
-	if len(input) > 0 {
-		p_input = unsafe.Pointer(&input[0])
-	}
-	var p_output unsafe.Pointer
-	if len(output) > 0 {
-		p_output = unsafe.Pointer(&output[0])
-	}
-	lenVal := int64(len(input))
-	softmax_c_f64_neon(
-		p_input,
-		p_output,
-		unsafe.Pointer(&lenVal),
-	)
-}
-
 // LogSoftmaxCF16 computes LogSoftmax using NEON SIMD assembly.
 func LogSoftmaxCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
@@ -172,6 +88,90 @@ func LogSoftmaxCF64(input, output []float64) {
 	}
 	lenVal := int64(len(input))
 	logsoftmax_c_f64_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxCF16 computes Softmax using NEON SIMD assembly.
+func SoftmaxCF16(input, output []hwy.Float16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	softmax_c_f16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxCBF16 computes Softmax using NEON SIMD assembly.
+func SoftmaxCBF16(input, output []hwy.BFloat16) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	softmax_c_bf16_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxCF32 computes Softmax using NEON SIMD assembly.
+func SoftmaxCF32(input, output []float32) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	softmax_c_f32_neon(
+		p_input,
+		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxCF64 computes Softmax using NEON SIMD assembly.
+func SoftmaxCF64(input, output []float64) {
+	if len(input) == 0 {
+		return
+	}
+	var p_input unsafe.Pointer
+	if len(input) > 0 {
+		p_input = unsafe.Pointer(&input[0])
+	}
+	var p_output unsafe.Pointer
+	if len(output) > 0 {
+		p_output = unsafe.Pointer(&output[0])
+	}
+	lenVal := int64(len(input))
+	softmax_c_f64_neon(
 		p_input,
 		p_output,
 		unsafe.Pointer(&lenVal),

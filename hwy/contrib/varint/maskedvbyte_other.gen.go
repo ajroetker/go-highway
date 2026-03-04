@@ -9,9 +9,9 @@ import (
 )
 
 var MaskedVByteDecodeBatch32 func(src []byte, dst []uint32, n int) (decoded int, consumed int)
+var MaskedVByteDecodeBatch64 func(src []byte, dst []uint64, n int) (decoded int, consumed int)
 var MaskedVByteDecodeGroup func(src []byte, dst []uint32) (decoded int, consumed int)
 var maskedVByteDecodeOne32 func(src []byte) (uint32, int)
-var MaskedVByteDecodeBatch64 func(src []byte, dst []uint64, n int) (decoded int, consumed int)
 var maskedVByteDecodeOne64 func(src []byte) (uint64, int)
 
 func init() {
@@ -25,8 +25,8 @@ func initMaskedvbyteAll() {
 
 func initMaskedvbyteFallback() {
 	MaskedVByteDecodeBatch32 = BaseMaskedVByteDecodeBatch32_fallback
+	MaskedVByteDecodeBatch64 = BaseMaskedVByteDecodeBatch64_fallback
 	MaskedVByteDecodeGroup = BaseMaskedVByteDecodeGroup_fallback
 	maskedVByteDecodeOne32 = baseMaskedVByteDecodeOne32_fallback
-	MaskedVByteDecodeBatch64 = BaseMaskedVByteDecodeBatch64_fallback
 	maskedVByteDecodeOne64 = baseMaskedVByteDecodeOne64_fallback
 }

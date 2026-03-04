@@ -5,11 +5,6 @@ package asm
 
 import "unsafe"
 
-// FusedInt8MatMulSiLU_F32 calls the NEON SIMD assembly implementation.
-func FusedInt8MatMulSiLU_F32(input unsafe.Pointer, weights unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer, plen_input unsafe.Pointer, plen_weights unsafe.Pointer, plen_scales unsafe.Pointer, plen_bias unsafe.Pointer, plen_output unsafe.Pointer) {
-	fusedint8matmulsilu_c_f32_neon(input, weights, scales, bias, output, pM, pK, pN, pgroupSize, plen_input, plen_weights, plen_scales, plen_bias, plen_output)
-}
-
 // FusedInt8MatMulGELU_F32 calls the NEON SIMD assembly implementation.
 func FusedInt8MatMulGELU_F32(input unsafe.Pointer, weights unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer, plen_input unsafe.Pointer, plen_weights unsafe.Pointer, plen_scales unsafe.Pointer, plen_bias unsafe.Pointer, plen_output unsafe.Pointer) {
 	fusedint8matmulgelu_c_f32_neon(input, weights, scales, bias, output, pM, pK, pN, pgroupSize, plen_input, plen_weights, plen_scales, plen_bias, plen_output)
@@ -23,5 +18,10 @@ func FusedInt8MatMulGELUApprox_F32(input unsafe.Pointer, weights unsafe.Pointer,
 // FusedInt8MatMulReLU_F32 calls the NEON SIMD assembly implementation.
 func FusedInt8MatMulReLU_F32(input unsafe.Pointer, weights unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer, plen_input unsafe.Pointer, plen_weights unsafe.Pointer, plen_scales unsafe.Pointer, plen_bias unsafe.Pointer, plen_output unsafe.Pointer) {
 	fusedint8matmulrelu_c_f32_neon(input, weights, scales, bias, output, pM, pK, pN, pgroupSize, plen_input, plen_weights, plen_scales, plen_bias, plen_output)
+}
+
+// FusedInt8MatMulSiLU_F32 calls the NEON SIMD assembly implementation.
+func FusedInt8MatMulSiLU_F32(input unsafe.Pointer, weights unsafe.Pointer, scales unsafe.Pointer, bias unsafe.Pointer, output unsafe.Pointer, pM unsafe.Pointer, pK unsafe.Pointer, pN unsafe.Pointer, pgroupSize unsafe.Pointer, plen_input unsafe.Pointer, plen_weights unsafe.Pointer, plen_scales unsafe.Pointer, plen_bias unsafe.Pointer, plen_output unsafe.Pointer) {
+	fusedint8matmulsilu_c_f32_neon(input, weights, scales, bias, output, pM, pK, pN, pgroupSize, plen_input, plen_weights, plen_scales, plen_bias, plen_output)
 }
 

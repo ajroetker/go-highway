@@ -17,16 +17,16 @@ func BaseApply_avx512_Float16(in []hwy.Float16, out []hwy.Float16, fn func(asm.F
 	lanes := 16
 	i := 0
 	for ; i+lanes*3 <= n; i += lanes * 3 {
-		x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
-		x1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+16:][0]))
-		fn(x1).StorePtr(unsafe.Pointer(&out[i+16:][0]))
-		x2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+32:][0]))
-		fn(x2).StorePtr(unsafe.Pointer(&out[i+32:][0]))
+		x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i]))
+		fn(x).StorePtr(unsafe.Pointer(&out[i]))
+		x1 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+16]))
+		fn(x1).StorePtr(unsafe.Pointer(&out[i+16]))
+		x2 := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+32]))
+		fn(x2).StorePtr(unsafe.Pointer(&out[i+32]))
 	}
 	for ; i+lanes <= n; i += lanes {
-		x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
+		x := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&in[i]))
+		fn(x).StorePtr(unsafe.Pointer(&out[i]))
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := [16]hwy.Float16{}
@@ -42,16 +42,16 @@ func BaseApply_avx512_BFloat16(in []hwy.BFloat16, out []hwy.BFloat16, fn func(as
 	lanes := 16
 	i := 0
 	for ; i+lanes*3 <= n; i += lanes * 3 {
-		x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
-		x1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+16:][0]))
-		fn(x1).StorePtr(unsafe.Pointer(&out[i+16:][0]))
-		x2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+32:][0]))
-		fn(x2).StorePtr(unsafe.Pointer(&out[i+32:][0]))
+		x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i]))
+		fn(x).StorePtr(unsafe.Pointer(&out[i]))
+		x1 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+16]))
+		fn(x1).StorePtr(unsafe.Pointer(&out[i+16]))
+		x2 := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i+32]))
+		fn(x2).StorePtr(unsafe.Pointer(&out[i+32]))
 	}
 	for ; i+lanes <= n; i += lanes {
-		x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i:][0]))
-		fn(x).StorePtr(unsafe.Pointer(&out[i:][0]))
+		x := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&in[i]))
+		fn(x).StorePtr(unsafe.Pointer(&out[i]))
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := [16]hwy.BFloat16{}

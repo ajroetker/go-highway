@@ -8,11 +8,11 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var FindVarintEnds func(src []byte) uint32
-var DecodeUvarint64Batch func(src []byte, dst []uint64, n int) (decoded int, consumed int)
 var Decode2Uvarint64 func(src []byte) (v1 uint64, v2 uint64, consumed int)
 var Decode5Uvarint64 func(src []byte) (values [5]uint64, consumed int)
+var DecodeUvarint64Batch func(src []byte, dst []uint64, n int) (decoded int, consumed int)
 var DecodeUvarint64BatchWithMask func(src []byte, dst []uint64, mask uint32, n int) (decoded int, consumed int)
+var FindVarintEnds func(src []byte) uint32
 
 func init() {
 	initVarintAll()
@@ -24,9 +24,9 @@ func initVarintAll() {
 }
 
 func initVarintFallback() {
-	FindVarintEnds = BaseFindVarintEnds_fallback
-	DecodeUvarint64Batch = BaseDecodeUvarint64Batch_fallback
 	Decode2Uvarint64 = BaseDecode2Uvarint64_fallback
 	Decode5Uvarint64 = BaseDecode5Uvarint64_fallback
+	DecodeUvarint64Batch = BaseDecodeUvarint64Batch_fallback
 	DecodeUvarint64BatchWithMask = BaseDecodeUvarint64BatchWithMask_fallback
+	FindVarintEnds = BaseFindVarintEnds_fallback
 }

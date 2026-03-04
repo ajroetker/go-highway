@@ -84,7 +84,7 @@ func BaseDequantizeQ2K_avx2(data []uint8, output []float32) {
 		dmin := fp16LE(blockData[18], blockData[19])
 		qs := blockData[20:84]
 		outOff := b * QK_K
-		for is := 0; is < 16; is++ {
+		for is := range 16 {
 			sc := float32(scalesRaw[is] & 0x0F)
 			m := float32(scalesRaw[is] >> 4)
 			dsc := d * sc
@@ -129,13 +129,13 @@ func BaseDequantizeQ3K_avx2(data []uint8, output []float32) {
 		d := fp16LE(blockData[108], blockData[109])
 		outOff := b * QK_K
 		var rawScales [16]int
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			rawScales[i] = int(scaleData[i]&0x0F) | (int(scaleData[8+i]&0x03) << 4)
 			rawScales[i+4] = int(scaleData[4+i]&0x0F) | (int((scaleData[8+i]>>2)&0x03) << 4)
 			rawScales[i+8] = int((scaleData[i]>>4)&0x0F) | (int((scaleData[8+i]>>4)&0x03) << 4)
 			rawScales[i+12] = int((scaleData[4+i]>>4)&0x0F) | (int((scaleData[8+i]>>6)&0x03) << 4)
 		}
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			scaleVal := d * float32(rawScales[j]-32)
 			scaleVec := archsimd.BroadcastFloat32x8(scaleVal)
 			baseOut := outOff + j*16
@@ -182,7 +182,7 @@ func BaseDequantizeQ4K_avx2(data []uint8, output []float32) {
 		qs := blockData[16:144]
 		var scs [8]float32
 		var mns [8]float32
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scs[j] = float32(scales[j] & 63)
 			mns[j] = float32(scales[j+4] & 63)
 		}
@@ -193,7 +193,7 @@ func BaseDequantizeQ4K_avx2(data []uint8, output []float32) {
 		outOff := b * QK_K
 		qOff := 0
 		outIdx := outOff
-		for chunk := 0; chunk < 4; chunk++ {
+		for chunk := range 4 {
 			is := chunk * 2
 			dsc0 := d * scs[is]
 			dmm0 := dmin * mns[is]
@@ -295,7 +295,7 @@ func BaseDequantizeQ5K_avx2(data []uint8, output []float32) {
 		qh := blockData[144:176]
 		var scs [8]float32
 		var mns [8]float32
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			scs[j] = float32(scales[j] & 63)
 			mns[j] = float32(scales[j+4] & 63)
 		}
@@ -306,7 +306,7 @@ func BaseDequantizeQ5K_avx2(data []uint8, output []float32) {
 		outOff := b * QK_K
 		qlOff := 0
 		outIdx := outOff
-		for chunk := 0; chunk < 4; chunk++ {
+		for chunk := range 4 {
 			is := chunk * 2
 			dsc0 := d * scs[is]
 			dmm0 := dmin * mns[is]
@@ -370,7 +370,7 @@ func BaseDequantizeQ6K_avx2(data []uint8, output []float32) {
 		sc := blockData[192:208]
 		d := fp16LE(blockData[208], blockData[209])
 		outOff := b * QK_K
-		for j := 0; j < 16; j++ {
+		for j := range 16 {
 			scaleVal := d * float32(int8(sc[j]))
 			scaleVec := archsimd.BroadcastFloat32x8(scaleVal)
 			baseOut := outOff + j*16

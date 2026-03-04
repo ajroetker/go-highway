@@ -19,6 +19,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -158,13 +159,13 @@ type ConditionalBlock struct {
 // PackageGlobal represents a package-level variable with a fixed-size array type
 // and constant initializers. Used to emit `static const` in generated C code.
 type PackageGlobal struct {
-	Name      string   // e.g., "nf4LookupTable"
-	ElemType  string   // e.g., "float32" or "maskedVByte12Lookup" (struct name)
-	Size      int      // e.g., 16 (outer dimension)
-	InnerSize int      // inner dimension for 2D arrays (0 for 1D)
-	Values    []string // raw Go literal values (flattened for 2D: Size*InnerSize elements; for struct arrays: Size*FlatSize)
-	IsStruct  bool             // true when element type is a struct
-	StructDef *PackageStruct   // struct definition (non-nil when IsStruct)
+	Name      string         // e.g., "nf4LookupTable"
+	ElemType  string         // e.g., "float32" or "maskedVByte12Lookup" (struct name)
+	Size      int            // e.g., 16 (outer dimension)
+	InnerSize int            // inner dimension for 2D arrays (0 for 1D)
+	Values    []string       // raw Go literal values (flattened for 2D: Size*InnerSize elements; for struct arrays: Size*FlatSize)
+	IsStruct  bool           // true when element type is a struct
+	StructDef *PackageStruct // struct definition (non-nil when IsStruct)
 }
 
 // PackageConst represents a package-level integer constant (e.g., BlockSize = 48).
@@ -206,7 +207,7 @@ type PackageStructField struct {
 // ParseResult contains all parsed information from a source file.
 type ParseResult struct {
 	Funcs              []ParsedFunc
-	AllFuncs           map[string]*ParsedFunc        // ALL functions in file, keyed by name (for inlining)
+	AllFuncs           map[string]*ParsedFunc // ALL functions in file, keyed by name (for inlining)
 	PackageName        string
 	TypeSpecificConsts map[string]*TypeSpecificConst // map[base_name]variants
 	ConditionalBlocks  []ConditionalBlock
@@ -408,7 +409,7 @@ func Parse(filename string) (*ParseResult, error) {
 		}
 
 		// Find hwy.* and contrib.* calls
-		pf.HwyCalls = findHwyCalls(funcDecl.Body)
+		pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
 
 		// Detect main vectorized loop (with unroll directive support)
 		pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
@@ -455,6 +456,12 @@ func hasBasePrefix(name string) bool {
 	return strings.HasPrefix(name, "Base") || strings.HasPrefix(name, "base")
 }
 
+// stripBasePrefix removes the "Base" or "base" prefix from a function name.
+func stripBasePrefix(name string) string {
+	name = strings.TrimPrefix(name, "Base")
+	return strings.TrimPrefix(name, "base")
+}
+
 // isBuiltinOrCommon returns true if the name is a built-in function or common identifier
 // that should not be tracked as a local helper function.
 // Uses go/ast's IsExported as a heuristic: unexported names starting with lowercase
@@ -475,7 +482,8 @@ func isBuiltinOrCommon(name string) bool {
 
 // findHwyCalls walks the AST and finds all hwy.* and contrib.* calls and references.
 // Also detects calls to Base*/base* functions and local helper functions within the same package.
-func findHwyCalls(node ast.Node) []HwyCall {
+// The imports map is used to dynamically recognise contrib sub-packages.
+func findHwyCalls(node ast.Node, imports map[string]string) []HwyCall {
 	var calls []HwyCall
 	seen := make(map[string]bool) // Avoid duplicates
 
@@ -565,10 +573,9 @@ func findHwyCalls(node ast.Node) []HwyCall {
 			return true
 		}
 
-		// Recognize hwy package and contrib subpackages
-		// Also recognize "stdmath" as an alias for stdlib math package
-		switch ident.Name {
-		case "hwy", "contrib", "math", "vec", "matvec", "matmul", "algo", "image", "bitpack", "sort", "stdmath":
+		// Recognize hwy package, contrib subpackages, and "stdmath" (stdlib math alias).
+		// Contrib packages are discovered dynamically from the file's import declarations.
+		if ident.Name == "hwy" || ident.Name == "contrib" || ident.Name == "stdmath" || isContribImport(ident.Name, imports) {
 			key := ident.Name + "." + selExpr.Sel.Name
 			if !seen[key] {
 				seen[key] = true
@@ -706,7 +713,7 @@ func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirect
 				continue
 			}
 			var targets []string
-			for _, t := range strings.Split(after, ",") {
+			for t := range strings.SplitSeq(after, ",") {
 				t = strings.TrimSpace(t)
 				if t != "" {
 					targets = append(targets, strings.ToLower(t))
@@ -782,12 +789,12 @@ func parseGenDirective(text string) ([]TypeCombination, error) {
 		if tok == "" {
 			continue
 		}
-		eqIdx := strings.IndexByte(tok, '=')
-		if eqIdx < 0 {
+		before, after, ok := strings.Cut(tok, "=")
+		if !ok {
 			return nil, fmt.Errorf("invalid assignment (no '='): %q", tok)
 		}
-		name := strings.TrimSpace(tok[:eqIdx])
-		spec := strings.TrimSpace(tok[eqIdx+1:])
+		name := strings.TrimSpace(before)
+		spec := strings.TrimSpace(after)
 		if name == "" || spec == "" {
 			return nil, fmt.Errorf("invalid assignment: %q", tok)
 		}
@@ -796,7 +803,7 @@ func parseGenDirective(text string) ([]TypeCombination, error) {
 		if strings.HasPrefix(spec, "{") && strings.HasSuffix(spec, "}") {
 			// Set: parse interior comma-separated values
 			interior := spec[1 : len(spec)-1]
-			for _, v := range strings.Split(interior, ",") {
+			for v := range strings.SplitSeq(interior, ",") {
 				v = strings.TrimSpace(v)
 				if v != "" {
 					values = append(values, v)
@@ -865,9 +872,7 @@ func splitAssignments(text string) []string {
 // cloneTypeCombination creates a deep copy of a TypeCombination.
 func cloneTypeCombination(tc TypeCombination) TypeCombination {
 	clone := TypeCombination{Types: make(map[string]string, len(tc.Types))}
-	for k, v := range tc.Types {
-		clone.Types[k] = v
-	}
+	maps.Copy(clone.Types, tc.Types)
 	return clone
 }
 
@@ -1390,34 +1395,10 @@ func (pc *ParsedCondition) Evaluate(targetName, elemType string) bool {
 // GetTypeSuffix returns the type suffix for a given element type.
 // E.g., "float32" -> "f32", "float64" -> "f64"
 func GetTypeSuffix(elemType string) string {
-	switch elemType {
-	case "float16", "hwy.Float16", "Float16":
-		return "f16"
-	case "bfloat16", "hwy.BFloat16", "BFloat16":
-		return "bf16"
-	case "float32":
-		return "f32"
-	case "float64":
-		return "f64"
-	case "int8":
-		return "i8"
-	case "int16":
-		return "i16"
-	case "int32":
-		return "i32"
-	case "int64":
-		return "i64"
-	case "uint8":
-		return "u8"
-	case "uint16":
-		return "u16"
-	case "uint32":
-		return "u32"
-	case "uint64":
-		return "u64"
-	default:
-		return "f32"
+	if info, ok := elemTypeTable[elemType]; ok {
+		return info.GoSuffix
 	}
+	return "f32"
 }
 
 // scanPackageFuncs scans sibling *_base.go files in the same directory as
@@ -1517,7 +1498,7 @@ func scanPackageFuncs(filename string, result *ParseResult) {
 			}
 
 			// Find hwy calls
-			pf.HwyCalls = findHwyCalls(funcDecl.Body)
+			pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
 
 			result.AllFuncs[funcName] = &pf
 		}
@@ -1695,7 +1676,7 @@ func scanSpecializations(filename string, result *ParseResult) {
 			}
 
 			// Find hwy.* calls
-			pf.HwyCalls = findHwyCalls(funcDecl.Body)
+			pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
 
 			// Detect main vectorized loop
 			pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)

@@ -8,56 +8,18 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var ForwardRCTInt32 func(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32])
-var ForwardRCTInt64 func(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64])
-var InverseRCTInt32 func(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32])
-var InverseRCTInt64 func(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64])
 var ForwardICTFloat16 func(r *Image[hwy.Float16], g *Image[hwy.Float16], b *Image[hwy.Float16], outY *Image[hwy.Float16], outCb *Image[hwy.Float16], outCr *Image[hwy.Float16])
 var ForwardICTBFloat16 func(r *Image[hwy.BFloat16], g *Image[hwy.BFloat16], b *Image[hwy.BFloat16], outY *Image[hwy.BFloat16], outCb *Image[hwy.BFloat16], outCr *Image[hwy.BFloat16])
 var ForwardICTFloat32 func(r *Image[float32], g *Image[float32], b *Image[float32], outY *Image[float32], outCb *Image[float32], outCr *Image[float32])
 var ForwardICTFloat64 func(r *Image[float64], g *Image[float64], b *Image[float64], outY *Image[float64], outCb *Image[float64], outCr *Image[float64])
+var ForwardRCTInt32 func(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32])
+var ForwardRCTInt64 func(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64])
 var InverseICTFloat16 func(y *Image[hwy.Float16], cb *Image[hwy.Float16], cr *Image[hwy.Float16], outR *Image[hwy.Float16], outG *Image[hwy.Float16], outB *Image[hwy.Float16])
 var InverseICTBFloat16 func(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat16], cr *Image[hwy.BFloat16], outR *Image[hwy.BFloat16], outG *Image[hwy.BFloat16], outB *Image[hwy.BFloat16])
 var InverseICTFloat32 func(y *Image[float32], cb *Image[float32], cr *Image[float32], outR *Image[float32], outG *Image[float32], outB *Image[float32])
 var InverseICTFloat64 func(y *Image[float64], cb *Image[float64], cr *Image[float64], outR *Image[float64], outG *Image[float64], outB *Image[float64])
-
-// ForwardRCT applies the Reversible Color Transform (RCT) from JPEG 2000.
-// This transforms RGB to YCbCr using integer arithmetic:
-//
-//	Y  = (R + 2*G + B) >> 2
-//	Cb = B - G
-//	Cr = R - G
-//
-// The transform is lossless for integer types.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func ForwardRCT[T hwy.SignedInts](r *Image[T], g *Image[T], b *Image[T], outY *Image[T], outCb *Image[T], outCr *Image[T]) {
-	switch any(r).(type) {
-	case *Image[int32]:
-		ForwardRCTInt32(any(r).(*Image[int32]), any(g).(*Image[int32]), any(b).(*Image[int32]), any(outY).(*Image[int32]), any(outCb).(*Image[int32]), any(outCr).(*Image[int32]))
-	case *Image[int64]:
-		ForwardRCTInt64(any(r).(*Image[int64]), any(g).(*Image[int64]), any(b).(*Image[int64]), any(outY).(*Image[int64]), any(outCb).(*Image[int64]), any(outCr).(*Image[int64]))
-	}
-}
-
-// InverseRCT applies the inverse Reversible Color Transform (RCT).
-// This transforms YCbCr back to RGB using integer arithmetic:
-//
-//	G = Y - ((Cb + Cr) >> 2)
-//	R = Cr + G
-//	B = Cb + G
-//
-// The transform is lossless for integer types.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func InverseRCT[T hwy.SignedInts](y *Image[T], cb *Image[T], cr *Image[T], outR *Image[T], outG *Image[T], outB *Image[T]) {
-	switch any(y).(type) {
-	case *Image[int32]:
-		InverseRCTInt32(any(y).(*Image[int32]), any(cb).(*Image[int32]), any(cr).(*Image[int32]), any(outR).(*Image[int32]), any(outG).(*Image[int32]), any(outB).(*Image[int32]))
-	case *Image[int64]:
-		InverseRCTInt64(any(y).(*Image[int64]), any(cb).(*Image[int64]), any(cr).(*Image[int64]), any(outR).(*Image[int64]), any(outG).(*Image[int64]), any(outB).(*Image[int64]))
-	}
-}
+var InverseRCTInt32 func(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32])
+var InverseRCTInt64 func(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64])
 
 // ForwardICT applies the Irreversible Color Transform (ICT) from JPEG 2000.
 // This transforms RGB to YCbCr using floating-point arithmetic:
@@ -79,6 +41,25 @@ func ForwardICT[T hwy.Floats](r *Image[T], g *Image[T], b *Image[T], outY *Image
 		ForwardICTFloat32(any(r).(*Image[float32]), any(g).(*Image[float32]), any(b).(*Image[float32]), any(outY).(*Image[float32]), any(outCb).(*Image[float32]), any(outCr).(*Image[float32]))
 	case *Image[float64]:
 		ForwardICTFloat64(any(r).(*Image[float64]), any(g).(*Image[float64]), any(b).(*Image[float64]), any(outY).(*Image[float64]), any(outCb).(*Image[float64]), any(outCr).(*Image[float64]))
+	}
+}
+
+// ForwardRCT applies the Reversible Color Transform (RCT) from JPEG 2000.
+// This transforms RGB to YCbCr using integer arithmetic:
+//
+//	Y  = (R + 2*G + B) >> 2
+//	Cb = B - G
+//	Cr = R - G
+//
+// The transform is lossless for integer types.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func ForwardRCT[T hwy.SignedInts](r *Image[T], g *Image[T], b *Image[T], outY *Image[T], outCb *Image[T], outCr *Image[T]) {
+	switch any(r).(type) {
+	case *Image[int32]:
+		ForwardRCTInt32(any(r).(*Image[int32]), any(g).(*Image[int32]), any(b).(*Image[int32]), any(outY).(*Image[int32]), any(outCb).(*Image[int32]), any(outCr).(*Image[int32]))
+	case *Image[int64]:
+		ForwardRCTInt64(any(r).(*Image[int64]), any(g).(*Image[int64]), any(b).(*Image[int64]), any(outY).(*Image[int64]), any(outCb).(*Image[int64]), any(outCr).(*Image[int64]))
 	}
 }
 
@@ -105,6 +86,25 @@ func InverseICT[T hwy.Floats](y *Image[T], cb *Image[T], cr *Image[T], outR *Ima
 	}
 }
 
+// InverseRCT applies the inverse Reversible Color Transform (RCT).
+// This transforms YCbCr back to RGB using integer arithmetic:
+//
+//	G = Y - ((Cb + Cr) >> 2)
+//	R = Cr + G
+//	B = Cb + G
+//
+// The transform is lossless for integer types.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func InverseRCT[T hwy.SignedInts](y *Image[T], cb *Image[T], cr *Image[T], outR *Image[T], outG *Image[T], outB *Image[T]) {
+	switch any(y).(type) {
+	case *Image[int32]:
+		InverseRCTInt32(any(y).(*Image[int32]), any(cb).(*Image[int32]), any(cr).(*Image[int32]), any(outR).(*Image[int32]), any(outG).(*Image[int32]), any(outB).(*Image[int32]))
+	case *Image[int64]:
+		InverseRCTInt64(any(y).(*Image[int64]), any(cb).(*Image[int64]), any(cr).(*Image[int64]), any(outR).(*Image[int64]), any(outG).(*Image[int64]), any(outB).(*Image[int64]))
+	}
+}
+
 func init() {
 	initColorAll()
 }
@@ -115,16 +115,16 @@ func initColorAll() {
 }
 
 func initColorFallback() {
-	ForwardRCTInt32 = BaseForwardRCT_fallback_Int32
-	ForwardRCTInt64 = BaseForwardRCT_fallback_Int64
-	InverseRCTInt32 = BaseInverseRCT_fallback_Int32
-	InverseRCTInt64 = BaseInverseRCT_fallback_Int64
 	ForwardICTFloat16 = BaseForwardICT_fallback_Float16
 	ForwardICTBFloat16 = BaseForwardICT_fallback_BFloat16
 	ForwardICTFloat32 = BaseForwardICT_fallback
 	ForwardICTFloat64 = BaseForwardICT_fallback_Float64
+	ForwardRCTInt32 = BaseForwardRCT_fallback_Int32
+	ForwardRCTInt64 = BaseForwardRCT_fallback_Int64
 	InverseICTFloat16 = BaseInverseICT_fallback_Float16
 	InverseICTBFloat16 = BaseInverseICT_fallback_BFloat16
 	InverseICTFloat32 = BaseInverseICT_fallback
 	InverseICTFloat64 = BaseInverseICT_fallback_Float64
+	InverseRCTInt32 = BaseInverseRCT_fallback_Int32
+	InverseRCTInt64 = BaseInverseRCT_fallback_Int64
 }

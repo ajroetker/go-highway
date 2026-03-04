@@ -52,35 +52,35 @@ type FusionRule struct {
 // builtinRules are the default fusion rules.
 var builtinRules = []FusionRule{
 	{
-		Name:     "Elem+Elem",
+		Name:     PatternElemElem,
 		Priority: 10,
 		Match:    matchElemElem,
 		CanFuse:  canFuseElemElem,
 		Apply:    applyElemElem,
 	},
 	{
-		Name:     "Elem+Reduce",
+		Name:     PatternElemReduce,
 		Priority: 20,
 		Match:    matchElemReduce,
 		CanFuse:  canFuseElemReduce,
 		Apply:    applyElemReduce,
 	},
 	{
-		Name:     "AllocElim",
+		Name:     PatternAllocElim,
 		Priority: 30,
 		Match:    matchAllocElim,
 		CanFuse:  canFuseAllocElim,
 		Apply:    applyAllocElim,
 	},
 	{
-		Name:     "Load+Elem",
+		Name:     PatternLoadElem,
 		Priority: 5,
 		Match:    matchLoadElem,
 		CanFuse:  canFuseLoadElem,
 		Apply:    applyLoadElem,
 	},
 	{
-		Name:     "Elem+Store",
+		Name:     PatternElemStore,
 		Priority: 5,
 		Match:    matchElemStore,
 		CanFuse:  canFuseElemStore,
@@ -400,19 +400,11 @@ func ComputeFusionStats(fn *IRFunction) FusionStats {
 	stats := FusionStats{}
 
 	// Count original passes (loops + allocations)
-	var countOps func([]*IRNode)
-	countOps = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			if node.Kind == OpKindLoop {
-				stats.OriginalPasses++
-			}
-			if node.Kind == OpKindAlloc {
-				stats.OriginalPasses++
-			}
-			countOps(node.Children)
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		if node.Kind == OpKindLoop || node.Kind == OpKindAlloc {
+			stats.OriginalPasses++
 		}
-	}
-	countOps(fn.Operations)
+	})
 
 	// Count fused passes (fusion groups + unfused loops)
 	stats.FusionGroups = len(fn.FusionGroups)

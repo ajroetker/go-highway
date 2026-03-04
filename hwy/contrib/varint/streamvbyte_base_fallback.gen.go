@@ -17,6 +17,27 @@ func BaseDecodeStreamVByte32_fallback(control []byte, data []uint8, n int) []uin
 	return result
 }
 
+func BaseDecodeStreamVByte32GroupSIMD_fallback(ctrl byte, data []uint8, dst []uint32) int {
+	dataLen := int(streamVByte32DataLen[ctrl])
+	if len(data) < dataLen || len(dst) < 4 {
+		return 0
+	}
+	if len(data) < 16 {
+		return decodeGroupScalarInto(ctrl, data, dst)
+	}
+	dataVec := hwy.LoadSlice[uint8](data[:16])
+	maskSlice := streamVByte32ShuffleMasks[ctrl][:]
+	maskVec := hwy.LoadSlice[uint8](maskSlice)
+	shuffled := hwy.TableLookupBytes(dataVec, maskVec)
+	var result [16]uint8
+	hwy.StoreSlice(shuffled, result[:])
+	dst[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
+	dst[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
+	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
+	dst[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
+	return dataLen
+}
+
 func BaseDecodeStreamVByte32Into_fallback(control []byte, data []uint8, dst []uint32) (decoded int, dataConsumed int) {
 	if len(dst) == 0 || len(control) == 0 {
 		return 0, 0
@@ -60,27 +81,6 @@ func BaseDecodeStreamVByte32Into_fallback(control []byte, data []uint8, dst []ui
 	return dstPos, dataPos
 }
 
-func BaseDecodeStreamVByte32GroupSIMD_fallback(ctrl byte, data []uint8, dst []uint32) int {
-	dataLen := int(streamVByte32DataLen[ctrl])
-	if len(data) < dataLen || len(dst) < 4 {
-		return 0
-	}
-	if len(data) < 16 {
-		return decodeGroupScalarInto(ctrl, data, dst)
-	}
-	dataVec := hwy.LoadSlice[uint8](data[:16])
-	maskSlice := streamVByte32ShuffleMasks[ctrl][:]
-	maskVec := hwy.LoadSlice[uint8](maskSlice)
-	shuffled := hwy.TableLookupBytes(dataVec, maskVec)
-	var result [16]uint8
-	hwy.StoreSlice(shuffled, result[:])
-	dst[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
-	dst[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
-	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
-	dst[3] = uint32(result[12]) | uint32(result[13])<<8 | uint32(result[14])<<16 | uint32(result[15])<<24
-	return dataLen
-}
-
 func BaseEncodeStreamVByte32_fallback(values []uint32) (control []byte, data []byte) {
 	if len(values) == 0 {
 		return nil, nil
@@ -105,6 +105,32 @@ func BaseEncodeStreamVByte32_fallback(values []uint32) (control []byte, data []b
 		}
 	}
 	return control, data
+}
+
+func BaseEncodeStreamVByte32Group_fallback(values []uint32, dst []uint8) (ctrl byte, n int) {
+	if len(values) < 4 || len(dst) < 16 {
+		return 0, 0
+	}
+	combined := values[0] | values[1] | values[2] | values[3]
+	if combined <= 0xFF {
+		dst[0] = byte(values[0])
+		dst[1] = byte(values[1])
+		dst[2] = byte(values[2])
+		dst[3] = byte(values[3])
+		return 0, 4
+	}
+	ctrl = 0
+	for i := range 4 {
+		length := encodedLengthU32(values[i])
+		ctrl |= byte(length-1) << (i * 2)
+	}
+	n = int(streamVByte32DataLen[ctrl])
+	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
+	inputVec := hwy.LoadSlice[uint8](inputBytes[:16])
+	maskVec := hwy.LoadSlice[uint8](streamVByte32EncodeShuffleMasks[ctrl][:16])
+	shuffled := hwy.TableLookupBytes(inputVec, maskVec)
+	hwy.StoreSlice(shuffled, dst[:16])
+	return ctrl, n
 }
 
 func BaseEncodeStreamVByte32Into_fallback(values []uint32, controlBuf []byte, dataBuf []byte) (control []byte, data []byte) {
@@ -140,30 +166,4 @@ func BaseEncodeStreamVByte32Into_fallback(values []uint32, controlBuf []byte, da
 		}
 	}
 	return controlBuf, dataBuf[:dataPos]
-}
-
-func BaseEncodeStreamVByte32Group_fallback(values []uint32, dst []uint8) (ctrl byte, n int) {
-	if len(values) < 4 || len(dst) < 16 {
-		return 0, 0
-	}
-	combined := values[0] | values[1] | values[2] | values[3]
-	if combined <= 0xFF {
-		dst[0] = byte(values[0])
-		dst[1] = byte(values[1])
-		dst[2] = byte(values[2])
-		dst[3] = byte(values[3])
-		return 0, 4
-	}
-	ctrl = 0
-	for i := range 4 {
-		length := encodedLengthU32(values[i])
-		ctrl |= byte(length-1) << (i * 2)
-	}
-	n = int(streamVByte32DataLen[ctrl])
-	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
-	inputVec := hwy.LoadSlice[uint8](inputBytes[:16])
-	maskVec := hwy.LoadSlice[uint8](streamVByte32EncodeShuffleMasks[ctrl][:16])
-	shuffled := hwy.TableLookupBytes(inputVec, maskVec)
-	hwy.StoreSlice(shuffled, dst[:16])
-	return ctrl, n
 }

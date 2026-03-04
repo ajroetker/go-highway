@@ -12,14 +12,14 @@ var ApplyPackedOutputFloat16 func(packedOutput []hwy.Float16, output []hwy.Float
 var ApplyPackedOutputBFloat16 func(packedOutput []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16, beta hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputFloat32 func(packedOutput []float32, output []float32, alpha float32, beta float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputFloat64 func(packedOutput []float64, output []float64, alpha float64, beta float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
-var ApplyPackedOutputSimpleFloat16 func(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
-var ApplyPackedOutputSimpleBFloat16 func(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
-var ApplyPackedOutputSimpleFloat32 func(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
-var ApplyPackedOutputSimpleFloat64 func(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumFloat16 func(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumBFloat16 func(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumFloat32 func(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 var ApplyPackedOutputAccumFloat64 func(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
+var ApplyPackedOutputSimpleFloat16 func(packedOutput []hwy.Float16, output []hwy.Float16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
+var ApplyPackedOutputSimpleBFloat16 func(packedOutput []hwy.BFloat16, output []hwy.BFloat16, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
+var ApplyPackedOutputSimpleFloat32 func(packedOutput []float32, output []float32, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
+var ApplyPackedOutputSimpleFloat64 func(packedOutput []float64, output []float64, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int)
 
 // ApplyPackedOutput applies the computed packed output to the final output matrix.
 //
@@ -57,25 +57,6 @@ func ApplyPackedOutput[T hwy.Floats](packedOutput []T, output []T, alpha T, beta
 	}
 }
 
-// ApplyPackedOutputSimple is a simplified version for alpha=1, beta=0.
-//
-// When no scaling is needed, this directly copies from packed to output,
-// which is faster than the general case.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func ApplyPackedOutputSimple[T hwy.Floats](packedOutput []T, output []T, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
-	switch any(packedOutput).(type) {
-	case []hwy.Float16:
-		ApplyPackedOutputSimpleFloat16(any(packedOutput).([]hwy.Float16), any(output).([]hwy.Float16), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
-	case []hwy.BFloat16:
-		ApplyPackedOutputSimpleBFloat16(any(packedOutput).([]hwy.BFloat16), any(output).([]hwy.BFloat16), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
-	case []float32:
-		ApplyPackedOutputSimpleFloat32(any(packedOutput).([]float32), any(output).([]float32), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
-	case []float64:
-		ApplyPackedOutputSimpleFloat64(any(packedOutput).([]float64), any(output).([]float64), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
-	}
-}
-
 // ApplyPackedOutputAccum is for accumulation (alpha=1, beta=1).
 //
 // This is the common case when accumulating K-dimension blocks:
@@ -92,6 +73,25 @@ func ApplyPackedOutputAccum[T hwy.Floats](packedOutput []T, output []T, packedSt
 		ApplyPackedOutputAccumFloat32(any(packedOutput).([]float32), any(output).([]float32), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
 	case []float64:
 		ApplyPackedOutputAccumFloat64(any(packedOutput).([]float64), any(output).([]float64), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
+	}
+}
+
+// ApplyPackedOutputSimple is a simplified version for alpha=1, beta=0.
+//
+// When no scaling is needed, this directly copies from packed to output,
+// which is faster than the general case.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func ApplyPackedOutputSimple[T hwy.Floats](packedOutput []T, output []T, packedStride int, outputRowOffset int, outputColOffset int, outputStride int, height int, width int) {
+	switch any(packedOutput).(type) {
+	case []hwy.Float16:
+		ApplyPackedOutputSimpleFloat16(any(packedOutput).([]hwy.Float16), any(output).([]hwy.Float16), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
+	case []hwy.BFloat16:
+		ApplyPackedOutputSimpleBFloat16(any(packedOutput).([]hwy.BFloat16), any(output).([]hwy.BFloat16), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
+	case []float32:
+		ApplyPackedOutputSimpleFloat32(any(packedOutput).([]float32), any(output).([]float32), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
+	case []float64:
+		ApplyPackedOutputSimpleFloat64(any(packedOutput).([]float64), any(output).([]float64), packedStride, outputRowOffset, outputColOffset, outputStride, height, width)
 	}
 }
 
@@ -113,12 +113,12 @@ func initPacking_opsFallback() {
 	ApplyPackedOutputBFloat16 = BaseApplyPackedOutput_fallback_BFloat16
 	ApplyPackedOutputFloat32 = BaseApplyPackedOutput_fallback
 	ApplyPackedOutputFloat64 = BaseApplyPackedOutput_fallback_Float64
-	ApplyPackedOutputSimpleFloat16 = BaseApplyPackedOutputSimple_fallback_Float16
-	ApplyPackedOutputSimpleBFloat16 = BaseApplyPackedOutputSimple_fallback_BFloat16
-	ApplyPackedOutputSimpleFloat32 = BaseApplyPackedOutputSimple_fallback
-	ApplyPackedOutputSimpleFloat64 = BaseApplyPackedOutputSimple_fallback_Float64
 	ApplyPackedOutputAccumFloat16 = BaseApplyPackedOutputAccum_fallback_Float16
 	ApplyPackedOutputAccumBFloat16 = BaseApplyPackedOutputAccum_fallback_BFloat16
 	ApplyPackedOutputAccumFloat32 = BaseApplyPackedOutputAccum_fallback
 	ApplyPackedOutputAccumFloat64 = BaseApplyPackedOutputAccum_fallback_Float64
+	ApplyPackedOutputSimpleFloat16 = BaseApplyPackedOutputSimple_fallback_Float16
+	ApplyPackedOutputSimpleBFloat16 = BaseApplyPackedOutputSimple_fallback_BFloat16
+	ApplyPackedOutputSimpleFloat32 = BaseApplyPackedOutputSimple_fallback
+	ApplyPackedOutputSimpleFloat64 = BaseApplyPackedOutputSimple_fallback_Float64
 }

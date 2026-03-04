@@ -1,0 +1,160 @@
+# Copyright 2025 go-highway Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: GoAT
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hwy/goat/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'hwy/goat/**'
+
+jobs:
+  ubuntu:
+    name: ubuntu-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      - name: Install clang
+        uses: ConorMacBride/install-package@v1
+        with:
+          apt: clang libc6-dev-i386
+      - name: Build GoAT
+        run: go build -o bin/goat ./hwy/goat
+      - name: Run tests
+        run: |
+          bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
+          go test -C ./hwy/goat/tests -v
+
+  arm:
+    name: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      - name: Install clang
+        uses: ConorMacBride/install-package@v1
+        with:
+          apt: clang
+      - name: Build GoAT
+        run: go build -o bin/goat ./hwy/goat
+      - name: Run tests
+        run: |
+          bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
+          go test -C ./hwy/goat/tests -v
+
+  macos:
+    name: macos-latest
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      - name: Install clang and binutils
+        run: brew install llvm binutils
+      - name: Build GoAT
+        run: go build -o bin/goat ./hwy/goat
+      - name: Run tests
+        run: |
+          export PATH=/opt/homebrew/opt/llvm/bin:$PATH
+          export PATH=/opt/homebrew/opt/binutils/bin:$PATH
+          bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
+          go test -C ./hwy/goat/tests -v
+
+  windows:
+    name: windows-latest
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      - name: Install LLVM and MinGW-w64
+        uses: ConorMacBride/install-package@v1
+        with:
+          choco: llvm mingw
+      - name: Build GoAT
+        run: go build -o bin/goat ./hwy/goat
+      - name: Run tests
+        run: |
+          bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
+          go test -C ./hwy/goat/tests -v
+
+  cross-compile:
+    name: cross-compile-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang binutils-aarch64-linux-gnu binutils-riscv64-linux-gnu
+      - name: Build GoAT
+        run: go build -o bin/goat ./hwy/goat
+      - name: Cross-compile arm64 on x86_64
+        run: |
+          mkdir -p /tmp/cross-bin/arm64
+          ln -sf /usr/bin/aarch64-linux-gnu-objdump /tmp/cross-bin/arm64/objdump
+          PATH="/tmp/cross-bin/arm64:$PATH" bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests -t arm64 --target-os linux
+          cd hwy/goat/tests && GOARCH=arm64 GOOS=linux go build .
+      - name: Cross-compile arm64 NEON on x86_64 (no target sysroot)
+        run: |
+          mkdir -p /tmp/crossout
+          (cd /tmp/crossout && go mod init crossout)
+          ln -sf /usr/bin/aarch64-linux-gnu-objdump /tmp/cross-bin/arm64/objdump
+          PATH="/tmp/cross-bin/arm64:$PATH" bin/goat hwy/goat/tests/src/neon.c -o /tmp/crossout -t arm64 --target-os linux
+          cd /tmp/crossout && GOARCH=arm64 GOOS=linux go build .
+      - name: Cross-compile arm64 NEON const pool on x86_64
+        run: |
+          PATH="/tmp/cross-bin/arm64:$PATH" bin/goat hwy/goat/tests/src/const_pool_neon.c -o /tmp/crossout -t arm64 --target-os linux
+          cd /tmp/crossout && GOARCH=arm64 GOOS=linux go build .
+      - name: Cross-compile riscv64 on x86_64
+        run: |
+          mkdir -p /tmp/cross-bin/riscv64
+          ln -sf /usr/bin/riscv64-linux-gnu-objdump /tmp/cross-bin/riscv64/objdump
+          PATH="/tmp/cross-bin/riscv64:$PATH" bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests -t riscv64 --target-os linux -march=rv64imafd
+          cd hwy/goat/tests && GOARCH=riscv64 GOOS=linux go build .
+
+  riscv:
+    name: ubuntu-24.04-riscv
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: uraimo/run-on-arch-action@v3
+        with:
+          arch: riscv64
+          distro: ubuntu24.04
+          githubToken: ${{ github.token }}
+          dockerRunArgs: |
+            --volume "${PWD}:/opt/goat"
+          install: |
+            apt-get update
+            apt-get install -y clang golang
+          run: |
+            cd /opt/goat
+            go run ./hwy/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests -march=rv64imafd
+            go test -C ./hwy/goat/tests -v

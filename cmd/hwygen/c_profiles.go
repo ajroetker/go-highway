@@ -923,7 +923,7 @@ func neonUint64Profile() *CIntrinsicProfile {
 		ElemType:   "uint64",
 		TargetName: "NEON",
 		Include:    "#include <arm_neon.h>",
-		CType:      "unsigned long",
+		CType:      "unsigned long long",
 		VecTypes: map[string]string{
 			"q": "uint64x2_t",
 		},
@@ -1204,7 +1204,7 @@ func neonInt64Profile() *CIntrinsicProfile {
 		ElemType:   "int64",
 		TargetName: "NEON",
 		Include:    "#include <arm_neon.h>",
-		CType:      "long",
+		CType:      "long long",
 		VecTypes: map[string]string{
 			"q": "int64x2_t",
 		},

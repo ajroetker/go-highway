@@ -242,122 +242,6 @@ func BlockMulAdd2CF64(aT, b, c []float64, blockDim int) {
 	)
 }
 
-// BlockMulAddRegBlockedCF16 computes BlockMulAddRegBlocked using NEON SIMD assembly.
-func BlockMulAddRegBlockedCF16(aT, b, c []hwy.Float16, blockDim int) {
-	var p_aT unsafe.Pointer
-	if len(aT) > 0 {
-		p_aT = unsafe.Pointer(&aT[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_c unsafe.Pointer
-	if len(c) > 0 {
-		p_c = unsafe.Pointer(&c[0])
-	}
-	blockDimVal := int64(blockDim)
-	len_aTVal := int64(len(aT))
-	len_bVal := int64(len(b))
-	len_cVal := int64(len(c))
-	blockmuladdregblocked_c_f16_neon(
-		p_aT,
-		p_b,
-		p_c,
-		unsafe.Pointer(&blockDimVal),
-		unsafe.Pointer(&len_aTVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_cVal),
-	)
-}
-
-// BlockMulAddRegBlockedCBF16 computes BlockMulAddRegBlocked using NEON SIMD assembly.
-func BlockMulAddRegBlockedCBF16(aT, b, c []hwy.BFloat16, blockDim int) {
-	var p_aT unsafe.Pointer
-	if len(aT) > 0 {
-		p_aT = unsafe.Pointer(&aT[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_c unsafe.Pointer
-	if len(c) > 0 {
-		p_c = unsafe.Pointer(&c[0])
-	}
-	blockDimVal := int64(blockDim)
-	len_aTVal := int64(len(aT))
-	len_bVal := int64(len(b))
-	len_cVal := int64(len(c))
-	blockmuladdregblocked_c_bf16_neon(
-		p_aT,
-		p_b,
-		p_c,
-		unsafe.Pointer(&blockDimVal),
-		unsafe.Pointer(&len_aTVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_cVal),
-	)
-}
-
-// BlockMulAddRegBlockedCF32 computes BlockMulAddRegBlocked using NEON SIMD assembly.
-func BlockMulAddRegBlockedCF32(aT, b, c []float32, blockDim int) {
-	var p_aT unsafe.Pointer
-	if len(aT) > 0 {
-		p_aT = unsafe.Pointer(&aT[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_c unsafe.Pointer
-	if len(c) > 0 {
-		p_c = unsafe.Pointer(&c[0])
-	}
-	blockDimVal := int64(blockDim)
-	len_aTVal := int64(len(aT))
-	len_bVal := int64(len(b))
-	len_cVal := int64(len(c))
-	blockmuladdregblocked_c_f32_neon(
-		p_aT,
-		p_b,
-		p_c,
-		unsafe.Pointer(&blockDimVal),
-		unsafe.Pointer(&len_aTVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_cVal),
-	)
-}
-
-// BlockMulAddRegBlockedCF64 computes BlockMulAddRegBlocked using NEON SIMD assembly.
-func BlockMulAddRegBlockedCF64(aT, b, c []float64, blockDim int) {
-	var p_aT unsafe.Pointer
-	if len(aT) > 0 {
-		p_aT = unsafe.Pointer(&aT[0])
-	}
-	var p_b unsafe.Pointer
-	if len(b) > 0 {
-		p_b = unsafe.Pointer(&b[0])
-	}
-	var p_c unsafe.Pointer
-	if len(c) > 0 {
-		p_c = unsafe.Pointer(&c[0])
-	}
-	blockDimVal := int64(blockDim)
-	len_aTVal := int64(len(aT))
-	len_bVal := int64(len(b))
-	len_cVal := int64(len(c))
-	blockmuladdregblocked_c_f64_neon(
-		p_aT,
-		p_b,
-		p_c,
-		unsafe.Pointer(&blockDimVal),
-		unsafe.Pointer(&len_aTVal),
-		unsafe.Pointer(&len_bVal),
-		unsafe.Pointer(&len_cVal),
-	)
-}
-
 // BlockMulAdd4CF16 computes BlockMulAdd4 using NEON SIMD assembly.
 func BlockMulAdd4CF16(aT, b, c []hwy.Float16, blockDim int) {
 	var p_aT unsafe.Pointer
@@ -464,6 +348,122 @@ func BlockMulAdd4CF64(aT, b, c []float64, blockDim int) {
 	len_bVal := int64(len(b))
 	len_cVal := int64(len(c))
 	blockmuladd4_c_f64_neon(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// BlockMulAddRegBlockedCF16 computes BlockMulAddRegBlocked using NEON SIMD assembly.
+func BlockMulAddRegBlockedCF16(aT, b, c []hwy.Float16, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	blockmuladdregblocked_c_f16_neon(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// BlockMulAddRegBlockedCBF16 computes BlockMulAddRegBlocked using NEON SIMD assembly.
+func BlockMulAddRegBlockedCBF16(aT, b, c []hwy.BFloat16, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	blockmuladdregblocked_c_bf16_neon(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// BlockMulAddRegBlockedCF32 computes BlockMulAddRegBlocked using NEON SIMD assembly.
+func BlockMulAddRegBlockedCF32(aT, b, c []float32, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	blockmuladdregblocked_c_f32_neon(
+		p_aT,
+		p_b,
+		p_c,
+		unsafe.Pointer(&blockDimVal),
+		unsafe.Pointer(&len_aTVal),
+		unsafe.Pointer(&len_bVal),
+		unsafe.Pointer(&len_cVal),
+	)
+}
+
+// BlockMulAddRegBlockedCF64 computes BlockMulAddRegBlocked using NEON SIMD assembly.
+func BlockMulAddRegBlockedCF64(aT, b, c []float64, blockDim int) {
+	var p_aT unsafe.Pointer
+	if len(aT) > 0 {
+		p_aT = unsafe.Pointer(&aT[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	var p_c unsafe.Pointer
+	if len(c) > 0 {
+		p_c = unsafe.Pointer(&c[0])
+	}
+	blockDimVal := int64(blockDim)
+	len_aTVal := int64(len(aT))
+	len_bVal := int64(len(b))
+	len_cVal := int64(len(c))
+	blockmuladdregblocked_c_f64_neon(
 		p_aT,
 		p_b,
 		p_c,

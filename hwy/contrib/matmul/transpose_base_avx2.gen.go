@@ -12,6 +12,362 @@ import (
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
+func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Float16) {
+	if len(src) < m*k || len(dst) < k*m {
+		return
+	}
+	lanes := 8
+	i := 0
+	for ; i <= m-lanes; i += lanes * 2 {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [8]asm.Float16x8AVX2{}
+				for r_1 := range lanes {
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [8]asm.Float16x8AVX2{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
+				}
+			}
+		}
+		for j1 := 0; j1 <= k-lanes; j1 += lanes {
+			{
+				rows_11 := [8]asm.Float16x8AVX2{}
+				for r_11 := range lanes {
+					rows_11[r_11] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
+				}
+				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
+					newRows_11 := [8]asm.Float16x8AVX2{}
+					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
+						}
+					}
+					rows_11 = newRows_11
+				}
+				for c_11 := range lanes {
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*m+i]))
+				}
+			}
+		}
+	}
+	for ; i <= m-lanes; i += lanes {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [8]asm.Float16x8AVX2{}
+				for r_1 := range lanes {
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [8]asm.Float16x8AVX2{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
+				}
+			}
+		}
+	}
+	{
+		blockM_2 := (m / lanes) * lanes
+		blockK_2 := (k / lanes) * lanes
+		for i_2 := range m {
+			for j_2 := blockK_2; j_2 < k; j_2++ {
+				dst[j_2*m+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
+			}
+		}
+		for i_2 := blockM_2; i_2 < m; i_2++ {
+			for j_2 := range blockK_2 {
+				dst[j_2*m+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
+			}
+		}
+	}
+}
+
+func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.BFloat16) {
+	if len(src) < m*k || len(dst) < k*m {
+		return
+	}
+	lanes := 8
+	i := 0
+	for ; i <= m-lanes; i += lanes * 2 {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [8]asm.BFloat16x8AVX2{}
+				for r_1 := range lanes {
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [8]asm.BFloat16x8AVX2{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
+				}
+			}
+		}
+		for j1 := 0; j1 <= k-lanes; j1 += lanes {
+			{
+				rows_11 := [8]asm.BFloat16x8AVX2{}
+				for r_11 := range lanes {
+					rows_11[r_11] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
+				}
+				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
+					newRows_11 := [8]asm.BFloat16x8AVX2{}
+					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
+						}
+					}
+					rows_11 = newRows_11
+				}
+				for c_11 := range lanes {
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*m+i]))
+				}
+			}
+		}
+	}
+	for ; i <= m-lanes; i += lanes {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [8]asm.BFloat16x8AVX2{}
+				for r_1 := range lanes {
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [8]asm.BFloat16x8AVX2{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i]))
+				}
+			}
+		}
+	}
+	{
+		blockM_2 := (m / lanes) * lanes
+		blockK_2 := (k / lanes) * lanes
+		for i_2 := range m {
+			for j_2 := blockK_2; j_2 < k; j_2++ {
+				dst[j_2*m+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
+			}
+		}
+		for i_2 := blockM_2; i_2 < m; i_2++ {
+			for j_2 := range blockK_2 {
+				dst[j_2*m+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
+			}
+		}
+	}
+}
+
+func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
+	if len(src) < m*k || len(dst) < k*m {
+		return
+	}
+	lanes := 8
+	i := 0
+	for ; i <= m-lanes; i += lanes * 2 {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [8]archsimd.Float32x8{}
+				for r_1 := range lanes {
+					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [8]archsimd.Float32x8{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+				}
+			}
+		}
+		for j1 := 0; j1 <= k-lanes; j1 += lanes {
+			{
+				rows_11 := [8]archsimd.Float32x8{}
+				for r_11 := range lanes {
+					rows_11[r_11] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+				}
+				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
+					newRows_11 := [8]archsimd.Float32x8{}
+					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = hwy.InterleaveLower_AVX2_F32x8(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_AVX2_F32x8(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+						}
+					}
+					rows_11 = newRows_11
+				}
+				for c_11 := range lanes {
+					rows_11[c_11].Store((*[8]float32)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
+				}
+			}
+		}
+	}
+	for ; i <= m-lanes; i += lanes {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [8]archsimd.Float32x8{}
+				for r_1 := range lanes {
+					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [8]archsimd.Float32x8{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+				}
+			}
+		}
+	}
+	{
+		blockM_2 := (m / lanes) * lanes
+		blockK_2 := (k / lanes) * lanes
+		for i_2 := range m {
+			for j_2 := blockK_2; j_2 < k; j_2++ {
+				dst[j_2*m+i_2] = src[i_2*k+j_2]
+			}
+		}
+		for i_2 := blockM_2; i_2 < m; i_2++ {
+			for j_2 := range blockK_2 {
+				dst[j_2*m+i_2] = src[i_2*k+j_2]
+			}
+		}
+	}
+}
+
+func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
+	if len(src) < m*k || len(dst) < k*m {
+		return
+	}
+	lanes := 4
+	i := 0
+	for ; i <= m-lanes; i += lanes * 2 {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [4]archsimd.Float64x4{}
+				for r_1 := range lanes {
+					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [4]archsimd.Float64x4{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+				}
+			}
+		}
+		for j1 := 0; j1 <= k-lanes; j1 += lanes {
+			{
+				rows_11 := [4]archsimd.Float64x4{}
+				for r_11 := range lanes {
+					rows_11[r_11] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+				}
+				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
+					newRows_11 := [4]archsimd.Float64x4{}
+					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = hwy.InterleaveLower_AVX2_F64x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_AVX2_F64x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+						}
+					}
+					rows_11 = newRows_11
+				}
+				for c_11 := range lanes {
+					rows_11[c_11].Store((*[4]float64)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
+				}
+			}
+		}
+	}
+	for ; i <= m-lanes; i += lanes {
+		for j := 0; j <= k-lanes; j += lanes {
+			{
+				rows_1 := [4]archsimd.Float64x4{}
+				for r_1 := range lanes {
+					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+				}
+				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
+					newRows_1 := [4]archsimd.Float64x4{}
+					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
+						for j_1 := range stride_1 {
+							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
+						}
+					}
+					rows_1 = newRows_1
+				}
+				for c_1 := range lanes {
+					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+				}
+			}
+		}
+	}
+	{
+		blockM_2 := (m / lanes) * lanes
+		blockK_2 := (k / lanes) * lanes
+		for i_2 := range m {
+			for j_2 := blockK_2; j_2 < k; j_2++ {
+				dst[j_2*m+i_2] = src[i_2*k+j_2]
+			}
+		}
+		for i_2 := blockM_2; i_2 < m; i_2++ {
+			for j_2 := range blockK_2 {
+				dst[j_2*m+i_2] = src[i_2*k+j_2]
+			}
+		}
+	}
+}
+
 func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd int, k int, dstM int, dst []hwy.Float16) {
 	if rowStart >= rowEnd {
 		return
@@ -24,7 +380,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 			{
 				rows_1 := [8]asm.Float16x8AVX2{}
 				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]asm.Float16x8AVX2{}
@@ -37,28 +393,28 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]asm.Float16x8AVX2{}
-				for r_1 := range lanes {
-					rows_11[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
+				for r_11 := range lanes {
+					rows_11[r_11] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [8]asm.Float16x8AVX2{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_1 := range lanes {
-					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*dstM+i:][0]))
+				for c_11 := range lanes {
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*dstM+i]))
 				}
 			}
 		}
@@ -68,7 +424,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 			{
 				rows_1 := [8]asm.Float16x8AVX2{}
 				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
+					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]asm.Float16x8AVX2{}
@@ -81,7 +437,7 @@ func BaseTranspose2DStrided_avx2_Float16(src []hwy.Float16, rowStart int, rowEnd
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
@@ -121,7 +477,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 			{
 				rows_1 := [8]asm.BFloat16x8AVX2{}
 				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]asm.BFloat16x8AVX2{}
@@ -134,28 +490,28 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]asm.BFloat16x8AVX2{}
-				for r_1 := range lanes {
-					rows_11[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
+				for r_11 := range lanes {
+					rows_11[r_11] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_11)*k+j1]))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [8]asm.BFloat16x8AVX2{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = rows_11[i_11+j_11].InterleaveLower(rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = rows_11[i_11+j_11].InterleaveUpper(rows_11[i_11+j_11+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_1 := range lanes {
-					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*dstM+i:][0]))
+				for c_11 := range lanes {
+					rows_11[c_11].StorePtr(unsafe.Pointer(&dst[(j1+c_11)*dstM+i]))
 				}
 			}
 		}
@@ -165,7 +521,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 			{
 				rows_1 := [8]asm.BFloat16x8AVX2{}
 				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
+					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j]))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]asm.BFloat16x8AVX2{}
@@ -178,7 +534,7 @@ func BaseTranspose2DStrided_avx2_BFloat16(src []hwy.BFloat16, rowStart int, rowE
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i:][0]))
+					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*dstM+i]))
 				}
 			}
 		}
@@ -238,21 +594,21 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [8]archsimd.Float32x8{}
-				for r_1 := range lanes {
-					rows_11[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
+				for r_11 := range lanes {
+					rows_11[r_11] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [8]archsimd.Float32x8{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = hwy.InterleaveLower_AVX2_F32x8(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_AVX2_F32x8(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = hwy.InterleaveLower_AVX2_F32x8(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_AVX2_F32x8(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_1 := range lanes {
-					rows_11[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j1+c_1)*dstM+i])))
+				for c_11 := range lanes {
+					rows_11[c_11].Store((*[8]float32)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
 				}
 			}
 		}
@@ -335,21 +691,21 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 		for j1 := 0; j1 <= k-lanes; j1 += lanes {
 			{
 				rows_11 := [4]archsimd.Float64x4{}
-				for r_1 := range lanes {
-					rows_11[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
+				for r_11 := range lanes {
+					rows_11[r_11] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [4]archsimd.Float64x4{}
 					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = hwy.InterleaveLower_AVX2_F64x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_AVX2_F64x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
+						for j_11 := range stride_11 {
+							newRows_11[i_11+j_11] = hwy.InterleaveLower_AVX2_F64x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
+							newRows_11[i_11+j_11+stride_11] = hwy.InterleaveUpper_AVX2_F64x4(rows_11[i_11+j_11], rows_11[i_11+j_11+stride_11])
 						}
 					}
 					rows_11 = newRows_11
 				}
-				for c_1 := range lanes {
-					rows_11[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j1+c_1)*dstM+i])))
+				for c_11 := range lanes {
+					rows_11[c_11].Store((*[4]float64)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
 				}
 			}
 		}
@@ -398,360 +754,4 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 		}
 	}
 	_ = m
-}
-
-func BaseTranspose2D_avx2_Float16(src []hwy.Float16, m int, k int, dst []hwy.Float16) {
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	lanes := 8
-	i := 0
-	for ; i <= m-lanes; i += lanes * 2 {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [8]asm.Float16x8AVX2{}
-				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [8]asm.Float16x8AVX2{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
-				}
-			}
-		}
-		for j1 := 0; j1 <= k-lanes; j1 += lanes {
-			{
-				rows_11 := [8]asm.Float16x8AVX2{}
-				for r_1 := range lanes {
-					rows_11[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
-				}
-				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
-					newRows_11 := [8]asm.Float16x8AVX2{}
-					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
-						}
-					}
-					rows_11 = newRows_11
-				}
-				for c_1 := range lanes {
-					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*m+i:][0]))
-				}
-			}
-		}
-	}
-	for ; i <= m-lanes; i += lanes {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [8]asm.Float16x8AVX2{}
-				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [8]asm.Float16x8AVX2{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
-				}
-			}
-		}
-	}
-	{
-		blockM_2 := (m / lanes) * lanes
-		blockK_2 := (k / lanes) * lanes
-		for i_2 := range m {
-			for j_2 := blockK_2; j_2 < k; j_2++ {
-				dst[j_2*m+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
-			}
-		}
-		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := range blockK_2 {
-				dst[j_2*m+i_2] = hwy.Float32ToFloat16(src[i_2*k+j_2].Float32())
-			}
-		}
-	}
-}
-
-func BaseTranspose2D_avx2_BFloat16(src []hwy.BFloat16, m int, k int, dst []hwy.BFloat16) {
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	lanes := 8
-	i := 0
-	for ; i <= m-lanes; i += lanes * 2 {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [8]asm.BFloat16x8AVX2{}
-				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [8]asm.BFloat16x8AVX2{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
-				}
-			}
-		}
-		for j1 := 0; j1 <= k-lanes; j1 += lanes {
-			{
-				rows_11 := [8]asm.BFloat16x8AVX2{}
-				for r_1 := range lanes {
-					rows_11[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j1:][0]))
-				}
-				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
-					newRows_11 := [8]asm.BFloat16x8AVX2{}
-					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = rows_11[i_11+j_1].InterleaveLower(rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = rows_11[i_11+j_1].InterleaveUpper(rows_11[i_11+j_1+stride_11])
-						}
-					}
-					rows_11 = newRows_11
-				}
-				for c_1 := range lanes {
-					rows_11[c_1].StorePtr(unsafe.Pointer(&dst[(j1+c_1)*m+i:][0]))
-				}
-			}
-		}
-	}
-	for ; i <= m-lanes; i += lanes {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [8]asm.BFloat16x8AVX2{}
-				for r_1 := range lanes {
-					rows_1[r_1] = asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&src[(i+r_1)*k+j:][0]))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [8]asm.BFloat16x8AVX2{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = rows_1[i_1+j_1].InterleaveLower(rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = rows_1[i_1+j_1].InterleaveUpper(rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].StorePtr(unsafe.Pointer(&dst[(j+c_1)*m+i:][0]))
-				}
-			}
-		}
-	}
-	{
-		blockM_2 := (m / lanes) * lanes
-		blockK_2 := (k / lanes) * lanes
-		for i_2 := range m {
-			for j_2 := blockK_2; j_2 < k; j_2++ {
-				dst[j_2*m+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
-			}
-		}
-		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := range blockK_2 {
-				dst[j_2*m+i_2] = hwy.Float32ToBFloat16(src[i_2*k+j_2].Float32())
-			}
-		}
-	}
-}
-
-func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	lanes := 8
-	i := 0
-	for ; i <= m-lanes; i += lanes * 2 {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [8]archsimd.Float32x8{}
-				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [8]archsimd.Float32x8{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
-				}
-			}
-		}
-		for j1 := 0; j1 <= k-lanes; j1 += lanes {
-			{
-				rows_11 := [8]archsimd.Float32x8{}
-				for r_1 := range lanes {
-					rows_11[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
-				}
-				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
-					newRows_11 := [8]archsimd.Float32x8{}
-					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = hwy.InterleaveLower_AVX2_F32x8(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_AVX2_F32x8(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
-						}
-					}
-					rows_11 = newRows_11
-				}
-				for c_1 := range lanes {
-					rows_11[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j1+c_1)*m+i])))
-				}
-			}
-		}
-	}
-	for ; i <= m-lanes; i += lanes {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [8]archsimd.Float32x8{}
-				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [8]archsimd.Float32x8{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F32x8(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
-				}
-			}
-		}
-	}
-	{
-		blockM_2 := (m / lanes) * lanes
-		blockK_2 := (k / lanes) * lanes
-		for i_2 := range m {
-			for j_2 := blockK_2; j_2 < k; j_2++ {
-				dst[j_2*m+i_2] = src[i_2*k+j_2]
-			}
-		}
-		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := range blockK_2 {
-				dst[j_2*m+i_2] = src[i_2*k+j_2]
-			}
-		}
-	}
-}
-
-func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
-	if len(src) < m*k || len(dst) < k*m {
-		return
-	}
-	lanes := 4
-	i := 0
-	for ; i <= m-lanes; i += lanes * 2 {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [4]archsimd.Float64x4{}
-				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [4]archsimd.Float64x4{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
-				}
-			}
-		}
-		for j1 := 0; j1 <= k-lanes; j1 += lanes {
-			{
-				rows_11 := [4]archsimd.Float64x4{}
-				for r_1 := range lanes {
-					rows_11[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j1])))
-				}
-				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
-					newRows_11 := [4]archsimd.Float64x4{}
-					for i_11 := 0; i_11 < lanes; i_11 += 2 * stride_11 {
-						for j_1 := range stride_11 {
-							newRows_11[i_11+j_1] = hwy.InterleaveLower_AVX2_F64x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
-							newRows_11[i_11+j_1+stride_11] = hwy.InterleaveUpper_AVX2_F64x4(rows_11[i_11+j_1], rows_11[i_11+j_1+stride_11])
-						}
-					}
-					rows_11 = newRows_11
-				}
-				for c_1 := range lanes {
-					rows_11[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j1+c_1)*m+i])))
-				}
-			}
-		}
-	}
-	for ; i <= m-lanes; i += lanes {
-		for j := 0; j <= k-lanes; j += lanes {
-			{
-				rows_1 := [4]archsimd.Float64x4{}
-				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
-				}
-				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
-					newRows_1 := [4]archsimd.Float64x4{}
-					for i_1 := 0; i_1 < lanes; i_1 += 2 * stride_1 {
-						for j_1 := range stride_1 {
-							newRows_1[i_1+j_1] = hwy.InterleaveLower_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-							newRows_1[i_1+j_1+stride_1] = hwy.InterleaveUpper_AVX2_F64x4(rows_1[i_1+j_1], rows_1[i_1+j_1+stride_1])
-						}
-					}
-					rows_1 = newRows_1
-				}
-				for c_1 := range lanes {
-					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
-				}
-			}
-		}
-	}
-	{
-		blockM_2 := (m / lanes) * lanes
-		blockK_2 := (k / lanes) * lanes
-		for i_2 := range m {
-			for j_2 := blockK_2; j_2 < k; j_2++ {
-				dst[j_2*m+i_2] = src[i_2*k+j_2]
-			}
-		}
-		for i_2 := blockM_2; i_2 < m; i_2++ {
-			for j_2 := range blockK_2 {
-				dst[j_2*m+i_2] = src[i_2*k+j_2]
-			}
-		}
-	}
 }

@@ -8,18 +8,40 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var Partition3WayFloat32 func(data []float32, pivot float32) (int, int)
-var Partition3WayFloat64 func(data []float64, pivot float64) (int, int)
-var Partition3WayInt32 func(data []int32, pivot int32) (int, int)
-var Partition3WayInt64 func(data []int64, pivot int64) (int, int)
-var Partition3WayUint32 func(data []uint32, pivot uint32) (int, int)
-var Partition3WayUint64 func(data []uint64, pivot uint64) (int, int)
 var PartitionFloat32 func(data []float32, pivot float32) int
 var PartitionFloat64 func(data []float64, pivot float64) int
 var PartitionInt32 func(data []int32, pivot int32) int
 var PartitionInt64 func(data []int64, pivot int64) int
 var PartitionUint32 func(data []uint32, pivot uint32) int
 var PartitionUint64 func(data []uint64, pivot uint64) int
+var Partition3WayFloat32 func(data []float32, pivot float32) (int, int)
+var Partition3WayFloat64 func(data []float64, pivot float64) (int, int)
+var Partition3WayInt32 func(data []int32, pivot int32) (int, int)
+var Partition3WayInt64 func(data []int64, pivot int64) (int, int)
+var Partition3WayUint32 func(data []uint32, pivot uint32) (int, int)
+var Partition3WayUint64 func(data []uint64, pivot uint64) (int, int)
+
+// Partition performs 2-way partitioning around a pivot.
+// Returns index where data[0:idx] <= pivot and data[idx:n] > pivot.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Partition[T hwy.Lanes](data []T, pivot T) int {
+	switch any(data).(type) {
+	case []float32:
+		return PartitionFloat32(any(data).([]float32), any(pivot).(float32))
+	case []float64:
+		return PartitionFloat64(any(data).([]float64), any(pivot).(float64))
+	case []int32:
+		return PartitionInt32(any(data).([]int32), any(pivot).(int32))
+	case []int64:
+		return PartitionInt64(any(data).([]int64), any(pivot).(int64))
+	case []uint32:
+		return PartitionUint32(any(data).([]uint32), any(pivot).(uint32))
+	case []uint64:
+		return PartitionUint64(any(data).([]uint64), any(pivot).(uint64))
+	}
+	panic("unreachable")
+}
 
 // Partition3Way performs 3-way partitioning around a pivot.
 // Returns (lt, gt) indices where:
@@ -46,28 +68,6 @@ func Partition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 	panic("unreachable")
 }
 
-// Partition performs 2-way partitioning around a pivot.
-// Returns index where data[0:idx] <= pivot and data[idx:n] > pivot.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Partition[T hwy.Lanes](data []T, pivot T) int {
-	switch any(data).(type) {
-	case []float32:
-		return PartitionFloat32(any(data).([]float32), any(pivot).(float32))
-	case []float64:
-		return PartitionFloat64(any(data).([]float64), any(pivot).(float64))
-	case []int32:
-		return PartitionInt32(any(data).([]int32), any(pivot).(int32))
-	case []int64:
-		return PartitionInt64(any(data).([]int64), any(pivot).(int64))
-	case []uint32:
-		return PartitionUint32(any(data).([]uint32), any(pivot).(uint32))
-	case []uint64:
-		return PartitionUint64(any(data).([]uint64), any(pivot).(uint64))
-	}
-	panic("unreachable")
-}
-
 func init() {
 	initPartitionAll()
 }
@@ -82,31 +82,31 @@ func initPartitionAll() {
 }
 
 func initPartitionNEON() {
-	Partition3WayFloat32 = BasePartition3Way_neon
-	Partition3WayFloat64 = BasePartition3Way_neon_Float64
-	Partition3WayInt32 = BasePartition3Way_neon_Int32
-	Partition3WayInt64 = BasePartition3Way_neon_Int64
-	Partition3WayUint32 = BasePartition3Way_neon_Uint32
-	Partition3WayUint64 = BasePartition3Way_neon_Uint64
 	PartitionFloat32 = BasePartition_neon
 	PartitionFloat64 = BasePartition_neon_Float64
 	PartitionInt32 = BasePartition_neon_Int32
 	PartitionInt64 = BasePartition_neon_Int64
 	PartitionUint32 = BasePartition_neon_Uint32
 	PartitionUint64 = BasePartition_neon_Uint64
+	Partition3WayFloat32 = BasePartition3Way_neon
+	Partition3WayFloat64 = BasePartition3Way_neon_Float64
+	Partition3WayInt32 = BasePartition3Way_neon_Int32
+	Partition3WayInt64 = BasePartition3Way_neon_Int64
+	Partition3WayUint32 = BasePartition3Way_neon_Uint32
+	Partition3WayUint64 = BasePartition3Way_neon_Uint64
 }
 
 func initPartitionFallback() {
-	Partition3WayFloat32 = BasePartition3Way_fallback
-	Partition3WayFloat64 = BasePartition3Way_fallback_Float64
-	Partition3WayInt32 = BasePartition3Way_fallback_Int32
-	Partition3WayInt64 = BasePartition3Way_fallback_Int64
-	Partition3WayUint32 = BasePartition3Way_fallback_Uint32
-	Partition3WayUint64 = BasePartition3Way_fallback_Uint64
 	PartitionFloat32 = BasePartition_fallback
 	PartitionFloat64 = BasePartition_fallback_Float64
 	PartitionInt32 = BasePartition_fallback_Int32
 	PartitionInt64 = BasePartition_fallback_Int64
 	PartitionUint32 = BasePartition_fallback_Uint32
 	PartitionUint64 = BasePartition_fallback_Uint64
+	Partition3WayFloat32 = BasePartition3Way_fallback
+	Partition3WayFloat64 = BasePartition3Way_fallback_Float64
+	Partition3WayInt32 = BasePartition3Way_fallback_Int32
+	Partition3WayInt64 = BasePartition3Way_fallback_Int64
+	Partition3WayUint32 = BasePartition3Way_fallback_Uint32
+	Partition3WayUint64 = BasePartition3Way_fallback_Uint64
 }

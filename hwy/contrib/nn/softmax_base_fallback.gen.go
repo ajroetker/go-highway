@@ -9,6 +9,168 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+func BaseLogSoftmax_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
+		}
+	}
+	vMax := hwy.Set(maxVal)
+	vSum := hwy.Zero[hwy.Float16]()
+	lanes := vSum.NumLanes()
+	var ii int
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.Sub(x, vMax)
+		expVal := math.BaseExpVec_fallback_Float16(shifted)
+		vSum = hwy.Add(vSum, expVal)
+	}
+	expSum := hwy.ReduceSum(vSum).Float32()
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
+	}
+	logSumExp := hwy.Float32ToFloat16(float32(stdmath.Log(float64(expSum))))
+	offset := hwy.Float32ToFloat16(maxVal.Float32() + logSumExp.Float32())
+	vOffset := hwy.Set(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		hwy.Store(hwy.Sub(x, vOffset), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToFloat16(input[ii].Float32() - offset.Float32())
+	}
+}
+
+func BaseLogSoftmax_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
+		}
+	}
+	vMax := hwy.Set(maxVal)
+	vSum := hwy.Zero[hwy.BFloat16]()
+	lanes := vSum.NumLanes()
+	var ii int
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		shifted := hwy.Sub(x, vMax)
+		expVal := math.BaseExpVec_fallback_BFloat16(shifted)
+		vSum = hwy.Add(vSum, expVal)
+	}
+	expSum := hwy.ReduceSum(vSum).Float32()
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
+	}
+	logSumExp := hwy.Float32ToBFloat16(float32(stdmath.Log(float64(expSum))))
+	offset := hwy.Float32ToBFloat16(maxVal.Float32() + logSumExp.Float32())
+	vOffset := hwy.Set(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := hwy.Load(input[ii:])
+		hwy.Store(hwy.Sub(x, vOffset), output[ii:])
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToBFloat16(input[ii].Float32() - offset.Float32())
+	}
+}
+
+func BaseLogSoftmax_fallback(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
+		}
+	}
+	vMax := float32(maxVal)
+	vSum := float32(0)
+	var ii int
+	for ii = 0; ii < size; ii++ {
+		x := input[ii]
+		shifted := x - vMax
+		expVal := float32(stdmath.Exp(float64(shifted)))
+		vSum = vSum + expVal
+	}
+	expSum := vSum
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii] - maxVal)))
+	}
+	logSumExp := float32(stdmath.Log(float64(expSum)))
+	offset := maxVal + logSumExp
+	vOffset := float32(offset)
+	for ii = 0; ii < size; ii++ {
+		x := input[ii]
+		output[ii] = x - vOffset
+	}
+	for ; ii < size; ii++ {
+		output[ii] = input[ii] - offset
+	}
+}
+
+func BaseLogSoftmax_fallback_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
+		}
+	}
+	vMax := float64(maxVal)
+	vSum := float64(0)
+	var ii int
+	for ii = 0; ii < size; ii++ {
+		x := input[ii]
+		shifted := x - vMax
+		expVal := float64(stdmath.Exp(float64(shifted)))
+		vSum = vSum + expVal
+	}
+	expSum := vSum
+	for ; ii < size; ii++ {
+		expSum += float64(stdmath.Exp(float64(input[ii] - maxVal)))
+	}
+	logSumExp := float64(stdmath.Log(float64(expSum)))
+	offset := maxVal + logSumExp
+	vOffset := float64(offset)
+	for ii = 0; ii < size; ii++ {
+		x := input[ii]
+		output[ii] = x - vOffset
+	}
+	for ; ii < size; ii++ {
+		output[ii] = input[ii] - offset
+	}
+}
+
+func BaseLogSoftmaxInPlace_fallback_Float16(x []hwy.Float16) {
+	BaseLogSoftmax_fallback_Float16(x, x)
+}
+
+func BaseLogSoftmaxInPlace_fallback_BFloat16(x []hwy.BFloat16) {
+	BaseLogSoftmax_fallback_BFloat16(x, x)
+}
+
+func BaseLogSoftmaxInPlace_fallback(x []float32) {
+	BaseLogSoftmax_fallback(x, x)
+}
+
+func BaseLogSoftmaxInPlace_fallback_Float64(x []float64) {
+	BaseLogSoftmax_fallback_Float64(x, x)
+}
+
 func BaseSoftmax_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -177,168 +339,6 @@ func BaseSoftmaxInPlace_fallback(x []float32) {
 
 func BaseSoftmaxInPlace_fallback_Float64(x []float64) {
 	BaseSoftmax_fallback_Float64(x, x)
-}
-
-func BaseLogSoftmax_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j].Float32() > maxVal.Float32() {
-			maxVal = input[j]
-		}
-	}
-	vMax := hwy.Set(maxVal)
-	vSum := hwy.Zero[hwy.Float16]()
-	lanes := vSum.NumLanes()
-	var ii int
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
-		shifted := hwy.Sub(x, vMax)
-		expVal := math.BaseExpVec_fallback_Float16(shifted)
-		vSum = hwy.Add(vSum, expVal)
-	}
-	expSum := hwy.ReduceSum(vSum).Float32()
-	for ; ii < size; ii++ {
-		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
-	}
-	logSumExp := hwy.Float32ToFloat16(float32(stdmath.Log(float64(expSum))))
-	offset := hwy.Float32ToFloat16(maxVal.Float32() + logSumExp.Float32())
-	vOffset := hwy.Set(offset)
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
-		hwy.Store(hwy.Sub(x, vOffset), output[ii:])
-	}
-	for ; ii < size; ii++ {
-		output[ii] = hwy.Float32ToFloat16(input[ii].Float32() - offset.Float32())
-	}
-}
-
-func BaseLogSoftmax_fallback_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j].Float32() > maxVal.Float32() {
-			maxVal = input[j]
-		}
-	}
-	vMax := hwy.Set(maxVal)
-	vSum := hwy.Zero[hwy.BFloat16]()
-	lanes := vSum.NumLanes()
-	var ii int
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
-		shifted := hwy.Sub(x, vMax)
-		expVal := math.BaseExpVec_fallback_BFloat16(shifted)
-		vSum = hwy.Add(vSum, expVal)
-	}
-	expSum := hwy.ReduceSum(vSum).Float32()
-	for ; ii < size; ii++ {
-		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
-	}
-	logSumExp := hwy.Float32ToBFloat16(float32(stdmath.Log(float64(expSum))))
-	offset := hwy.Float32ToBFloat16(maxVal.Float32() + logSumExp.Float32())
-	vOffset := hwy.Set(offset)
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := hwy.Load(input[ii:])
-		hwy.Store(hwy.Sub(x, vOffset), output[ii:])
-	}
-	for ; ii < size; ii++ {
-		output[ii] = hwy.Float32ToBFloat16(input[ii].Float32() - offset.Float32())
-	}
-}
-
-func BaseLogSoftmax_fallback(input []float32, output []float32) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j] > maxVal {
-			maxVal = input[j]
-		}
-	}
-	vMax := float32(maxVal)
-	vSum := float32(0)
-	var ii int
-	for ii = 0; ii < size; ii++ {
-		x := input[ii]
-		shifted := x - vMax
-		expVal := float32(stdmath.Exp(float64(shifted)))
-		vSum = vSum + expVal
-	}
-	expSum := vSum
-	for ; ii < size; ii++ {
-		expSum += float32(stdmath.Exp(float64(input[ii] - maxVal)))
-	}
-	logSumExp := float32(stdmath.Log(float64(expSum)))
-	offset := maxVal + logSumExp
-	vOffset := float32(offset)
-	for ii = 0; ii < size; ii++ {
-		x := input[ii]
-		output[ii] = x - vOffset
-	}
-	for ; ii < size; ii++ {
-		output[ii] = input[ii] - offset
-	}
-}
-
-func BaseLogSoftmax_fallback_Float64(input []float64, output []float64) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j] > maxVal {
-			maxVal = input[j]
-		}
-	}
-	vMax := float64(maxVal)
-	vSum := float64(0)
-	var ii int
-	for ii = 0; ii < size; ii++ {
-		x := input[ii]
-		shifted := x - vMax
-		expVal := float64(stdmath.Exp(float64(shifted)))
-		vSum = vSum + expVal
-	}
-	expSum := vSum
-	for ; ii < size; ii++ {
-		expSum += float64(stdmath.Exp(float64(input[ii] - maxVal)))
-	}
-	logSumExp := float64(stdmath.Log(float64(expSum)))
-	offset := maxVal + logSumExp
-	vOffset := float64(offset)
-	for ii = 0; ii < size; ii++ {
-		x := input[ii]
-		output[ii] = x - vOffset
-	}
-	for ; ii < size; ii++ {
-		output[ii] = input[ii] - offset
-	}
-}
-
-func BaseLogSoftmaxInPlace_fallback_Float16(x []hwy.Float16) {
-	BaseLogSoftmax_fallback_Float16(x, x)
-}
-
-func BaseLogSoftmaxInPlace_fallback_BFloat16(x []hwy.BFloat16) {
-	BaseLogSoftmax_fallback_BFloat16(x, x)
-}
-
-func BaseLogSoftmaxInPlace_fallback(x []float32) {
-	BaseLogSoftmax_fallback(x, x)
-}
-
-func BaseLogSoftmaxInPlace_fallback_Float64(x []float64) {
-	BaseLogSoftmax_fallback_Float64(x, x)
 }
 
 func BaseSoftmaxScalar_fallback_Float16(input []hwy.Float16, output []hwy.Float16) {

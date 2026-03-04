@@ -8,24 +8,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var FindFloat32 func(slice []float32, value float32) int
-var FindFloat64 func(slice []float64, value float64) int
-var FindInt32 func(slice []int32, value int32) int
-var FindInt64 func(slice []int64, value int64) int
-var FindUint32 func(slice []uint32, value uint32) int
-var FindUint64 func(slice []uint64, value uint64) int
-var CountFloat32 func(slice []float32, value float32) int
-var CountFloat64 func(slice []float64, value float64) int
-var CountInt32 func(slice []int32, value int32) int
-var CountInt64 func(slice []int64, value int64) int
-var CountUint32 func(slice []uint32, value uint32) int
-var CountUint64 func(slice []uint64, value uint64) int
-var ContainsFloat32 func(slice []float32, value float32) bool
-var ContainsFloat64 func(slice []float64, value float64) bool
-var ContainsInt32 func(slice []int32, value int32) bool
-var ContainsInt64 func(slice []int64, value int64) bool
-var ContainsUint32 func(slice []uint32, value uint32) bool
-var ContainsUint64 func(slice []uint64, value uint64) bool
 var AllFloat32 func(slice []float32, pred Predicate[float32]) bool
 var AllFloat64 func(slice []float64, pred Predicate[float64]) bool
 var AllInt32 func(slice []int32, pred Predicate[int32]) bool
@@ -38,90 +20,42 @@ var AnyInt32 func(slice []int32, pred Predicate[int32]) bool
 var AnyInt64 func(slice []int64, pred Predicate[int64]) bool
 var AnyUint32 func(slice []uint32, pred Predicate[uint32]) bool
 var AnyUint64 func(slice []uint64, pred Predicate[uint64]) bool
-var NoneFloat32 func(slice []float32, pred Predicate[float32]) bool
-var NoneFloat64 func(slice []float64, pred Predicate[float64]) bool
-var NoneInt32 func(slice []int32, pred Predicate[int32]) bool
-var NoneInt64 func(slice []int64, pred Predicate[int64]) bool
-var NoneUint32 func(slice []uint32, pred Predicate[uint32]) bool
-var NoneUint64 func(slice []uint64, pred Predicate[uint64]) bool
-var FindIfFloat32 func(slice []float32, pred Predicate[float32]) int
-var FindIfFloat64 func(slice []float64, pred Predicate[float64]) int
-var FindIfInt32 func(slice []int32, pred Predicate[int32]) int
-var FindIfInt64 func(slice []int64, pred Predicate[int64]) int
-var FindIfUint32 func(slice []uint32, pred Predicate[uint32]) int
-var FindIfUint64 func(slice []uint64, pred Predicate[uint64]) int
+var ContainsFloat32 func(slice []float32, value float32) bool
+var ContainsFloat64 func(slice []float64, value float64) bool
+var ContainsInt32 func(slice []int32, value int32) bool
+var ContainsInt64 func(slice []int64, value int64) bool
+var ContainsUint32 func(slice []uint32, value uint32) bool
+var ContainsUint64 func(slice []uint64, value uint64) bool
+var CountFloat32 func(slice []float32, value float32) int
+var CountFloat64 func(slice []float64, value float64) int
+var CountInt32 func(slice []int32, value int32) int
+var CountInt64 func(slice []int64, value int64) int
+var CountUint32 func(slice []uint32, value uint32) int
+var CountUint64 func(slice []uint64, value uint64) int
 var CountIfFloat32 func(slice []float32, pred Predicate[float32]) int
 var CountIfFloat64 func(slice []float64, pred Predicate[float64]) int
 var CountIfInt32 func(slice []int32, pred Predicate[int32]) int
 var CountIfInt64 func(slice []int64, pred Predicate[int64]) int
 var CountIfUint32 func(slice []uint32, pred Predicate[uint32]) int
 var CountIfUint64 func(slice []uint64, pred Predicate[uint64]) int
-
-// Find returns the index of the first element equal to value, or -1 if not found.
-// Uses SIMD comparison for efficient searching.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Find[T hwy.Lanes](slice []T, value T) int {
-	switch any(slice).(type) {
-	case []float32:
-		return FindFloat32(any(slice).([]float32), any(value).(float32))
-	case []float64:
-		return FindFloat64(any(slice).([]float64), any(value).(float64))
-	case []int32:
-		return FindInt32(any(slice).([]int32), any(value).(int32))
-	case []int64:
-		return FindInt64(any(slice).([]int64), any(value).(int64))
-	case []uint32:
-		return FindUint32(any(slice).([]uint32), any(value).(uint32))
-	case []uint64:
-		return FindUint64(any(slice).([]uint64), any(value).(uint64))
-	}
-	panic("unreachable")
-}
-
-// Count returns the number of elements equal to target.
-// Uses SIMD comparison and popcount for efficiency.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Count[T hwy.Lanes](slice []T, value T) int {
-	switch any(slice).(type) {
-	case []float32:
-		return CountFloat32(any(slice).([]float32), any(value).(float32))
-	case []float64:
-		return CountFloat64(any(slice).([]float64), any(value).(float64))
-	case []int32:
-		return CountInt32(any(slice).([]int32), any(value).(int32))
-	case []int64:
-		return CountInt64(any(slice).([]int64), any(value).(int64))
-	case []uint32:
-		return CountUint32(any(slice).([]uint32), any(value).(uint32))
-	case []uint64:
-		return CountUint64(any(slice).([]uint64), any(value).(uint64))
-	}
-	panic("unreachable")
-}
-
-// Contains returns true if slice contains the specified value.
-// This is a convenience wrapper around BaseFind.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Contains[T hwy.Lanes](slice []T, value T) bool {
-	switch any(slice).(type) {
-	case []float32:
-		return ContainsFloat32(any(slice).([]float32), any(value).(float32))
-	case []float64:
-		return ContainsFloat64(any(slice).([]float64), any(value).(float64))
-	case []int32:
-		return ContainsInt32(any(slice).([]int32), any(value).(int32))
-	case []int64:
-		return ContainsInt64(any(slice).([]int64), any(value).(int64))
-	case []uint32:
-		return ContainsUint32(any(slice).([]uint32), any(value).(uint32))
-	case []uint64:
-		return ContainsUint64(any(slice).([]uint64), any(value).(uint64))
-	}
-	panic("unreachable")
-}
+var FindFloat32 func(slice []float32, value float32) int
+var FindFloat64 func(slice []float64, value float64) int
+var FindInt32 func(slice []int32, value int32) int
+var FindInt64 func(slice []int64, value int64) int
+var FindUint32 func(slice []uint32, value uint32) int
+var FindUint64 func(slice []uint64, value uint64) int
+var FindIfFloat32 func(slice []float32, pred Predicate[float32]) int
+var FindIfFloat64 func(slice []float64, pred Predicate[float64]) int
+var FindIfInt32 func(slice []int32, pred Predicate[int32]) int
+var FindIfInt64 func(slice []int64, pred Predicate[int64]) int
+var FindIfUint32 func(slice []uint32, pred Predicate[uint32]) int
+var FindIfUint64 func(slice []uint64, pred Predicate[uint64]) int
+var NoneFloat32 func(slice []float32, pred Predicate[float32]) bool
+var NoneFloat64 func(slice []float64, pred Predicate[float64]) bool
+var NoneInt32 func(slice []int32, pred Predicate[int32]) bool
+var NoneInt64 func(slice []int64, pred Predicate[int64]) bool
+var NoneUint32 func(slice []uint32, pred Predicate[uint32]) bool
+var NoneUint64 func(slice []uint64, pred Predicate[uint64]) bool
 
 // AllP returns true if pred returns true for all elements.
 // Short-circuits on first false.
@@ -169,25 +103,90 @@ func AnyP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	panic("unreachable")
 }
 
-// NoneP returns true if pred returns false for all elements.
-// This is equivalent to !BaseAny(slice, pred).
+// Contains returns true if slice contains the specified value.
+// This is a convenience wrapper around BaseFind.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Contains[T hwy.Lanes](slice []T, value T) bool {
+	switch any(slice).(type) {
+	case []float32:
+		return ContainsFloat32(any(slice).([]float32), any(value).(float32))
+	case []float64:
+		return ContainsFloat64(any(slice).([]float64), any(value).(float64))
+	case []int32:
+		return ContainsInt32(any(slice).([]int32), any(value).(int32))
+	case []int64:
+		return ContainsInt64(any(slice).([]int64), any(value).(int64))
+	case []uint32:
+		return ContainsUint32(any(slice).([]uint32), any(value).(uint32))
+	case []uint64:
+		return ContainsUint64(any(slice).([]uint64), any(value).(uint64))
+	}
+	panic("unreachable")
+}
+
+// Count returns the number of elements equal to target.
+// Uses SIMD comparison and popcount for efficiency.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Count[T hwy.Lanes](slice []T, value T) int {
+	switch any(slice).(type) {
+	case []float32:
+		return CountFloat32(any(slice).([]float32), any(value).(float32))
+	case []float64:
+		return CountFloat64(any(slice).([]float64), any(value).(float64))
+	case []int32:
+		return CountInt32(any(slice).([]int32), any(value).(int32))
+	case []int64:
+		return CountInt64(any(slice).([]int64), any(value).(int64))
+	case []uint32:
+		return CountUint32(any(slice).([]uint32), any(value).(uint32))
+	case []uint64:
+		return CountUint64(any(slice).([]uint64), any(value).(uint64))
+	}
+	panic("unreachable")
+}
+
+// CountIfP returns the number of elements where pred returns true.
 // The predicate P must implement Predicate[T] interface.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func NoneP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
+func CountIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 	switch any(slice).(type) {
 	case []float32:
-		return NoneFloat32(any(slice).([]float32), any(pred).(Predicate[float32]))
+		return CountIfFloat32(any(slice).([]float32), any(pred).(Predicate[float32]))
 	case []float64:
-		return NoneFloat64(any(slice).([]float64), any(pred).(Predicate[float64]))
+		return CountIfFloat64(any(slice).([]float64), any(pred).(Predicate[float64]))
 	case []int32:
-		return NoneInt32(any(slice).([]int32), any(pred).(Predicate[int32]))
+		return CountIfInt32(any(slice).([]int32), any(pred).(Predicate[int32]))
 	case []int64:
-		return NoneInt64(any(slice).([]int64), any(pred).(Predicate[int64]))
+		return CountIfInt64(any(slice).([]int64), any(pred).(Predicate[int64]))
 	case []uint32:
-		return NoneUint32(any(slice).([]uint32), any(pred).(Predicate[uint32]))
+		return CountIfUint32(any(slice).([]uint32), any(pred).(Predicate[uint32]))
 	case []uint64:
-		return NoneUint64(any(slice).([]uint64), any(pred).(Predicate[uint64]))
+		return CountIfUint64(any(slice).([]uint64), any(pred).(Predicate[uint64]))
+	}
+	panic("unreachable")
+}
+
+// Find returns the index of the first element equal to value, or -1 if not found.
+// Uses SIMD comparison for efficient searching.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Find[T hwy.Lanes](slice []T, value T) int {
+	switch any(slice).(type) {
+	case []float32:
+		return FindFloat32(any(slice).([]float32), any(value).(float32))
+	case []float64:
+		return FindFloat64(any(slice).([]float64), any(value).(float64))
+	case []int32:
+		return FindInt32(any(slice).([]int32), any(value).(int32))
+	case []int64:
+		return FindInt64(any(slice).([]int64), any(value).(int64))
+	case []uint32:
+		return FindUint32(any(slice).([]uint32), any(value).(uint32))
+	case []uint64:
+		return FindUint64(any(slice).([]uint64), any(value).(uint64))
 	}
 	panic("unreachable")
 }
@@ -215,24 +214,25 @@ func FindIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 	panic("unreachable")
 }
 
-// CountIfP returns the number of elements where pred returns true.
+// NoneP returns true if pred returns false for all elements.
+// This is equivalent to !BaseAny(slice, pred).
 // The predicate P must implement Predicate[T] interface.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func CountIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
+func NoneP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	switch any(slice).(type) {
 	case []float32:
-		return CountIfFloat32(any(slice).([]float32), any(pred).(Predicate[float32]))
+		return NoneFloat32(any(slice).([]float32), any(pred).(Predicate[float32]))
 	case []float64:
-		return CountIfFloat64(any(slice).([]float64), any(pred).(Predicate[float64]))
+		return NoneFloat64(any(slice).([]float64), any(pred).(Predicate[float64]))
 	case []int32:
-		return CountIfInt32(any(slice).([]int32), any(pred).(Predicate[int32]))
+		return NoneInt32(any(slice).([]int32), any(pred).(Predicate[int32]))
 	case []int64:
-		return CountIfInt64(any(slice).([]int64), any(pred).(Predicate[int64]))
+		return NoneInt64(any(slice).([]int64), any(pred).(Predicate[int64]))
 	case []uint32:
-		return CountIfUint32(any(slice).([]uint32), any(pred).(Predicate[uint32]))
+		return NoneUint32(any(slice).([]uint32), any(pred).(Predicate[uint32]))
 	case []uint64:
-		return CountIfUint64(any(slice).([]uint64), any(pred).(Predicate[uint64]))
+		return NoneUint64(any(slice).([]uint64), any(pred).(Predicate[uint64]))
 	}
 	panic("unreachable")
 }
@@ -247,24 +247,6 @@ func initFindAll() {
 }
 
 func initFindFallback() {
-	FindFloat32 = BaseFind_fallback
-	FindFloat64 = BaseFind_fallback_Float64
-	FindInt32 = BaseFind_fallback_Int32
-	FindInt64 = BaseFind_fallback_Int64
-	FindUint32 = BaseFind_fallback_Uint32
-	FindUint64 = BaseFind_fallback_Uint64
-	CountFloat32 = BaseCount_fallback
-	CountFloat64 = BaseCount_fallback_Float64
-	CountInt32 = BaseCount_fallback_Int32
-	CountInt64 = BaseCount_fallback_Int64
-	CountUint32 = BaseCount_fallback_Uint32
-	CountUint64 = BaseCount_fallback_Uint64
-	ContainsFloat32 = BaseContains_fallback
-	ContainsFloat64 = BaseContains_fallback_Float64
-	ContainsInt32 = BaseContains_fallback_Int32
-	ContainsInt64 = BaseContains_fallback_Int64
-	ContainsUint32 = BaseContains_fallback_Uint32
-	ContainsUint64 = BaseContains_fallback_Uint64
 	AllFloat32 = BaseAll_fallback
 	AllFloat64 = BaseAll_fallback_Float64
 	AllInt32 = BaseAll_fallback_Int32
@@ -277,22 +259,40 @@ func initFindFallback() {
 	AnyInt64 = BaseAny_fallback_Int64
 	AnyUint32 = BaseAny_fallback_Uint32
 	AnyUint64 = BaseAny_fallback_Uint64
-	NoneFloat32 = BaseNone_fallback
-	NoneFloat64 = BaseNone_fallback_Float64
-	NoneInt32 = BaseNone_fallback_Int32
-	NoneInt64 = BaseNone_fallback_Int64
-	NoneUint32 = BaseNone_fallback_Uint32
-	NoneUint64 = BaseNone_fallback_Uint64
-	FindIfFloat32 = BaseFindIf_fallback
-	FindIfFloat64 = BaseFindIf_fallback_Float64
-	FindIfInt32 = BaseFindIf_fallback_Int32
-	FindIfInt64 = BaseFindIf_fallback_Int64
-	FindIfUint32 = BaseFindIf_fallback_Uint32
-	FindIfUint64 = BaseFindIf_fallback_Uint64
+	ContainsFloat32 = BaseContains_fallback
+	ContainsFloat64 = BaseContains_fallback_Float64
+	ContainsInt32 = BaseContains_fallback_Int32
+	ContainsInt64 = BaseContains_fallback_Int64
+	ContainsUint32 = BaseContains_fallback_Uint32
+	ContainsUint64 = BaseContains_fallback_Uint64
+	CountFloat32 = BaseCount_fallback
+	CountFloat64 = BaseCount_fallback_Float64
+	CountInt32 = BaseCount_fallback_Int32
+	CountInt64 = BaseCount_fallback_Int64
+	CountUint32 = BaseCount_fallback_Uint32
+	CountUint64 = BaseCount_fallback_Uint64
 	CountIfFloat32 = BaseCountIf_fallback
 	CountIfFloat64 = BaseCountIf_fallback_Float64
 	CountIfInt32 = BaseCountIf_fallback_Int32
 	CountIfInt64 = BaseCountIf_fallback_Int64
 	CountIfUint32 = BaseCountIf_fallback_Uint32
 	CountIfUint64 = BaseCountIf_fallback_Uint64
+	FindFloat32 = BaseFind_fallback
+	FindFloat64 = BaseFind_fallback_Float64
+	FindInt32 = BaseFind_fallback_Int32
+	FindInt64 = BaseFind_fallback_Int64
+	FindUint32 = BaseFind_fallback_Uint32
+	FindUint64 = BaseFind_fallback_Uint64
+	FindIfFloat32 = BaseFindIf_fallback
+	FindIfFloat64 = BaseFindIf_fallback_Float64
+	FindIfInt32 = BaseFindIf_fallback_Int32
+	FindIfInt64 = BaseFindIf_fallback_Int64
+	FindIfUint32 = BaseFindIf_fallback_Uint32
+	FindIfUint64 = BaseFindIf_fallback_Uint64
+	NoneFloat32 = BaseNone_fallback
+	NoneFloat64 = BaseNone_fallback_Float64
+	NoneInt32 = BaseNone_fallback_Int32
+	NoneInt64 = BaseNone_fallback_Int64
+	NoneUint32 = BaseNone_fallback_Uint32
+	NoneUint64 = BaseNone_fallback_Uint64
 }

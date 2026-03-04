@@ -182,7 +182,7 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 					pkgs.Sort = true
 				}
 				// Check if this is a hwy package function (like RoundToEven for AVX512) for this target
-				if opInfo.Package == "hwy" && !opInfo.IsMethod && target.Name != "Fallback" {
+				if opInfo.Package == "hwy" && !opInfo.IsMethod && !target.IsFallback() {
 					pkgs.HwyPkg = true
 				}
 				// Track if core hwy operations are used (Load, Store, Add, etc.)
@@ -196,7 +196,7 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				// Other hwy package references (operations not in OpMap)
 				pkgs.HwyCore = true
 				// For non-Fallback targets, we need hwy import for unmapped operations
-				if target.Name != "Fallback" {
+				if !target.IsFallback() {
 					pkgs.HwyPkg = true
 				}
 			}
@@ -209,7 +209,7 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 			for _, combo := range getTypeCombinations(&pf) {
 				ct := comboPrimaryType(combo, pf.TypeParams)
 				if ct == "hwy.Float16" || ct == "hwy.BFloat16" {
-					if target.Name != "Fallback" {
+					if !target.IsFallback() {
 						pkgs.HwyPkg = true
 					} else {
 						// Fallback needs hwy import for Float16/BFloat16 types
@@ -249,6 +249,22 @@ func deriveDispatchPrefix(funcs []ParsedFunc) string {
 	return strings.ToLower(name)
 }
 
+// deriveDispatchPrefixFromFile derives a stable dispatch prefix from the input
+// filename. For example, "exp_transform_base.go" -> "exp_transform".
+// This is more stable than deriving from function names because the filename
+// doesn't change when functions are reordered or new functions are added.
+func deriveDispatchPrefixFromFile(inputFile string) string {
+	base := filepath.Base(inputFile)
+	// Remove .go extension
+	name := strings.TrimSuffix(base, ".go")
+	// Remove _base suffix (common convention for hwygen input files)
+	name = strings.TrimSuffix(name, "_base")
+	// Replace underscores and hyphens for a clean prefix
+	name = strings.ReplaceAll(name, "-", "")
+	name = strings.ReplaceAll(name, "_", "")
+	return strings.ToLower(name)
+}
+
 // comboAvailable checks if a dispatch combo has an implementation on a target.
 // Returns true if targetComboMap is nil (no filtering) or the combo is in the map.
 func comboAvailable(targetComboMap map[string]map[string]bool, targetName, dispatchName string) bool {
@@ -267,16 +283,21 @@ func comboAvailable(targetComboMap map[string]map[string]bool, targetName, dispa
 // - dispatch_{prefix}_amd64.gen.go for AVX2/AVX512
 // - dispatch_{prefix}_arm64.gen.go for NEON
 // - dispatch_{prefix}.gen.go for fallback-only (no build tags)
-// If dispatchName is empty, derives prefix from function names.
-// targetComboMap maps target name → set of dispatch variable names that have
+// If dispatchName is empty, derives prefix from the input filename (stable)
+// or falls back to function names.
+// targetComboMap maps target name -> set of dispatch variable names that have
 // implementations on that target. If nil, all combos are assumed available.
-func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName string, _ []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
-	// Use provided dispatch name or derive from function names
-	// Use provided dispatch name or derive from function names
+func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName, inputFile string, _ []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
+	// Use provided dispatch name or derive from input filename / function names
 	prefix := dispatchName
 	useCustomPrefix := false
 	if prefix == "" {
-		prefix = deriveDispatchPrefix(funcs)
+		// Derive from input filename for stability — the filename doesn't change
+		// when functions are reordered or new functions are added to the file.
+		prefix = deriveDispatchPrefixFromFile(inputFile)
+		if prefix == "" {
+			prefix = deriveDispatchPrefix(funcs)
+		}
 	} else {
 		useCustomPrefix = true
 	}
@@ -293,7 +314,7 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 		case "arm64":
 			arm64Targets = append(arm64Targets, target)
 		default:
-			if target.Name == "Fallback" {
+			if target.IsFallback() {
 				hasFallback = true
 			}
 		}
@@ -684,7 +705,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	// Build import list
 	imports := []string{}
 
-	if target.Name != "Fallback" {
+	if !target.IsFallback() {
 		// Import the appropriate vector package only if core hwy ops are used
 		if contribPkgs.HwyCore {
 			switch target.VecPackage {
@@ -824,7 +845,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	fmt.Fprintf(&buf, ")\n\n")
 
 	// Emit hoisted constants as package-level pre-broadcasted vectors
-	if len(hoistedConsts) > 0 && target.Name != "Fallback" {
+	if len(hoistedConsts) > 0 && !target.IsFallback() {
 		emitHoistedConstants(&buf, hoistedConsts, target, baseName)
 	}
 
@@ -1256,8 +1277,7 @@ func containsSpecificTypeParam(typeStr, paramName string) bool {
 //	BaseDecodeStreamVByte32Into -> DecodeStreamVByte32Into
 func buildDispatchFuncName(baseName, elemType string, isGeneric, private bool) string {
 	// Remove "Base" or "base" prefix
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 
 	if private {
 		name = makeUnexported(name)
@@ -1275,8 +1295,7 @@ func buildDispatchFuncName(baseName, elemType string, isGeneric, private bool) s
 // BaseSigmoid -> Sigmoid, baseSigmoid -> sigmoid
 // BaseAll -> AllP (functions with interface type params get P suffix)
 func buildGenericFuncName(baseName string, hasInterfaceParams, private bool) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	if hasInterfaceParams {
 		name = name + "P"
 	}
@@ -1290,8 +1309,7 @@ func buildGenericFuncName(baseName string, hasInterfaceParams, private bool) str
 // For single-type combos, behaves like buildDispatchFuncName.
 // For multi-type combos, appends all type suffixes concatenated (e.g., "DotGeneralFloat16Float32").
 func buildDispatchFuncNameCombo(baseName string, combo TypeCombination, typeParams []TypeParam, private bool) string {
-	name := strings.TrimPrefix(baseName, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name := stripBasePrefix(baseName)
 	if private {
 		name = makeUnexported(name)
 	}

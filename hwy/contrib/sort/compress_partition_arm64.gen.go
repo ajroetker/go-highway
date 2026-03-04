@@ -8,18 +8,41 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var CompressPartition3WayFloat32 func(data []float32, pivot float32) (int, int)
-var CompressPartition3WayFloat64 func(data []float64, pivot float64) (int, int)
-var CompressPartition3WayInt32 func(data []int32, pivot int32) (int, int)
-var CompressPartition3WayInt64 func(data []int64, pivot int64) (int, int)
-var CompressPartition3WayUint32 func(data []uint32, pivot uint32) (int, int)
-var CompressPartition3WayUint64 func(data []uint64, pivot uint64) (int, int)
 var CompressPartitionFloat32 func(data []float32, pivot float32) int
 var CompressPartitionFloat64 func(data []float64, pivot float64) int
 var CompressPartitionInt32 func(data []int32, pivot int32) int
 var CompressPartitionInt64 func(data []int64, pivot int64) int
 var CompressPartitionUint32 func(data []uint32, pivot uint32) int
 var CompressPartitionUint64 func(data []uint64, pivot uint64) int
+var CompressPartition3WayFloat32 func(data []float32, pivot float32) (int, int)
+var CompressPartition3WayFloat64 func(data []float64, pivot float64) (int, int)
+var CompressPartition3WayInt32 func(data []int32, pivot int32) (int, int)
+var CompressPartition3WayInt64 func(data []int64, pivot int64) (int, int)
+var CompressPartition3WayUint32 func(data []uint32, pivot uint32) (int, int)
+var CompressPartition3WayUint64 func(data []uint64, pivot uint64) (int, int)
+
+// CompressPartition partitions data using Highway's double-store technique.
+// Returns idx where data[0:idx] < pivot and data[idx:n] >= pivot.
+// This is an in-place O(1) space algorithm.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func CompressPartition[T hwy.Lanes](data []T, pivot T) int {
+	switch any(data).(type) {
+	case []float32:
+		return CompressPartitionFloat32(any(data).([]float32), any(pivot).(float32))
+	case []float64:
+		return CompressPartitionFloat64(any(data).([]float64), any(pivot).(float64))
+	case []int32:
+		return CompressPartitionInt32(any(data).([]int32), any(pivot).(int32))
+	case []int64:
+		return CompressPartitionInt64(any(data).([]int64), any(pivot).(int64))
+	case []uint32:
+		return CompressPartitionUint32(any(data).([]uint32), any(pivot).(uint32))
+	case []uint64:
+		return CompressPartitionUint64(any(data).([]uint64), any(pivot).(uint64))
+	}
+	panic("unreachable")
+}
 
 // CompressPartition3Way partitions data into three regions around pivot.
 // For 3-way partitioning, we use the scalar Dutch National Flag algorithm
@@ -48,29 +71,6 @@ func CompressPartition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
 	panic("unreachable")
 }
 
-// CompressPartition partitions data using Highway's double-store technique.
-// Returns idx where data[0:idx] < pivot and data[idx:n] >= pivot.
-// This is an in-place O(1) space algorithm.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func CompressPartition[T hwy.Lanes](data []T, pivot T) int {
-	switch any(data).(type) {
-	case []float32:
-		return CompressPartitionFloat32(any(data).([]float32), any(pivot).(float32))
-	case []float64:
-		return CompressPartitionFloat64(any(data).([]float64), any(pivot).(float64))
-	case []int32:
-		return CompressPartitionInt32(any(data).([]int32), any(pivot).(int32))
-	case []int64:
-		return CompressPartitionInt64(any(data).([]int64), any(pivot).(int64))
-	case []uint32:
-		return CompressPartitionUint32(any(data).([]uint32), any(pivot).(uint32))
-	case []uint64:
-		return CompressPartitionUint64(any(data).([]uint64), any(pivot).(uint64))
-	}
-	panic("unreachable")
-}
-
 func init() {
 	initCompress_partitionAll()
 }
@@ -85,31 +85,31 @@ func initCompress_partitionAll() {
 }
 
 func initCompress_partitionNEON() {
-	CompressPartition3WayFloat32 = BaseCompressPartition3Way_neon
-	CompressPartition3WayFloat64 = BaseCompressPartition3Way_neon_Float64
-	CompressPartition3WayInt32 = BaseCompressPartition3Way_neon_Int32
-	CompressPartition3WayInt64 = BaseCompressPartition3Way_neon_Int64
-	CompressPartition3WayUint32 = BaseCompressPartition3Way_neon_Uint32
-	CompressPartition3WayUint64 = BaseCompressPartition3Way_neon_Uint64
 	CompressPartitionFloat32 = BaseCompressPartition_neon
 	CompressPartitionFloat64 = BaseCompressPartition_neon_Float64
 	CompressPartitionInt32 = BaseCompressPartition_neon_Int32
 	CompressPartitionInt64 = BaseCompressPartition_neon_Int64
 	CompressPartitionUint32 = BaseCompressPartition_neon_Uint32
 	CompressPartitionUint64 = BaseCompressPartition_neon_Uint64
+	CompressPartition3WayFloat32 = BaseCompressPartition3Way_neon
+	CompressPartition3WayFloat64 = BaseCompressPartition3Way_neon_Float64
+	CompressPartition3WayInt32 = BaseCompressPartition3Way_neon_Int32
+	CompressPartition3WayInt64 = BaseCompressPartition3Way_neon_Int64
+	CompressPartition3WayUint32 = BaseCompressPartition3Way_neon_Uint32
+	CompressPartition3WayUint64 = BaseCompressPartition3Way_neon_Uint64
 }
 
 func initCompress_partitionFallback() {
-	CompressPartition3WayFloat32 = BaseCompressPartition3Way_fallback
-	CompressPartition3WayFloat64 = BaseCompressPartition3Way_fallback_Float64
-	CompressPartition3WayInt32 = BaseCompressPartition3Way_fallback_Int32
-	CompressPartition3WayInt64 = BaseCompressPartition3Way_fallback_Int64
-	CompressPartition3WayUint32 = BaseCompressPartition3Way_fallback_Uint32
-	CompressPartition3WayUint64 = BaseCompressPartition3Way_fallback_Uint64
 	CompressPartitionFloat32 = BaseCompressPartition_fallback
 	CompressPartitionFloat64 = BaseCompressPartition_fallback_Float64
 	CompressPartitionInt32 = BaseCompressPartition_fallback_Int32
 	CompressPartitionInt64 = BaseCompressPartition_fallback_Int64
 	CompressPartitionUint32 = BaseCompressPartition_fallback_Uint32
 	CompressPartitionUint64 = BaseCompressPartition_fallback_Uint64
+	CompressPartition3WayFloat32 = BaseCompressPartition3Way_fallback
+	CompressPartition3WayFloat64 = BaseCompressPartition3Way_fallback_Float64
+	CompressPartition3WayInt32 = BaseCompressPartition3Way_fallback_Int32
+	CompressPartition3WayInt64 = BaseCompressPartition3Way_fallback_Int64
+	CompressPartition3WayUint32 = BaseCompressPartition3Way_fallback_Uint32
+	CompressPartition3WayUint64 = BaseCompressPartition3Way_fallback_Uint64
 }

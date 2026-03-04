@@ -10,10 +10,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-var FusedInt8MatMulSiLU func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt8MatMulGELU func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt8MatMulGELUApprox func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt8MatMulReLU func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
+var FusedInt8MatMulSiLU func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
 	initFusedint8actmatmulAll()
@@ -36,22 +36,22 @@ func initFusedint8actmatmulAll() {
 }
 
 func initFusedint8actmatmulAVX2() {
-	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_avx2
 	FusedInt8MatMulGELU = BaseFusedInt8MatMulGELU_avx2
 	FusedInt8MatMulGELUApprox = BaseFusedInt8MatMulGELUApprox_avx2
 	FusedInt8MatMulReLU = BaseFusedInt8MatMulReLU_avx2
+	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_avx2
 }
 
 func initFusedint8actmatmulAVX512() {
-	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_avx512
 	FusedInt8MatMulGELU = BaseFusedInt8MatMulGELU_avx512
 	FusedInt8MatMulGELUApprox = BaseFusedInt8MatMulGELUApprox_avx512
 	FusedInt8MatMulReLU = BaseFusedInt8MatMulReLU_avx512
+	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_avx512
 }
 
 func initFusedint8actmatmulFallback() {
-	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_fallback
 	FusedInt8MatMulGELU = BaseFusedInt8MatMulGELU_fallback
 	FusedInt8MatMulGELUApprox = BaseFusedInt8MatMulGELUApprox_fallback
 	FusedInt8MatMulReLU = BaseFusedInt8MatMulReLU_fallback
+	FusedInt8MatMulSiLU = BaseFusedInt8MatMulSiLU_fallback
 }

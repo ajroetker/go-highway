@@ -210,8 +210,7 @@ func buildDispatchGroups(funcs []ParsedFunc) ([]DispatchGroup, error) {
 // deriveFuncGroupName extracts the dispatch group name from a function name.
 // "BaseMatMul" → "MatMul", "baseSigmoid" → "Sigmoid"
 func deriveFuncGroupName(name string) string {
-	name = strings.TrimPrefix(name, "Base")
-	name = strings.TrimPrefix(name, "base")
+	name = stripBasePrefix(name)
 	// Ensure first letter is uppercase for consistent group names
 	if len(name) > 0 {
 		name = strings.ToUpper(name[:1]) + name[1:]
@@ -541,12 +540,20 @@ func (g *Generator) Run() error {
 	targetFuncs := make(map[string][]*ast.FuncDecl)
 	targetHoisted := make(map[string][]HoistedConst)
 
+	// Pre-build the package consts lookup map once (shared across all targets/functions)
+	packageConstsMap := make(map[string]bool, len(result.PackageConsts))
+	for _, pc := range result.PackageConsts {
+		packageConstsMap[pc.Name] = true
+	}
+
 	transformOpts := &TransformOptions{
 		TypeSpecificConsts: result.TypeSpecificConsts,
 		ConditionalBlocks:  result.ConditionalBlocks,
 		FileSet:            result.FileSet,
 		Imports:            result.Imports,
 		AllFuncs:           result.AllFuncs,
+		PackageConsts:      result.PackageConsts,
+		PackageConstsMap:   packageConstsMap,
 	}
 
 	for _, target := range goSimdTargets {
@@ -570,7 +577,7 @@ func (g *Generator) Run() error {
 				}
 
 				// Skip interface type params on non-Fallback targets
-				if hasInterfaceTypeParams(sourcePF.TypeParams) && target.Name != "Fallback" {
+				if hasInterfaceTypeParams(sourcePF.TypeParams) && !target.IsFallback() {
 					continue
 				}
 
@@ -705,7 +712,7 @@ func (g *Generator) Run() error {
 		targetComboMap[target.Name] = comboSet
 	}
 
-	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, asmAdapters, targetComboMap); err != nil {
+	if err := EmitDispatcher(synthFuncs, allTargets, g.PackageOut, g.OutputDir, g.DispatchPrefix, g.InputFile, asmAdapters, targetComboMap); err != nil {
 		return fmt.Errorf("emit dispatcher: %w", err)
 	}
 

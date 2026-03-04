@@ -229,7 +229,7 @@ func BenchmarkPackRHSVec(b *testing.B) {
 	}
 	packed := make([]float32, k*n)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		PackRHSVec(src, packed, n, 0, 0, k, n, nr)
 	}
 }

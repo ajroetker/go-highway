@@ -16,14 +16,14 @@ var BlockMulAdd2Float16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16,
 var BlockMulAdd2BFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
 var BlockMulAdd2Float32 func(aT []float32, b []float32, c []float32, blockDim int)
 var BlockMulAdd2Float64 func(aT []float64, b []float64, c []float64, blockDim int)
-var BlockMulAddRegBlockedFloat16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int)
-var BlockMulAddRegBlockedBFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
-var BlockMulAddRegBlockedFloat32 func(aT []float32, b []float32, c []float32, blockDim int)
-var BlockMulAddRegBlockedFloat64 func(aT []float64, b []float64, c []float64, blockDim int)
 var BlockMulAdd4Float16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int)
 var BlockMulAdd4BFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
 var BlockMulAdd4Float32 func(aT []float32, b []float32, c []float32, blockDim int)
 var BlockMulAdd4Float64 func(aT []float64, b []float64, c []float64, blockDim int)
+var BlockMulAddRegBlockedFloat16 func(aT []hwy.Float16, b []hwy.Float16, c []hwy.Float16, blockDim int)
+var BlockMulAddRegBlockedBFloat16 func(aT []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, blockDim int)
+var BlockMulAddRegBlockedFloat32 func(aT []float32, b []float32, c []float32, blockDim int)
+var BlockMulAddRegBlockedFloat64 func(aT []float64, b []float64, c []float64, blockDim int)
 
 // BlockMulAdd computes C += A * B for square blocks.
 //
@@ -73,6 +73,26 @@ func BlockMulAdd2[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	}
 }
 
+// BlockMulAdd4 computes C += A * B processing 4 rows of C at a time.
+//
+// Uses register-blocked accumulators with 4-way row unrolling
+// (4 rows × 4 column strips = 16 accumulators). Reuses B vector loads
+// across all 4 rows for maximum throughput.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
+	switch any(aT).(type) {
+	case []hwy.Float16:
+		BlockMulAdd4Float16(any(aT).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), blockDim)
+	case []hwy.BFloat16:
+		BlockMulAdd4BFloat16(any(aT).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), blockDim)
+	case []float32:
+		BlockMulAdd4Float32(any(aT).([]float32), any(b).([]float32), any(c).([]float32), blockDim)
+	case []float64:
+		BlockMulAdd4Float64(any(aT).([]float64), any(b).([]float64), any(c).([]float64), blockDim)
+	}
+}
+
 // BlockMulAddRegBlocked computes C += A * B using register blocking.
 //
 // This is the highest-performance kernel that holds accumulators in registers
@@ -100,26 +120,6 @@ func BlockMulAddRegBlocked[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
 	}
 }
 
-// BlockMulAdd4 computes C += A * B processing 4 rows of C at a time.
-//
-// Uses register-blocked accumulators with 4-way row unrolling
-// (4 rows × 4 column strips = 16 accumulators). Reuses B vector loads
-// across all 4 rows for maximum throughput.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func BlockMulAdd4[T hwy.Floats](aT []T, b []T, c []T, blockDim int) {
-	switch any(aT).(type) {
-	case []hwy.Float16:
-		BlockMulAdd4Float16(any(aT).([]hwy.Float16), any(b).([]hwy.Float16), any(c).([]hwy.Float16), blockDim)
-	case []hwy.BFloat16:
-		BlockMulAdd4BFloat16(any(aT).([]hwy.BFloat16), any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), blockDim)
-	case []float32:
-		BlockMulAdd4Float32(any(aT).([]float32), any(b).([]float32), any(c).([]float32), blockDim)
-	case []float64:
-		BlockMulAdd4Float64(any(aT).([]float64), any(b).([]float64), any(c).([]float64), blockDim)
-	}
-}
-
 func init() {
 	initBlockkernelAll()
 }
@@ -142,12 +142,12 @@ func initBlockkernelFallback() {
 	BlockMulAdd2BFloat16 = BaseBlockMulAdd2_fallback_BFloat16
 	BlockMulAdd2Float32 = BaseBlockMulAdd2_fallback
 	BlockMulAdd2Float64 = BaseBlockMulAdd2_fallback_Float64
-	BlockMulAddRegBlockedFloat16 = BaseBlockMulAddRegBlocked_fallback_Float16
-	BlockMulAddRegBlockedBFloat16 = BaseBlockMulAddRegBlocked_fallback_BFloat16
-	BlockMulAddRegBlockedFloat32 = BaseBlockMulAddRegBlocked_fallback
-	BlockMulAddRegBlockedFloat64 = BaseBlockMulAddRegBlocked_fallback_Float64
 	BlockMulAdd4Float16 = BaseBlockMulAdd4_fallback_Float16
 	BlockMulAdd4BFloat16 = BaseBlockMulAdd4_fallback_BFloat16
 	BlockMulAdd4Float32 = BaseBlockMulAdd4_fallback
 	BlockMulAdd4Float64 = BaseBlockMulAdd4_fallback_Float64
+	BlockMulAddRegBlockedFloat16 = BaseBlockMulAddRegBlocked_fallback_Float16
+	BlockMulAddRegBlockedBFloat16 = BaseBlockMulAddRegBlocked_fallback_BFloat16
+	BlockMulAddRegBlockedFloat32 = BaseBlockMulAddRegBlocked_fallback
+	BlockMulAddRegBlockedFloat64 = BaseBlockMulAddRegBlocked_fallback_Float64
 }

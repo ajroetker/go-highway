@@ -10,6 +10,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var AbsFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16])
+var AbsBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
+var AbsFloat32 func(img *Image[float32], out *Image[float32])
+var AbsFloat64 func(img *Image[float64], out *Image[float64])
 var BrightnessContrastFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16, offset hwy.Float16)
 var BrightnessContrastBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16, offset hwy.BFloat16)
 var BrightnessContrastFloat32 func(img *Image[float32], out *Image[float32], scale float32, offset float32)
@@ -18,38 +22,50 @@ var ClampImageFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], min
 var ClampImageBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], minVal hwy.BFloat16, maxVal hwy.BFloat16)
 var ClampImageFloat32 func(img *Image[float32], out *Image[float32], minVal float32, maxVal float32)
 var ClampImageFloat64 func(img *Image[float64], out *Image[float64], minVal float64, maxVal float64)
-var ThresholdFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16)
-var ThresholdBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16)
-var ThresholdFloat32 func(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32)
-var ThresholdFloat64 func(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64)
-var InvertFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], maxVal hwy.Float16)
-var InvertBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], maxVal hwy.BFloat16)
-var InvertFloat32 func(img *Image[float32], out *Image[float32], maxVal float32)
-var InvertFloat64 func(img *Image[float64], out *Image[float64], maxVal float64)
-var AbsFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16])
-var AbsBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
-var AbsFloat32 func(img *Image[float32], out *Image[float32])
-var AbsFloat64 func(img *Image[float64], out *Image[float64])
-var ScaleFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16)
-var ScaleBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16)
-var ScaleFloat32 func(img *Image[float32], out *Image[float32], scale float32)
-var ScaleFloat64 func(img *Image[float64], out *Image[float64], scale float64)
-var OffsetFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16)
-var OffsetBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16)
-var OffsetFloat32 func(img *Image[float32], out *Image[float32], offset float32)
-var OffsetFloat64 func(img *Image[float64], out *Image[float64], offset float64)
 var GammaFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], gamma hwy.Float16)
 var GammaBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], gamma hwy.BFloat16)
 var GammaFloat32 func(img *Image[float32], out *Image[float32], gamma float32)
 var GammaFloat64 func(img *Image[float64], out *Image[float64], gamma float64)
-var MinImageFloat16 func(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16])
-var MinImageBFloat16 func(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
-var MinImageFloat32 func(a *Image[float32], b *Image[float32], out *Image[float32])
-var MinImageFloat64 func(a *Image[float64], b *Image[float64], out *Image[float64])
+var InvertFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], maxVal hwy.Float16)
+var InvertBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], maxVal hwy.BFloat16)
+var InvertFloat32 func(img *Image[float32], out *Image[float32], maxVal float32)
+var InvertFloat64 func(img *Image[float64], out *Image[float64], maxVal float64)
 var MaxImageFloat16 func(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16])
 var MaxImageBFloat16 func(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
 var MaxImageFloat32 func(a *Image[float32], b *Image[float32], out *Image[float32])
 var MaxImageFloat64 func(a *Image[float64], b *Image[float64], out *Image[float64])
+var MinImageFloat16 func(a *Image[hwy.Float16], b *Image[hwy.Float16], out *Image[hwy.Float16])
+var MinImageBFloat16 func(a *Image[hwy.BFloat16], b *Image[hwy.BFloat16], out *Image[hwy.BFloat16])
+var MinImageFloat32 func(a *Image[float32], b *Image[float32], out *Image[float32])
+var MinImageFloat64 func(a *Image[float64], b *Image[float64], out *Image[float64])
+var OffsetFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], offset hwy.Float16)
+var OffsetBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], offset hwy.BFloat16)
+var OffsetFloat32 func(img *Image[float32], out *Image[float32], offset float32)
+var OffsetFloat64 func(img *Image[float64], out *Image[float64], offset float64)
+var ScaleFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], scale hwy.Float16)
+var ScaleBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], scale hwy.BFloat16)
+var ScaleFloat32 func(img *Image[float32], out *Image[float32], scale float32)
+var ScaleFloat64 func(img *Image[float64], out *Image[float64], scale float64)
+var ThresholdFloat16 func(img *Image[hwy.Float16], out *Image[hwy.Float16], threshold hwy.Float16, below hwy.Float16, above hwy.Float16)
+var ThresholdBFloat16 func(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16], threshold hwy.BFloat16, below hwy.BFloat16, above hwy.BFloat16)
+var ThresholdFloat32 func(img *Image[float32], out *Image[float32], threshold float32, below float32, above float32)
+var ThresholdFloat64 func(img *Image[float64], out *Image[float64], threshold float64, below float64, above float64)
+
+// Abs computes absolute value of each pixel: out = |in|.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Abs[T hwy.Floats](img *Image[T], out *Image[T]) {
+	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		AbsFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
+	case *Image[hwy.BFloat16]:
+		AbsBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
+	case *Image[float32]:
+		AbsFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]))
+	case *Image[float64]:
+		AbsFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]))
+	}
+}
 
 // BrightnessContrast applies linear transformation: out = in * scale + offset.
 // This is the fundamental point operation for adjusting image brightness and contrast.
@@ -84,19 +100,21 @@ func ClampImage[T hwy.Floats](img *Image[T], out *Image[T], minVal T, maxVal T) 
 	}
 }
 
-// Threshold applies binary threshold: out = (in >= threshold) ? above : below.
+// Gamma applies gamma correction: out = pow(in, gamma).
+// Input should be in [0, 1] range for proper gamma correction.
+// Uses SIMD pow for vectorized processing.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func Threshold[T hwy.Floats](img *Image[T], out *Image[T], threshold T, below T, above T) {
+func Gamma[T hwy.Floats](img *Image[T], out *Image[T], gamma T) {
 	switch any(img).(type) {
 	case *Image[hwy.Float16]:
-		ThresholdFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(threshold).(hwy.Float16), any(below).(hwy.Float16), any(above).(hwy.Float16))
+		GammaFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(gamma).(hwy.Float16))
 	case *Image[hwy.BFloat16]:
-		ThresholdBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(threshold).(hwy.BFloat16), any(below).(hwy.BFloat16), any(above).(hwy.BFloat16))
+		GammaBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(gamma).(hwy.BFloat16))
 	case *Image[float32]:
-		ThresholdFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(threshold).(float32), any(below).(float32), any(above).(float32))
+		GammaFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(gamma).(float32))
 	case *Image[float64]:
-		ThresholdFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(threshold).(float64), any(below).(float64), any(above).(float64))
+		GammaFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(gamma).(float64))
 	}
 }
 
@@ -117,69 +135,19 @@ func Invert[T hwy.Floats](img *Image[T], out *Image[T], maxVal T) {
 	}
 }
 
-// Abs computes absolute value of each pixel: out = |in|.
+// MaxImage computes element-wise maximum: out = max(a, b).
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func Abs[T hwy.Floats](img *Image[T], out *Image[T]) {
-	switch any(img).(type) {
+func MaxImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
+	switch any(a).(type) {
 	case *Image[hwy.Float16]:
-		AbsFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
+		MaxImageFloat16(any(a).(*Image[hwy.Float16]), any(b).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
 	case *Image[hwy.BFloat16]:
-		AbsBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
+		MaxImageBFloat16(any(a).(*Image[hwy.BFloat16]), any(b).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
 	case *Image[float32]:
-		AbsFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]))
+		MaxImageFloat32(any(a).(*Image[float32]), any(b).(*Image[float32]), any(out).(*Image[float32]))
 	case *Image[float64]:
-		AbsFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]))
-	}
-}
-
-// Scale multiplies all pixels by a constant: out = in * scale.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Scale[T hwy.Floats](img *Image[T], out *Image[T], scale T) {
-	switch any(img).(type) {
-	case *Image[hwy.Float16]:
-		ScaleFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(scale).(hwy.Float16))
-	case *Image[hwy.BFloat16]:
-		ScaleBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(scale).(hwy.BFloat16))
-	case *Image[float32]:
-		ScaleFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(scale).(float32))
-	case *Image[float64]:
-		ScaleFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(scale).(float64))
-	}
-}
-
-// Offset adds a constant to all pixels: out = in + offset.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Offset[T hwy.Floats](img *Image[T], out *Image[T], offset T) {
-	switch any(img).(type) {
-	case *Image[hwy.Float16]:
-		OffsetFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(offset).(hwy.Float16))
-	case *Image[hwy.BFloat16]:
-		OffsetBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(offset).(hwy.BFloat16))
-	case *Image[float32]:
-		OffsetFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(offset).(float32))
-	case *Image[float64]:
-		OffsetFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(offset).(float64))
-	}
-}
-
-// Gamma applies gamma correction: out = pow(in, gamma).
-// Input should be in [0, 1] range for proper gamma correction.
-// Uses SIMD pow for vectorized processing.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func Gamma[T hwy.Floats](img *Image[T], out *Image[T], gamma T) {
-	switch any(img).(type) {
-	case *Image[hwy.Float16]:
-		GammaFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(gamma).(hwy.Float16))
-	case *Image[hwy.BFloat16]:
-		GammaBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(gamma).(hwy.BFloat16))
-	case *Image[float32]:
-		GammaFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(gamma).(float32))
-	case *Image[float64]:
-		GammaFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(gamma).(float64))
+		MaxImageFloat64(any(a).(*Image[float64]), any(b).(*Image[float64]), any(out).(*Image[float64]))
 	}
 }
 
@@ -199,19 +167,51 @@ func MinImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
 	}
 }
 
-// MaxImage computes element-wise maximum: out = max(a, b).
+// Offset adds a constant to all pixels: out = in + offset.
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
-func MaxImage[T hwy.Floats](a *Image[T], b *Image[T], out *Image[T]) {
-	switch any(a).(type) {
+func Offset[T hwy.Floats](img *Image[T], out *Image[T], offset T) {
+	switch any(img).(type) {
 	case *Image[hwy.Float16]:
-		MaxImageFloat16(any(a).(*Image[hwy.Float16]), any(b).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]))
+		OffsetFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(offset).(hwy.Float16))
 	case *Image[hwy.BFloat16]:
-		MaxImageBFloat16(any(a).(*Image[hwy.BFloat16]), any(b).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]))
+		OffsetBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(offset).(hwy.BFloat16))
 	case *Image[float32]:
-		MaxImageFloat32(any(a).(*Image[float32]), any(b).(*Image[float32]), any(out).(*Image[float32]))
+		OffsetFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(offset).(float32))
 	case *Image[float64]:
-		MaxImageFloat64(any(a).(*Image[float64]), any(b).(*Image[float64]), any(out).(*Image[float64]))
+		OffsetFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(offset).(float64))
+	}
+}
+
+// Scale multiplies all pixels by a constant: out = in * scale.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Scale[T hwy.Floats](img *Image[T], out *Image[T], scale T) {
+	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		ScaleFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(scale).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		ScaleBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(scale).(hwy.BFloat16))
+	case *Image[float32]:
+		ScaleFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(scale).(float32))
+	case *Image[float64]:
+		ScaleFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(scale).(float64))
+	}
+}
+
+// Threshold applies binary threshold: out = (in >= threshold) ? above : below.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func Threshold[T hwy.Floats](img *Image[T], out *Image[T], threshold T, below T, above T) {
+	switch any(img).(type) {
+	case *Image[hwy.Float16]:
+		ThresholdFloat16(any(img).(*Image[hwy.Float16]), any(out).(*Image[hwy.Float16]), any(threshold).(hwy.Float16), any(below).(hwy.Float16), any(above).(hwy.Float16))
+	case *Image[hwy.BFloat16]:
+		ThresholdBFloat16(any(img).(*Image[hwy.BFloat16]), any(out).(*Image[hwy.BFloat16]), any(threshold).(hwy.BFloat16), any(below).(hwy.BFloat16), any(above).(hwy.BFloat16))
+	case *Image[float32]:
+		ThresholdFloat32(any(img).(*Image[float32]), any(out).(*Image[float32]), any(threshold).(float32), any(below).(float32), any(above).(float32))
+	case *Image[float64]:
+		ThresholdFloat64(any(img).(*Image[float64]), any(out).(*Image[float64]), any(threshold).(float64), any(below).(float64), any(above).(float64))
 	}
 }
 
@@ -236,6 +236,10 @@ func initPointopsAll() {
 }
 
 func initPointopsAVX2() {
+	AbsFloat16 = BaseAbs_avx2_Float16
+	AbsBFloat16 = BaseAbs_avx2_BFloat16
+	AbsFloat32 = BaseAbs_avx2
+	AbsFloat64 = BaseAbs_avx2_Float64
 	BrightnessContrastFloat16 = BaseBrightnessContrast_avx2_Float16
 	BrightnessContrastBFloat16 = BaseBrightnessContrast_avx2_BFloat16
 	BrightnessContrastFloat32 = BaseBrightnessContrast_avx2
@@ -244,41 +248,41 @@ func initPointopsAVX2() {
 	ClampImageBFloat16 = BaseClampImage_avx2_BFloat16
 	ClampImageFloat32 = BaseClampImage_avx2
 	ClampImageFloat64 = BaseClampImage_avx2_Float64
-	ThresholdFloat16 = BaseThreshold_avx2_Float16
-	ThresholdBFloat16 = BaseThreshold_avx2_BFloat16
-	ThresholdFloat32 = BaseThreshold_avx2
-	ThresholdFloat64 = BaseThreshold_avx2_Float64
-	InvertFloat16 = BaseInvert_avx2_Float16
-	InvertBFloat16 = BaseInvert_avx2_BFloat16
-	InvertFloat32 = BaseInvert_avx2
-	InvertFloat64 = BaseInvert_avx2_Float64
-	AbsFloat16 = BaseAbs_avx2_Float16
-	AbsBFloat16 = BaseAbs_avx2_BFloat16
-	AbsFloat32 = BaseAbs_avx2
-	AbsFloat64 = BaseAbs_avx2_Float64
-	ScaleFloat16 = BaseScale_avx2_Float16
-	ScaleBFloat16 = BaseScale_avx2_BFloat16
-	ScaleFloat32 = BaseScale_avx2
-	ScaleFloat64 = BaseScale_avx2_Float64
-	OffsetFloat16 = BaseOffset_avx2_Float16
-	OffsetBFloat16 = BaseOffset_avx2_BFloat16
-	OffsetFloat32 = BaseOffset_avx2
-	OffsetFloat64 = BaseOffset_avx2_Float64
 	GammaFloat16 = BaseGamma_avx2_Float16
 	GammaBFloat16 = BaseGamma_avx2_BFloat16
 	GammaFloat32 = BaseGamma_avx2
 	GammaFloat64 = BaseGamma_avx2_Float64
-	MinImageFloat16 = BaseMinImage_avx2_Float16
-	MinImageBFloat16 = BaseMinImage_avx2_BFloat16
-	MinImageFloat32 = BaseMinImage_avx2
-	MinImageFloat64 = BaseMinImage_avx2_Float64
+	InvertFloat16 = BaseInvert_avx2_Float16
+	InvertBFloat16 = BaseInvert_avx2_BFloat16
+	InvertFloat32 = BaseInvert_avx2
+	InvertFloat64 = BaseInvert_avx2_Float64
 	MaxImageFloat16 = BaseMaxImage_avx2_Float16
 	MaxImageBFloat16 = BaseMaxImage_avx2_BFloat16
 	MaxImageFloat32 = BaseMaxImage_avx2
 	MaxImageFloat64 = BaseMaxImage_avx2_Float64
+	MinImageFloat16 = BaseMinImage_avx2_Float16
+	MinImageBFloat16 = BaseMinImage_avx2_BFloat16
+	MinImageFloat32 = BaseMinImage_avx2
+	MinImageFloat64 = BaseMinImage_avx2_Float64
+	OffsetFloat16 = BaseOffset_avx2_Float16
+	OffsetBFloat16 = BaseOffset_avx2_BFloat16
+	OffsetFloat32 = BaseOffset_avx2
+	OffsetFloat64 = BaseOffset_avx2_Float64
+	ScaleFloat16 = BaseScale_avx2_Float16
+	ScaleBFloat16 = BaseScale_avx2_BFloat16
+	ScaleFloat32 = BaseScale_avx2
+	ScaleFloat64 = BaseScale_avx2_Float64
+	ThresholdFloat16 = BaseThreshold_avx2_Float16
+	ThresholdBFloat16 = BaseThreshold_avx2_BFloat16
+	ThresholdFloat32 = BaseThreshold_avx2
+	ThresholdFloat64 = BaseThreshold_avx2_Float64
 }
 
 func initPointopsAVX512() {
+	AbsFloat16 = BaseAbs_avx512_Float16
+	AbsBFloat16 = BaseAbs_avx512_BFloat16
+	AbsFloat32 = BaseAbs_avx512
+	AbsFloat64 = BaseAbs_avx512_Float64
 	BrightnessContrastFloat16 = BaseBrightnessContrast_avx512_Float16
 	BrightnessContrastBFloat16 = BaseBrightnessContrast_avx512_BFloat16
 	BrightnessContrastFloat32 = BaseBrightnessContrast_avx512
@@ -287,41 +291,41 @@ func initPointopsAVX512() {
 	ClampImageBFloat16 = BaseClampImage_avx512_BFloat16
 	ClampImageFloat32 = BaseClampImage_avx512
 	ClampImageFloat64 = BaseClampImage_avx512_Float64
-	ThresholdFloat16 = BaseThreshold_avx512_Float16
-	ThresholdBFloat16 = BaseThreshold_avx512_BFloat16
-	ThresholdFloat32 = BaseThreshold_avx512
-	ThresholdFloat64 = BaseThreshold_avx512_Float64
-	InvertFloat16 = BaseInvert_avx512_Float16
-	InvertBFloat16 = BaseInvert_avx512_BFloat16
-	InvertFloat32 = BaseInvert_avx512
-	InvertFloat64 = BaseInvert_avx512_Float64
-	AbsFloat16 = BaseAbs_avx512_Float16
-	AbsBFloat16 = BaseAbs_avx512_BFloat16
-	AbsFloat32 = BaseAbs_avx512
-	AbsFloat64 = BaseAbs_avx512_Float64
-	ScaleFloat16 = BaseScale_avx512_Float16
-	ScaleBFloat16 = BaseScale_avx512_BFloat16
-	ScaleFloat32 = BaseScale_avx512
-	ScaleFloat64 = BaseScale_avx512_Float64
-	OffsetFloat16 = BaseOffset_avx512_Float16
-	OffsetBFloat16 = BaseOffset_avx512_BFloat16
-	OffsetFloat32 = BaseOffset_avx512
-	OffsetFloat64 = BaseOffset_avx512_Float64
 	GammaFloat16 = BaseGamma_avx512_Float16
 	GammaBFloat16 = BaseGamma_avx512_BFloat16
 	GammaFloat32 = BaseGamma_avx512
 	GammaFloat64 = BaseGamma_avx512_Float64
-	MinImageFloat16 = BaseMinImage_avx512_Float16
-	MinImageBFloat16 = BaseMinImage_avx512_BFloat16
-	MinImageFloat32 = BaseMinImage_avx512
-	MinImageFloat64 = BaseMinImage_avx512_Float64
+	InvertFloat16 = BaseInvert_avx512_Float16
+	InvertBFloat16 = BaseInvert_avx512_BFloat16
+	InvertFloat32 = BaseInvert_avx512
+	InvertFloat64 = BaseInvert_avx512_Float64
 	MaxImageFloat16 = BaseMaxImage_avx512_Float16
 	MaxImageBFloat16 = BaseMaxImage_avx512_BFloat16
 	MaxImageFloat32 = BaseMaxImage_avx512
 	MaxImageFloat64 = BaseMaxImage_avx512_Float64
+	MinImageFloat16 = BaseMinImage_avx512_Float16
+	MinImageBFloat16 = BaseMinImage_avx512_BFloat16
+	MinImageFloat32 = BaseMinImage_avx512
+	MinImageFloat64 = BaseMinImage_avx512_Float64
+	OffsetFloat16 = BaseOffset_avx512_Float16
+	OffsetBFloat16 = BaseOffset_avx512_BFloat16
+	OffsetFloat32 = BaseOffset_avx512
+	OffsetFloat64 = BaseOffset_avx512_Float64
+	ScaleFloat16 = BaseScale_avx512_Float16
+	ScaleBFloat16 = BaseScale_avx512_BFloat16
+	ScaleFloat32 = BaseScale_avx512
+	ScaleFloat64 = BaseScale_avx512_Float64
+	ThresholdFloat16 = BaseThreshold_avx512_Float16
+	ThresholdBFloat16 = BaseThreshold_avx512_BFloat16
+	ThresholdFloat32 = BaseThreshold_avx512
+	ThresholdFloat64 = BaseThreshold_avx512_Float64
 }
 
 func initPointopsFallback() {
+	AbsFloat16 = BaseAbs_fallback_Float16
+	AbsBFloat16 = BaseAbs_fallback_BFloat16
+	AbsFloat32 = BaseAbs_fallback
+	AbsFloat64 = BaseAbs_fallback_Float64
 	BrightnessContrastFloat16 = BaseBrightnessContrast_fallback_Float16
 	BrightnessContrastBFloat16 = BaseBrightnessContrast_fallback_BFloat16
 	BrightnessContrastFloat32 = BaseBrightnessContrast_fallback
@@ -330,36 +334,32 @@ func initPointopsFallback() {
 	ClampImageBFloat16 = BaseClampImage_fallback_BFloat16
 	ClampImageFloat32 = BaseClampImage_fallback
 	ClampImageFloat64 = BaseClampImage_fallback_Float64
-	ThresholdFloat16 = BaseThreshold_fallback_Float16
-	ThresholdBFloat16 = BaseThreshold_fallback_BFloat16
-	ThresholdFloat32 = BaseThreshold_fallback
-	ThresholdFloat64 = BaseThreshold_fallback_Float64
-	InvertFloat16 = BaseInvert_fallback_Float16
-	InvertBFloat16 = BaseInvert_fallback_BFloat16
-	InvertFloat32 = BaseInvert_fallback
-	InvertFloat64 = BaseInvert_fallback_Float64
-	AbsFloat16 = BaseAbs_fallback_Float16
-	AbsBFloat16 = BaseAbs_fallback_BFloat16
-	AbsFloat32 = BaseAbs_fallback
-	AbsFloat64 = BaseAbs_fallback_Float64
-	ScaleFloat16 = BaseScale_fallback_Float16
-	ScaleBFloat16 = BaseScale_fallback_BFloat16
-	ScaleFloat32 = BaseScale_fallback
-	ScaleFloat64 = BaseScale_fallback_Float64
-	OffsetFloat16 = BaseOffset_fallback_Float16
-	OffsetBFloat16 = BaseOffset_fallback_BFloat16
-	OffsetFloat32 = BaseOffset_fallback
-	OffsetFloat64 = BaseOffset_fallback_Float64
 	GammaFloat16 = BaseGamma_fallback_Float16
 	GammaBFloat16 = BaseGamma_fallback_BFloat16
 	GammaFloat32 = BaseGamma_fallback
 	GammaFloat64 = BaseGamma_fallback_Float64
-	MinImageFloat16 = BaseMinImage_fallback_Float16
-	MinImageBFloat16 = BaseMinImage_fallback_BFloat16
-	MinImageFloat32 = BaseMinImage_fallback
-	MinImageFloat64 = BaseMinImage_fallback_Float64
+	InvertFloat16 = BaseInvert_fallback_Float16
+	InvertBFloat16 = BaseInvert_fallback_BFloat16
+	InvertFloat32 = BaseInvert_fallback
+	InvertFloat64 = BaseInvert_fallback_Float64
 	MaxImageFloat16 = BaseMaxImage_fallback_Float16
 	MaxImageBFloat16 = BaseMaxImage_fallback_BFloat16
 	MaxImageFloat32 = BaseMaxImage_fallback
 	MaxImageFloat64 = BaseMaxImage_fallback_Float64
+	MinImageFloat16 = BaseMinImage_fallback_Float16
+	MinImageBFloat16 = BaseMinImage_fallback_BFloat16
+	MinImageFloat32 = BaseMinImage_fallback
+	MinImageFloat64 = BaseMinImage_fallback_Float64
+	OffsetFloat16 = BaseOffset_fallback_Float16
+	OffsetBFloat16 = BaseOffset_fallback_BFloat16
+	OffsetFloat32 = BaseOffset_fallback
+	OffsetFloat64 = BaseOffset_fallback_Float64
+	ScaleFloat16 = BaseScale_fallback_Float16
+	ScaleBFloat16 = BaseScale_fallback_BFloat16
+	ScaleFloat32 = BaseScale_fallback
+	ScaleFloat64 = BaseScale_fallback_Float64
+	ThresholdFloat16 = BaseThreshold_fallback_Float16
+	ThresholdBFloat16 = BaseThreshold_fallback_BFloat16
+	ThresholdFloat32 = BaseThreshold_fallback
+	ThresholdFloat64 = BaseThreshold_fallback_Float64
 }

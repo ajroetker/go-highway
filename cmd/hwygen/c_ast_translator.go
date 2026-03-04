@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -54,9 +55,9 @@ type CASTTranslator struct {
 
 	// Package-level array globals (e.g., nf4LookupTable).
 	// Set via SetPackageGlobals before TranslateToC.
-	packageGlobals    map[string]*PackageGlobal  // name → global
-	referencedGlobals map[string]bool            // globals actually used in function body
-	packageStructs    map[string]*PackageStruct  // struct type name → def (from struct-typed globals)
+	packageGlobals    map[string]*PackageGlobal // name → global
+	referencedGlobals map[string]bool           // globals actually used in function body
+	packageStructs    map[string]*PackageStruct // struct type name → def (from struct-typed globals)
 
 	// Package-level integer constants (e.g., BlockSize = 48).
 	// Set via SetPackageConsts before TranslateToC.
@@ -65,7 +66,7 @@ type CASTTranslator struct {
 
 	buf      *bytes.Buffer
 	indent   int
-	tmpCount int // counter for unique temporary variable names
+	tmpCount int      // counter for unique temporary variable names
 	errors   []string // translation errors collected during buildParamMap
 
 	// returnOrder stores return parameter map keys in declaration order
@@ -475,8 +476,16 @@ func (t *CASTTranslator) emitStructTypedefs() {
 		return
 	}
 
+	// Sort for deterministic output
+	names := make([]string, 0, len(t.requiredStructTypes))
+	for name := range t.requiredStructTypes {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
 	t.writef("// Struct typedefs for C-compatible parameter passing\n")
-	for cTypeName, info := range t.requiredStructTypes {
+	for _, cTypeName := range names {
+		info := t.requiredStructTypes[cTypeName]
 		if len(info.fields) == 0 {
 			continue
 		}
@@ -722,12 +731,14 @@ func goPkgGlobalElemToCType(goType string) string {
 		return "double"
 	case "int32":
 		return "int"
-	case "int64", "int":
+	case "int64":
+		return "long long"
+	case "int":
 		return "long"
 	case "uint32":
 		return "unsigned int"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint8", "byte":
 		return "unsigned char"
 	case "int8":
@@ -975,13 +986,13 @@ func goSliceElemToCType(elemType string, profile *CIntrinsicProfile) string {
 	case "float64":
 		return "double"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint8", "byte":
 		return "unsigned char"
 	case "int64":
-		return "long"
+		return "long long"
 	case "int32":
 		return "int"
 	case "int16":
@@ -1025,7 +1036,8 @@ func goReturnTypeToCPtrType(goType, elemType string) string {
 // isScalarCType returns true for C scalar types that should be zero-initialized.
 func isScalarCType(cType string) bool {
 	switch cType {
-	case "long", "int", "unsigned long", "unsigned int", "unsigned char",
+	case "long", "long long", "int", "unsigned long", "unsigned long long",
+		"unsigned int", "unsigned char",
 		"float", "double", "short", "unsigned short", "signed char":
 		return true
 	default:
@@ -1056,11 +1068,11 @@ func cTypeShortSuffix(cType string) string {
 		return "F64"
 	case "int":
 		return "I32"
-	case "long":
+	case "long", "long long":
 		return "I64"
 	case "unsigned int":
 		return "U32"
-	case "unsigned long":
+	case "unsigned long", "unsigned long long":
 		return "U64"
 	case "unsigned short":
 		return "F16" // Used for hwy.Float16
@@ -1359,24 +1371,15 @@ func (t *CASTTranslator) emitParamDerefs() {
 	}
 }
 
-// sortedParams returns params in stable order (by original param order in the function).
-// We iterate over t.params, but need deterministic order. We reconstruct from params.
+// sortedParams returns params in stable order, sorted by goName for deterministic output.
 func sortedParams(params map[string]cParamInfo) []cParamInfo {
-	// Since we need order, collect values sorted by goName which gives deterministic output.
-	// In practice the caller should use the original pf.Params order, but since we
-	// only have the map here, we need a stable approach.
-	var result []cParamInfo
+	result := make([]cParamInfo, 0, len(params))
 	for _, v := range params {
 		result = append(result, v)
 	}
-	// Sort by cName for stable output
-	for i := range result {
-		for j := i + 1; j < len(result); j++ {
-			if result[i].goName > result[j].goName {
-				result[i], result[j] = result[j], result[i]
-			}
-		}
-	}
+	slices.SortFunc(result, func(a, b cParamInfo) int {
+		return strings.Compare(a.goName, b.goName)
+	})
 	return result
 }
 
@@ -1427,8 +1430,8 @@ func (t *CASTTranslator) translateBlockStmtContents(block *ast.BlockStmt) {
 		if len(sharedAccums) > 0 && i == lastLoopIdx {
 			// Emit finalization AFTER the last loop
 			for _, acc := range sharedAccums {
-				t.writef("%s += (unsigned long)(%s(%s));\n",
-					acc.scalarVar, t.profile.AccReduceFn[t.tier], acc.accVar)
+				t.writef("%s += (%s)(%s(%s));\n",
+					acc.scalarVar, t.profile.CType, t.profile.AccReduceFn[t.tier], acc.accVar)
 			}
 			t.deferredAccums = nil
 		}
@@ -2105,8 +2108,8 @@ func (t *CASTTranslator) translateForStmt(s *ast.ForStmt) {
 	// Only reduce and clear if this loop owns the accumulators
 	if !externalAccums && t.deferredAccums != nil {
 		for _, acc := range t.deferredAccumsOrdered() {
-			t.writef("%s += (unsigned long)(%s(%s));\n",
-				acc.scalarVar, t.profile.AccReduceFn[t.tier], acc.accVar)
+			t.writef("%s += (%s)(%s(%s));\n",
+				acc.scalarVar, t.profile.CType, t.profile.AccReduceFn[t.tier], acc.accVar)
 		}
 		t.deferredAccums = nil
 	}
@@ -2815,6 +2818,9 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		if len(e.Args) == 2 {
 			a := t.translateExpr(e.Args[0])
 			b := t.translateExpr(e.Args[1])
+			if a == b {
+				return a // both args resolve to the same C expression
+			}
 			return fmt.Sprintf("((%s) < (%s) ? (%s) : (%s))", a, b, a, b)
 		}
 	}
@@ -2822,6 +2828,9 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		if len(e.Args) == 2 {
 			a := t.translateExpr(e.Args[0])
 			b := t.translateExpr(e.Args[1])
+			if a == b {
+				return a // both args resolve to the same C expression
+			}
 			return fmt.Sprintf("((%s) > (%s) ? (%s) : (%s))", a, b, a, b)
 		}
 	}
@@ -4028,7 +4037,11 @@ func (t *CASTTranslator) translateLoad4Assign(lhs []ast.Expr, args []ast.Expr, t
 		load4Fn := t.profile.Load4Fn[t.tier]
 		tmpName := fmt.Sprintf("_load4_%d", t.tmpCount)
 		t.tmpCount++
-		t.writef("%s %s = %s(%s);\n", x4Type, tmpName, load4Fn, ptr)
+		load4Ptr := ptr
+		if t.profile.CastExpr != "" {
+			load4Ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+		}
+		t.writef("%s %s = %s(%s);\n", x4Type, tmpName, load4Fn, load4Ptr)
 		for i := range 4 {
 			if tok == token.DEFINE {
 				t.vars[names[i]] = cVarInfo{cType: vecType, isVector: true}
@@ -4045,6 +4058,9 @@ func (t *CASTTranslator) translateLoad4Assign(lhs []ast.Expr, args []ast.Expr, t
 			ptrExpr := ptr
 			if i > 0 {
 				ptrExpr = fmt.Sprintf("%s + %d", ptr, i*t.lanes)
+			}
+			if t.profile.CastExpr != "" {
+				ptrExpr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptrExpr)
 			}
 			if t.profile.NeedsPredicate {
 				loadExpr = fmt.Sprintf("%s(pg, %s)", loadFn, ptrExpr)
@@ -4239,7 +4255,7 @@ func (t *CASTTranslator) resolveTypeParam(name string) string {
 func (t *CASTTranslator) goTypeConvToCType(name string) string {
 	switch name {
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint16":
@@ -4247,7 +4263,7 @@ func (t *CASTTranslator) goTypeConvToCType(name string) string {
 	case "uint8", "byte":
 		return "unsigned char"
 	case "int64":
-		return "long"
+		return "long long"
 	case "int32":
 		return "int"
 	case "int16":
@@ -4275,31 +4291,21 @@ func (t *CASTTranslator) goTypeConvToCType(name string) string {
 // mathFuncToC maps single-arg Go math/stdmath functions and contrib/math Vec
 // functions to their C stdlib equivalents. The f32 variant is formed by appending "f".
 // Special cases (multi-arg, composite, non-standard naming) are handled in the switch.
-var mathFuncToC = map[string]string{
-	// stdmath
-	"Sqrt":  "sqrt",
-	"RSqrt": "rsqrt",
-	"Exp":   "exp",
-	"Log":   "log",
-	"Erf":   "erf",
-	"Tanh":  "tanh",
-	// contrib/math Vec wrappers
-	"BaseExpVec":   "exp",
-	"BaseExp2Vec":  "exp2",
-	"BaseLogVec":   "log",
-	"BaseLog2Vec":  "log2",
-	"BaseLog10Vec": "log10",
-	"BaseSinVec":   "sin",
-	"BaseCosVec":   "cos",
-	"BaseTanhVec":  "tanh",
-	"BaseSinhVec":  "sinh",
-	"BaseCoshVec":  "cosh",
-	"BaseAsinhVec": "asinh",
-	"BaseAcoshVec": "acosh",
-	"BaseAtanhVec":    "atanh",
-	"BaseSigmoidVec": "sigmoid",
-	"BaseErfVec":     "erf",
-}
+var mathFuncToC = func() map[string]string {
+	m := map[string]string{
+		// stdmath single-arg functions
+		"Sqrt":  "sqrt",
+		"RSqrt": "rsqrt",
+		"Exp":   "exp",
+		"Log":   "log",
+		"Erf":   "erf",
+		"Tanh":  "tanh",
+		// Non-scalarizable contrib/math
+		"BaseSigmoidVec": "sigmoid",
+	}
+	maps.Copy(m, baseVecMathFuncs)
+	return m
+}()
 
 // bitsOnesCountToBuiltin maps Go math/bits popcount functions to GCC builtins.
 func bitsOnesCountToBuiltin(funcName string) string {
@@ -4422,14 +4428,14 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 		return t.inferCallType(e)
 	case *ast.SliceExpr:
 		// Infer pointer type from the base expression (e.g., codes[i*w:(i+1)*w]
-		// where codes is unsigned long * should yield unsigned long *, not float *).
+		// where codes is unsigned long long * should yield unsigned long long *, not float *).
 		if baseType := t.inferPtrType(e.X); baseType != "" {
 			return cVarInfo{cType: baseType, isPtr: true}
 		}
 		return cVarInfo{cType: t.profile.CType + " *", isPtr: true}
 	case *ast.IndexExpr:
 		// Infer element type from the base expression (e.g., codes[i]
-		// where codes is unsigned long * should yield unsigned long).
+		// where codes is unsigned long long * should yield unsigned long long).
 		if baseType := t.inferPtrType(e.X); baseType != "" {
 			elemType := strings.TrimSuffix(strings.TrimSpace(baseType), "*")
 			return cVarInfo{cType: strings.TrimSpace(elemType)}
@@ -4763,8 +4769,10 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 // goTypeToCType converts Go type names to C type names.
 func (t *CASTTranslator) goTypeToCType(goType string) string {
 	switch goType {
-	case "int", "int64":
+	case "int":
 		return "long"
+	case "int64":
+		return "long long"
 	case "int32":
 		return "int"
 	case "float32":
@@ -4772,7 +4780,7 @@ func (t *CASTTranslator) goTypeToCType(goType string) string {
 	case "float64":
 		return "double"
 	case "uint64":
-		return "unsigned long"
+		return "unsigned long long"
 	case "uint32":
 		return "unsigned int"
 	case "uint16":
@@ -4895,6 +4903,15 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 	// direct hwy.* calls (the SIMD ops are inside BaseApply itself).
 	if isBaseApplyWrapper(pf) {
 		return true
+	}
+
+	// Functions that call other Base functions (e.g., BaseSquaredNorm calls BaseDot)
+	// are eligible — the callee will be emitted as a static C helper in the same
+	// compilation unit by collectHelperCode.
+	for _, call := range pf.HwyCalls {
+		if call.Package == "local" {
+			return true
+		}
 	}
 
 	// Must use hwy.* operations

@@ -6,6 +6,90 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+func BaseDeltaDecode_fallback_Int32(data []int32, base int32) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := hwy.MaxLanes[int32]()
+	carry := base
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		v := hwy.Load(data[i:])
+		prefixed := BasePrefixSumVec_fallback_Int32(v)
+		prefixed = hwy.Add(prefixed, hwy.Set[int32](carry))
+		hwy.Store(prefixed, data[i:])
+		carry = hwy.GetLane(prefixed, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
+func BaseDeltaDecode_fallback_Int64(data []int64, base int64) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := hwy.MaxLanes[int64]()
+	carry := base
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		v := hwy.Load(data[i:])
+		prefixed := BasePrefixSumVec_fallback_Int64(v)
+		prefixed = hwy.Add(prefixed, hwy.Set[int64](carry))
+		hwy.Store(prefixed, data[i:])
+		carry = hwy.GetLane(prefixed, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
+func BaseDeltaDecode_fallback_Uint32(data []uint32, base uint32) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := hwy.MaxLanes[uint32]()
+	carry := base
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		v := hwy.Load(data[i:])
+		prefixed := BasePrefixSumVec_fallback_Uint32(v)
+		prefixed = hwy.Add(prefixed, hwy.Set[uint32](carry))
+		hwy.Store(prefixed, data[i:])
+		carry = hwy.GetLane(prefixed, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
+func BaseDeltaDecode_fallback_Uint64(data []uint64, base uint64) {
+	n := len(data)
+	if n == 0 {
+		return
+	}
+	lanes := hwy.MaxLanes[uint64]()
+	carry := base
+	i := 0
+	for ; i+lanes <= n; i += lanes {
+		v := hwy.Load(data[i:])
+		prefixed := BasePrefixSumVec_fallback_Uint64(v)
+		prefixed = hwy.Add(prefixed, hwy.Set[uint64](carry))
+		hwy.Store(prefixed, data[i:])
+		carry = hwy.GetLane(prefixed, lanes-1)
+	}
+	for ; i < n; i++ {
+		carry += data[i]
+		data[i] = carry
+	}
+}
+
 func BasePrefixSum_fallback(data []float32) {
 	n := len(data)
 	if n == 0 {
@@ -118,90 +202,6 @@ func BasePrefixSum_fallback_Uint64(data []uint64) {
 	}
 	lanes := hwy.MaxLanes[uint64]()
 	carry := uint64(0)
-	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
-		prefixed := BasePrefixSumVec_fallback_Uint64(v)
-		prefixed = hwy.Add(prefixed, hwy.Set[uint64](carry))
-		hwy.Store(prefixed, data[i:])
-		carry = hwy.GetLane(prefixed, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_fallback_Int32(data []int32, base int32) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := hwy.MaxLanes[int32]()
-	carry := base
-	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
-		prefixed := BasePrefixSumVec_fallback_Int32(v)
-		prefixed = hwy.Add(prefixed, hwy.Set[int32](carry))
-		hwy.Store(prefixed, data[i:])
-		carry = hwy.GetLane(prefixed, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_fallback_Int64(data []int64, base int64) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := hwy.MaxLanes[int64]()
-	carry := base
-	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
-		prefixed := BasePrefixSumVec_fallback_Int64(v)
-		prefixed = hwy.Add(prefixed, hwy.Set[int64](carry))
-		hwy.Store(prefixed, data[i:])
-		carry = hwy.GetLane(prefixed, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_fallback_Uint32(data []uint32, base uint32) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := hwy.MaxLanes[uint32]()
-	carry := base
-	i := 0
-	for ; i+lanes <= n; i += lanes {
-		v := hwy.Load(data[i:])
-		prefixed := BasePrefixSumVec_fallback_Uint32(v)
-		prefixed = hwy.Add(prefixed, hwy.Set[uint32](carry))
-		hwy.Store(prefixed, data[i:])
-		carry = hwy.GetLane(prefixed, lanes-1)
-	}
-	for ; i < n; i++ {
-		carry += data[i]
-		data[i] = carry
-	}
-}
-
-func BaseDeltaDecode_fallback_Uint64(data []uint64, base uint64) {
-	n := len(data)
-	if n == 0 {
-		return
-	}
-	lanes := hwy.MaxLanes[uint64]()
-	carry := base
 	i := 0
 	for ; i+lanes <= n; i += lanes {
 		v := hwy.Load(data[i:])

@@ -14,6 +14,186 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+func BaseLogSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
+		}
+	}
+	vMax := asm.BroadcastFloat16x8AVX2(uint16(maxVal))
+	vSum := asm.ZeroFloat16x8AVX2()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_avx2_Float16(shifted)
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8]))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_avx2_Float16(shifted1)
+		vSum = vSum.Add(expVal1)
+	}
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
+	}
+	logSumExp := hwy.Float32ToFloat16(float32(stdmath.Log(float64(expSum))))
+	offset := hwy.Float32ToFloat16(maxVal.Float32() + logSumExp.Float32())
+	vOffset := asm.BroadcastFloat16x8AVX2(uint16(offset))
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
+		x.Sub(vOffset).StorePtr(unsafe.Pointer(&output[ii]))
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToFloat16(input[ii].Float32() - offset.Float32())
+	}
+}
+
+func BaseLogSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j].Float32() > maxVal.Float32() {
+			maxVal = input[j]
+		}
+	}
+	vMax := asm.BroadcastBFloat16x8AVX2(uint16(maxVal))
+	vSum := asm.ZeroBFloat16x8AVX2()
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_avx2_BFloat16(shifted)
+		vSum = vSum.Add(expVal)
+		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8]))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_avx2_BFloat16(shifted1)
+		vSum = vSum.Add(expVal1)
+	}
+	expSum := vSum.ReduceSum()
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
+	}
+	logSumExp := hwy.Float32ToBFloat16(float32(stdmath.Log(float64(expSum))))
+	offset := hwy.Float32ToBFloat16(maxVal.Float32() + logSumExp.Float32())
+	vOffset := asm.BroadcastBFloat16x8AVX2(uint16(offset))
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
+		x.Sub(vOffset).StorePtr(unsafe.Pointer(&output[ii]))
+	}
+	for ; ii < size; ii++ {
+		output[ii] = hwy.Float32ToBFloat16(input[ii].Float32() - offset.Float32())
+	}
+}
+
+func BaseLogSoftmax_avx2(input []float32, output []float32) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
+		}
+	}
+	vMax := archsimd.BroadcastFloat32x8(maxVal)
+	vSum := archsimd.BroadcastFloat32x8(0)
+	lanes := 8
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_avx2(shifted)
+		vSum = vSum.Add(expVal)
+		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_avx2(shifted1)
+		vSum = vSum.Add(expVal1)
+	}
+	expSum := hwy.ReduceSum_AVX2_F32x8(vSum)
+	for ; ii < size; ii++ {
+		expSum += float32(stdmath.Exp(float64(input[ii] - maxVal)))
+	}
+	logSumExp := float32(stdmath.Log(float64(expSum)))
+	offset := maxVal + logSumExp
+	vOffset := archsimd.BroadcastFloat32x8(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
+		x.Sub(vOffset).Store((*[8]float32)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] = input[ii] - offset
+	}
+}
+
+func BaseLogSoftmax_avx2_Float64(input []float64, output []float64) {
+	size := min(len(input), len(output))
+	if size == 0 {
+		return
+	}
+	maxVal := input[0]
+	for j := 1; j < size; j++ {
+		if input[j] > maxVal {
+			maxVal = input[j]
+		}
+	}
+	vMax := archsimd.BroadcastFloat64x4(maxVal)
+	vSum := archsimd.BroadcastFloat64x4(0)
+	lanes := 4
+	var ii int
+	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		shifted := x.Sub(vMax)
+		expVal := math.BaseExpVec_avx2_Float64(shifted)
+		vSum = vSum.Add(expVal)
+		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
+		shifted1 := x1.Sub(vMax)
+		expVal1 := math.BaseExpVec_avx2_Float64(shifted1)
+		vSum = vSum.Add(expVal1)
+	}
+	expSum := hwy.ReduceSum_AVX2_F64x4(vSum)
+	for ; ii < size; ii++ {
+		expSum += float64(stdmath.Exp(float64(input[ii] - maxVal)))
+	}
+	logSumExp := float64(stdmath.Log(float64(expSum)))
+	offset := maxVal + logSumExp
+	vOffset := archsimd.BroadcastFloat64x4(offset)
+	for ii = 0; ii+lanes <= size; ii += lanes {
+		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
+		x.Sub(vOffset).Store((*[4]float64)(unsafe.Pointer(&output[ii])))
+	}
+	for ; ii < size; ii++ {
+		output[ii] = input[ii] - offset
+	}
+}
+
+func BaseLogSoftmaxInPlace_avx2_Float16(x []hwy.Float16) {
+	BaseLogSoftmax_avx2_Float16(x, x)
+}
+
+func BaseLogSoftmaxInPlace_avx2_BFloat16(x []hwy.BFloat16) {
+	BaseLogSoftmax_avx2_BFloat16(x, x)
+}
+
+func BaseLogSoftmaxInPlace_avx2(x []float32) {
+	BaseLogSoftmax_avx2(x, x)
+}
+
+func BaseLogSoftmaxInPlace_avx2_Float64(x []float64) {
+	BaseLogSoftmax_avx2_Float64(x, x)
+}
+
 func BaseSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -30,15 +210,15 @@ func BaseSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
 		shifted := x.Sub(vMax)
 		expVal := math.BaseExpVec_avx2_Float16(shifted)
-		expVal.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		expVal.StorePtr(unsafe.Pointer(&output[ii]))
 		vSum = vSum.Add(expVal)
-		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8]))
 		shifted1 := x1.Sub(vMax)
 		expVal1 := math.BaseExpVec_avx2_Float16(shifted1)
-		expVal1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+		expVal1.StorePtr(unsafe.Pointer(&output[ii+8]))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := vSum.ReduceSum()
@@ -50,8 +230,8 @@ func BaseSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	vInvSum := asm.BroadcastFloat16x8AVX2(uint16(invSum))
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii:][0]))
-		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii:][0]))
+		v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii]))
+		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii]))
 	}
 	for ; ii < size; ii++ {
 		output[ii] = hwy.Float32ToFloat16(output[ii].Float32() * invSum.Float32())
@@ -74,15 +254,15 @@ func BaseSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
 		shifted := x.Sub(vMax)
 		expVal := math.BaseExpVec_avx2_BFloat16(shifted)
-		expVal.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		expVal.StorePtr(unsafe.Pointer(&output[ii]))
 		vSum = vSum.Add(expVal)
-		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8]))
 		shifted1 := x1.Sub(vMax)
 		expVal1 := math.BaseExpVec_avx2_BFloat16(shifted1)
-		expVal1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+		expVal1.StorePtr(unsafe.Pointer(&output[ii+8]))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := vSum.ReduceSum()
@@ -94,8 +274,8 @@ func BaseSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	vInvSum := asm.BroadcastBFloat16x8AVX2(uint16(invSum))
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii:][0]))
-		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii:][0]))
+		v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii]))
+		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii]))
 	}
 	for ; ii < size; ii++ {
 		output[ii] = hwy.Float32ToBFloat16(output[ii].Float32() * invSum.Float32())
@@ -206,186 +386,6 @@ func BaseSoftmaxInPlace_avx2_Float64(x []float64) {
 	BaseSoftmax_avx2_Float64(x, x)
 }
 
-func BaseLogSoftmax_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j].Float32() > maxVal.Float32() {
-			maxVal = input[j]
-		}
-	}
-	vMax := asm.BroadcastFloat16x8AVX2(uint16(maxVal))
-	vSum := asm.ZeroFloat16x8AVX2()
-	lanes := 8
-	var ii int
-	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		shifted := x.Sub(vMax)
-		expVal := math.BaseExpVec_avx2_Float16(shifted)
-		vSum = vSum.Add(expVal)
-		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		shifted1 := x1.Sub(vMax)
-		expVal1 := math.BaseExpVec_avx2_Float16(shifted1)
-		vSum = vSum.Add(expVal1)
-	}
-	expSum := vSum.ReduceSum()
-	for ; ii < size; ii++ {
-		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
-	}
-	logSumExp := hwy.Float32ToFloat16(float32(stdmath.Log(float64(expSum))))
-	offset := hwy.Float32ToFloat16(maxVal.Float32() + logSumExp.Float32())
-	vOffset := asm.BroadcastFloat16x8AVX2(uint16(offset))
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		x.Sub(vOffset).StorePtr(unsafe.Pointer(&output[ii:][0]))
-	}
-	for ; ii < size; ii++ {
-		output[ii] = hwy.Float32ToFloat16(input[ii].Float32() - offset.Float32())
-	}
-}
-
-func BaseLogSoftmax_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j].Float32() > maxVal.Float32() {
-			maxVal = input[j]
-		}
-	}
-	vMax := asm.BroadcastBFloat16x8AVX2(uint16(maxVal))
-	vSum := asm.ZeroBFloat16x8AVX2()
-	lanes := 8
-	var ii int
-	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		shifted := x.Sub(vMax)
-		expVal := math.BaseExpVec_avx2_BFloat16(shifted)
-		vSum = vSum.Add(expVal)
-		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
-		shifted1 := x1.Sub(vMax)
-		expVal1 := math.BaseExpVec_avx2_BFloat16(shifted1)
-		vSum = vSum.Add(expVal1)
-	}
-	expSum := vSum.ReduceSum()
-	for ; ii < size; ii++ {
-		expSum += float32(stdmath.Exp(float64(input[ii].Float32() - maxVal.Float32())))
-	}
-	logSumExp := hwy.Float32ToBFloat16(float32(stdmath.Log(float64(expSum))))
-	offset := hwy.Float32ToBFloat16(maxVal.Float32() + logSumExp.Float32())
-	vOffset := asm.BroadcastBFloat16x8AVX2(uint16(offset))
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
-		x.Sub(vOffset).StorePtr(unsafe.Pointer(&output[ii:][0]))
-	}
-	for ; ii < size; ii++ {
-		output[ii] = hwy.Float32ToBFloat16(input[ii].Float32() - offset.Float32())
-	}
-}
-
-func BaseLogSoftmax_avx2(input []float32, output []float32) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j] > maxVal {
-			maxVal = input[j]
-		}
-	}
-	vMax := archsimd.BroadcastFloat32x8(maxVal)
-	vSum := archsimd.BroadcastFloat32x8(0)
-	lanes := 8
-	var ii int
-	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		shifted := x.Sub(vMax)
-		expVal := math.BaseExpVec_avx2(shifted)
-		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii+8])))
-		shifted1 := x1.Sub(vMax)
-		expVal1 := math.BaseExpVec_avx2(shifted1)
-		vSum = vSum.Add(expVal1)
-	}
-	expSum := hwy.ReduceSum_AVX2_F32x8(vSum)
-	for ; ii < size; ii++ {
-		expSum += float32(stdmath.Exp(float64(input[ii] - maxVal)))
-	}
-	logSumExp := float32(stdmath.Log(float64(expSum)))
-	offset := maxVal + logSumExp
-	vOffset := archsimd.BroadcastFloat32x8(offset)
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[ii])))
-		x.Sub(vOffset).Store((*[8]float32)(unsafe.Pointer(&output[ii])))
-	}
-	for ; ii < size; ii++ {
-		output[ii] = input[ii] - offset
-	}
-}
-
-func BaseLogSoftmax_avx2_Float64(input []float64, output []float64) {
-	size := min(len(input), len(output))
-	if size == 0 {
-		return
-	}
-	maxVal := input[0]
-	for j := 1; j < size; j++ {
-		if input[j] > maxVal {
-			maxVal = input[j]
-		}
-	}
-	vMax := archsimd.BroadcastFloat64x4(maxVal)
-	vSum := archsimd.BroadcastFloat64x4(0)
-	lanes := 4
-	var ii int
-	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		shifted := x.Sub(vMax)
-		expVal := math.BaseExpVec_avx2_Float64(shifted)
-		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii+4])))
-		shifted1 := x1.Sub(vMax)
-		expVal1 := math.BaseExpVec_avx2_Float64(shifted1)
-		vSum = vSum.Add(expVal1)
-	}
-	expSum := hwy.ReduceSum_AVX2_F64x4(vSum)
-	for ; ii < size; ii++ {
-		expSum += float64(stdmath.Exp(float64(input[ii] - maxVal)))
-	}
-	logSumExp := float64(stdmath.Log(float64(expSum)))
-	offset := maxVal + logSumExp
-	vOffset := archsimd.BroadcastFloat64x4(offset)
-	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[ii])))
-		x.Sub(vOffset).Store((*[4]float64)(unsafe.Pointer(&output[ii])))
-	}
-	for ; ii < size; ii++ {
-		output[ii] = input[ii] - offset
-	}
-}
-
-func BaseLogSoftmaxInPlace_avx2_Float16(x []hwy.Float16) {
-	BaseLogSoftmax_avx2_Float16(x, x)
-}
-
-func BaseLogSoftmaxInPlace_avx2_BFloat16(x []hwy.BFloat16) {
-	BaseLogSoftmax_avx2_BFloat16(x, x)
-}
-
-func BaseLogSoftmaxInPlace_avx2(x []float32) {
-	BaseLogSoftmax_avx2(x, x)
-}
-
-func BaseLogSoftmaxInPlace_avx2_Float64(x []float64) {
-	BaseLogSoftmax_avx2_Float64(x, x)
-}
-
 func BaseSoftmaxScalar_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 	size := min(len(input), len(output))
 	if size == 0 {
@@ -492,15 +492,15 @@ func BaseSoftmaxWithTemperature_avx2_Float16(input []hwy.Float16, output []hwy.F
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
 		shifted := x.Sub(vMax).Mul(vInvTemp)
 		expVal := math.BaseExpVec_avx2_Float16(shifted)
-		expVal.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		expVal.StorePtr(unsafe.Pointer(&output[ii]))
 		vSum = vSum.Add(expVal)
-		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		x1 := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8]))
 		shifted1 := x1.Sub(vMax).Mul(vInvTemp)
 		expVal1 := math.BaseExpVec_avx2_Float16(shifted1)
-		expVal1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+		expVal1.StorePtr(unsafe.Pointer(&output[ii+8]))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := vSum.ReduceSum()
@@ -513,8 +513,8 @@ func BaseSoftmaxWithTemperature_avx2_Float16(input []hwy.Float16, output []hwy.F
 	invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
 	vInvSum := asm.BroadcastFloat16x8AVX2(uint16(invSum))
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii:][0]))
-		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii:][0]))
+		v := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii]))
+		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii]))
 	}
 	for ; ii < size; ii++ {
 		output[ii] = hwy.Float32ToFloat16(output[ii].Float32() * invSum.Float32())
@@ -539,15 +539,15 @@ func BaseSoftmaxWithTemperature_avx2_BFloat16(input []hwy.BFloat16, output []hwy
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii:][0]))
+		x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii]))
 		shifted := x.Sub(vMax).Mul(vInvTemp)
 		expVal := math.BaseExpVec_avx2_BFloat16(shifted)
-		expVal.StorePtr(unsafe.Pointer(&output[ii:][0]))
+		expVal.StorePtr(unsafe.Pointer(&output[ii]))
 		vSum = vSum.Add(expVal)
-		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8:][0]))
+		x1 := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&input[ii+8]))
 		shifted1 := x1.Sub(vMax).Mul(vInvTemp)
 		expVal1 := math.BaseExpVec_avx2_BFloat16(shifted1)
-		expVal1.StorePtr(unsafe.Pointer(&output[ii+8:][0]))
+		expVal1.StorePtr(unsafe.Pointer(&output[ii+8]))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := vSum.ReduceSum()
@@ -560,8 +560,8 @@ func BaseSoftmaxWithTemperature_avx2_BFloat16(input []hwy.BFloat16, output []hwy
 	invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
 	vInvSum := asm.BroadcastBFloat16x8AVX2(uint16(invSum))
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii:][0]))
-		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii:][0]))
+		v := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&output[ii]))
+		v.Mul(vInvSum).StorePtr(unsafe.Pointer(&output[ii]))
 	}
 	for ; ii < size; ii++ {
 		output[ii] = hwy.Float32ToBFloat16(output[ii].Float32() * invSum.Float32())

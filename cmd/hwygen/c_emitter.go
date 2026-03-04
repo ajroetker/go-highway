@@ -136,8 +136,10 @@ func (e *CEmitter) emitCFunction(buf *bytes.Buffer, pf *ParsedFunc) error {
 	}
 
 	// Dynamic lanes variable for SVE linux
-	lExpr := e.lanesExpr()
-	if e.hasDynamicLanes() {
+	dynamic := e.hasDynamicLanes()
+	lExpr := fmt.Sprintf("%d", e.lanes())
+	if dynamic {
+		lExpr = "lanes"
 		fmt.Fprintf(buf, "    long lanes = %s;\n", e.dynamicLanesExpr())
 	}
 	fmt.Fprintf(buf, "\n")
@@ -329,9 +331,16 @@ func (e *CEmitter) emitErfConstants(buf *bytes.Buffer, vecType string) {
 // emitVecComputation emits the SIMD computation for a single vector.
 func (e *CEmitter) emitVecComputation(buf *bytes.Buffer, pf *ParsedFunc, idx int, indent string) {
 	suffix := fmt.Sprintf("%d", idx)
-	x := "x" + suffix
-	res := "res" + suffix
+	e.emitVecComputationFor(buf, pf, "x"+suffix, "res"+suffix, indent)
+}
 
+// emitVecComputationSingle emits computation for a single vector (non-indexed).
+func (e *CEmitter) emitVecComputationSingle(buf *bytes.Buffer, pf *ParsedFunc, indent string) {
+	e.emitVecComputationFor(buf, pf, "x", "res", indent)
+}
+
+// emitVecComputationFor dispatches the SIMD computation for the named input/output variables.
+func (e *CEmitter) emitVecComputationFor(buf *bytes.Buffer, pf *ParsedFunc, x, res, indent string) {
 	switch {
 	case strings.Contains(pf.Name, "ExpVec") && !strings.Contains(pf.Name, "Sigmoid"):
 		e.emitExpComputation(buf, x, res, indent)
@@ -341,20 +350,6 @@ func (e *CEmitter) emitVecComputation(buf *bytes.Buffer, pf *ParsedFunc, idx int
 		e.emitErfComputation(buf, x, res, indent)
 	default:
 		fmt.Fprintf(buf, "%s%s %s = %s; // TODO: implement %s\n", indent, e.vecType(), res, x, pf.Name)
-	}
-}
-
-// emitVecComputationSingle emits computation for a single vector (non-indexed).
-func (e *CEmitter) emitVecComputationSingle(buf *bytes.Buffer, pf *ParsedFunc, indent string) {
-	switch {
-	case strings.Contains(pf.Name, "ExpVec") && !strings.Contains(pf.Name, "Sigmoid"):
-		e.emitExpComputation(buf, "x", "res", indent)
-	case strings.Contains(pf.Name, "SigmoidVec"):
-		e.emitSigmoidComputation(buf, "x", "res", indent)
-	case strings.Contains(pf.Name, "ErfVec"):
-		e.emitErfComputation(buf, "x", "res", indent)
-	default:
-		fmt.Fprintf(buf, "%s%s res = x; // TODO: implement %s\n", indent, e.vecType(), pf.Name)
 	}
 }
 
@@ -477,8 +472,6 @@ func (e *CEmitter) isSVE() bool {
 	return e.profile != nil && e.profile.NeedsPredicate
 }
 
-
-
 // hasDynamicLanes returns true if any non-scalar tier uses dynamic lanes.
 func (e *CEmitter) hasDynamicLanes() bool {
 	if e.profile == nil {
@@ -504,14 +497,6 @@ func (e *CEmitter) dynamicLanesExpr() string {
 		}
 	}
 	return ""
-}
-
-// lanesExpr returns either a literal (e.g. "16") or "lanes" for dynamic mode.
-func (e *CEmitter) lanesExpr() string {
-	if e.hasDynamicLanes() {
-		return "lanes"
-	}
-	return fmt.Sprintf("%d", e.lanes())
 }
 
 // Helper methods for type-specific intrinsics
@@ -568,8 +553,10 @@ func (e *CEmitter) cType() string {
 }
 
 func (e *CEmitter) vecType() string {
-	if fn, ok := e.profileIntrinsic(e.profile.VecTypes); ok {
-		return fn
+	if e.profile != nil {
+		if fn, ok := e.profileIntrinsic(e.profile.VecTypes); ok {
+			return fn
+		}
 	}
 	if e.elemType == "float32" {
 		return "float32x4_t"
@@ -592,8 +579,10 @@ func (e *CEmitter) lanes() int {
 }
 
 func (e *CEmitter) loadIntrinsic() string {
-	if fn, ok := e.profileIntrinsic(e.profile.LoadFn); ok {
-		return fn
+	if e.profile != nil {
+		if fn, ok := e.profileIntrinsic(e.profile.LoadFn); ok {
+			return fn
+		}
 	}
 	if e.elemType == "float32" {
 		return "vld1q_f32"
@@ -602,8 +591,10 @@ func (e *CEmitter) loadIntrinsic() string {
 }
 
 func (e *CEmitter) storeIntrinsic() string {
-	if fn, ok := e.profileIntrinsic(e.profile.StoreFn); ok {
-		return fn
+	if e.profile != nil {
+		if fn, ok := e.profileIntrinsic(e.profile.StoreFn); ok {
+			return fn
+		}
 	}
 	if e.elemType == "float32" {
 		return "vst1q_f32"
@@ -612,8 +603,10 @@ func (e *CEmitter) storeIntrinsic() string {
 }
 
 func (e *CEmitter) dupIntrinsic() string {
-	if fn, ok := e.profileIntrinsic(e.profile.DupFn); ok {
-		return fn
+	if e.profile != nil {
+		if fn, ok := e.profileIntrinsic(e.profile.DupFn); ok {
+			return fn
+		}
 	}
 	if e.elemType == "float32" {
 		return "vdupq_n_f32"
@@ -622,8 +615,10 @@ func (e *CEmitter) dupIntrinsic() string {
 }
 
 func (e *CEmitter) getLaneIntrinsic() string {
-	if fn, ok := e.profileIntrinsic(e.profile.GetLaneFn); ok {
-		return fn
+	if e.profile != nil {
+		if fn, ok := e.profileIntrinsic(e.profile.GetLaneFn); ok {
+			return fn
+		}
 	}
 	if e.elemType == "float32" {
 		return "vgetq_lane_f32"
@@ -633,7 +628,7 @@ func (e *CEmitter) getLaneIntrinsic() string {
 
 func (e *CEmitter) cFuncName(baseName string) string {
 	// BaseExpVec -> expvec_c_f32_neon, BasePrefixSum -> prefixsum_c_f32_neon
-	name := strings.TrimPrefix(baseName, "Base")
+	name := stripBasePrefix(baseName)
 	targetSuffix := "neon"
 	if e.profile != nil {
 		targetSuffix = strings.ToLower(e.profile.TargetName)
@@ -1364,66 +1359,51 @@ func (e *CEmitter) emitErfComputationAVX(buf *bytes.Buffer, x, res, indent, vecT
 // Profile intrinsic lookup helpers
 // ---------------------------------------------------------------------------
 
-// profileOpFn returns the intrinsic function name for an operation, checking
-// the profile's op maps.  It uses the first non-scalar tier as the default.
-func (e *CEmitter) profileOpFn(opName string) string {
+// opFnMap returns the per-tier intrinsic map for the named operation, or nil.
+func (e *CEmitter) opFnMap(opName string) map[string]string {
 	if e.profile == nil {
-		return ""
+		return nil
 	}
 	prf := e.profile
-
-	// Check the dedicated fields first.
 	switch opName {
 	case "Add":
-		return mapFirstValue(prf.AddFn)
+		return prf.AddFn
 	case "Sub":
-		return mapFirstValue(prf.SubFn)
+		return prf.SubFn
 	case "Mul":
-		return mapFirstValue(prf.MulFn)
+		return prf.MulFn
 	case "Div":
-		return mapFirstValue(prf.DivFn)
+		return prf.DivFn
 	case "Min":
-		return mapFirstValue(prf.MinFn)
+		return prf.MinFn
 	case "Max":
-		return mapFirstValue(prf.MaxFn)
+		return prf.MaxFn
 	case "Neg":
-		return mapFirstValue(prf.NegFn)
+		return prf.NegFn
 	case "Abs":
-		return mapFirstValue(prf.AbsFn)
+		return prf.AbsFn
 	case "Sqrt":
-		return mapFirstValue(prf.SqrtFn)
+		return prf.SqrtFn
+	}
+	return nil
+}
+
+// profileOpFn returns the intrinsic function name for an operation, using the
+// widest non-scalar tier as the default.
+func (e *CEmitter) profileOpFn(opName string) string {
+	m := e.opFnMap(opName)
+	if m == nil {
+		return ""
+	}
+	if tier := e.widestTier(); tier != "" {
+		return m[tier]
 	}
 	return ""
 }
 
 // profileTierOpFn returns the intrinsic for a specific tier, or "" if not found.
 func (e *CEmitter) profileTierOpFn(opName, tierName string) string {
-	if e.profile == nil {
-		return ""
-	}
-	prf := e.profile
-
-	var m map[string]string
-	switch opName {
-	case "Add":
-		m = prf.AddFn
-	case "Sub":
-		m = prf.SubFn
-	case "Mul":
-		m = prf.MulFn
-	case "Div":
-		m = prf.DivFn
-	case "Min":
-		m = prf.MinFn
-	case "Max":
-		m = prf.MaxFn
-	case "Neg":
-		m = prf.NegFn
-	case "Abs":
-		m = prf.AbsFn
-	case "Sqrt":
-		m = prf.SqrtFn
-	}
+	m := e.opFnMap(opName)
 	if m == nil {
 		return ""
 	}
@@ -1442,14 +1422,6 @@ func scalarBinaryOp(opName string) string {
 		return "*"
 	case "Div":
 		return "/"
-	}
-	return ""
-}
-
-// mapFirstValue returns the first value from a string map (arbitrary order).
-func mapFirstValue(m map[string]string) string {
-	for _, v := range m {
-		return v
 	}
 	return ""
 }

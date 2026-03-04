@@ -34,84 +34,41 @@ func Analyze(fn *IRFunction) {
 	propagateLoopRanges(fn)
 }
 
-// defInfo tracks where a variable is defined and used.
+// defInfo tracks where a variable is defined.
 type defInfo struct {
-	def  *IRNode   // The node that defines (produces) this variable
-	uses []*IRNode // Nodes that use this variable
+	def *IRNode // The node that defines (produces) this variable
 }
 
 // buildDefMap builds a map from variable name to definition info.
 func buildDefMap(fn *IRFunction) map[string]*defInfo {
 	defs := make(map[string]*defInfo)
-
-	// Walk all operations
-	var walkNodes func([]*IRNode)
-	walkNodes = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			// Record definitions (outputs)
-			for _, out := range node.Outputs {
-				defs[out] = &defInfo{def: node}
-			}
-
-			// Walk children (loop bodies)
-			if len(node.Children) > 0 {
-				walkNodes(node.Children)
-			}
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		for _, out := range node.Outputs {
+			defs[out] = &defInfo{def: node}
 		}
-	}
-	walkNodes(fn.Operations)
-
-	// Second pass: record uses
-	var walkUses func([]*IRNode)
-	walkUses = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			// Check input names (variable references)
-			for _, name := range node.InputNames {
-				if info, ok := defs[name]; ok {
-					info.uses = append(info.uses, node)
-				}
-			}
-
-			// Walk children
-			if len(node.Children) > 0 {
-				walkUses(node.Children)
-			}
-		}
-	}
-	walkUses(fn.Operations)
-
+	})
 	return defs
 }
 
 // linkProducersConsumers establishes producer-consumer relationships.
 func linkProducersConsumers(fn *IRFunction, defs map[string]*defInfo) {
-	var walkNodes func([]*IRNode)
-	walkNodes = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			// Link inputs (IRNode references) to their producers
-			for _, input := range node.Inputs {
-				if input != nil {
-					// input is the producer of this node's input
-					input.Consumers = appendUnique(input.Consumers, node)
-					node.Producers = appendUnique(node.Producers, input)
-				}
-			}
-
-			// Link InputNames (variable references) to their producers
-			for _, name := range node.InputNames {
-				if info, ok := defs[name]; ok && info.def != nil {
-					info.def.Consumers = appendUnique(info.def.Consumers, node)
-					node.Producers = appendUnique(node.Producers, info.def)
-				}
-			}
-
-			// Walk children
-			if len(node.Children) > 0 {
-				walkNodes(node.Children)
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		// Link inputs (IRNode references) to their producers
+		for _, input := range node.Inputs {
+			if input != nil {
+				input.Consumers = appendUnique(input.Consumers, node)
+				node.Producers = appendUnique(node.Producers, input)
 			}
 		}
-	}
-	walkNodes(fn.Operations)
+
+		// Link InputNames (variable references) to their producers
+		for _, name := range node.InputNames {
+			if info, ok := defs[name]; ok && info.def != nil {
+				info.def.Consumers = appendUnique(info.def.Consumers, node)
+				node.Producers = appendUnique(node.Producers, info.def)
+			}
+		}
+	})
 }
 
 // propagateLoopRanges ensures all nodes inside loops have their LoopRange set.
@@ -161,26 +118,13 @@ type FusionCandidate struct {
 // FindFusionCandidates identifies operations that could be fused.
 func FindFusionCandidates(fn *IRFunction) []FusionCandidate {
 	var candidates []FusionCandidate
-
-	// Walk all nodes looking for fusion opportunities
-	var walkNodes func([]*IRNode)
-	walkNodes = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			// Look at each consumer of this node
-			for _, consumer := range node.Consumers {
-				if candidate := checkFusionPair(node, consumer); candidate != nil {
-					candidates = append(candidates, *candidate)
-				}
-			}
-
-			// Walk children
-			if len(node.Children) > 0 {
-				walkNodes(node.Children)
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		for _, consumer := range node.Consumers {
+			if candidate := checkFusionPair(node, consumer); candidate != nil {
+				candidates = append(candidates, *candidate)
 			}
 		}
-	}
-	walkNodes(fn.Operations)
-
+	})
 	return candidates
 }
 
@@ -198,7 +142,7 @@ func checkFusionPair(producer, consumer *IRNode) *FusionCandidate {
 		return &FusionCandidate{
 			Producer: producer,
 			Consumer: consumer,
-			Pattern:  "Elem+Elem",
+			Pattern:  PatternElemElem,
 			Benefit:  10, // Eliminates intermediate store/load
 		}
 
@@ -207,7 +151,7 @@ func checkFusionPair(producer, consumer *IRNode) *FusionCandidate {
 		return &FusionCandidate{
 			Producer: producer,
 			Consumer: consumer,
-			Pattern:  "Elem+Reduce",
+			Pattern:  PatternElemReduce,
 			Benefit:  20, // Eliminates temp array + extra pass
 		}
 
@@ -217,7 +161,7 @@ func checkFusionPair(producer, consumer *IRNode) *FusionCandidate {
 			return &FusionCandidate{
 				Producer: producer,
 				Consumer: consumer,
-				Pattern:  "AllocElim",
+				Pattern:  PatternAllocElim,
 				Benefit:  30, // Eliminates heap allocation
 			}
 		}
@@ -228,7 +172,7 @@ func checkFusionPair(producer, consumer *IRNode) *FusionCandidate {
 			return &FusionCandidate{
 				Producer: producer,
 				Consumer: consumer,
-				Pattern:  "Load+Elem",
+				Pattern:  PatternLoadElem,
 				Benefit:  5, // Minor benefit
 			}
 		}
@@ -238,7 +182,7 @@ func checkFusionPair(producer, consumer *IRNode) *FusionCandidate {
 		return &FusionCandidate{
 			Producer: producer,
 			Consumer: consumer,
-			Pattern:  "Elem+Store",
+			Pattern:  PatternElemStore,
 			Benefit:  5,
 		}
 	}
@@ -260,21 +204,11 @@ func loopRangesCompatible(a, b *LoopRange) bool {
 // IdentifyAllocationsToEliminate finds temporary allocations that can be removed.
 func IdentifyAllocationsToEliminate(fn *IRFunction) []*IRNode {
 	var toEliminate []*IRNode
-
-	var walkNodes func([]*IRNode)
-	walkNodes = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			if node.Kind == OpKindAlloc && canEliminateAlloc(node) {
-				toEliminate = append(toEliminate, node)
-			}
-
-			if len(node.Children) > 0 {
-				walkNodes(node.Children)
-			}
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		if node.Kind == OpKindAlloc && canEliminateAlloc(node) {
+			toEliminate = append(toEliminate, node)
 		}
-	}
-	walkNodes(fn.Operations)
-
+	})
 	return toEliminate
 }
 
@@ -297,23 +231,17 @@ func canEliminateAlloc(alloc *IRNode) bool {
 
 	// Check if the array is both written and read within the same loop,
 	// and not used outside the loop
+	arrayName := alloc.Outputs[0]
 	var hasWrite, hasRead bool
 	for _, child := range consumer.Children {
-		if child.Kind == OpKindStore {
-			// Check if storing to our allocated array
-			for _, name := range child.InputNames {
-				if name == alloc.Outputs[0] {
-					hasWrite = true
-				}
-			}
+		if hasWrite && hasRead {
+			break
 		}
-		if child.Kind == OpKindLoad {
-			// Check if loading from our allocated array
-			for _, name := range child.InputNames {
-				if name == alloc.Outputs[0] {
-					hasRead = true
-				}
-			}
+		if child.Kind == OpKindStore && slices.Contains(child.InputNames, arrayName) {
+			hasWrite = true
+		}
+		if child.Kind == OpKindLoad && slices.Contains(child.InputNames, arrayName) {
+			hasRead = true
 		}
 	}
 
@@ -349,22 +277,18 @@ func IdentifyCrossLoopAllocations(fn *IRFunction) []CrossLoopTempArray {
 		var writeLoop, readLoop *IRNode
 		var writeStore, readLoad *IRNode
 
-		// Scan all loops in the function
-		for _, op := range fn.Operations {
+		// Scan all loops in the function (including nested)
+		WalkNodes(fn.Operations, func(op *IRNode) {
 			if op.Kind != OpKindLoop {
-				continue
+				return
 			}
 
-			// Check if this loop writes to the array
+			// Check children for both writes and reads in a single pass
 			for _, child := range op.Children {
 				if child.Kind == OpKindStore && slices.Contains(child.InputNames, arrayName) {
 					writeLoop = op
 					writeStore = child
 				}
-			}
-
-			// Check if this loop reads from the array
-			for _, child := range op.Children {
 				if child.Kind == OpKindLoad && slices.Contains(child.InputNames, arrayName) {
 					// Only consider as read loop if different from write loop
 					if writeLoop != nil && op.ID != writeLoop.ID {
@@ -373,7 +297,7 @@ func IdentifyCrossLoopAllocations(fn *IRFunction) []CrossLoopTempArray {
 					}
 				}
 			}
-		}
+		})
 
 		// If we found both write and read loops with same iteration space
 		if writeLoop != nil && readLoop != nil {
@@ -422,117 +346,25 @@ func FindLoopChain(fn *IRFunction, startLoop *IRNode, tempArrays []CrossLoopTemp
 	return chain
 }
 
-// ComputeDepthFirst returns nodes in depth-first order for processing.
-func ComputeDepthFirst(fn *IRFunction) []*IRNode {
-	var result []*IRNode
-	visited := make(map[int]bool)
-
-	var dfs func(*IRNode)
-	dfs = func(node *IRNode) {
-		if visited[node.ID] {
-			return
-		}
-		visited[node.ID] = true
-
-		// Visit producers first
-		for _, producer := range node.Producers {
-			dfs(producer)
-		}
-
-		result = append(result, node)
-
-		// Visit children
-		for _, child := range node.Children {
-			dfs(child)
-		}
-	}
-
-	for _, op := range fn.Operations {
-		dfs(op)
-	}
-
-	return result
-}
-
-// ComputeTopologicalOrder returns nodes in topological order.
-func ComputeTopologicalOrder(fn *IRFunction) []*IRNode {
-	var result []*IRNode
-	visited := make(map[int]bool)
-
-	var visit func(*IRNode)
-	visit = func(node *IRNode) {
-		if visited[node.ID] {
-			return
-		}
-		visited[node.ID] = true
-
-		// Visit consumers first (reverse topological)
-		for _, consumer := range node.Consumers {
-			visit(consumer)
-		}
-
-		result = append(result, node)
-	}
-
-	// Start from nodes with no consumers (outputs)
-	for _, op := range fn.Operations {
-		if len(op.Consumers) == 0 {
-			visit(op)
-		}
-	}
-
-	// Reverse to get topological order
-	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
-		result[i], result[j] = result[j], result[i]
-	}
-
-	return result
-}
-
 // CountMemoryPasses estimates the number of memory passes for the current IR.
 // Used to measure fusion effectiveness.
 func CountMemoryPasses(fn *IRFunction) int {
 	passes := 0
-
-	var walkNodes func([]*IRNode)
-	walkNodes = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			// Each loop is potentially a memory pass
-			if node.Kind == OpKindLoop {
-				passes++
-			}
-
-			// Allocations that persist across loops add passes
-			if node.Kind == OpKindAlloc {
-				passes++
-			}
-
-			if len(node.Children) > 0 {
-				walkNodes(node.Children)
-			}
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		if node.Kind == OpKindLoop || node.Kind == OpKindAlloc {
+			passes++
 		}
-	}
-	walkNodes(fn.Operations)
-
+	})
 	return passes
 }
 
 // CountAllocations returns the number of heap allocations in the IR.
 func CountAllocations(fn *IRFunction) int {
 	count := 0
-
-	var walkNodes func([]*IRNode)
-	walkNodes = func(nodes []*IRNode) {
-		for _, node := range nodes {
-			if node.Kind == OpKindAlloc {
-				count++
-			}
-			if len(node.Children) > 0 {
-				walkNodes(node.Children)
-			}
+	WalkNodes(fn.Operations, func(node *IRNode) {
+		if node.Kind == OpKindAlloc {
+			count++
 		}
-	}
-	walkNodes(fn.Operations)
-
+	})
 	return count
 }
