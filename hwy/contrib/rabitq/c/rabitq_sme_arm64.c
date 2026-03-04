@@ -52,11 +52,14 @@ void rabitq_bit_product_sme(unsigned long *code,
         // Main vector loop
         for (; i + vl <= len; i += vl) {
             // Load as 64-bit elements
-            svuint64_t vc = svld1_u64(pg, code + i);
-            svuint64_t vq1 = svld1_u64(pg, q1 + i);
-            svuint64_t vq2 = svld1_u64(pg, q2 + i);
-            svuint64_t vq3 = svld1_u64(pg, q3 + i);
-            svuint64_t vq4 = svld1_u64(pg, q4 + i);
+            // Cast from unsigned long* to const uint64_t* for clang 22+
+            // compatibility: on ARM64 macOS, unsigned long (64-bit) and
+            // uint64_t (unsigned long long) are distinct types.
+            svuint64_t vc = svld1_u64(pg, (const uint64_t *)(code + i));
+            svuint64_t vq1 = svld1_u64(pg, (const uint64_t *)(q1 + i));
+            svuint64_t vq2 = svld1_u64(pg, (const uint64_t *)(q2 + i));
+            svuint64_t vq3 = svld1_u64(pg, (const uint64_t *)(q3 + i));
+            svuint64_t vq4 = svld1_u64(pg, (const uint64_t *)(q4 + i));
 
             // AND and count bits
             svuint64_t and1 = svand_u64_z(pg, vc, vq1);

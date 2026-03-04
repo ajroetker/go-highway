@@ -249,6 +249,17 @@ func (t *TranslateUnit) compile(args ...string) error {
 	if err != nil {
 		return err
 	}
+
+	// Fix clang ≥22 SME assembly: replace immediate base offsets (#N) in
+	// MOVA ZA tile access with the required register form (w12-w15).
+	// Clang's code generator emits "mova z29.s, p0/m, za0h.s[#0, 1]" but
+	// its own integrated assembler now rejects the #N shorthand.
+	if t.Target == "arm64" {
+		if err := fixSMEMovaImmediate(t.Assembly); err != nil {
+			return err
+		}
+	}
+
 	_, err = runCommand("clang", append([]string{"-target", target, "-c", t.Assembly, "-o", t.Object}, args...)...)
 	return err
 }

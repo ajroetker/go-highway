@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 )
@@ -644,5 +645,206 @@ func TestSVEPrologue(t *testing.T) {
 		if !strings.Contains(prologue, attr) {
 			t.Errorf("SVEPrologue() missing SME attribute %s", attr)
 		}
+	}
+}
+
+func TestFixSMEMovaImmediate(t *testing.T) {
+	tests := []struct {
+		name string
+		// input lines of assembly (one per line, tabs for indentation)
+		input []string
+		// expected output lines after fixup
+		want []string
+	}{
+		{
+			name: "no mova - unchanged",
+			input: []string{
+				"\tmov\tx0, x1",
+				"\tadd\tx0, x1, x2",
+				"\tret",
+			},
+			want: []string{
+				"\tmov\tx0, x1",
+				"\tadd\tx0, x1, x2",
+				"\tret",
+			},
+		},
+		{
+			name: "mova with #0 base - rewritten to w12",
+			input: []string{
+				"\tmov\tw13, #0",
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+				"\tmova\tz29.s, p0/m, za0h.s[#0, 1]",
+				"\tmova\tz29.s, p0/m, za0h.s[#0, 2]",
+				"\tmova\tz29.s, p0/m, za0h.s[#0, 3]",
+			},
+			want: []string{
+				"\tmov\tw13, #0",
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+				"\tmov\tw12, wzr",
+				"\tmov\tz29.s, p0/m, za0h.s[w12, 1]",
+				"\tmov\tw12, wzr",
+				"\tmov\tz29.s, p0/m, za0h.s[w12, 2]",
+				"\tmov\tw12, wzr",
+				"\tmov\tz29.s, p0/m, za0h.s[w12, 3]",
+			},
+		},
+		{
+			name: "mova with #0 base and double precision",
+			input: []string{
+				"\tmova\tz7.d, p0/m, za0h.d[#0, 1]",
+			},
+			want: []string{
+				"\tmov\tw12, wzr",
+				"\tmov\tz7.d, p0/m, za0h.d[w12, 1]",
+			},
+		},
+		{
+			name: "mov (not mova) with #0 base also fixed",
+			input: []string{
+				"\tmov\tz29.s, p0/m, za2h.s[#0, 1]",
+			},
+			want: []string{
+				"\tmov\tw12, wzr",
+				"\tmov\tz29.s, p0/m, za2h.s[w12, 1]",
+			},
+		},
+		{
+			name: "vertical tile access also fixed",
+			input: []string{
+				"\tmova\tz0.s, p0/m, za0v.s[#0, 2]",
+			},
+			want: []string{
+				"\tmov\tw12, wzr",
+				"\tmov\tz0.s, p0/m, za0v.s[w12, 2]",
+			},
+		},
+		{
+			name: "mova with #1 base - rewritten to w13",
+			input: []string{
+				"\tmova\tz29.s, p0/m, za0h.s[#1, 0]",
+			},
+			want: []string{
+				"\tmov\tw13, #1",
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+			},
+		},
+		{
+			name: "mova with #2 base - rewritten to w14",
+			input: []string{
+				"\tmova\tz0.s, p0/m, za0h.s[#2, 1]",
+			},
+			want: []string{
+				"\tmov\tw14, #2",
+				"\tmov\tz0.s, p0/m, za0h.s[w14, 1]",
+			},
+		},
+		{
+			name: "mova with #3 base - rewritten to w15",
+			input: []string{
+				"\tmova\tz1.d, p0/m, za0v.d[#3, 0]",
+			},
+			want: []string{
+				"\tmov\tw15, #3",
+				"\tmov\tz1.d, p0/m, za0v.d[w15, 0]",
+			},
+		},
+		{
+			name: "register form already correct - unchanged",
+			input: []string{
+				"\tmov\tz0.s, p0/m, za0h.s[w12, 0]",
+				"\tmov\tz0.s, p0/m, za0h.s[w13, 0]",
+			},
+			want: []string{
+				"\tmov\tz0.s, p0/m, za0h.s[w12, 0]",
+				"\tmov\tz0.s, p0/m, za0h.s[w13, 0]",
+			},
+		},
+		{
+			name: "mixed - only immediate forms rewritten",
+			input: []string{
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+				"\tmova\tz29.s, p0/m, za0h.s[#0, 1]",
+				"\tmov\tw13, #4",
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+			},
+			want: []string{
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+				"\tmov\tw12, wzr",
+				"\tmov\tz29.s, p0/m, za0h.s[w12, 1]",
+				"\tmov\tw13, #4",
+				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Write input to temp file
+			tmpFile := t.TempDir() + "/test.s"
+			input := strings.Join(tt.input, "\n") + "\n"
+			if err := os.WriteFile(tmpFile, []byte(input), 0644); err != nil {
+				t.Fatalf("write temp file: %v", err)
+			}
+
+			// Run fixup
+			if err := fixSMEMovaImmediate(tmpFile); err != nil {
+				t.Fatalf("fixSMEMovaImmediate: %v", err)
+			}
+
+			// Read result
+			data, err := os.ReadFile(tmpFile)
+			if err != nil {
+				t.Fatalf("read temp file: %v", err)
+			}
+
+			gotLines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+			if len(gotLines) != len(tt.want) {
+				t.Fatalf("got %d lines, want %d\ngot:\n%s\nwant:\n%s",
+					len(gotLines), len(tt.want),
+					strings.Join(gotLines, "\n"), strings.Join(tt.want, "\n"))
+			}
+			for i := range gotLines {
+				if gotLines[i] != tt.want[i] {
+					t.Errorf("line %d:\ngot:  %q\nwant: %q", i, gotLines[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestSmeMovaImmRegex(t *testing.T) {
+	tests := []struct {
+		input string
+		match bool
+	}{
+		// Should match
+		{"mova\tz29.s, p0/m, za0h.s[#0, 1]", true},
+		{"mova\tz29.s, p0/m, za0h.s[#0, 2]", true},
+		{"mova\tz29.s, p0/m, za0h.s[#0, 3]", true},
+		{"mova\tz7.d, p0/m, za0h.d[#0, 1]", true},
+		{"mova\tz0.s, p0/m, za0v.s[#0, 2]", true},
+		{"mov\tz29.s, p0/m, za2h.s[#0, 1]", true},
+		{"mova\tz0.s, p0/m, za0h.s[#1, 0]", true},
+		{"mova\tz0.s, p0/m, za0h.s[#2, 1]", true},
+		{"mova\tz1.d, p0/m, za0v.d[#3, 0]", true},
+
+		// Should not match - already uses register
+		{"mov\tz0.s, p0/m, za0h.s[w12, 0]", false},
+		{"mov\tz0.s, p0/m, za0h.s[w13, 1]", false},
+
+		// Should not match - unrelated instructions
+		{"mov\tx0, x1", false},
+		{"movi\td0, #0", false},
+		{"add\tx0, x1, x2", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := smeMovaImm.MatchString(tt.input)
+			if got != tt.match {
+				t.Errorf("smeMovaImm.MatchString(%q) = %v, want %v", tt.input, got, tt.match)
+			}
+		})
 	}
 }

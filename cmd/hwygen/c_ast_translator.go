@@ -2818,6 +2818,9 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		if len(e.Args) == 2 {
 			a := t.translateExpr(e.Args[0])
 			b := t.translateExpr(e.Args[1])
+			if a == b {
+				return a // both args resolve to the same C expression
+			}
 			return fmt.Sprintf("((%s) < (%s) ? (%s) : (%s))", a, b, a, b)
 		}
 	}
@@ -2825,6 +2828,9 @@ func (t *CASTTranslator) translateCallExpr(e *ast.CallExpr) string {
 		if len(e.Args) == 2 {
 			a := t.translateExpr(e.Args[0])
 			b := t.translateExpr(e.Args[1])
+			if a == b {
+				return a // both args resolve to the same C expression
+			}
 			return fmt.Sprintf("((%s) > (%s) ? (%s) : (%s))", a, b, a, b)
 		}
 	}
@@ -4031,7 +4037,11 @@ func (t *CASTTranslator) translateLoad4Assign(lhs []ast.Expr, args []ast.Expr, t
 		load4Fn := t.profile.Load4Fn[t.tier]
 		tmpName := fmt.Sprintf("_load4_%d", t.tmpCount)
 		t.tmpCount++
-		t.writef("%s %s = %s(%s);\n", x4Type, tmpName, load4Fn, ptr)
+		load4Ptr := ptr
+		if t.profile.CastExpr != "" {
+			load4Ptr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptr)
+		}
+		t.writef("%s %s = %s(%s);\n", x4Type, tmpName, load4Fn, load4Ptr)
 		for i := range 4 {
 			if tok == token.DEFINE {
 				t.vars[names[i]] = cVarInfo{cType: vecType, isVector: true}
@@ -4048,6 +4058,9 @@ func (t *CASTTranslator) translateLoad4Assign(lhs []ast.Expr, args []ast.Expr, t
 			ptrExpr := ptr
 			if i > 0 {
 				ptrExpr = fmt.Sprintf("%s + %d", ptr, i*t.lanes)
+			}
+			if t.profile.CastExpr != "" {
+				ptrExpr = fmt.Sprintf("%s(%s)", t.profile.CastExpr, ptrExpr)
 			}
 			if t.profile.NeedsPredicate {
 				loadExpr = fmt.Sprintf("%s(pg, %s)", loadFn, ptrExpr)
