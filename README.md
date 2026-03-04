@@ -61,19 +61,19 @@ These are fundamental SIMD operations that map directly to hardware instructions
 
 | Category | Operations |
 |----------|------------|
-| Load/Store | `Load`, `LoadFull`, `Store`, `StoreFull`, `Set`, `Zero`, `MaskLoad`, `MaskStore`, `Load4` |
+| Load/Store | `Load`, `LoadSlice`, `Store`, `StoreSlice`, `Set`, `Zero`, `MaskLoad`, `MaskStore`, `Load4` |
 | Arithmetic | `Add`, `Sub`, `Mul`, `Div`, `Neg`, `Abs`, `Min`, `Max`, `FMA`, `MulAdd` |
 | Math | `Sqrt`, `RSqrt`, `RSqrtNewtonRaphson`, `RSqrtPrecise`, `Pow` |
 | Reduction | `ReduceSum`, `ReduceMin`, `ReduceMax` |
 | Comparison | `Equal`, `NotEqual`, `LessThan`, `LessEqual`, `GreaterThan`, `GreaterEqual` |
 | Conditional | `IfThenElse`, `IfThenElseZero`, `IfThenZeroElse`, `ZeroIfNegative` |
-| Bitwise | `And`, `Or`, `Xor`, `Not`, `AndNot`, `ShiftLeft`, `ShiftRight`, `PopCount` |
-| Shuffle | `GetLane`, `Reverse`, `Broadcast`, `Iota` |
+| Bitwise | `And`, `Or`, `Xor`, `Not`, `AndNot`, `ShiftLeft`, `ShiftRight`, `PopCount`, `ReverseBits` |
+| Shuffle | `GetLane`, `Reverse`, `Reverse2`, `Reverse4`, `Reverse8`, `Broadcast`, `Iota` |
 | Type Cast | `AsInt32`, `AsFloat32`, `AsInt64`, `AsFloat64` |
 | Float Check | `IsNaN`, `IsInf`, `IsFinite`, `RoundToEven` |
 | Utilities | `NumLanes`, `SignBit`, `Const`, `ConstValue` |
 
-`LoadFull`/`StoreFull` provide bounds-check-free operations when you know the slice has sufficient capacity.
+`Load`/`Store` skip bounds checking for performance-critical inner loops (caller must guarantee sufficient length). `LoadSlice`/`StoreSlice` are safe variants that handle short slices.
 
 Low-level SIMD functions for direct archsimd usage:
 - `Sqrt_AVX2_F32x8`, `Sqrt_AVX2_F64x4` - Hardware sqrt (VSQRTPS/VSQRTPD)
@@ -87,26 +87,29 @@ The contrib package is organized into two subpackages:
 **Algorithm Transforms** (`hwy/contrib/algo`):
 | Function | Description |
 |----------|-------------|
-| `ExpTransform`, `ExpTransform64` | Apply exp(x) to slices |
-| `LogTransform`, `LogTransform64` | Apply ln(x) to slices |
-| `SinTransform`, `SinTransform64` | Apply sin(x) to slices |
-| `CosTransform`, `CosTransform64` | Apply cos(x) to slices |
-| `TanhTransform`, `TanhTransform64` | Apply tanh(x) to slices |
-| `SigmoidTransform`, `SigmoidTransform64` | Apply 1/(1+e^-x) to slices |
-| `ErfTransform`, `ErfTransform64` | Apply erf(x) to slices |
-| `Transform32`, `Transform64` | Generic transforms with custom functions |
+| `ExpTransform[T]` | Apply exp(x) to slices |
+| `LogTransform[T]` | Apply ln(x) to slices |
+| `SinTransform[T]` | Apply sin(x) to slices |
+| `CosTransform[T]` | Apply cos(x) to slices |
+| `TanhTransform[T]` | Apply tanh(x) to slices |
+| `SigmoidTransform[T]` | Apply 1/(1+e^-x) to slices |
+| `ErfTransform[T]` | Apply erf(x) to slices |
+
+All transforms are generic over `hwy.Floats` (`float32`, `float64`, `Float16`, `BFloat16`).
 
 **Low-Level Math** (`hwy/contrib/math`):
 | Function | Description |
 |----------|-------------|
-| `Exp_AVX2_F32x8`, `Exp_AVX2_F64x4` | Exponential on SIMD vectors |
-| `Log_AVX2_F32x8`, `Log_AVX2_F64x4` | Natural logarithm on SIMD vectors |
-| `Sin_AVX2_F32x8`, `Cos_AVX2_F32x8` | Trigonometric functions on SIMD vectors |
-| `Tanh_AVX2_F32x8` | Hyperbolic tangent on SIMD vectors |
-| `Sigmoid_AVX2_F32x8` | Logistic function on SIMD vectors |
-| `Erf_AVX2_F32x8` | Error function on SIMD vectors |
+| `BaseExpVec[T]` | Exponential on SIMD vectors |
+| `BaseLogVec[T]`, `BaseLog2Vec[T]`, `BaseLog10Vec[T]` | Logarithm on SIMD vectors |
+| `BaseSinVec[T]`, `BaseCosVec[T]` | Trigonometric functions on SIMD vectors |
+| `BaseTanhVec[T]`, `BaseSinhVec[T]`, `BaseCoshVec[T]` | Hyperbolic functions on SIMD vectors |
+| `BaseAsinhVec[T]`, `BaseAcoshVec[T]`, `BaseAtanhVec[T]` | Inverse hyperbolic functions |
+| `BaseSigmoidVec[T]` | Logistic function on SIMD vectors |
+| `BaseErfVec[T]` | Error function on SIMD vectors |
+| `BaseExp2Vec[T]`, `BasePowVec[T]` | Power functions on SIMD vectors |
 
-All functions support `float32` and `float64` with ~4 ULP accuracy.
+These are vector-register-level building blocks that hwygen generates into target-specific implementations (`_avx2`, `_avx512`, `_neon`, `_fallback`). All functions support `float32`, `float64`, `Float16`, and `BFloat16` with ~4 ULP accuracy.
 
 ### Additional Contrib Packages
 
@@ -117,11 +120,16 @@ All functions support `float32` and `float64` with ~4 ULP accuracy.
 | `hwy/contrib/rabitq` | RaBitQ SIMD operations for vector quantization (ANN search) |
 | `hwy/contrib/activation` | Neural network activation functions |
 | `hwy/contrib/nn` | Neural network primitives |
+| `hwy/contrib/loss` | Loss functions |
 | `hwy/contrib/sort` | SIMD-accelerated sorting algorithms |
 | `hwy/contrib/vec` | Vector distance and similarity functions |
 | `hwy/contrib/bitpack` | Bit packing/unpacking operations |
+| `hwy/contrib/quantize` | Quantization operations |
 | `hwy/contrib/varint` | Variable-length integer encoding |
 | `hwy/contrib/image` | Image processing operations |
+| `hwy/contrib/wavelet` | Wavelet transforms |
+| `hwy/contrib/gguf` | GGUF file format support |
+| `hwy/contrib/workerpool` | Worker pool utilities |
 
 ## Code Generator (hwygen)
 
@@ -197,7 +205,7 @@ See `examples/gelu` and `examples/softmax` for complete examples.
 For maximum performance on ARM64, hwygen can generate bulk assembly via the `neon:asm` target that processes entire arrays in a single call, eliminating per-vector function call overhead.
 
 **Requirements:**
-- [GoAT](https://github.com/gorse-io/goat) - C to Go assembly transpiler (tracked as a tool dependency in go.mod)
+- [GoAT](GOAT.md) - C to Go assembly transpiler (included at `hwy/goat/`)
 
 ```bash
 # Install tool dependencies (GoAT is declared in go.mod)

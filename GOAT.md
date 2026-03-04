@@ -4,10 +4,48 @@ Go assembly transpiler for C programming languages. It helps utilize optimizatio
 
 In go-highway, GoAT is the assembly backend for all ARM64 targets (NEON, SVE, SME). Go 1.26's `simd/archsimd` package supports AVX2 and AVX-512 but does not yet support ARM NEON or SVE, so ARM64 code generation relies on GoAT to transpile C into Go assembly. The hwygen code generator integrates GoAT via the `neon:asm`, `sve_darwin`, and `sve_linux` target modes.
 
+## Prerequisites
+
+The following packages are required:
+
+- Ubuntu for AMD64:
+
+```bash
+sudo apt update
+sudo apt install clang libc6-dev-i386
+```
+
+- Ubuntu for ARM64:
+
+```bash
+sudo apt update
+sudo apt install clang
+```
+
+- macOS:
+
+```bash
+brew install llvm binutils
+
+# Override the default clang and objdump to use Homebrew's version
+export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+export PATH="/opt/homebrew/opt/binutils/bin:$PATH"
+```
+
+- Windows:
+
+Install LLVM and MinGW from the official website or use [Chocolatey](https://chocolatey.org/) package manager:
+
+```bash
+choco install llvm mingw
+```
+
+Cross compile is not supported, so you need to run GoAT on the same architecture as the target architecture.
+
 ## Installation
 
 ```bash
-go install github.com/ajroetker/goat@latest
+go install github.com/ajroetker/go-highway/hwy/goat@latest
 ```
 
 ## Example
@@ -49,8 +87,9 @@ Flags:
   -O, --optimize-level int     Optimization level for clang (0-3, default: 0)
   -m, --machine-option strings Machine options for clang (e.g., -m avx2, -m sse4.2)
   -e, --extra-option strings   Extra options for clang (passed directly)
-  -t, --target string          Target architecture: amd64, arm64, loong64, riscv64 (default: host)
-      --target-os string       Target operating system: darwin, linux, windows (default: host)
+  -t, --target string          Target architecture: amd64, arm64, loong64, riscv64 (default: build machine)
+      --target-os string       Target operating system: darwin, linux, windows (default: build machine)
+      --sysroot string         Sysroot path for cross-compilation (passed as --sysroot to clang)
   -I, --include-path strings   Additional include paths for C parser (for cross-compilation)
   -v, --verbose                Enable verbose output
 ```
@@ -91,8 +130,8 @@ goat src/code.c -o ./asm -O3 -t arm64 --target-os linux -I /path/to/arm64/includ
 - No call statements except for inline functions.
 - Arguments must be int64_t, long, float, double, _Bool or pointer.
 - Potentially BUGGY code generation.
-- Supported return types: `void`, `long`, `float`, `double`, `_Bool`
-- `uint64_t` from the header <stdint.h> is not supported
+- Supported return types: `void`, `long`, `float`, `double`, `float16_t`, `_Bool`
+- `uint64_t` is not supported as a parameter or return type; use `long` instead
 - C source file names should not begin with `_`.
 - **`else` clauses are fully supported** - GOAT compiles C via clang, so `if/else` works correctly. Clang often auto-vectorizes simple if/else into branchless select instructions (e.g., `fcsel`, `fcmgt` + `and`).
 - **Single-line `if` statements with braces are not supported** - `if (x) { y; }` on one line causes parser errors. Use multi-line format instead:
