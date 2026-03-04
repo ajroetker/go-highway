@@ -29,13 +29,15 @@ import (
 )
 
 var supportedTypes = map[string]int{
-	"int32_t":   4,
-	"int64_t":   8,
-	"long":      8,
-	"float":     4,
-	"double":    8,
-	"_Bool":     1,
-	"float16_t": 2,
+	"int32_t":    4,
+	"int64_t":    8,
+	"uint32_t":   4,
+	"uint64_t":   8,
+	"long":       8,
+	"float":      4,
+	"double":     8,
+	"_Bool":      1,
+	"float16_t":  2,
 }
 
 type TranslateUnit struct {
@@ -190,6 +192,10 @@ func (t *TranslateUnit) generateGoStubs(functions []Function) error {
 				builder.WriteString(" (result int32)")
 			case "int64_t", "long":
 				builder.WriteString(" (result int64)")
+			case "uint32_t":
+				builder.WriteString(" (result uint32)")
+			case "uint64_t":
+				builder.WriteString(" (result uint64)")
 			default:
 				// Check for NEON vector types
 				if sz := NeonTypeSize(function.Type); sz > 0 {
@@ -418,6 +424,10 @@ func (p ParameterType) String() string {
 		return "int32"
 	case "int64_t", "long":
 		return "int64"
+	case "uint32_t":
+		return "uint32"
+	case "uint64_t":
+		return "uint64"
 	case "double":
 		return "float64"
 	case "float":

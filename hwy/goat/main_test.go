@@ -4,13 +4,31 @@ import (
 	"testing"
 )
 
-func TestSupportedTypes_Float16(t *testing.T) {
-	sz, ok := supportedTypes["float16_t"]
-	if !ok {
-		t.Fatal("float16_t not in supportedTypes")
+func TestSupportedTypes(t *testing.T) {
+	tests := []struct {
+		typ      string
+		wantSize int
+	}{
+		{"float16_t", 2},
+		{"int32_t", 4},
+		{"int64_t", 8},
+		{"uint32_t", 4},
+		{"uint64_t", 8},
+		{"long", 8},
+		{"float", 4},
+		{"double", 8},
+		{"_Bool", 1},
 	}
-	if sz != 2 {
-		t.Errorf("supportedTypes[float16_t] = %d, want 2", sz)
+	for _, tt := range tests {
+		t.Run(tt.typ, func(t *testing.T) {
+			sz, ok := supportedTypes[tt.typ]
+			if !ok {
+				t.Fatalf("%s not in supportedTypes", tt.typ)
+			}
+			if sz != tt.wantSize {
+				t.Errorf("supportedTypes[%s] = %d, want %d", tt.typ, sz, tt.wantSize)
+			}
+		})
 	}
 }
 
@@ -235,6 +253,8 @@ func TestParameterType_String_ExistingTypes(t *testing.T) {
 		{"long", false, "int64"},
 		{"_Bool", false, "bool"},
 		{"float16_t", false, "uint16"},
+		{"uint32_t", false, "uint32"},
+		{"uint64_t", false, "uint64"},
 		{"float", true, "unsafe.Pointer"},
 	}
 

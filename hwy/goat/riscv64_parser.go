@@ -500,8 +500,10 @@ func (p *RISCV64Parser) generateGoAssembly(t *TranslateUnit, functions []Functio
 				}
 				if function.Type != "void" {
 					switch function.Type {
-					case "int64_t", "long":
+					case "int64_t", "uint64_t", "long":
 						builder.WriteString(fmt.Sprintf("\tMOV A0, result+%d(FP)\n", offset))
+					case "int32_t", "uint32_t":
+						builder.WriteString(fmt.Sprintf("\tMOVW A0, result+%d(FP)\n", offset))
 					case "_Bool":
 						builder.WriteString(fmt.Sprintf("\tMOVB A0, result+%d(FP)\n", offset))
 					case "double":

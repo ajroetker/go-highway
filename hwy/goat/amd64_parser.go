@@ -935,8 +935,10 @@ func (p *AMD64Parser) generateGoAssembly(t *TranslateUnit, functions []Function,
 				}
 				if function.Type != "void" {
 					switch function.Type {
-					case "int64_t", "long", "_Bool":
+					case "int64_t", "uint64_t", "long", "_Bool":
 						builder.WriteString(fmt.Sprintf("\tMOVQ AX, result+%d(FP)\n", offset))
+					case "int32_t", "uint32_t":
+						builder.WriteString(fmt.Sprintf("\tMOVL AX, result+%d(FP)\n", offset))
 					case "double":
 						builder.WriteString(fmt.Sprintf("\tMOVSD X0, result+%d(FP)\n", offset))
 					case "float":

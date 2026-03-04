@@ -460,8 +460,10 @@ func (p *Loong64Parser) generateGoAssembly(t *TranslateUnit, functions []Functio
 				}
 				if function.Type != "void" {
 					switch function.Type {
-					case "int64_t", "long", "_Bool":
+					case "int64_t", "uint64_t", "long", "_Bool":
 						builder.WriteString(fmt.Sprintf("\tMOVV R4, result+%d(FP)\n", offset))
+					case "int32_t", "uint32_t":
+						builder.WriteString(fmt.Sprintf("\tMOVW R4, result+%d(FP)\n", offset))
 					case "double":
 						builder.WriteString(fmt.Sprintf("\tMOVD F0, result+%d(FP)\n", offset))
 					case "float":
