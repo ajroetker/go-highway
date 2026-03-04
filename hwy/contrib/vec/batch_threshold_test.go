@@ -47,7 +47,7 @@ func generateBenchData(count, dims int) (query []float32, data []float32, result
 func batchDotGoATLoop(query []float32, data []float32, dots []float32, count int, dims int) {
 	for i := range count {
 		offset := i * dims
-		dots[i] = asm.DotF32(query, data[offset:offset+dims])
+		dots[i] = DotFloat32(query, data[offset:offset+dims])
 	}
 }
 
@@ -65,7 +65,7 @@ func batchDotSMEStreaming(query []float32, data []float32, dots []float32, count
 func batchL2GoATLoop(query []float32, data []float32, distances []float32, count int, dims int) {
 	for i := range count {
 		offset := i * dims
-		distances[i] = asm.L2SquaredDistanceF32(query, data[offset:offset+dims])
+		distances[i] = L2SquaredDistanceFloat32(query, data[offset:offset+dims])
 	}
 }
 

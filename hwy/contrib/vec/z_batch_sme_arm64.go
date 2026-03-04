@@ -19,7 +19,6 @@ package vec
 import (
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matvec"
-	"github.com/ajroetker/go-highway/hwy/contrib/vec/asm"
 )
 
 // Dimension thresholds for SME batch operations.
@@ -64,7 +63,7 @@ func batchDotSME(query []float32, data []float32, dots []float32, count int, dim
 	// This uses the register-based GoAT assembly with 16 lanes (SVL=512)
 	for i := range count {
 		offset := i * dims
-		dots[i] = asm.DotF32(query, data[offset:offset+dims])
+		dots[i] = DotFloat32(query, data[offset:offset+dims])
 	}
 }
 
@@ -89,7 +88,7 @@ func batchDotSME64(query []float64, data []float64, dots []float64, count int, d
 	// Default: Loop over optimized GoAT single-vector dot products
 	for i := range count {
 		offset := i * dims
-		dots[i] = asm.DotF64(query, data[offset:offset+dims])
+		dots[i] = DotFloat64(query, data[offset:offset+dims])
 	}
 }
 
@@ -113,7 +112,7 @@ func batchL2SquaredSME(query []float32, data []float32, distances []float32, cou
 	// Benchmarks show this is faster than FMOPA for all dimension/count combinations
 	for i := range count {
 		offset := i * dims
-		distances[i] = asm.L2SquaredDistanceF32(query, data[offset:offset+dims])
+		distances[i] = L2SquaredDistanceFloat32(query, data[offset:offset+dims])
 	}
 }
 
@@ -131,7 +130,7 @@ func batchL2SquaredSME64(query []float64, data []float64, distances []float64, c
 	// Loop over optimized GoAT single-vector L2 squared distance
 	for i := range count {
 		offset := i * dims
-		distances[i] = asm.L2SquaredDistanceF64(query, data[offset:offset+dims])
+		distances[i] = L2SquaredDistanceFloat64(query, data[offset:offset+dims])
 	}
 }
 

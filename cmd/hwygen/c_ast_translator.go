@@ -4905,6 +4905,15 @@ func IsASTCEligible(pf *ParsedFunc) bool {
 		return true
 	}
 
+	// Functions that call other Base functions (e.g., BaseSquaredNorm calls BaseDot)
+	// are eligible — the callee will be emitted as a static C helper in the same
+	// compilation unit by collectHelperCode.
+	for _, call := range pf.HwyCalls {
+		if call.Package == "local" {
+			return true
+		}
+	}
+
 	// Must use hwy.* operations
 	hasHwyOps := false
 	for _, call := range pf.HwyCalls {
