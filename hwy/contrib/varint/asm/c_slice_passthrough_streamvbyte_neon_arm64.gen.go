@@ -10,6 +10,11 @@ func DecodeStreamVByte32GroupSIMD_U8(pctrl unsafe.Pointer, data unsafe.Pointer, 
 	decodestreamvbyte32groupsimd_c_u8_neon(pctrl, data, dst, plen_data, plen_dst, pout_result)
 }
 
+// DecodeStreamVByte32Into_U32 calls the NEON SIMD assembly implementation.
+func DecodeStreamVByte32Into_U32(control unsafe.Pointer, data unsafe.Pointer, dst unsafe.Pointer, plen_control unsafe.Pointer, plen_data unsafe.Pointer, plen_dst unsafe.Pointer, pout_decoded unsafe.Pointer, pout_dataConsumed unsafe.Pointer) {
+	decodestreamvbyte32into_c_u32_neon(control, data, dst, plen_control, plen_data, plen_dst, pout_decoded, pout_dataConsumed)
+}
+
 // EncodeStreamVByte32Group_U32 calls the NEON SIMD assembly implementation.
 func EncodeStreamVByte32Group_U32(values unsafe.Pointer, dst unsafe.Pointer, plen_values unsafe.Pointer, plen_dst unsafe.Pointer, pout_ctrl unsafe.Pointer, pout_n unsafe.Pointer) {
 	encodestreamvbyte32group_c_u32_neon(values, dst, plen_values, plen_dst, pout_ctrl, pout_n)

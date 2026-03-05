@@ -251,23 +251,6 @@ func TestAny(t *testing.T) {
 	}
 }
 
-func TestNone(t *testing.T) {
-	negative := []float32{-1, -2, -3, -4, -5}
-	mixed := []float32{-1, 2, -3, -4, -5}
-
-	isPositive := func(v hwy.Vec[float32]) hwy.Mask[float32] {
-		return hwy.GreaterThan(v, hwy.Zero[float32]())
-	}
-
-	if !None(negative, isPositive) {
-		t.Error("None should return true for all negative")
-	}
-
-	if None(mixed, isPositive) {
-		t.Error("None should return false for mixed")
-	}
-}
-
 // Benchmarks
 
 func BenchmarkFind(b *testing.B) {
@@ -498,21 +481,6 @@ func TestAnyP(t *testing.T) {
 	// Empty slice
 	if AnyP([]float32{}, GreaterThan[float32]{Threshold: 0}) {
 		t.Error("AnyP on empty should return false")
-	}
-}
-
-func TestNoneP(t *testing.T) {
-	negative := []float32{-1, -2, -3, -4, -5}
-	mixed := []float32{-1, 2, -3, -4, -5}
-
-	// None positive in all negative
-	if !NoneP(negative, GreaterThan[float32]{Threshold: 0}) {
-		t.Error("NoneP should return true for all negative")
-	}
-
-	// Some positive in mixed
-	if NoneP(mixed, GreaterThan[float32]{Threshold: 0}) {
-		t.Error("NoneP should return false for mixed")
 	}
 }
 

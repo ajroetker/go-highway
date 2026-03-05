@@ -87,9 +87,10 @@ BB0_11:
 
 BB0_12:
 	WORD $0x1ef80008 // fcvtzs	w8, h0
-	CBZW R8, BB0_14
-	RET
-
-BB0_14:
-	WORD $0xf900005f // str	xzr, [x2]
+	WORD $0x1e230100 // ucvtf	s0, w8
+	WORD $0x1e21c000 // fsqrt	s0, s0
+	WORD $0x1e380009 // fcvtzs	w9, s0
+	WORD $0x7100011f // cmp	w8, #0
+	WORD $0x1a8903e8 // csel	w8, wzr, w9, eq
+	WORD $0xf9000048 // str	x8, [x2]
 	RET

@@ -11,15 +11,6 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-func BaseDecodeStreamVByte32_avx2(control []byte, data []uint8, n int) []uint32 {
-	if n <= 0 || len(control) == 0 {
-		return nil
-	}
-	result := make([]uint32, n)
-	BaseDecodeStreamVByte32Into_avx2(control, data, result)
-	return result
-}
-
 func BaseDecodeStreamVByte32GroupSIMD_avx2(ctrl byte, data []uint8, dst []uint32) int {
 	dataLen := int(streamVByte32DataLen[ctrl])
 	if len(data) < dataLen || len(dst) < 4 {
@@ -84,32 +75,6 @@ func BaseDecodeStreamVByte32Into_avx2(control []byte, data []uint8, dst []uint32
 	return dstPos, dataPos
 }
 
-func BaseEncodeStreamVByte32_avx2(values []uint32) (control []byte, data []byte) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-	numGroups := (len(values) + 3) / 4
-	control = make([]byte, numGroups)
-	data = make([]byte, 0, len(values)*4)
-	var buf [16]byte
-	for g := range numGroups {
-		baseIdx := g * 4
-		remaining := len(values) - baseIdx
-		if remaining >= 4 {
-			ctrl, n := BaseEncodeStreamVByte32Group_avx2(values[baseIdx:baseIdx+4], buf[:])
-			control[g] = ctrl
-			data = append(data, buf[:n]...)
-		} else {
-			var group [4]uint32
-			copy(group[:], values[baseIdx:])
-			ctrl, n := encodeGroupScalarInto(group[:], buf[:])
-			control[g] = ctrl
-			data = append(data, buf[:n]...)
-		}
-	}
-	return control, data
-}
-
 func BaseEncodeStreamVByte32Group_avx2(values []uint32, dst []uint8) (ctrl byte, n int) {
 	if len(values) < 4 || len(dst) < 16 {
 		return 0, 0
@@ -134,39 +99,4 @@ func BaseEncodeStreamVByte32Group_avx2(values []uint32, dst []uint8) (ctrl byte,
 	shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(inputVec, maskVec)
 	shuffled.StoreSlice(dst[:16])
 	return ctrl, n
-}
-
-func BaseEncodeStreamVByte32Into_avx2(values []uint32, controlBuf []byte, dataBuf []byte) (control []byte, data []byte) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-	numGroups := (len(values) + 3) / 4
-	if cap(controlBuf) < numGroups {
-		controlBuf = make([]byte, numGroups)
-	} else {
-		controlBuf = controlBuf[:numGroups]
-	}
-	maxDataLen := len(values) * 4
-	if cap(dataBuf) < maxDataLen {
-		dataBuf = make([]byte, maxDataLen)
-	} else {
-		dataBuf = dataBuf[:maxDataLen]
-	}
-	dataPos := 0
-	for g := range numGroups {
-		baseIdx := g * 4
-		remaining := len(values) - baseIdx
-		if remaining >= 4 && dataPos+16 <= len(dataBuf) {
-			ctrl, n := BaseEncodeStreamVByte32Group_avx2(values[baseIdx:baseIdx+4], dataBuf[dataPos:])
-			controlBuf[g] = ctrl
-			dataPos += n
-		} else {
-			var group [4]uint32
-			copy(group[:], values[baseIdx:])
-			ctrl, n := encodeGroupScalarInto(group[:], dataBuf[dataPos:])
-			controlBuf[g] = ctrl
-			dataPos += n
-		}
-	}
-	return controlBuf, dataBuf[:dataPos]
 }

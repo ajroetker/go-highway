@@ -6,6 +6,60 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
+// MaskedVByteDecodeBatch32CU32 computes MaskedVByteDecodeBatch32 using NEON SIMD assembly.
+func MaskedVByteDecodeBatch32CU32(src []byte, dst []uint32, n int) (int, int) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	nVal := int64(n)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_decoded int64
+	var out_consumed int64
+	maskedvbytedecodebatch32_c_u32_neon(
+		p_src,
+		p_dst,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_decoded),
+		unsafe.Pointer(&out_consumed),
+	)
+	return int(out_decoded), int(out_consumed)
+}
+
+// MaskedVByteDecodeBatch64CU64 computes MaskedVByteDecodeBatch64 using NEON SIMD assembly.
+func MaskedVByteDecodeBatch64CU64(src []byte, dst []uint64, n int) (int, int) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	nVal := int64(n)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_decoded int64
+	var out_consumed int64
+	maskedvbytedecodebatch64_c_u64_neon(
+		p_src,
+		p_dst,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_decoded),
+		unsafe.Pointer(&out_consumed),
+	)
+	return int(out_decoded), int(out_consumed)
+}
+
 // MaskedVByteDecodeGroupCU8 computes MaskedVByteDecodeGroup using NEON SIMD assembly.
 func MaskedVByteDecodeGroupCU8(src []byte, dst []uint32) (int, int) {
 	if len(src) == 0 {

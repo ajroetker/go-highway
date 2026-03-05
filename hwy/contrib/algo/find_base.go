@@ -165,13 +165,6 @@ func BaseAny[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
 	return false
 }
 
-// BaseNone returns true if pred returns false for all elements.
-// This is equivalent to !BaseAny(slice, pred).
-// The predicate P must implement Predicate[T] interface.
-func BaseNone[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
-	return !BaseAny(slice, pred)
-}
-
 // BaseFindIf returns the index of the first element where pred returns true.
 // Returns -1 if no element matches.
 // The predicate P must implement Predicate[T] interface.

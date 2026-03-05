@@ -95,20 +95,6 @@ func init() {
 	}
 }
 
-// BaseDecodeStreamVByte32 decodes uint32 values from Stream-VByte format.
-// control contains the control bytes, data contains the value bytes.
-// n is the number of values to decode (must be <= len(control)*4).
-// Returns the decoded values.
-func BaseDecodeStreamVByte32(control []byte, data []uint8, n int) []uint32 {
-	if n <= 0 || len(control) == 0 {
-		return nil
-	}
-
-	result := make([]uint32, n)
-	BaseDecodeStreamVByte32Into(control, data, result)
-	return result
-}
-
 // BaseDecodeStreamVByte32Into decodes into a pre-allocated dst slice.
 // Returns number of values decoded and data bytes consumed.
 // Uses SIMD group decode when possible for better performance.
@@ -285,88 +271,6 @@ func init() {
 
 		streamVByte32EncodeShuffleMasks[ctrl] = mask
 	}
-}
-
-// BaseEncodeStreamVByte32 encodes uint32 values to Stream-VByte format.
-// Returns (control bytes, data bytes).
-func BaseEncodeStreamVByte32(values []uint32) (control, data []byte) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-
-	numGroups := (len(values) + 3) / 4
-	control = make([]byte, numGroups)
-	data = make([]byte, 0, len(values)*4)
-
-	// Scratch buffer for SIMD group encode (needs at least 16 bytes)
-	var buf [16]byte
-
-	for g := range numGroups {
-		baseIdx := g * 4
-		remaining := len(values) - baseIdx
-
-		if remaining >= 4 {
-			// Full group - use SIMD into scratch buffer
-			ctrl, n := BaseEncodeStreamVByte32Group(values[baseIdx:baseIdx+4], buf[:])
-			control[g] = ctrl
-			data = append(data, buf[:n]...)
-		} else {
-			// Partial group - scalar with padding
-			var group [4]uint32
-			copy(group[:], values[baseIdx:])
-			ctrl, n := encodeGroupScalarInto(group[:], buf[:])
-			control[g] = ctrl
-			data = append(data, buf[:n]...)
-		}
-	}
-
-	return control, data
-}
-
-// BaseEncodeStreamVByte32Into encodes into pre-allocated buffers.
-// Returns sliced control and data buffers.
-func BaseEncodeStreamVByte32Into(values []uint32, controlBuf, dataBuf []byte) (control, data []byte) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-
-	numGroups := (len(values) + 3) / 4
-
-	// Ensure buffers are large enough
-	if cap(controlBuf) < numGroups {
-		controlBuf = make([]byte, numGroups)
-	} else {
-		controlBuf = controlBuf[:numGroups]
-	}
-
-	maxDataLen := len(values) * 4
-	if cap(dataBuf) < maxDataLen {
-		dataBuf = make([]byte, maxDataLen)
-	} else {
-		dataBuf = dataBuf[:maxDataLen]
-	}
-
-	dataPos := 0
-	for g := range numGroups {
-		baseIdx := g * 4
-		remaining := len(values) - baseIdx
-
-		if remaining >= 4 && dataPos+16 <= len(dataBuf) {
-			// Full group - use SIMD directly into buffer
-			ctrl, n := BaseEncodeStreamVByte32Group(values[baseIdx:baseIdx+4], dataBuf[dataPos:])
-			controlBuf[g] = ctrl
-			dataPos += n
-		} else {
-			// Partial group - scalar with padding
-			var group [4]uint32
-			copy(group[:], values[baseIdx:])
-			ctrl, n := encodeGroupScalarInto(group[:], dataBuf[dataPos:])
-			controlBuf[g] = ctrl
-			dataPos += n
-		}
-	}
-
-	return controlBuf, dataBuf[:dataPos]
 }
 
 // BaseEncodeStreamVByte32Group encodes 4 uint32 values directly into dst buffer.

@@ -193,6 +193,11 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	// Pattern 2: expC0_f32 -> expC0_f64 (suffix swapping for compilable base files)
 	transformIdentifiers(funcDecl.Body, ctx)
 
+	// Resolve type switches: replace switch any(x).(type) { case float32: ... }
+	// with the body of the matching case clause, since elemType is now concrete.
+	// This must happen before transformNode so the C translator never sees TypeSwitchStmt.
+	resolveTypeSwitches(funcDecl.Body, ctx)
+
 	transformNode(funcDecl.Body, ctx)
 
 	// Post-process: scalarize fallback functions that only use simple ops.

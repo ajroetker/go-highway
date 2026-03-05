@@ -18,14 +18,98 @@ func initDistanceNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	L2DistanceFloat32 = l2DistanceAsmF32
+	L2DistanceFloat64 = l2DistanceAsmF64
 	L2SquaredDistanceFloat32 = l2SquaredDistanceAsmF32
 	L2SquaredDistanceFloat64 = l2SquaredDistanceAsmF64
 	if hwy.HasARMFP16() {
+		L2DistanceFloat16 = l2DistanceAsmF16
 		L2SquaredDistanceFloat16 = l2SquaredDistanceAsmF16
 	}
 	if hwy.HasARMBF16() {
+		L2DistanceBFloat16 = l2DistanceAsmBF16
 		L2SquaredDistanceBFloat16 = l2SquaredDistanceAsmBF16
 	}
+}
+
+func l2DistanceAsmF16(a, b []hwy.Float16) hwy.Float16 {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result int64
+	asm.L2Distance_F16(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
+}
+
+func l2DistanceAsmBF16(a, b []hwy.BFloat16) hwy.BFloat16 {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result int64
+	asm.L2Distance_BF16(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
+}
+
+func l2DistanceAsmF32(a, b []float32) float32 {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result float32
+	asm.L2Distance_F32(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
+func l2DistanceAsmF64(a, b []float64) float64 {
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result float64
+	asm.L2Distance_F64(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
 }
 
 func l2SquaredDistanceAsmF16(a, b []hwy.Float16) hwy.Float16 {

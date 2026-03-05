@@ -1434,10 +1434,16 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 			// Assembly name: liftupdate53_c_s32_neon
 			asmName := cAsmFuncName(pf.Name, elemType, targetSuffix)
 
+			// Build set of type parameter names for generic substitution.
+			typeParamNames := make(map[string]bool, len(pf.TypeParams))
+			for _, tp := range pf.TypeParams {
+				typeParamNames[tp.Name] = true
+			}
+
 			// Build param list matching the asm stub signature.
 			// Slice params → unsafe.Pointer (data pointer)
 			// Int params → unsafe.Pointer (pointer to int64)
-			// Scalar T params → passed by value
+			// Scalar type-parameter params → passed as pointer in GOAT
 			var paramDefs []string
 			var paramNames []string
 			for _, p := range pf.Params {
@@ -1448,7 +1454,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 					ptrName := "p" + p.Name
 					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
 					paramNames = append(paramNames, ptrName)
-				} else if p.Type == "T" {
+				} else if typeParamNames[p.Type] {
 					// Scalar type-parameter param — passed as pointer in GOAT
 					ptrName := "p" + p.Name
 					paramDefs = append(paramDefs, ptrName+" unsafe.Pointer")
@@ -1776,6 +1782,12 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 
 	goSliceType := astWrapperGoSliceType(elemType)
 
+	// Build set of type parameter names for generic substitution.
+	typeParamNames := make(map[string]bool, len(pf.TypeParams))
+	for _, tp := range pf.TypeParams {
+		typeParamNames[tp.Name] = true
+	}
+
 	// Build Go function signature matching the dispatch var type
 	goSig := groupGoParams(pf, goSliceType, elemType)
 
@@ -1850,9 +1862,9 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
 	}
 
-	// Convert scalar T params to addressable locals for unsafe.Pointer
+	// Convert scalar type-parameter and float params to addressable locals for unsafe.Pointer
 	for _, p := range pf.Params {
-		if p.Type == "T" {
+		if typeParamNames[p.Type] {
 			goScalarType := astWrapperGoScalarType(elemType)
 			if goScalarType == "hwy.Float16" || goScalarType == "hwy.BFloat16" {
 				fmt.Fprintf(buf, "\t%sVal := uint16(%s)\n", p.Name, p.Name)
@@ -1899,7 +1911,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
 		} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
-		} else if p.Type == "T" {
+		} else if typeParamNames[p.Type] {
 			// Scalar type-parameter param — passed as pointer in GOAT
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		}
@@ -1936,6 +1948,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 			goType := goReturnTypeForWrapper(ret.Type, elemType)
 			if isGoArrayType(goType) {
 				retExprs = append(retExprs, "out_"+name)
+			} else if goType == "bool" {
+				retExprs = append(retExprs, "out_"+name+" != 0")
 			} else {
 				retExprs = append(retExprs, goType+"(out_"+name+")")
 			}
@@ -2329,11 +2343,14 @@ func goReturnOutVarType(goType string) string {
 }
 
 // goReturnZeroValue returns the zero-value literal for a Go return type.
-// For scalar types returns "0", for array types returns e.g. "[4]uint32{}".
+// For scalar types returns "0", for bool returns "false", for array types returns e.g. "[4]uint32{}".
 func goReturnZeroValue(goType, elemType string) string {
 	rt := goReturnTypeForWrapper(goType, elemType)
 	if isGoArrayType(rt) {
 		return rt + "{}"
+	}
+	if rt == "bool" {
+		return "false"
 	}
 	return "0"
 }
@@ -2354,6 +2371,12 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		if isGenericStructPtr(p.Type) {
 			return
 		}
+	}
+
+	// Build set of type parameter names (e.g., T, P) for generic substitution.
+	typeParamNames := make(map[string]bool, len(pf.TypeParams))
+	for _, tp := range pf.TypeParams {
+		typeParamNames[tp.Name] = true
 	}
 
 	publicName := buildCPublicName(pf.Name, elemType)
@@ -2476,9 +2499,9 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 		fmt.Fprintf(buf, "\t%sVal := int64(%s)\n", ip, ip)
 	}
 
-	// Convert scalar T params to addressable locals for unsafe.Pointer
+	// Convert scalar type-parameter and float params to addressable locals for unsafe.Pointer
 	for _, p := range pf.Params {
-		if p.Type == "T" {
+		if typeParamNames[p.Type] {
 			goScalarType := astWrapperGoScalarType(elemType)
 			if goScalarType == "hwy.Float16" || goScalarType == "hwy.BFloat16" {
 				fmt.Fprintf(buf, "\t%sVal := uint16(%s)\n", p.Name, p.Name)
@@ -2528,7 +2551,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			fmt.Fprintf(buf, "\t\tp_%s,\n", p.Name)
 		} else if isGoScalarIntType(p.Type) || isGoScalarFloatType(p.Type) {
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
-		} else if p.Type == "T" {
+		} else if typeParamNames[p.Type] {
 			// Scalar type-parameter param — passed as pointer in GOAT
 			fmt.Fprintf(buf, "\t\tunsafe.Pointer(&%sVal),\n", p.Name)
 		}
@@ -2565,6 +2588,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 			goType := goReturnTypeForWrapper(ret.Type, elemType)
 			if isGoArrayType(goType) {
 				retExprs = append(retExprs, "out_"+name)
+			} else if goType == "bool" {
+				retExprs = append(retExprs, "out_"+name+" != 0")
 			} else {
 				retExprs = append(retExprs, goType+"(out_"+name+")")
 			}

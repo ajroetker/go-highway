@@ -52,12 +52,6 @@ var FindIfInt32 func(slice []int32, pred Predicate[int32]) int
 var FindIfInt64 func(slice []int64, pred Predicate[int64]) int
 var FindIfUint32 func(slice []uint32, pred Predicate[uint32]) int
 var FindIfUint64 func(slice []uint64, pred Predicate[uint64]) int
-var NoneFloat32 func(slice []float32, pred Predicate[float32]) bool
-var NoneFloat64 func(slice []float64, pred Predicate[float64]) bool
-var NoneInt32 func(slice []int32, pred Predicate[int32]) bool
-var NoneInt64 func(slice []int64, pred Predicate[int64]) bool
-var NoneUint32 func(slice []uint32, pred Predicate[uint32]) bool
-var NoneUint64 func(slice []uint64, pred Predicate[uint64]) bool
 
 // AllP returns true if pred returns true for all elements.
 // Short-circuits on first false.
@@ -216,29 +210,6 @@ func FindIfP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) int {
 	panic("unreachable")
 }
 
-// NoneP returns true if pred returns false for all elements.
-// This is equivalent to !BaseAny(slice, pred).
-// The predicate P must implement Predicate[T] interface.
-//
-// This function dispatches to the appropriate SIMD implementation at runtime.
-func NoneP[T hwy.Lanes, P Predicate[T]](slice []T, pred P) bool {
-	switch any(slice).(type) {
-	case []float32:
-		return NoneFloat32(any(slice).([]float32), any(pred).(Predicate[float32]))
-	case []float64:
-		return NoneFloat64(any(slice).([]float64), any(pred).(Predicate[float64]))
-	case []int32:
-		return NoneInt32(any(slice).([]int32), any(pred).(Predicate[int32]))
-	case []int64:
-		return NoneInt64(any(slice).([]int64), any(pred).(Predicate[int64]))
-	case []uint32:
-		return NoneUint32(any(slice).([]uint32), any(pred).(Predicate[uint32]))
-	case []uint64:
-		return NoneUint64(any(slice).([]uint64), any(pred).(Predicate[uint64]))
-	}
-	panic("unreachable")
-}
-
 func init() {
 	initFindAll()
 }
@@ -302,12 +273,6 @@ func initFindAVX2() {
 	FindIfInt64 = BaseFindIf_fallback_Int64
 	FindIfUint32 = BaseFindIf_fallback_Uint32
 	FindIfUint64 = BaseFindIf_fallback_Uint64
-	NoneFloat32 = BaseNone_fallback
-	NoneFloat64 = BaseNone_fallback_Float64
-	NoneInt32 = BaseNone_fallback_Int32
-	NoneInt64 = BaseNone_fallback_Int64
-	NoneUint32 = BaseNone_fallback_Uint32
-	NoneUint64 = BaseNone_fallback_Uint64
 }
 
 func initFindAVX512() {
@@ -353,12 +318,6 @@ func initFindAVX512() {
 	FindIfInt64 = BaseFindIf_fallback_Int64
 	FindIfUint32 = BaseFindIf_fallback_Uint32
 	FindIfUint64 = BaseFindIf_fallback_Uint64
-	NoneFloat32 = BaseNone_fallback
-	NoneFloat64 = BaseNone_fallback_Float64
-	NoneInt32 = BaseNone_fallback_Int32
-	NoneInt64 = BaseNone_fallback_Int64
-	NoneUint32 = BaseNone_fallback_Uint32
-	NoneUint64 = BaseNone_fallback_Uint64
 }
 
 func initFindFallback() {
@@ -404,10 +363,4 @@ func initFindFallback() {
 	FindIfInt64 = BaseFindIf_fallback_Int64
 	FindIfUint32 = BaseFindIf_fallback_Uint32
 	FindIfUint64 = BaseFindIf_fallback_Uint64
-	NoneFloat32 = BaseNone_fallback
-	NoneFloat64 = BaseNone_fallback_Float64
-	NoneInt32 = BaseNone_fallback_Int32
-	NoneInt64 = BaseNone_fallback_Int64
-	NoneUint32 = BaseNone_fallback_Uint32
-	NoneUint64 = BaseNone_fallback_Uint64
 }

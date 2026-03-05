@@ -5,6 +5,16 @@ package asm
 
 import "unsafe"
 
+// MaskedVByteDecodeBatch32_U32 calls the NEON SIMD assembly implementation.
+func MaskedVByteDecodeBatch32_U32(src unsafe.Pointer, dst unsafe.Pointer, pn unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_decoded unsafe.Pointer, pout_consumed unsafe.Pointer) {
+	maskedvbytedecodebatch32_c_u32_neon(src, dst, pn, plen_src, plen_dst, pout_decoded, pout_consumed)
+}
+
+// MaskedVByteDecodeBatch64_U64 calls the NEON SIMD assembly implementation.
+func MaskedVByteDecodeBatch64_U64(src unsafe.Pointer, dst unsafe.Pointer, pn unsafe.Pointer, plen_src unsafe.Pointer, plen_dst unsafe.Pointer, pout_decoded unsafe.Pointer, pout_consumed unsafe.Pointer) {
+	maskedvbytedecodebatch64_c_u64_neon(src, dst, pn, plen_src, plen_dst, pout_decoded, pout_consumed)
+}
+
 // MaskedVByteDecodeGroup_U8 calls the NEON SIMD assembly implementation.
 func MaskedVByteDecodeGroup_U8(src unsafe.Pointer, dst unsafe.Pointer, plen unsafe.Pointer, pout_decoded unsafe.Pointer, pout_consumed unsafe.Pointer) {
 	maskedvbytedecodegroup_c_u8_neon(src, dst, plen, pout_decoded, pout_consumed)

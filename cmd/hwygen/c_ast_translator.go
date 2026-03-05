@@ -90,6 +90,13 @@ type CASTTranslator struct {
 	// of helper function calls (instead of defaulting to scalar).
 	helperReturnVec map[string]bool
 
+	// helperReturnTypes tracks the C return types for helper functions with
+	// multiple return values. Maps helper name → list of C types for ALL
+	// returns. Used by translateAssignStmt to declare variables and pass
+	// output pointers for extra returns beyond the first (which is the
+	// direct C return value).
+	helperReturnTypes map[string][]string
+
 	// constVars maps variable names to their known constant integer values.
 	// Populated when translating hwy.NumLanes/MaxLanes assignments (e.g.,
 	// "lanes" → 4). Used by tryEvalConstInt to constant-fold expressions
@@ -197,6 +204,7 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 		requiredStructTypes: make(map[string]structTypeInfo),
 		helperSliceParams:   make(map[string][]int),
 		helperReturnVec:     make(map[string]bool),
+		helperReturnTypes:   make(map[string][]string),
 		constVars:           make(map[string]int),
 		buf:                 &bytes.Buffer{},
 	}
@@ -245,6 +253,23 @@ func primaryTier(p *CIntrinsicProfile) (string, int) {
 func (t *CASTTranslator) TranslateToCHelper(pf *ParsedFunc) (string, error) {
 	t.helperMode = true
 	defer func() { t.helperMode = false }()
+
+	// If the helper has an //hwy:elemtype override (e.g., uint8 on a uint32 parent),
+	// temporarily switch to the matching profile so SIMD intrinsics, vector types,
+	// and BitsFromMask all use the correct element width.
+	if pf.ElemTypeOverride != "" && pf.ElemTypeOverride != t.elemType {
+		altProfile := GetCProfile(t.profile.TargetName, pf.ElemTypeOverride)
+		if altProfile != nil {
+			origProfile, origElem, origTier, origLanes := t.profile, t.elemType, t.tier, t.lanes
+			t.profile = altProfile
+			t.elemType = pf.ElemTypeOverride
+			t.tier, t.lanes = primaryTier(altProfile)
+			defer func() {
+				t.profile, t.elemType, t.tier, t.lanes = origProfile, origElem, origTier, origLanes
+			}()
+		}
+	}
+
 	return t.TranslateToC(pf)
 }
 
@@ -1131,6 +1156,19 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 				params = append(params, info.cType+" "+info.cName)
 			}
 		}
+	} else if len(pf.Returns) > 1 {
+		// Helper mode with multiple returns: the first return is the direct
+		// C return value. Additional returns are passed as output pointers.
+		for i := 1; i < len(pf.Returns); i++ {
+			ret := pf.Returns[i]
+			name := ret.Name
+			if name == "" {
+				name = fmt.Sprintf("result_%d", i)
+			}
+			cType := t.goTypeToCType(ret.Type)
+			ptrParam := fmt.Sprintf("%s *pout_%s", cType, name)
+			params = append(params, ptrParam)
+		}
 	}
 
 	// Determine return type
@@ -1150,10 +1188,18 @@ func (t *CASTTranslator) emitFuncSignature(pf *ParsedFunc) {
 		}
 	}
 
+	// In helper mode, emit `static` so the function is invisible to GOAT's
+	// parser (which only extracts signatures from non-static functions) but
+	// visible to clang for inlining at -O3.
+	staticPrefix := ""
+	if t.helperMode {
+		staticPrefix = "static "
+	}
+
 	if t.profile.FuncAttrs != "" {
-		t.writef("%s %s(%s) %s {\n", retType, funcName, strings.Join(params, ", "), t.profile.FuncAttrs)
+		t.writef("%s%s %s(%s) %s {\n", staticPrefix, retType, funcName, strings.Join(params, ", "), t.profile.FuncAttrs)
 	} else {
-		t.writef("%s %s(%s) {\n", retType, funcName, strings.Join(params, ", "))
+		t.writef("%s%s %s(%s) {\n", staticPrefix, retType, funcName, strings.Join(params, ", "))
 	}
 }
 
@@ -1586,6 +1632,11 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 	if len(s.Lhs) > 1 && len(s.Rhs) == 1 {
 		if call, ok := s.Rhs[0].(*ast.CallExpr); ok {
 			if t.translateICTCoeffsAssign(s.Lhs, call, s.Tok) {
+				return
+			}
+			// Handle multi-return helper function calls:
+			// numDecoded, bytesUsed := BaseMaskedVByteDecodeGroup(src[pos:], dst[decoded:])
+			if t.translateMultiReturnHelperAssign(s.Lhs, call, s.Tok) {
 				return
 			}
 		}
@@ -2181,9 +2232,11 @@ func (t *CASTTranslator) translateForPost(stmt ast.Stmt) string {
 
 // translateRangeStmt translates `for i := range m` to `for (long i = 0; i < m; i++)`.
 // Also handles `for i := range s[:n]` → `for (i = 0; i < n; i++)`.
+// When a value variable is present (`for i, b := range src` or `for _, ctrl := range src`),
+// emits a value binding at the top of the loop body (e.g., `unsigned char b = src[i];`).
 func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 	// `for range m` (Go 1.22+) — no loop variable, just iterate m times
-	if s.Key == nil {
+	if s.Key == nil && s.Value == nil {
 		rangeOver := t.translateExpr(s.X)
 		// When ranging over a slice parameter, use the length variable.
 		if ident, ok := s.X.(*ast.Ident); ok {
@@ -2200,12 +2253,24 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 		return
 	}
 
-	// `for i := range m` → key is i, X is m
-	iter := t.translateExpr(s.Key)
+	// Determine the loop counter variable name.
+	// `for _, b := range src` → key is blank, use a temp name.
+	// `for i, b := range src` → key is i.
+	// `for i := range m` → key is i, no value.
+	isBlankKey := false
+	iter := "_range_i"
+	if s.Key != nil {
+		if ident, ok := s.Key.(*ast.Ident); ok && ident.Name == "_" {
+			isBlankKey = true
+		} else {
+			iter = t.translateExpr(s.Key)
+		}
+	}
 
-	// For `for i := range s[:high]` or `for i := range s[low:high]`,
-	// use the slice length (high - low) as the range limit.
-	var rangeOver string
+	// Determine the range expression (slice name or length).
+	rangeExpr := ""     // C expression for the array/slice being iterated (for value binding)
+	var rangeOver string // C expression for the loop bound
+
 	if se, ok := s.X.(*ast.SliceExpr); ok && se.High != nil {
 		high := t.translateExpr(se.High)
 		if se.Low != nil {
@@ -2214,8 +2279,10 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 		} else {
 			rangeOver = high
 		}
+		rangeExpr = t.translateExpr(s.X) // the slice expression itself for indexing
 	} else {
 		rangeOver = t.translateExpr(s.X)
+		rangeExpr = rangeOver
 		// When ranging over a slice parameter, use the length variable
 		// instead of the pointer. E.g., `for i := range v` where v is
 		// a slice parameter should use `len_v`, not `v` (which is a pointer in C).
@@ -2235,9 +2302,52 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 	t.writef("#pragma clang loop vectorize(disable) interleave(disable)\n")
 	t.writef("for (long %s = 0; %s < %s; %s++) {\n", iter, iter, rangeOver, iter)
 	t.indent++
+
+	// Emit value variable binding if present: `for i, b := range src` or `for _, ctrl := range src`.
+	if s.Value != nil {
+		if valIdent, ok := s.Value.(*ast.Ident); ok && valIdent.Name != "_" {
+			valName := valIdent.Name
+			elemCType := t.rangeElemCType(s.X)
+			t.vars[valName] = cVarInfo{cType: elemCType}
+			t.writef("%s %s = %s[%s];\n", elemCType, valName, rangeExpr, iter)
+		}
+	}
+
+	// Suppress "unused variable" warnings when key is blank but value is used.
+	_ = isBlankKey
+
 	t.translateBlockStmtContents(s.Body)
 	t.indent--
 	t.writef("}\n")
+}
+
+// rangeElemCType returns the C element type for the expression being ranged over.
+// For a slice parameter like `src []byte`, returns "unsigned char".
+// For a package global 2D array like `maskedVByte12ShuffleMasks[i]`, returns
+// the inner element type. Falls back to "long" for unknown types.
+func (t *CASTTranslator) rangeElemCType(expr ast.Expr) string {
+	// Direct identifier: look up as param or local var.
+	if ident, ok := expr.(*ast.Ident); ok {
+		if info, ok := t.params[ident.Name]; ok && info.isSlice {
+			// Extract element type from Go slice type: []byte → byte → unsigned char
+			if after, ok := strings.CutPrefix(info.goType, "[]"); ok {
+				return t.goTypeToCType(after)
+			}
+		}
+		if info, ok := t.vars[ident.Name]; ok && info.isPtr {
+			// Strip pointer suffix to get element type
+			return strings.TrimSuffix(strings.TrimSpace(info.cType), "*")
+		}
+	}
+	// Package global with index: globalArray[i] where globalArray is a 2D array
+	if ie, ok := expr.(*ast.IndexExpr); ok {
+		if ident, ok := ie.X.(*ast.Ident); ok {
+			if pg, ok := t.packageGlobals[ident.Name]; ok {
+				return goPkgGlobalElemToCType(pg.ElemType)
+			}
+		}
+	}
+	return "long"
 }
 
 // translateExprStmt handles standalone expression statements (function calls).
@@ -2282,6 +2392,43 @@ func (t *CASTTranslator) translateExprStmt(s *ast.ExprStmt) {
 	if isBaseApply && len(call.Args) == 3 {
 		t.emitInlinedBaseApply(call.Args)
 		return
+	}
+
+	// Multi-return helper called as statement (no return capture).
+	// The C helper signature has extra output pointer params for returns[1:],
+	// so we must pass dummy variables even when the caller ignores all returns.
+	// e.g., BaseDecodeStreamVByte32Into(control, data, result) in Go
+	// → BaseDecodeStreamVByte32Into(control, data, result, len_control, len_data, n, &_discard_0)
+	if ident, ok := call.Fun.(*ast.Ident); ok {
+		if retTypes, ok := t.helperReturnTypes[ident.Name]; ok && len(retTypes) > 1 {
+			var args []string
+			for _, arg := range call.Args {
+				args = append(args, t.translateExpr(arg))
+			}
+			// Append slice length arguments for known slice params.
+			if sliceIndices, ok := t.helperSliceParams[ident.Name]; ok {
+				for _, idx := range sliceIndices {
+					if idx < len(call.Args) {
+						sliceName := sliceArgBaseName(call.Args[idx])
+						if sliceName != "" {
+							if lenVar, ok := t.sliceLenVars[sliceName]; ok {
+								args = append(args, lenVar)
+							}
+						}
+					}
+				}
+			}
+			// Append dummy output pointers for extra returns.
+			for i := 1; i < len(retTypes); i++ {
+				tmpName := fmt.Sprintf("_discard_%d", t.tmpCount)
+				t.tmpCount++
+				cType := retTypes[i]
+				t.writef("%s;\n", cDeclVar(cType, tmpName))
+				args = append(args, "&"+tmpName)
+			}
+			t.writef("%s(%s);\n", ident.Name, strings.Join(args, ", "))
+			return
+		}
 	}
 
 	// Generic function call
@@ -2417,14 +2564,23 @@ func (t *CASTTranslator) translateReturnStmt(s *ast.ReturnStmt) {
 
 	// Helper mode: direct return
 	if t.helperMode {
-		if len(s.Results) == 1 {
-			expr := t.translateExpr(s.Results[0])
-			t.writef("return %s;\n", expr)
-		} else {
-			// Multiple returns not supported in helper mode — emit first
-			expr := t.translateExpr(s.Results[0])
-			t.writef("return %s;\n", expr)
+		if len(s.Results) > 1 {
+			// Multiple returns: assign extra returns to output pointers,
+			// then return the first value.
+			for i := 1; i < len(s.Results); i++ {
+				expr := t.translateExpr(s.Results[i])
+				// Use the same naming convention as emitFuncSignature.
+				if i < len(t.returnParams) {
+					name := t.returnParams[i].Name
+					if name == "" {
+						name = fmt.Sprintf("result_%d", i)
+					}
+					t.writef("*pout_%s = %s;\n", name, expr)
+				}
+			}
 		}
+		expr := t.translateExpr(s.Results[0])
+		t.writef("return %s;\n", expr)
 		return
 	}
 
@@ -4162,6 +4318,110 @@ func (t *CASTTranslator) emitICTCoeffsAssign(lhs []ast.Expr, tok token.Token) bo
 	return true
 }
 
+// translateMultiReturnHelperAssign handles multi-value assignments from helper
+// function calls with multiple return values:
+//
+//	numDecoded, bytesUsed := BaseMaskedVByteDecodeGroup(src[pos:], dst[decoded:])
+//
+// Generates:
+//
+//	long bytesUsed = 0;
+//	long numDecoded = BaseMaskedVByteDecodeGroup(src + pos, dst + decoded, len_src - pos, len_dst - decoded, &bytesUsed);
+//
+// Returns true if the call was handled, false otherwise.
+func (t *CASTTranslator) translateMultiReturnHelperAssign(lhs []ast.Expr, call *ast.CallExpr, tok token.Token) bool {
+	// Get the function name from the call expression.
+	var funcName string
+	if ident, ok := call.Fun.(*ast.Ident); ok {
+		funcName = ident.Name
+	}
+	if funcName == "" {
+		return false
+	}
+
+	// Check if this helper has registered multi-return types.
+	retTypes, ok := t.helperReturnTypes[funcName]
+	if !ok || len(retTypes) < 2 || len(lhs) < 2 {
+		return false
+	}
+
+	// Ensure we have return types for all LHS variables.
+	if len(lhs) > len(retTypes) {
+		return false
+	}
+
+	// Declare all LHS variables (for := defines).
+	var lhsNames []string
+	for i, expr := range lhs {
+		name := "_"
+		if ident, ok := expr.(*ast.Ident); ok {
+			name = ident.Name
+		}
+		lhsNames = append(lhsNames, name)
+
+		// Declare variables for extra returns (index 1+) first.
+		if i >= 1 && name != "_" {
+			cType := retTypes[i]
+			if tok == token.DEFINE {
+				t.vars[name] = cVarInfo{cType: cType}
+				t.writef("%s = 0;\n", cDeclVar(cType, name))
+			}
+		}
+	}
+
+	// Build the function call with extra output pointer arguments.
+	var args []string
+	for _, arg := range call.Args {
+		args = append(args, t.translateExpr(arg))
+	}
+	// Append slice length arguments for known slice params.
+	if sliceIndices, ok := t.helperSliceParams[funcName]; ok {
+		for _, idx := range sliceIndices {
+			if idx < len(call.Args) {
+				sliceName := sliceArgBaseName(call.Args[idx])
+				if sliceName != "" {
+					if lenVar, ok := t.sliceLenVars[sliceName]; ok {
+						args = append(args, lenVar)
+					}
+				}
+			}
+		}
+	}
+	// Append output pointer arguments for extra returns.
+	for i := 1; i < len(lhs); i++ {
+		name := lhsNames[i]
+		if name == "_" {
+			// Need a temporary variable for blank returns.
+			tmpName := fmt.Sprintf("_discard_%d", t.tmpCount)
+			t.tmpCount++
+			cType := retTypes[i]
+			t.writef("%s;\n", cDeclVar(cType, tmpName))
+			args = append(args, "&"+tmpName)
+		} else {
+			args = append(args, "&"+name)
+		}
+	}
+
+	callExpr := fmt.Sprintf("%s(%s)", funcName, strings.Join(args, ", "))
+
+	// Assign the first return value.
+	firstName := lhsNames[0]
+	if firstName == "_" {
+		// Discard first return.
+		t.writef("%s;\n", callExpr)
+	} else {
+		cType := retTypes[0]
+		if tok == token.DEFINE {
+			t.vars[firstName] = cVarInfo{cType: cType}
+			t.writef("%s = %s;\n", cDeclVar(cType, firstName), callExpr)
+		} else {
+			t.writef("%s = %s;\n", firstName, callExpr)
+		}
+	}
+
+	return true
+}
+
 // translateGetLaneVarIndex emits the store-to-stack pattern for variable-index GetLane.
 // Produces:
 //
@@ -4446,8 +4706,8 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 			if pg, ok := t.packageGlobals[ident.Name]; ok {
 				cElem := t.goTypeToCType(pg.ElemType)
 				if pg.InnerSize > 0 {
-					// 2D array: first index yields pointer to inner row
-					return cVarInfo{cType: cElem + " *", isPtr: true}
+					// 2D array: first index yields const pointer to inner row
+					return cVarInfo{cType: "const " + cElem + " *", isPtr: true}
 				}
 				// 1D array: index yields scalar element
 				return cVarInfo{cType: cElem}
@@ -4543,15 +4803,31 @@ func (t *CASTTranslator) inferType(expr ast.Expr) cVarInfo {
 // when the base has a different element type than the profile's CType
 // (e.g., []uint64 param in a float32 profile).
 func (t *CASTTranslator) inferPtrType(expr ast.Expr) string {
-	ident, ok := expr.(*ast.Ident)
-	if !ok {
-		return ""
-	}
-	if info, ok := t.vars[ident.Name]; ok && info.isPtr {
-		return info.cType
-	}
-	if info, ok := t.params[ident.Name]; ok && info.isSlice {
-		return info.cType
+	switch e := expr.(type) {
+	case *ast.Ident:
+		if info, ok := t.vars[e.Name]; ok && info.isPtr {
+			return info.cType
+		}
+		if info, ok := t.params[e.Name]; ok && info.isSlice {
+			return info.cType
+		}
+	case *ast.IndexExpr:
+		// Handle global array indexing: e.g., streamVByte32ShuffleMasks[ctrl]
+		// For a 2D array like [256][16]uint8, indexing the first dimension
+		// yields a pointer to the inner element type (const unsigned char *).
+		// Uses "const" because package globals are emitted as static const.
+		if ident, ok := e.X.(*ast.Ident); ok && t.packageGlobals != nil {
+			if pg, ok := t.packageGlobals[ident.Name]; ok && pg.InnerSize > 0 {
+				cElem := t.goTypeToCType(pg.ElemType)
+				return "const " + cElem + " *"
+			}
+		}
+		// Also check vars — indexing a pointer yields the dereferenced type.
+		if ident, ok := e.X.(*ast.Ident); ok {
+			if info, ok := t.vars[ident.Name]; ok && info.isPtr {
+				return info.cType
+			}
+		}
 	}
 	return ""
 }
@@ -4845,6 +5121,12 @@ func (t *CASTTranslator) writefRaw(format string, args ...any) {
 // Eligible functions have slice or *Image[T] parameters, use hwy.* operations,
 // and are NOT composite math functions handled by the template path.
 func IsASTCEligible(pf *ParsedFunc) bool {
+	// Functions with interface type parameters (e.g., P Predicate[T]) cannot be
+	// compiled to C because Go interface method dispatch has no C equivalent.
+	if hasPredicateParam(pf) {
+		return false
+	}
+
 	// Must have slice or *Image[T] params (not Vec→Vec)
 	hasSliceOrImage := false
 	hasImagePtr := false

@@ -82,10 +82,3 @@ func Any[T hwy.Lanes](slice []T, pred func(hwy.Vec[T]) hwy.Mask[T]) bool {
 	return AnyP(slice, FuncPredicate[T]{Fn: pred})
 }
 
-// None returns true if pred returns false for all elements.
-// This is equivalent to !Any(slice, pred).
-//
-// For better performance with built-in predicates, use NoneP with predicate types.
-func None[T hwy.Lanes](slice []T, pred func(hwy.Vec[T]) hwy.Mask[T]) bool {
-	return !Any(slice, pred)
-}

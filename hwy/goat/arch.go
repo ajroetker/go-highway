@@ -179,6 +179,68 @@ func (a *ConstPoolAccumulator) AccumulateByte(val uint64) {
 	}
 }
 
+// AccumulateAscii parses a C-style .ascii string literal and accumulates the bytes.
+// Handles standard escape sequences: \NNN (octal), \xHH (hex), \t, \n, \r, \b, \f, \\, \", \0.
+func (a *ConstPoolAccumulator) AccumulateAscii(s string) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			switch {
+			case s[i] >= '0' && s[i] <= '7':
+				// Octal escape: 1-3 digits
+				val := uint64(s[i] - '0')
+				for j := 1; j < 3 && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '7'; j++ {
+					i++
+					val = val*8 + uint64(s[i]-'0')
+				}
+				a.AccumulateByte(val)
+			case s[i] == 'x' && i+1 < len(s):
+				// Hex escape: \xHH
+				i++
+				val := uint64(0)
+				for j := 0; j < 2 && i < len(s); j++ {
+					c := s[i]
+					switch {
+					case c >= '0' && c <= '9':
+						val = val*16 + uint64(c-'0')
+					case c >= 'a' && c <= 'f':
+						val = val*16 + uint64(c-'a'+10)
+					case c >= 'A' && c <= 'F':
+						val = val*16 + uint64(c-'A'+10)
+					default:
+						i-- // not a hex digit, back up
+						goto done_hex
+					}
+					if j < 1 {
+						i++
+					}
+				}
+			done_hex:
+				a.AccumulateByte(val)
+			case s[i] == 'n':
+				a.AccumulateByte(10)
+			case s[i] == 't':
+				a.AccumulateByte(9)
+			case s[i] == 'r':
+				a.AccumulateByte(13)
+			case s[i] == 'b':
+				a.AccumulateByte(8)
+			case s[i] == 'f':
+				a.AccumulateByte(12)
+			case s[i] == '\\':
+				a.AccumulateByte('\\')
+			case s[i] == '"':
+				a.AccumulateByte('"')
+			default:
+				// Unknown escape, just emit the character
+				a.AccumulateByte(uint64(s[i]))
+			}
+		} else {
+			a.AccumulateByte(uint64(s[i]))
+		}
+	}
+}
+
 // Pools returns the accumulated constant pools.
 func (a *ConstPoolAccumulator) Pools() map[string]*ConstPool {
 	return a.pools

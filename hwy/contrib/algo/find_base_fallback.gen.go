@@ -521,27 +521,3 @@ func BaseFindIf_fallback_Uint64(slice []uint64, pred Predicate[uint64]) int {
 	}
 	return -1
 }
-
-func BaseNone_fallback(slice []float32, pred Predicate[float32]) bool {
-	return !BaseAny_fallback(slice, pred)
-}
-
-func BaseNone_fallback_Float64(slice []float64, pred Predicate[float64]) bool {
-	return !BaseAny_fallback_Float64(slice, pred)
-}
-
-func BaseNone_fallback_Int32(slice []int32, pred Predicate[int32]) bool {
-	return !BaseAny_fallback_Int32(slice, pred)
-}
-
-func BaseNone_fallback_Int64(slice []int64, pred Predicate[int64]) bool {
-	return !BaseAny_fallback_Int64(slice, pred)
-}
-
-func BaseNone_fallback_Uint32(slice []uint32, pred Predicate[uint32]) bool {
-	return !BaseAny_fallback_Uint32(slice, pred)
-}
-
-func BaseNone_fallback_Uint64(slice []uint64, pred Predicate[uint64]) bool {
-	return !BaseAny_fallback_Uint64(slice, pred)
-}

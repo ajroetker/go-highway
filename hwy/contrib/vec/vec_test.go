@@ -239,6 +239,52 @@ func TestBaseNorm_Float64(t *testing.T) {
 	}
 }
 
+// TestBaseNorm_MatchesScalar verifies that the dispatched BaseNorm implementation
+// produces the same results as a pure scalar reference across SIMD boundary sizes.
+// This catches regressions where the dispatch path silently returns wrong results
+// (e.g., missing sqrt due to dropped type switch in C codegen).
+func TestBaseNorm_MatchesScalar(t *testing.T) {
+	scalarNorm32 := func(v []float32) float32 {
+		var sum float64
+		for _, x := range v {
+			sum += float64(x) * float64(x)
+		}
+		return float32(math.Sqrt(sum))
+	}
+	scalarNorm64 := func(v []float64) float64 {
+		var sum float64
+		for _, x := range v {
+			sum += x * x
+		}
+		return math.Sqrt(sum)
+	}
+
+	// Sizes that cross SIMD lane boundaries (4, 8, 16 for NEON/AVX2/AVX512).
+	sizes := []int{1, 3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33}
+
+	t.Run("float32", func(t *testing.T) {
+		for _, n := range sizes {
+			v := makeVector32(n, func(i int) float32 { return float32(i+1) * 0.5 })
+			got := BaseNorm(v)
+			want := scalarNorm32(v)
+			if !approxEqual32(got, want, epsilon32) {
+				t.Errorf("BaseNorm(len=%d) = %v, scalar = %v", n, got, want)
+			}
+		}
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		for _, n := range sizes {
+			v := makeVector64(n, func(i int) float64 { return float64(i+1) * 0.5 })
+			got := BaseNorm(v)
+			want := scalarNorm64(v)
+			if !approxEqual64(got, want, epsilon64) {
+				t.Errorf("BaseNorm(len=%d) = %v, scalar = %v", n, got, want)
+			}
+		}
+	})
+}
+
 // ============================================================================
 // BaseNormalize Tests
 // ============================================================================

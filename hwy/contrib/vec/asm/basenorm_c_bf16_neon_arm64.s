@@ -121,6 +121,16 @@ BB0_11:
 BB0_12:
 	WORD $0x1e380008 // fcvtzs	w8, s0
 	CBZW R8, BB0_14
+	WORD $0x53103d08 // lsl	w8, w8, #16
+	WORD $0x1e270100 // fmov	s0, w8
+	WORD $0x1e21c000 // fsqrt	s0, s0
+	WORD $0x1e260008 // fmov	w8, s0
+	WORD $0x53104109 // ubfx	w9, w8, #16, #1
+	WORD $0x528fffea // mov	w10, #32767                     ; =0x7fff
+	WORD $0x0b090108 // add	w8, w8, w9
+	WORD $0x0b0a0108 // add	w8, w8, w10
+	WORD $0x53107d08 // lsr	w8, w8, #16
+	WORD $0xf9000048 // str	x8, [x2]
 	RET
 
 BB0_14:

@@ -5,6 +5,36 @@ package asm
 
 import "unsafe"
 
+// Contains_F32 calls the NEON SIMD assembly implementation.
+func Contains_F32(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	contains_c_f32_neon(slice, pvalue, plen, pout_result)
+}
+
+// Contains_F64 calls the NEON SIMD assembly implementation.
+func Contains_F64(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	contains_c_f64_neon(slice, pvalue, plen, pout_result)
+}
+
+// Contains_S32 calls the NEON SIMD assembly implementation.
+func Contains_S32(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	contains_c_s32_neon(slice, pvalue, plen, pout_result)
+}
+
+// Contains_S64 calls the NEON SIMD assembly implementation.
+func Contains_S64(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	contains_c_s64_neon(slice, pvalue, plen, pout_result)
+}
+
+// Contains_U32 calls the NEON SIMD assembly implementation.
+func Contains_U32(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	contains_c_u32_neon(slice, pvalue, plen, pout_result)
+}
+
+// Contains_U64 calls the NEON SIMD assembly implementation.
+func Contains_U64(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	contains_c_u64_neon(slice, pvalue, plen, pout_result)
+}
+
 // Count_F32 calls the NEON SIMD assembly implementation.
 func Count_F32(slice unsafe.Pointer, pvalue unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
 	count_c_f32_neon(slice, pvalue, plen, pout_result)
