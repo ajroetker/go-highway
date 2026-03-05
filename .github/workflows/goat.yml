@@ -153,7 +153,12 @@ jobs:
             --volume "${PWD}:/opt/goat"
           install: |
             apt-get update
-            apt-get install -y clang golang
+            apt-get install -y clang wget
+            wget -q https://go.dev/dl/go1.26.0.linux-riscv64.tar.gz
+            tar -C /usr/local -xzf go1.26.0.linux-riscv64.tar.gz
+            rm go1.26.0.linux-riscv64.tar.gz
+          env: |
+            PATH: /usr/local/go/bin:/usr/bin:/bin
           run: |
             cd /opt/goat
             go build -C hwy/goat -o ../../bin/goat .
