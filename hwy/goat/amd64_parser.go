@@ -480,13 +480,18 @@ func (p *AMD64Parser) parseAssembly(path string, targetOS string) (map[string][]
 // to reference a constant pool, replacing it with Go's static-base addressing.
 // Returns empty string if the instruction pattern is not recognized.
 //
-// Common patterns:
+// Common patterns (2-operand loads):
 //
-//	vmovaps .LCPI0_0(%rip), %ymm0  -> VMOVAPS CPI0_0<>(SB), Y0
-//	vmovdqa .LCPI0_0(%rip), %xmm1  -> VMOVDQA CPI0_0<>(SB), X1
+//	vmovaps .LCPI0_0(%rip), %ymm0      -> VMOVAPS CPI0_0<>(SB), Y0
+//	vmovdqa .LCPI0_0(%rip), %xmm1      -> VMOVDQA CPI0_0<>(SB), X1
 //	vbroadcastss .LCPI0_0(%rip), %ymm0 -> VBROADCASTSS CPI0_0<>(SB), Y0
-//	movq .LCPI0_0(%rip), %xmm0     -> MOVQ CPI0_0<>(SB), X0
-//	leaq .LCPI0_0(%rip), %rax      -> LEAQ CPI0_0<>(SB), AX
+//	movq .LCPI0_0(%rip), %xmm0         -> MOVQ CPI0_0<>(SB), X0
+//	leaq .LCPI0_0(%rip), %rax          -> LEAQ CPI0_0<>(SB), AX
+//
+// 3-operand VEX instructions:
+//
+//	vaddps .LCPI0_0(%rip), %ymm0, %ymm0 -> VADDPS CPI0_0<>(SB), Y0, Y0
+//	vmulps .LCPI1_0(%rip), %ymm0, %ymm0 -> VMULPS CPI1_0<>(SB), Y0, Y0
 func amd64RewriteConstPoolRef(asm string, constLabel string) string {
 	// Extract instruction mnemonic and operands
 	fields := strings.Fields(asm)
@@ -504,22 +509,28 @@ func amd64RewriteConstPoolRef(asm string, constLabel string) string {
 	}
 
 	srcOp := strings.TrimSpace(parts[0])
-	dstOp := strings.TrimSpace(parts[1])
 
 	// Check if source operand is the RIP-relative constant pool reference
 	if !amd64RIPRelativeConstPool.MatchString(srcOp) {
-		// Maybe destination is the const pool ref (shouldn't happen for loads, but check)
 		return ""
 	}
 
-	// Convert destination register to Go assembly format
+	// 3-operand VEX instruction: mem, reg, reg (AT&T order: src1, src2, dst)
+	if len(parts) == 3 {
+		src2 := amd64ToGoRegister(strings.TrimSpace(parts[1]))
+		dst := amd64ToGoRegister(strings.TrimSpace(parts[2]))
+		if src2 == "" || dst == "" {
+			return ""
+		}
+		return fmt.Sprintf("\t%s %s<>(SB), %s, %s\t// %s\n", mnemonic, constLabel, src2, dst, asm)
+	}
+
+	// 2-operand instruction: mem, reg
+	dstOp := strings.TrimSpace(parts[1])
 	goReg := amd64ToGoRegister(dstOp)
 	if goReg == "" {
 		return ""
 	}
-
-	// Build the rewritten instruction
-	// Format: MNEMONIC symbol<>(SB), REGISTER
 	return fmt.Sprintf("\t%s %s<>(SB), %s\t// %s\n", mnemonic, constLabel, goReg, asm)
 }
 

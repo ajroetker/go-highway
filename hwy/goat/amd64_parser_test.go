@@ -279,6 +279,24 @@ func TestAmd64RewriteConstPoolRef(t *testing.T) {
 			constLabel: "CPI0_0",
 			expected:   "\tLEAQ CPI0_0<>(SB), AX\t// leaq\t.LCPI0_0(%rip), %rax\n",
 		},
+		{
+			name:       "vaddps 3-operand",
+			input:      "vaddps\t.LCPI0_0(%rip), %ymm0, %ymm0",
+			constLabel: "CPI0_0",
+			expected:   "\tVADDPS CPI0_0<>(SB), Y0, Y0\t// vaddps\t.LCPI0_0(%rip), %ymm0, %ymm0\n",
+		},
+		{
+			name:       "vmulps 3-operand",
+			input:      "vmulps\t.LCPI1_0(%rip), %ymm0, %ymm0",
+			constLabel: "CPI1_0",
+			expected:   "\tVMULPS CPI1_0<>(SB), Y0, Y0\t// vmulps\t.LCPI1_0(%rip), %ymm0, %ymm0\n",
+		},
+		{
+			name:       "vaddps 3-operand different regs",
+			input:      "vaddps\t.LCPI0_0(%rip), %ymm1, %ymm2",
+			constLabel: "CPI0_0",
+			expected:   "\tVADDPS CPI0_0<>(SB), Y1, Y2\t// vaddps\t.LCPI0_0(%rip), %ymm1, %ymm2\n",
+		},
 	}
 
 	for _, tt := range tests {

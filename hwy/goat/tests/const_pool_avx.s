@@ -38,7 +38,7 @@ TEXT ·add_const_ps256(SB), $0-64
 	MOVQ         AX, X15
 	PINSRQ       $1, BX, X15
 	VINSERTF128  $1, X15, Y14, Y0
-	VADDPS       CPI0_0<>(SB), Y0     // vaddps	LCPI0_0(%rip), %ymm0, %ymm0
+	VADDPS       CPI0_0<>(SB), Y0, Y0 // vaddps	LCPI0_0(%rip), %ymm0, %ymm0
 	VEXTRACTF128 $0, Y0, X14
 	MOVQ         X14, AX
 	PEXTRQ       $1, X14, BX
@@ -61,7 +61,7 @@ TEXT ·mul_index_ps256(SB), $0-64
 	MOVQ         AX, X15
 	PINSRQ       $1, BX, X15
 	VINSERTF128  $1, X15, Y14, Y0
-	VMULPS       CPI1_0<>(SB), Y0     // vmulps	LCPI1_0(%rip), %ymm0, %ymm0
+	VMULPS       CPI1_0<>(SB), Y0, Y0 // vmulps	LCPI1_0(%rip), %ymm0, %ymm0
 	VEXTRACTF128 $0, Y0, X14
 	MOVQ         X14, AX
 	PEXTRQ       $1, X14, BX
