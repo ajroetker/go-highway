@@ -98,18 +98,6 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		funcDecl.Type.Params.List = append(funcDecl.Type.Params.List, field)
 	}
 
-	// For fallback target with predicate functions, generate scalar loop body
-	// to avoid allocations from hwy.Load/pred.Apply
-	if target.IsFallback() && hasPredicateParam(pf) {
-		if scalarBody := generateScalarPredicateBody(pf, elemType); scalarBody != nil {
-			funcDecl.Body = scalarBody
-			return &TransformResult{
-				FuncDecl:      funcDecl,
-				HoistedConsts: nil,
-			}
-		}
-	}
-
 	// Build package-level constant lookup map for deterministic hoisting
 	packageConsts := opts.PackageConstsMap
 	if packageConsts == nil {

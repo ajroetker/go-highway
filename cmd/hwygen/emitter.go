@@ -535,12 +535,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 				if pf.Private {
 					baseName = makeUnexported(baseName)
 				}
-				var implName string
-				if hasInterfaceTypeParams(pf.TypeParams) {
-					implName = baseName + "_fallback"
-				} else {
-					implName = baseName + target.Suffix()
-				}
+				implName := baseName + target.Suffix()
 				suffix := dc.TypeSuffix
 				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
 					implName = implName + "_" + suffix
@@ -971,8 +966,7 @@ func toCamelCase(s string) string {
 //	    }
 //	}
 func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
-	hasInterfaceParams := hasInterfaceTypeParams(pf.TypeParams)
-	genericName := buildGenericFuncName(pf.Name, hasInterfaceParams, pf.Private)
+	genericName := buildGenericFuncName(pf.Name, pf.Private)
 	combos := getTypeCombinations(&pf)
 
 	// Check if this is a multi-type function (//hwy:gen with 2+ type params per combo)
@@ -1240,9 +1234,6 @@ func emitDispatchArg(buf *bytes.Buffer, param Param, typeParams []TypeParam, ele
 	if containsTypeParam(param.Type, typeParams) {
 		concreteParamType := specializeTypeWithMap(param.Type, typeParams, elemType, typeMap)
 		fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteParamType)
-	} else if isInterfaceTypeParam(param.Type, typeParams) {
-		concreteType := specializeTypeWithMap(getConstraintForParam(param.Type, typeParams), typeParams, elemType, typeMap)
-		fmt.Fprintf(buf, "any(%s).(%s)", param.Name, concreteType)
 	} else {
 		fmt.Fprintf(buf, "%s", param.Name)
 	}
@@ -1293,12 +1284,8 @@ func buildDispatchFuncName(baseName, elemType string, isGeneric, private bool) s
 
 // buildGenericFuncName creates the generic function name (without type suffix).
 // BaseSigmoid -> Sigmoid, baseSigmoid -> sigmoid
-// BaseAll -> AllP (functions with interface type params get P suffix)
-func buildGenericFuncName(baseName string, hasInterfaceParams, private bool) string {
+func buildGenericFuncName(baseName string, private bool) string {
 	name := stripBasePrefix(baseName)
-	if hasInterfaceParams {
-		name = name + "P"
-	}
 	if private {
 		name = makeUnexported(name)
 	}
@@ -1413,33 +1400,6 @@ func getBaseFilename(path string) string {
 	return base[:len(base)-len(ext)]
 }
 
-// isInterfaceTypeParam checks if a parameter type is an interface type parameter
-// (e.g., "P" where P is constrained by Predicate[T]).
-func isInterfaceTypeParam(paramType string, typeParams []TypeParam) bool {
-	for _, tp := range typeParams {
-		if tp.Name == paramType {
-			// Check if this is NOT an element type constraint
-			if !strings.Contains(tp.Constraint, "Lanes") &&
-				!strings.Contains(tp.Constraint, "Floats") &&
-				!strings.Contains(tp.Constraint, "Integers") &&
-				!strings.Contains(tp.Constraint, "SignedInts") &&
-				!strings.Contains(tp.Constraint, "UnsignedInts") {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// getConstraintForParam returns the constraint for a type parameter.
-func getConstraintForParam(paramType string, typeParams []TypeParam) string {
-	for _, tp := range typeParams {
-		if tp.Name == paramType {
-			return tp.Constraint
-		}
-	}
-	return paramType
-}
 
 // containsTypeParam checks if a type string contains any of the element type parameters.
 // This includes patterns like:

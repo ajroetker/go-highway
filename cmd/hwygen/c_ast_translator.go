@@ -5123,12 +5123,6 @@ func (t *CASTTranslator) writefRaw(format string, args ...any) {
 // Eligible functions have slice or *Image[T] parameters, use hwy.* operations,
 // and are NOT composite math functions handled by the template path.
 func IsASTCEligible(pf *ParsedFunc) bool {
-	// Functions with interface type parameters (e.g., P Predicate[T]) cannot be
-	// compiled to C because Go interface method dispatch has no C equivalent.
-	if hasPredicateParam(pf) {
-		return false
-	}
-
 	// Must have slice or *Image[T] params (not Vec→Vec)
 	hasSliceOrImage := false
 	hasImagePtr := false
