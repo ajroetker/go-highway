@@ -9,8 +9,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func skipIfNoSME(t *testing.T) {
+	t.Helper()
+	if !hasSMESupport() {
+		t.Skip("SME not supported on this CPU")
+	}
+}
+
 // TestSmeDot16 tests the simple SME outer product function
 func TestSmeDot16(t *testing.T) {
+	skipIfNoSME(t)
 	// Input vectors (16 floats each for 512-bit SME)
 	a := make([]float32, 16)
 	b := make([]float32, 16)
@@ -38,6 +46,7 @@ func TestSmeDot16(t *testing.T) {
 
 // TestSmeFmopaTile tests the 16x16 tile outer product
 func TestSmeFmopaTile(t *testing.T) {
+	skipIfNoSME(t)
 	// Input vectors
 	a := make([]float32, 16) // Column vector
 	b := make([]float32, 16) // Row vector
@@ -68,6 +77,7 @@ func TestSmeFmopaTile(t *testing.T) {
 
 // TestSmeMatmulF32 tests the full matrix multiplication
 func TestSmeMatmulF32(t *testing.T) {
+	skipIfNoSME(t)
 	// Small 16x16 matrices for testing
 	m := int64(16)
 	n := int64(16)
