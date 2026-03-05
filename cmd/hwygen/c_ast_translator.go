@@ -2257,12 +2257,9 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 	// `for _, b := range src` → key is blank, use a temp name.
 	// `for i, b := range src` → key is i.
 	// `for i := range m` → key is i, no value.
-	isBlankKey := false
 	iter := "_range_i"
 	if s.Key != nil {
-		if ident, ok := s.Key.(*ast.Ident); ok && ident.Name == "_" {
-			isBlankKey = true
-		} else {
+		if ident, ok := s.Key.(*ast.Ident); !ok || ident.Name != "_" {
 			iter = t.translateExpr(s.Key)
 		}
 	}
@@ -2312,9 +2309,6 @@ func (t *CASTTranslator) translateRangeStmt(s *ast.RangeStmt) {
 			t.writef("%s %s = %s[%s];\n", elemCType, valName, rangeExpr, iter)
 		}
 	}
-
-	// Suppress "unused variable" warnings when key is blank but value is used.
-	_ = isBlankKey
 
 	t.translateBlockStmtContents(s.Body)
 	t.indent--
@@ -2405,19 +2399,7 @@ func (t *CASTTranslator) translateExprStmt(s *ast.ExprStmt) {
 			for _, arg := range call.Args {
 				args = append(args, t.translateExpr(arg))
 			}
-			// Append slice length arguments for known slice params.
-			if sliceIndices, ok := t.helperSliceParams[ident.Name]; ok {
-				for _, idx := range sliceIndices {
-					if idx < len(call.Args) {
-						sliceName := sliceArgBaseName(call.Args[idx])
-						if sliceName != "" {
-							if lenVar, ok := t.sliceLenVars[sliceName]; ok {
-								args = append(args, lenVar)
-							}
-						}
-					}
-				}
-			}
+			args = t.appendHelperSliceLens(ident.Name, call.Args, args)
 			// Append dummy output pointers for extra returns.
 			for i := 1; i < len(retTypes); i++ {
 				tmpName := fmt.Sprintf("_discard_%d", t.tmpCount)
@@ -2434,6 +2416,26 @@ func (t *CASTTranslator) translateExprStmt(s *ast.ExprStmt) {
 	// Generic function call
 	expr := t.translateExpr(s.X)
 	t.writef("%s;\n", expr)
+}
+
+// appendHelperSliceLens appends the length variable for each slice argument
+// of the named helper function, in the order registered by collectHelperCode.
+func (t *CASTTranslator) appendHelperSliceLens(funcName string, callArgs []ast.Expr, args []string) []string {
+	sliceIndices, ok := t.helperSliceParams[funcName]
+	if !ok {
+		return args
+	}
+	for _, idx := range sliceIndices {
+		if idx < len(callArgs) {
+			sliceName := sliceArgBaseName(callArgs[idx])
+			if sliceName != "" {
+				if lenVar, ok := t.sliceLenVars[sliceName]; ok {
+					args = append(args, lenVar)
+				}
+			}
+		}
+	}
+	return args
 }
 
 // translateDeclStmt handles `var j int` and `const blockSize = 64`.
@@ -4374,19 +4376,7 @@ func (t *CASTTranslator) translateMultiReturnHelperAssign(lhs []ast.Expr, call *
 	for _, arg := range call.Args {
 		args = append(args, t.translateExpr(arg))
 	}
-	// Append slice length arguments for known slice params.
-	if sliceIndices, ok := t.helperSliceParams[funcName]; ok {
-		for _, idx := range sliceIndices {
-			if idx < len(call.Args) {
-				sliceName := sliceArgBaseName(call.Args[idx])
-				if sliceName != "" {
-					if lenVar, ok := t.sliceLenVars[sliceName]; ok {
-						args = append(args, lenVar)
-					}
-				}
-			}
-		}
-	}
+	args = t.appendHelperSliceLens(funcName, call.Args, args)
 	// Append output pointer arguments for extra returns.
 	for i := 1; i < len(lhs); i++ {
 		name := lhsNames[i]
@@ -5042,8 +5032,9 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 	return cVarInfo{cType: t.profile.CType}
 }
 
-// goTypeToCType converts Go type names to C type names.
-func (t *CASTTranslator) goTypeToCType(goType string) string {
+// goScalarTypeToCType converts concrete Go scalar type names to C type names.
+// Returns "" for non-scalar types (slices, generic T, hwy.Vec, etc.).
+func goScalarTypeToCType(goType string) string {
 	switch goType {
 	case "int":
 		return "long"
@@ -5069,6 +5060,17 @@ func (t *CASTTranslator) goTypeToCType(goType string) string {
 		return "signed char"
 	case "bool":
 		return "long"
+	default:
+		return ""
+	}
+}
+
+// goTypeToCType converts Go type names to C type names.
+func (t *CASTTranslator) goTypeToCType(goType string) string {
+	if c := goScalarTypeToCType(goType); c != "" {
+		return c
+	}
+	switch goType {
 	case "T":
 		if t.profile.ScalarArithType != "" {
 			return t.profile.ScalarArithType

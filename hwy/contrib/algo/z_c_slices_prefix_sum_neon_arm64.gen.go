@@ -36,11 +36,11 @@ func deltaDecodeAsmS32(data []int32, base int32) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	baseVal := base
-	len_dataVal := int64(len(data))
+	lenVal := int64(len(data))
 	asm.DeltaDecode_S32(
 		p_data,
 		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&lenVal),
 	)
 }
 
@@ -50,11 +50,11 @@ func deltaDecodeAsmS64(data []int64, base int64) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	baseVal := base
-	len_dataVal := int64(len(data))
+	lenVal := int64(len(data))
 	asm.DeltaDecode_S64(
 		p_data,
 		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&lenVal),
 	)
 }
 
@@ -64,11 +64,11 @@ func deltaDecodeAsmU32(data []uint32, base uint32) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	baseVal := base
-	len_dataVal := int64(len(data))
+	lenVal := int64(len(data))
 	asm.DeltaDecode_U32(
 		p_data,
 		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&lenVal),
 	)
 }
 
@@ -78,11 +78,11 @@ func deltaDecodeAsmU64(data []uint64, base uint64) {
 		p_data = unsafe.Pointer(&data[0])
 	}
 	baseVal := base
-	len_dataVal := int64(len(data))
+	lenVal := int64(len(data))
 	asm.DeltaDecode_U64(
 		p_data,
 		unsafe.Pointer(&baseVal),
-		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&lenVal),
 	)
 }
 

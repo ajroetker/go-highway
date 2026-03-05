@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -1478,7 +1479,8 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 	// so we resolve them now while the concrete elemType is known.
 	// We must clone because the same ParsedFunc is shared across elemType
 	// iterations (float32, float64, etc.) and resolution mutates the AST.
-	if pf.Body != nil {
+	// Short-circuit: skip the expensive deep clone when no type switches exist.
+	if pf.Body != nil && containsTypeSwitchOrAssert(pf.Body) {
 		pf.Body = cloneBlockStmt(pf.Body)
 		ctx := &transformContext{elemType: e.elemType}
 		resolveTypeSwitches(pf.Body, ctx)
@@ -1529,8 +1531,7 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 	// These are wrapped in #ifndef GOAT_PARSER because GOAT's parser
 	// doesn't support static inline non-void functions. Clang still
 	// sees and inlines them during compilation.
-	allInlineHelpers := e.profile.InlineHelpers
-	allInlineHelpers = append(allInlineHelpers, extraInlineHelpers...)
+	allInlineHelpers := slices.Concat(e.profile.InlineHelpers, extraInlineHelpers)
 	if len(allInlineHelpers) > 0 {
 		fmt.Fprintf(&buf, "#ifndef GOAT_PARSER\n")
 		for _, helper := range allInlineHelpers {
@@ -1629,11 +1630,16 @@ func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator,
 		// If the helper has an //hwy:elemtype override that differs from the
 		// parent's element type, collect InlineHelpers from the alternate profile
 		// (e.g., neon_bits_from_mask_u8 for a uint8 helper in a uint32 parent).
+		// Use emittedHelpers with a "profile:" prefix to deduplicate across
+		// recursive calls — multiple helpers sharing the same override would
+		// otherwise append the same InlineHelpers repeatedly.
 		if helper.ElemTypeOverride != "" && helper.ElemTypeOverride != e.elemType {
-			altProfile := GetCProfile(e.profile.TargetName, helper.ElemTypeOverride)
-			if altProfile != nil {
-				for _, ih := range altProfile.InlineHelpers {
-					*extraInlineHelpers = append(*extraInlineHelpers, ih)
+			profileKey := "profile:" + e.profile.TargetName + ":" + helper.ElemTypeOverride
+			if !emittedHelpers[profileKey] {
+				emittedHelpers[profileKey] = true
+				altProfile := GetCProfile(e.profile.TargetName, helper.ElemTypeOverride)
+				if altProfile != nil {
+					*extraInlineHelpers = append(*extraInlineHelpers, altProfile.InlineHelpers...)
 				}
 			}
 		}
@@ -1653,33 +1659,10 @@ func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator,
 
 // helperReturnGoToCType maps a Go return type to a C type for helper functions.
 // Used to determine output pointer types for multi-return helpers.
+// Falls back to "long" for unknown types (matching GOAT's default integer convention).
 func helperReturnGoToCType(goType string) string {
-	switch goType {
-	case "int":
-		return "long"
-	case "int64":
-		return "long long"
-	case "int32":
-		return "int"
-	case "float32":
-		return "float"
-	case "float64":
-		return "double"
-	case "uint64":
-		return "unsigned long long"
-	case "uint32":
-		return "unsigned int"
-	case "uint16":
-		return "unsigned short"
-	case "uint8", "byte":
-		return "unsigned char"
-	case "int16":
-		return "short"
-	case "int8":
-		return "signed char"
-	case "bool":
-		return "long"
-	default:
-		return "long"
+	if c := goScalarTypeToCType(goType); c != "" {
+		return c
 	}
+	return "long"
 }

@@ -1982,6 +1982,27 @@ func substituteParamsPostOrder(node ast.Node, paramMap map[string]ast.Expr) {
 	}
 }
 
+// containsTypeSwitchOrAssert reports whether the block contains any
+// TypeSwitchStmt or TypeAssertExpr that would need resolution.
+func containsTypeSwitchOrAssert(block *ast.BlockStmt) bool {
+	if block == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(block, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		switch n.(type) {
+		case *ast.TypeSwitchStmt, *ast.TypeAssertExpr:
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
 // resolveTypeSwitches replaces TypeSwitchStmt nodes with the body of the
 // matching CaseClause, based on the known concrete elemType. This must run
 // after type parameters are specialized so that the element type is concrete.

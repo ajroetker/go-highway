@@ -44,12 +44,12 @@ func containsAsmF32(slice []float32, value float32) bool {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Contains_F32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return out_result != 0
@@ -61,12 +61,12 @@ func containsAsmF64(slice []float64, value float64) bool {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Contains_F64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return out_result != 0
@@ -78,12 +78,12 @@ func containsAsmS32(slice []int32, value int32) bool {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Contains_S32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return out_result != 0
@@ -95,12 +95,12 @@ func containsAsmS64(slice []int64, value int64) bool {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Contains_S64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return out_result != 0
@@ -112,12 +112,12 @@ func containsAsmU32(slice []uint32, value uint32) bool {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Contains_U32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return out_result != 0
@@ -129,12 +129,12 @@ func containsAsmU64(slice []uint64, value uint64) bool {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Contains_U64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return out_result != 0
@@ -146,12 +146,12 @@ func countAsmF32(slice []float32, value float32) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Count_F32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -163,12 +163,12 @@ func countAsmF64(slice []float64, value float64) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Count_F64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -180,12 +180,12 @@ func countAsmS32(slice []int32, value int32) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Count_S32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -197,12 +197,12 @@ func countAsmS64(slice []int64, value int64) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Count_S64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -214,12 +214,12 @@ func countAsmU32(slice []uint32, value uint32) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Count_U32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -231,12 +231,12 @@ func countAsmU64(slice []uint64, value uint64) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Count_U64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -248,12 +248,12 @@ func findAsmF32(slice []float32, value float32) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Find_F32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -265,12 +265,12 @@ func findAsmF64(slice []float64, value float64) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Find_F64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -282,12 +282,12 @@ func findAsmS32(slice []int32, value int32) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Find_S32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -299,12 +299,12 @@ func findAsmS64(slice []int64, value int64) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Find_S64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -316,12 +316,12 @@ func findAsmU32(slice []uint32, value uint32) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Find_U32(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)
@@ -333,12 +333,12 @@ func findAsmU64(slice []uint64, value uint64) int {
 		p_slice = unsafe.Pointer(&slice[0])
 	}
 	valueVal := value
-	len_sliceVal := int64(len(slice))
+	lenVal := int64(len(slice))
 	var out_result int64
 	asm.Find_U64(
 		p_slice,
 		unsafe.Pointer(&valueVal),
-		unsafe.Pointer(&len_sliceVal),
+		unsafe.Pointer(&lenVal),
 		unsafe.Pointer(&out_result),
 	)
 	return int(out_result)

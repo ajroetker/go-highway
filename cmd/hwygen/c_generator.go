@@ -1142,10 +1142,7 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 			// Struct pointer params keep their Go name; scalar params
 			// (type-parameter T, int, float) get a "p" prefix to match
 			// the GOAT calling convention (passed as pointers).
-			typeParamNames := make(map[string]bool, len(pf.TypeParams))
-			for _, tp := range pf.TypeParams {
-				typeParamNames[tp.Name] = true
-			}
+			typeParamNames := typeParamNameSet(pf.TypeParams)
 			var paramNames []string
 			for _, p := range pf.Params {
 				if isGenericStructPtr(p.Type) {
@@ -1435,10 +1432,7 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 			asmName := cAsmFuncName(pf.Name, elemType, targetSuffix)
 
 			// Build set of type parameter names for generic substitution.
-			typeParamNames := make(map[string]bool, len(pf.TypeParams))
-			for _, tp := range pf.TypeParams {
-				typeParamNames[tp.Name] = true
-			}
+			typeParamNames := typeParamNameSet(pf.TypeParams)
 
 			// Build param list matching the asm stub signature.
 			// Slice params → unsafe.Pointer (data pointer)
@@ -1783,10 +1777,7 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	goSliceType := astWrapperGoSliceType(elemType)
 
 	// Build set of type parameter names for generic substitution.
-	typeParamNames := make(map[string]bool, len(pf.TypeParams))
-	for _, tp := range pf.TypeParams {
-		typeParamNames[tp.Name] = true
-	}
+	typeParamNames := typeParamNameSet(pf.TypeParams)
 
 	// Build Go function signature matching the dispatch var type
 	goSig := groupGoParams(pf, goSliceType, elemType)
@@ -1936,25 +1927,8 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	}
 	fmt.Fprintf(buf, "\t)\n")
 
-	// Return with type narrowing from int64 to actual return type.
-	// Array returns are already the correct type, no conversion needed.
 	if hasReturns {
-		var retExprs []string
-		for _, ret := range pf.Returns {
-			name := ret.Name
-			if name == "" {
-				name = "result"
-			}
-			goType := goReturnTypeForWrapper(ret.Type, elemType)
-			if isGoArrayType(goType) {
-				retExprs = append(retExprs, "out_"+name)
-			} else if goType == "bool" {
-				retExprs = append(retExprs, "out_"+name+" != 0")
-			} else {
-				retExprs = append(retExprs, goType+"(out_"+name+")")
-			}
-		}
-		fmt.Fprintf(buf, "\treturn %s\n", strings.Join(retExprs, ", "))
+		emitReturnNarrowing(buf, pf, elemType)
 	}
 	fmt.Fprintf(buf, "}\n\n")
 }
@@ -2025,10 +1999,7 @@ func emitZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string, targe
 	adapterName := buildAdapterFuncName(pf.Name, elemType)
 
 	// Build set of type parameter names for generic substitution.
-	typeParamNames := make(map[string]bool, len(pf.TypeParams))
-	for _, tp := range pf.TypeParams {
-		typeParamNames[tp.Name] = true
-	}
+	typeParamNames := typeParamNameSet(pf.TypeParams)
 
 	// Build parameter list with specialized types.
 	// Struct pointer types: *Image[T] → *Image[float32]
@@ -2189,11 +2160,21 @@ func isGoScalarIntType(goType string) bool {
 	switch goType {
 	case "int", "int64", "int32", "int16", "int8",
 		"uint", "uint64", "uint8", "uint16", "uint32", "uintptr",
-		"byte": // byte is an alias for uint8
+		"byte", // byte is an alias for uint8
+		"bool": // passed as long through GoAT (_Bool)
 		return true
 	default:
 		return false
 	}
+}
+
+// typeParamNameSet returns a set of type parameter names (e.g., {"T": true}).
+func typeParamNameSet(typeParams []TypeParam) map[string]bool {
+	names := make(map[string]bool, len(typeParams))
+	for _, tp := range typeParams {
+		names[tp.Name] = true
+	}
+	return names
 }
 
 // hasMixedSliceTypes reports whether a function's slice parameters have
@@ -2355,6 +2336,27 @@ func goReturnZeroValue(goType, elemType string) string {
 	return "0"
 }
 
+// emitReturnNarrowing writes the "return out_x, out_y, ..." line, converting
+// each int64/float out-var to its proper Go return type.
+func emitReturnNarrowing(buf *bytes.Buffer, pf *ParsedFunc, elemType string) {
+	var retExprs []string
+	for _, ret := range pf.Returns {
+		name := ret.Name
+		if name == "" {
+			name = "result"
+		}
+		goType := goReturnTypeForWrapper(ret.Type, elemType)
+		if isGoArrayType(goType) {
+			retExprs = append(retExprs, "out_"+name)
+		} else if goType == "bool" {
+			retExprs = append(retExprs, "out_"+name+" != 0")
+		} else {
+			retExprs = append(retExprs, goType+"(out_"+name+")")
+		}
+	}
+	fmt.Fprintf(buf, "\treturn %s\n", strings.Join(retExprs, ", "))
+}
+
 // emitASTCWrapperFunc generates a wrapper function for an AST-translated function
 // with arbitrary parameters (multiple slices + int dimensions).
 //
@@ -2374,10 +2376,7 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 
 	// Build set of type parameter names (e.g., T, P) for generic substitution.
-	typeParamNames := make(map[string]bool, len(pf.TypeParams))
-	for _, tp := range pf.TypeParams {
-		typeParamNames[tp.Name] = true
-	}
+	typeParamNames := typeParamNameSet(pf.TypeParams)
 
 	publicName := buildCPublicName(pf.Name, elemType)
 	asmName := cAsmFuncName(pf.Name, elemType, targetSuffix)
@@ -2576,25 +2575,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	}
 	fmt.Fprintf(buf, "\t)\n")
 
-	// Return with type narrowing from int64 to actual return type.
-	// Array returns are already the correct type, so no conversion needed.
 	if hasReturns {
-		var retExprs []string
-		for _, ret := range pf.Returns {
-			name := ret.Name
-			if name == "" {
-				name = "result"
-			}
-			goType := goReturnTypeForWrapper(ret.Type, elemType)
-			if isGoArrayType(goType) {
-				retExprs = append(retExprs, "out_"+name)
-			} else if goType == "bool" {
-				retExprs = append(retExprs, "out_"+name+" != 0")
-			} else {
-				retExprs = append(retExprs, goType+"(out_"+name+")")
-			}
-		}
-		fmt.Fprintf(buf, "\treturn %s\n", strings.Join(retExprs, ", "))
+		emitReturnNarrowing(buf, pf, elemType)
 	}
 	fmt.Fprintf(buf, "}\n\n")
 }
@@ -2917,10 +2899,7 @@ func goTypeName(elemType string) string {
 // "a []float32, b []float32, c []float32, m int, n int, k int".
 func groupGoParams(pf *ParsedFunc, goSliceType, elemType string) string {
 	// Build set of type parameter names for generic substitution.
-	typeParamNames := make(map[string]bool, len(pf.TypeParams))
-	for _, tp := range pf.TypeParams {
-		typeParamNames[tp.Name] = true
-	}
+	typeParamNames := typeParamNameSet(pf.TypeParams)
 
 	var groups []string
 	var currentNames []string
