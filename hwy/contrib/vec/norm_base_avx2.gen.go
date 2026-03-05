@@ -15,14 +15,7 @@ func BaseNorm_avx2_Float16(v []hwy.Float16) hwy.Float16 {
 	if squaredNorm == 0 {
 		return 0
 	}
-	switch any(squaredNorm).(type) {
-	case float32:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(hwy.Float16)
-	case float64:
-		return any(stdmath.Sqrt(any(squaredNorm).(float64))).(hwy.Float16)
-	default:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(hwy.Float16)
-	}
+	return hwy.Float32ToFloat16(float32(float32(stdmath.Sqrt(float64(float32(squaredNorm))))))
 }
 
 func BaseNorm_avx2_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
@@ -30,14 +23,7 @@ func BaseNorm_avx2_BFloat16(v []hwy.BFloat16) hwy.BFloat16 {
 	if squaredNorm == 0 {
 		return 0
 	}
-	switch any(squaredNorm).(type) {
-	case float32:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(hwy.BFloat16)
-	case float64:
-		return any(stdmath.Sqrt(any(squaredNorm).(float64))).(hwy.BFloat16)
-	default:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(hwy.BFloat16)
-	}
+	return hwy.Float32ToBFloat16(float32(float32(stdmath.Sqrt(float64(float32(squaredNorm))))))
 }
 
 func BaseNorm_avx2(v []float32) float32 {
@@ -45,14 +31,7 @@ func BaseNorm_avx2(v []float32) float32 {
 	if squaredNorm == 0 {
 		return 0
 	}
-	switch any(squaredNorm).(type) {
-	case float32:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(float32)
-	case float64:
-		return any(stdmath.Sqrt(any(squaredNorm).(float64))).(float32)
-	default:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(float32)
-	}
+	return float32(float32(stdmath.Sqrt(float64(float32(squaredNorm)))))
 }
 
 func BaseNorm_avx2_Float64(v []float64) float64 {
@@ -60,14 +39,7 @@ func BaseNorm_avx2_Float64(v []float64) float64 {
 	if squaredNorm == 0 {
 		return 0
 	}
-	switch any(squaredNorm).(type) {
-	case float32:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(float64)
-	case float64:
-		return any(stdmath.Sqrt(any(squaredNorm).(float64))).(float64)
-	default:
-		return any(float32(stdmath.Sqrt(float64(any(squaredNorm).(float32))))).(float64)
-	}
+	return float64(stdmath.Sqrt(float64(squaredNorm)))
 }
 
 func BaseSquaredNorm_avx2_Float16(v []hwy.Float16) hwy.Float16 {

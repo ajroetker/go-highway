@@ -576,11 +576,6 @@ func (g *Generator) Run() error {
 					continue // no coverage on this target
 				}
 
-				// Skip interface type params on non-Fallback targets
-				if hasInterfaceTypeParams(sourcePF.TypeParams) && !target.IsFallback() {
-					continue
-				}
-
 				// For generic functions, use the combo's type parameter.
 				// For non-generic functions (nil combo types), infer from
 				// slice parameters via getCElemTypes to stay consistent
@@ -762,20 +757,4 @@ func inferTypesFromParams(params []Param) []string {
 	return []string{"float32"}
 }
 
-// hasInterfaceTypeParams returns true if any type parameter has an interface constraint
-// (as opposed to an element type constraint like hwy.Lanes, hwy.Floats, etc.)
-func hasInterfaceTypeParams(typeParams []TypeParam) bool {
-	for _, tp := range typeParams {
-		// Element type constraints - these are NOT interface constraints
-		if strings.Contains(tp.Constraint, "Lanes") ||
-			strings.Contains(tp.Constraint, "Floats") ||
-			strings.Contains(tp.Constraint, "Integers") ||
-			strings.Contains(tp.Constraint, "SignedInts") ||
-			strings.Contains(tp.Constraint, "UnsignedInts") {
-			continue
-		}
-		// Any other constraint is considered an interface constraint
-		return true
-	}
-	return false
-}
+

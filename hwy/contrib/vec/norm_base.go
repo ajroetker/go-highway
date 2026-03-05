@@ -60,15 +60,16 @@ func BaseNorm[T hwy.Floats](v []T) T {
 		return 0
 	}
 
-	// Take square root of the squared norm
-	// Use standard math library for the final scalar result
+	// Take square root of the squared norm.
+	// The type switch handles Go's lack of generic math.Sqrt.
+	// For Float16/BFloat16, interface boxing preserves the float value.
+	// hwygen resolves this type switch to the matching case at generation time.
 	switch any(squaredNorm).(type) {
 	case float32:
 		return any(float32(math.Sqrt(float64(any(squaredNorm).(float32))))).(T)
 	case float64:
 		return any(math.Sqrt(any(squaredNorm).(float64))).(T)
 	default:
-		// For Float16/BFloat16, convert through float32
 		return any(float32(math.Sqrt(float64(any(squaredNorm).(float32))))).(T)
 	}
 }

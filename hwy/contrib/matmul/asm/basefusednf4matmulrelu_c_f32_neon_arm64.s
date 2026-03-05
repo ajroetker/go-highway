@@ -6,6 +6,27 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/matmul/asm/basefusednf4matmulrelu_c_f32_neon_arm64.c
 
+#include "textflag.h"
+
+// Constant pool data
+DATA nf4LookupTable<>+0(SB)/4, $0xbf800000
+DATA nf4LookupTable<>+4(SB)/4, $0xbf3239b1
+DATA nf4LookupTable<>+8(SB)/4, $0xbf066b30
+DATA nf4LookupTable<>+12(SB)/4, $0xbeca32a0
+DATA nf4LookupTable<>+16(SB)/4, $0xbe91a24d
+DATA nf4LookupTable<>+20(SB)/4, $0xbe3d353f
+DATA nf4LookupTable<>+24(SB)/4, $0xbdba7871
+DATA nf4LookupTable<>+28(SB)/4, $0x00000000
+DATA nf4LookupTable<>+32(SB)/4, $0x3da2faff
+DATA nf4LookupTable<>+36(SB)/4, $0x3e24cae3
+DATA nf4LookupTable<>+40(SB)/4, $0x3e7c04dd
+DATA nf4LookupTable<>+44(SB)/4, $0x3ead033a
+DATA nf4LookupTable<>+48(SB)/4, $0x3ee1a4b8
+DATA nf4LookupTable<>+52(SB)/4, $0x3f1007ab
+DATA nf4LookupTable<>+56(SB)/4, $0x3f3913b3
+DATA nf4LookupTable<>+60(SB)/4, $0x3f800000
+GLOBL nf4LookupTable<>(SB), (RODATA|NOPTR), $64
+
 TEXT ·fusednf4matmulrelu_c_f32_neon(SB), $131232-112
 	MOVD input+0(FP), R0
 	MOVD packed+8(FP), R1
@@ -27,42 +48,41 @@ TEXT ·fusednf4matmulrelu_c_f32_neon(SB), $131232-112
 	MOVD R8, 144(RSP)
 	MOVD plen_output+104(FP), R8
 	MOVD R8, 152(RSP)
-	WORD $0xf80203f9             // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
-	WORD $0xa9035ff8             // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
-	WORD $0xa90457f6             // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
-	WORD $0xa9054ff4             // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill [offset adjusted]
-	WORD $0xa9067bfd             // stp	x29, x30, [sp, #64]             ; 16-byte Folded Spill [offset adjusted]
-	WORD $0x910183fd             // add	x29, sp, #64 [offset adjusted]
-	WORD $0xf81b03a0             // stur	x0, [x29, #-80]                 ; 8-byte Folded Spill
-	WORD $0xf94000c8             // ldr	x8, [x6]
-	WORD $0xf94000ac             // ldr	x12, [x5]
-	WORD $0xf94000ea             // ldr	x10, [x7]
-	WORD $0xf100019f             // cmp	x12, #0
-	WORD $0xfa401904             // ccmp	x8, #0, #4, ne
-	WORD $0xfa401944             // ccmp	x10, #0, #4, ne
+	WORD $0xf80203f9                // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
+	WORD $0xa9035ff8                // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
+	WORD $0xa90457f6                // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
+	WORD $0xa9054ff4                // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill [offset adjusted]
+	WORD $0xa9067bfd                // stp	x29, x30, [sp, #64]             ; 16-byte Folded Spill [offset adjusted]
+	WORD $0x910183fd                // add	x29, sp, #64 [offset adjusted]
+	WORD $0xf81b03a0                // stur	x0, [x29, #-80]                 ; 8-byte Folded Spill
+	WORD $0xf94000c8                // ldr	x8, [x6]
+	WORD $0xf94000ac                // ldr	x12, [x5]
+	WORD $0xf94000ea                // ldr	x10, [x7]
+	WORD $0xf100019f                // cmp	x12, #0
+	WORD $0xfa401904                // ccmp	x8, #0, #4, ne
+	WORD $0xfa401944                // ccmp	x10, #0, #4, ne
 	BEQ  BB0_33
-	WORD $0x914083e9             // mov	x9, sp [transformed]
-	WORD $0xf81a83a9             // stur	x9, [x29, #-88]                 ; 8-byte Folded Spill
-	WORD $0xd10103eb             // sub	x11, sp, #64
-	WORD $0x914083ed             // mov	x13, sp [transformed]
-	WORD $0xd37ef549             // lsl	x9, x10, #2
-	WORD $0xf81c83a9             // stur	x9, [x29, #-56]                 ; 8-byte Folded Spill
-	WORD $0x91003d2e             // add	x14, x9, #15
-	WORD $0x927cedce             // and	x14, x14, #0xfffffffffffffff0
-	WORD $0xcb0e01ad             // sub	x13, x13, x14
-	WORD $0xf100059f             // cmp	x12, #1
+	WORD $0x914083e9                // mov	x9, sp [transformed]
+	WORD $0xf81a83a9                // stur	x9, [x29, #-88]                 ; 8-byte Folded Spill
+	WORD $0xd10103eb                // sub	x11, sp, #64
+	WORD $0x914083ed                // mov	x13, sp [transformed]
+	WORD $0xd37ef549                // lsl	x9, x10, #2
+	WORD $0xf81c83a9                // stur	x9, [x29, #-56]                 ; 8-byte Folded Spill
+	WORD $0x91003d2e                // add	x14, x9, #15
+	WORD $0x927cedce                // and	x14, x14, #0xfffffffffffffff0
+	WORD $0xcb0e01ad                // sub	x13, x13, x14
+	WORD $0xf100059f                // cmp	x12, #1
 	BLT  BB0_32
-	WORD $0xd280000e             // mov	x14, #0                         ; =0x0
-	WORD $0xf9400baf             // ldr	x15, [x29, #16]
-	WORD $0xf94001ef             // ldr	x15, [x15]
-	WORD $0x8b0f0150             // add	x16, x10, x15
-	WORD $0xd1000611             // sub	x17, x16, #1
-	WORD $0x90000010             // adrp	x16, _nf4LookupTable@PAGE
-	WORD $0x91000210             // add	x16, x16, _nf4LookupTable@PAGEOFF
-	WORD $0x6f00e400             // movi.2d	v0, #0000000000000000
-	WORD $0x6f00e401             // movi.2d	v1, #0000000000000000
-	WORD $0x9acf0e31             // sdiv	x17, x17, x15
-	WORD $0xf81b83ac             // stur	x12, [x29, #-72]                ; 8-byte Folded Spill
+	WORD $0xd280000e                // mov	x14, #0                         ; =0x0
+	WORD $0xf9400baf                // ldr	x15, [x29, #16]
+	WORD $0xf94001ef                // ldr	x15, [x15]
+	WORD $0x8b0f0150                // add	x16, x10, x15
+	WORD $0xd1000611                // sub	x17, x16, #1
+	MOVD $nf4LookupTable<>(SB), R16
+	WORD $0x6f00e400                // movi.2d	v0, #0000000000000000
+	WORD $0x6f00e401                // movi.2d	v1, #0000000000000000
+	WORD $0x9acf0e31                // sdiv	x17, x17, x15
+	WORD $0xf81b83ac                // stur	x12, [x29, #-72]                ; 8-byte Folded Spill
 	B    BB0_4
 
 BB0_3:

@@ -18,6 +18,12 @@ func initFindNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	ContainsFloat32 = containsAsmF32
+	ContainsFloat64 = containsAsmF64
+	ContainsInt32 = containsAsmS32
+	ContainsInt64 = containsAsmS64
+	ContainsUint32 = containsAsmU32
+	ContainsUint64 = containsAsmU64
 	CountFloat32 = countAsmF32
 	CountFloat64 = countAsmF64
 	CountInt32 = countAsmS32
@@ -30,6 +36,108 @@ func initFindNeonCAsm() {
 	FindInt64 = findAsmS64
 	FindUint32 = findAsmU32
 	FindUint64 = findAsmU64
+}
+
+func containsAsmF32(slice []float32, value float32) bool {
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	asm.Contains_F32(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return out_result != 0
+}
+
+func containsAsmF64(slice []float64, value float64) bool {
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	asm.Contains_F64(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return out_result != 0
+}
+
+func containsAsmS32(slice []int32, value int32) bool {
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	asm.Contains_S32(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return out_result != 0
+}
+
+func containsAsmS64(slice []int64, value int64) bool {
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	asm.Contains_S64(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return out_result != 0
+}
+
+func containsAsmU32(slice []uint32, value uint32) bool {
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	asm.Contains_U32(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return out_result != 0
+}
+
+func containsAsmU64(slice []uint64, value uint64) bool {
+	var p_slice unsafe.Pointer
+	if len(slice) > 0 {
+		p_slice = unsafe.Pointer(&slice[0])
+	}
+	valueVal := value
+	lenVal := int64(len(slice))
+	var out_result int64
+	asm.Contains_U64(
+		p_slice,
+		unsafe.Pointer(&valueVal),
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return out_result != 0
 }
 
 func countAsmF32(slice []float32, value float32) int {

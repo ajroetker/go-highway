@@ -38,7 +38,7 @@ jobs:
         with:
           apt: clang libc6-dev-i386
       - name: Build GoAT
-        run: go build -o bin/goat ./hwy/goat
+        run: go build -C hwy/goat -o ../../bin/goat .
       - name: Run tests
         run: |
           bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
@@ -57,7 +57,7 @@ jobs:
         with:
           apt: clang
       - name: Build GoAT
-        run: go build -o bin/goat ./hwy/goat
+        run: go build -C hwy/goat -o ../../bin/goat .
       - name: Run tests
         run: |
           bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
@@ -74,7 +74,7 @@ jobs:
       - name: Install clang and binutils
         run: brew install llvm binutils
       - name: Build GoAT
-        run: go build -o bin/goat ./hwy/goat
+        run: go build -C hwy/goat -o ../../bin/goat .
       - name: Run tests
         run: |
           export PATH=/opt/homebrew/opt/llvm/bin:$PATH
@@ -95,7 +95,7 @@ jobs:
         with:
           choco: llvm mingw
       - name: Build GoAT
-        run: go build -o bin/goat ./hwy/goat
+        run: go build -C hwy/goat -o ../../bin/goat .
       - name: Run tests
         run: |
           bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests
@@ -114,7 +114,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang binutils-aarch64-linux-gnu binutils-riscv64-linux-gnu
       - name: Build GoAT
-        run: go build -o bin/goat ./hwy/goat
+        run: go build -C hwy/goat -o ../../bin/goat .
       - name: Cross-compile arm64 on x86_64
         run: |
           mkdir -p /tmp/cross-bin/arm64
@@ -153,8 +153,14 @@ jobs:
             --volume "${PWD}:/opt/goat"
           install: |
             apt-get update
-            apt-get install -y clang golang
+            apt-get install -y clang wget
+            wget -q https://go.dev/dl/go1.26.0.linux-riscv64.tar.gz
+            tar -C /usr/local -xzf go1.26.0.linux-riscv64.tar.gz
+            rm go1.26.0.linux-riscv64.tar.gz
+          env: |
+            PATH: /usr/local/go/bin:/usr/bin:/bin
           run: |
             cd /opt/goat
-            go run ./hwy/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests -march=rv64imafd
+            go build -C hwy/goat -o ../../bin/goat .
+            bin/goat hwy/goat/tests/src/universal.c -o hwy/goat/tests -march=rv64imafd
             go test -C ./hwy/goat/tests -v

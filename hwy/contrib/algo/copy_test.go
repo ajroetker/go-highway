@@ -18,8 +18,6 @@ package algo
 
 import (
 	"testing"
-
-	"github.com/ajroetker/go-highway/hwy"
 )
 
 func TestFill(t *testing.T) {
@@ -145,77 +143,6 @@ func TestCopy_Empty(t *testing.T) {
 	}
 }
 
-func TestCopyIf(t *testing.T) {
-	src := []float32{-2, -1, 0, 1, 2, 3, 4, 5, -3, 6, 7, -4}
-	dst := make([]float32, len(src))
-
-	// Copy only positive values
-	copied := CopyIf(src, dst, func(v hwy.Vec[float32]) hwy.Mask[float32] {
-		return hwy.GreaterThan(v, hwy.Zero[float32]())
-	})
-
-	// Expected: 1, 2, 3, 4, 5, 6, 7 = 7 elements
-	expected := []float32{1, 2, 3, 4, 5, 6, 7}
-
-	if copied != len(expected) {
-		t.Errorf("CopyIf returned %d, want %d", copied, len(expected))
-	}
-
-	for i, want := range expected {
-		if dst[i] != want {
-			t.Errorf("CopyIf[%d]: got %v, want %v", i, dst[i], want)
-		}
-	}
-}
-
-func TestCopyIf_AllPass(t *testing.T) {
-	src := []float32{1, 2, 3, 4, 5}
-	dst := make([]float32, len(src))
-
-	copied := CopyIf(src, dst, func(v hwy.Vec[float32]) hwy.Mask[float32] {
-		// All positive - all pass
-		return hwy.GreaterThan(v, hwy.Set(float32(-1)))
-	})
-
-	if copied != len(src) {
-		t.Errorf("CopyIf returned %d, want %d", copied, len(src))
-	}
-
-	for i := range src {
-		if dst[i] != src[i] {
-			t.Errorf("CopyIf[%d]: got %v, want %v", i, dst[i], src[i])
-		}
-	}
-}
-
-func TestCopyIf_NonePass(t *testing.T) {
-	src := []float32{1, 2, 3, 4, 5}
-	dst := make([]float32, len(src))
-
-	copied := CopyIf(src, dst, func(v hwy.Vec[float32]) hwy.Mask[float32] {
-		// None are negative
-		return hwy.LessThan(v, hwy.Zero[float32]())
-	})
-
-	if copied != 0 {
-		t.Errorf("CopyIf returned %d, want 0", copied)
-	}
-}
-
-func TestCopyIf_SmallDst(t *testing.T) {
-	src := []float32{1, 2, 3, 4, 5, 6, 7, 8}
-	dst := make([]float32, 3) // Only space for 3 elements
-
-	copied := CopyIf(src, dst, func(v hwy.Vec[float32]) hwy.Mask[float32] {
-		return hwy.GreaterThan(v, hwy.Zero[float32]())
-	})
-
-	// Should copy at most 3 elements
-	if copied > 3 {
-		t.Errorf("CopyIf copied %d elements but dst only has space for 3", copied)
-	}
-}
-
 // Benchmarks
 // Note: benchSize is defined in transform_test.go
 
@@ -266,49 +193,3 @@ func BenchmarkCopy_Stdlib(b *testing.B) {
 	}
 }
 
-func BenchmarkCopyIf(b *testing.B) {
-	src := make([]float32, benchSize)
-	dst := make([]float32, benchSize)
-	for i := range src {
-		src[i] = float32(i) - float32(benchSize/2) // Half positive, half negative
-	}
-
-	b.ReportAllocs()
-	for b.Loop() {
-		CopyIf(src, dst, func(v hwy.Vec[float32]) hwy.Mask[float32] {
-			return hwy.GreaterThan(v, hwy.Zero[float32]())
-		})
-	}
-}
-
-func BenchmarkCopyIf_Stdlib(b *testing.B) {
-	src := make([]float32, benchSize)
-	dst := make([]float32, benchSize)
-	for i := range src {
-		src[i] = float32(i) - float32(benchSize/2)
-	}
-
-	b.ReportAllocs()
-	for b.Loop() {
-		j := 0
-		for _, v := range src {
-			if v > 0 {
-				dst[j] = v
-				j++
-			}
-		}
-	}
-}
-
-func BenchmarkCopyIfP(b *testing.B) {
-	src := make([]float32, benchSize)
-	dst := make([]float32, benchSize)
-	for i := range src {
-		src[i] = float32(i) - float32(benchSize/2) // Half positive, half negative
-	}
-
-	b.ReportAllocs()
-	for b.Loop() {
-		CopyIfP(src, dst, GreaterThan[float32]{Threshold: 0})
-	}
-}

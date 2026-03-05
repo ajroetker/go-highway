@@ -94,6 +94,70 @@ func LogSoftmaxCF64(input, output []float64) {
 	)
 }
 
+// LogSoftmaxInPlaceCF16 computes LogSoftmaxInPlace using NEON SIMD assembly.
+func LogSoftmaxInPlaceCF16(x []hwy.Float16) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	logsoftmaxinplace_c_f16_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LogSoftmaxInPlaceCBF16 computes LogSoftmaxInPlace using NEON SIMD assembly.
+func LogSoftmaxInPlaceCBF16(x []hwy.BFloat16) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	logsoftmaxinplace_c_bf16_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LogSoftmaxInPlaceCF32 computes LogSoftmaxInPlace using NEON SIMD assembly.
+func LogSoftmaxInPlaceCF32(x []float32) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	logsoftmaxinplace_c_f32_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// LogSoftmaxInPlaceCF64 computes LogSoftmaxInPlace using NEON SIMD assembly.
+func LogSoftmaxInPlaceCF64(x []float64) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	logsoftmaxinplace_c_f64_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 // SoftmaxCF16 computes Softmax using NEON SIMD assembly.
 func SoftmaxCF16(input, output []hwy.Float16) {
 	if len(input) == 0 {
@@ -174,6 +238,70 @@ func SoftmaxCF64(input, output []float64) {
 	softmax_c_f64_neon(
 		p_input,
 		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxInPlaceCF16 computes SoftmaxInPlace using NEON SIMD assembly.
+func SoftmaxInPlaceCF16(x []hwy.Float16) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	softmaxinplace_c_f16_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxInPlaceCBF16 computes SoftmaxInPlace using NEON SIMD assembly.
+func SoftmaxInPlaceCBF16(x []hwy.BFloat16) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	softmaxinplace_c_bf16_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxInPlaceCF32 computes SoftmaxInPlace using NEON SIMD assembly.
+func SoftmaxInPlaceCF32(x []float32) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	softmaxinplace_c_f32_neon(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+// SoftmaxInPlaceCF64 computes SoftmaxInPlace using NEON SIMD assembly.
+func SoftmaxInPlaceCF64(x []float64) {
+	if len(x) == 0 {
+		return
+	}
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	softmaxinplace_c_f64_neon(
+		p_x,
 		unsafe.Pointer(&lenVal),
 	)
 }

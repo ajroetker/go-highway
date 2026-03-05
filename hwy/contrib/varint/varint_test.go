@@ -830,7 +830,7 @@ func TestEncodeStreamVByte32_RoundTrip(t *testing.T) {
 			if n%4 != 0 {
 				n = ((n + 3) / 4) * 4 // Round up to multiple of 4
 			}
-			decoded := BaseDecodeStreamVByte32(control, data, n)
+			decoded := DecodeStreamVByte32(control, data, n)
 
 			// Verify (account for padding)
 			for i, want := range tt.values {
@@ -936,7 +936,7 @@ func TestStreamVByteEncoder(t *testing.T) {
 	}
 
 	// Decode and verify
-	decoded := BaseDecodeStreamVByte32(control, data, 5)
+	decoded := DecodeStreamVByte32(control, data, 5)
 	expected := []uint32{100, 200, 300, 400, 500}
 	for i, want := range expected {
 		if decoded[i] != want {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -1473,14 +1474,27 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 		translator.SetPackageConsts(e.packageConsts)
 	}
 
+	// Resolve type switches in a cloned body before C translation.
+	// The C translator doesn't support TypeSwitchStmt or TypeAssertExpr,
+	// so we resolve them now while the concrete elemType is known.
+	// We must clone because the same ParsedFunc is shared across elemType
+	// iterations (float32, float64, etc.) and resolution mutates the AST.
+	// Short-circuit: skip the expensive deep clone when no type switches exist.
+	if pf.Body != nil && containsTypeSwitchOrAssert(pf.Body) {
+		pf.Body = cloneBlockStmt(pf.Body)
+		ctx := &transformContext{elemType: e.elemType}
+		resolveTypeSwitches(pf.Body, ctx)
+	}
+
 	// Collect sibling functions called from this function.
 	// These include both non-Base* helpers and Base*→Base* cross-calls.
 	// They must be emitted as static functions in the same C file so clang
 	// can resolve and inline the calls.
 	var helperCodes []string
+	var extraInlineHelpers []string // from alternate-profile helpers (e.g., uint8 helper in uint32 parent)
 	if e.allFuncs != nil {
 		emittedHelpers := make(map[string]bool)
-		e.collectHelperCode(pf, translator, emittedHelpers, &helperCodes)
+		e.collectHelperCode(pf, translator, emittedHelpers, &helperCodes, &extraInlineHelpers)
 	}
 
 	cCode, err := translator.TranslateToC(pf)
@@ -1517,9 +1531,10 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 	// These are wrapped in #ifndef GOAT_PARSER because GOAT's parser
 	// doesn't support static inline non-void functions. Clang still
 	// sees and inlines them during compilation.
-	if len(e.profile.InlineHelpers) > 0 {
+	allInlineHelpers := slices.Concat(e.profile.InlineHelpers, extraInlineHelpers)
+	if len(allInlineHelpers) > 0 {
 		fmt.Fprintf(&buf, "#ifndef GOAT_PARSER\n")
-		for _, helper := range e.profile.InlineHelpers {
+		for _, helper := range allInlineHelpers {
 			buf.WriteString(helper)
 			buf.WriteString("\n\n")
 		}
@@ -1530,9 +1545,14 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 	// GOAT's parser only extracts function signatures from the main (non-static)
 	// function, so static helpers are invisible to GOAT but visible to clang.
 	// At -O3 with inline-threshold=1000, clang inlines them completely.
+	//
+	// The helper code may contain package-level declarations (typedef, static const
+	// arrays) before the function definition. Only the function definition should
+	// be marked static — the `static` keyword is emitted by emitFuncSignature
+	// when helperMode is true, so we don't add it here.
 	for _, helperCode := range helperCodes {
 		fmt.Fprintf(&buf, "#ifndef GOAT_PARSER\n")
-		fmt.Fprintf(&buf, "static %s", helperCode)
+		buf.WriteString(helperCode)
 		fmt.Fprintf(&buf, "#endif\n\n")
 	}
 
@@ -1556,7 +1576,10 @@ func (e *CEmitter) EmitASTTranslatedC(pf *ParsedFunc, outPath string) (string, e
 // "localHelper") and Base*→Base* cross-calls (package "local"). Each helper is
 // translated once (tracked by emittedHelpers) and appended to helperCodes in
 // dependency order (callees before callers).
-func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator, emittedHelpers map[string]bool, helperCodes *[]string) {
+//
+// extraInlineHelpers collects InlineHelpers from alternate profiles used by
+// helpers with //hwy:elemtype overrides (e.g., uint8 helper in uint32 parent).
+func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator, emittedHelpers map[string]bool, helperCodes *[]string, extraInlineHelpers *[]string) {
 	for _, call := range pf.HwyCalls {
 		if call.Package != "localHelper" && call.Package != "local" {
 			continue
@@ -1593,8 +1616,36 @@ func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator,
 			translator.helperReturnVec[name] = true
 		}
 
+		// Register return types for helpers with multiple return values.
+		// The first return becomes the direct C return; additional returns
+		// are passed as output pointer parameters.
+		if len(helper.Returns) > 1 {
+			var retTypes []string
+			for _, ret := range helper.Returns {
+				retTypes = append(retTypes, helperReturnGoToCType(ret.Type))
+			}
+			translator.helperReturnTypes[name] = retTypes
+		}
+
+		// If the helper has an //hwy:elemtype override that differs from the
+		// parent's element type, collect InlineHelpers from the alternate profile
+		// (e.g., neon_bits_from_mask_u8 for a uint8 helper in a uint32 parent).
+		// Use emittedHelpers with a "profile:" prefix to deduplicate across
+		// recursive calls — multiple helpers sharing the same override would
+		// otherwise append the same InlineHelpers repeatedly.
+		if helper.ElemTypeOverride != "" && helper.ElemTypeOverride != e.elemType {
+			profileKey := "profile:" + e.profile.TargetName + ":" + helper.ElemTypeOverride
+			if !emittedHelpers[profileKey] {
+				emittedHelpers[profileKey] = true
+				altProfile := GetCProfile(e.profile.TargetName, helper.ElemTypeOverride)
+				if altProfile != nil {
+					*extraInlineHelpers = append(*extraInlineHelpers, altProfile.InlineHelpers...)
+				}
+			}
+		}
+
 		// Recursively collect helpers called by this helper first (dependency order)
-		e.collectHelperCode(helper, translator, emittedHelpers, helperCodes)
+		e.collectHelperCode(helper, translator, emittedHelpers, helperCodes, extraInlineHelpers)
 
 		// Translate the helper function to C using helper mode (simple calling convention)
 		code, err := translator.TranslateToCHelper(helper)
@@ -1604,4 +1655,14 @@ func (e *CEmitter) collectHelperCode(pf *ParsedFunc, translator *CASTTranslator,
 		}
 		*helperCodes = append(*helperCodes, code)
 	}
+}
+
+// helperReturnGoToCType maps a Go return type to a C type for helper functions.
+// Used to determine output pointer types for multi-return helpers.
+// Falls back to "long" for unknown types (matching GOAT's default integer convention).
+func helperReturnGoToCType(goType string) string {
+	if c := goScalarTypeToCType(goType); c != "" {
+		return c
+	}
+	return "long"
 }

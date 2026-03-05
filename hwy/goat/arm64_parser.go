@@ -74,8 +74,10 @@ var (
 	arm64QuadDirective = regexp.MustCompile(`^\s+\.quad\s+(0x[0-9a-fA-F]+|\d+)`)
 	// Match .byte directive with hex or decimal value
 	arm64ByteDirective = regexp.MustCompile(`^\s+\.byte\s+(0x[0-9a-fA-F]+|\d+)`)
-	// Match section directive for literal data (macOS: __TEXT,__literal*, Linux: .rodata)
-	arm64LiteralSection = regexp.MustCompile(`^\s+\.section\s+(__TEXT,__literal|\.rodata)`)
+	// Match section directive for literal data (macOS: __TEXT,__literal* or __TEXT,__const; Linux: .rodata)
+	arm64LiteralSection = regexp.MustCompile(`^\s+\.section\s+(__TEXT,__(?:literal|const)|\.rodata)`)
+	// Match .ascii directive with string content
+	arm64AsciiDirective = regexp.MustCompile(`^\s+\.ascii\s+"((?:[^"\\]|\\.)*)"`)
 	// Match adrp instruction referencing constant pool.
 	// macOS Mach-O: adrp x0, .LCPI0_0@PAGE
 	// Linux ELF:    adrp x0, .LCPI0_0
@@ -86,6 +88,12 @@ var (
 	arm64LdrConstPoolPageoff = regexp.MustCompile(`ldr\s+(\w+),\s*\[(\w+),\s*(?::lo12:)?\.?[lL]?CPI(\d+_\d+)(?:@PAGEOFF)?\]`)
 	// Match ldr instruction with just register (for Linux-style PC-relative)
 	arm64LdrConstPoolReg = regexp.MustCompile(`ldr\s+(\w+),\s*\[(\w+)\]`)
+	// Match adrp referencing static data symbol (macOS: _label@PAGE)
+	arm64AdrpStaticData = regexp.MustCompile(`adrp\s+(\w+),\s*_(\w+)@PAGE`)
+	// Match add with PAGEOFF static data reference (macOS: _label@PAGEOFF)
+	arm64AddStaticDataPageoff = regexp.MustCompile(`add\s+(\w+),\s*(\w+),\s*_(\w+)@PAGEOFF`)
+	// Match add with :lo12: static data reference (Linux)
+	arm64AddStaticDataLo12 = regexp.MustCompile(`add\s+(\w+),\s*(\w+),\s*:lo12:(\w+)`)
 )
 
 // arm64 register sets
@@ -571,7 +579,27 @@ func (p *ARM64Parser) parseAssembly(path string, targetOS string) (map[string][]
 			continue
 		}
 
-		// Parse .long/.quad/.byte directives for constant pool data
+		// Recognize data labels in literal/const sections (non-CPI labels like _streamVByte32DataLen:)
+		if inLiteralSection {
+			// Strip comments ("; ...") before checking for label colon
+			labelLine := line
+			if idx := strings.Index(labelLine, ";"); idx >= 0 {
+				labelLine = labelLine[:idx]
+			}
+			labelLine = strings.TrimSpace(labelLine)
+			if strings.HasSuffix(labelLine, ":") && !strings.HasPrefix(labelLine, ".") {
+				label := strings.TrimSuffix(labelLine, ":")
+				// Strip macOS underscore prefix
+				label = strings.TrimPrefix(label, "_")
+				// Skip CPI labels (already handled above)
+				if label != "" && !arm64ConstPoolLabel.MatchString(labelLine) {
+					cpa.StartPool(label)
+					continue
+				}
+			}
+		}
+
+		// Parse .long/.quad/.byte/.ascii directives for constant pool data
 		if inLiteralSection || cpa.Active() {
 			if matches := arm64LongDirective.FindStringSubmatch(line); matches != nil {
 				cpa.AddLong(parseIntValue(matches[1]))
@@ -583,6 +611,10 @@ func (p *ARM64Parser) parseAssembly(path string, targetOS string) (map[string][]
 			}
 			if matches := arm64ByteDirective.FindStringSubmatch(line); matches != nil {
 				cpa.AccumulateByte(parseIntValue(matches[1]))
+				continue
+			}
+			if matches := arm64AsciiDirective.FindStringSubmatch(line); matches != nil {
+				cpa.AccumulateAscii(matches[1])
 				continue
 			}
 		}
@@ -1075,6 +1107,14 @@ func (p *ARM64Parser) generateGoAssembly(t *TranslateUnit, functions []Function,
 					constPoolRegs[baseReg] = constLabel
 				}
 			}
+			// Also track adrp for static data symbols (macOS: _label@PAGE)
+			if matches := arm64AdrpStaticData.FindStringSubmatch(line.Assembly); matches != nil {
+				baseReg := strings.ToLower(matches[1])
+				constLabel := matches[2]
+				if _, hasPool := constPools[constLabel]; hasPool {
+					constPoolRegs[baseReg] = constLabel
+				}
+			}
 		}
 
 		for _, line := range assembly[function.Name] {
@@ -1087,6 +1127,48 @@ func (p *ARM64Parser) generateGoAssembly(t *TranslateUnit, functions []Function,
 						builder.WriteString(label)
 						builder.WriteString(":\n")
 					}
+					continue
+				}
+			}
+
+			// Skip adrp instructions that reference static data symbols
+			if matches := arm64AdrpStaticData.FindStringSubmatch(line.Assembly); matches != nil {
+				constLabel := matches[2]
+				if _, hasPool := constPools[constLabel]; hasPool {
+					for _, label := range line.Labels {
+						builder.WriteString(label)
+						builder.WriteString(":\n")
+					}
+					continue
+				}
+			}
+
+			// Replace add PAGEOFF instructions for static data with MOVD of Go symbol address
+			if matches := arm64AddStaticDataPageoff.FindStringSubmatch(line.Assembly); matches != nil {
+				destReg := strings.ToLower(matches[1])
+				constLabel := matches[3]
+				if _, hasPool := constPools[constLabel]; hasPool {
+					for _, label := range line.Labels {
+						builder.WriteString(label)
+						builder.WriteString(":\n")
+					}
+					fmt.Fprintf(&builder, "\tMOVD $%s<>(SB), %s\n",
+						constLabel, goRegisterName(destReg))
+					continue
+				}
+			}
+
+			// Replace add :lo12: instructions for static data (Linux)
+			if matches := arm64AddStaticDataLo12.FindStringSubmatch(line.Assembly); matches != nil {
+				destReg := strings.ToLower(matches[1])
+				constLabel := matches[3]
+				if _, hasPool := constPools[constLabel]; hasPool {
+					for _, label := range line.Labels {
+						builder.WriteString(label)
+						builder.WriteString(":\n")
+					}
+					fmt.Fprintf(&builder, "\tMOVD $%s<>(SB), %s\n",
+						constLabel, goRegisterName(destReg))
 					continue
 				}
 			}

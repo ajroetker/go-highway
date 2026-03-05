@@ -2,7 +2,11 @@
 // These functions use vector constants that the compiler places in constant pools.
 // If GoAT's constant pool support is broken, these will produce wrong results.
 
+// GOAT's C parser uses GOAT_PARSER=1 with stub type definitions from prologue.
+// During compilation, clang includes the real intrinsics header.
+#ifndef GOAT_PARSER
 #include <immintrin.h>
+#endif
 
 // Add a known constant {10, 20, 30, 40, 50, 60, 70, 80} to each input lane.
 // The constant vector is loaded from a constant pool (.LCPI0_0).

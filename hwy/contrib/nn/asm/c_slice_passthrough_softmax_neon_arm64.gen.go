@@ -25,6 +25,26 @@ func LogSoftmax_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Poi
 	logsoftmax_c_f64_neon(input, output, plen)
 }
 
+// LogSoftmaxInPlace_F16 calls the NEON SIMD assembly implementation.
+func LogSoftmaxInPlace_F16(x unsafe.Pointer, plen unsafe.Pointer) {
+	logsoftmaxinplace_c_f16_neon(x, plen)
+}
+
+// LogSoftmaxInPlace_BF16 calls the NEON SIMD assembly implementation.
+func LogSoftmaxInPlace_BF16(x unsafe.Pointer, plen unsafe.Pointer) {
+	logsoftmaxinplace_c_bf16_neon(x, plen)
+}
+
+// LogSoftmaxInPlace_F32 calls the NEON SIMD assembly implementation.
+func LogSoftmaxInPlace_F32(x unsafe.Pointer, plen unsafe.Pointer) {
+	logsoftmaxinplace_c_f32_neon(x, plen)
+}
+
+// LogSoftmaxInPlace_F64 calls the NEON SIMD assembly implementation.
+func LogSoftmaxInPlace_F64(x unsafe.Pointer, plen unsafe.Pointer) {
+	logsoftmaxinplace_c_f64_neon(x, plen)
+}
+
 // Softmax_F16 calls the NEON SIMD assembly implementation.
 func Softmax_F16(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	softmax_c_f16_neon(input, output, plen)
@@ -43,6 +63,26 @@ func Softmax_F32(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointe
 // Softmax_F64 calls the NEON SIMD assembly implementation.
 func Softmax_F64(input unsafe.Pointer, output unsafe.Pointer, plen unsafe.Pointer) {
 	softmax_c_f64_neon(input, output, plen)
+}
+
+// SoftmaxInPlace_F16 calls the NEON SIMD assembly implementation.
+func SoftmaxInPlace_F16(x unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxinplace_c_f16_neon(x, plen)
+}
+
+// SoftmaxInPlace_BF16 calls the NEON SIMD assembly implementation.
+func SoftmaxInPlace_BF16(x unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxinplace_c_bf16_neon(x, plen)
+}
+
+// SoftmaxInPlace_F32 calls the NEON SIMD assembly implementation.
+func SoftmaxInPlace_F32(x unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxinplace_c_f32_neon(x, plen)
+}
+
+// SoftmaxInPlace_F64 calls the NEON SIMD assembly implementation.
+func SoftmaxInPlace_F64(x unsafe.Pointer, plen unsafe.Pointer) {
+	softmaxinplace_c_f64_neon(x, plen)
 }
 
 // SoftmaxWithTemperature_F16 calls the NEON SIMD assembly implementation.

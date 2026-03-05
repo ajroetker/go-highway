@@ -5,6 +5,26 @@ package asm
 
 import "unsafe"
 
+// L2Distance_F16 calls the NEON SIMD assembly implementation.
+func L2Distance_F16(a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	l2distance_c_f16_neon(a, b, plen, pout_result)
+}
+
+// L2Distance_BF16 calls the NEON SIMD assembly implementation.
+func L2Distance_BF16(a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	l2distance_c_bf16_neon(a, b, plen, pout_result)
+}
+
+// L2Distance_F32 calls the NEON SIMD assembly implementation.
+func L2Distance_F32(a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	l2distance_c_f32_neon(a, b, plen, pout_result)
+}
+
+// L2Distance_F64 calls the NEON SIMD assembly implementation.
+func L2Distance_F64(a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
+	l2distance_c_f64_neon(a, b, plen, pout_result)
+}
+
 // L2SquaredDistance_F16 calls the NEON SIMD assembly implementation.
 func L2SquaredDistance_F16(a unsafe.Pointer, b unsafe.Pointer, plen unsafe.Pointer, pout_result unsafe.Pointer) {
 	l2squareddistance_c_f16_neon(a, b, plen, pout_result)

@@ -7464,3 +7464,233 @@ func TestTargetComboMapIntegration(t *testing.T) {
 		t.Errorf("NEON should have Float16 and BFloat16, got: %v", neonSet)
 	}
 }
+
+// TestTypeSwitchResolution verifies that type switches are resolved to the
+// matching case body during fallback code generation. This prevents the C
+// translator from silently dropping TypeSwitchStmt (which it doesn't support),
+// and produces cleaner Go fallback code by eliminating dead branches.
+func TestTypeSwitchResolution(t *testing.T) {
+	content := `package typeswitch
+
+import (
+	"math"
+	"github.com/ajroetker/go-highway/hwy"
+)
+
+func BaseNormLike[T hwy.Floats](x T) T {
+	if x == 0 {
+		return 0
+	}
+	switch any(x).(type) {
+	case float32:
+		return any(float32(math.Sqrt(float64(any(x).(float32))))).(T)
+	case float64:
+		return any(math.Sqrt(any(x).(float64))).(T)
+	default:
+		return any(float32(math.Sqrt(float64(any(x).(float32))))).(T)
+	}
+}
+`
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "test.go")
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "fallback"),
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	generatedFile := filepath.Join(tmpDir, "test_fallback.gen.go")
+	contentBytes, err := os.ReadFile(generatedFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated file: %v", err)
+	}
+	generated := string(contentBytes)
+
+	// The type switch should be resolved — no "switch any(" pattern in output.
+	if strings.Contains(generated, "switch any(") {
+		t.Errorf("type switch was not resolved, generated code still contains type switch:\n%s", generated)
+	}
+
+	// The float32 variant should contain math.Sqrt (the case body was preserved).
+	if !strings.Contains(generated, "Sqrt") {
+		t.Errorf("resolved type switch body missing math.Sqrt:\n%s", generated)
+	}
+
+	// The float64 variant should also contain Sqrt.
+	if !strings.Contains(generated, "BaseNormLike_fallback_Float64") {
+		t.Errorf("missing float64 fallback variant:\n%s", generated)
+	}
+}
+
+// TestCModeTypeSwitchGeneration verifies that functions containing a type switch
+// produce correct C code when targeting neon:asm. The type switch must be resolved
+// in the IR pipeline before the C translator sees it, since the C translator
+// silently skips TypeSwitchStmt.
+func TestCModeTypeSwitchGeneration(t *testing.T) {
+	if runtime.GOARCH != "arm64" {
+		t.Skip("C mode NEON test requires arm64")
+	}
+
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "sqrt_base.go")
+	content := `package testsqrt
+
+import (
+	"math"
+	"github.com/ajroetker/go-highway/hwy"
+)
+
+func BaseSqrtScalar[T hwy.Floats](v []T) T {
+	sum := BaseDotHelper(v, v)
+	if sum == 0 {
+		return 0
+	}
+	switch any(sum).(type) {
+	case float32:
+		return any(float32(math.Sqrt(float64(any(sum).(float32))))).(T)
+	case float64:
+		return any(math.Sqrt(any(sum).(float64))).(T)
+	default:
+		return any(float32(math.Sqrt(float64(any(sum).(float32))))).(T)
+	}
+}
+
+func BaseDotHelper[T hwy.Floats](a, b []T) T {
+	var sum T
+	for i := range a {
+		sum += a[i] * b[i]
+	}
+	return sum
+}
+`
+	if err := os.WriteFile(inputFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeC, "neon"),
+		KeepCFiles:  true,
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() in CMode failed: %v", err)
+	}
+
+	// Check f32 C source.
+	f32Path := filepath.Join(tmpDir, "basesqrtscalar_c_f32_neon_arm64.c")
+	f32Bytes, err := os.ReadFile(f32Path)
+	if err != nil {
+		t.Fatalf("Failed to read f32 C file: %v", err)
+	}
+	f32 := string(f32Bytes)
+
+	// The resolved type switch body should emit sqrtf (or sqrt for the float call).
+	if !strings.Contains(f32, "sqrt") {
+		t.Errorf("f32 C file missing sqrt call — type switch was likely dropped:\n%s", f32)
+	}
+
+	// The C code should not contain "switch" (type switch should be resolved).
+	if strings.Contains(f32, "switch") {
+		t.Errorf("f32 C file contains 'switch' — type switch was not resolved:\n%s", f32)
+	}
+
+	// Check f64 C source.
+	f64Path := filepath.Join(tmpDir, "basesqrtscalar_c_f64_neon_arm64.c")
+	f64Bytes, err := os.ReadFile(f64Path)
+	if err != nil {
+		t.Fatalf("Failed to read f64 C file: %v", err)
+	}
+	f64 := string(f64Bytes)
+
+	if !strings.Contains(f64, "sqrt") {
+		t.Errorf("f64 C file missing sqrt call — type switch was likely dropped:\n%s", f64)
+	}
+}
+
+// TestTypeParamScalarDoesNotChangeLengthStrategy verifies that generic type
+// parameter scalars (e.g., alpha T) do NOT change the hidden length strategy
+// from shared plen to per-slice plen_input/plen_output. Only explicit int/float
+// params (e.g., m int, threshold float32) should trigger per-slice lengths.
+//
+// Regression test for: functions like BaseELU[T](slice []T, alpha T) were
+// getting per-slice lengths because typeParamNames[p.Type] was included in
+// hasScalarParams/hasIntParams checks.
+func TestTypeParamScalarDoesNotChangeLengthStrategy(t *testing.T) {
+	pf := &ParsedFunc{
+		Name:       "BaseELU",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params: []Param{
+			{Name: "input", Type: "[]T"},
+			{Name: "output", Type: "[]T"},
+			{Name: "alpha", Type: "T"},
+		},
+	}
+
+	// Test emitASTCWrapperFunc — should use shared lenVal, not per-slice lengths
+	{
+		var buf bytes.Buffer
+		buf.WriteString("package test\n\nimport \"unsafe\"\n\n")
+		emitASTCWrapperFunc(&buf, pf, "float32", "neon")
+		code := buf.String()
+
+		// Should have shared length: lenVal := int64(len(input))
+		if !strings.Contains(code, "lenVal") {
+			t.Errorf("emitASTCWrapperFunc: expected shared lenVal for type-param-only function:\n%s", code)
+		}
+		// Should NOT have per-slice lengths
+		if strings.Contains(code, "plen_input") || strings.Contains(code, "plen_output") {
+			t.Errorf("emitASTCWrapperFunc: type param scalar should not trigger per-slice lengths:\n%s", code)
+		}
+	}
+
+	// Test emitSliceZCAdapterFunc — z_c_slices adapter should use shared length
+	{
+		var buf bytes.Buffer
+		buf.WriteString("package test\n\nimport \"unsafe\"\n\n")
+		emitSliceZCAdapterFunc(&buf, pf, "float32")
+		code := buf.String()
+
+		// Should have shared length: lenVal := int64(len(input))
+		if !strings.Contains(code, "lenVal") {
+			t.Errorf("emitSliceZCAdapterFunc: expected shared lenVal for type-param-only function:\n%s", code)
+		}
+		// Should NOT have per-slice lengths
+		if strings.Contains(code, "plen_input") || strings.Contains(code, "plen_output") {
+			t.Errorf("emitSliceZCAdapterFunc: type param scalar should not trigger per-slice lengths:\n%s", code)
+		}
+	}
+
+	// Contrast: a function WITH explicit int params should use per-slice lengths
+	pfWithInt := &ParsedFunc{
+		Name:       "BaseMatMul",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params: []Param{
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+			{Name: "c", Type: "[]T"},
+			{Name: "m", Type: "int"},
+			{Name: "n", Type: "int"},
+			{Name: "k", Type: "int"},
+		},
+	}
+
+	{
+		var buf bytes.Buffer
+		buf.WriteString("package test\n\nimport \"unsafe\"\n\n")
+		emitASTCWrapperFunc(&buf, pfWithInt, "float32", "neon")
+		code := buf.String()
+
+		// Should have per-slice lengths (len_aVal, len_bVal, etc.)
+		if !strings.Contains(code, "len_aVal") {
+			t.Errorf("emitASTCWrapperFunc: explicit int params should trigger per-slice lengths:\n%s", code)
+		}
+	}
+}

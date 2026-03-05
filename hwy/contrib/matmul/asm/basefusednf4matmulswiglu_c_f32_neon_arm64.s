@@ -6,6 +6,27 @@
 // flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/matmul/asm/basefusednf4matmulswiglu_c_f32_neon_arm64.c
 
+#include "textflag.h"
+
+// Constant pool data
+DATA nf4LookupTable<>+0(SB)/4, $0xbf800000
+DATA nf4LookupTable<>+4(SB)/4, $0xbf3239b1
+DATA nf4LookupTable<>+8(SB)/4, $0xbf066b30
+DATA nf4LookupTable<>+12(SB)/4, $0xbeca32a0
+DATA nf4LookupTable<>+16(SB)/4, $0xbe91a24d
+DATA nf4LookupTable<>+20(SB)/4, $0xbe3d353f
+DATA nf4LookupTable<>+24(SB)/4, $0xbdba7871
+DATA nf4LookupTable<>+28(SB)/4, $0x00000000
+DATA nf4LookupTable<>+32(SB)/4, $0x3da2faff
+DATA nf4LookupTable<>+36(SB)/4, $0x3e24cae3
+DATA nf4LookupTable<>+40(SB)/4, $0x3e7c04dd
+DATA nf4LookupTable<>+44(SB)/4, $0x3ead033a
+DATA nf4LookupTable<>+48(SB)/4, $0x3ee1a4b8
+DATA nf4LookupTable<>+52(SB)/4, $0x3f1007ab
+DATA nf4LookupTable<>+56(SB)/4, $0x3f3913b3
+DATA nf4LookupTable<>+60(SB)/4, $0x3f800000
+GLOBL nf4LookupTable<>(SB), (RODATA|NOPTR), $64
+
 TEXT ·fusednf4matmulswiglu_c_f32_neon(SB), $131456-128
 	MOVD input+0(FP), R0
 	MOVD gatePacked+8(FP), R1
@@ -164,8 +185,7 @@ TEXT ·fusednf4matmulswiglu_c_f32_neon(SB), $131456-128
 	WORD $0x52958a00                // mov	w0, #44112                      ; =0xac50
 	WORD $0x72a855c0                // movk	w0, #17070, lsl #16
 	WORD $0x4e040c09                // dup.4s	v9, w0
-	WORD $0x90000013                // adrp	x19, _nf4LookupTable@PAGE
-	WORD $0x91000273                // add	x19, x19, _nf4LookupTable@PAGEOFF
+	MOVD $nf4LookupTable<>(SB), R19
 	WORD $0x4f03f60b                // fmov.4s	v11, #1.00000000
 	WORD $0x9ad10da8                // sdiv	x8, x13, x17
 	WORD $0xa935a3ae                // stp	x14, x8, [x29, #-168]           ; 16-byte Folded Spill

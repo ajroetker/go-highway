@@ -20,18 +20,26 @@ func initSoftmaxNeonCAsm() {
 	}
 	LogSoftmaxFloat32 = logSoftmaxAsmF32
 	LogSoftmaxFloat64 = logSoftmaxAsmF64
+	LogSoftmaxInPlaceFloat32 = logSoftmaxInPlaceAsmF32
+	LogSoftmaxInPlaceFloat64 = logSoftmaxInPlaceAsmF64
 	SoftmaxFloat32 = softmaxAsmF32
 	SoftmaxFloat64 = softmaxAsmF64
+	SoftmaxInPlaceFloat32 = softmaxInPlaceAsmF32
+	SoftmaxInPlaceFloat64 = softmaxInPlaceAsmF64
 	SoftmaxWithTemperatureFloat32 = softmaxWithTemperatureAsmF32
 	SoftmaxWithTemperatureFloat64 = softmaxWithTemperatureAsmF64
 	if hwy.HasARMFP16() {
 		LogSoftmaxFloat16 = logSoftmaxAsmF16
+		LogSoftmaxInPlaceFloat16 = logSoftmaxInPlaceAsmF16
 		SoftmaxFloat16 = softmaxAsmF16
+		SoftmaxInPlaceFloat16 = softmaxInPlaceAsmF16
 		SoftmaxWithTemperatureFloat16 = softmaxWithTemperatureAsmF16
 	}
 	if hwy.HasARMBF16() {
 		LogSoftmaxBFloat16 = logSoftmaxAsmBF16
+		LogSoftmaxInPlaceBFloat16 = logSoftmaxInPlaceAsmBF16
 		SoftmaxBFloat16 = softmaxAsmBF16
+		SoftmaxInPlaceBFloat16 = softmaxInPlaceAsmBF16
 		SoftmaxWithTemperatureBFloat16 = softmaxWithTemperatureAsmBF16
 	}
 }
@@ -104,6 +112,54 @@ func logSoftmaxAsmF64(input, output []float64) {
 	)
 }
 
+func logSoftmaxInPlaceAsmF16(x []hwy.Float16) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.LogSoftmaxInPlace_F16(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func logSoftmaxInPlaceAsmBF16(x []hwy.BFloat16) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.LogSoftmaxInPlace_BF16(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func logSoftmaxInPlaceAsmF32(x []float32) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.LogSoftmaxInPlace_F32(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func logSoftmaxInPlaceAsmF64(x []float64) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.LogSoftmaxInPlace_F64(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
 func softmaxAsmF16(input, output []hwy.Float16) {
 	var p_input unsafe.Pointer
 	if len(input) > 0 {
@@ -168,6 +224,54 @@ func softmaxAsmF64(input, output []float64) {
 	asm.Softmax_F64(
 		p_input,
 		p_output,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxInPlaceAsmF16(x []hwy.Float16) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.SoftmaxInPlace_F16(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxInPlaceAsmBF16(x []hwy.BFloat16) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.SoftmaxInPlace_BF16(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxInPlaceAsmF32(x []float32) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.SoftmaxInPlace_F32(
+		p_x,
+		unsafe.Pointer(&lenVal),
+	)
+}
+
+func softmaxInPlaceAsmF64(x []float64) {
+	var p_x unsafe.Pointer
+	if len(x) > 0 {
+		p_x = unsafe.Pointer(&x[0])
+	}
+	lenVal := int64(len(x))
+	asm.SoftmaxInPlace_F64(
+		p_x,
 		unsafe.Pointer(&lenVal),
 	)
 }

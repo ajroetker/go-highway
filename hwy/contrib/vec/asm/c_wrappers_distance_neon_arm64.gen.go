@@ -10,6 +10,102 @@ import (
 )
 
 // Public wrapper functions
+// L2DistanceCF16 computes L2Distance using NEON SIMD assembly.
+func L2DistanceCF16(a, b []hwy.Float16) hwy.Float16 {
+	if len(a) == 0 {
+		return 0
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result int64
+	l2distance_c_f16_neon(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.Float16(out_result)
+}
+
+// L2DistanceCBF16 computes L2Distance using NEON SIMD assembly.
+func L2DistanceCBF16(a, b []hwy.BFloat16) hwy.BFloat16 {
+	if len(a) == 0 {
+		return 0
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result int64
+	l2distance_c_bf16_neon(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return hwy.BFloat16(out_result)
+}
+
+// L2DistanceCF32 computes L2Distance using NEON SIMD assembly.
+func L2DistanceCF32(a, b []float32) float32 {
+	if len(a) == 0 {
+		return 0
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result int64
+	l2distance_c_f32_neon(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
+// L2DistanceCF64 computes L2Distance using NEON SIMD assembly.
+func L2DistanceCF64(a, b []float64) float64 {
+	if len(a) == 0 {
+		return 0
+	}
+	var p_a unsafe.Pointer
+	if len(a) > 0 {
+		p_a = unsafe.Pointer(&a[0])
+	}
+	var p_b unsafe.Pointer
+	if len(b) > 0 {
+		p_b = unsafe.Pointer(&b[0])
+	}
+	lenVal := int64(len(a))
+	var out_result int64
+	l2distance_c_f64_neon(
+		p_a,
+		p_b,
+		unsafe.Pointer(&lenVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float64(out_result)
+}
+
 // L2SquaredDistanceCF16 computes L2SquaredDistance using NEON SIMD assembly.
 func L2SquaredDistanceCF16(a, b []hwy.Float16) hwy.Float16 {
 	if len(a) == 0 {

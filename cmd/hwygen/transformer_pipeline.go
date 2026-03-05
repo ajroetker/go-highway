@@ -1177,6 +1177,8 @@ func filterNestedConditionalBlocks(stmt ast.Stmt, blocks []ConditionalBlock, fse
 		}
 		return &newSwitch
 	case *ast.TypeSwitchStmt:
+		// TypeSwitchStmt is resolved later by resolveTypeSwitches once the
+		// concrete elemType is known. Just recurse into the body here.
 		newSwitch := *s // shallow copy
 		if s.Body != nil {
 			newSwitch.Body = filterConditionalBlocks(s.Body, blocks, fset, targetName, elemType)
@@ -1355,234 +1357,6 @@ func transformFuncRefArgs(call *ast.CallExpr, ctx *transformContext) {
 				}
 			}
 		}
-	}
-}
-
-// hasPredicateParam returns true if the function has a predicate-type parameter
-// (i.e., a type parameter with a non-Lanes constraint like Predicate[T]).
-func hasPredicateParam(pf *ParsedFunc) bool {
-	_, interfaceTypeParams := classifyTypeParams(pf.TypeParams)
-	return len(interfaceTypeParams) > 0
-}
-
-// generateScalarPredicateBody generates a scalar loop body for predicate functions
-// in fallback mode. Returns nil if this function doesn't need scalar generation.
-func generateScalarPredicateBody(pf *ParsedFunc, elemType string) *ast.BlockStmt {
-	// Map function names to their scalar implementations
-	switch pf.Name {
-	case "BaseAll":
-		return generateScalarAll(pf)
-	case "BaseAny":
-		return generateScalarAny(pf)
-	case "BaseNone":
-		return generateScalarNone(pf, elemType)
-	case "BaseFindIf":
-		return generateScalarFindIf(pf)
-	case "BaseCountIf":
-		return generateScalarCountIf(pf)
-	default:
-		return nil
-	}
-}
-
-// generateScalarAll generates: for _, v := range slice { if !pred.Test(v) { return false } } return true
-func generateScalarAll(pf *ParsedFunc) *ast.BlockStmt {
-	sliceParam := pf.Params[0].Name
-	predParam := pf.Params[1].Name
-
-	return &ast.BlockStmt{
-		List: []ast.Stmt{
-			// for _, v := range slice { if !pred.Test(v) { return false } }
-			&ast.RangeStmt{
-				Key:   ast.NewIdent("_"),
-				Value: ast.NewIdent("v"),
-				Tok:   token.DEFINE,
-				X:     ast.NewIdent(sliceParam),
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.IfStmt{
-							Cond: &ast.UnaryExpr{
-								Op: token.NOT,
-								X: &ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X:   ast.NewIdent(predParam),
-										Sel: ast.NewIdent("Test"),
-									},
-									Args: []ast.Expr{ast.NewIdent("v")},
-								},
-							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.ReturnStmt{
-										Results: []ast.Expr{ast.NewIdent("false")},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			// return true
-			&ast.ReturnStmt{
-				Results: []ast.Expr{ast.NewIdent("true")},
-			},
-		},
-	}
-}
-
-// generateScalarAny generates: for _, v := range slice { if pred.Test(v) { return true } } return false
-func generateScalarAny(pf *ParsedFunc) *ast.BlockStmt {
-	sliceParam := pf.Params[0].Name
-	predParam := pf.Params[1].Name
-
-	return &ast.BlockStmt{
-		List: []ast.Stmt{
-			&ast.RangeStmt{
-				Key:   ast.NewIdent("_"),
-				Value: ast.NewIdent("v"),
-				Tok:   token.DEFINE,
-				X:     ast.NewIdent(sliceParam),
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.IfStmt{
-							Cond: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   ast.NewIdent(predParam),
-									Sel: ast.NewIdent("Test"),
-								},
-								Args: []ast.Expr{ast.NewIdent("v")},
-							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.ReturnStmt{
-										Results: []ast.Expr{ast.NewIdent("true")},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			&ast.ReturnStmt{
-				Results: []ast.Expr{ast.NewIdent("false")},
-			},
-		},
-	}
-}
-
-// generateScalarNone generates: return !BaseAny_fallback...(slice, pred)
-func generateScalarNone(pf *ParsedFunc, elemType string) *ast.BlockStmt {
-	sliceParam := pf.Params[0].Name
-	predParam := pf.Params[1].Name
-
-	// Build the function name: BaseAny_fallback or BaseAny_fallback_Float64, etc.
-	funcName := "BaseAny_fallback" + getHwygenTypeSuffix(elemType)
-
-	return &ast.BlockStmt{
-		List: []ast.Stmt{
-			&ast.ReturnStmt{
-				Results: []ast.Expr{
-					&ast.UnaryExpr{
-						Op: token.NOT,
-						X: &ast.CallExpr{
-							Fun:  ast.NewIdent(funcName),
-							Args: []ast.Expr{ast.NewIdent(sliceParam), ast.NewIdent(predParam)},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// generateScalarFindIf generates: for i, v := range slice { if pred.Test(v) { return i } } return -1
-func generateScalarFindIf(pf *ParsedFunc) *ast.BlockStmt {
-	sliceParam := pf.Params[0].Name
-	predParam := pf.Params[1].Name
-
-	return &ast.BlockStmt{
-		List: []ast.Stmt{
-			&ast.RangeStmt{
-				Key:   ast.NewIdent("i"),
-				Value: ast.NewIdent("v"),
-				Tok:   token.DEFINE,
-				X:     ast.NewIdent(sliceParam),
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.IfStmt{
-							Cond: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   ast.NewIdent(predParam),
-									Sel: ast.NewIdent("Test"),
-								},
-								Args: []ast.Expr{ast.NewIdent("v")},
-							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.ReturnStmt{
-										Results: []ast.Expr{ast.NewIdent("i")},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			&ast.ReturnStmt{
-				Results: []ast.Expr{
-					&ast.UnaryExpr{Op: token.SUB, X: &ast.BasicLit{Kind: token.INT, Value: "1"}},
-				},
-			},
-		},
-	}
-}
-
-// generateScalarCountIf generates: count := 0; for _, v := range slice { if pred.Test(v) { count++ } } return count
-func generateScalarCountIf(pf *ParsedFunc) *ast.BlockStmt {
-	sliceParam := pf.Params[0].Name
-	predParam := pf.Params[1].Name
-
-	return &ast.BlockStmt{
-		List: []ast.Stmt{
-			// count := 0
-			&ast.AssignStmt{
-				Lhs: []ast.Expr{ast.NewIdent("count")},
-				Tok: token.DEFINE,
-				Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
-			},
-			// for _, v := range slice { if pred.Test(v) { count++ } }
-			&ast.RangeStmt{
-				Key:   ast.NewIdent("_"),
-				Value: ast.NewIdent("v"),
-				Tok:   token.DEFINE,
-				X:     ast.NewIdent(sliceParam),
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.IfStmt{
-							Cond: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   ast.NewIdent(predParam),
-									Sel: ast.NewIdent("Test"),
-								},
-								Args: []ast.Expr{ast.NewIdent("v")},
-							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.IncDecStmt{
-										X:   ast.NewIdent("count"),
-										Tok: token.INC,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			// return count
-			&ast.ReturnStmt{
-				Results: []ast.Expr{ast.NewIdent("count")},
-			},
-		},
 	}
 }
 
@@ -2005,4 +1779,339 @@ func substituteParamsPostOrder(node ast.Node, paramMap map[string]ast.Expr) {
 			}
 		}
 	}
+}
+
+// containsTypeSwitchOrAssert reports whether the block contains any
+// TypeSwitchStmt or TypeAssertExpr that would need resolution.
+func containsTypeSwitchOrAssert(block *ast.BlockStmt) bool {
+	if block == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(block, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		switch n.(type) {
+		case *ast.TypeSwitchStmt, *ast.TypeAssertExpr:
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// resolveTypeSwitches replaces TypeSwitchStmt nodes with the body of the
+// matching CaseClause, based on the known concrete elemType. This must run
+// after type parameters are specialized so that the element type is concrete.
+//
+// For example, given elemType="float32" and:
+//
+//	switch any(x).(type) {
+//	case float32: return float32(math.Sqrt(float64(x)))
+//	case float64: return math.Sqrt(x)
+//	default:      return float32(math.Sqrt(float64(x)))
+//	}
+//
+// The entire TypeSwitchStmt is replaced by the statements from `case float32:`.
+func resolveTypeSwitches(block *ast.BlockStmt, ctx *transformContext) {
+	if block == nil {
+		return
+	}
+	resolveTypeSwitchesInBlock(block, ctx.elemType)
+	// After resolving, the case body may contain any(x).(Type) patterns
+	// that are no-ops in monomorphized code. Simplify them so the C
+	// translator (which doesn't handle TypeAssertExpr) can process the AST.
+	simplifyTypeAssertions(block)
+}
+
+// simplifyTypeAssertions walks the AST and simplifies patterns that arise from
+// resolved type switches in generic code:
+//
+//   - any(expr).(Type) → Type(expr)   (type assertion becomes a conversion)
+//   - any(expr)         → expr        (no-op interface boxing stripped)
+//
+// These patterns are valid Go but opaque to the C translator, which has no
+// support for TypeAssertExpr or the any() builtin.
+func simplifyTypeAssertions(block *ast.BlockStmt) {
+	if block == nil {
+		return
+	}
+	for i, stmt := range block.List {
+		block.List[i] = simplifyTypeAssertionsInStmt(stmt)
+	}
+}
+
+// simplifyTypeAssertionExpr recursively simplifies type assertion patterns in an expression.
+func simplifyTypeAssertionExpr(expr ast.Expr) ast.Expr {
+	if expr == nil {
+		return nil
+	}
+
+	switch e := expr.(type) {
+	case *ast.TypeAssertExpr:
+		// any(inner).(Type) → Type(inner)
+		inner := simplifyTypeAssertionExpr(e.X)
+		// Unwrap any(x) → x
+		inner = unwrapAnyCall(inner)
+		if e.Type != nil {
+			// Convert to Type(inner) — a type conversion call
+			return &ast.CallExpr{
+				Fun:  e.Type,
+				Args: []ast.Expr{inner},
+			}
+		}
+		return inner
+
+	case *ast.CallExpr:
+		// Recursively simplify arguments
+		for i, arg := range e.Args {
+			e.Args[i] = simplifyTypeAssertionExpr(arg)
+		}
+		// Simplify the function expression itself
+		e.Fun = simplifyTypeAssertionExpr(e.Fun)
+		// Unwrap any(x) when used as a standalone call (not in type assertion)
+		result := unwrapAnyCall(expr)
+		return result
+
+	case *ast.ParenExpr:
+		e.X = simplifyTypeAssertionExpr(e.X)
+		return e
+
+	case *ast.UnaryExpr:
+		e.X = simplifyTypeAssertionExpr(e.X)
+		return e
+
+	case *ast.BinaryExpr:
+		e.X = simplifyTypeAssertionExpr(e.X)
+		e.Y = simplifyTypeAssertionExpr(e.Y)
+		return e
+
+	case *ast.IndexExpr:
+		e.X = simplifyTypeAssertionExpr(e.X)
+		e.Index = simplifyTypeAssertionExpr(e.Index)
+		return e
+
+	case *ast.SliceExpr:
+		e.X = simplifyTypeAssertionExpr(e.X)
+		if e.Low != nil {
+			e.Low = simplifyTypeAssertionExpr(e.Low)
+		}
+		if e.High != nil {
+			e.High = simplifyTypeAssertionExpr(e.High)
+		}
+		return e
+
+	case *ast.StarExpr:
+		e.X = simplifyTypeAssertionExpr(e.X)
+		return e
+
+	case *ast.CompositeLit:
+		for i, elt := range e.Elts {
+			e.Elts[i] = simplifyTypeAssertionExpr(elt)
+		}
+		return e
+
+	case *ast.KeyValueExpr:
+		e.Value = simplifyTypeAssertionExpr(e.Value)
+		return e
+	}
+
+	return expr
+}
+
+// unwrapAnyCall simplifies any(x) → x. The any() builtin is a no-op identity
+// in monomorphized code (it wraps a concrete value in an empty interface).
+func unwrapAnyCall(expr ast.Expr) ast.Expr {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return expr
+	}
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != "any" {
+		return expr
+	}
+	if len(call.Args) != 1 {
+		return expr
+	}
+	return call.Args[0]
+}
+
+// simplifyTypeAssertionsInStmt recurses into statement blocks.
+func simplifyTypeAssertionsInStmt(stmt ast.Stmt) ast.Stmt {
+	switch s := stmt.(type) {
+	case *ast.ReturnStmt:
+		for i, r := range s.Results {
+			s.Results[i] = simplifyTypeAssertionExpr(r)
+		}
+	case *ast.AssignStmt:
+		for i, r := range s.Rhs {
+			s.Rhs[i] = simplifyTypeAssertionExpr(r)
+		}
+	case *ast.ExprStmt:
+		s.X = simplifyTypeAssertionExpr(s.X)
+	case *ast.IfStmt:
+		if s.Body != nil {
+			simplifyTypeAssertions(s.Body)
+		}
+		if s.Else != nil {
+			s.Else = simplifyTypeAssertionsInStmt(s.Else)
+		}
+	case *ast.BlockStmt:
+		simplifyTypeAssertions(s)
+	case *ast.ForStmt:
+		if s.Body != nil {
+			simplifyTypeAssertions(s.Body)
+		}
+	case *ast.RangeStmt:
+		if s.Body != nil {
+			simplifyTypeAssertions(s.Body)
+		}
+	case *ast.DeclStmt:
+		if gd, ok := s.Decl.(*ast.GenDecl); ok {
+			for _, spec := range gd.Specs {
+				if vs, ok := spec.(*ast.ValueSpec); ok {
+					for i, v := range vs.Values {
+						vs.Values[i] = simplifyTypeAssertionExpr(v)
+					}
+				}
+			}
+		}
+	}
+	return stmt
+}
+
+// resolveTypeSwitchesInBlock replaces TypeSwitchStmt nodes in the block with
+// the body of the matching case clause, then recurses into nested blocks.
+func resolveTypeSwitchesInBlock(block *ast.BlockStmt, elemType string) {
+	var newList []ast.Stmt
+	for _, stmt := range block.List {
+		if ts, ok := stmt.(*ast.TypeSwitchStmt); ok {
+			matched := matchTypeSwitchCase(ts, elemType)
+			if matched != nil {
+				// Recursively resolve any nested type switches in the matched body.
+				for _, s := range matched {
+					resolveTypeSwitchesInStmt(s, elemType)
+				}
+				newList = append(newList, matched...)
+			}
+			continue
+		}
+		resolveTypeSwitchesInStmt(stmt, elemType)
+		newList = append(newList, stmt)
+	}
+	block.List = newList
+}
+
+// resolveTypeSwitchesInStmt recurses into nested block-containing statements.
+func resolveTypeSwitchesInStmt(stmt ast.Stmt, elemType string) {
+	switch s := stmt.(type) {
+	case *ast.BlockStmt:
+		resolveTypeSwitchesInBlock(s, elemType)
+	case *ast.IfStmt:
+		if s.Body != nil {
+			resolveTypeSwitchesInBlock(s.Body, elemType)
+		}
+		if s.Else != nil {
+			resolveTypeSwitchesInStmt(s.Else, elemType)
+		}
+	case *ast.ForStmt:
+		if s.Body != nil {
+			resolveTypeSwitchesInBlock(s.Body, elemType)
+		}
+	case *ast.RangeStmt:
+		if s.Body != nil {
+			resolveTypeSwitchesInBlock(s.Body, elemType)
+		}
+	case *ast.SwitchStmt:
+		if s.Body != nil {
+			resolveTypeSwitchesInBlock(s.Body, elemType)
+		}
+	case *ast.CaseClause:
+		// Recurse into case clause bodies (from regular switch statements).
+		for i, bodyStmt := range s.Body {
+			if ts, ok := bodyStmt.(*ast.TypeSwitchStmt); ok {
+				matched := matchTypeSwitchCase(ts, elemType)
+				if matched != nil {
+					// Replace the TypeSwitchStmt with matched body inline.
+					newBody := make([]ast.Stmt, 0, len(s.Body)-1+len(matched))
+					newBody = append(newBody, s.Body[:i]...)
+					newBody = append(newBody, matched...)
+					newBody = append(newBody, s.Body[i+1:]...)
+					s.Body = newBody
+					// Recurse on the newly inserted statements.
+					for _, m := range matched {
+						resolveTypeSwitchesInStmt(m, elemType)
+					}
+					return // restart not needed — only one type switch per clause expected
+				}
+			} else {
+				resolveTypeSwitchesInStmt(bodyStmt, elemType)
+			}
+		}
+	}
+}
+
+// matchTypeSwitchCase finds the CaseClause in a TypeSwitchStmt that matches
+// elemType, and returns its body statements. Returns nil if no match is found.
+//
+// Matching rules:
+//   - "float32" matches `case float32:`
+//   - "float64" matches `case float64:`
+//   - "hwy.Float16" and "hwy.BFloat16" match `default:` first, then fall back
+//     to `case float32:` (since half-precision types compute through float32)
+//   - If no specific case matches, `default:` is used
+func matchTypeSwitchCase(ts *ast.TypeSwitchStmt, elemType string) []ast.Stmt {
+	if ts.Body == nil {
+		return nil
+	}
+
+	// Normalize elemType to the bare Go type name used in case clauses.
+	bareType := elemType
+	switch elemType {
+	case "hwy.Float16", "hwy.BFloat16":
+		bareType = "" // no direct case match; rely on default or float32 fallback
+	}
+
+	var defaultClause *ast.CaseClause
+	var float32Clause *ast.CaseClause
+
+	for _, stmt := range ts.Body.List {
+		cc, ok := stmt.(*ast.CaseClause)
+		if !ok {
+			continue
+		}
+		if cc.List == nil {
+			// default: clause
+			defaultClause = cc
+			continue
+		}
+		for _, typeExpr := range cc.List {
+			typeName := exprToString(typeExpr)
+			if typeName == bareType {
+				return cc.Body
+			}
+			if typeName == "float32" {
+				float32Clause = cc
+			}
+		}
+	}
+
+	// For half-precision types, prefer default, then float32.
+	if bareType == "" {
+		if defaultClause != nil {
+			return defaultClause.Body
+		}
+		if float32Clause != nil {
+			return float32Clause.Body
+		}
+	}
+
+	// Fall back to default clause for any unmatched type.
+	if defaultClause != nil {
+		return defaultClause.Body
+	}
+
+	return nil
 }

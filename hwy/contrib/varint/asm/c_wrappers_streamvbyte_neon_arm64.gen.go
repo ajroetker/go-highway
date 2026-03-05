@@ -31,6 +31,38 @@ func DecodeStreamVByte32GroupSIMDCU8(ctrl byte, data []uint8, dst []uint32) int 
 	return int(out_result)
 }
 
+// DecodeStreamVByte32IntoCU32 computes DecodeStreamVByte32Into using NEON SIMD assembly.
+func DecodeStreamVByte32IntoCU32(control []byte, data []uint8, dst []uint32) (int, int) {
+	var p_control unsafe.Pointer
+	if len(control) > 0 {
+		p_control = unsafe.Pointer(&control[0])
+	}
+	var p_data unsafe.Pointer
+	if len(data) > 0 {
+		p_data = unsafe.Pointer(&data[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	len_controlVal := int64(len(control))
+	len_dataVal := int64(len(data))
+	len_dstVal := int64(len(dst))
+	var out_decoded int64
+	var out_dataConsumed int64
+	decodestreamvbyte32into_c_u32_neon(
+		p_control,
+		p_data,
+		p_dst,
+		unsafe.Pointer(&len_controlVal),
+		unsafe.Pointer(&len_dataVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_decoded),
+		unsafe.Pointer(&out_dataConsumed),
+	)
+	return int(out_decoded), int(out_dataConsumed)
+}
+
 // EncodeStreamVByte32GroupCU32 computes EncodeStreamVByte32Group using NEON SIMD assembly.
 func EncodeStreamVByte32GroupCU32(values []uint32, dst []uint8) (byte, int) {
 	var p_values unsafe.Pointer

@@ -98,18 +98,6 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 		funcDecl.Type.Params.List = append(funcDecl.Type.Params.List, field)
 	}
 
-	// For fallback target with predicate functions, generate scalar loop body
-	// to avoid allocations from hwy.Load/pred.Apply
-	if target.IsFallback() && hasPredicateParam(pf) {
-		if scalarBody := generateScalarPredicateBody(pf, elemType); scalarBody != nil {
-			funcDecl.Body = scalarBody
-			return &TransformResult{
-				FuncDecl:      funcDecl,
-				HoistedConsts: nil,
-			}
-		}
-	}
-
 	// Build package-level constant lookup map for deterministic hoisting
 	packageConsts := opts.PackageConstsMap
 	if packageConsts == nil {
@@ -192,6 +180,11 @@ func TransformWithOptions(pf *ParsedFunc, target Target, elemType string, opts *
 	// Pattern 1: expC0 -> expC0_f32 (base name lookup)
 	// Pattern 2: expC0_f32 -> expC0_f64 (suffix swapping for compilable base files)
 	transformIdentifiers(funcDecl.Body, ctx)
+
+	// Resolve type switches: replace switch any(x).(type) { case float32: ... }
+	// with the body of the matching case clause, since elemType is now concrete.
+	// This must happen before transformNode so the C translator never sees TypeSwitchStmt.
+	resolveTypeSwitches(funcDecl.Body, ctx)
 
 	transformNode(funcDecl.Body, ctx)
 

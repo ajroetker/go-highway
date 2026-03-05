@@ -18,7 +18,61 @@ func initMaskedvbyteNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	MaskedVByteDecodeBatch32 = maskedVByteDecodeBatch32AsmU32
+	MaskedVByteDecodeBatch64 = maskedVByteDecodeBatch64AsmU64
 	MaskedVByteDecodeGroup = maskedVByteDecodeGroupAsmU8
+}
+
+func maskedVByteDecodeBatch32AsmU32(src []byte, dst []uint32, n int) (int, int) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	nVal := int64(n)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_decoded int64
+	var out_consumed int64
+	asm.MaskedVByteDecodeBatch32_U32(
+		p_src,
+		p_dst,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_decoded),
+		unsafe.Pointer(&out_consumed),
+	)
+	return int(out_decoded), int(out_consumed)
+}
+
+func maskedVByteDecodeBatch64AsmU64(src []byte, dst []uint64, n int) (int, int) {
+	var p_src unsafe.Pointer
+	if len(src) > 0 {
+		p_src = unsafe.Pointer(&src[0])
+	}
+	var p_dst unsafe.Pointer
+	if len(dst) > 0 {
+		p_dst = unsafe.Pointer(&dst[0])
+	}
+	nVal := int64(n)
+	len_srcVal := int64(len(src))
+	len_dstVal := int64(len(dst))
+	var out_decoded int64
+	var out_consumed int64
+	asm.MaskedVByteDecodeBatch64_U64(
+		p_src,
+		p_dst,
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&len_srcVal),
+		unsafe.Pointer(&len_dstVal),
+		unsafe.Pointer(&out_decoded),
+		unsafe.Pointer(&out_consumed),
+	)
+	return int(out_decoded), int(out_consumed)
 }
 
 func maskedVByteDecodeGroupAsmU8(src []byte, dst []uint32) (int, int) {
