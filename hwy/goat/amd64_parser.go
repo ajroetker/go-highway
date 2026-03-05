@@ -939,11 +939,6 @@ func (p *AMD64Parser) generateGoAssembly(t *TranslateUnit, functions []Function,
 			}
 
 			if line.Assembly == "retq" {
-				if len(stack) > 0 {
-					for i := 0; i < len(stack); i++ {
-						builder.WriteString("\tPOPQ DI\n")
-					}
-				}
 				if function.Type != "void" {
 					switch function.Type {
 					case "int64_t", "uint64_t", "long", "_Bool":
