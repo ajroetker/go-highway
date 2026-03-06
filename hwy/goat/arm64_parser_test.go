@@ -243,42 +243,79 @@ func TestTransformStackInstruction_PostIndexedLDR(t *testing.T) {
 func TestTransformStackInstruction_PreIndexedSTRWithSpOffset(t *testing.T) {
 	// When SpOffset is set (callee-save in pre-decrement prologue),
 	// the transformed instruction should encode the offset.
+	// SpOffset=432 > 255 (imm9 max), so scratch register path is used.
 	line := &arm64Line{
 		Assembly: "str\tx25, [sp, #-80]!",
 		Binary:   "f81b0ff9",
 		SpOffset: 432, // sub sp, sp, #432 follows
 	}
 
+	result, transformed := line.transformStackInstruction()
+	if !transformed {
+		t.Fatal("expected instruction to be transformed")
+	}
+
+	// SpOffset=432 overflows imm9 (max 255), so we get multi-line scratch base output
+	if result == "" || result[0] != '\t' {
+		t.Fatalf("expected multi-line output starting with tab, got: %q", result)
+	}
+	// ADD x16, sp, #432 → 0x9106c3f0
+	if !contains(result, "0x9106c3f0") {
+		t.Errorf("expected ADD x16, sp, #432 (0x9106c3f0) in output, got:\n%s", result)
+	}
+	// STR with x16 base → 0xf8000219
+	if !contains(result, "0xf8000219") {
+		t.Errorf("expected STR with x16 base (0xf8000219) in output, got:\n%s", result)
+	}
+}
+
+func TestTransformStackInstruction_PreIndexedSTRWithSmallSpOffset(t *testing.T) {
+	// SpOffset=200 fits in imm9 (max 255), so inline encoding is used.
+	line := &arm64Line{
+		Assembly: "str\tx25, [sp, #-80]!",
+		Binary:   "f81b0ff9",
+		SpOffset: 200,
+	}
+
 	newBinary, transformed := line.transformStackInstruction()
 	if !transformed {
 		t.Fatal("expected instruction to be transformed")
 	}
 
-	// Should encode imm9 = 432 = 0x1b0 at bits 20:12, mode = 00 (unscaled)
-	// 0xf80003f9 base + (0x1b0 << 12) = 0xf81b03f9
-	expected := "f81b03f9"
+	// Should encode imm9 = 200 = 0xc8 at bits 20:12, mode = 00 (unscaled)
+	// 0xf80003f9 base + (0xc8 << 12) = 0xf80c83f9
+	// Wait: 0xc8 << 12 = 0xc8000
+	// 0xf8000000 | 0xc8000 | 0x3f9 = 0xf80c83f9
+	expected := "f80c83f9"
 	if newBinary != expected {
 		t.Errorf("expected binary %s, got %s", expected, newBinary)
 	}
 }
 
 func TestTransformStackInstruction_PostIndexedLDRWithSpOffset(t *testing.T) {
+	// SpOffset=432 > 255 (imm9 max), so scratch register path is used.
 	line := &arm64Line{
 		Assembly: "ldr\tx25, [sp], #80",
 		Binary:   "f84507f9",
 		SpOffset: 432,
 	}
 
-	newBinary, transformed := line.transformStackInstruction()
+	result, transformed := line.transformStackInstruction()
 	if !transformed {
 		t.Fatal("expected instruction to be transformed")
 	}
 
-	// Should encode imm9 = 432 = 0x1b0 at bits 20:12, mode = 00 (unscaled)
-	// Base LDR with opc=01: 0xf84003f9 + (0x1b0 << 12) = 0xf85b03f9
-	expected := "f85b03f9"
-	if newBinary != expected {
-		t.Errorf("expected binary %s, got %s", expected, newBinary)
+	// SpOffset=432 overflows imm9 (max 255), so we get multi-line scratch base output
+	if result == "" || result[0] != '\t' {
+		t.Fatalf("expected multi-line output starting with tab, got: %q", result)
+	}
+	// ADD x16, sp, #432 → 0x9106c3f0
+	if !contains(result, "0x9106c3f0") {
+		t.Errorf("expected ADD x16, sp, #432 (0x9106c3f0) in output, got:\n%s", result)
+	}
+	// LDR with x16 base → 0xf8400219
+	if !contains(result, "0xf8400219") {
+		t.Errorf("expected LDR with x16 base (0xf8400219) in output, got:\n%s", result)
 	}
 }
 
@@ -491,6 +528,168 @@ func TestLdrConstPoolPageoffRegex(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestArm64StpLdpScale(t *testing.T) {
+	tests := []struct {
+		name     string
+		binary   uint64
+		expected int
+	}{
+		{"W registers (opc=00, V=0)", 0x29000000, 4},
+		{"X registers (opc=10, V=0)", 0xa9000000, 8},
+		{"S registers (opc=00, V=1)", 0x2d000000, 4},
+		{"D registers (opc=01, V=1)", 0x6d000000, 8},
+		{"Q registers (opc=10, V=1)", 0xad000000, 16},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := arm64StpLdpScale(tt.binary)
+			if got != tt.expected {
+				t.Errorf("arm64StpLdpScale(0x%08x) = %d, want %d", tt.binary, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEmitSpOffsetAdjusted_LargeSpOffset_STP(t *testing.T) {
+	// stp d13, d12, [sp] with SpOffset=10624 (the SDPA case)
+	// Binary 6d0033ed: opc=01 V=1 → D registers, scale=8
+	// newImm7 = 0 + 10624/8 = 1328, overflows imm7 max of 63
+	line := &arm64Line{
+		Assembly: "stp\td13, d12, [sp]",
+		Binary:   "6d0033ed",
+		SpOffset: 10624,
+	}
+
+	output := line.emitSpOffsetAdjusted()
+
+	// Should contain scratch base ADD instructions
+	if !contains(output, "scratch") {
+		t.Errorf("expected scratch base in output, got:\n%s", output)
+	}
+	// 10624 = 0x2980: hi=2, lo=0x980=2432
+	// ADD x16, sp, #2, lsl #12 → 0x91400bf0
+	if !contains(output, "0x91400bf0") {
+		t.Errorf("expected ADD x16, sp, #2, lsl #12 (0x91400bf0) in output, got:\n%s", output)
+	}
+	// ADD x16, x16, #2432 → 0x91260210
+	if !contains(output, "0x91260210") {
+		t.Errorf("expected ADD x16, x16, #2432 (0x91260210) in output, got:\n%s", output)
+	}
+	// STP with x16 base (Rn changed from 31 to 16): 0x6d00320d
+	if !contains(output, "0x6d00320d") {
+		t.Errorf("expected STP with x16 base (0x6d00320d) in output, got:\n%s", output)
+	}
+}
+
+func TestEmitSpOffsetAdjusted_SmallSpOffset_STP(t *testing.T) {
+	// Verify that small offsets still work (no regression)
+	// stp d13, d12, [sp] with SpOffset=32 → newImm7 = 0+32/8 = 4, fits
+	line := &arm64Line{
+		Assembly: "stp\td13, d12, [sp]",
+		Binary:   "6d0033ed",
+		SpOffset: 32,
+	}
+
+	output := line.emitSpOffsetAdjusted()
+
+	if contains(output, "scratch") {
+		t.Errorf("small offset should not use scratch, got:\n%s", output)
+	}
+	if !contains(output, "[offset adjusted]") {
+		t.Errorf("expected [offset adjusted] marker, got:\n%s", output)
+	}
+}
+
+func TestTransformStackInstruction_PreIndexedSTP_LargeSpOffset(t *testing.T) {
+	// stp x28, x27, [sp, #-80]! with SpOffset=10624
+	// Scale=8 (X registers), scaledOffset=10624/8=1328, overflows imm7
+	line := &arm64Line{
+		Assembly: "stp\tx28, x27, [sp, #-80]!",
+		Binary:   "a9bb6ffc",
+		SpOffset: 10624,
+	}
+
+	result, transformed := line.transformStackInstruction()
+	if !transformed {
+		t.Fatal("expected instruction to be transformed")
+	}
+	// Should be multi-line (starts with \t)
+	if result == "" || result[0] != '\t' {
+		t.Fatalf("expected multi-line output starting with tab, got: %q", result)
+	}
+	// Should contain scratch base instructions
+	if !contains(result, "scratch") {
+		t.Errorf("expected scratch base in output, got:\n%s", result)
+	}
+	// ADD x16, sp, #2, lsl #12 → 0x91400bf0
+	if !contains(result, "0x91400bf0") {
+		t.Errorf("expected ADD x16 hi in output, got:\n%s", result)
+	}
+	// ADD x16, x16, #2432 → 0x91260210
+	if !contains(result, "0x91260210") {
+		t.Errorf("expected ADD x16 lo in output, got:\n%s", result)
+	}
+}
+
+func TestTransformStackInstruction_PostIndexedLDP_LargeSpOffset(t *testing.T) {
+	// ldp x28, x27, [sp], #80 with SpOffset=10624
+	// Scale=8 (X registers), scaledOffset=1328, overflows imm7
+	line := &arm64Line{
+		Assembly: "ldp\tx28, x27, [sp], #80",
+		Binary:   "a8c56ffc",
+		SpOffset: 10624,
+	}
+
+	result, transformed := line.transformStackInstruction()
+	if !transformed {
+		t.Fatal("expected instruction to be transformed")
+	}
+	if result == "" || result[0] != '\t' {
+		t.Fatalf("expected multi-line output starting with tab, got: %q", result)
+	}
+	if !contains(result, "scratch") {
+		t.Errorf("expected scratch base in output, got:\n%s", result)
+	}
+}
+
+func TestTransformStackInstruction_PreIndexedSTR_LargeSpOffset(t *testing.T) {
+	// str x25, [sp, #-80]! with SpOffset=10624
+	// imm9 max is 255, SpOffset=10624 overflows
+	line := &arm64Line{
+		Assembly: "str\tx25, [sp, #-80]!",
+		Binary:   "f81b0ff9",
+		SpOffset: 10624,
+	}
+
+	result, transformed := line.transformStackInstruction()
+	if !transformed {
+		t.Fatal("expected instruction to be transformed")
+	}
+	if result == "" || result[0] != '\t' {
+		t.Fatalf("expected multi-line output starting with tab, got: %q", result)
+	}
+	if !contains(result, "scratch") {
+		t.Errorf("expected scratch base in output, got:\n%s", result)
+	}
+}
+
+func TestString_LargeSpOffset_MultiLine(t *testing.T) {
+	// Verify String() correctly passes through multi-line transformed output
+	line := &arm64Line{
+		Assembly: "stp\td13, d12, [sp]",
+		Binary:   "6d0033ed",
+		SpOffset: 10624,
+	}
+
+	output := line.String()
+	if output == "" {
+		t.Fatal("expected non-empty output")
+	}
+	if !contains(output, "scratch") {
+		t.Errorf("expected scratch base in String() output, got:\n%s", output)
 	}
 }
 

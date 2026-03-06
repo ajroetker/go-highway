@@ -2707,7 +2707,8 @@ TEXT ·multitile_fmopa_at_f16(SB), $512-56
 	MOVD pn+32(FP), R4
 	MOVD pk+40(FP), R5
 	MOVD scratch+48(FP), R6
-	WORD $0xf81b03f9        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
+	WORD $0x9106c3f0        // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8000219        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed, scratch x16]
 	WORD $0xa91c5ff8        // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91d57f6        // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91e4ff4        // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill [offset adjusted]
@@ -2726,7 +2727,8 @@ BB4_1:
 	WORD $0xa95e4ff4 // ldp	x20, x19, [sp, #48]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95d57f6 // ldp	x22, x21, [sp, #32]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95c5ff8 // ldp	x24, x23, [sp, #16]             ; 16-byte Folded Reload [offset adjusted]
-	WORD $0xf85b03f9 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed]
+	WORD $0x9106c3f0 // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8400219 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed, scratch x16]
 	WORD $0xd503467f // smstop	sm
 	RET
 
@@ -4361,7 +4363,8 @@ TEXT ·multitile_fmopa_at_f16_strided(SB), $528-72
 	MOVD pcoff+56(FP), R7
 	MOVD scratch+64(FP), R8
 	MOVD R8, 512(RSP)
-	WORD $0xf81b03f9        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
+	WORD $0x9106c3f0        // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8000219        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed, scratch x16]
 	WORD $0xa91c5ff8        // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91d57f6        // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91e4ff4        // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill [offset adjusted]
@@ -6011,7 +6014,8 @@ BB5_29:
 	WORD $0xa95e4ff4 // ldp	x20, x19, [sp, #48]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95d57f6 // ldp	x22, x21, [sp, #32]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95c5ff8 // ldp	x24, x23, [sp, #16]             ; 16-byte Folded Reload [offset adjusted]
-	WORD $0xf85b03f9 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed]
+	WORD $0x9106c3f0 // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8400219 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed, scratch x16]
 	WORD $0xd503467f // smstop	sm
 	RET
 
@@ -6023,7 +6027,8 @@ TEXT ·multitile_bfmopa_at_bf16(SB), $512-56
 	MOVD pn+32(FP), R4
 	MOVD pk+40(FP), R5
 	MOVD scratch+48(FP), R6
-	WORD $0xf81b03f9        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
+	WORD $0x9106c3f0        // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8000219        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed, scratch x16]
 	WORD $0xa91c5ff8        // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91d57f6        // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91e4ff4        // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill [offset adjusted]
@@ -6042,7 +6047,8 @@ BB6_1:
 	WORD $0xa95e4ff4 // ldp	x20, x19, [sp, #48]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95d57f6 // ldp	x22, x21, [sp, #32]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95c5ff8 // ldp	x24, x23, [sp, #16]             ; 16-byte Folded Reload [offset adjusted]
-	WORD $0xf85b03f9 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed]
+	WORD $0x9106c3f0 // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8400219 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed, scratch x16]
 	WORD $0xd503467f // smstop	sm
 	RET
 
@@ -7538,7 +7544,8 @@ TEXT ·multitile_bfmopa_at_bf16_strided(SB), $528-72
 	MOVD pcoff+56(FP), R7
 	MOVD scratch+64(FP), R8
 	MOVD R8, 512(RSP)
-	WORD $0xf81b03f9        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed]
+	WORD $0x9106c3f0        // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8000219        // str	x25, [sp, #-80]!                ; 8-byte Folded Spill [transformed, scratch x16]
 	WORD $0xa91c5ff8        // stp	x24, x23, [sp, #16]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91d57f6        // stp	x22, x21, [sp, #32]             ; 16-byte Folded Spill [offset adjusted]
 	WORD $0xa91e4ff4        // stp	x20, x19, [sp, #48]             ; 16-byte Folded Spill [offset adjusted]
@@ -9049,6 +9056,7 @@ BB7_29:
 	WORD $0xa95e4ff4 // ldp	x20, x19, [sp, #48]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95d57f6 // ldp	x22, x21, [sp, #32]             ; 16-byte Folded Reload [offset adjusted]
 	WORD $0xa95c5ff8 // ldp	x24, x23, [sp, #16]             ; 16-byte Folded Reload [offset adjusted]
-	WORD $0xf85b03f9 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed]
+	WORD $0x9106c3f0 // add x16, sp, #432 [transformed scratch base]
+	WORD $0xf8400219 // ldr	x25, [sp], #80                  ; 8-byte Folded Reload [transformed, scratch x16]
 	WORD $0xd503467f // smstop	sm
 	RET

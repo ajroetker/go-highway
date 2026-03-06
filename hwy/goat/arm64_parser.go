@@ -33,7 +33,7 @@ type ARM64Parser struct{}
 var (
 	// Match labels like .LBB0_2: (Linux) or LBB0_2: (macOS)
 	arm64LabelLine = regexp.MustCompile(`^\.?\w+_\d+:.*$`)
-	arm64CodeLine  = regexp.MustCompile(`^\s+\w+.*$`)
+	arm64CodeLine  = regexp.MustCompile(`^\s+(?:\w+|\.inst\b).*$`)
 	// Match jumps to labels with or without leading dot
 	arm64JmpLine = regexp.MustCompile(`^(b|b\.\w{2})\t\.?\w+_\d+$`)
 	// Match CBZ/CBNZ: "cbz x10, LBB0_40" or "cbnz w8, .LBB0_5"
@@ -221,6 +221,12 @@ func (line *arm64Line) transformStackInstruction() (string, bool) {
 			// Transform to unscaled offset with SpOffset applied
 			binary &^= (0x1ff << 12) // Zero imm9 (bits 20-12)
 			binary &^= (3 << 10)     // Change mode 11 -> 00 (unscaled offset, no writeback)
+			if line.SpOffset > 255 {
+				// imm9 overflow: emit scratch base + STR with x16 base
+				scratch := arm64EmitScratchBase(line.SpOffset, "transformed")
+				binary = arm64ChangeBaseFromSpToX16(binary)
+				return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [transformed, scratch x16]\n", binary, line.Assembly), true
+			}
 			if line.SpOffset > 0 {
 				// Encode SpOffset as imm9 (signed, unscaled bytes)
 				imm9 := uint64(line.SpOffset) & 0x1ff
@@ -232,9 +238,15 @@ func (line *arm64Line) transformStackInstruction() (string, bool) {
 			binary &^= (1 << 23)    // Clear bit 23 (pre-indexed -> signed offset)
 			binary &^= (0x7f << 15) // Zero imm7
 			if line.SpOffset > 0 {
-				// Encode SpOffset/8 as imm7 (signed, scaled by 8 for 64-bit)
-				imm7 := uint64(line.SpOffset/8) & 0x7f
-				binary |= imm7 << 15
+				scale := arm64StpLdpScale(binary)
+				scaledOffset := line.SpOffset / scale
+				if scaledOffset > 63 {
+					// imm7 overflow: emit scratch base + STP with x16 base
+					scratch := arm64EmitScratchBase(line.SpOffset, "transformed")
+					binary = arm64ChangeBaseFromSpToX16(binary)
+					return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [transformed, scratch x16]\n", binary, line.Assembly), true
+				}
+				binary |= uint64(scaledOffset) << 15
 			}
 		}
 
@@ -253,6 +265,12 @@ func (line *arm64Line) transformStackInstruction() (string, bool) {
 			// Transform to unscaled offset with SpOffset applied
 			binary &^= (0x1ff << 12) // Zero imm9 (bits 20-12)
 			binary &^= (3 << 10)     // Change mode 01 -> 00 (unscaled offset, no writeback)
+			if line.SpOffset > 255 {
+				// imm9 overflow: emit scratch base + LDR with x16 base
+				scratch := arm64EmitScratchBase(line.SpOffset, "transformed")
+				binary = arm64ChangeBaseFromSpToX16(binary)
+				return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [transformed, scratch x16]\n", binary, line.Assembly), true
+			}
 			if line.SpOffset > 0 {
 				imm9 := uint64(line.SpOffset) & 0x1ff
 				binary |= imm9 << 12
@@ -264,8 +282,15 @@ func (line *arm64Line) transformStackInstruction() (string, bool) {
 			binary &^= (1 << 23)    // Clear bit 23 (post-indexed -> signed offset)
 			binary &^= (0x7f << 15) // Zero imm7
 			if line.SpOffset > 0 {
-				imm7 := uint64(line.SpOffset/8) & 0x7f
-				binary |= imm7 << 15
+				scale := arm64StpLdpScale(binary)
+				scaledOffset := line.SpOffset / scale
+				if scaledOffset > 63 {
+					// imm7 overflow: emit scratch base + LDP with x16 base
+					scratch := arm64EmitScratchBase(line.SpOffset, "transformed")
+					binary = arm64ChangeBaseFromSpToX16(binary)
+					return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [transformed, scratch x16]\n", binary, line.Assembly), true
+				}
+				binary |= uint64(scaledOffset) << 15
 			}
 		}
 
@@ -309,6 +334,62 @@ func (line *arm64Line) emitTbz(m []string) string {
 	return fmt.Sprintf("\t%s $%s, %s, %s\n", mnemonic, m[3], goReg, label)
 }
 
+// arm64StpLdpScale returns the byte scale factor for STP/LDP based on
+// the opc (bits 31:30) and V (bit 26) fields of the instruction encoding.
+func arm64StpLdpScale(binary uint64) int {
+	opc := (binary >> 30) & 3
+	v := (binary >> 26) & 1
+	if v == 0 {
+		// Integer registers
+		if opc == 0 {
+			return 4 // W registers (32-bit)
+		}
+		return 8 // X registers (64-bit)
+	}
+	// SIMD/FP registers
+	switch opc {
+	case 0:
+		return 4 // S registers (32-bit FP)
+	case 1:
+		return 8 // D registers (64-bit FP)
+	case 2:
+		return 16 // Q registers (128-bit)
+	default:
+		return 8
+	}
+}
+
+// arm64EmitScratchBase emits ADD instruction(s) to compute x16 = sp + spOffset.
+// x16 (IP0) is the ARM64 intra-procedure-call scratch register, safe to clobber.
+func arm64EmitScratchBase(spOffset int, comment string) string {
+	var sb strings.Builder
+	if spOffset <= 4095 {
+		// Single ADD x16, sp, #spOffset
+		binary := uint64(0x91000000) | (uint64(spOffset) << 10) | (31 << 5) | 16
+		sb.WriteString(fmt.Sprintf("\tWORD $0x%08x\t// add x16, sp, #%d [%s scratch base]\n", binary, spOffset, comment))
+	} else {
+		// ADD x16, sp, #(spOffset>>12), lsl #12
+		hi := uint64(spOffset >> 12)
+		binary1 := uint64(0x91400000) | (hi << 10) | (31 << 5) | 16
+		sb.WriteString(fmt.Sprintf("\tWORD $0x%08x\t// add x16, sp, #%d, lsl #12 [%s scratch hi]\n", binary1, spOffset>>12, comment))
+		// ADD x16, x16, #(spOffset & 0xfff)
+		lo := uint64(spOffset & 0xfff)
+		if lo > 0 {
+			binary2 := uint64(0x91000000) | (lo << 10) | (16 << 5) | 16
+			sb.WriteString(fmt.Sprintf("\tWORD $0x%08x\t// add x16, x16, #%d [%s scratch lo]\n", binary2, spOffset&0xfff, comment))
+		}
+	}
+	return sb.String()
+}
+
+// arm64ChangeBaseFromSpToX16 changes the Rn field (bits 9:5) from SP (31)
+// to x16, so the instruction uses the scratch register as its base.
+func arm64ChangeBaseFromSpToX16(binary uint64) uint64 {
+	binary &^= 0x1f << 5 // Clear Rn
+	binary |= 16 << 5    // Set Rn = x16
+	return binary
+}
+
 func (line *arm64Line) emitSpOffsetAdjusted() string {
 	binary, err := strconv.ParseUint(line.Binary, 16, 32)
 	if err == nil {
@@ -321,6 +402,11 @@ func (line *arm64Line) emitSpOffsetAdjusted() string {
 				shift = 12
 			}
 			newImm12 := imm12 + uint64(line.SpOffset>>shift)
+			if newImm12 > 4095 {
+				scratch := arm64EmitScratchBase(line.SpOffset, "offset adjusted")
+				rebased := arm64ChangeBaseFromSpToX16(binary)
+				return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [offset adjusted, scratch x16]\n", rebased, line.Assembly)
+			}
 			binary &^= 0xfff << 10
 			binary |= (newImm12 & 0xfff) << 10
 		} else if arm64SingleRegLine.MatchString(line.Assembly) {
@@ -329,17 +415,24 @@ func (line *arm64Line) emitSpOffsetAdjusted() string {
 				imm12 := (binary >> 10) & 0xfff
 				scale := 1 << ((binary >> 30) & 3)
 				newImm12 := imm12 + uint64(line.SpOffset)/uint64(scale)
+				if newImm12 > 4095 {
+					scratch := arm64EmitScratchBase(line.SpOffset, "offset adjusted")
+					rebased := arm64ChangeBaseFromSpToX16(binary)
+					return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [offset adjusted, scratch x16]\n", rebased, line.Assembly)
+				}
 				binary &^= 0xfff << 10
 				binary |= (newImm12 & 0xfff) << 10
 			}
 		} else {
 			// STP/LDP signed-offset: imm7 at bits 21:15
-			scale := 8
-			if (binary>>30)&3 == 0 {
-				scale = 4
-			}
+			scale := arm64StpLdpScale(binary)
 			imm7 := (binary >> 15) & 0x7f
 			newImm7 := imm7 + uint64(line.SpOffset/scale)
+			if newImm7 > 63 {
+				scratch := arm64EmitScratchBase(line.SpOffset, "offset adjusted")
+				rebased := arm64ChangeBaseFromSpToX16(binary)
+				return scratch + fmt.Sprintf("\tWORD $0x%08x\t// %s [offset adjusted, scratch x16]\n", rebased, line.Assembly)
+			}
 			binary &^= 0x7f << 15
 			binary |= (newImm7 & 0x7f) << 15
 		}
@@ -358,6 +451,10 @@ func (line *arm64Line) String() string {
 	if newBinary, transformed := line.transformStackInstruction(); transformed {
 		if newBinary == "" {
 			return ""
+		}
+		// Multi-line output from overflow handling starts with \t
+		if strings.HasPrefix(newBinary, "\t") {
+			return newBinary
 		}
 		return line.emitTransformed(newBinary)
 	}
@@ -625,7 +722,7 @@ func (p *ARM64Parser) parseAssembly(path string, targetOS string) (map[string][]
 			cpa.FinishPool()
 		}
 
-		if attributeLine.MatchString(line) {
+		if attributeLine.MatchString(line) && !strings.HasPrefix(strings.TrimSpace(line), ".inst") {
 			continue
 		} else if arm64LabelLine.MatchString(line) {
 			// Check labels BEFORE function names because labels like "LBB0_2: ; comment"
