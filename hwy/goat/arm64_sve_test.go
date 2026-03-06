@@ -670,7 +670,7 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 			},
 		},
 		{
-			name: "mova with #0 base - rewritten to w12",
+			name: "mova with #0 base - encoded as .inst",
 			input: []string{
 				"\tmov\tw13, #0",
 				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
@@ -681,12 +681,9 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 			want: []string{
 				"\tmov\tw13, #0",
 				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
-				"\tmov\tw12, wzr",
-				"\tmov\tz29.s, p0/m, za0h.s[w12, 1]",
-				"\tmov\tw12, wzr",
-				"\tmov\tz29.s, p0/m, za0h.s[w12, 2]",
-				"\tmov\tw12, wzr",
-				"\tmov\tz29.s, p0/m, za0h.s[w12, 3]",
+				"\t.inst\t0xc082003d", // za0h.s[#0,1] → Rv=0,ZAn=0,imm=1 → (0*4+1)<<5|29
+				"\t.inst\t0xc082005d", // za0h.s[#0,2] → (0*4+2)<<5|29
+				"\t.inst\t0xc082007d", // za0h.s[#0,3] → (0*4+3)<<5|29
 			},
 		},
 		{
@@ -695,8 +692,7 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 				"\tmova\tz7.d, p0/m, za0h.d[#0, 1]",
 			},
 			want: []string{
-				"\tmov\tw12, wzr",
-				"\tmov\tz7.d, p0/m, za0h.d[w12, 1]",
+				"\t.inst\t0xc0820027", // za0h.d[#0,1] → (0*4+1)<<5|7
 			},
 		},
 		{
@@ -705,8 +701,7 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 				"\tmov\tz29.s, p0/m, za2h.s[#0, 1]",
 			},
 			want: []string{
-				"\tmov\tw12, wzr",
-				"\tmov\tz29.s, p0/m, za2h.s[w12, 1]",
+				"\t.inst\t0xc082013d", // za2h.s[#0,1] → (2*4+1)<<5|29
 			},
 		},
 		{
@@ -715,38 +710,34 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 				"\tmova\tz0.s, p0/m, za0v.s[#0, 2]",
 			},
 			want: []string{
-				"\tmov\tw12, wzr",
-				"\tmov\tz0.s, p0/m, za0v.s[w12, 2]",
+				"\t.inst\t0xc0828040", // za0v.s[#0,2] → V=1,(0*4+2)<<5|0
 			},
 		},
 		{
-			name: "mova with #1 base - rewritten to w13",
+			name: "mova with #1 base - encoded as .inst",
 			input: []string{
 				"\tmova\tz29.s, p0/m, za0h.s[#1, 0]",
 			},
 			want: []string{
-				"\tmov\tw13, #1",
-				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
+				"\t.inst\t0xc082201d", // za0h.s[#1,0] → Rv=1,(0*4+0)<<5|29
 			},
 		},
 		{
-			name: "mova with #2 base - rewritten to w14",
+			name: "mova with #2 base - encoded as .inst",
 			input: []string{
 				"\tmova\tz0.s, p0/m, za0h.s[#2, 1]",
 			},
 			want: []string{
-				"\tmov\tw14, #2",
-				"\tmov\tz0.s, p0/m, za0h.s[w14, 1]",
+				"\t.inst\t0xc0824020", // za0h.s[#2,1] → Rv=2,(0*4+1)<<5|0
 			},
 		},
 		{
-			name: "mova with #3 base - rewritten to w15",
+			name: "mova with #3 base - encoded as .inst",
 			input: []string{
 				"\tmova\tz1.d, p0/m, za0v.d[#3, 0]",
 			},
 			want: []string{
-				"\tmov\tw15, #3",
-				"\tmov\tz1.d, p0/m, za0v.d[w15, 0]",
+				"\t.inst\t0xc082e001", // za0v.d[#3,0] → V=1,Rv=3,(0*4+0)<<5|1
 			},
 		},
 		{
@@ -770,8 +761,7 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 			},
 			want: []string{
 				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
-				"\tmov\tw12, wzr",
-				"\tmov\tz29.s, p0/m, za0h.s[w12, 1]",
+				"\t.inst\t0xc082003d", // za0h.s[#0,1]
 				"\tmov\tw13, #4",
 				"\tmov\tz29.s, p0/m, za0h.s[w13, 0]",
 			},

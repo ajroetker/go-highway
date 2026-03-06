@@ -607,32 +607,53 @@ var smeMovaImm = regexp.MustCompile(
 	`(?P<pre>(?:mova|mov)\s+z\d+\.\w+,\s*p\d+/m,\s*za\d+[hv]\.\w+\[)#(?P<base>\d+)(?P<post>,\s*\d+\])`,
 )
 
-// smeMovaBaseToReg maps immediate base values to the corresponding w12-w15
-// register names.  The SME MOVA encoding uses a 2-bit Rv field where
-// 0→w12, 1→w13, 2→w14, 3→w15.
-var smeMovaBaseToReg = map[string]string{
-	"0": "w12",
-	"1": "w13",
-	"2": "w14",
-	"3": "w15",
+// smeMovaFields extracts all fields needed for binary encoding of an SME
+// MOVA (tile to vector) instruction with immediate base.
+// Example: "mova z29.s, p0/m, za0h.s[#0, 1]"
+//   → Zd=29, elemSz="s", Pg=0, ZAn=0, dir='h', base=0, imm=1
+var smeMovaFields = regexp.MustCompile(
+	`(?:mova|mov)\s+z(\d+)\.(\w+),\s*p(\d+)/m,\s*za(\d+)([hv])\.\w+\[#(\d+),\s*(\d+)\]`,
+)
+
+// smeMovaEncode computes the 32-bit binary encoding for a MOVA (tile to
+// vector) instruction.  Currently only handles .s (32-bit) element size.
+//
+// Encoding for .s horizontal:
+//
+//	0xc0820000 | (Rv << 13) | (Pg << 10) | ((ZAn*4 + imm) << 5) | Zd
+//
+// For vertical, bit 15 is set (V=1).
+func smeMovaEncode(zd, pg, zan, base, imm int, dir byte) (uint32, error) {
+	if base < 0 || base > 3 {
+		return 0, fmt.Errorf("smeMovaEncode: base %d out of range 0-3", base)
+	}
+	if zan < 0 || zan > 3 {
+		return 0, fmt.Errorf("smeMovaEncode: ZAn %d out of range 0-3", zan)
+	}
+	if imm < 0 || imm > 3 {
+		return 0, fmt.Errorf("smeMovaEncode: imm %d out of range 0-3", imm)
+	}
+	enc := uint32(0xc0820000) // .s base opcode
+	if dir == 'v' {
+		enc |= 0x8000 // set V bit (bit 15) for vertical
+	}
+	enc |= uint32(base) << 13           // Rv field
+	enc |= uint32(pg) << 10             // Pg field
+	enc |= uint32(zan*4+imm) << 5       // combined tile offset
+	enc |= uint32(zd)                   // Zd field
+	return enc, nil
 }
 
 // fixSMEMovaImmediate rewrites the clang-generated assembly file in place,
 // replacing MOVA/MOV instructions that use an immediate #N base offset in
-// ZA tile access with the register form (w12-w15).
+// ZA tile access with .inst directives containing the computed binary encoding.
 //
 // Clang ≥22's integrated assembler rejects the immediate form that clang's
 // own code generator emits (e.g., "mova z29.s, p0/m, za0h.s[#0, 1]").
-// The correct syntax is "mov z29.s, p0/m, za0h.s[w12, 1]" with w12 set
-// to 0 beforehand.
-//
-// For each rewritten instruction, this function inserts a preceding
-// "mov wR, #N" to ensure the register holds the correct base value.
-// This is safe because:
-//   - The inserted mov and the tile read are back-to-back (no intervening use of wR)
-//   - The SME tile read is the sole consumer of wR at that point
-//   - Clang's own register allocator already avoids w12-w15 for general use
-//     when SME tile operations are present in the function
+// Using .inst bypasses the assembler syntax check without inserting any extra
+// instructions or modifying GP registers, preserving clang's register
+// allocation exactly.  The resulting binary is identical to what clang's
+// assembler would have produced if it still accepted the #N shorthand.
 func fixSMEMovaImmediate(asmPath string) error {
 	data, err := os.ReadFile(asmPath)
 	if err != nil {
@@ -645,46 +666,31 @@ func fixSMEMovaImmediate(asmPath string) error {
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		loc := smeMovaImm.FindStringSubmatchIndex(trimmed)
-		if loc == nil {
+		if !smeMovaImm.MatchString(trimmed) {
 			result = append(result, line)
 			continue
 		}
 
-		// Extract named groups
-		baseStr := trimmed[loc[4]:loc[5]] // "base" group — the immediate value
-		reg, ok := smeMovaBaseToReg[baseStr]
-		if !ok {
-			// Immediate value outside 0-3 — leave unchanged (shouldn't happen
-			// for valid SME assembly, but be defensive).
+		m := smeMovaFields.FindStringSubmatch(trimmed)
+		if m == nil {
 			result = append(result, line)
 			continue
 		}
 
-		// Determine leading whitespace to preserve indentation
+		zd, _ := strconv.Atoi(m[1])
+		pg, _ := strconv.Atoi(m[3])
+		zan, _ := strconv.Atoi(m[4])
+		dir := m[5][0]
+		base, _ := strconv.Atoi(m[6])
+		imm, _ := strconv.Atoi(m[7])
+
+		enc, err := smeMovaEncode(zd, pg, zan, base, imm, dir)
+		if err != nil {
+			return fmt.Errorf("fixSMEMovaImmediate: %w (line: %s)", err, trimmed)
+		}
+
 		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-
-		// Insert "mov wR, #N" before the tile read instruction.
-		// When the base is 0 we use wzr for clarity; otherwise #N.
-		var movLine string
-		if baseStr == "0" {
-			movLine = indent + "mov\t" + reg + ", wzr"
-		} else {
-			movLine = indent + "mov\t" + reg + ", #" + baseStr
-		}
-		result = append(result, movLine)
-
-		// Rewrite the MOVA/MOV instruction:
-		// 1. Replace #N with the register name
-		// 2. Normalize mnemonic to "mov" (mova is an alias)
-		//
-		// Submatch indices: loc[0:2]=full, loc[2:4]=pre, loc[4:6]=base, loc[6:8]=post
-		// pre includes up to "[", then "#base" is replaced by reg, then post is ", N]"
-		fixed := trimmed[:loc[3]] + reg + trimmed[loc[6]:]
-		if strings.HasPrefix(strings.TrimSpace(fixed), "mova") {
-			fixed = strings.Replace(fixed, "mova", "mov", 1)
-		}
-		result = append(result, indent+fixed)
+		result = append(result, fmt.Sprintf("%s.inst\t0x%08x", indent, enc))
 		changed = true
 	}
 
