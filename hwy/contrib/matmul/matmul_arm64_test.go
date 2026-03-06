@@ -17,9 +17,11 @@
 package matmul
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 
+	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
 )
 
@@ -206,6 +208,114 @@ func BenchmarkBlockedMatMulSME(b *testing.B) {
 			elapsed := b.Elapsed().Seconds()
 			gflops := flops * float64(b.N) / elapsed
 			b.ReportMetric(gflops, "GFLOPS")
+		})
+	}
+}
+
+// BenchmarkMatMulM1 compares SME FMOPA vs NEON for M=1 (decode) at LLM dimensions.
+// SME pads M=1→16, transposes A, and wastes 15/16 compute.
+// NEON streams through B row-by-row with no overhead.
+func BenchmarkMatMulM1(b *testing.B) {
+	if !hwy.HasSME() {
+		b.Skip("SME not available")
+	}
+
+	type shape struct {
+		k, n int
+	}
+	shapes := []shape{
+		{256, 256},
+		{512, 512},
+		{1024, 1024},
+		{2048, 2048},
+		{4096, 4096},
+		// Asymmetric shapes common in transformers (hidden → 4*hidden)
+		{2048, 8192},
+		{4096, 11008},
+	}
+
+	for _, s := range shapes {
+		m, n, k := 1, s.n, s.k
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, k*n)
+		c := make([]float32, m*n)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
+		}
+
+		flops := float64(2*m*n*k) / 1e9
+		label := fmt.Sprintf("%dx%d", k, n)
+
+		b.Run(label+"/SME", func(b *testing.B) {
+			b.SetBytes(int64((m*k + k*n + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				blockedMatMulFMOPA(a, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			b.ReportMetric(flops*float64(b.N)/elapsed, "GFLOPS")
+		})
+
+		b.Run(label+"/NEON", func(b *testing.B) {
+			b.SetBytes(int64((m*k + k*n + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				matMulAsmF32(a, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			b.ReportMetric(flops*float64(b.N)/elapsed, "GFLOPS")
+		})
+	}
+}
+
+// BenchmarkMatMulM1Dispatch benchmarks the dispatched path at M=1 to verify
+// it picks NEON for small K*N and SME for large K*N.
+func BenchmarkMatMulM1Dispatch(b *testing.B) {
+	if !hwy.HasSME() {
+		b.Skip("SME not available")
+	}
+
+	type shape struct{ k, n int }
+	shapes := []shape{
+		{512, 512},
+		{2048, 2048},
+		{4096, 4096},
+		{2048, 8192},
+	}
+
+	for _, s := range shapes {
+		m, n, k := 1, s.n, s.k
+
+		a := make([]float32, m*k)
+		bMat := make([]float32, k*n)
+		c := make([]float32, m*n)
+
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
+		}
+
+		flops := float64(2*m*n*k) / 1e9
+		label := fmt.Sprintf("%dx%d", k, n)
+
+		b.Run(label, func(b *testing.B) {
+			b.SetBytes(int64((m*k + k*n + m*n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				BlockedMatMulFloat32(a, bMat, c, m, n, k)
+			}
+			b.StopTimer()
+			elapsed := b.Elapsed().Seconds()
+			b.ReportMetric(flops*float64(b.N)/elapsed, "GFLOPS")
 		})
 	}
 }

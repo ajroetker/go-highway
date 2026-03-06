@@ -84,14 +84,10 @@ func MatMulAuto[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int
 	// For small M with large N*K on AMD64, use fine-grained row parallelism.
 	// Each row is dispatched independently via atomic work stealing.
 	//
-	// On ARM64, this path is skipped. BlockedMatMul now uses SME FMOPA with
-	// padding even for M=1 (total ops guard instead of per-dimension guard),
-	// so sequential BlockedMatMul is already fast. Per-row FineGrained dispatch
-	// would force each row through NEON since M=1 per-row calls can't reach
-	// the SME ops threshold. Benchmarks on M4 Max (SME with padding):
-	//   BlockedMatMul(1, 1024, 1024):  ~93µs  (SME, padded to 16×1024×1024)
-	//   BlockedMatMul(16, 1024, 1024): ~88µs  (SME, padded to 16×1024×1024)
-	//   BlockedMatMul(32, 1024, 1024): ~101µs (SME, no padding needed)
+	// On ARM64, this path is skipped. BlockedMatMul handles M=1 internally:
+	// for small K*N it uses NEON (no padding waste), for large K*N it uses
+	// SME FMOPA with padding. Per-row FineGrained dispatch would force each
+	// row through NEON since M=1 per-row calls can't reach the SME ops threshold.
 	if runtime.GOARCH != "arm64" && m < RowsPerStrip {
 		ParallelMatMulFineGrained(pool, a, b, c, m, n, k)
 		return
