@@ -23,6 +23,7 @@ import (
 
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/matmul/asm"
+	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
 // BenchmarkMatMulNEON benchmarks NEON streaming matmul at various sizes.
@@ -317,6 +318,180 @@ func BenchmarkMatMulM1Dispatch(b *testing.B) {
 			elapsed := b.Elapsed().Seconds()
 			b.ReportMetric(flops*float64(b.N)/elapsed, "GFLOPS")
 		})
+	}
+}
+
+// BenchmarkPrefillMatMul benchmarks small-M matmul at LLM prefill shapes.
+// Compares: sequential SME (current), per-row NEON parallel, and MatMulAuto.
+// Gemma 270M shapes: hidden=640, intermediate=2048, heads=4, kv_heads=1, head_dim=256.
+func BenchmarkPrefillMatMul(b *testing.B) {
+	if !hwy.HasSME() {
+		b.Skip("SME not available")
+	}
+
+	pool := workerpool.New(0) // use all cores
+	defer pool.Close()
+
+	type shape struct {
+		name   string
+		m, k, n int
+	}
+	shapes := []shape{
+		{"Qproj_10x640x1024", 10, 640, 1024},
+		{"Kproj_10x640x256", 10, 640, 256},
+		{"gate_10x640x2048", 10, 640, 2048},
+		{"down_10x2048x640", 10, 2048, 640},
+		{"Qproj_13x640x1024", 13, 640, 1024},
+		{"gate_13x640x2048", 13, 640, 2048},
+	}
+
+	for _, s := range shapes {
+		a := make([]float32, s.m*s.k)
+		bMat := make([]float32, s.k*s.n)
+		c := make([]float32, s.m*s.n)
+		for i := range a {
+			a[i] = rand.Float32()
+		}
+		for i := range bMat {
+			bMat[i] = rand.Float32()
+		}
+
+		flops := float64(2*s.m*s.n*s.k) / 1e9
+
+		// Current path: sequential BlockedMatMul (SME FMOPA)
+		b.Run(s.name+"/BlockedSME", func(b *testing.B) {
+			b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				BlockedMatMulFloat32(a, bMat, c, s.m, s.n, s.k)
+			}
+			b.StopTimer()
+			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+		})
+
+		// Proposed: per-row NEON parallel
+		b.Run(s.name+"/ParallelNEON", func(b *testing.B) {
+			b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				ParallelMatMulFineGrained(pool, a, bMat, c, s.m, s.n, s.k)
+			}
+			b.StopTimer()
+			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+		})
+
+		// MatMulAuto (current dispatch)
+		b.Run(s.name+"/Auto", func(b *testing.B) {
+			b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				MatMulAuto(pool, a, bMat, c, s.m, s.n, s.k)
+			}
+			b.StopTimer()
+			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+		})
+
+		// Single-core NEON (no parallel dispatch overhead)
+		b.Run(s.name+"/NEON_single", func(b *testing.B) {
+			b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				matMulAsmF32(a, bMat, c, s.m, s.n, s.k)
+			}
+			b.StopTimer()
+			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+		})
+
+		// NEON blocked kernel (single core)
+		b.Run(s.name+"/NEONblocked_single", func(b *testing.B) {
+			b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				blockedMatMulAsmF32(a, bMat, c, s.m, s.n, s.k)
+			}
+			b.StopTimer()
+			b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+		})
+
+		// SME FMOPA compute only (pre-transposed, no pad/transpose overhead)
+		if s.m <= 16 && s.k%16 == 0 && s.n%16 == 0 {
+			at := make([]float32, 16*s.k)
+			padA := make([]float32, 16*s.k)
+			PadMatrix2D(padA, a, s.m, s.k, 16, s.k)
+			Transpose2D(padA, 16, s.k, at)
+			cPad := make([]float32, 16*s.n)
+
+			b.Run(s.name+"/SME_compute_only", func(b *testing.B) {
+				b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+				defer hwy.SMEGuard()()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					asm.MultiTileMatMulFMOPAF32(at, bMat, cPad, 16, s.n, s.k)
+				}
+				b.StopTimer()
+				b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+			})
+		}
+
+		// Parallel SME: shared transpose, split FMOPA across N tiles (pre-extracted B)
+		if s.m <= 16 && s.k%16 == 0 && s.n%16 == 0 {
+			paddedM := 16
+			at := make([]float32, paddedM*s.k)
+			padA := make([]float32, paddedM*s.k)
+			PadMatrix2D(padA, a, s.m, s.k, paddedM, s.k)
+			Transpose2D(padA, paddedM, s.k, at)
+
+			nTiles := 4
+			tileN := AlignUp(s.n/nTiles, 16)
+
+			// Pre-extract B column tiles into contiguous buffers
+			bTiles := make([][]float32, nTiles)
+			cTiles := make([][]float32, nTiles)
+			for t := range nTiles {
+				j0 := t * tileN
+				j1 := min(j0+tileN, s.n)
+				tn := j1 - j0
+				bTiles[t] = make([]float32, s.k*tn)
+				for kk := range s.k {
+					copy(bTiles[t][kk*tn:(kk+1)*tn], bMat[kk*s.n+j0:kk*s.n+j1])
+				}
+				cTiles[t] = make([]float32, paddedM*tn)
+			}
+
+			b.Run(s.name+"/ParallelSME_4tile_extract", func(b *testing.B) {
+				b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					pool.ParallelForAtomic(nTiles, func(t int) {
+						j0 := t * tileN
+						j1 := min(j0+tileN, s.n)
+						tn := j1 - j0
+						defer hwy.SMEGuard()()
+						asm.MultiTileMatMulFMOPAF32(at, bTiles[t], cTiles[t], paddedM, tn, s.k)
+					})
+				}
+				b.StopTimer()
+				b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+			})
+
+			// Parallel SME with NTile kernel (zero-copy B access)
+			cPad := make([]float32, paddedM*s.n)
+			b.Run(s.name+"/ParallelSME_4tile_ntile", func(b *testing.B) {
+				b.SetBytes(int64((s.m*s.k + s.k*s.n + s.m*s.n) * 4))
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					pool.ParallelForAtomic(nTiles, func(t int) {
+						j0 := t * tileN
+						j1 := min(j0+tileN, s.n)
+						tn := j1 - j0
+						defer hwy.SMEGuard()()
+						asm.MultiTileMatMulFMOPAF32NTile(at, bMat[j0:], cPad, paddedM, tn, s.k, s.n, s.n, j0)
+					})
+				}
+				b.StopTimer()
+				b.ReportMetric(flops*float64(b.N)/b.Elapsed().Seconds(), "GFLOPS")
+			})
+		}
 	}
 }
 

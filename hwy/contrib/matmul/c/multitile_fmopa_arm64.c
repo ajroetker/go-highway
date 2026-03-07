@@ -59,6 +59,77 @@ void multitile_fmopa_at_f32(float *at, float *b, float *c,
 
     svbool_t pg = svptrue_b32();
 
+    // Fast path for small M (single tile height, ≤16 rows):
+    // Use 1×4 tile layout — 4 FMOPAs from 5 loads (1A + 4B) per K step,
+    // vs 1 FMOPA from 2 loads in the old single-tile path.
+    // No cache blocking needed: A fits in L1 (16 × K × 4 ≤ 40KB for K≤640).
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                float *b_base = b + kk * n + tj;
+                svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+                svfloat32_t b2 = svld1_vnum_f32(pg, b_base, 2);
+                svfloat32_t b3 = svld1_vnum_f32(pg, b_base, 3);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                svmopa_za32_f32_m(1, pg, pg, a0, b1);
+                svmopa_za32_f32_m(2, pg, pg, a0, b2);
+                svmopa_za32_f32_m(3, pg, pg, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                float *c_row = c + row * n + tj;
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_vnum_f32(pg, c_row, 0, r0);
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                svst1_vnum_f32(pg, c_row, 1, r1);
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg, 2, row);
+                svst1_vnum_f32(pg, c_row, 2, r2);
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg, 3, row);
+                svst1_vnum_f32(pg, c_row, 3, r3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                float *b_base = b + kk * n + tj;
+                svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                svmopa_za32_f32_m(1, pg, pg, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                float *c_row = c + row * n + tj;
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_vnum_f32(pg, c_row, 0, r0);
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                svst1_vnum_f32(pg, c_row, 1, r1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                svfloat32_t b0 = svld1_f32(pg, b + kk * n + tj);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_f32(pg, c + row * n + tj, r0);
+            }
+        }
+        return;
+    }
+
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
         if (iEnd > m) {
@@ -180,6 +251,71 @@ void multitile_fmopa_at_f32_strided(float *at, float *b, float *c,
 
     svbool_t pg = svptrue_b32();
 
+    // Fast path for small M: 1×4 tile layout
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                float *b_base = b + kk * n + tj;
+                svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+                svfloat32_t b2 = svld1_vnum_f32(pg, b_base, 2);
+                svfloat32_t b3 = svld1_vnum_f32(pg, b_base, 3);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                svmopa_za32_f32_m(1, pg, pg, a0, b1);
+                svmopa_za32_f32_m(2, pg, pg, a0, b2);
+                svmopa_za32_f32_m(3, pg, pg, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                float *c_row = c + row * ldc + coff + tj;
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_vnum_f32(pg, c_row, 0, r0);
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                svst1_vnum_f32(pg, c_row, 1, r1);
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg, 2, row);
+                svst1_vnum_f32(pg, c_row, 2, r2);
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg, 3, row);
+                svst1_vnum_f32(pg, c_row, 3, r3);
+            }
+        }
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                float *b_base = b + kk * n + tj;
+                svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                svmopa_za32_f32_m(1, pg, pg, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                float *c_row = c + row * ldc + coff + tj;
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_vnum_f32(pg, c_row, 0, r0);
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                svst1_vnum_f32(pg, c_row, 1, r1);
+            }
+            tj += 32;
+        }
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                svfloat32_t b0 = svld1_f32(pg, b + kk * n + tj);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_f32(pg, c + row * ldc + coff + tj, r0);
+            }
+        }
+        return;
+    }
+
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
         if (iEnd > m) {
@@ -272,6 +408,188 @@ void multitile_fmopa_at_f32_strided(float *at, float *b, float *c,
 }
 
 // =============================================================================
+// multitile_fmopa_at_f32_ntile: N-tiled variant for parallel SME across columns
+// =============================================================================
+// Computes C = AT^T * B for a tile of N columns.
+// B is accessed with row stride ldb (the full N of the original matrix),
+// but only n columns are processed (the tile width).
+// C is written with row stride ldc at column offset coff.
+//
+// This enables parallel SME: pad+transpose A once (shared), then each worker
+// calls this function for its N-tile range. Workers pass b + j0 as the B
+// pointer with ldb = full_N, n = tile_width, ldc = full_N, coff = j0.
+//
+// func multitile_fmopa_at_f32_ntile(at, b, c unsafe.Pointer, m, n, k, ldb, ldc, coff int64)
+void multitile_fmopa_at_f32_ntile(float *at, float *b, float *c,
+                                   long *pm, long *pn, long *pk,
+                                   long *pldb, long *pldc, long *pcoff)
+    __arm_streaming __arm_out("za") {
+    long m = *pm;
+    long n = *pn;
+    long k = *pk;
+    long ldb = *pldb;
+    long ldc = *pldc;
+    long coff = *pcoff;
+
+    svbool_t pg = svptrue_b32();
+
+    // Fast path for small M: 1×4 tile layout
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                float *b_base = b + kk * ldb + tj;
+                svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+                svfloat32_t b2 = svld1_vnum_f32(pg, b_base, 2);
+                svfloat32_t b3 = svld1_vnum_f32(pg, b_base, 3);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                svmopa_za32_f32_m(1, pg, pg, a0, b1);
+                svmopa_za32_f32_m(2, pg, pg, a0, b2);
+                svmopa_za32_f32_m(3, pg, pg, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                float *c_row = c + row * ldc + coff + tj;
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_vnum_f32(pg, c_row, 0, r0);
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                svst1_vnum_f32(pg, c_row, 1, r1);
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg, 2, row);
+                svst1_vnum_f32(pg, c_row, 2, r2);
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg, 3, row);
+                svst1_vnum_f32(pg, c_row, 3, r3);
+            }
+        }
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                float *b_base = b + kk * ldb + tj;
+                svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                svmopa_za32_f32_m(1, pg, pg, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                float *c_row = c + row * ldc + coff + tj;
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_vnum_f32(pg, c_row, 0, r0);
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                svst1_vnum_f32(pg, c_row, 1, r1);
+            }
+            tj += 32;
+        }
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat32_t a0 = svld1_f32(pg, at + kk * m);
+                svfloat32_t b0 = svld1_f32(pg, b + kk * ldb + tj);
+                svmopa_za32_f32_m(0, pg, pg, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                svst1_f32(pg, c + row * ldc + coff + tj, r0);
+            }
+        }
+        return;
+    }
+
+    for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
+        long iEnd = i0 + BLOCK_SIZE;
+        if (iEnd > m) {
+            iEnd = m;
+        }
+
+        for (long j0 = 0; j0 < n; j0 += BLOCK_SIZE) {
+            long jEnd = j0 + BLOCK_SIZE;
+            if (jEnd > n) {
+                jEnd = n;
+            }
+
+            long ti = i0;
+            for (; ti + 32 <= iEnd; ti += 32) {
+                long tj = j0;
+                for (; tj + 32 <= jEnd; tj += 32) {
+                    svzero_za();
+
+                    for (long kk = 0; kk < k; kk++) {
+                        float *a_base = at + kk * m + ti;
+                        svfloat32_t a0 = svld1_vnum_f32(pg, a_base, 0);
+                        svfloat32_t a1 = svld1_vnum_f32(pg, a_base, 1);
+                        float *b_base = b + kk * ldb + tj;
+                        svfloat32_t b0 = svld1_vnum_f32(pg, b_base, 0);
+                        svfloat32_t b1 = svld1_vnum_f32(pg, b_base, 1);
+
+                        svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                        svmopa_za32_f32_m(1, pg, pg, a1, b0);
+                        svmopa_za32_f32_m(2, pg, pg, a0, b1);
+                        svmopa_za32_f32_m(3, pg, pg, a1, b1);
+                    }
+
+                    for (int row = 0; row < 16; row++) {
+                        float *c_row = c + (ti + row) * ldc + coff + tj;
+                        svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                        svst1_vnum_f32(pg, c_row, 0, r0);
+                        svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg, 2, row);
+                        svst1_vnum_f32(pg, c_row, 1, r2);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        float *c_row = c + (ti + 16 + row) * ldc + coff + tj;
+                        svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg, 1, row);
+                        svst1_vnum_f32(pg, c_row, 0, r1);
+                        svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg, 3, row);
+                        svst1_vnum_f32(pg, c_row, 1, r3);
+                    }
+                }
+
+                if (tj < jEnd) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svfloat32_t a0 = svld1_f32(pg, at + kk * m + ti);
+                        svfloat32_t b0 = svld1_f32(pg, b + kk * ldb + tj);
+                        svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                        svst1_f32(pg, c + (ti + row) * ldc + coff + tj, r0);
+                    }
+
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svfloat32_t a1 = svld1_f32(pg, at + kk * m + ti + 16);
+                        svfloat32_t b0 = svld1_f32(pg, b + kk * ldb + tj);
+                        svmopa_za32_f32_m(0, pg, pg, a1, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                        svst1_f32(pg, c + (ti + 16 + row) * ldc + coff + tj, r0);
+                    }
+                }
+            }
+
+            if (ti < iEnd) {
+                for (long tj = j0; tj < jEnd; tj += 16) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svfloat32_t a0 = svld1_f32(pg, at + kk * m + ti);
+                        svfloat32_t b0 = svld1_f32(pg, b + kk * ldb + tj);
+                        svmopa_za32_f32_m(0, pg, pg, a0, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg, 0, row);
+                        svst1_f32(pg, c + (ti + row) * ldc + coff + tj, r0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
 // multitile_fmopa_at_f64_strided: Same as f64 but with separate ldc for C
 // =============================================================================
 //
@@ -287,6 +605,76 @@ void multitile_fmopa_at_f64_strided(double *at, double *b, double *c,
     long coff = *pcoff;
 
     svbool_t pg = svptrue_b64();
+
+    // Fast path for small M (single tile height, ≤8 rows):
+    // Use 1×4 tile layout — 4 FMOPAs from 5 loads (1A + 4B) per K step,
+    // vs 1 FMOPA from 2 loads in the old single-tile path.
+    if (m <= 8) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 32 columns per block
+        for (; tj + 32 <= n; tj += 32) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                double *b_base = b + kk * n + tj;
+                svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+                svfloat64_t b2 = svld1_vnum_f64(pg, b_base, 2);
+                svfloat64_t b3 = svld1_vnum_f64(pg, b_base, 3);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                svmopa_za64_f64_m(1, pg, pg, a0, b1);
+                svmopa_za64_f64_m(2, pg, pg, a0, b2);
+                svmopa_za64_f64_m(3, pg, pg, a0, b3);
+            }
+            for (int row = 0; row < 8; row++) {
+                double *c_row = c + row * ldc + coff + tj;
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_vnum_f64(pg, c_row, 0, r0);
+                svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                svst1_vnum_f64(pg, c_row, 1, r1);
+                svfloat64_t r2 = svread_hor_za64_f64_m(svundef_f64(), pg, 2, row);
+                svst1_vnum_f64(pg, c_row, 2, r2);
+                svfloat64_t r3 = svread_hor_za64_f64_m(svundef_f64(), pg, 3, row);
+                svst1_vnum_f64(pg, c_row, 3, r3);
+            }
+        }
+        // 2 tiles: 16 columns
+        if (tj + 16 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                double *b_base = b + kk * n + tj;
+                svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                svmopa_za64_f64_m(1, pg, pg, a0, b1);
+            }
+            for (int row = 0; row < 8; row++) {
+                double *c_row = c + row * ldc + coff + tj;
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_vnum_f64(pg, c_row, 0, r0);
+                svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                svst1_vnum_f64(pg, c_row, 1, r1);
+            }
+            tj += 16;
+        }
+        // 1 tile: 8 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                svfloat64_t b0 = svld1_f64(pg, b + kk * n + tj);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+            }
+            for (int row = 0; row < 8; row++) {
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_f64(pg, c + row * ldc + coff + tj, r0);
+            }
+        }
+        return;
+    }
 
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
@@ -380,6 +768,187 @@ void multitile_fmopa_at_f64_strided(double *at, double *b, double *c,
 }
 
 // =============================================================================
+// multitile_fmopa_at_f64_ntile: N-tiled variant for parallel SME (float64)
+// =============================================================================
+// Same as f32 ntile but with 8×8 tiles. B accessed with stride ldb,
+// n columns processed, C written with stride ldc at offset coff.
+//
+// func multitile_fmopa_at_f64_ntile(at, b, c unsafe.Pointer, m, n, k, ldb, ldc, coff int64)
+void multitile_fmopa_at_f64_ntile(double *at, double *b, double *c,
+                                   long *pm, long *pn, long *pk,
+                                   long *pldb, long *pldc, long *pcoff)
+    __arm_streaming __arm_out("za") {
+    long m = *pm;
+    long n = *pn;
+    long k = *pk;
+    long ldb = *pldb;
+    long ldc = *pldc;
+    long coff = *pcoff;
+
+    svbool_t pg = svptrue_b64();
+
+    // Fast path for small M (single tile height, ≤8 rows):
+    // Use 1×4 tile layout — 4 FMOPAs from 5 loads (1A + 4B) per K step,
+    // vs 1 FMOPA from 2 loads in the old single-tile path.
+    if (m <= 8) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 32 columns per block
+        for (; tj + 32 <= n; tj += 32) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                double *b_base = b + kk * ldb + tj;
+                svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+                svfloat64_t b2 = svld1_vnum_f64(pg, b_base, 2);
+                svfloat64_t b3 = svld1_vnum_f64(pg, b_base, 3);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                svmopa_za64_f64_m(1, pg, pg, a0, b1);
+                svmopa_za64_f64_m(2, pg, pg, a0, b2);
+                svmopa_za64_f64_m(3, pg, pg, a0, b3);
+            }
+            for (int row = 0; row < 8; row++) {
+                double *c_row = c + row * ldc + coff + tj;
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_vnum_f64(pg, c_row, 0, r0);
+                svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                svst1_vnum_f64(pg, c_row, 1, r1);
+                svfloat64_t r2 = svread_hor_za64_f64_m(svundef_f64(), pg, 2, row);
+                svst1_vnum_f64(pg, c_row, 2, r2);
+                svfloat64_t r3 = svread_hor_za64_f64_m(svundef_f64(), pg, 3, row);
+                svst1_vnum_f64(pg, c_row, 3, r3);
+            }
+        }
+        // 2 tiles: 16 columns
+        if (tj + 16 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                double *b_base = b + kk * ldb + tj;
+                svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                svmopa_za64_f64_m(1, pg, pg, a0, b1);
+            }
+            for (int row = 0; row < 8; row++) {
+                double *c_row = c + row * ldc + coff + tj;
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_vnum_f64(pg, c_row, 0, r0);
+                svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                svst1_vnum_f64(pg, c_row, 1, r1);
+            }
+            tj += 16;
+        }
+        // 1 tile: 8 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                svfloat64_t b0 = svld1_f64(pg, b + kk * ldb + tj);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+            }
+            for (int row = 0; row < 8; row++) {
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_f64(pg, c + row * ldc + coff + tj, r0);
+            }
+        }
+        return;
+    }
+
+    for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
+        long iEnd = i0 + BLOCK_SIZE;
+        if (iEnd > m) {
+            iEnd = m;
+        }
+
+        for (long j0 = 0; j0 < n; j0 += BLOCK_SIZE) {
+            long jEnd = j0 + BLOCK_SIZE;
+            if (jEnd > n) {
+                jEnd = n;
+            }
+
+            long ti = i0;
+            for (; ti + 16 <= iEnd; ti += 16) {
+                long tj = j0;
+                for (; tj + 16 <= jEnd; tj += 16) {
+                    svzero_za();
+
+                    for (long kk = 0; kk < k; kk++) {
+                        double *a_base = at + kk * m + ti;
+                        svfloat64_t a0 = svld1_vnum_f64(pg, a_base, 0);
+                        svfloat64_t a1 = svld1_vnum_f64(pg, a_base, 1);
+                        double *b_base = b + kk * ldb + tj;
+                        svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                        svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+
+                        svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                        svmopa_za64_f64_m(1, pg, pg, a1, b0);
+                        svmopa_za64_f64_m(2, pg, pg, a0, b1);
+                        svmopa_za64_f64_m(3, pg, pg, a1, b1);
+                    }
+
+                    for (int row = 0; row < 8; row++) {
+                        double *c_row = c + (ti + row) * ldc + coff + tj;
+                        svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                        svst1_vnum_f64(pg, c_row, 0, r0);
+                        svfloat64_t r2 = svread_hor_za64_f64_m(svundef_f64(), pg, 2, row);
+                        svst1_vnum_f64(pg, c_row, 1, r2);
+                    }
+                    for (int row = 0; row < 8; row++) {
+                        double *c_row = c + (ti + 8 + row) * ldc + coff + tj;
+                        svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                        svst1_vnum_f64(pg, c_row, 0, r1);
+                        svfloat64_t r3 = svread_hor_za64_f64_m(svundef_f64(), pg, 3, row);
+                        svst1_vnum_f64(pg, c_row, 1, r3);
+                    }
+                }
+
+                if (tj < jEnd) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svfloat64_t a0 = svld1_f64(pg, at + kk * m + ti);
+                        svfloat64_t b0 = svld1_f64(pg, b + kk * ldb + tj);
+                        svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                    }
+                    for (int row = 0; row < 8; row++) {
+                        svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                        svst1_f64(pg, c + (ti + row) * ldc + coff + tj, r0);
+                    }
+
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svfloat64_t a1 = svld1_f64(pg, at + kk * m + ti + 8);
+                        svfloat64_t b0 = svld1_f64(pg, b + kk * ldb + tj);
+                        svmopa_za64_f64_m(0, pg, pg, a1, b0);
+                    }
+                    for (int row = 0; row < 8; row++) {
+                        svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                        svst1_f64(pg, c + (ti + 8 + row) * ldc + coff + tj, r0);
+                    }
+                }
+            }
+
+            if (ti < iEnd) {
+                for (long tj = j0; tj < jEnd; tj += 8) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svfloat64_t a0 = svld1_f64(pg, at + kk * m + ti);
+                        svfloat64_t b0 = svld1_f64(pg, b + kk * ldb + tj);
+                        svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                    }
+                    for (int row = 0; row < 8; row++) {
+                        svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                        svst1_f64(pg, c + (ti + row) * ldc + coff + tj, r0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
 // multitile_fmopa_at_f64: Multi-tile blocked FMOPA matmul (float64)
 // =============================================================================
 // Same algorithm with 8×8 tiles per ZA, so 2x2 = 16×16 output block.
@@ -394,6 +963,76 @@ void multitile_fmopa_at_f64(double *at, double *b, double *c,
     long k = *pk;
 
     svbool_t pg = svptrue_b64();
+
+    // Fast path for small M (single tile height, ≤8 rows):
+    // Use 1×4 tile layout — 4 FMOPAs from 5 loads (1A + 4B) per K step,
+    // vs 1 FMOPA from 2 loads in the old single-tile path.
+    if (m <= 8) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 32 columns per block
+        for (; tj + 32 <= n; tj += 32) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                double *b_base = b + kk * n + tj;
+                svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+                svfloat64_t b2 = svld1_vnum_f64(pg, b_base, 2);
+                svfloat64_t b3 = svld1_vnum_f64(pg, b_base, 3);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                svmopa_za64_f64_m(1, pg, pg, a0, b1);
+                svmopa_za64_f64_m(2, pg, pg, a0, b2);
+                svmopa_za64_f64_m(3, pg, pg, a0, b3);
+            }
+            for (int row = 0; row < 8; row++) {
+                double *c_row = c + row * n + tj;
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_vnum_f64(pg, c_row, 0, r0);
+                svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                svst1_vnum_f64(pg, c_row, 1, r1);
+                svfloat64_t r2 = svread_hor_za64_f64_m(svundef_f64(), pg, 2, row);
+                svst1_vnum_f64(pg, c_row, 2, r2);
+                svfloat64_t r3 = svread_hor_za64_f64_m(svundef_f64(), pg, 3, row);
+                svst1_vnum_f64(pg, c_row, 3, r3);
+            }
+        }
+        // 2 tiles: 16 columns
+        if (tj + 16 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                double *b_base = b + kk * n + tj;
+                svfloat64_t b0 = svld1_vnum_f64(pg, b_base, 0);
+                svfloat64_t b1 = svld1_vnum_f64(pg, b_base, 1);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+                svmopa_za64_f64_m(1, pg, pg, a0, b1);
+            }
+            for (int row = 0; row < 8; row++) {
+                double *c_row = c + row * n + tj;
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_vnum_f64(pg, c_row, 0, r0);
+                svfloat64_t r1 = svread_hor_za64_f64_m(svundef_f64(), pg, 1, row);
+                svst1_vnum_f64(pg, c_row, 1, r1);
+            }
+            tj += 16;
+        }
+        // 1 tile: 8 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svfloat64_t a0 = svld1_f64(pg, at + kk * m);
+                svfloat64_t b0 = svld1_f64(pg, b + kk * n + tj);
+                svmopa_za64_f64_m(0, pg, pg, a0, b0);
+            }
+            for (int row = 0; row < 8; row++) {
+                svfloat64_t r0 = svread_hor_za64_f64_m(svundef_f64(), pg, 0, row);
+                svst1_f64(pg, c + row * n + tj, r0);
+            }
+        }
+        return;
+    }
 
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
@@ -514,6 +1153,175 @@ void multitile_fmopa_at_f16(__fp16 *at, __fp16 *b, __fp16 *c,
     svbool_t pg16 = svptrue_pat_b16(SV_VL16);
     svuint32_t exp_adjust = svdup_n_u32(112 << 23);
 
+    // Fast path for small M (single tile height, <=16 rows):
+    // Use 1x4 tile layout -- 4 FMOPAs from 5 loads (1A + 4B) per K step.
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svuint16_t b2_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 32));
+                svuint32_t b2_u32 = svunpklo_u32(b2_u16);
+                b2_u32 = svlsl_n_u32_x(pg32, b2_u32, 13);
+                b2_u32 = svadd_u32_x(pg32, b2_u32, exp_adjust);
+                svfloat32_t b2 = svreinterpret_f32_u32(b2_u32);
+
+                svuint16_t b3_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 48));
+                svuint32_t b3_u32 = svunpklo_u32(b3_u16);
+                b3_u32 = svlsl_n_u32_x(pg32, b3_u32, 13);
+                b3_u32 = svadd_u32_x(pg32, b3_u32, exp_adjust);
+                svfloat32_t b3 = svreinterpret_f32_u32(b3_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+                svmopa_za32_f32_m(2, pg32, pg32, a0, b2);
+                svmopa_za32_f32_m(3, pg32, pg32, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                bits0 = svsub_u32_x(pg32, bits0, exp_adjust);
+                svuint32_t rb0 = svlsr_n_u32_x(pg32, bits0, 13);
+                rb0 = svand_n_u32_x(pg32, rb0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, rb0, 0xFFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 0), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                bits1 = svsub_u32_x(pg32, bits1, exp_adjust);
+                svuint32_t rb1 = svlsr_n_u32_x(pg32, bits1, 13);
+                rb1 = svand_n_u32_x(pg32, rb1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, rb1, 0xFFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 16), bits1);
+
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                svuint32_t bits2 = svreinterpret_u32_f32(r2);
+                bits2 = svsub_u32_x(pg32, bits2, exp_adjust);
+                svuint32_t rb2 = svlsr_n_u32_x(pg32, bits2, 13);
+                rb2 = svand_n_u32_x(pg32, rb2, 1);
+                svuint32_t rnd2 = svadd_n_u32_x(pg32, rb2, 0xFFF);
+                bits2 = svadd_u32_x(pg32, bits2, rnd2);
+                bits2 = svlsr_n_u32_x(pg32, bits2, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 32), bits2);
+
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                svuint32_t bits3 = svreinterpret_u32_f32(r3);
+                bits3 = svsub_u32_x(pg32, bits3, exp_adjust);
+                svuint32_t rb3 = svlsr_n_u32_x(pg32, bits3, 13);
+                rb3 = svand_n_u32_x(pg32, rb3, 1);
+                svuint32_t rnd3 = svadd_n_u32_x(pg32, rb3, 0xFFF);
+                bits3 = svadd_u32_x(pg32, bits3, rnd3);
+                bits3 = svlsr_n_u32_x(pg32, bits3, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 48), bits3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                bits0 = svsub_u32_x(pg32, bits0, exp_adjust);
+                svuint32_t rb0 = svlsr_n_u32_x(pg32, bits0, 13);
+                rb0 = svand_n_u32_x(pg32, rb0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, rb0, 0xFFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                bits1 = svsub_u32_x(pg32, bits1, exp_adjust);
+                svuint32_t rb1 = svlsr_n_u32_x(pg32, bits1, 13);
+                rb1 = svand_n_u32_x(pg32, rb1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, rb1, 0xFFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 16), bits1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                bits = svsub_u32_x(pg32, bits, exp_adjust);
+                svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj), bits);
+            }
+        }
+        return;
+    }
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
         if (iEnd > m) {
@@ -736,6 +1544,175 @@ void multitile_fmopa_at_f16_strided(__fp16 *at, __fp16 *b, __fp16 *c,
     svbool_t pg16 = svptrue_pat_b16(SV_VL16);
     svuint32_t exp_adjust = svdup_n_u32(112 << 23);
 
+    // Fast path for small M (single tile height, <=16 rows):
+    // Use 1x4 tile layout -- 4 FMOPAs from 5 loads (1A + 4B) per K step.
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svuint16_t b2_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 32));
+                svuint32_t b2_u32 = svunpklo_u32(b2_u16);
+                b2_u32 = svlsl_n_u32_x(pg32, b2_u32, 13);
+                b2_u32 = svadd_u32_x(pg32, b2_u32, exp_adjust);
+                svfloat32_t b2 = svreinterpret_f32_u32(b2_u32);
+
+                svuint16_t b3_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 48));
+                svuint32_t b3_u32 = svunpklo_u32(b3_u16);
+                b3_u32 = svlsl_n_u32_x(pg32, b3_u32, 13);
+                b3_u32 = svadd_u32_x(pg32, b3_u32, exp_adjust);
+                svfloat32_t b3 = svreinterpret_f32_u32(b3_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+                svmopa_za32_f32_m(2, pg32, pg32, a0, b2);
+                svmopa_za32_f32_m(3, pg32, pg32, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                bits0 = svsub_u32_x(pg32, bits0, exp_adjust);
+                svuint32_t rb0 = svlsr_n_u32_x(pg32, bits0, 13);
+                rb0 = svand_n_u32_x(pg32, rb0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, rb0, 0xFFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 0), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                bits1 = svsub_u32_x(pg32, bits1, exp_adjust);
+                svuint32_t rb1 = svlsr_n_u32_x(pg32, bits1, 13);
+                rb1 = svand_n_u32_x(pg32, rb1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, rb1, 0xFFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                svuint32_t bits2 = svreinterpret_u32_f32(r2);
+                bits2 = svsub_u32_x(pg32, bits2, exp_adjust);
+                svuint32_t rb2 = svlsr_n_u32_x(pg32, bits2, 13);
+                rb2 = svand_n_u32_x(pg32, rb2, 1);
+                svuint32_t rnd2 = svadd_n_u32_x(pg32, rb2, 0xFFF);
+                bits2 = svadd_u32_x(pg32, bits2, rnd2);
+                bits2 = svlsr_n_u32_x(pg32, bits2, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 32), bits2);
+
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                svuint32_t bits3 = svreinterpret_u32_f32(r3);
+                bits3 = svsub_u32_x(pg32, bits3, exp_adjust);
+                svuint32_t rb3 = svlsr_n_u32_x(pg32, bits3, 13);
+                rb3 = svand_n_u32_x(pg32, rb3, 1);
+                svuint32_t rnd3 = svadd_n_u32_x(pg32, rb3, 0xFFF);
+                bits3 = svadd_u32_x(pg32, bits3, rnd3);
+                bits3 = svlsr_n_u32_x(pg32, bits3, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 48), bits3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                bits0 = svsub_u32_x(pg32, bits0, exp_adjust);
+                svuint32_t rb0 = svlsr_n_u32_x(pg32, bits0, 13);
+                rb0 = svand_n_u32_x(pg32, rb0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, rb0, 0xFFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                bits1 = svsub_u32_x(pg32, bits1, exp_adjust);
+                svuint32_t rb1 = svlsr_n_u32_x(pg32, bits1, 13);
+                rb1 = svand_n_u32_x(pg32, rb1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, rb1, 0xFFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                bits = svsub_u32_x(pg32, bits, exp_adjust);
+                svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits);
+            }
+        }
+        return;
+    }
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
         if (iEnd > m) {
@@ -948,6 +1925,158 @@ void multitile_bfmopa_at_bf16(__bf16 *at, __bf16 *b, __bf16 *c,
     svbool_t pg32 = svptrue_b32();
     svbool_t pg16 = svptrue_pat_b16(SV_VL16);
 
+    // Fast path for small M (single tile height, <=16 rows):
+    // Use 1x4 tile layout -- 4 FMOPAs from 5 loads (1A + 4B) per K step.
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svuint16_t b2_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 32));
+                svuint32_t b2_u32 = svunpklo_u32(b2_u16);
+                b2_u32 = svlsl_n_u32_x(pg32, b2_u32, 16);
+                svfloat32_t b2 = svreinterpret_f32_u32(b2_u32);
+
+                svuint16_t b3_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 48));
+                svuint32_t b3_u32 = svunpklo_u32(b3_u16);
+                b3_u32 = svlsl_n_u32_x(pg32, b3_u32, 16);
+                svfloat32_t b3 = svreinterpret_f32_u32(b3_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+                svmopa_za32_f32_m(2, pg32, pg32, a0, b2);
+                svmopa_za32_f32_m(3, pg32, pg32, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                svuint32_t bt0 = svlsr_n_u32_x(pg32, bits0, 16);
+                bt0 = svand_n_u32_x(pg32, bt0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, bt0, 0x7FFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 0), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                svuint32_t bt1 = svlsr_n_u32_x(pg32, bits1, 16);
+                bt1 = svand_n_u32_x(pg32, bt1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, bt1, 0x7FFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 16), bits1);
+
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                svuint32_t bits2 = svreinterpret_u32_f32(r2);
+                svuint32_t bt2 = svlsr_n_u32_x(pg32, bits2, 16);
+                bt2 = svand_n_u32_x(pg32, bt2, 1);
+                svuint32_t rnd2 = svadd_n_u32_x(pg32, bt2, 0x7FFF);
+                bits2 = svadd_u32_x(pg32, bits2, rnd2);
+                bits2 = svlsr_n_u32_x(pg32, bits2, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 32), bits2);
+
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                svuint32_t bits3 = svreinterpret_u32_f32(r3);
+                svuint32_t bt3 = svlsr_n_u32_x(pg32, bits3, 16);
+                bt3 = svand_n_u32_x(pg32, bt3, 1);
+                svuint32_t rnd3 = svadd_n_u32_x(pg32, bt3, 0x7FFF);
+                bits3 = svadd_u32_x(pg32, bits3, rnd3);
+                bits3 = svlsr_n_u32_x(pg32, bits3, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 48), bits3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                svuint32_t bt0 = svlsr_n_u32_x(pg32, bits0, 16);
+                bt0 = svand_n_u32_x(pg32, bt0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, bt0, 0x7FFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                svuint32_t bt1 = svlsr_n_u32_x(pg32, bits1, 16);
+                bt1 = svand_n_u32_x(pg32, bt1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, bt1, 0x7FFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj + 16), bits1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                bit16 = svand_n_u32_x(pg32, bit16, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * n + tj), bits);
+            }
+        }
+        return;
+    }
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
         if (iEnd > m) {
@@ -1143,6 +2272,158 @@ void multitile_bfmopa_at_bf16_strided(__bf16 *at, __bf16 *b, __bf16 *c,
     svbool_t pg32 = svptrue_b32();
     svbool_t pg16 = svptrue_pat_b16(SV_VL16);
 
+    // Fast path for small M (single tile height, <=16 rows):
+    // Use 1x4 tile layout -- 4 FMOPAs from 5 loads (1A + 4B) per K step.
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svuint16_t b2_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 32));
+                svuint32_t b2_u32 = svunpklo_u32(b2_u16);
+                b2_u32 = svlsl_n_u32_x(pg32, b2_u32, 16);
+                svfloat32_t b2 = svreinterpret_f32_u32(b2_u32);
+
+                svuint16_t b3_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 48));
+                svuint32_t b3_u32 = svunpklo_u32(b3_u16);
+                b3_u32 = svlsl_n_u32_x(pg32, b3_u32, 16);
+                svfloat32_t b3 = svreinterpret_f32_u32(b3_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+                svmopa_za32_f32_m(2, pg32, pg32, a0, b2);
+                svmopa_za32_f32_m(3, pg32, pg32, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                svuint32_t bt0 = svlsr_n_u32_x(pg32, bits0, 16);
+                bt0 = svand_n_u32_x(pg32, bt0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, bt0, 0x7FFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 0), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                svuint32_t bt1 = svlsr_n_u32_x(pg32, bits1, 16);
+                bt1 = svand_n_u32_x(pg32, bt1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, bt1, 0x7FFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                svuint32_t bits2 = svreinterpret_u32_f32(r2);
+                svuint32_t bt2 = svlsr_n_u32_x(pg32, bits2, 16);
+                bt2 = svand_n_u32_x(pg32, bt2, 1);
+                svuint32_t rnd2 = svadd_n_u32_x(pg32, bt2, 0x7FFF);
+                bits2 = svadd_u32_x(pg32, bits2, rnd2);
+                bits2 = svlsr_n_u32_x(pg32, bits2, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 32), bits2);
+
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                svuint32_t bits3 = svreinterpret_u32_f32(r3);
+                svuint32_t bt3 = svlsr_n_u32_x(pg32, bits3, 16);
+                bt3 = svand_n_u32_x(pg32, bt3, 1);
+                svuint32_t rnd3 = svadd_n_u32_x(pg32, bt3, 0x7FFF);
+                bits3 = svadd_u32_x(pg32, bits3, rnd3);
+                bits3 = svlsr_n_u32_x(pg32, bits3, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 48), bits3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * n + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                svuint32_t bt0 = svlsr_n_u32_x(pg32, bits0, 16);
+                bt0 = svand_n_u32_x(pg32, bt0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, bt0, 0x7FFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                svuint32_t bt1 = svlsr_n_u32_x(pg32, bits1, 16);
+                bt1 = svand_n_u32_x(pg32, bt1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, bt1, 0x7FFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                bit16 = svand_n_u32_x(pg32, bit16, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits);
+            }
+        }
+        return;
+    }
     for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
         long iEnd = i0 + BLOCK_SIZE;
         if (iEnd > m) {
@@ -1293,6 +2574,747 @@ void multitile_bfmopa_at_bf16_strided(__bf16 *at, __bf16 *b, __bf16 *c,
                         svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
 
                         svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * n + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// multitile_fmopa_at_f16_ntile: N-tiled variant for parallel SME across columns
+// =============================================================================
+// Computes C = AT^T * B for a tile of N columns using F16 FMOPA.
+// B is accessed with row stride ldb (the full N of the original matrix),
+// but only n columns are processed (the tile width).
+// C is written with row stride ldc at column offset coff.
+//
+// This enables parallel SME: pad+transpose A once (shared), then each worker
+// calls this function for its N-tile range. Workers pass b + j0 as the B
+// pointer with ldb = full_N, n = tile_width, ldc = full_N, coff = j0.
+//
+// func multitile_fmopa_at_f16_ntile(at, b, c, pm, pn, pk, pldb, pldc, pcoff, scratch unsafe.Pointer)
+void multitile_fmopa_at_f16_ntile(__fp16 *at, __fp16 *b, __fp16 *c,
+                                   long *pm, long *pn, long *pk,
+                                   long *pldb, long *pldc, long *pcoff,
+                                   float *scratch)
+    __arm_streaming __arm_out("za") {
+    (void)scratch;
+    long m = *pm;
+    long n = *pn;
+    long k = *pk;
+    long ldb = *pldb;
+    long ldc = *pldc;
+    long coff = *pcoff;
+
+    svbool_t pg32 = svptrue_b32();
+    svbool_t pg16 = svptrue_pat_b16(SV_VL16);
+    svuint32_t exp_adjust = svdup_n_u32(112 << 23);
+
+    // Fast path for small M (single tile height, <=16 rows):
+    // Use 1x4 tile layout -- 4 FMOPAs from 5 loads (1A + 4B) per K step.
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * ldb + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svuint16_t b2_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 32));
+                svuint32_t b2_u32 = svunpklo_u32(b2_u16);
+                b2_u32 = svlsl_n_u32_x(pg32, b2_u32, 13);
+                b2_u32 = svadd_u32_x(pg32, b2_u32, exp_adjust);
+                svfloat32_t b2 = svreinterpret_f32_u32(b2_u32);
+
+                svuint16_t b3_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 48));
+                svuint32_t b3_u32 = svunpklo_u32(b3_u16);
+                b3_u32 = svlsl_n_u32_x(pg32, b3_u32, 13);
+                b3_u32 = svadd_u32_x(pg32, b3_u32, exp_adjust);
+                svfloat32_t b3 = svreinterpret_f32_u32(b3_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+                svmopa_za32_f32_m(2, pg32, pg32, a0, b2);
+                svmopa_za32_f32_m(3, pg32, pg32, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                bits0 = svsub_u32_x(pg32, bits0, exp_adjust);
+                svuint32_t rb0 = svlsr_n_u32_x(pg32, bits0, 13);
+                rb0 = svand_n_u32_x(pg32, rb0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, rb0, 0xFFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 0), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                bits1 = svsub_u32_x(pg32, bits1, exp_adjust);
+                svuint32_t rb1 = svlsr_n_u32_x(pg32, bits1, 13);
+                rb1 = svand_n_u32_x(pg32, rb1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, rb1, 0xFFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                svuint32_t bits2 = svreinterpret_u32_f32(r2);
+                bits2 = svsub_u32_x(pg32, bits2, exp_adjust);
+                svuint32_t rb2 = svlsr_n_u32_x(pg32, bits2, 13);
+                rb2 = svand_n_u32_x(pg32, rb2, 1);
+                svuint32_t rnd2 = svadd_n_u32_x(pg32, rb2, 0xFFF);
+                bits2 = svadd_u32_x(pg32, bits2, rnd2);
+                bits2 = svlsr_n_u32_x(pg32, bits2, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 32), bits2);
+
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                svuint32_t bits3 = svreinterpret_u32_f32(r3);
+                bits3 = svsub_u32_x(pg32, bits3, exp_adjust);
+                svuint32_t rb3 = svlsr_n_u32_x(pg32, bits3, 13);
+                rb3 = svand_n_u32_x(pg32, rb3, 1);
+                svuint32_t rnd3 = svadd_n_u32_x(pg32, rb3, 0xFFF);
+                bits3 = svadd_u32_x(pg32, bits3, rnd3);
+                bits3 = svlsr_n_u32_x(pg32, bits3, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 48), bits3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * ldb + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                bits0 = svsub_u32_x(pg32, bits0, exp_adjust);
+                svuint32_t rb0 = svlsr_n_u32_x(pg32, bits0, 13);
+                rb0 = svand_n_u32_x(pg32, rb0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, rb0, 0xFFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                bits1 = svsub_u32_x(pg32, bits1, exp_adjust);
+                svuint32_t rb1 = svlsr_n_u32_x(pg32, bits1, 13);
+                rb1 = svand_n_u32_x(pg32, rb1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, rb1, 0xFFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                bits = svsub_u32_x(pg32, bits, exp_adjust);
+                svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 13);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits);
+            }
+        }
+        return;
+    }
+    for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
+        long iEnd = i0 + BLOCK_SIZE;
+        if (iEnd > m) {
+            iEnd = m;
+        }
+
+        for (long j0 = 0; j0 < n; j0 += BLOCK_SIZE) {
+            long jEnd = j0 + BLOCK_SIZE;
+            if (jEnd > n) {
+                jEnd = n;
+            }
+
+            long ti = i0;
+            for (; ti + 32 <= iEnd; ti += 32) {
+                long tj = j0;
+                for (; tj + 32 <= jEnd; tj += 32) {
+                    svzero_za();
+
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                        svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                        a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                        a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                        svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                        svuint16_t a1_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti + 16));
+                        svuint32_t a1_u32 = svunpklo_u32(a1_u16);
+                        a1_u32 = svlsl_n_u32_x(pg32, a1_u32, 13);
+                        a1_u32 = svadd_u32_x(pg32, a1_u32, exp_adjust);
+                        svfloat32_t a1 = svreinterpret_f32_u32(a1_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                        b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj + 16));
+                        svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                        b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 13);
+                        b1_u32 = svadd_u32_x(pg32, b1_u32, exp_adjust);
+                        svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                        svmopa_za32_f32_m(1, pg32, pg32, a1, b0);
+                        svmopa_za32_f32_m(2, pg32, pg32, a0, b1);
+                        svmopa_za32_f32_m(3, pg32, pg32, a1, b1);
+                    }
+
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj + 16), bits);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + 16 + row) * ldc + coff + tj), bits);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + 16 + row) * ldc + coff + tj + 16), bits);
+                    }
+                }
+
+                if (tj < jEnd) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                        svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                        a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                        a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                        svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                        b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+                    }
+
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a1_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti + 16));
+                        svuint32_t a1_u32 = svunpklo_u32(a1_u16);
+                        a1_u32 = svlsl_n_u32_x(pg32, a1_u32, 13);
+                        a1_u32 = svadd_u32_x(pg32, a1_u32, exp_adjust);
+                        svfloat32_t a1 = svreinterpret_f32_u32(a1_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                        b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a1, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + 16 + row) * ldc + coff + tj), bits);
+                    }
+                }
+            }
+
+            if (ti < iEnd) {
+                for (long tj = j0; tj < jEnd; tj += 16) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                        svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                        a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 13);
+                        a0_u32 = svadd_u32_x(pg32, a0_u32, exp_adjust);
+                        svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 13);
+                        b0_u32 = svadd_u32_x(pg32, b0_u32, exp_adjust);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        bits = svsub_u32_x(pg32, bits, exp_adjust);
+                        svuint32_t round_bit = svlsr_n_u32_x(pg32, bits, 13);
+                        round_bit = svand_n_u32_x(pg32, round_bit, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, round_bit, 0xFFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 13);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// multitile_bfmopa_at_bf16_ntile: N-tiled variant for parallel SME across columns
+// =============================================================================
+// Computes C = AT^T * B for a tile of N columns using BF16 FMOPA.
+// B is accessed with row stride ldb (the full N of the original matrix),
+// but only n columns are processed (the tile width).
+// C is written with row stride ldc at column offset coff.
+//
+// This enables parallel SME: pad+transpose A once (shared), then each worker
+// calls this function for its N-tile range. Workers pass b + j0 as the B
+// pointer with ldb = full_N, n = tile_width, ldc = full_N, coff = j0.
+//
+// func multitile_bfmopa_at_bf16_ntile(at, b, c, pm, pn, pk, pldb, pldc, pcoff, scratch unsafe.Pointer)
+void multitile_bfmopa_at_bf16_ntile(__bf16 *at, __bf16 *b, __bf16 *c,
+                                     long *pm, long *pn, long *pk,
+                                     long *pldb, long *pldc, long *pcoff,
+                                     float *scratch)
+    __arm_streaming __arm_out("za") {
+    (void)scratch;
+    long m = *pm;
+    long n = *pn;
+    long k = *pk;
+    long ldb = *pldb;
+    long ldc = *pldc;
+    long coff = *pcoff;
+
+    svbool_t pg32 = svptrue_b32();
+    svbool_t pg16 = svptrue_pat_b16(SV_VL16);
+
+    // Fast path for small M (single tile height, <=16 rows):
+    // Use 1x4 tile layout -- 4 FMOPAs from 5 loads (1A + 4B) per K step.
+    if (m <= 16) {
+        // Force streaming mode entry before branching over remainder paths.
+        svzero_za();
+        long tj = 0;
+        // 4 tiles: 64 columns per block
+        for (; tj + 64 <= n; tj += 64) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * ldb + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svuint16_t b2_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 32));
+                svuint32_t b2_u32 = svunpklo_u32(b2_u16);
+                b2_u32 = svlsl_n_u32_x(pg32, b2_u32, 16);
+                svfloat32_t b2 = svreinterpret_f32_u32(b2_u32);
+
+                svuint16_t b3_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 48));
+                svuint32_t b3_u32 = svunpklo_u32(b3_u16);
+                b3_u32 = svlsl_n_u32_x(pg32, b3_u32, 16);
+                svfloat32_t b3 = svreinterpret_f32_u32(b3_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+                svmopa_za32_f32_m(2, pg32, pg32, a0, b2);
+                svmopa_za32_f32_m(3, pg32, pg32, a0, b3);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                svuint32_t bt0 = svlsr_n_u32_x(pg32, bits0, 16);
+                bt0 = svand_n_u32_x(pg32, bt0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, bt0, 0x7FFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 0), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                svuint32_t bt1 = svlsr_n_u32_x(pg32, bits1, 16);
+                bt1 = svand_n_u32_x(pg32, bt1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, bt1, 0x7FFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+
+                svfloat32_t r2 = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                svuint32_t bits2 = svreinterpret_u32_f32(r2);
+                svuint32_t bt2 = svlsr_n_u32_x(pg32, bits2, 16);
+                bt2 = svand_n_u32_x(pg32, bt2, 1);
+                svuint32_t rnd2 = svadd_n_u32_x(pg32, bt2, 0x7FFF);
+                bits2 = svadd_u32_x(pg32, bits2, rnd2);
+                bits2 = svlsr_n_u32_x(pg32, bits2, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 32), bits2);
+
+                svfloat32_t r3 = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                svuint32_t bits3 = svreinterpret_u32_f32(r3);
+                svuint32_t bt3 = svlsr_n_u32_x(pg32, bits3, 16);
+                bt3 = svand_n_u32_x(pg32, bt3, 1);
+                svuint32_t rnd3 = svadd_n_u32_x(pg32, bt3, 0x7FFF);
+                bits3 = svadd_u32_x(pg32, bits3, rnd3);
+                bits3 = svlsr_n_u32_x(pg32, bits3, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 48), bits3);
+            }
+        }
+        // 2 tiles: 32 columns
+        if (tj + 32 <= n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                unsigned short *b_base = (unsigned short*)(b + kk * ldb + tj);
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b_base));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b_base + 16));
+                svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                svmopa_za32_f32_m(1, pg32, pg32, a0, b1);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t r0 = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits0 = svreinterpret_u32_f32(r0);
+                svuint32_t bt0 = svlsr_n_u32_x(pg32, bits0, 16);
+                bt0 = svand_n_u32_x(pg32, bt0, 1);
+                svuint32_t rnd0 = svadd_n_u32_x(pg32, bt0, 0x7FFF);
+                bits0 = svadd_u32_x(pg32, bits0, rnd0);
+                bits0 = svlsr_n_u32_x(pg32, bits0, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits0);
+
+                svfloat32_t r1 = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                svuint32_t bits1 = svreinterpret_u32_f32(r1);
+                svuint32_t bt1 = svlsr_n_u32_x(pg32, bits1, 16);
+                bt1 = svand_n_u32_x(pg32, bt1, 1);
+                svuint32_t rnd1 = svadd_n_u32_x(pg32, bt1, 0x7FFF);
+                bits1 = svadd_u32_x(pg32, bits1, rnd1);
+                bits1 = svlsr_n_u32_x(pg32, bits1, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj + 16), bits1);
+            }
+            tj += 32;
+        }
+        // 1 tile: 16 columns
+        if (tj < n) {
+            svzero_za();
+            for (long kk = 0; kk < k; kk++) {
+                svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m));
+                svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+            }
+            for (int row = 0; row < 16; row++) {
+                svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                svuint32_t bits = svreinterpret_u32_f32(zrow);
+                svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                bit16 = svand_n_u32_x(pg32, bit16, 1);
+                svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                bits = svadd_u32_x(pg32, bits, rounding);
+                bits = svlsr_n_u32_x(pg32, bits, 16);
+                svst1h_u32(pg32, (unsigned short*)(c + row * ldc + coff + tj), bits);
+            }
+        }
+        return;
+    }
+    for (long i0 = 0; i0 < m; i0 += BLOCK_SIZE) {
+        long iEnd = i0 + BLOCK_SIZE;
+        if (iEnd > m) {
+            iEnd = m;
+        }
+
+        for (long j0 = 0; j0 < n; j0 += BLOCK_SIZE) {
+            long jEnd = j0 + BLOCK_SIZE;
+            if (jEnd > n) {
+                jEnd = n;
+            }
+
+            long ti = i0;
+            for (; ti + 32 <= iEnd; ti += 32) {
+                long tj = j0;
+                for (; tj + 32 <= jEnd; tj += 32) {
+                    svzero_za();
+
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                        svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                        a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                        svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                        svuint16_t a1_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti + 16));
+                        svuint32_t a1_u32 = svunpklo_u32(a1_u16);
+                        a1_u32 = svlsl_n_u32_x(pg32, a1_u32, 16);
+                        svfloat32_t a1 = svreinterpret_f32_u32(a1_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svuint16_t b1_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj + 16));
+                        svuint32_t b1_u32 = svunpklo_u32(b1_u16);
+                        b1_u32 = svlsl_n_u32_x(pg32, b1_u32, 16);
+                        svfloat32_t b1 = svreinterpret_f32_u32(b1_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                        svmopa_za32_f32_m(1, pg32, pg32, a1, b0);
+                        svmopa_za32_f32_m(2, pg32, pg32, a0, b1);
+                        svmopa_za32_f32_m(3, pg32, pg32, a1, b1);
+                    }
+
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 2, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj + 16), bits);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 1, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + 16 + row) * ldc + coff + tj), bits);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 3, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + 16 + row) * ldc + coff + tj + 16), bits);
+                    }
+                }
+
+                if (tj < jEnd) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                        svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                        a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                        svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a0, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + row) * ldc + coff + tj), bits);
+                    }
+
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a1_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti + 16));
+                        svuint32_t a1_u32 = svunpklo_u32(a1_u16);
+                        a1_u32 = svlsl_n_u32_x(pg32, a1_u32, 16);
+                        svfloat32_t a1 = svreinterpret_f32_u32(a1_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
+                        svuint32_t b0_u32 = svunpklo_u32(b0_u16);
+                        b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
+                        svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
+
+                        svmopa_za32_f32_m(0, pg32, pg32, a1, b0);
+                    }
+                    for (int row = 0; row < 16; row++) {
+                        svfloat32_t zrow = svread_hor_za32_f32_m(svundef_f32(), pg32, 0, row);
+                        svuint32_t bits = svreinterpret_u32_f32(zrow);
+                        svuint32_t bit16 = svlsr_n_u32_x(pg32, bits, 16);
+                        bit16 = svand_n_u32_x(pg32, bit16, 1);
+                        svuint32_t rounding = svadd_n_u32_x(pg32, bit16, 0x7FFF);
+                        bits = svadd_u32_x(pg32, bits, rounding);
+                        bits = svlsr_n_u32_x(pg32, bits, 16);
+                        svst1h_u32(pg32, (unsigned short*)(c + (ti + 16 + row) * ldc + coff + tj), bits);
+                    }
+                }
+            }
+
+            if (ti < iEnd) {
+                for (long tj = j0; tj < jEnd; tj += 16) {
+                    svzero_za();
+                    for (long kk = 0; kk < k; kk++) {
+                        svuint16_t a0_u16 = svld1_u16(pg16, (unsigned short*)(at + kk * m + ti));
+                        svuint32_t a0_u32 = svunpklo_u32(a0_u16);
+                        a0_u32 = svlsl_n_u32_x(pg32, a0_u32, 16);
+                        svfloat32_t a0 = svreinterpret_f32_u32(a0_u32);
+
+                        svuint16_t b0_u16 = svld1_u16(pg16, (unsigned short*)(b + kk * ldb + tj));
                         svuint32_t b0_u32 = svunpklo_u32(b0_u16);
                         b0_u32 = svlsl_n_u32_x(pg32, b0_u32, 16);
                         svfloat32_t b0 = svreinterpret_f32_u32(b0_u32);
