@@ -69,3 +69,216 @@ func TestMultiTileFMOPADirect(t *testing.T) {
 		t.Errorf("max error %e exceeds threshold", maxErr)
 	}
 }
+
+// TestMultiTileFMOPANTile tests the N-tiled FMOPA kernel for correctness.
+func TestMultiTileFMOPANTile(t *testing.T) {
+	if !hwy.HasSME() {
+		t.Skip("SME not available")
+	}
+
+	type shape struct {
+		name      string
+		m, n, k   int
+		nTiles    int
+	}
+	shapes := []shape{
+		{"16x64_2tile", 16, 64, 32, 2},
+		{"16x1024_4tile", 16, 1024, 640, 4},
+		{"32x2048_4tile", 32, 2048, 640, 4},
+		{"16x256_2tile", 16, 256, 640, 2},
+	}
+
+	for _, s := range shapes {
+		t.Run(s.name, func(t *testing.T) {
+			// Create A, B, compute reference C with standard FMOPA
+			a := make([]float32, s.m*s.k)
+			b := make([]float32, s.k*s.n)
+			cRef := make([]float32, s.m*s.n)
+			cNTile := make([]float32, s.m*s.n)
+			at := make([]float32, s.k*s.m)
+
+			for i := range a {
+				a[i] = float32(i%7) * 0.1
+			}
+			for i := range b {
+				b[i] = float32(i%11) * 0.1
+			}
+			Transpose2D(a, s.m, s.k, at)
+
+			// Reference: single FMOPA call
+			func() {
+				defer hwy.SMEGuard()()
+				asm.MultiTileMatMulFMOPAF32(at, b, cRef, s.m, s.n, s.k)
+			}()
+
+			// NTile: split across tiles
+			tileN := AlignUp(s.n/s.nTiles, 16)
+			for tile := range s.nTiles {
+				j0 := tile * tileN
+				j1 := min(j0+tileN, s.n)
+				tn := j1 - j0
+				func() {
+					defer hwy.SMEGuard()()
+					asm.MultiTileMatMulFMOPAF32NTile(at, b[j0:], cNTile, s.m, tn, s.k, s.n, s.n, j0)
+				}()
+			}
+
+			// Compare
+			var maxErr float32
+			for i := range s.m {
+				for j := range s.n {
+					ref := cRef[i*s.n+j]
+					got := cNTile[i*s.n+j]
+					err := float32(math.Abs(float64(got - ref)))
+					if err > maxErr {
+						maxErr = err
+					}
+				}
+			}
+			t.Logf("max error: %e", maxErr)
+			if maxErr > 1e-3 {
+				t.Errorf("max error %e exceeds threshold", maxErr)
+			}
+		})
+	}
+}
+
+// TestMultiTileFMOPAF16NTile tests the F16 N-tiled FMOPA kernel for correctness.
+func TestMultiTileFMOPAF16NTile(t *testing.T) {
+	if !hwy.HasSME() || !hwy.HasARMFP16() {
+		t.Skip("SME or FP16 not available")
+	}
+
+	type shape struct {
+		name    string
+		m, n, k int
+		nTiles  int
+	}
+	shapes := []shape{
+		{"16x64_2tile", 16, 64, 32, 2},
+		{"16x1024_4tile", 16, 1024, 640, 4},
+		{"32x2048_4tile", 32, 2048, 640, 4},
+	}
+
+	for _, s := range shapes {
+		t.Run(s.name, func(t *testing.T) {
+			a := make([]hwy.Float16, s.m*s.k)
+			b := make([]hwy.Float16, s.k*s.n)
+			cRef := make([]hwy.Float16, s.m*s.n)
+			cNTile := make([]hwy.Float16, s.m*s.n)
+			at := make([]hwy.Float16, s.k*s.m)
+
+			for i := range a {
+				a[i] = hwy.NewFloat16(float32(i%7) * 0.1)
+			}
+			for i := range b {
+				b[i] = hwy.NewFloat16(float32(i%11) * 0.1)
+			}
+			Transpose2D(a, s.m, s.k, at)
+
+			// Reference
+			func() {
+				defer hwy.SMEGuard()()
+				asm.MultiTileMatMulFMOPAF16(at, b, cRef, s.m, s.n, s.k)
+			}()
+
+			// NTile
+			tileN := AlignUp(s.n/s.nTiles, 16)
+			for tile := range s.nTiles {
+				j0 := tile * tileN
+				j1 := min(j0+tileN, s.n)
+				tn := j1 - j0
+				func() {
+					defer hwy.SMEGuard()()
+					asm.MultiTileMatMulFMOPAF16NTile(at, b[j0:], cNTile, s.m, tn, s.k, s.n, s.n, j0)
+				}()
+			}
+
+			var maxErr float32
+			for i := range s.m {
+				for j := range s.n {
+					ref := cRef[i*s.n+j].Float32()
+					got := cNTile[i*s.n+j].Float32()
+					err := float32(math.Abs(float64(got - ref)))
+					if err > maxErr {
+						maxErr = err
+					}
+				}
+			}
+			t.Logf("max error: %e", maxErr)
+			if maxErr > 1e-2 {
+				t.Errorf("max error %e exceeds threshold", maxErr)
+			}
+		})
+	}
+}
+
+// TestMultiTileFMOPABF16NTile tests the BF16 N-tiled FMOPA kernel for correctness.
+func TestMultiTileFMOPABF16NTile(t *testing.T) {
+	if !hwy.HasSME() || !hwy.HasARMBF16() {
+		t.Skip("SME or BF16 not available")
+	}
+
+	type shape struct {
+		name    string
+		m, n, k int
+		nTiles  int
+	}
+	shapes := []shape{
+		{"16x64_2tile", 16, 64, 32, 2},
+		{"16x1024_4tile", 16, 1024, 640, 4},
+		{"32x2048_4tile", 32, 2048, 640, 4},
+	}
+
+	for _, s := range shapes {
+		t.Run(s.name, func(t *testing.T) {
+			a := make([]hwy.BFloat16, s.m*s.k)
+			b := make([]hwy.BFloat16, s.k*s.n)
+			cRef := make([]hwy.BFloat16, s.m*s.n)
+			cNTile := make([]hwy.BFloat16, s.m*s.n)
+			at := make([]hwy.BFloat16, s.k*s.m)
+
+			for i := range a {
+				a[i] = hwy.NewBFloat16(float32(i%7) * 0.1)
+			}
+			for i := range b {
+				b[i] = hwy.NewBFloat16(float32(i%11) * 0.1)
+			}
+			Transpose2D(a, s.m, s.k, at)
+
+			// Reference
+			func() {
+				defer hwy.SMEGuard()()
+				asm.MultiTileMatMulFMOPABF16(at, b, cRef, s.m, s.n, s.k)
+			}()
+
+			// NTile
+			tileN := AlignUp(s.n/s.nTiles, 16)
+			for tile := range s.nTiles {
+				j0 := tile * tileN
+				j1 := min(j0+tileN, s.n)
+				tn := j1 - j0
+				func() {
+					defer hwy.SMEGuard()()
+					asm.MultiTileMatMulFMOPABF16NTile(at, b[j0:], cNTile, s.m, tn, s.k, s.n, s.n, j0)
+				}()
+			}
+
+			var maxErr float32
+			for i := range s.m {
+				for j := range s.n {
+					ref := cRef[i*s.n+j].Float32()
+					got := cNTile[i*s.n+j].Float32()
+					err := float32(math.Abs(float64(got - ref)))
+					if err > maxErr {
+						maxErr = err
+					}
+				}
+			}
+			t.Logf("max error: %e", maxErr)
+			if maxErr > 1e-1 { // bf16 has less precision
+				t.Errorf("max error %e exceeds threshold", maxErr)
+			}
+		})
+	}
+}

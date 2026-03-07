@@ -24,6 +24,7 @@
 package matmul
 
 import (
+	"runtime"
 	"sync"
 
 	"github.com/ajroetker/go-highway/hwy"
@@ -44,17 +45,33 @@ const minDimForNEON = 16
 const minDimForSME = 32
 
 // minOpsForBlockedSME is the minimum padded total ops (paddedM*paddedN*paddedK)
-// before SME FMOPA with padding/transpose is faster than NEON streaming.
-// SME overhead is ~2µs (SMEGuard + pad + transpose + extract). NEON throughput
-// is ~2 GFLOPS for blocked matmul. Crossover is around 64K ops.
-// Benchmarks on Apple M4 Max:
+// before SME FMOPA with padding/transpose is faster than register-blocked NEON.
+// NEON SkinnyMatMul achieves 90-107 GFLOPS with Mr=4×Nr=16 register blocking.
+// SME overhead is ~2µs (SMEGuard + pad + transpose + extract) and wastes compute
+// from M-padding (M→next multiple of 16). The crossover depends on padding waste:
 //
-//	1x32x32   (32K ops padded): SME 22x slower (overhead dominates)
-//	4x128x128 (64K ops padded): SME 1.6x faster
-//	1x512x512 (512K ops padded): SME 1.5x faster
-//	16x64x64  (64K ops padded): SME 4x faster
-//	8x512x512 (4M ops padded): SME 12.8x faster
-const minOpsForBlockedSME = 64 * 1024
+// Benchmarks on Apple M4 Max (NEON SkinnyMatMul vs SME FMOPA):
+//
+//	M=4:  NEON wins at all sizes (75% padding waste: 4→16)
+//	      4×128×256 (524K padded): NEON 2.4x faster (107 vs 44 GFLOPS)
+//	      4×512×1024 (2M padded):  NEON 1.2x faster (106 vs 88 GFLOPS)
+//	M=10: crossover ~256K padded ops (19% waste: 10→16 padding, 6/16 wasted)
+//	      10×128×128 (262K padded): tie (94 GFLOPS each)
+//	      10×128×256 (524K padded): SME 1.2x faster (111 vs 94 GFLOPS)
+//	      10×256×256 (1M padded):   SME 1.8x faster (160 vs 91 GFLOPS)
+//	M=13: SME wins at 524K+ padded ops (19% waste: 13→16)
+//	      13×128×256 (524K padded): SME 1.9x faster (140 vs 75 GFLOPS)
+//	M=16: SME wins at all sizes above overhead floor (0% waste)
+//	      16×64×64 (64K padded):    tie (103 vs 102 GFLOPS)
+//
+// Use 256K as threshold: safe for M≥10 (where SME breaks even), and the
+// M<8 case is handled separately below (highPaddingWaste).
+const minOpsForBlockedSME = 256 * 1024
+
+// When M-padding wastes ≥50% of compute (M≤8, padded to 16), NEON's
+// register-blocked kernel outperforms SME at all practical sizes.
+// Only use SME when padded ops are very large (>4M) to amortize the waste.
+const minOpsForHighWasteSME = 4 * 1024 * 1024
 
 // minNKForM1SME is the minimum N*K product before SME FMOPA is faster than
 // NEON for M=1 (vector-matrix multiply / autoregressive decode).
@@ -581,10 +598,19 @@ func matmulFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 	paddedM := AlignUp(m, tileSize)
 	paddedN := AlignUp(n, tileSize)
 	paddedK := AlignUp(k, tileSize)
+	paddedOps := paddedM * paddedN * paddedK
 
-	// For small matrices, NEON is faster (streaming mode has overhead)
+	// For small matrices, register-blocked NEON is faster
 	if paddedM < minDimForSME || paddedN < minDimForSME || paddedK < minDimForSME {
-		matmulNEONF16(a, b, c, m, n, k)
+		SkinnyMatMulFloat16(a, b, c, m, n, k)
+		return
+	}
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulFloat16(a, b, c, m, n, k)
+		return
+	}
+	if m <= 8 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulFloat16(a, b, c, m, n, k)
 		return
 	}
 
@@ -661,10 +687,19 @@ func matmulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	paddedM := AlignUp(m, tileSize)
 	paddedN := AlignUp(n, tileSize)
 	paddedK := AlignUp(k, tileSize)
+	paddedOps := paddedM * paddedN * paddedK
 
-	// For small matrices, NEON is faster (streaming mode has overhead)
+	// For small matrices, register-blocked NEON is faster
 	if paddedM < minDimForSME || paddedN < minDimForSME || paddedK < minDimForSME {
-		matmulNEONBF16(a, b, c, m, n, k)
+		SkinnyMatMulBFloat16(a, b, c, m, n, k)
+		return
+	}
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulBFloat16(a, b, c, m, n, k)
+		return
+	}
+	if m <= 8 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulBFloat16(a, b, c, m, n, k)
 		return
 	}
 
@@ -772,19 +807,27 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	paddedN := AlignUp(n, tileSize)
 	paddedK := AlignUp(k, tileSize)
 
-	// For small matrices, use streaming NEON (SME streaming mode has overhead).
-	// Check total padded ops rather than individual dimensions.
-	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
-		matMulAsmF32(a, b, c, m, n, k)
+	paddedOps := paddedM * paddedN * paddedK
+
+	// For small matrices, NEON register-blocked kernel (SkinnyMatMul) beats SME.
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
 		return
 	}
 
-	// M=1 decode: NEON streaming is faster than SME for small-to-medium matrices.
+	// High padding waste: when M≤8, padding to 16 wastes ≥50% of SME compute.
+	// NEON SkinnyMatMul (Mr=4, Nr=16) outperforms SME at all but very large sizes.
+	if m <= 8 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
+		return
+	}
+
+	// M=1 decode: NEON is faster for small-to-medium matrices.
 	// SME pads M=1→16 (15/16 wasted compute), transposes A, and enters/exits
 	// streaming mode. NEON processes the single row directly with no overhead.
 	// See minNKForM1SME for benchmark data.
 	if m == 1 && n*k <= minNKForM1SME {
-		matMulAsmF32(a, b, c, m, n, k)
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
 		return
 	}
 
@@ -873,18 +916,24 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	paddedN := AlignUp(n, tileSize)
 	paddedK := AlignUp(k, tileSize)
 
-	// For small matrices, use streaming NEON (SME streaming mode has overhead).
-	// See minOpsForBlockedSME comment in blockedMatMulFMOPA.
-	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
-		matMulAsmF64(a, b, c, m, n, k)
+	paddedOps := paddedM * paddedN * paddedK
+
+	// For small matrices, NEON register-blocked kernel beats SME.
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
+		return
+	}
+
+	// High padding waste: f64 tiles are 8×8, so M≤4 wastes ≥50%.
+	if m <= 4 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
 		return
 	}
 
 	// M=1 decode: NEON is faster for small-to-medium matrices.
 	// f64 tiles are 8×8 so padding waste is 7/8 at M=1.
-	// See minNKForM1SME for benchmark data (f32; f64 crossover is similar).
 	if m == 1 && n*k <= minNKForM1SME {
-		matMulAsmF64(a, b, c, m, n, k)
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
 		return
 	}
 
@@ -960,21 +1009,528 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	}
 }
 
+// parallelBlockedMatMulFMOPA performs parallel N-tiled SME FMOPA matrix multiplication.
+// Pads and transposes A once (shared), then splits N into tiles dispatched to pool workers.
+// Each worker enters SME streaming mode independently via SMEGuard.
+// This is 1.6-1.8x faster than sequential blockedMatMulFMOPA for prefill shapes (M=10-16).
+func parallelBlockedMatMulFMOPA(pool workerpool.Executor, a, b, c []float32, m, n, k int) {
+	const tileSize = 16
+	paddedM := AlignUp(m, tileSize)
+	paddedN := AlignUp(n, tileSize)
+	paddedK := AlignUp(k, tileSize)
+
+	paddedOps := paddedM * paddedN * paddedK
+
+	// Below SME threshold, use register-blocked NEON
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
+		return
+	}
+
+	// High padding waste bypass
+	if m <= 8 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
+		return
+	}
+
+	// M=1 NEON bypass
+	if m == 1 && n*k <= minNKForM1SME {
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
+		return
+	}
+
+	// Only parallelize if total ops justify the overhead of multiple SMEGuard
+	// entries + ParallelForAtomic dispatch. Each tile needs ~2µs SME overhead;
+	// with 4 tiles that's ~8µs. Need enough compute to dwarf this.
+	// Benchmarks: 2.6M ops (Kproj 10×640×256) → parallel 22% slower.
+	//             13M ops (Qproj 10×640×1024) → parallel 20% faster.
+	const minOpsForParallelSME = 8 * 1024 * 1024 // ~8M ops
+	if paddedM*paddedN*paddedK < minOpsForParallelSME {
+		blockedMatMulFMOPA(a, b, c, m, n, k)
+		return
+	}
+
+	// Determine N-tiles. Each tile must be at least 4*tileSize (64) columns
+	// to amortize SME streaming mode entry/exit (~2µs per SMEGuard).
+	numWorkers := runtime.GOMAXPROCS(0)
+	minTileWidth := 4 * tileSize
+	maxTiles := paddedN / minTileWidth
+	numTiles := min(numWorkers, maxTiles)
+
+	// Not enough work for parallel dispatch? Use sequential.
+	if numTiles < 2 {
+		blockedMatMulFMOPA(a, b, c, m, n, k)
+		return
+	}
+
+	needsPadM := paddedM != m
+	needsPadK := paddedK != k
+	needsPadN := paddedN != n
+
+	// Pad A: [M, K] → [paddedM, paddedK]
+	fmopaA := a
+	fmopaK := k
+	if needsPadM || needsPadK {
+		paSize := paddedM * paddedK
+		paBuf := paddedAPool32.Get().([]float32)
+		if cap(paBuf) < paSize {
+			paBuf = make([]float32, paSize)
+		} else {
+			paBuf = paBuf[:paSize]
+		}
+		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+		fmopaA = paBuf
+		fmopaK = paddedK
+		defer paddedAPool32.Put(paBuf)
+	}
+
+	// Pad B: [K, N] → [paddedK, paddedN]
+	fmopaB := b
+	fmopaN := n
+	if needsPadK || needsPadN {
+		pbSize := paddedK * paddedN
+		pbBuf := paddedBPool32.Get().([]float32)
+		if cap(pbBuf) < pbSize {
+			pbBuf = make([]float32, pbSize)
+		} else {
+			pbBuf = pbBuf[:pbSize]
+		}
+		PadMatrix2D(pbBuf, b, k, n, paddedK, paddedN)
+		fmopaB = pbBuf
+		fmopaN = paddedN
+		defer paddedBPool32.Put(pbBuf)
+	}
+
+	fmopaM := paddedM
+
+	// Transpose A once (shared across all tiles)
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool32.Get().([]float32)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float32, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	defer func() {
+		clear(atBuf)
+		transposePool32.Put(atBuf)
+	}()
+
+	// Output strategy: write directly to c when no padding needed,
+	// otherwise use padded buffer and extract afterward.
+	needsPadOutput := needsPadM || needsPadN
+	var outC []float32
+	outLdc := n
+	if needsPadOutput {
+		pcSize := fmopaM * fmopaN
+		paddedC := paddedCPool32.Get().([]float32)
+		if cap(paddedC) < pcSize {
+			paddedC = make([]float32, pcSize)
+		} else {
+			paddedC = paddedC[:pcSize]
+		}
+		clear(paddedC)
+		outC = paddedC
+		outLdc = fmopaN
+		defer paddedCPool32.Put(paddedC)
+	} else {
+		outC = c
+	}
+
+	// Compute tile width (aligned to tileSize)
+	tileWidth := AlignUp(fmopaN/numTiles, tileSize)
+	actualTiles := (fmopaN + tileWidth - 1) / tileWidth
+
+	// Dispatch tiles across workers. Each worker enters SME streaming mode
+	// independently and processes its column range.
+	pool.ParallelForAtomic(actualTiles, func(tile int) {
+		j0 := tile * tileWidth
+		tn := min(tileWidth, fmopaN-j0)
+		defer hwy.SMEGuard()()
+		asm.MultiTileMatMulFMOPAF32NTile(atBuf, fmopaB[j0:], outC, fmopaM, tn, fmopaK, fmopaN, outLdc, j0)
+	})
+
+	if needsPadOutput {
+		ExtractMatrix2D(c, outC, m, n, fmopaN)
+	}
+}
+
+// parallelBlockedMatMulFMOPA64 performs parallel N-tiled SME FMOPA matrix multiplication (f64).
+// Same strategy as parallelBlockedMatMulFMOPA but with 8×8 tiles.
+func parallelBlockedMatMulFMOPA64(pool workerpool.Executor, a, b, c []float64, m, n, k int) {
+	const tileSize = 8
+	paddedM := AlignUp(m, tileSize)
+	paddedN := AlignUp(n, tileSize)
+	paddedK := AlignUp(k, tileSize)
+
+	paddedOps := paddedM * paddedN * paddedK
+
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
+		return
+	}
+
+	// f64 tiles are 8×8, so M≤4 wastes ≥50%
+	if m <= 4 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
+		return
+	}
+
+	if m == 1 && n*k <= minNKForM1SME {
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
+		return
+	}
+
+	const minOpsForParallelSME = 8 * 1024 * 1024
+	if paddedM*paddedN*paddedK < minOpsForParallelSME {
+		blockedMatMulFMOPA64(a, b, c, m, n, k)
+		return
+	}
+
+	numWorkers := runtime.GOMAXPROCS(0)
+	minTileWidth := 4 * tileSize // 32 columns
+	maxTiles := paddedN / minTileWidth
+	numTiles := min(numWorkers, maxTiles)
+
+	if numTiles < 2 {
+		blockedMatMulFMOPA64(a, b, c, m, n, k)
+		return
+	}
+
+	needsPadM := paddedM != m
+	needsPadK := paddedK != k
+	needsPadN := paddedN != n
+
+	fmopaA := a
+	fmopaK := k
+	if needsPadM || needsPadK {
+		paSize := paddedM * paddedK
+		paBuf := paddedAPool64.Get().([]float64)
+		if cap(paBuf) < paSize {
+			paBuf = make([]float64, paSize)
+		} else {
+			paBuf = paBuf[:paSize]
+		}
+		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+		fmopaA = paBuf
+		fmopaK = paddedK
+		defer paddedAPool64.Put(paBuf)
+	}
+
+	fmopaB := b
+	fmopaN := n
+	if needsPadK || needsPadN {
+		pbSize := paddedK * paddedN
+		pbBuf := paddedBPool64.Get().([]float64)
+		if cap(pbBuf) < pbSize {
+			pbBuf = make([]float64, pbSize)
+		} else {
+			pbBuf = pbBuf[:pbSize]
+		}
+		PadMatrix2D(pbBuf, b, k, n, paddedK, paddedN)
+		fmopaB = pbBuf
+		fmopaN = paddedN
+		defer paddedBPool64.Put(pbBuf)
+	}
+
+	fmopaM := paddedM
+
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool64.Get().([]float64)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float64, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	defer func() {
+		clear(atBuf)
+		transposePool64.Put(atBuf)
+	}()
+
+	needsPadOutput := needsPadM || needsPadN
+	var outC []float64
+	outLdc := n
+	if needsPadOutput {
+		pcSize := fmopaM * fmopaN
+		paddedC := paddedCPool64.Get().([]float64)
+		if cap(paddedC) < pcSize {
+			paddedC = make([]float64, pcSize)
+		} else {
+			paddedC = paddedC[:pcSize]
+		}
+		clear(paddedC)
+		outC = paddedC
+		outLdc = fmopaN
+		defer paddedCPool64.Put(paddedC)
+	} else {
+		outC = c
+	}
+
+	tileWidth := AlignUp(fmopaN/numTiles, tileSize)
+	actualTiles := (fmopaN + tileWidth - 1) / tileWidth
+
+	pool.ParallelForAtomic(actualTiles, func(tile int) {
+		j0 := tile * tileWidth
+		tn := min(tileWidth, fmopaN-j0)
+		defer hwy.SMEGuard()()
+		asm.MultiTileMatMulFMOPAF64NTile(atBuf, fmopaB[j0:], outC, fmopaM, tn, fmopaK, fmopaN, outLdc, j0)
+	})
+
+	if needsPadOutput {
+		ExtractMatrix2D(c, outC, m, n, fmopaN)
+	}
+}
+
+// parallelBlockedMatMulFMOPAF16 performs parallel N-tiled SME FMOPA matrix multiplication (f16).
+// Same strategy as parallelBlockedMatMulFMOPA but with Float16 types and f16→f32 widening FMOPA.
+func parallelBlockedMatMulFMOPAF16(pool workerpool.Executor, a, b, c []hwy.Float16, m, n, k int) {
+	const tileSize = 16
+	paddedM := AlignUp(m, tileSize)
+	paddedN := AlignUp(n, tileSize)
+	paddedK := AlignUp(k, tileSize)
+	paddedOps := paddedM * paddedN * paddedK
+
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulFloat16(a, b, c, m, n, k)
+		return
+	}
+
+	if m <= 8 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulFloat16(a, b, c, m, n, k)
+		return
+	}
+
+	const minOpsForParallelSME = 8 * 1024 * 1024
+	if paddedOps < minOpsForParallelSME {
+		matmulFMOPAF16(a, b, c, m, n, k)
+		return
+	}
+
+	numWorkers := runtime.GOMAXPROCS(0)
+	minTileWidth := 4 * tileSize
+	maxTiles := paddedN / minTileWidth
+	numTiles := min(numWorkers, maxTiles)
+
+	if numTiles < 2 {
+		matmulFMOPAF16(a, b, c, m, n, k)
+		return
+	}
+
+	needsPadM := paddedM != m
+	needsPadK := paddedK != k
+	needsPadN := paddedN != n
+
+	fmopaA := a
+	fmopaK := k
+	if needsPadM || needsPadK {
+		paSize := paddedM * paddedK
+		paBuf := paddedAPoolF16.Get().([]hwy.Float16)
+		if cap(paBuf) < paSize {
+			paBuf = make([]hwy.Float16, paSize)
+		} else {
+			paBuf = paBuf[:paSize]
+		}
+		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+		fmopaA = paBuf
+		fmopaK = paddedK
+		defer paddedAPoolF16.Put(paBuf)
+	}
+
+	fmopaB := b
+	fmopaN := n
+	if needsPadK || needsPadN {
+		pbSize := paddedK * paddedN
+		pbBuf := paddedBPoolF16.Get().([]hwy.Float16)
+		if cap(pbBuf) < pbSize {
+			pbBuf = make([]hwy.Float16, pbSize)
+		} else {
+			pbBuf = pbBuf[:pbSize]
+		}
+		PadMatrix2D(pbBuf, b, k, n, paddedK, paddedN)
+		fmopaB = pbBuf
+		fmopaN = paddedN
+		defer paddedBPoolF16.Put(pbBuf)
+	}
+
+	fmopaM := paddedM
+
+	atSize := fmopaK * fmopaM
+	atBuf := transposePoolF16.Get().([]hwy.Float16)
+	if cap(atBuf) < atSize {
+		atBuf = make([]hwy.Float16, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	defer transposePoolF16.Put(atBuf)
+
+	needsPadOutput := needsPadM || needsPadN
+	var outC []hwy.Float16
+	outLdc := n
+	if needsPadOutput {
+		pcSize := fmopaM * fmopaN
+		paddedC := paddedCPoolF16.Get().([]hwy.Float16)
+		if cap(paddedC) < pcSize {
+			paddedC = make([]hwy.Float16, pcSize)
+		} else {
+			paddedC = paddedC[:pcSize]
+		}
+		clear(paddedC)
+		outC = paddedC
+		outLdc = fmopaN
+		defer paddedCPoolF16.Put(paddedC)
+	} else {
+		outC = c
+	}
+
+	tileWidth := AlignUp(fmopaN/numTiles, tileSize)
+	actualTiles := (fmopaN + tileWidth - 1) / tileWidth
+
+	pool.ParallelForAtomic(actualTiles, func(tile int) {
+		j0 := tile * tileWidth
+		tn := min(tileWidth, fmopaN-j0)
+		defer hwy.SMEGuard()()
+		asm.MultiTileMatMulFMOPAF16NTile(atBuf, fmopaB[j0:], outC, fmopaM, tn, fmopaK, fmopaN, outLdc, j0)
+	})
+
+	if needsPadOutput {
+		ExtractMatrix2D(c, outC, m, n, fmopaN)
+	}
+}
+
+// parallelBlockedMatMulFMOPABF16 performs parallel N-tiled SME FMOPA matrix multiplication (bf16).
+// Same strategy as parallelBlockedMatMulFMOPA but with BFloat16 types and bf16→f32 widening FMOPA.
+func parallelBlockedMatMulFMOPABF16(pool workerpool.Executor, a, b, c []hwy.BFloat16, m, n, k int) {
+	const tileSize = 16
+	paddedM := AlignUp(m, tileSize)
+	paddedN := AlignUp(n, tileSize)
+	paddedK := AlignUp(k, tileSize)
+	paddedOps := paddedM * paddedN * paddedK
+
+	if paddedOps < minOpsForBlockedSME {
+		SkinnyMatMulBFloat16(a, b, c, m, n, k)
+		return
+	}
+
+	if m <= 8 && paddedOps < minOpsForHighWasteSME {
+		SkinnyMatMulBFloat16(a, b, c, m, n, k)
+		return
+	}
+
+	const minOpsForParallelSME = 8 * 1024 * 1024
+	if paddedOps < minOpsForParallelSME {
+		matmulFMOPABF16(a, b, c, m, n, k)
+		return
+	}
+
+	numWorkers := runtime.GOMAXPROCS(0)
+	minTileWidth := 4 * tileSize
+	maxTiles := paddedN / minTileWidth
+	numTiles := min(numWorkers, maxTiles)
+
+	if numTiles < 2 {
+		matmulFMOPABF16(a, b, c, m, n, k)
+		return
+	}
+
+	needsPadM := paddedM != m
+	needsPadK := paddedK != k
+	needsPadN := paddedN != n
+
+	fmopaA := a
+	fmopaK := k
+	if needsPadM || needsPadK {
+		paSize := paddedM * paddedK
+		paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
+		if cap(paBuf) < paSize {
+			paBuf = make([]hwy.BFloat16, paSize)
+		} else {
+			paBuf = paBuf[:paSize]
+		}
+		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+		fmopaA = paBuf
+		fmopaK = paddedK
+		defer paddedAPoolBF16.Put(paBuf)
+	}
+
+	fmopaB := b
+	fmopaN := n
+	if needsPadK || needsPadN {
+		pbSize := paddedK * paddedN
+		pbBuf := paddedBPoolBF16.Get().([]hwy.BFloat16)
+		if cap(pbBuf) < pbSize {
+			pbBuf = make([]hwy.BFloat16, pbSize)
+		} else {
+			pbBuf = pbBuf[:pbSize]
+		}
+		PadMatrix2D(pbBuf, b, k, n, paddedK, paddedN)
+		fmopaB = pbBuf
+		fmopaN = paddedN
+		defer paddedBPoolBF16.Put(pbBuf)
+	}
+
+	fmopaM := paddedM
+
+	atSize := fmopaK * fmopaM
+	atBuf := transposePoolBF16.Get().([]hwy.BFloat16)
+	if cap(atBuf) < atSize {
+		atBuf = make([]hwy.BFloat16, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	defer transposePoolBF16.Put(atBuf)
+
+	needsPadOutput := needsPadM || needsPadN
+	var outC []hwy.BFloat16
+	outLdc := n
+	if needsPadOutput {
+		pcSize := fmopaM * fmopaN
+		paddedC := paddedCPoolBF16.Get().([]hwy.BFloat16)
+		if cap(paddedC) < pcSize {
+			paddedC = make([]hwy.BFloat16, pcSize)
+		} else {
+			paddedC = paddedC[:pcSize]
+		}
+		clear(paddedC)
+		outC = paddedC
+		outLdc = fmopaN
+		defer paddedCPoolBF16.Put(paddedC)
+	} else {
+		outC = c
+	}
+
+	tileWidth := AlignUp(fmopaN/numTiles, tileSize)
+	actualTiles := (fmopaN + tileWidth - 1) / tileWidth
+
+	pool.ParallelForAtomic(actualTiles, func(tile int) {
+		j0 := tile * tileWidth
+		tn := min(tileWidth, fmopaN-j0)
+		defer hwy.SMEGuard()()
+		asm.MultiTileMatMulFMOPABF16NTile(atBuf, fmopaB[j0:], outC, fmopaM, tn, fmopaK, fmopaN, outLdc, j0)
+	})
+
+	if needsPadOutput {
+		ExtractMatrix2D(c, outC, m, n, fmopaN)
+	}
+}
+
 // blockedMatMulNEON uses GOAT-generated NEON for blocked matrix multiplication (f32).
-// Used on non-SME hardware. For small matrices, streaming NEON is faster.
-// For large matrices, blocked NEON has better cache behavior.
+// Used on non-SME hardware. Selects between three kernels:
+//   - Small M (< BlockSize): SkinnyMatMul with register-blocked accumulators
+//     across K (BLIS-style Mr=4, Nr=16), avoiding K-1 redundant C loads/stores
+//   - Large (>= BlockSize rows, >= 2M ops): BlockedMatMul with 48×48 cache blocking
+//   - Tiny (< 2M ops, >= BlockSize rows): streaming NEON
 func blockedMatMulNEON(a, b, c []float32, m, n, k int) {
 	totalOps := m * n * k
-	// Below this threshold, streaming NEON is faster (~75 GFLOPS vs ~25 GFLOPS blocked)
-	// Above this, blocked NEON's cache efficiency helps
 	const blockedThreshold = 128 * 128 * 128 // 2M ops
+	const minMForBlocked = 48                // BlockSize
 
-	// The blocked NEON assembly crashes on some ARM64 CPUs (e.g., Ampere Altra)
-	// when M is small (< BlockSize). Use streaming NEON for small M regardless
-	// of total ops - blocking overhead isn't beneficial anyway for small M.
-	const minMForBlocked = 48 // BlockSize
-
-	if totalOps < blockedThreshold || m < minMForBlocked {
+	if m < minMForBlocked {
+		SkinnyMatMulFloat32(a, b, c, m, n, k)
+	} else if totalOps < blockedThreshold {
 		matMulAsmF32(a, b, c, m, n, k)
 	} else {
 		blockedMatMulAsmF32(a, b, c, m, n, k)
@@ -987,7 +1543,9 @@ func blockedMatMulNEON64(a, b, c []float64, m, n, k int) {
 	const blockedThreshold = 128 * 128 * 128 // 2M ops
 	const minMForBlocked = 48                // BlockSize
 
-	if totalOps < blockedThreshold || m < minMForBlocked {
+	if m < minMForBlocked {
+		SkinnyMatMulFloat64(a, b, c, m, n, k)
+	} else if totalOps < blockedThreshold {
 		matMulAsmF64(a, b, c, m, n, k)
 	} else {
 		blockedMatMulAsmF64(a, b, c, m, n, k)
@@ -1000,7 +1558,9 @@ func blockedMatMulNEONF16(a, b, c []hwy.Float16, m, n, k int) {
 	const blockedThreshold = 128 * 128 * 128 // 2M ops
 	const minMForBlocked = 48                // BlockSize
 
-	if totalOps < blockedThreshold || m < minMForBlocked {
+	if m < minMForBlocked {
+		SkinnyMatMulFloat16(a, b, c, m, n, k)
+	} else if totalOps < blockedThreshold {
 		matMulAsmF16(a, b, c, m, n, k)
 	} else {
 		blockedMatMulAsmF16(a, b, c, m, n, k)
@@ -1014,7 +1574,9 @@ func blockedMatMulNEONBF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	const blockedThreshold = 128 * 128 * 128 // 2M ops
 	const minMForBlocked = 48                // BlockSize
 
-	if totalOps < blockedThreshold || m < minMForBlocked {
+	if m < minMForBlocked {
+		SkinnyMatMulBFloat16(a, b, c, m, n, k)
+	} else if totalOps < blockedThreshold {
 		matMulAsmBF16(a, b, c, m, n, k)
 	} else {
 		BaseBlockedMatMul_fallback_BFloat16(a, b, c, m, n, k)
@@ -3055,6 +3617,11 @@ func init() {
 		BlockedMatMulFloat32 = blockedMatMulFMOPA
 		BlockedMatMulFloat64 = blockedMatMulFMOPA64
 
+		// Parallel N-tiled FMOPA for small-M prefill (M < RowsPerStrip).
+		// Shares pad+transpose of A across workers, each running FMOPA on a column tile.
+		ParallelBlockedMatMulFloat32 = parallelBlockedMatMulFMOPA
+		ParallelBlockedMatMulFloat64 = parallelBlockedMatMulFMOPA64
+
 		// Override dispatch to use FMOPA for aligned dimensions
 		BlockMulAddFloat32 = blockMulAddFMOPAWrapper
 		BlockMulAddFloat64 = blockMulAddFMOPAWrapper64
@@ -3073,10 +3640,12 @@ func init() {
 		if hwy.HasARMFP16() {
 			MatMulFloat16 = matmulFMOPAF16
 			BlockedMatMulFloat16 = blockedMatMulFMOPAF16
+			ParallelBlockedMatMulFloat16 = parallelBlockedMatMulFMOPAF16
 		}
 		if hwy.HasARMBF16() {
 			MatMulBFloat16 = matmulFMOPABF16
 			BlockedMatMulBFloat16 = blockedMatMulFMOPABF16
+			ParallelBlockedMatMulBFloat16 = parallelBlockedMatMulFMOPABF16
 		}
 	} else {
 		// Use optimized NEON path if CPU supports FP16

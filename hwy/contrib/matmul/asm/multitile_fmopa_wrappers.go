@@ -66,6 +66,62 @@ func MultiTileMatMulFMOPAF32Strided(at []float32, b []float32, c []float32, m, n
 	)
 }
 
+// MultiTileMatMulFMOPAF32NTile performs multi-tile FMOPA matmul on an N-tile.
+// B is accessed with row stride ldb (full N of original matrix), but only n
+// columns are processed (tile width). C is written with row stride ldc at
+// column offset coff. Caller passes b + j0 as B pointer.
+//
+// This enables parallel SME across N tiles: pad+transpose A once (shared),
+// then each worker calls this for its column range.
+func MultiTileMatMulFMOPAF32NTile(at []float32, b []float32, c []float32, m, n, k, ldb, ldc, coff int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	ldbVal := int64(ldb)
+	ldcVal := int64(ldc)
+	coffVal := int64(coff)
+	multitile_fmopa_at_f32_ntile(
+		unsafe.Pointer(&at[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldbVal),
+		unsafe.Pointer(&ldcVal),
+		unsafe.Pointer(&coffVal),
+	)
+}
+
+// MultiTileMatMulFMOPAF64NTile performs multi-tile FMOPA matmul (float64) on an N-tile.
+// Same as F32NTile but with 8×8 tiles. B accessed with row stride ldb,
+// n columns processed, C written with row stride ldc at column offset coff.
+func MultiTileMatMulFMOPAF64NTile(at []float64, b []float64, c []float64, m, n, k, ldb, ldc, coff int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	ldbVal := int64(ldb)
+	ldcVal := int64(ldc)
+	coffVal := int64(coff)
+	multitile_fmopa_at_f64_ntile(
+		unsafe.Pointer(&at[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldbVal),
+		unsafe.Pointer(&ldcVal),
+		unsafe.Pointer(&coffVal),
+	)
+}
+
 // MultiTileMatMulFMOPAF64Strided performs multi-tile FMOPA matmul (float64)
 // writing to C with leading dimension ldc at column offset coff.
 func MultiTileMatMulFMOPAF64Strided(at []float64, b []float64, c []float64, m, n, k, ldc, coff int) {
@@ -164,6 +220,35 @@ func MultiTileMatMulFMOPAF16Strided(at []hwy.Float16, b []hwy.Float16, c []hwy.F
 	)
 }
 
+// MultiTileMatMulFMOPAF16NTile performs multi-tile FMOPA matmul (float16) on an N-tile.
+// B is accessed with row stride ldb (full N of original matrix), but only n
+// columns are processed (tile width). C is written with row stride ldc at
+// column offset coff. Caller passes b + j0 as B pointer.
+func MultiTileMatMulFMOPAF16NTile(at []hwy.Float16, b []hwy.Float16, c []hwy.Float16, m, n, k, ldb, ldc, coff int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	ldbVal := int64(ldb)
+	ldcVal := int64(ldc)
+	coffVal := int64(coff)
+	var scratch [16]float32
+	multitile_fmopa_at_f16_ntile(
+		unsafe.Pointer(&at[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldbVal),
+		unsafe.Pointer(&ldcVal),
+		unsafe.Pointer(&coffVal),
+		unsafe.Pointer(&scratch[0]),
+	)
+}
+
 // MultiTileMatMulFMOPABF16 performs multi-tile matrix multiplication using SME FMOPA: C = AT^T * B
 // Uses widening approach: bf16 -> f32 FMOPA -> bf16, with all 4 ZA tiles for 32x32 output blocks.
 // Requires M, N to be multiples of 16.
@@ -208,6 +293,35 @@ func MultiTileMatMulFMOPABF16Strided(at []hwy.BFloat16, b []hwy.BFloat16, c []hw
 		unsafe.Pointer(&mVal),
 		unsafe.Pointer(&nVal),
 		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldcVal),
+		unsafe.Pointer(&coffVal),
+		unsafe.Pointer(&scratch[0]),
+	)
+}
+
+// MultiTileMatMulFMOPABF16NTile performs multi-tile FMOPA matmul (bfloat16) on an N-tile.
+// B is accessed with row stride ldb (full N of original matrix), but only n
+// columns are processed (tile width). C is written with row stride ldc at
+// column offset coff. Caller passes b + j0 as B pointer.
+func MultiTileMatMulFMOPABF16NTile(at []hwy.BFloat16, b []hwy.BFloat16, c []hwy.BFloat16, m, n, k, ldb, ldc, coff int) {
+	if m == 0 || n == 0 || k == 0 {
+		return
+	}
+	mVal := int64(m)
+	nVal := int64(n)
+	kVal := int64(k)
+	ldbVal := int64(ldb)
+	ldcVal := int64(ldc)
+	coffVal := int64(coff)
+	var scratch [16]float32
+	multitile_bfmopa_at_bf16_ntile(
+		unsafe.Pointer(&at[0]),
+		unsafe.Pointer(&b[0]),
+		unsafe.Pointer(&c[0]),
+		unsafe.Pointer(&mVal),
+		unsafe.Pointer(&nVal),
+		unsafe.Pointer(&kVal),
+		unsafe.Pointer(&ldbVal),
 		unsafe.Pointer(&ldcVal),
 		unsafe.Pointer(&coffVal),
 		unsafe.Pointer(&scratch[0]),

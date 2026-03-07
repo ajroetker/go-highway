@@ -17,7 +17,13 @@ func multitile_fmopa_at_f32(at, b, c, pm, pn, pk unsafe.Pointer)
 func multitile_fmopa_at_f32_strided(at, b, c, pm, pn, pk, pldc, pcoff unsafe.Pointer)
 
 //go:noescape
+func multitile_fmopa_at_f32_ntile(at, b, c, pm, pn, pk, pldb, pldc, pcoff unsafe.Pointer)
+
+//go:noescape
 func multitile_fmopa_at_f64_strided(at, b, c, pm, pn, pk, pldc, pcoff unsafe.Pointer)
+
+//go:noescape
+func multitile_fmopa_at_f64_ntile(at, b, c, pm, pn, pk, pldb, pldc, pcoff unsafe.Pointer)
 
 //go:noescape
 func multitile_fmopa_at_f64(at, b, c, pm, pn, pk unsafe.Pointer)
@@ -33,3 +39,9 @@ func multitile_bfmopa_at_bf16(at, b, c, pm, pn, pk, scratch unsafe.Pointer)
 
 //go:noescape
 func multitile_bfmopa_at_bf16_strided(at, b, c, pm, pn, pk, pldc, pcoff, scratch unsafe.Pointer)
+
+//go:noescape
+func multitile_fmopa_at_f16_ntile(at, b, c, pm, pn, pk, pldb, pldc, pcoff, scratch unsafe.Pointer)
+
+//go:noescape
+func multitile_bfmopa_at_bf16_ntile(at, b, c, pm, pn, pk, pldb, pldc, pcoff, scratch unsafe.Pointer)

@@ -21,6 +21,15 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/workerpool"
 )
 
+// Parallel blocked matmul function variables for N-tiled SME FMOPA.
+// nil on non-SME platforms; set by z_matmul_arm64.go init() when SME is available.
+// Used by MatMulAuto for the small-M ARM64 path where coarse M-strip parallelism
+// doesn't apply (M < RowsPerStrip) but N-tiled FMOPA parallelism helps.
+var ParallelBlockedMatMulFloat32 func(pool workerpool.Executor, a, b, c []float32, m, n, k int)
+var ParallelBlockedMatMulFloat64 func(pool workerpool.Executor, a, b, c []float64, m, n, k int)
+var ParallelBlockedMatMulFloat16 func(pool workerpool.Executor, a, b, c []hwy.Float16, m, n, k int)
+var ParallelBlockedMatMulBFloat16 func(pool workerpool.Executor, a, b, c []hwy.BFloat16, m, n, k int)
+
 // Size-based dispatch thresholds.
 // Tuned empirically - adjust based on benchmarks on target hardware.
 const (
@@ -81,16 +90,22 @@ func MatMulAuto[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int
 		return
 	}
 
-	// For small M with large N*K on AMD64, use fine-grained row parallelism.
-	// Each row is dispatched independently via atomic work stealing.
-	//
-	// On ARM64, this path is skipped. BlockedMatMul handles M=1 internally:
-	// for small K*N it uses NEON (no padding waste), for large K*N it uses
-	// SME FMOPA with padding. Per-row FineGrained dispatch would force each
-	// row through NEON since M=1 per-row calls can't reach the SME ops threshold.
-	if runtime.GOARCH != "arm64" && m < RowsPerStrip {
-		ParallelMatMulFineGrained(pool, a, b, c, m, n, k)
-		return
+	// For small M, use platform-specific parallelism:
+	// - AMD64: fine-grained per-row dispatch via atomic work stealing
+	// - ARM64 with SME: parallel N-tiled FMOPA (shares pad+transpose of A,
+	//   splits FMOPA across column tiles). 1.6-1.8x faster than sequential.
+	// - ARM64 without SME / unsupported types: fall through to sequential
+	if m < RowsPerStrip {
+		if runtime.GOARCH != "arm64" {
+			ParallelMatMulFineGrained(pool, a, b, c, m, n, k)
+			return
+		}
+		// ARM64: try parallel N-tiled FMOPA for float32/float64
+		if parallelBlockedMatMulNTile(pool, a, b, c, m, n, k) {
+			return
+		}
+		// Fall through to sequential BlockedMatMul, which routes to
+		// SkinnyMatMul (register-blocked NEON) for M < 48 on non-SME.
 	}
 
 	// Coarse parallelism requires enough strips for load balancing.
@@ -111,6 +126,36 @@ func MatMulAuto[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int
 	} else {
 		ParallelMatMul(pool, a, b, c, m, n, k)
 	}
+}
+
+// parallelBlockedMatMulNTile dispatches to the type-specific parallel N-tiled
+// blocked matmul if available. Returns true if dispatched, false otherwise.
+// The parallel implementation itself may fall back to sequential internally
+// (e.g., when N is too small for tiling).
+func parallelBlockedMatMulNTile[T hwy.Floats](pool workerpool.Executor, a, b, c []T, m, n, k int) bool {
+	switch aa := any(a).(type) {
+	case []float32:
+		if ParallelBlockedMatMulFloat32 != nil {
+			ParallelBlockedMatMulFloat32(pool, aa, any(b).([]float32), any(c).([]float32), m, n, k)
+			return true
+		}
+	case []float64:
+		if ParallelBlockedMatMulFloat64 != nil {
+			ParallelBlockedMatMulFloat64(pool, aa, any(b).([]float64), any(c).([]float64), m, n, k)
+			return true
+		}
+	case []hwy.Float16:
+		if ParallelBlockedMatMulFloat16 != nil {
+			ParallelBlockedMatMulFloat16(pool, aa, any(b).([]hwy.Float16), any(c).([]hwy.Float16), m, n, k)
+			return true
+		}
+	case []hwy.BFloat16:
+		if ParallelBlockedMatMulBFloat16 != nil {
+			ParallelBlockedMatMulBFloat16(pool, aa, any(b).([]hwy.BFloat16), any(c).([]hwy.BFloat16), m, n, k)
+			return true
+		}
+	}
+	return false
 }
 
 // MatMulKLastAuto automatically selects the best algorithm for K-last layout.
