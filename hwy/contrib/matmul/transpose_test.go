@@ -27,7 +27,8 @@ func TestTranspose2D(t *testing.T) {
 	sizes := []struct{ m, k int }{
 		{4, 4}, {8, 8}, {16, 16}, {32, 32},
 		{64, 64}, {256, 256},
-		{5, 7}, {17, 23}, {100, 200}, // Non-aligned
+		{5, 7}, {17, 23}, {100, 200},  // Non-aligned
+		{16, 640}, {13, 640}, {4, 1024}, // Prefill shapes (small M, large K)
 	}
 	for _, size := range sizes {
 		t.Run(fmt.Sprintf("%dx%d", size.m, size.k), func(t *testing.T) {
