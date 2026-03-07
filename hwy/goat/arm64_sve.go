@@ -616,31 +616,56 @@ var smeMovaFields = regexp.MustCompile(
 )
 
 // smeMovaEncode computes the 32-bit binary encoding for a MOVA (tile to
-// vector) instruction.  Currently only handles .s (32-bit) element size.
+// vector) instruction.  Supports .s (32-bit) and .d (64-bit) element sizes.
 //
 // Encoding for .s horizontal:
 //
 //	0xc0820000 | (Rv << 13) | (Pg << 10) | ((ZAn*4 + imm) << 5) | Zd
+//	ZAn: 0-3, imm: 0-3
+//
+// Encoding for .d horizontal:
+//
+//	0xc0c20000 | (Rv << 13) | (Pg << 10) | ((ZAn*2 + imm) << 5) | Zd
+//	ZAn: 0-7, imm: 0-1
 //
 // For vertical, bit 15 is set (V=1).
-func smeMovaEncode(zd, pg, zan, base, imm int, dir byte) (uint32, error) {
+func smeMovaEncode(zd, pg, zan, base, imm int, dir byte, elemSz byte) (uint32, error) {
 	if base < 0 || base > 3 {
 		return 0, fmt.Errorf("smeMovaEncode: base %d out of range 0-3", base)
 	}
-	if zan < 0 || zan > 3 {
-		return 0, fmt.Errorf("smeMovaEncode: ZAn %d out of range 0-3", zan)
+
+	var enc uint32
+	var combined int
+	switch elemSz {
+	case 's':
+		if zan < 0 || zan > 3 {
+			return 0, fmt.Errorf("smeMovaEncode: .s ZAn %d out of range 0-3", zan)
+		}
+		if imm < 0 || imm > 3 {
+			return 0, fmt.Errorf("smeMovaEncode: .s imm %d out of range 0-3", imm)
+		}
+		enc = 0xc0820000
+		combined = zan*4 + imm
+	case 'd':
+		if zan < 0 || zan > 7 {
+			return 0, fmt.Errorf("smeMovaEncode: .d ZAn %d out of range 0-7", zan)
+		}
+		if imm < 0 || imm > 1 {
+			return 0, fmt.Errorf("smeMovaEncode: .d imm %d out of range 0-1", imm)
+		}
+		enc = 0xc0c20000
+		combined = zan*2 + imm
+	default:
+		return 0, fmt.Errorf("smeMovaEncode: unsupported element size '%c'", elemSz)
 	}
-	if imm < 0 || imm > 3 {
-		return 0, fmt.Errorf("smeMovaEncode: imm %d out of range 0-3", imm)
-	}
-	enc := uint32(0xc0820000) // .s base opcode
+
 	if dir == 'v' {
 		enc |= 0x8000 // set V bit (bit 15) for vertical
 	}
-	enc |= uint32(base) << 13           // Rv field
-	enc |= uint32(pg) << 10             // Pg field
-	enc |= uint32(zan*4+imm) << 5       // combined tile offset
-	enc |= uint32(zd)                   // Zd field
+	enc |= uint32(base) << 13  // Rv field
+	enc |= uint32(pg) << 10    // Pg field
+	enc |= uint32(combined) << 5 // combined tile offset
+	enc |= uint32(zd)          // Zd field
 	return enc, nil
 }
 
@@ -678,13 +703,14 @@ func fixSMEMovaImmediate(asmPath string) error {
 		}
 
 		zd, _ := strconv.Atoi(m[1])
+		elemSz := m[2][0] // 's' or 'd'
 		pg, _ := strconv.Atoi(m[3])
 		zan, _ := strconv.Atoi(m[4])
 		dir := m[5][0]
 		base, _ := strconv.Atoi(m[6])
 		imm, _ := strconv.Atoi(m[7])
 
-		enc, err := smeMovaEncode(zd, pg, zan, base, imm, dir)
+		enc, err := smeMovaEncode(zd, pg, zan, base, imm, dir, elemSz)
 		if err != nil {
 			return fmt.Errorf("fixSMEMovaImmediate: %w (line: %s)", err, trimmed)
 		}

@@ -2924,7 +2924,7 @@ BB1_63:
 	WORD $0xe5eb4007 // st1d	{ z7.d }, p0, [x0, x11, lsl #3]
 	WORD $0xf100051f // cmp	x8, #1
 	BEQ  BB1_72
-	WORD $0xc0820027 // .inst	0xc0820027
+	WORD $0xc0c20027 // .inst	0xc0c20027
 	WORD $0xa5e74010 // ld1d	{ z16.d }, p0/z, [x0, x7, lsl #3]
 	WORD $0x65d000e7 // fadd	z7.d, z7.d, z16.d
 	WORD $0xe5e74007 // st1d	{ z7.d }, p0, [x0, x7, lsl #3]
@@ -2988,7 +2988,7 @@ BB1_72:
 	WORD $0xf94117e9 // ldr	x9, [sp, #552]                  ; 8-byte Reload
 	WORD $0xeb02013f // cmp	x9, x2
 	BGE  BB1_15
-	WORD $0xc08200a7 // .inst	0xc08200a7
+	WORD $0xc0c20067 // .inst	0xc0c20067
 	WORD $0xa5f74010 // ld1d	{ z16.d }, p0/z, [x0, x23, lsl #3]
 	WORD $0x65d000e7 // fadd	z7.d, z7.d, z16.d
 	WORD $0xe5f74007 // st1d	{ z7.d }, p0, [x0, x23, lsl #3]
@@ -3101,12 +3101,12 @@ BB1_86:
 	WORD $0xe5ef4127 // st1d	{ z7.d }, p0, [x9, x15, lsl #3]
 	WORD $0xf100051f // cmp	x8, #1
 	BEQ  BB1_95
-	WORD $0xc0820027 // .inst	0xc0820027
+	WORD $0xc0c20027 // .inst	0xc0c20027
 	WORD $0x8b070e89 // add	x9, x20, x7, lsl #3
 	WORD $0xa5e74290 // ld1d	{ z16.d }, p0/z, [x20, x7, lsl #3]
 	WORD $0x65d000e7 // fadd	z7.d, z7.d, z16.d
 	WORD $0xe5e74287 // st1d	{ z7.d }, p0, [x20, x7, lsl #3]
-	WORD $0xc0820127 // .inst	0xc0820127
+	WORD $0xc0c200a7 // .inst	0xc0c200a7
 	WORD $0xa5ef4130 // ld1d	{ z16.d }, p0/z, [x9, x15, lsl #3]
 	WORD $0x65d000e7 // fadd	z7.d, z7.d, z16.d
 	WORD $0xe5ef4127 // st1d	{ z7.d }, p0, [x9, x15, lsl #3]
@@ -3205,12 +3205,12 @@ BB1_95:
 	WORD $0xf94117e9 // ldr	x9, [sp, #552]                  ; 8-byte Reload
 	WORD $0xeb02013f // cmp	x9, x2
 	BGE  BB1_82
-	WORD $0xc08200a7 // .inst	0xc08200a7
+	WORD $0xc0c20067 // .inst	0xc0c20067
 	WORD $0x8b170e89 // add	x9, x20, x23, lsl #3
 	WORD $0xa5f74290 // ld1d	{ z16.d }, p0/z, [x20, x23, lsl #3]
 	WORD $0x65d000e7 // fadd	z7.d, z7.d, z16.d
 	WORD $0xe5f74287 // st1d	{ z7.d }, p0, [x20, x23, lsl #3]
-	WORD $0xc08201a7 // .inst	0xc08201a7
+	WORD $0xc0c200e7 // .inst	0xc0c200e7
 	WORD $0xa5ef4130 // ld1d	{ z16.d }, p0/z, [x9, x15, lsl #3]
 	WORD $0x65d000e7 // fadd	z7.d, z7.d, z16.d
 	WORD $0xe5ef4127 // st1d	{ z7.d }, p0, [x9, x15, lsl #3]
@@ -6775,7 +6775,7 @@ BB3_109:
 	WORD $0xe5e5417c // st1d	{ z28.d }, p0, [x11, x5, lsl #3]
 	WORD $0xf100051f // cmp	x8, #1
 	BEQ  BB3_118
-	WORD $0xc082003c // .inst	0xc082003c
+	WORD $0xc0c2003c // .inst	0xc0c2003c
 	WORD $0xa5e1417d // ld1d	{ z29.d }, p0/z, [x11, x1, lsl #3]
 	WORD $0x65dd039c // fadd	z28.d, z28.d, z29.d
 	WORD $0xe5e1417c // st1d	{ z28.d }, p0, [x11, x1, lsl #3]
@@ -6837,7 +6837,7 @@ BB3_118:
 	WORD $0xe5e7417c // st1d	{ z28.d }, p0, [x11, x7, lsl #3]
 	WORD $0xeb16009f // cmp	x4, x22
 	BGE  BB3_15
-	WORD $0xc08200bc // .inst	0xc08200bc
+	WORD $0xc0c2007c // .inst	0xc0c2007c
 	WORD $0xa5e9417d // ld1d	{ z29.d }, p0/z, [x11, x9, lsl #3]
 	WORD $0x65dd039c // fadd	z28.d, z28.d, z29.d
 	WORD $0xe5e9417c // st1d	{ z28.d }, p0, [x11, x9, lsl #3]
@@ -6948,12 +6948,12 @@ BB3_132:
 	WORD $0xe5f3401c // st1d	{ z28.d }, p0, [x0, x19, lsl #3]
 	WORD $0xf100051f // cmp	x8, #1
 	BEQ  BB3_141
-	WORD $0xc082003c // .inst	0xc082003c
+	WORD $0xc0c2003c // .inst	0xc0c2003c
 	WORD $0x8b010e2d // add	x13, x17, x1, lsl #3
 	WORD $0xa5e1423d // ld1d	{ z29.d }, p0/z, [x17, x1, lsl #3]
 	WORD $0x65dd039c // fadd	z28.d, z28.d, z29.d
 	WORD $0xe5e1423c // st1d	{ z28.d }, p0, [x17, x1, lsl #3]
-	WORD $0xc082013c // .inst	0xc082013c
+	WORD $0xc0c200bc // .inst	0xc0c200bc
 	WORD $0xa5f341bd // ld1d	{ z29.d }, p0/z, [x13, x19, lsl #3]
 	WORD $0x65dd039c // fadd	z28.d, z28.d, z29.d
 	WORD $0xe5f341bc // st1d	{ z28.d }, p0, [x13, x19, lsl #3]
@@ -7051,12 +7051,12 @@ BB3_141:
 	WORD $0xe5f3401c // st1d	{ z28.d }, p0, [x0, x19, lsl #3]
 	WORD $0xeb16009f // cmp	x4, x22
 	BGE  BB3_128
-	WORD $0xc08200bc // .inst	0xc08200bc
+	WORD $0xc0c2007c // .inst	0xc0c2007c
 	WORD $0x8b090e2d // add	x13, x17, x9, lsl #3
 	WORD $0xa5e9423d // ld1d	{ z29.d }, p0/z, [x17, x9, lsl #3]
 	WORD $0x65dd039c // fadd	z28.d, z28.d, z29.d
 	WORD $0xe5e9423c // st1d	{ z28.d }, p0, [x17, x9, lsl #3]
-	WORD $0xc08201bc // .inst	0xc08201bc
+	WORD $0xc0c200fc // .inst	0xc0c200fc
 	WORD $0xa5f341bd // ld1d	{ z29.d }, p0/z, [x13, x19, lsl #3]
 	WORD $0x65dd039c // fadd	z28.d, z28.d, z29.d
 	WORD $0xe5f341bc // st1d	{ z28.d }, p0, [x13, x19, lsl #3]

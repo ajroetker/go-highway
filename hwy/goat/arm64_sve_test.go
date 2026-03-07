@@ -692,7 +692,7 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 				"\tmova\tz7.d, p0/m, za0h.d[#0, 1]",
 			},
 			want: []string{
-				"\t.inst\t0xc0820027", // za0h.d[#0,1] → (0*4+1)<<5|7
+				"\t.inst\t0xc0c20027", // za0h.d[#0,1] → .d: (0*2+1)<<5|7
 			},
 		},
 		{
@@ -737,7 +737,7 @@ func TestFixSMEMovaImmediate(t *testing.T) {
 				"\tmova\tz1.d, p0/m, za0v.d[#3, 0]",
 			},
 			want: []string{
-				"\t.inst\t0xc082e001", // za0v.d[#3,0] → V=1,Rv=3,(0*4+0)<<5|1
+				"\t.inst\t0xc0c2e001", // za0v.d[#3,0] → .d: V=1,Rv=3,(0*2+0)<<5|1
 			},
 		},
 		{
