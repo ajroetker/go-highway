@@ -56,6 +56,19 @@ const minDimForSME = 32
 //	8x512x512 (4M ops padded): SME 12.8x faster
 const minOpsForBlockedSME = 64 * 1024
 
+// minNKForM1SME is the minimum N*K product before SME FMOPA is faster than
+// NEON for M=1 (vector-matrix multiply / autoregressive decode).
+// SME pads M=1→16, wastes 15/16 compute, and adds SMSTART/SMSTOP + transpose
+// overhead. NEON streams through B row-by-row with zero overhead.
+// Benchmarks on Apple M4 Max show NEON wins for K*N up to ~4M (2048×2048):
+//
+//	1×256×256:     NEON 2.0x faster
+//	1×512×512:     NEON 1.5x faster
+//	1×2048×2048:   NEON 1.2x faster
+//	1×2048×4096:   SME 1.4x faster
+//	1×4096×4096:   SME 1.9x faster
+const minNKForM1SME = 4 * 1024 * 1024
+
 // Minimum dimensions to use NEON KLast vectorization
 const minDimForNEONKLast = 16
 
@@ -760,9 +773,17 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	paddedK := AlignUp(k, tileSize)
 
 	// For small matrices, use streaming NEON (SME streaming mode has overhead).
-	// Check total padded ops rather than individual dimensions — SME with padding
-	// is faster than NEON even at M=1 when N*K is large enough (e.g. 512x512).
+	// Check total padded ops rather than individual dimensions.
 	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
+		matMulAsmF32(a, b, c, m, n, k)
+		return
+	}
+
+	// M=1 decode: NEON streaming is faster than SME for small-to-medium matrices.
+	// SME pads M=1→16 (15/16 wasted compute), transposes A, and enters/exits
+	// streaming mode. NEON processes the single row directly with no overhead.
+	// See minNKForM1SME for benchmark data.
+	if m == 1 && n*k <= minNKForM1SME {
 		matMulAsmF32(a, b, c, m, n, k)
 		return
 	}
@@ -855,6 +876,14 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	// For small matrices, use streaming NEON (SME streaming mode has overhead).
 	// See minOpsForBlockedSME comment in blockedMatMulFMOPA.
 	if paddedM*paddedN*paddedK < minOpsForBlockedSME {
+		matMulAsmF64(a, b, c, m, n, k)
+		return
+	}
+
+	// M=1 decode: NEON is faster for small-to-medium matrices.
+	// f64 tiles are 8×8 so padding waste is 7/8 at M=1.
+	// See minNKForM1SME for benchmark data (f32; f64 crossover is similar).
+	if m == 1 && n*k <= minNKForM1SME {
 		matMulAsmF64(a, b, c, m, n, k)
 		return
 	}
