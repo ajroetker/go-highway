@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -11,6 +12,12 @@ import (
 	"strconv"
 	"strings"
 )
+
+// ErrUnsupportedOp is returned when the translator encounters an hwy operation
+// that the current profile cannot support (e.g., DotProduct without DotAccFn).
+// The C generator catches this error to gracefully skip the (combo, target) pair
+// rather than failing the entire generation.
+var ErrUnsupportedOp = errors.New("unsupported operation for this profile")
 
 // CASTTranslator walks a ParsedFunc's Go AST and emits GOAT-compatible C code
 // with target-specific SIMD intrinsics. Unlike the template-based CEmitter
@@ -102,6 +109,22 @@ type CASTTranslator struct {
 	// "lanes" → 4). Used by tryEvalConstInt to constant-fold expressions
 	// like lanes-1 in GetLane index arguments.
 	constVars map[string]int
+
+	// accProfile is the CIntrinsicProfile for DotAccType operations.
+	// When the primary profile is int8 with DotAccFn=vdotq_s32, the accProfile
+	// is the int32 NEON profile, providing intrinsics for Add, ReduceSum, Zero,
+	// and Store on the wider accumulator type.
+	accProfile *CIntrinsicProfile
+
+	// accVarNames tracks variables that hold DotAccType values (e.g., int32x4_t
+	// accumulators from DotProduct results). Operations on these variables use
+	// accProfile instead of the primary profile for intrinsic selection.
+	accVarNames map[string]bool
+
+	// translationErr is set when the translator encounters an unsupported
+	// operation (e.g., DotProduct on a profile without DotAccFn). Checked
+	// at the end of TranslateToC to propagate the error.
+	translationErr error
 }
 
 // deferredAccum tracks a scalar variable being replaced by a vector accumulator
@@ -192,7 +215,7 @@ type cParamInfo struct {
 // NewCASTTranslator creates a translator for the given profile and element type.
 func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTranslator {
 	tier, lanes := primaryTier(profile)
-	return &CASTTranslator{
+	t := &CASTTranslator{
 		profile:             profile,
 		tier:                tier,
 		lanes:               lanes,
@@ -206,8 +229,28 @@ func NewCASTTranslator(profile *CIntrinsicProfile, elemType string) *CASTTransla
 		helperReturnVec:     make(map[string]bool),
 		helperReturnTypes:   make(map[string][]string),
 		constVars:           make(map[string]int),
+		accVarNames:         make(map[string]bool),
 		buf:                 &bytes.Buffer{},
 	}
+	// Initialize accProfile from DotAccType: when the primary profile has
+	// DotAccFn (e.g., int8 with vdotq_s32 → int32x4_t), look up the profile
+	// for the accumulator type to provide intrinsics for wider-type operations.
+	if accType, ok := profile.DotAccType[tier]; ok && accType != "" {
+		// Map DotAccType C vec type → profile element type
+		var accElemType string
+		switch accType {
+		case "int32x4_t":
+			accElemType = "int32"
+		case "uint32x4_t":
+			accElemType = "uint32"
+		case "float32x4_t":
+			accElemType = "float32"
+		}
+		if accElemType != "" {
+			t.accProfile = GetCProfile(profile.TargetName, accElemType)
+		}
+	}
+	return t
 }
 
 // SetPackageGlobals provides the translator with package-level array globals
@@ -336,6 +379,11 @@ func (t *CASTTranslator) TranslateToC(pf *ParsedFunc) (string, error) {
 	// Close function
 	t.indent = 0
 	t.writef("}\n")
+
+	// Check for deferred translation errors (e.g., unsupported ops).
+	if t.translationErr != nil {
+		return "", t.translationErr
+	}
 
 	return t.buf.String(), nil
 }
@@ -1869,6 +1917,17 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 		t.vars[lhsName] = varInfo
 		t.writef("%s = %s;\n", cDeclVar(varInfo.cType, lhsName), rhsStr)
 
+		// Track DotAccType variables: any variable declared with the
+		// accumulator type (e.g., int32x4_t from DotProduct or Zero[int32])
+		// gets added to accVarNames so subsequent operations use accProfile.
+		if t.accProfile != nil {
+			if accType, ok := t.profile.DotAccType[t.tier]; ok {
+				if varInfo.cType == accType {
+					t.accVarNames[lhsName] = true
+				}
+			}
+		}
+
 		// Record constant value for NumLanes/MaxLanes assignments to enable
 		// constant-folding in GetLane index expressions (e.g., lanes-1).
 		if t.isNumLanesCall(rhs) {
@@ -3264,12 +3323,27 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		// just broadcast the literal like Set.
 		return t.emitHwySet(args)
 	case "Zero":
+		// When Zero has a type param matching the DotAccType (e.g., int32 on int8 profile),
+		// use accProfile's DupFn to emit the zero vector for the wider accumulator type.
+		if typeParam != "" && t.accProfile != nil && typeParam != t.profile.ElemType {
+			return t.emitHwyZeroAcc()
+		}
 		return t.emitHwyZero()
 	case "MulAdd", "FMA":
 		return t.emitHwyMulAdd(args)
 	case "ShiftRight":
 		return t.emitHwyShiftRight(args)
 	case "Add":
+		// Try fusing Add(acc, DotProduct(a, b)) → vdotq_s32(acc, a, b)
+		if fused := t.tryFuseDotAccumulate(args); fused != "" {
+			return fused
+		}
+		// Check if either operand is a DotAccType variable — use accProfile's AddFn
+		if t.accProfile != nil && len(args) >= 2 {
+			if t.isAccVar(args[0]) || t.isAccVar(args[1]) {
+				return t.emitHwyBinaryOp(t.accProfile.AddFn, "+", args)
+			}
+		}
 		return t.emitHwyBinaryOp(t.profile.AddFn, "+", args)
 	case "Sub":
 		return t.emitHwyBinaryOp(t.profile.SubFn, "-", args)
@@ -3359,6 +3433,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		return t.lanesExpr()
 	case "GetLane":
 		return t.emitHwyGetLane(args)
+	case "DotProduct", "DotProductSS", "DotProductUU":
+		return t.emitHwyDotProduct(args)
 	case "DotAccumulate":
 		return t.emitHwyDotAccumulate(args)
 	case "Pow":
@@ -3760,13 +3836,21 @@ func (t *CASTTranslator) emitHwyUnaryOp(fnMap map[string]string, args []ast.Expr
 
 // emitHwyReduceSum: hwy.ReduceSum(v) → vaddvq_f32(v) (returns scalar, not vector)
 // SVE: svaddv_f32(pg, v) — predicate is first arg
+// When the argument is a DotAccType variable, uses accProfile for the intrinsic.
 func (t *CASTTranslator) emitHwyReduceSum(args []ast.Expr) string {
 	if len(args) < 1 {
 		return "/* ReduceSum: missing args */"
 	}
-	fn := t.profile.ReduceSumFn[t.tier]
+
+	// Use accProfile for DotAccType variables (e.g., int32 accumulators on int8 profile)
+	profile := t.profile
+	if t.accProfile != nil && t.isAccVar(args[0]) {
+		profile = t.accProfile
+	}
+
+	fn := profile.ReduceSumFn[t.tier]
 	v := t.translateExpr(args[0])
-	if t.profile.NeedsPredicate {
+	if profile.NeedsPredicate {
 		return fmt.Sprintf("%s(pg, %s)", fn, v)
 	}
 	return fmt.Sprintf("%s(%s)", fn, v)
@@ -3887,6 +3971,74 @@ func (t *CASTTranslator) emitHwyDotAccumulate(args []ast.Expr) string {
 	acc := t.translateExpr(args[2])
 	// Both NEON (vbfdotq_f32) and AVX-512 (_mm512_dpbf16_ps) use (acc, a, b)
 	return fmt.Sprintf("%s(%s, %s, %s)", fn, acc, a, b)
+}
+
+// isAccVar checks if an AST expression is an identifier tracked as a DotAccType variable.
+func (t *CASTTranslator) isAccVar(expr ast.Expr) bool {
+	if id, ok := expr.(*ast.Ident); ok {
+		return t.accVarNames[id.Name]
+	}
+	return false
+}
+
+// tryFuseDotAccumulate checks if an Add(x, y) call can be fused with a nested
+// DotProduct call into a single 3-operand dot accumulate instruction.
+// Returns the fused expression string, or "" if fusion is not possible.
+//
+// Fuses: hwy.Add(acc, hwy.DotProduct(a, b)) → vdotq_s32(acc, a, b)
+func (t *CASTTranslator) tryFuseDotAccumulate(args []ast.Expr) string {
+	if len(args) != 2 || t.profile.DotAccFn == nil {
+		return ""
+	}
+	dotFn := t.profile.DotAccFn[t.tier]
+	if dotFn == "" {
+		return ""
+	}
+
+	// Check if either arg is hwy.DotProduct(a, b) / DotProductSS / DotProductUU
+	for i, arg := range args {
+		for _, name := range []string{"DotProduct", "DotProductSS", "DotProductUU"} {
+			if call, ok := isHwyCall(arg, name); ok && len(call.Args) >= 2 {
+				acc := t.translateExpr(args[1-i])
+				a := t.translateExpr(call.Args[0])
+				b := t.translateExpr(call.Args[1])
+				return fmt.Sprintf("%s(%s, %s, %s)", dotFn, acc, a, b)
+			}
+		}
+	}
+	return ""
+}
+
+// emitHwyDotProduct: hwy.DotProduct(a, b) → vdotq_s32(zero, a, b)
+// Standalone integer dot product (without accumulator). Emits a zero-initialized
+// accumulator and a single dot product instruction.
+// When used in Add(acc, DotProduct(a, b)), the Add case fuses this away.
+func (t *CASTTranslator) emitHwyDotProduct(args []ast.Expr) string {
+	if len(args) < 2 {
+		return "/* DotProduct: missing args */"
+	}
+	dotFn := t.profile.DotAccFn[t.tier]
+	if dotFn == "" {
+		// Profile doesn't support DotProduct — set deferred error for graceful skip
+		t.translationErr = fmt.Errorf("%w: DotProduct requires DotAccFn in profile %s:%s",
+			ErrUnsupportedOp, t.profile.TargetName, t.profile.ElemType)
+		return "/* DotProduct: unsupported */"
+	}
+	// Zero accumulator via accProfile
+	accZero := "0"
+	if t.accProfile != nil {
+		accZero = fmt.Sprintf("%s(0)", t.accProfile.DupFn[t.tier])
+	}
+	a := t.translateExpr(args[0])
+	b := t.translateExpr(args[1])
+	return fmt.Sprintf("%s(%s, %s, %s)", dotFn, accZero, a, b)
+}
+
+// emitHwyZeroAcc: hwy.Zero[int32]() on an int8 profile → vdupq_n_s32(0)
+// Uses the accProfile's DupFn to emit a zero vector for the wider accumulator type.
+func (t *CASTTranslator) emitHwyZeroAcc() string {
+	dupFn := t.accProfile.DupFn[t.tier]
+	return fmt.Sprintf("%s(0)", dupFn)
 }
 
 // emitHwyPow handles hwy.Pow(base, exp) → _v_pow_f32/f64 or promoted split.
@@ -4839,18 +4991,41 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 
 			// Check for explicit type parameter that overrides the profile's vector type.
 			// e.g., hwy.LoadSlice[uint8](...) on a uint32 profile → uint8x16_t
+			// e.g., hwy.Zero[int32]() on an int8 profile → int32x4_t (DotAccType)
 			if idx, ok := e.Fun.(*ast.IndexExpr); ok {
 				typeParam := exprToString(idx.Index)
 				if typeParam != "" && typeParam != t.profile.ElemType {
 					switch typeParam {
 					case "uint8", "byte":
 						return cVarInfo{cType: "uint8x16_t", isVector: true}
+					case "int32":
+						if t.accProfile != nil {
+							if accType, ok := t.profile.DotAccType[t.tier]; ok {
+								return cVarInfo{cType: accType, isVector: true}
+							}
+						}
+					case "uint32":
+						if t.accProfile != nil {
+							if accType, ok := t.profile.DotAccType[t.tier]; ok {
+								return cVarInfo{cType: accType, isVector: true}
+							}
+						}
 					}
 				}
 			}
 
 			switch sel.Sel.Name {
-			case "Load", "Load4", "Zero", "Set", "Const", "MulAdd", "FMA", "Add", "Sub", "Mul", "Div",
+			case "Add":
+				// Add returns the DotAccType when either argument is an accVar
+				if t.accProfile != nil && len(e.Args) >= 2 {
+					if t.isAccVar(e.Args[0]) || t.isAccVar(e.Args[1]) {
+						if accType, ok := t.profile.DotAccType[t.tier]; ok {
+							return cVarInfo{cType: accType, isVector: true}
+						}
+					}
+				}
+				return cVarInfo{cType: vecType, isVector: true}
+			case "Load", "Load4", "Zero", "Set", "Const", "MulAdd", "FMA", "Sub", "Mul", "Div",
 				"Min", "Max", "Neg", "Abs", "Sqrt", "RSqrt", "InvSqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
 				"And", "Or", "Xor", "PopCount",
@@ -4885,7 +5060,11 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 				}
 				return cVarInfo{cType: t.profile.CType}
 			case "ReduceSum":
-				// ReduceSum returns a scalar, not a vector
+				// ReduceSum returns a scalar, not a vector.
+				// When the argument is a DotAccType variable, use accProfile's CType.
+				if t.accProfile != nil && len(e.Args) >= 1 && t.isAccVar(e.Args[0]) {
+					return cVarInfo{cType: t.accProfile.CType}
+				}
 				if t.profile.ScalarArithType != "" {
 					return cVarInfo{cType: t.profile.ScalarArithType}
 				}
@@ -4907,6 +5086,12 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 					maskType = mt
 				}
 				return cVarInfo{cType: maskType, isVector: true}
+			case "DotProduct", "DotProductSS", "DotProductUU":
+				// DotProduct returns the DotAccType (e.g., int32x4_t for int8 inputs)
+				if accType, ok := t.profile.DotAccType[t.tier]; ok {
+					return cVarInfo{cType: accType, isVector: true}
+				}
+				return cVarInfo{cType: vecType, isVector: true}
 			case "DotAccumulate":
 				// DotAccumulate returns the wide accumulator type (float32x4_t / __m512)
 				if accType, ok := t.profile.DotAccType[t.tier]; ok {

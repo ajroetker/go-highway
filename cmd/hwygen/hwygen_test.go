@@ -1785,7 +1785,7 @@ func TestASTCWrapperGeneration(t *testing.T) {
 	gen2 := &Generator{
 		OutputDir: tmpDir,
 	}
-	if err := gen2.emitCWrappers(astFuncs, neonTarget, tmpDir); err != nil {
+	if err := gen2.emitCWrappers(astFuncs, neonTarget, tmpDir, nil); err != nil {
 		t.Fatalf("emitCWrappers: %v", err)
 	}
 

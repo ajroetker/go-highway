@@ -97,13 +97,32 @@ func classifyTypeParams(typeParams []TypeParam) (elementTypeParams map[string]bo
 			strings.Contains(tp.Constraint, "Floats") ||
 			strings.Contains(tp.Constraint, "Integers") ||
 			strings.Contains(tp.Constraint, "SignedInts") ||
-			strings.Contains(tp.Constraint, "UnsignedInts") {
+			strings.Contains(tp.Constraint, "UnsignedInts") ||
+			isConcreteTypeUnion(tp.Constraint) {
 			elementTypeParams[tp.Name] = true
 		} else {
 			interfaceTypeParams[tp.Name] = tp.Constraint
 		}
 	}
 	return
+}
+
+// isConcreteTypeUnion returns true if the constraint is a union of concrete
+// Go types (e.g., "int8 | uint8", "float32 | float64") rather than a named
+// interface constraint. This is detected by checking whether the constraint
+// contains any recognized Go primitive type name.
+func isConcreteTypeUnion(constraint string) bool {
+	for _, t := range []string{
+		"int8", "int16", "int32", "int64",
+		"uint8", "uint16", "uint32", "uint64",
+		"float32", "float64",
+		"byte",
+	} {
+		if strings.Contains(constraint, t) {
+			return true
+		}
+	}
+	return false
 }
 
 // specializeType replaces generic type parameters with concrete types.

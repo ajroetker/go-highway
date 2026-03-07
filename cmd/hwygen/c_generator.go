@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -201,6 +202,12 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 					}
 					cFile, cerr := emitter.EmitASTTranslatedC(&pf, cOutputDir)
 					if cerr != nil {
+						if errors.Is(cerr, ErrUnsupportedOp) {
+							// Profile doesn't support a required operation — skip this combo.
+							// This allows graceful degradation (e.g., uint8 DotProduct without
+							// DotAccFn falls back to scalar).
+							continue
+						}
 						return nil, fmt.Errorf("emit AST C for %s (%s, %s): %w", pf.Name, elemType, target.Name, cerr)
 					}
 					cFiles = append(cFiles, cFile)
@@ -227,6 +234,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 		if asmMode {
 			fmt.Printf("Compiling %d C files with GOAT...\n", len(cFiles))
 			var compiledFiles []string
+			compiledElemSuffixes := make(map[string]bool)
 			for _, cFile := range cFiles {
 				profile := getCProfileForFile(cFile, target)
 				if err := runGOAT(cFile, profile); err != nil {
@@ -236,6 +244,12 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 					continue
 				}
 				compiledFiles = append(compiledFiles, cFile)
+				// Track which element type suffixes were compiled successfully.
+				// This prevents wrapper generation for skipped combos (e.g.,
+				// uint8 DotProduct without DotAccFn).
+				if profile != nil {
+					compiledElemSuffixes[cTypeSuffix(profile.ElemType)] = true
+				}
 				fmt.Printf("  Compiled: %s\n", filepath.Base(cFile))
 			}
 			cFiles = compiledFiles
@@ -285,7 +299,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 
 			// Non-struct wrappers go to asm/ subdirectory
 			if len(nonStructFuncs) > 0 {
-				if err := g.emitCWrappers(nonStructFuncs, target, cOutputDir); err != nil {
+				if err := g.emitCWrappers(nonStructFuncs, target, cOutputDir, compiledElemSuffixes); err != nil {
 					return nil, fmt.Errorf("emit asm wrappers for %s: %w", target.Name, err)
 				}
 			}
@@ -314,10 +328,10 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 			}
 			allSliceDispatchFuncs := nonStructASTFuncs
 			if len(allSliceDispatchFuncs) > 0 {
-				if err := g.emitSliceAsmPassthrough(allSliceDispatchFuncs, target, cOutputDir); err != nil {
+				if err := g.emitSliceAsmPassthrough(allSliceDispatchFuncs, target, cOutputDir, compiledElemSuffixes); err != nil {
 					return nil, fmt.Errorf("emit slice asm passthrough for %s: %w", target.Name, err)
 				}
-				if err := g.emitZCDispatchForSlices(allSliceDispatchFuncs, target); err != nil {
+				if err := g.emitZCDispatchForSlices(allSliceDispatchFuncs, target, compiledElemSuffixes); err != nil {
 					return nil, fmt.Errorf("emit asm adapter for slices %s: %w", target.Name, err)
 				}
 			}
@@ -330,6 +344,10 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 						continue
 					}
 					if shouldSkipPromotedType(&pf, profile) {
+						continue
+					}
+					// Skip elem types whose C file was not compiled.
+					if compiledElemSuffixes != nil && !compiledElemSuffixes[cTypeSuffix(elemType)] {
 						continue
 					}
 					allAdapters = append(allAdapters, AsmAdapterInfo{
@@ -480,7 +498,7 @@ func (g *Generator) runFusionCMode(result *ParseResult, sliceFuncs []ParsedFunc,
 			}
 
 			// Generate wrappers (fusion mode outputs to same dir)
-			if err := g.emitCWrappers(sliceFuncs, target, g.OutputDir); err != nil {
+			if err := g.emitCWrappers(sliceFuncs, target, g.OutputDir, nil); err != nil {
 				return fmt.Errorf("emit wrappers for %s: %w", target.Name, err)
 			}
 		} else {
@@ -638,6 +656,8 @@ func getCElemTypes(pf *ParsedFunc) []string {
 		}
 		var candidate string
 		switch after {
+		case "int8":
+			candidate = "int8"
 		case "int32":
 			candidate = "int32"
 		case "int64":
@@ -781,7 +801,7 @@ func getCProfileForFile(cFile string, target Target) *CIntrinsicProfile {
 	for _, et := range []string{
 		"float16", "hwy.Float16", "bfloat16", "hwy.BFloat16",
 		"float32", "float64",
-		"int32", "int64",
+		"int8", "int32", "int64",
 		"uint64", "uint32", "uint8",
 	} {
 		suffix := cTypeSuffix(et)
@@ -1009,7 +1029,7 @@ func goatPackageName(dir string) string {
 
 // emitCWrappers generates a Go file with wrapper functions that call the assembly.
 // outputDir specifies where to write the wrapper file (e.g., asm/ subdirectory).
-func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir string) error {
+func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir string, compiledElemSuffixes map[string]bool) error {
 	var buf bytes.Buffer
 
 	// GOAT derives package name from output directory, so we must match that
@@ -1065,6 +1085,11 @@ func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir s
 		for _, elemType := range elemTypes {
 			profile := GetCProfile(target.Name, elemType)
 			if profile == nil {
+				continue
+			}
+			// Skip wrapper for elemTypes whose C file was not compiled
+			// (e.g., uint8 DotProduct skipped due to missing DotAccFn).
+			if compiledElemSuffixes != nil && !compiledElemSuffixes[cTypeSuffix(elemType)] {
 				continue
 			}
 			if IsASTCEligible(&pf) {
@@ -1217,14 +1242,24 @@ func neonNoSimdGuard(target Target) string {
 
 // elemTypeFeatureGuard returns the runtime feature guard expression for ARM64
 // element types that require optional CPU extensions. Returns empty string for
-// universally-supported types (f32, f64, integers).
+// universally-supported types (f32, f64, integers without DotAccFn).
 // Float16 requires FEAT_FP16 (ARMv8.2-A+), BFloat16 requires FEAT_BF16 (ARMv8.6-A+).
-func elemTypeFeatureGuard(elemType string) string {
+// Profiles with DotAccFn require FEAT_DotProd (ARMv8.2-A+dotprod).
+func elemTypeFeatureGuard(elemType string, profile *CIntrinsicProfile) string {
 	if isFloat16Type(elemType) {
 		return "hwy.HasARMFP16()"
 	}
 	if isBFloat16Type(elemType) {
 		return "hwy.HasARMBF16()"
+	}
+	if profile != nil && len(profile.DotAccFn) > 0 {
+		// Check if any tier has a DotAccFn set — this profile uses dot product
+		// instructions that require ARMv8.2-A+dotprod.
+		for _, fn := range profile.DotAccFn {
+			if fn != "" {
+				return "hwy.HasARMDotProd()"
+			}
+		}
 	}
 	return ""
 }
@@ -1241,7 +1276,7 @@ type dispatchAssignment struct {
 // are wrapped in `if hwy.HasARMFP16() { ... }` and BFloat16 in
 // `if hwy.HasARMBF16() { ... }` to prevent SIGILL on hardware lacking those
 // extensions.
-func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, target Target) {
+func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, target Target, compiledElemSuffixes map[string]bool) {
 	// Collect assignments grouped by feature guard.
 	guardedAssignments := make(map[string][]dispatchAssignment)
 	for _, pf := range funcs {
@@ -1253,9 +1288,13 @@ func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, targe
 			if shouldSkipPromotedType(&pf, profile) {
 				continue
 			}
+			// Skip elem types whose C file was not compiled.
+			if compiledElemSuffixes != nil && !compiledElemSuffixes[cTypeSuffix(elemType)] {
+				continue
+			}
 			dv := buildDispatchVarName(pf.Name, elemType, len(pf.TypeParams) > 0)
 			an := buildAdapterFuncName(pf.Name, elemType)
-			guard := elemTypeFeatureGuard(elemType)
+			guard := elemTypeFeatureGuard(elemType, profile)
 			guardedAssignments[guard] = append(guardedAssignments[guard], dispatchAssignment{dv, an})
 		}
 	}
@@ -1266,7 +1305,7 @@ func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, targe
 	}
 
 	// Emit guarded blocks in a stable order.
-	for _, guard := range []string{"hwy.HasARMFP16()", "hwy.HasARMBF16()"} {
+	for _, guard := range []string{"hwy.HasARMFP16()", "hwy.HasARMBF16()", "hwy.HasARMDotProd()"} {
 		assignments := guardedAssignments[guard]
 		if len(assignments) == 0 {
 			continue
@@ -1361,7 +1400,7 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		emitGuardedDispatchAssignments(&buf, funcs, target)
+		emitGuardedDispatchAssignments(&buf, funcs, target, nil)
 		fmt.Fprintf(&buf, "}\n\n")
 	}
 
@@ -1395,7 +1434,7 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 // for non-struct AST-translated functions. These take the same unsafe.Pointer
 // params as the raw GoAT stubs, allowing the parent package's z_c_ adapter
 // to call them without importing unexported symbols.
-func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, asmDir string) error {
+func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, asmDir string, compiledElemSuffixes map[string]bool) error {
 	var buf bytes.Buffer
 
 	pkgName := goatPackageName(asmDir)
@@ -1423,6 +1462,10 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 				continue
 			}
 			if shouldSkipPromotedType(&pf, profile) {
+				continue
+			}
+			// Skip elem types whose C file was not compiled.
+			if compiledElemSuffixes != nil && !compiledElemSuffixes[cTypeSuffix(elemType)] {
 				continue
 			}
 
@@ -1538,7 +1581,7 @@ func slicePassthroughScalarType(elemType string) string {
 // that overrides dispatch variables for non-struct AST-translated functions.
 // It creates adapter functions that convert Go slice+int params to
 // unsafe.Pointer calls into the asm/ passthrough functions.
-func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) error {
+func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target, compiledElemSuffixes map[string]bool) error {
 	var buf bytes.Buffer
 
 	buildTag := target.BuildTag
@@ -1616,7 +1659,7 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		}
-		emitGuardedDispatchAssignments(&buf, funcs, target)
+		emitGuardedDispatchAssignments(&buf, funcs, target, compiledElemSuffixes)
 		fmt.Fprintf(&buf, "}\n\n")
 	}
 
@@ -1628,6 +1671,10 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target) e
 				continue
 			}
 			if shouldSkipPromotedType(&pf, profile) {
+				continue
+			}
+			// Skip elem types whose C file was not compiled.
+			if compiledElemSuffixes != nil && !compiledElemSuffixes[cTypeSuffix(elemType)] {
 				continue
 			}
 			emitSliceZCAdapterFunc(&buf, &pf, elemType)
@@ -2274,6 +2321,8 @@ func astWrapperGoSliceType(elemType string) string {
 		return "[]uint32"
 	case "uint8", "byte":
 		return "[]byte"
+	case "int8":
+		return "[]int8"
 	default:
 		return "[]float32"
 	}
@@ -2960,6 +3009,10 @@ func astWrapperGoScalarType(elemType string) string {
 		return "uint32"
 	case "uint64":
 		return "uint64"
+	case "int8":
+		return "int8"
+	case "uint8":
+		return "uint8"
 	default:
 		return "float32"
 	}
