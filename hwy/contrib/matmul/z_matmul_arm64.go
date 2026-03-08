@@ -44,6 +44,19 @@ const minDimForNEON = 16
 // Only use NEON for very small matrices where streaming mode overhead dominates.
 const minDimForSME = 32
 
+// minElemsForFusedPadTranspose is the minimum M*K elements before the fused
+// pad+transpose (clear + strided transpose) is faster than separate pad + regular
+// transpose. For small matrices, the regular transpose on a perfectly aligned
+// padded matrix has better NEON utilization (full 4×4 blocks, no edge handling).
+// For larger matrices, the fused path saves one full memory pass over A.
+// Benchmarks on Apple M4 Max show crossover around M*K ≈ 8K elements:
+//
+//	33×33 (1089 elems, padded 48×48): separate 1.2x faster
+//	50×50 (2500 elems, padded 64×64): separate 1.1x faster
+//	100×100 (10K elems, padded 112×112): fused 1.09x faster
+//	200×200 (40K elems, padded 208×208): fused 1.03x faster
+const minElemsForFusedPadTranspose = 8192
+
 // minOpsForBlockedSME is the minimum padded total ops (paddedM*paddedN*paddedK)
 // before SME FMOPA with padding/transpose is faster than register-blocked NEON.
 // NEON SkinnyMatMul achieves 90-107 GFLOPS with Mr=4×Nr=16 register blocking.
@@ -441,22 +454,40 @@ func matmulFMOPA(a, b, c []float32, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	// Prepare A: [M, K] → [paddedM, paddedK]
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool32.Get().([]float32)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float32, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool32.Put(paBuf)
+	fmopaM := paddedM
+	fmopaK := paddedK
+
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	// For large matrices, fuse pad+transpose into a single pass using strided
+	// transpose, eliminating the intermediate paddedA buffer. For small matrices,
+	// use separate pad + regular transpose for better NEON block utilization.
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool32.Get().([]float32)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float32, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
 	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat32(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool32.Get().([]float32)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float32, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool32.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer transposePool32.Put(atBuf)
 
 	// Prepare B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
@@ -474,19 +505,6 @@ func matmulFMOPA(a, b, c []float32, m, n, k int) {
 		fmopaN = paddedN
 		defer paddedBPool32.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	// Transpose A [paddedM, paddedK] → AT [paddedK, paddedM]
-	atSize := fmopaK * fmopaM
-	atBuf := transposePool32.Get().([]float32)
-	if cap(atBuf) < atSize {
-		atBuf = make([]float32, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer transposePool32.Put(atBuf)
 
 	// Call FMOPA; use padded C if any output dimension changed
 	if needsPadM || needsPadN {
@@ -525,22 +543,36 @@ func matmulFMOPA64(a, b, c []float64, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	// Prepare A: [M, K] → [paddedM, paddedK]
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool64.Get().([]float64)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float64, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool64.Put(paBuf)
+	fmopaM := paddedM
+	fmopaK := paddedK
+
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool64.Get().([]float64)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float64, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
 	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat64(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool64.Get().([]float64)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float64, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool64.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer transposePool64.Put(atBuf)
 
 	// Prepare B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
@@ -558,19 +590,6 @@ func matmulFMOPA64(a, b, c []float64, m, n, k int) {
 		fmopaN = paddedN
 		defer paddedBPool64.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	// Transpose A [paddedM, paddedK] → AT [paddedK, paddedM]
-	atSize := fmopaK * fmopaM
-	atBuf := transposePool64.Get().([]float64)
-	if cap(atBuf) < atSize {
-		atBuf = make([]float64, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer transposePool64.Put(atBuf)
 
 	// Call FMOPA; use padded C if any output dimension changed
 	if needsPadM || needsPadN {
@@ -618,22 +637,42 @@ func matmulFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPoolF16.Get().([]hwy.Float16)
-		if cap(paBuf) < paSize {
-			paBuf = make([]hwy.Float16, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPoolF16.Put(paBuf)
-	}
+	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	// For large matrices, fuse pad+transpose into a single pass using strided
+	// transpose, eliminating the intermediate paddedA buffer. For small matrices,
+	// use separate pad + regular transpose for better NEON block utilization.
+	atSize := fmopaK * fmopaM
+	atBuf := transposePoolF16.Get().([]hwy.Float16)
+	if cap(atBuf) < atSize {
+		atBuf = make([]hwy.Float16, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat16(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPoolF16.Get().([]hwy.Float16)
+			if cap(paBuf) < paSize {
+				paBuf = make([]hwy.Float16, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPoolF16.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer transposePoolF16.Put(atBuf)
+
+	// Prepare B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
 	fmopaN := n
 	if needsPadK || needsPadN {
@@ -650,18 +689,7 @@ func matmulFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 		defer paddedBPoolF16.Put(pbBuf)
 	}
 
-	fmopaM := paddedM
-
-	atSize := fmopaK * fmopaM
-	atBuf := transposePoolF16.Get().([]hwy.Float16)
-	if cap(atBuf) < atSize {
-		atBuf = make([]hwy.Float16, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer transposePoolF16.Put(atBuf)
-
+	// Call FMOPA; use padded C if any output dimension changed
 	if needsPadM || needsPadN {
 		pcSize := fmopaM * fmopaN
 		paddedC := paddedCPoolF16.Get().([]hwy.Float16)
@@ -707,21 +735,40 @@ func matmulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
-		if cap(paBuf) < paSize {
-			paBuf = make([]hwy.BFloat16, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPoolBF16.Put(paBuf)
+	fmopaM := paddedM
+	fmopaK := paddedK
+
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	// For large matrices, fuse pad+transpose into a single pass using strided
+	// transpose, eliminating the intermediate paddedA buffer. For small matrices,
+	// use separate pad + regular transpose for better NEON block utilization.
+	atSize := fmopaK * fmopaM
+	atBuf := transposePoolBF16.Get().([]hwy.BFloat16)
+	if cap(atBuf) < atSize {
+		atBuf = make([]hwy.BFloat16, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
 	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedBFloat16(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
+			if cap(paBuf) < paSize {
+				paBuf = make([]hwy.BFloat16, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPoolBF16.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer transposePoolBF16.Put(atBuf)
 
 	fmopaB := b
 	fmopaN := n
@@ -738,18 +785,6 @@ func matmulFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 		fmopaN = paddedN
 		defer paddedBPoolBF16.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	atSize := fmopaK * fmopaM
-	atBuf := transposePoolBF16.Get().([]hwy.BFloat16)
-	if cap(atBuf) < atSize {
-		atBuf = make([]hwy.BFloat16, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer transposePoolBF16.Put(atBuf)
 
 	if needsPadM || needsPadN {
 		pcSize := fmopaM * fmopaN
@@ -839,22 +874,40 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	// Prepare A: [M, K] → [paddedM, paddedK]
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool32.Get().([]float32)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float32, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool32.Put(paBuf)
+	fmopaM := paddedM
+	fmopaK := paddedK
+
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool32.Get().([]float32)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float32, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
 	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat32(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool32.Get().([]float32)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float32, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool32.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer func() {
+		clear(atBuf)
+		transposePool32.Put(atBuf)
+	}()
 
 	// Prepare B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
@@ -872,22 +925,6 @@ func blockedMatMulFMOPA(a, b, c []float32, m, n, k int) {
 		fmopaN = paddedN
 		defer paddedBPool32.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	// Transpose A [paddedM, paddedK] → AT [paddedK, paddedM]
-	atSize := fmopaK * fmopaM
-	atBuf := transposePool32.Get().([]float32)
-	if cap(atBuf) < atSize {
-		atBuf = make([]float32, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer func() {
-		clear(atBuf)
-		transposePool32.Put(atBuf)
-	}()
 
 	// Call FMOPA; use padded C if any output dimension changed
 	if needsPadM || needsPadN {
@@ -945,22 +982,42 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool64.Get().([]float64)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float64, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool64.Put(paBuf)
-	}
+	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool64.Get().([]float64)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float64, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat64(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool64.Get().([]float64)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float64, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool64.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer func() {
+		clear(atBuf)
+		transposePool64.Put(atBuf)
+	}()
+
+	// Prepare B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
 	fmopaN := n
 	if needsPadK || needsPadN {
@@ -976,21 +1033,6 @@ func blockedMatMulFMOPA64(a, b, c []float64, m, n, k int) {
 		fmopaN = paddedN
 		defer paddedBPool64.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	atSize := fmopaK * fmopaM
-	atBuf := transposePool64.Get().([]float64)
-	if cap(atBuf) < atSize {
-		atBuf = make([]float64, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer func() {
-		clear(atBuf)
-		transposePool64.Put(atBuf)
-	}()
 
 	if needsPadM || needsPadN {
 		pcSize := fmopaM * fmopaN
@@ -1067,22 +1109,40 @@ func parallelBlockedMatMulFMOPA(pool workerpool.Executor, a, b, c []float32, m, 
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	// Pad A: [M, K] → [paddedM, paddedK]
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool32.Get().([]float32)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float32, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool32.Put(paBuf)
+	fmopaM := paddedM
+	fmopaK := paddedK
+
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool32.Get().([]float32)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float32, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
 	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat32(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool32.Get().([]float32)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float32, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool32.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer func() {
+		clear(atBuf)
+		transposePool32.Put(atBuf)
+	}()
 
 	// Pad B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
@@ -1100,22 +1160,6 @@ func parallelBlockedMatMulFMOPA(pool workerpool.Executor, a, b, c []float32, m, 
 		fmopaN = paddedN
 		defer paddedBPool32.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	// Transpose A once (shared across all tiles)
-	atSize := fmopaK * fmopaM
-	atBuf := transposePool32.Get().([]float32)
-	if cap(atBuf) < atSize {
-		atBuf = make([]float32, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer func() {
-		clear(atBuf)
-		transposePool32.Put(atBuf)
-	}()
 
 	// Output strategy: write directly to c when no padding needed,
 	// otherwise use padded buffer and extract afterward.
@@ -1202,22 +1246,42 @@ func parallelBlockedMatMulFMOPA64(pool workerpool.Executor, a, b, c []float64, m
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool64.Get().([]float64)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float64, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool64.Put(paBuf)
-	}
+	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	atSize := fmopaK * fmopaM
+	atBuf := transposePool64.Get().([]float64)
+	if cap(atBuf) < atSize {
+		atBuf = make([]float64, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat64(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool64.Get().([]float64)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float64, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool64.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer func() {
+		clear(atBuf)
+		transposePool64.Put(atBuf)
+	}()
+
+	// Pad B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
 	fmopaN := n
 	if needsPadK || needsPadN {
@@ -1233,21 +1297,6 @@ func parallelBlockedMatMulFMOPA64(pool workerpool.Executor, a, b, c []float64, m
 		fmopaN = paddedN
 		defer paddedBPool64.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	atSize := fmopaK * fmopaM
-	atBuf := transposePool64.Get().([]float64)
-	if cap(atBuf) < atSize {
-		atBuf = make([]float64, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer func() {
-		clear(atBuf)
-		transposePool64.Put(atBuf)
-	}()
 
 	needsPadOutput := needsPadM || needsPadN
 	var outC []float64
@@ -1322,22 +1371,39 @@ func parallelBlockedMatMulFMOPAF16(pool workerpool.Executor, a, b, c []hwy.Float
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPoolF16.Get().([]hwy.Float16)
-		if cap(paBuf) < paSize {
-			paBuf = make([]hwy.Float16, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPoolF16.Put(paBuf)
-	}
+	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	atSize := fmopaK * fmopaM
+	atBuf := transposePoolF16.Get().([]hwy.Float16)
+	if cap(atBuf) < atSize {
+		atBuf = make([]hwy.Float16, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat16(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPoolF16.Get().([]hwy.Float16)
+			if cap(paBuf) < paSize {
+				paBuf = make([]hwy.Float16, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPoolF16.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer transposePoolF16.Put(atBuf)
+
+	// Pad B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
 	fmopaN := n
 	if needsPadK || needsPadN {
@@ -1353,18 +1419,6 @@ func parallelBlockedMatMulFMOPAF16(pool workerpool.Executor, a, b, c []hwy.Float
 		fmopaN = paddedN
 		defer paddedBPoolF16.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	atSize := fmopaK * fmopaM
-	atBuf := transposePoolF16.Get().([]hwy.Float16)
-	if cap(atBuf) < atSize {
-		atBuf = make([]hwy.Float16, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer transposePoolF16.Put(atBuf)
 
 	needsPadOutput := needsPadM || needsPadN
 	var outC []hwy.Float16
@@ -1439,22 +1493,39 @@ func parallelBlockedMatMulFMOPABF16(pool workerpool.Executor, a, b, c []hwy.BFlo
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
-		if cap(paBuf) < paSize {
-			paBuf = make([]hwy.BFloat16, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPoolBF16.Put(paBuf)
-	}
+	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
+	atSize := fmopaK * fmopaM
+	atBuf := transposePoolBF16.Get().([]hwy.BFloat16)
+	if cap(atBuf) < atSize {
+		atBuf = make([]hwy.BFloat16, atSize)
+	} else {
+		atBuf = atBuf[:atSize]
+	}
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedBFloat16(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
+			if cap(paBuf) < paSize {
+				paBuf = make([]hwy.BFloat16, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPoolBF16.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
+	defer transposePoolBF16.Put(atBuf)
+
+	// Pad B: [K, N] → [paddedK, paddedN]
 	fmopaB := b
 	fmopaN := n
 	if needsPadK || needsPadN {
@@ -1470,18 +1541,6 @@ func parallelBlockedMatMulFMOPABF16(pool workerpool.Executor, a, b, c []hwy.BFlo
 		fmopaN = paddedN
 		defer paddedBPoolBF16.Put(pbBuf)
 	}
-
-	fmopaM := paddedM
-
-	atSize := fmopaK * fmopaM
-	atBuf := transposePoolBF16.Get().([]hwy.BFloat16)
-	if cap(atBuf) < atSize {
-		atBuf = make([]hwy.BFloat16, atSize)
-	} else {
-		atBuf = atBuf[:atSize]
-	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
-	defer transposePoolBF16.Put(atBuf)
 
 	needsPadOutput := needsPadM || needsPadN
 	var outC []hwy.BFloat16
@@ -1689,26 +1748,10 @@ func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	// Prepare A: [M, K] → [paddedM, paddedK]
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool32.Get().([]float32)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float32, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool32.Put(paBuf)
-	}
-
 	fmopaM := paddedM
+	fmopaK := paddedK
 
-	// Transpose A upfront (reused across all strips)
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
 	atSize := fmopaK * fmopaM
 	atBuf := klastTransposePoolA32.Get().([]float32)
 	if cap(atBuf) < atSize {
@@ -1716,7 +1759,25 @@ func matmulKLastFMOPA(a, b, c []float32, m, n, k int) {
 	} else {
 		atBuf = atBuf[:atSize]
 	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat32(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool32.Get().([]float32)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float32, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool32.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
 	defer klastTransposePoolA32.Put(atBuf)
 
 	// B strip transpose buffer: sized for paddedK * stripN (max strip width)
@@ -1805,24 +1866,10 @@ func matmulKLastFMOPA64(a, b, c []float64, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPool64.Get().([]float64)
-		if cap(paBuf) < paSize {
-			paBuf = make([]float64, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPool64.Put(paBuf)
-	}
-
 	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
 	atSize := fmopaK * fmopaM
 	atBuf := klastTransposePoolA64.Get().([]float64)
 	if cap(atBuf) < atSize {
@@ -1830,7 +1877,25 @@ func matmulKLastFMOPA64(a, b, c []float64, m, n, k int) {
 	} else {
 		atBuf = atBuf[:atSize]
 	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat64(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPool64.Get().([]float64)
+			if cap(paBuf) < paSize {
+				paBuf = make([]float64, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPool64.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
 	defer klastTransposePoolA64.Put(atBuf)
 
 	stripN := min(klastStripN, paddedN)
@@ -1908,24 +1973,10 @@ func matmulKLastFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPoolF16.Get().([]hwy.Float16)
-		if cap(paBuf) < paSize {
-			paBuf = make([]hwy.Float16, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPoolF16.Put(paBuf)
-	}
-
 	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
 	atSize := fmopaK * fmopaM
 	atBuf := klastTransposePoolAF16.Get().([]hwy.Float16)
 	if cap(atBuf) < atSize {
@@ -1933,7 +1984,25 @@ func matmulKLastFMOPAF16(a, b, c []hwy.Float16, m, n, k int) {
 	} else {
 		atBuf = atBuf[:atSize]
 	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedFloat16(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPoolF16.Get().([]hwy.Float16)
+			if cap(paBuf) < paSize {
+				paBuf = make([]hwy.Float16, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPoolF16.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
 	defer klastTransposePoolAF16.Put(atBuf)
 
 	stripN := min(klastStripN, paddedN)
@@ -2011,24 +2080,10 @@ func matmulKLastFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	needsPadK := paddedK != k
 	needsPadN := paddedN != n
 
-	fmopaA := a
-	fmopaK := k
-	if needsPadM || needsPadK {
-		paSize := paddedM * paddedK
-		paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
-		if cap(paBuf) < paSize {
-			paBuf = make([]hwy.BFloat16, paSize)
-		} else {
-			paBuf = paBuf[:paSize]
-		}
-		PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
-		fmopaA = paBuf
-		fmopaK = paddedK
-		defer paddedAPoolBF16.Put(paBuf)
-	}
-
 	fmopaM := paddedM
+	fmopaK := paddedK
 
+	// Prepare A: pad and transpose to AT [paddedK, paddedM].
 	atSize := fmopaK * fmopaM
 	atBuf := klastTransposePoolABF16.Get().([]hwy.BFloat16)
 	if cap(atBuf) < atSize {
@@ -2036,7 +2091,25 @@ func matmulKLastFMOPABF16(a, b, c []hwy.BFloat16, m, n, k int) {
 	} else {
 		atBuf = atBuf[:atSize]
 	}
-	transposeMatrix(fmopaA, fmopaM, fmopaK, atBuf)
+	if needsPadM || needsPadK {
+		if m*k >= minElemsForFusedPadTranspose {
+			clear(atBuf)
+			Transpose2DStridedBFloat16(a, 0, m, k, paddedM, atBuf)
+		} else {
+			paSize := paddedM * paddedK
+			paBuf := paddedAPoolBF16.Get().([]hwy.BFloat16)
+			if cap(paBuf) < paSize {
+				paBuf = make([]hwy.BFloat16, paSize)
+			} else {
+				paBuf = paBuf[:paSize]
+			}
+			PadMatrix2D(paBuf, a, m, k, paddedM, paddedK)
+			transposeMatrix(paBuf, paddedM, paddedK, atBuf)
+			paddedAPoolBF16.Put(paBuf)
+		}
+	} else {
+		transposeMatrix(a, m, k, atBuf)
+	}
 	defer klastTransposePoolABF16.Put(atBuf)
 
 	stripN := min(klastStripN, paddedN)
