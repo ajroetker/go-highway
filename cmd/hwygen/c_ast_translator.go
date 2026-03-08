@@ -1998,6 +1998,26 @@ func (t *CASTTranslator) translateAssignStmt(s *ast.AssignStmt) {
 			t.writef("%s *= %s;\n", lhsName, rhsStr)
 		}
 
+	case token.QUO_ASSIGN: // /=
+		if t.profile.ScalarDemote != "" && t.isPromotedArrayIndexExpr(lhs) {
+			rhsStr := t.translatePromotedExpr(rhs)
+			promotedLhs := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, lhsName)
+			t.writef("%s = %s(%s / %s);\n", lhsName, t.profile.ScalarDemote, promotedLhs, rhsStr)
+		} else {
+			rhsStr := t.translateExpr(rhs)
+			t.writef("%s /= %s;\n", lhsName, rhsStr)
+		}
+
+	case token.REM_ASSIGN: // %=
+		if t.profile.ScalarDemote != "" && t.isPromotedArrayIndexExpr(lhs) {
+			rhsStr := t.translatePromotedExpr(rhs)
+			promotedLhs := fmt.Sprintf("%s(%s)", t.profile.ScalarPromote, lhsName)
+			t.writef("%s = %s(%s %% %s);\n", lhsName, t.profile.ScalarDemote, promotedLhs, rhsStr)
+		} else {
+			rhsStr := t.translateExpr(rhs)
+			t.writef("%s %%= %s;\n", lhsName, rhsStr)
+		}
+
 	case token.OR_ASSIGN: // |=
 		rhsStr := t.translateExpr(rhs)
 		t.writef("%s |= %s;\n", lhsName, rhsStr)
