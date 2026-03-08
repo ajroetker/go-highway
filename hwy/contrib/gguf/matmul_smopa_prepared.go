@@ -159,10 +159,19 @@ func smePreparedGGUFMatMul(input []float32, pw *PreparedWeights,
 					}
 
 					ts := &cachedScales[idx]
-					accumulatePreparedTilesV2(accTile, tileI32,
-						pw.Scales, scaleSubOff, minSubOff,
-						&ts.dA, &ts.dABsum,
-						mTile, M, nCols, pw.Signed)
+					nRows := min(smeTileSize, M-mTile)
+					if pw.Signed {
+						AccumulateTilesSigned(accTile, tileI32,
+							pw.Scales[scaleSubOff:scaleSubOff+nColsPerGroup],
+							ts.dA[:nRows],
+							mTile, nRows)
+					} else {
+						AccumulateTilesUnsigned(accTile, tileI32,
+							pw.Scales[scaleSubOff:scaleSubOff+nColsPerGroup],
+							pw.Scales[minSubOff:minSubOff+nColsPerGroup],
+							ts.dA[:nRows], ts.dABsum[:nRows],
+							mTile, nRows)
+					}
 				}
 			}
 		}
@@ -370,10 +379,19 @@ func parallelSMEPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
 						}
 
 						ts := &cachedScales[idx]
-						accumulatePreparedTilesV2(accTile, tileI32,
-							pw.Scales, scaleSubOff, minSubOff,
-							&ts.dA, &ts.dABsum,
-							mTile, M, nCols, pw.Signed)
+						nRows := min(smeTileSize, M-mTile)
+						if pw.Signed {
+							AccumulateTilesSigned(accTile, tileI32,
+								pw.Scales[scaleSubOff:scaleSubOff+nColsPerGroup],
+								ts.dA[:nRows],
+								mTile, nRows)
+						} else {
+							AccumulateTilesUnsigned(accTile, tileI32,
+								pw.Scales[scaleSubOff:scaleSubOff+nColsPerGroup],
+								pw.Scales[minSubOff:minSubOff+nColsPerGroup],
+								ts.dA[:nRows], ts.dABsum[:nRows],
+								mTile, nRows)
+						}
 					}
 				}
 			}
