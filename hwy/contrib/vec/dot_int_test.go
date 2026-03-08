@@ -2,6 +2,7 @@ package vec
 
 import (
 	"math/rand"
+	"strconv"
 	"testing"
 )
 
@@ -221,8 +222,8 @@ func BenchmarkDotIntUint8(b *testing.B) {
 func intSizeName(typ string, size int) string {
 	switch {
 	case size >= 1024:
-		return typ + "_" + itoa(size/1024) + "K"
+		return typ + "_" + strconv.Itoa(size/1024) + "K"
 	default:
-		return typ + "_" + itoa(size)
+		return typ + "_" + strconv.Itoa(size)
 	}
 }
