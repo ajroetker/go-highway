@@ -343,6 +343,166 @@ func BaseSDPACausal[T hwy.Floats](
 	}
 }
 
+// BaseAttentionWeights computes the attention weight matrix without the V multiply.
+//
+//   - q:       [seqLen, headDim] (queries, row-major)
+//   - k:       [kvLen, headDim] (keys, row-major)
+//   - mask:    [seqLen, kvLen] (additive mask, nil for no mask)
+//   - weights: [seqLen, kvLen] (output: softmax(Q@K^T * scale + mask))
+//   - scale:   typically 1/sqrt(headDim)
+//
+// This is the "first half" of SDPA: it produces the attention probability matrix
+// that would be used to weight V. Useful for importance scoring, key selection,
+// and attention visualization.
+func BaseAttentionWeights[T hwy.Floats](
+	q, k, mask, weights []T,
+	seqLen, kvLen, headDim int, scale T,
+) {
+	if seqLen == 0 || kvLen == 0 || headDim == 0 {
+		return
+	}
+
+	lanes := hwy.MaxLanes[T]()
+
+	for i := range seqLen {
+		qOff := i * headDim
+		wOff := i * kvLen
+
+		// Q[i,:] @ K^T -> weights[i,:], scaled
+		// 4x unroll across kvLen: share Q vector load across 4 K rows
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := hwy.Zero[T]()
+			acc1 := hwy.Zero[T]()
+			acc2 := hwy.Zero[T]()
+			acc3 := hwy.Zero[T]()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				acc0 = hwy.MulAdd(vQ, hwy.Load(k[kOff0+p:]), acc0)
+				acc1 = hwy.MulAdd(vQ, hwy.Load(k[kOff1+p:]), acc1)
+				acc2 = hwy.MulAdd(vQ, hwy.Load(k[kOff2+p:]), acc2)
+				acc3 = hwy.MulAdd(vQ, hwy.Load(k[kOff3+p:]), acc3)
+			}
+			s0 := hwy.ReduceSum(acc0)
+			s1 := hwy.ReduceSum(acc1)
+			s2 := hwy.ReduceSum(acc2)
+			s3 := hwy.ReduceSum(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			weights[wOff+j] = s0 * scale
+			weights[wOff+j+1] = s1 * scale
+			weights[wOff+j+2] = s2 * scale
+			weights[wOff+j+3] = s3 * scale
+		}
+		// Remainder: 1 at a time
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := hwy.Zero[T]()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := hwy.Load(q[qOff+p:])
+				vK := hwy.Load(k[kOff+p:])
+				acc = hwy.MulAdd(vQ, vK, acc)
+			}
+			sum := hwy.ReduceSum(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			weights[wOff+j] = sum * scale
+		}
+
+		// Add mask if provided
+		if mask != nil {
+			mOff := i * kvLen
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				w := hwy.Load(weights[wOff+si:])
+				m := hwy.Load(mask[mOff+si:])
+				hwy.Store(hwy.Add(w, m), weights[wOff+si:])
+			}
+			for ; si < kvLen; si++ {
+				weights[wOff+si] += mask[mOff+si]
+			}
+		}
+
+		// Per-row softmax
+		maxVal := weights[wOff]
+		for j := 1; j < kvLen; j++ {
+			if weights[wOff+j] > maxVal {
+				maxVal = weights[wOff+j]
+			}
+		}
+		vMax := hwy.Set(maxVal)
+		sumAcc := hwy.Zero[T]()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(weights[wOff+si:])
+			shifted := hwy.Sub(x, vMax)
+			expVal := math.BaseExpVec(shifted)
+			hwy.Store(expVal, weights[wOff+si:])
+			sumAcc = hwy.Add(sumAcc, expVal)
+		}
+		expSum := hwy.ReduceSum(sumAcc)
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = T(stdmath.Exp(float64(weights[wOff+si] - maxVal)))
+			expSum += weights[wOff+si]
+		}
+		invSum := T(1.0) / expSum
+		vInvSum := hwy.Set(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := hwy.Load(weights[wOff+si:])
+			hwy.Store(hwy.Mul(x, vInvSum), weights[wOff+si:])
+		}
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = weights[wOff+si] * invSum
+		}
+	}
+}
+
+// AttentionWeightsScalar is a scalar reference implementation for comparison and testing.
+func AttentionWeightsScalar[T hwy.Floats](
+	q, k, mask, weights []T,
+	seqLen, kvLen, headDim int, scale T,
+) {
+	if seqLen == 0 || kvLen == 0 || headDim == 0 {
+		return
+	}
+
+	for i := range seqLen {
+		qOff := i * headDim
+		wOff := i * kvLen
+
+		for j := range kvLen {
+			kOff := j * headDim
+			var sum float64
+			for p := range headDim {
+				sum += float64(q[qOff+p]) * float64(k[kOff+p])
+			}
+			weights[wOff+j] = T(sum * float64(scale))
+		}
+
+		if mask != nil {
+			mOff := i * kvLen
+			for j := range kvLen {
+				weights[wOff+j] += mask[mOff+j]
+			}
+		}
+
+		scalarSoftmaxRow(weights[wOff : wOff+kvLen])
+	}
+}
+
 // SDPAScalar is a scalar reference implementation for comparison and testing.
 func SDPAScalar[T hwy.Floats](
 	q, k, v, mask, scores, output []T,

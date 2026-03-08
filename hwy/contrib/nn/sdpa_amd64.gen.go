@@ -10,6 +10,10 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var AttentionWeightsFloat16 func(q []hwy.Float16, k []hwy.Float16, mask []hwy.Float16, weights []hwy.Float16, seqLen int, kvLen int, headDim int, scale hwy.Float16)
+var AttentionWeightsBFloat16 func(q []hwy.BFloat16, k []hwy.BFloat16, mask []hwy.BFloat16, weights []hwy.BFloat16, seqLen int, kvLen int, headDim int, scale hwy.BFloat16)
+var AttentionWeightsFloat32 func(q []float32, k []float32, mask []float32, weights []float32, seqLen int, kvLen int, headDim int, scale float32)
+var AttentionWeightsFloat64 func(q []float64, k []float64, mask []float64, weights []float64, seqLen int, kvLen int, headDim int, scale float64)
 var SDPAFloat16 func(q []hwy.Float16, k []hwy.Float16, v []hwy.Float16, mask []hwy.Float16, scores []hwy.Float16, output []hwy.Float16, seqLen int, kvLen int, headDim int, scale hwy.Float16)
 var SDPABFloat16 func(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.BFloat16, mask []hwy.BFloat16, scores []hwy.BFloat16, output []hwy.BFloat16, seqLen int, kvLen int, headDim int, scale hwy.BFloat16)
 var SDPAFloat32 func(q []float32, k []float32, v []float32, mask []float32, scores []float32, output []float32, seqLen int, kvLen int, headDim int, scale float32)
@@ -18,6 +22,32 @@ var SDPACausalFloat16 func(q []hwy.Float16, k []hwy.Float16, v []hwy.Float16, sc
 var SDPACausalBFloat16 func(q []hwy.BFloat16, k []hwy.BFloat16, v []hwy.BFloat16, scores []hwy.BFloat16, output []hwy.BFloat16, seqLen int, kvLen int, headDim int, scale hwy.BFloat16)
 var SDPACausalFloat32 func(q []float32, k []float32, v []float32, scores []float32, output []float32, seqLen int, kvLen int, headDim int, scale float32)
 var SDPACausalFloat64 func(q []float64, k []float64, v []float64, scores []float64, output []float64, seqLen int, kvLen int, headDim int, scale float64)
+
+// AttentionWeights computes the attention weight matrix without the V multiply.
+//
+//   - q:       [seqLen, headDim] (queries, row-major)
+//   - k:       [kvLen, headDim] (keys, row-major)
+//   - mask:    [seqLen, kvLen] (additive mask, nil for no mask)
+//   - weights: [seqLen, kvLen] (output: softmax(Q@K^T * scale + mask))
+//   - scale:   typically 1/sqrt(headDim)
+//
+// This is the "first half" of SDPA: it produces the attention probability matrix
+// that would be used to weight V. Useful for importance scoring, key selection,
+// and attention visualization.
+//
+// This function dispatches to the appropriate SIMD implementation at runtime.
+func AttentionWeights[T hwy.Floats](q []T, k []T, mask []T, weights []T, seqLen int, kvLen int, headDim int, scale T) {
+	switch any(q).(type) {
+	case []hwy.Float16:
+		AttentionWeightsFloat16(any(q).([]hwy.Float16), any(k).([]hwy.Float16), any(mask).([]hwy.Float16), any(weights).([]hwy.Float16), seqLen, kvLen, headDim, any(scale).(hwy.Float16))
+	case []hwy.BFloat16:
+		AttentionWeightsBFloat16(any(q).([]hwy.BFloat16), any(k).([]hwy.BFloat16), any(mask).([]hwy.BFloat16), any(weights).([]hwy.BFloat16), seqLen, kvLen, headDim, any(scale).(hwy.BFloat16))
+	case []float32:
+		AttentionWeightsFloat32(any(q).([]float32), any(k).([]float32), any(mask).([]float32), any(weights).([]float32), seqLen, kvLen, headDim, any(scale).(float32))
+	case []float64:
+		AttentionWeightsFloat64(any(q).([]float64), any(k).([]float64), any(mask).([]float64), any(weights).([]float64), seqLen, kvLen, headDim, any(scale).(float64))
+	}
+}
 
 // SDPA computes single-head scaled dot-product attention.
 //
@@ -86,6 +116,10 @@ func initSdpaAll() {
 }
 
 func initSdpaAVX2() {
+	AttentionWeightsFloat16 = BaseAttentionWeights_avx2_Float16
+	AttentionWeightsBFloat16 = BaseAttentionWeights_avx2_BFloat16
+	AttentionWeightsFloat32 = BaseAttentionWeights_avx2
+	AttentionWeightsFloat64 = BaseAttentionWeights_avx2_Float64
 	SDPAFloat16 = BaseSDPA_avx2_Float16
 	SDPABFloat16 = BaseSDPA_avx2_BFloat16
 	SDPAFloat32 = BaseSDPA_avx2
@@ -97,6 +131,10 @@ func initSdpaAVX2() {
 }
 
 func initSdpaAVX512() {
+	AttentionWeightsFloat16 = BaseAttentionWeights_avx512_Float16
+	AttentionWeightsBFloat16 = BaseAttentionWeights_avx512_BFloat16
+	AttentionWeightsFloat32 = BaseAttentionWeights_avx512
+	AttentionWeightsFloat64 = BaseAttentionWeights_avx512_Float64
 	SDPAFloat16 = BaseSDPA_avx512_Float16
 	SDPABFloat16 = BaseSDPA_avx512_BFloat16
 	SDPAFloat32 = BaseSDPA_avx512
@@ -108,6 +146,10 @@ func initSdpaAVX512() {
 }
 
 func initSdpaFallback() {
+	AttentionWeightsFloat16 = BaseAttentionWeights_fallback_Float16
+	AttentionWeightsBFloat16 = BaseAttentionWeights_fallback_BFloat16
+	AttentionWeightsFloat32 = BaseAttentionWeights_fallback
+	AttentionWeightsFloat64 = BaseAttentionWeights_fallback_Float64
 	SDPAFloat16 = BaseSDPA_fallback_Float16
 	SDPABFloat16 = BaseSDPA_fallback_BFloat16
 	SDPAFloat32 = BaseSDPA_fallback

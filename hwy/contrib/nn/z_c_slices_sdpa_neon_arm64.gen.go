@@ -18,18 +18,186 @@ func initSdpaNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	AttentionWeightsFloat32 = attentionWeightsAsmF32
+	AttentionWeightsFloat64 = attentionWeightsAsmF64
 	SDPAFloat32 = sDPAAsmF32
 	SDPAFloat64 = sDPAAsmF64
 	SDPACausalFloat32 = sDPACausalAsmF32
 	SDPACausalFloat64 = sDPACausalAsmF64
 	if hwy.HasARMFP16() {
+		AttentionWeightsFloat16 = attentionWeightsAsmF16
 		SDPAFloat16 = sDPAAsmF16
 		SDPACausalFloat16 = sDPACausalAsmF16
 	}
 	if hwy.HasARMBF16() {
+		AttentionWeightsBFloat16 = attentionWeightsAsmBF16
 		SDPABFloat16 = sDPAAsmBF16
 		SDPACausalBFloat16 = sDPACausalAsmBF16
 	}
+}
+
+func attentionWeightsAsmF16(q, k, mask, weights []hwy.Float16, seqLen, kvLen, headDim int, scale hwy.Float16) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := uint16(scale)
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	asm.AttentionWeights_F16(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
+func attentionWeightsAsmBF16(q, k, mask, weights []hwy.BFloat16, seqLen, kvLen, headDim int, scale hwy.BFloat16) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := uint16(scale)
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	asm.AttentionWeights_BF16(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
+func attentionWeightsAsmF32(q, k, mask, weights []float32, seqLen, kvLen, headDim int, scale float32) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := scale
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	asm.AttentionWeights_F32(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
+func attentionWeightsAsmF64(q, k, mask, weights []float64, seqLen, kvLen, headDim int, scale float64) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := scale
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	asm.AttentionWeights_F64(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
 }
 
 func sDPAAsmF16(q, k, v, mask, scores, output []hwy.Float16, seqLen, kvLen, headDim int, scale hwy.Float16) {

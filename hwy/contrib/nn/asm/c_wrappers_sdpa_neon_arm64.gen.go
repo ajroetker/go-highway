@@ -10,6 +10,174 @@ import (
 )
 
 // Public wrapper functions
+// AttentionWeightsCF16 computes AttentionWeights using NEON SIMD assembly.
+func AttentionWeightsCF16(q, k, mask, weights []hwy.Float16, seqLen, kvLen, headDim int, scale hwy.Float16) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := uint16(scale)
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	attentionweights_c_f16_neon(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
+// AttentionWeightsCBF16 computes AttentionWeights using NEON SIMD assembly.
+func AttentionWeightsCBF16(q, k, mask, weights []hwy.BFloat16, seqLen, kvLen, headDim int, scale hwy.BFloat16) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := uint16(scale)
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	attentionweights_c_bf16_neon(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
+// AttentionWeightsCF32 computes AttentionWeights using NEON SIMD assembly.
+func AttentionWeightsCF32(q, k, mask, weights []float32, seqLen, kvLen, headDim int, scale float32) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := scale
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	attentionweights_c_f32_neon(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
+// AttentionWeightsCF64 computes AttentionWeights using NEON SIMD assembly.
+func AttentionWeightsCF64(q, k, mask, weights []float64, seqLen, kvLen, headDim int, scale float64) {
+	var p_q unsafe.Pointer
+	if len(q) > 0 {
+		p_q = unsafe.Pointer(&q[0])
+	}
+	var p_k unsafe.Pointer
+	if len(k) > 0 {
+		p_k = unsafe.Pointer(&k[0])
+	}
+	var p_mask unsafe.Pointer
+	if len(mask) > 0 {
+		p_mask = unsafe.Pointer(&mask[0])
+	}
+	var p_weights unsafe.Pointer
+	if len(weights) > 0 {
+		p_weights = unsafe.Pointer(&weights[0])
+	}
+	seqLenVal := int64(seqLen)
+	kvLenVal := int64(kvLen)
+	headDimVal := int64(headDim)
+	scaleVal := scale
+	len_qVal := int64(len(q))
+	len_kVal := int64(len(k))
+	len_maskVal := int64(len(mask))
+	len_weightsVal := int64(len(weights))
+	attentionweights_c_f64_neon(
+		p_q,
+		p_k,
+		p_mask,
+		p_weights,
+		unsafe.Pointer(&seqLenVal),
+		unsafe.Pointer(&kvLenVal),
+		unsafe.Pointer(&headDimVal),
+		unsafe.Pointer(&scaleVal),
+		unsafe.Pointer(&len_qVal),
+		unsafe.Pointer(&len_kVal),
+		unsafe.Pointer(&len_maskVal),
+		unsafe.Pointer(&len_weightsVal),
+	)
+}
+
 // SDPACF16 computes SDPA using NEON SIMD assembly.
 func SDPACF16(q, k, v, mask, scores, output []hwy.Float16, seqLen, kvLen, headDim int, scale hwy.Float16) {
 	var p_q unsafe.Pointer

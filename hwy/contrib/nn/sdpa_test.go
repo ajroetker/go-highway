@@ -20,6 +20,134 @@ import (
 	"testing"
 )
 
+func TestAttentionWeights(t *testing.T) {
+	tests := []struct {
+		name    string
+		seqLen  int
+		kvLen   int
+		headDim int
+		useMask bool
+	}{
+		{"1x1x32/no_mask", 1, 1, 32, false},
+		{"4x4x32/no_mask", 4, 4, 32, false},
+		{"4x4x32/mask", 4, 4, 32, true},
+		{"8x16x64/no_mask", 8, 16, 64, false},
+		{"16x16x128/no_mask", 16, 16, 128, false},
+		{"3x5x7/no_mask", 3, 5, 7, false},
+		{"32x32x64/mask", 32, 32, 64, true},
+		{"64x64x64/no_mask", 64, 64, 64, false},
+		{"33x33x33/no_mask", 33, 33, 33, false},
+		{"33x50x37/no_mask", 33, 50, 37, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scale := float32(1.0 / stdmath.Sqrt(float64(tt.headDim)))
+			q := make([]float32, tt.seqLen*tt.headDim)
+			k := make([]float32, tt.kvLen*tt.headDim)
+
+			for i := range q {
+				q[i] = float32(i)*0.01 - 0.5
+			}
+			for i := range k {
+				k[i] = float32(i)*0.008 - 0.4
+			}
+
+			var mask []float32
+			if tt.useMask {
+				mask = make([]float32, tt.seqLen*tt.kvLen)
+				for i := range mask {
+					mask[i] = float32(i%3) * -0.1
+				}
+			}
+
+			dispatched := make([]float32, tt.seqLen*tt.kvLen)
+			scalar := make([]float32, tt.seqLen*tt.kvLen)
+
+			AttentionWeights(q, k, mask, dispatched, tt.seqLen, tt.kvLen, tt.headDim, scale)
+			AttentionWeightsScalar(q, k, mask, scalar, tt.seqLen, tt.kvLen, tt.headDim, scale)
+
+			for i := range dispatched {
+				diff := stdmath.Abs(float64(dispatched[i] - scalar[i]))
+				relTol := stdmath.Max(1e-3, 1e-3*stdmath.Abs(float64(scalar[i])))
+				if diff > relTol {
+					t.Errorf("weights[%d]: dispatched=%v, scalar=%v, diff=%v", i, dispatched[i], scalar[i], diff)
+				}
+			}
+		})
+	}
+}
+
+func TestAttentionWeightsMatchesSDPA(t *testing.T) {
+	// Verify that AttentionWeights produces the same weight matrix as SDPA's internal scores.
+	seqLen, kvLen, headDim := 8, 8, 32
+	scale := float32(1.0 / stdmath.Sqrt(float64(headDim)))
+
+	q := make([]float32, seqLen*headDim)
+	k := make([]float32, kvLen*headDim)
+	v := make([]float32, kvLen*headDim)
+
+	for i := range q {
+		q[i] = float32(i)*0.01 - 0.5
+	}
+	for i := range k {
+		k[i] = float32(i)*0.008 - 0.4
+	}
+	for i := range v {
+		v[i] = float32(i)*0.006 - 0.3
+	}
+
+	// Get weights from AttentionWeights
+	weights := make([]float32, seqLen*kvLen)
+	AttentionWeightsScalar(q, k, nil, weights, seqLen, kvLen, headDim, scale)
+
+	// Get scores from SDPAScalar (which writes softmax'd scores to the scores buffer)
+	scores := make([]float32, seqLen*kvLen)
+	output := make([]float32, seqLen*headDim)
+	SDPAScalar(q, k, v, nil, scores, output, seqLen, kvLen, headDim, scale)
+
+	for i := range weights {
+		diff := stdmath.Abs(float64(weights[i] - scores[i]))
+		if diff > 1e-6 {
+			t.Errorf("weights[%d]=%v != scores[%d]=%v, diff=%v",
+				i, weights[i], i, scores[i], diff)
+		}
+	}
+}
+
+func TestAttentionWeightsProperties(t *testing.T) {
+	// Attention weights should be valid probability distributions (sum to 1 per row, all >= 0).
+	seqLen, kvLen, headDim := 8, 12, 32
+	scale := float32(1.0 / stdmath.Sqrt(float64(headDim)))
+
+	q := make([]float32, seqLen*headDim)
+	k := make([]float32, kvLen*headDim)
+
+	for i := range q {
+		q[i] = float32(i)*0.01 - 0.5
+	}
+	for i := range k {
+		k[i] = float32(i)*0.008 - 0.4
+	}
+
+	weights := make([]float32, seqLen*kvLen)
+	AttentionWeights(q, k, nil, weights, seqLen, kvLen, headDim, scale)
+
+	for i := range seqLen {
+		var rowSum float64
+		for j := range kvLen {
+			w := weights[i*kvLen+j]
+			if w < 0 {
+				t.Errorf("weights[%d,%d] = %v, want >= 0", i, j, w)
+			}
+			rowSum += float64(w)
+		}
+		if stdmath.Abs(rowSum-1.0) > 1e-5 {
+			t.Errorf("row %d sum = %v, want ~1.0", i, rowSum)
+		}
+	}
+}
+
 func TestSDPAAuto(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -525,6 +653,46 @@ func testMultiHeadSDPAStridedType[T interface{ ~float32 | ~float64 }](
 		if diff > relTol {
 			t.Errorf("output[%d]: ref=%v, strided=%v, diff=%v", i, refOutput[i], stridedBHSD[i], diff)
 		}
+	}
+}
+
+func BenchmarkAttentionWeights(b *testing.B) {
+	configs := []struct {
+		seqLen, kvLen, headDim int
+	}{
+		{16, 16, 64},
+		{64, 64, 64},
+		{128, 128, 64},
+		{128, 128, 128},
+		{512, 512, 64},
+	}
+
+	for _, c := range configs {
+		scale := float32(1.0 / stdmath.Sqrt(float64(c.headDim)))
+		q := make([]float32, c.seqLen*c.headDim)
+		k := make([]float32, c.kvLen*c.headDim)
+		weights := make([]float32, c.seqLen*c.kvLen)
+
+		for i := range q {
+			q[i] = float32(i) * 0.001
+		}
+		for i := range k {
+			k[i] = float32(i) * 0.001
+		}
+
+		label := fmt.Sprintf("s%d_kv%d_d%d", c.seqLen, c.kvLen, c.headDim)
+
+		b.Run("Dispatched/"+label, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				AttentionWeights(q, k, nil, weights, c.seqLen, c.kvLen, c.headDim, scale)
+			}
+		})
+
+		b.Run("Scalar/"+label, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				AttentionWeightsScalar(q, k, nil, weights, c.seqLen, c.kvLen, c.headDim, scale)
+			}
+		})
 	}
 }
 

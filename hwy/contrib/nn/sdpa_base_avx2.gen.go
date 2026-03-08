@@ -14,6 +14,418 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
+func BaseAttentionWeights_avx2_Float16(q []hwy.Float16, k []hwy.Float16, mask []hwy.Float16, weights []hwy.Float16, seqLen int, kvLen int, headDim int, scale hwy.Float16) {
+	if seqLen == 0 || kvLen == 0 || headDim == 0 {
+		return
+	}
+	lanes := 8
+	for i := range seqLen {
+		qOff := i * headDim
+		wOff := i * kvLen
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := asm.ZeroFloat16x8AVX2()
+			acc1 := asm.ZeroFloat16x8AVX2()
+			acc2 := asm.ZeroFloat16x8AVX2()
+			acc3 := asm.ZeroFloat16x8AVX2()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&q[qOff+p]))
+				acc0 = vQ.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff0+p])), acc0)
+				acc1 = vQ.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff1+p])), acc1)
+				acc2 = vQ.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff2+p])), acc2)
+				acc3 = vQ.MulAdd(asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff3+p])), acc3)
+			}
+			s0 := acc0.ReduceSum()
+			s1 := acc1.ReduceSum()
+			s2 := acc2.ReduceSum()
+			s3 := acc3.ReduceSum()
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp.Float32() * k[kOff0+p].Float32()
+				s1 += qp.Float32() * k[kOff1+p].Float32()
+				s2 += qp.Float32() * k[kOff2+p].Float32()
+				s3 += qp.Float32() * k[kOff3+p].Float32()
+			}
+			weights[wOff+j] = hwy.Float32ToFloat16(s0 * scale.Float32())
+			weights[wOff+j+1] = hwy.Float32ToFloat16(s1 * scale.Float32())
+			weights[wOff+j+2] = hwy.Float32ToFloat16(s2 * scale.Float32())
+			weights[wOff+j+3] = hwy.Float32ToFloat16(s3 * scale.Float32())
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := asm.ZeroFloat16x8AVX2()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&q[qOff+p]))
+				vK := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff+p]))
+				acc = vQ.MulAdd(vK, acc)
+			}
+			sum := acc.ReduceSum()
+			for ; p < headDim; p++ {
+				sum += q[qOff+p].Float32() * k[kOff+p].Float32()
+			}
+			weights[wOff+j] = hwy.Float32ToFloat16(sum * scale.Float32())
+		}
+		if mask != nil {
+			mOff := i * kvLen
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				w := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&weights[wOff+si]))
+				m := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&mask[mOff+si]))
+				w.Add(m).StorePtr(unsafe.Pointer(&weights[wOff+si]))
+			}
+			for ; si < kvLen; si++ {
+				weights[wOff+si] = hwy.Float32ToFloat16(weights[wOff+si].Float32() + mask[mOff+si].Float32())
+			}
+		}
+		maxVal := weights[wOff]
+		for j := 1; j < kvLen; j++ {
+			if weights[wOff+j].Float32() > maxVal.Float32() {
+				maxVal = weights[wOff+j]
+			}
+		}
+		vMax := asm.BroadcastFloat16x8AVX2(uint16(maxVal))
+		sumAcc := asm.ZeroFloat16x8AVX2()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&weights[wOff+si]))
+			shifted := x.Sub(vMax)
+			expVal := math.BaseExpVec_avx2_Float16(shifted)
+			expVal.StorePtr(unsafe.Pointer(&weights[wOff+si]))
+			sumAcc = sumAcc.Add(expVal)
+		}
+		expSum := sumAcc.ReduceSum()
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = hwy.Float32ToFloat16(float32(stdmath.Exp(float64(weights[wOff+si].Float32() - maxVal.Float32()))))
+			expSum += weights[wOff+si].Float32()
+		}
+		invSum := hwy.Float32ToFloat16(float32(1.0) / expSum)
+		vInvSum := asm.BroadcastFloat16x8AVX2(uint16(invSum))
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := asm.LoadFloat16x8AVX2Ptr(unsafe.Pointer(&weights[wOff+si]))
+			x.Mul(vInvSum).StorePtr(unsafe.Pointer(&weights[wOff+si]))
+		}
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = hwy.Float32ToFloat16(weights[wOff+si].Float32() * invSum.Float32())
+		}
+	}
+}
+
+func BaseAttentionWeights_avx2_BFloat16(q []hwy.BFloat16, k []hwy.BFloat16, mask []hwy.BFloat16, weights []hwy.BFloat16, seqLen int, kvLen int, headDim int, scale hwy.BFloat16) {
+	if seqLen == 0 || kvLen == 0 || headDim == 0 {
+		return
+	}
+	lanes := 8
+	for i := range seqLen {
+		qOff := i * headDim
+		wOff := i * kvLen
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := asm.ZeroBFloat16x8AVX2()
+			acc1 := asm.ZeroBFloat16x8AVX2()
+			acc2 := asm.ZeroBFloat16x8AVX2()
+			acc3 := asm.ZeroBFloat16x8AVX2()
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&q[qOff+p]))
+				acc0 = vQ.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff0+p])), acc0)
+				acc1 = vQ.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff1+p])), acc1)
+				acc2 = vQ.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff2+p])), acc2)
+				acc3 = vQ.MulAdd(asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff3+p])), acc3)
+			}
+			s0 := acc0.ReduceSum()
+			s1 := acc1.ReduceSum()
+			s2 := acc2.ReduceSum()
+			s3 := acc3.ReduceSum()
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp.Float32() * k[kOff0+p].Float32()
+				s1 += qp.Float32() * k[kOff1+p].Float32()
+				s2 += qp.Float32() * k[kOff2+p].Float32()
+				s3 += qp.Float32() * k[kOff3+p].Float32()
+			}
+			weights[wOff+j] = hwy.Float32ToBFloat16(s0 * scale.Float32())
+			weights[wOff+j+1] = hwy.Float32ToBFloat16(s1 * scale.Float32())
+			weights[wOff+j+2] = hwy.Float32ToBFloat16(s2 * scale.Float32())
+			weights[wOff+j+3] = hwy.Float32ToBFloat16(s3 * scale.Float32())
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := asm.ZeroBFloat16x8AVX2()
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&q[qOff+p]))
+				vK := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&k[kOff+p]))
+				acc = vQ.MulAdd(vK, acc)
+			}
+			sum := acc.ReduceSum()
+			for ; p < headDim; p++ {
+				sum += q[qOff+p].Float32() * k[kOff+p].Float32()
+			}
+			weights[wOff+j] = hwy.Float32ToBFloat16(sum * scale.Float32())
+		}
+		if mask != nil {
+			mOff := i * kvLen
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				w := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&weights[wOff+si]))
+				m := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&mask[mOff+si]))
+				w.Add(m).StorePtr(unsafe.Pointer(&weights[wOff+si]))
+			}
+			for ; si < kvLen; si++ {
+				weights[wOff+si] = hwy.Float32ToBFloat16(weights[wOff+si].Float32() + mask[mOff+si].Float32())
+			}
+		}
+		maxVal := weights[wOff]
+		for j := 1; j < kvLen; j++ {
+			if weights[wOff+j].Float32() > maxVal.Float32() {
+				maxVal = weights[wOff+j]
+			}
+		}
+		vMax := asm.BroadcastBFloat16x8AVX2(uint16(maxVal))
+		sumAcc := asm.ZeroBFloat16x8AVX2()
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&weights[wOff+si]))
+			shifted := x.Sub(vMax)
+			expVal := math.BaseExpVec_avx2_BFloat16(shifted)
+			expVal.StorePtr(unsafe.Pointer(&weights[wOff+si]))
+			sumAcc = sumAcc.Add(expVal)
+		}
+		expSum := sumAcc.ReduceSum()
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = hwy.Float32ToBFloat16(float32(stdmath.Exp(float64(weights[wOff+si].Float32() - maxVal.Float32()))))
+			expSum += weights[wOff+si].Float32()
+		}
+		invSum := hwy.Float32ToBFloat16(float32(1.0) / expSum)
+		vInvSum := asm.BroadcastBFloat16x8AVX2(uint16(invSum))
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := asm.LoadBFloat16x8AVX2Ptr(unsafe.Pointer(&weights[wOff+si]))
+			x.Mul(vInvSum).StorePtr(unsafe.Pointer(&weights[wOff+si]))
+		}
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = hwy.Float32ToBFloat16(weights[wOff+si].Float32() * invSum.Float32())
+		}
+	}
+}
+
+func BaseAttentionWeights_avx2(q []float32, k []float32, mask []float32, weights []float32, seqLen int, kvLen int, headDim int, scale float32) {
+	if seqLen == 0 || kvLen == 0 || headDim == 0 {
+		return
+	}
+	lanes := 8
+	for i := range seqLen {
+		qOff := i * headDim
+		wOff := i * kvLen
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := archsimd.BroadcastFloat32x8(0)
+			acc1 := archsimd.BroadcastFloat32x8(0)
+			acc2 := archsimd.BroadcastFloat32x8(0)
+			acc3 := archsimd.BroadcastFloat32x8(0)
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&q[qOff+p])))
+				acc0 = vQ.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&k[kOff0+p]))), acc0)
+				acc1 = vQ.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&k[kOff1+p]))), acc1)
+				acc2 = vQ.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&k[kOff2+p]))), acc2)
+				acc3 = vQ.MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&k[kOff3+p]))), acc3)
+			}
+			s0 := hwy.ReduceSum_AVX2_F32x8(acc0)
+			s1 := hwy.ReduceSum_AVX2_F32x8(acc1)
+			s2 := hwy.ReduceSum_AVX2_F32x8(acc2)
+			s3 := hwy.ReduceSum_AVX2_F32x8(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			weights[wOff+j] = s0 * scale
+			weights[wOff+j+1] = s1 * scale
+			weights[wOff+j+2] = s2 * scale
+			weights[wOff+j+3] = s3 * scale
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := archsimd.BroadcastFloat32x8(0)
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&q[qOff+p])))
+				vK := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&k[kOff+p])))
+				acc = vQ.MulAdd(vK, acc)
+			}
+			sum := hwy.ReduceSum_AVX2_F32x8(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			weights[wOff+j] = sum * scale
+		}
+		if mask != nil {
+			mOff := i * kvLen
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				w := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&weights[wOff+si])))
+				m := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&mask[mOff+si])))
+				w.Add(m).Store((*[8]float32)(unsafe.Pointer(&weights[wOff+si])))
+			}
+			for ; si < kvLen; si++ {
+				weights[wOff+si] += mask[mOff+si]
+			}
+		}
+		maxVal := weights[wOff]
+		for j := 1; j < kvLen; j++ {
+			if weights[wOff+j] > maxVal {
+				maxVal = weights[wOff+j]
+			}
+		}
+		vMax := archsimd.BroadcastFloat32x8(maxVal)
+		sumAcc := archsimd.BroadcastFloat32x8(0)
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&weights[wOff+si])))
+			shifted := x.Sub(vMax)
+			expVal := math.BaseExpVec_avx2(shifted)
+			expVal.Store((*[8]float32)(unsafe.Pointer(&weights[wOff+si])))
+			sumAcc = sumAcc.Add(expVal)
+		}
+		expSum := hwy.ReduceSum_AVX2_F32x8(sumAcc)
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = float32(stdmath.Exp(float64(weights[wOff+si] - maxVal)))
+			expSum += weights[wOff+si]
+		}
+		invSum := float32(1.0) / expSum
+		vInvSum := archsimd.BroadcastFloat32x8(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&weights[wOff+si])))
+			x.Mul(vInvSum).Store((*[8]float32)(unsafe.Pointer(&weights[wOff+si])))
+		}
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = weights[wOff+si] * invSum
+		}
+	}
+}
+
+func BaseAttentionWeights_avx2_Float64(q []float64, k []float64, mask []float64, weights []float64, seqLen int, kvLen int, headDim int, scale float64) {
+	if seqLen == 0 || kvLen == 0 || headDim == 0 {
+		return
+	}
+	lanes := 4
+	for i := range seqLen {
+		qOff := i * headDim
+		wOff := i * kvLen
+		j := 0
+		for ; j+4 <= kvLen; j += 4 {
+			acc0 := archsimd.BroadcastFloat64x4(0)
+			acc1 := archsimd.BroadcastFloat64x4(0)
+			acc2 := archsimd.BroadcastFloat64x4(0)
+			acc3 := archsimd.BroadcastFloat64x4(0)
+			kOff0 := j * headDim
+			kOff1 := (j + 1) * headDim
+			kOff2 := (j + 2) * headDim
+			kOff3 := (j + 3) * headDim
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&q[qOff+p])))
+				acc0 = vQ.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&k[kOff0+p]))), acc0)
+				acc1 = vQ.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&k[kOff1+p]))), acc1)
+				acc2 = vQ.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&k[kOff2+p]))), acc2)
+				acc3 = vQ.MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&k[kOff3+p]))), acc3)
+			}
+			s0 := hwy.ReduceSum_AVX2_F64x4(acc0)
+			s1 := hwy.ReduceSum_AVX2_F64x4(acc1)
+			s2 := hwy.ReduceSum_AVX2_F64x4(acc2)
+			s3 := hwy.ReduceSum_AVX2_F64x4(acc3)
+			for ; p < headDim; p++ {
+				qp := q[qOff+p]
+				s0 += qp * k[kOff0+p]
+				s1 += qp * k[kOff1+p]
+				s2 += qp * k[kOff2+p]
+				s3 += qp * k[kOff3+p]
+			}
+			weights[wOff+j] = s0 * scale
+			weights[wOff+j+1] = s1 * scale
+			weights[wOff+j+2] = s2 * scale
+			weights[wOff+j+3] = s3 * scale
+		}
+		for ; j < kvLen; j++ {
+			kOff := j * headDim
+			acc := archsimd.BroadcastFloat64x4(0)
+			p := 0
+			for ; p+lanes <= headDim; p += lanes {
+				vQ := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&q[qOff+p])))
+				vK := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&k[kOff+p])))
+				acc = vQ.MulAdd(vK, acc)
+			}
+			sum := hwy.ReduceSum_AVX2_F64x4(acc)
+			for ; p < headDim; p++ {
+				sum += q[qOff+p] * k[kOff+p]
+			}
+			weights[wOff+j] = sum * scale
+		}
+		if mask != nil {
+			mOff := i * kvLen
+			si := 0
+			for ; si+lanes <= kvLen; si += lanes {
+				w := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&weights[wOff+si])))
+				m := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&mask[mOff+si])))
+				w.Add(m).Store((*[4]float64)(unsafe.Pointer(&weights[wOff+si])))
+			}
+			for ; si < kvLen; si++ {
+				weights[wOff+si] += mask[mOff+si]
+			}
+		}
+		maxVal := weights[wOff]
+		for j := 1; j < kvLen; j++ {
+			if weights[wOff+j] > maxVal {
+				maxVal = weights[wOff+j]
+			}
+		}
+		vMax := archsimd.BroadcastFloat64x4(maxVal)
+		sumAcc := archsimd.BroadcastFloat64x4(0)
+		si := 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&weights[wOff+si])))
+			shifted := x.Sub(vMax)
+			expVal := math.BaseExpVec_avx2_Float64(shifted)
+			expVal.Store((*[4]float64)(unsafe.Pointer(&weights[wOff+si])))
+			sumAcc = sumAcc.Add(expVal)
+		}
+		expSum := hwy.ReduceSum_AVX2_F64x4(sumAcc)
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = float64(stdmath.Exp(float64(weights[wOff+si] - maxVal)))
+			expSum += weights[wOff+si]
+		}
+		invSum := float64(1.0) / expSum
+		vInvSum := archsimd.BroadcastFloat64x4(invSum)
+		si = 0
+		for ; si+lanes <= kvLen; si += lanes {
+			x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&weights[wOff+si])))
+			x.Mul(vInvSum).Store((*[4]float64)(unsafe.Pointer(&weights[wOff+si])))
+		}
+		for ; si < kvLen; si++ {
+			weights[wOff+si] = weights[wOff+si] * invSum
+		}
+	}
+}
+
 func BaseSDPA_avx2_Float16(q []hwy.Float16, k []hwy.Float16, v []hwy.Float16, mask []hwy.Float16, scores []hwy.Float16, output []hwy.Float16, seqLen int, kvLen int, headDim int, scale hwy.Float16) {
 	if seqLen == 0 || kvLen == 0 || headDim == 0 {
 		return
