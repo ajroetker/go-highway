@@ -2,6 +2,72 @@
 
 package gguf
 
+func BaseVecDotIQ4NLQ8_0_fallback(wdata []uint8, adata []uint8, nblocks int) float32 {
+	var sumf float32
+	var lut [16]float32
+	lut[0] = -127
+	lut[1] = -104
+	lut[2] = -83
+	lut[3] = -65
+	lut[4] = -49
+	lut[5] = -35
+	lut[6] = -22
+	lut[7] = -10
+	lut[8] = 1
+	lut[9] = 13
+	lut[10] = 25
+	lut[11] = 38
+	lut[12] = 53
+	lut[13] = 69
+	lut[14] = 89
+	lut[15] = 113
+	wbuf := make([]float32, 1)
+	abuf := make([]float32, 1)
+	for b := range nblocks {
+		wb := wdata[b*BlockSizeIQ4NL : (b+1)*BlockSizeIQ4NL]
+		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
+		wqs := wb[2:]
+		aqs := ab[2:]
+		accVec := float32(0)
+		i := 0
+		for ; i < 16; i++ {
+			for j := range 1 {
+				wbuf[j] = lut[wqs[i+j]&0x0F]
+				abuf[j] = float32(int8(aqs[i+j]))
+			}
+			wVec := wbuf[0]
+			aVec := abuf[0]
+			accVec = wVec*aVec + accVec
+		}
+		var tailSum float32
+		for ; i < 16; i++ {
+			tailSum += lut[wqs[i]&0x0F] * float32(int8(aqs[i]))
+		}
+		i = 0
+		for ; i < 16; i++ {
+			for j := range 1 {
+				wbuf[j] = lut[(wqs[i+j]>>4)&0x0F]
+				abuf[j] = float32(int8(aqs[16+i+j]))
+			}
+			wVec := wbuf[0]
+			aVec := abuf[0]
+			accVec = wVec*aVec + accVec
+		}
+		for ; i < 16; i++ {
+			tailSum += lut[(wqs[i]>>4)&0x0F] * float32(int8(aqs[16+i]))
+		}
+		wbuf[0] = accVec
+		blockSum := tailSum
+		for j := range 1 {
+			blockSum += wbuf[j]
+		}
+		sumf += dw * da * blockSum
+	}
+	return sumf
+}
+
 func BaseVecDotQ4_0Q8_0_fallback(wdata []uint8, adata []uint8, nblocks int) float32 {
 	var sumf float32
 	wbuf := make([]float32, 1)

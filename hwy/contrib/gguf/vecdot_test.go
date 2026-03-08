@@ -96,6 +96,67 @@ func TestVecDotQ4_0Q8_0(t *testing.T) {
 	}
 }
 
+func TestVecDotIQ4NLQ8_0(t *testing.T) {
+	tests := []struct {
+		name    string
+		nblocks int
+	}{
+		{"1 block", 1},
+		{"4 blocks", 4},
+		{"16 blocks", 16},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nvals := tt.nblocks * QK
+
+			// Create IQ4_NL weight blocks with known values.
+			wdata := make([]uint8, tt.nblocks*BlockSizeIQ4NL)
+			for b := range tt.nblocks {
+				off := b * BlockSizeIQ4NL
+				wdata[off] = fp16One[0]
+				wdata[off+1] = fp16One[1]
+				for i := range 16 {
+					lo := uint8((i + b) % 16)
+					hi := uint8((15 - i + b) % 16)
+					wdata[off+2+i] = (hi << 4) | lo
+				}
+			}
+
+			// Dequantize weights to float32 for reference.
+			wFloat := make([]float32, nvals)
+			DequantizeIQ4NL(wdata, wFloat)
+
+			// Create float32 activations and quantize to Q8_0.
+			aFloat := make([]float32, nvals)
+			for i := range aFloat {
+				aFloat[i] = float32(i%32-16) * 0.1
+			}
+			adata := make([]uint8, tt.nblocks*BlockSizeQ8_0)
+			QuantizeQ8_0(aFloat, adata)
+
+			// Dequantize activations for reference.
+			aDeq := make([]float32, nvals)
+			DequantizeQ8_0(adata, aDeq)
+
+			// Reference dot product on dequantized values.
+			want := referenceDot(wFloat, aDeq)
+
+			// Compute via vec_dot.
+			got := VecDotIQ4NLQ8_0(wdata, adata, tt.nblocks)
+
+			relErr := float64(0)
+			if want != 0 {
+				relErr = math.Abs(float64(got-want)) / math.Abs(float64(want))
+			}
+			absDiff := math.Abs(float64(got - want))
+			if relErr > 0.02 && absDiff > 0.1 {
+				t.Errorf("got %f, want %f (relErr=%.4f, absDiff=%.4f)", got, want, relErr, absDiff)
+			}
+		})
+	}
+}
+
 func TestVecDotQ8_0Q8_0(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -172,6 +233,35 @@ func TestVecDotQ4_0Q8_0_DispatchVsFallback(t *testing.T) {
 
 	got := VecDotQ4_0Q8_0(wdata, adata, nblocks)
 	want := BaseVecDotQ4_0Q8_0_fallback(wdata, adata, nblocks)
+
+	if got != want {
+		t.Errorf("dispatch %f != fallback %f", got, want)
+	}
+}
+
+func TestVecDotIQ4NLQ8_0_DispatchVsFallback(t *testing.T) {
+	nblocks := 8
+	nvals := nblocks * QK
+
+	wdata := make([]uint8, nblocks*BlockSizeIQ4NL)
+	for i := range wdata {
+		wdata[i] = uint8(i % 256)
+	}
+	for b := range nblocks {
+		off := b * BlockSizeIQ4NL
+		wdata[off] = fp16One[0]
+		wdata[off+1] = fp16One[1]
+	}
+
+	aFloat := make([]float32, nvals)
+	for i := range aFloat {
+		aFloat[i] = float32(i%32-16) * 0.1
+	}
+	adata := make([]uint8, nblocks*BlockSizeQ8_0)
+	QuantizeQ8_0(aFloat, adata)
+
+	got := VecDotIQ4NLQ8_0(wdata, adata, nblocks)
+	want := BaseVecDotIQ4NLQ8_0_fallback(wdata, adata, nblocks)
 
 	if got != want {
 		t.Errorf("dispatch %f != fallback %f", got, want)

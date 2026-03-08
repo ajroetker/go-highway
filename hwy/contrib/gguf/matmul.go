@@ -126,6 +126,8 @@ func getVecDot(qt QuantType) func(wdata, adata []uint8, nblocks int) float32 {
 		return VecDotQ4_0Q8_0
 	case TypeQ8_0:
 		return VecDotQ8_0Q8_0
+	case TypeIQ4NL:
+		return VecDotIQ4NLQ8_0
 	case TypeQ2_K:
 		return VecDotQ2_KQ8_K
 	case TypeQ3_K:
