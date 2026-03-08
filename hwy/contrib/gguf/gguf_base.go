@@ -54,7 +54,7 @@ const (
 	// Q8_K activation format for K-quant weight types.
 	// 256 values per block with per-sub-block int16 sums for K-quant compatibility.
 	// Layout: d(4 bytes float32) + qs(256 bytes int8) + bsums(16 * 2 bytes int16)
-	BlockSizeQ8K = 4 + 256 + 32 // 292 bytes
+	BlockSizeQ8K = 292 // d(4 bytes float32) + qs(256 bytes int8) + bsums(16 * 2 bytes int16)
 )
 
 // ValuesPerBlock returns the number of float32 values represented by one block.
@@ -100,6 +100,17 @@ func ActivationBlockSize(qt QuantType) int {
 	default:
 		return BlockSizeQ8K
 	}
+}
+
+// f32LE decodes a little-endian float32 from 4 individual bytes.
+func f32LE(b0, b1, b2, b3 uint8) float32 {
+	bits := uint32(b0) | uint32(b1)<<8 | uint32(b2)<<16 | uint32(b3)<<24
+	return math.Float32frombits(bits)
+}
+
+// i16LE decodes a little-endian int16 from 2 bytes.
+func i16LE(lo, hi uint8) int16 {
+	return int16(uint16(lo) | uint16(hi)<<8)
 }
 
 // fp16LE decodes a little-endian fp16 value from two bytes into float32.

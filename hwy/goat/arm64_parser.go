@@ -31,8 +31,10 @@ type ARM64Parser struct{}
 
 // arm64 regex patterns
 var (
-	// Match labels like .LBB0_2: (Linux) or LBB0_2: (macOS)
-	arm64LabelLine = regexp.MustCompile(`^\.?\w+_\d+:.*$`)
+	// Match compiler-generated labels like .LBB0_2: (Linux) or LBB0_2: (macOS).
+	// Labels always start with L (macOS) or .L (Linux), never with _ or lowercase.
+	// Using ^\.?L ensures user-defined function names like _foo_4: are not matched.
+	arm64LabelLine = regexp.MustCompile(`^\.?L\w*_\d+:.*$`)
 	arm64CodeLine  = regexp.MustCompile(`^\s+(?:\w+|\.inst\b).*$`)
 	// Match jumps to labels with or without leading dot
 	arm64JmpLine = regexp.MustCompile(`^(b|b\.\w{2})\t\.?\w+_\d+$`)

@@ -29,7 +29,7 @@ type RISCV64Parser struct{}
 
 // riscv64 regex patterns
 var (
-	riscv64LabelLine = regexp.MustCompile(`^\.\w+_\d+:.*$`)
+	riscv64LabelLine = regexp.MustCompile(`^\.L\w*_\d+:.*$`)
 	riscv64CodeLine  = regexp.MustCompile(`^\s+\w+.+$`)
 
 	// Constant pool patterns

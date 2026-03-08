@@ -40,6 +40,12 @@ func GGUFMatMul(input []float32, weights []uint8, output []float32, M, K, N int,
 		return
 	}
 
+	// SME SMOPA/SUMOPA path for K-quant types.
+	if SMEGGUFMatMul != nil && isKQuant(qt) {
+		SMEGGUFMatMul(input, weights, output, M, K, N, qt)
+		return
+	}
+
 	valsPerBlock := ValuesPerBlock(qt)
 	if K%valsPerBlock != 0 {
 		panic(fmt.Sprintf("gguf: K=%d is not a multiple of ValuesPerBlock=%d for QuantType %d", K, valsPerBlock, qt))
@@ -73,6 +79,12 @@ func GGUFMatMul(input []float32, weights []uint8, output []float32, M, K, N int,
 // M rows across workers using the provided pool.
 func ParallelGGUFMatMul(pool workerpool.Executor, input []float32, weights []uint8, output []float32, M, K, N int, qt QuantType) {
 	if M == 0 || K == 0 || N == 0 {
+		return
+	}
+
+	// SME SMOPA/SUMOPA path for K-quant types.
+	if SMEParallelGGUFMatMul != nil && isKQuant(qt) {
+		SMEParallelGGUFMatMul(pool, input, weights, output, M, K, N, qt)
 		return
 	}
 
@@ -114,6 +126,16 @@ func getVecDot(qt QuantType) func(wdata, adata []uint8, nblocks int) float32 {
 		return VecDotQ4_0Q8_0
 	case TypeQ8_0:
 		return VecDotQ8_0Q8_0
+	case TypeQ2_K:
+		return VecDotQ2_KQ8_K
+	case TypeQ3_K:
+		return VecDotQ3_KQ8_K
+	case TypeQ4_K:
+		return VecDotQ4_KQ8_K
+	case TypeQ5_K:
+		return VecDotQ5_KQ8_K
+	case TypeQ6_K:
+		return VecDotQ6_KQ8_K
 	default:
 		return nil
 	}
@@ -124,7 +146,53 @@ func getQuantize(qt QuantType) func(input []float32, output []uint8) {
 	switch qt {
 	case TypeQ4_0, TypeQ8_0, TypeIQ4NL:
 		return QuantizeQ8_0
+	case TypeQ2_K, TypeQ3_K, TypeQ4_K, TypeQ5_K, TypeQ6_K:
+		return QuantizeQ8_K
 	default:
 		return nil
+	}
+}
+
+// PreparedGGUFMatMul computes output = input @ weights^T using pre-packed
+// weights for maximum throughput. The 4-tile kernel processes 64 output
+// columns per kernel call, eliminating per-inference B-panel packing.
+//
+// Parameters:
+//   - input: [M, K] float32 activations (row-major)
+//   - pw: pre-packed weights from PrepareWeights
+//   - output: [M, pw.N] float32 output (row-major, pre-allocated)
+//   - M: number of input rows (batch size * sequence length)
+//
+// Panics if SME hardware is not available. Use PrepareWeights to create pw.
+func PreparedGGUFMatMul(input []float32, pw *PreparedWeights, output []float32, M int) {
+	if M == 0 || pw == nil {
+		return
+	}
+	if SMEPreparedGGUFMatMul == nil {
+		panic("gguf: PreparedGGUFMatMul requires SME hardware")
+	}
+	SMEPreparedGGUFMatMul(input, pw, output, M)
+}
+
+// ParallelPreparedGGUFMatMul is the parallel version of PreparedGGUFMatMul,
+// distributing N-tile-groups across workers using the provided pool.
+func ParallelPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
+	pw *PreparedWeights, output []float32, M int) {
+	if M == 0 || pw == nil {
+		return
+	}
+	if SMEParallelPreparedGGUFMatMul == nil {
+		panic("gguf: ParallelPreparedGGUFMatMul requires SME hardware")
+	}
+	SMEParallelPreparedGGUFMatMul(pool, input, pw, output, M)
+}
+
+// isKQuant returns true if the quant type is a K-quant type (uses Q8_K activations).
+func isKQuant(qt QuantType) bool {
+	switch qt {
+	case TypeQ2_K, TypeQ3_K, TypeQ4_K, TypeQ5_K, TypeQ6_K:
+		return true
+	default:
+		return false
 	}
 }
