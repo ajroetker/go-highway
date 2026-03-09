@@ -26,7 +26,8 @@ import (
 type QuantType int
 
 const (
-	TypeQ4_0  QuantType = iota
+	QuantTypeInvalid QuantType = iota // zero value sentinel; not a valid format
+	TypeQ4_0
 	TypeQ8_0
 	TypeIQ4NL
 	TypeQ2_K
