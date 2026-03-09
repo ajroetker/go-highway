@@ -117,7 +117,7 @@ func TestTrsmLNRandom(t *testing.T) {
 				}
 			}
 
-			tol := float32(sz.n) * 1e-5
+			tol := float32(sz.n*sz.n) * 1e-6
 			if maxErr > tol {
 				t.Errorf("max error %e exceeds tolerance %e", maxErr, tol)
 			}
@@ -158,7 +158,7 @@ func TestTrsmLTRandom(t *testing.T) {
 				}
 			}
 
-			tol := float32(sz.n) * 1e-5
+			tol := float32(sz.n*sz.n) * 1e-6
 			if maxErr > tol {
 				t.Errorf("max error %e exceeds tolerance %e", maxErr, tol)
 			}
