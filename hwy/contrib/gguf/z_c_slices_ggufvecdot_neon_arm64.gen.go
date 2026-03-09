@@ -18,8 +18,33 @@ func initGgufvecdotNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
+	VecDotIQ4NLQ8_0 = vecDotIQ4NLQ8_0AsmF32
 	VecDotQ4_0Q8_0 = vecDotQ4_0Q8_0AsmF32
 	VecDotQ8_0Q8_0 = vecDotQ8_0Q8_0AsmF32
+}
+
+func vecDotIQ4NLQ8_0AsmF32(wdata, adata []uint8, nblocks int) float32 {
+	var p_wdata unsafe.Pointer
+	if len(wdata) > 0 {
+		p_wdata = unsafe.Pointer(&wdata[0])
+	}
+	var p_adata unsafe.Pointer
+	if len(adata) > 0 {
+		p_adata = unsafe.Pointer(&adata[0])
+	}
+	nblocksVal := int64(nblocks)
+	len_wdataVal := int64(len(wdata))
+	len_adataVal := int64(len(adata))
+	var out_result float32
+	asm.VecDotIQ4NLQ8_0_F32(
+		p_wdata,
+		p_adata,
+		unsafe.Pointer(&nblocksVal),
+		unsafe.Pointer(&len_wdataVal),
+		unsafe.Pointer(&len_adataVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
 }
 
 func vecDotQ4_0Q8_0AsmF32(wdata, adata []uint8, nblocks int) float32 {

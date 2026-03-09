@@ -15,6 +15,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -142,7 +143,7 @@ func TestMatMulUnalignedSME(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		name := sizeStr(tc.m) + "x" + sizeStr(tc.n) + "x" + sizeStr(tc.k)
+		name := fmt.Sprintf("%03d",tc.m) + "x" + fmt.Sprintf("%03d",tc.n) + "x" + fmt.Sprintf("%03d",tc.k)
 		t.Run(name, func(t *testing.T) {
 			a := make([]float32, tc.m*tc.k)
 			b := make([]float32, tc.k*tc.n)
@@ -181,7 +182,7 @@ func TestMatMulLarge(t *testing.T) {
 	sizes := []int{16, 32, 64, 128}
 
 	for _, size := range sizes {
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",size), func(t *testing.T) {
 			m, n, k := size, size, size
 
 			a := make([]float32, m*k)
@@ -220,9 +221,6 @@ func TestMatMulLarge(t *testing.T) {
 	}
 }
 
-func sizeStr(n int) string {
-	return string(rune('0'+n/100)) + string(rune('0'+(n/10)%10)) + string(rune('0'+n%10))
-}
 
 func BenchmarkMatMul(b *testing.B) {
 	b.Logf("Dispatch level: %s", hwy.CurrentName())
@@ -246,7 +244,7 @@ func BenchmarkMatMul(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9 // 2 ops per multiply-add
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 
@@ -281,7 +279,7 @@ func TestMatMulFloat64(t *testing.T) {
 	sizes := []int{16, 32, 64, 128}
 	for _, size := range sizes {
 		m, n, k := size, size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",size), func(t *testing.T) {
 			a := make([]float64, m*k)
 			bMat := make([]float64, k*n)
 			c := make([]float64, m*n)
@@ -336,7 +334,7 @@ func BenchmarkMatMulFloat64(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 8))
 			b.ResetTimer()
 
@@ -431,7 +429,7 @@ func BenchmarkBlockedMatMul(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 
@@ -460,7 +458,7 @@ func TestBlockedMatMulUnalignedSME(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		name := sizeStr(tc.m) + "x" + sizeStr(tc.n) + "x" + sizeStr(tc.k)
+		name := fmt.Sprintf("%03d",tc.m) + "x" + fmt.Sprintf("%03d",tc.n) + "x" + fmt.Sprintf("%03d",tc.k)
 		t.Run(name, func(t *testing.T) {
 			a := make([]float32, tc.m*tc.k)
 			b := make([]float32, tc.k*tc.n)
@@ -508,7 +506,7 @@ func TestMatMulFloat64UnalignedSME(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		name := sizeStr(tc.m) + "x" + sizeStr(tc.n) + "x" + sizeStr(tc.k)
+		name := fmt.Sprintf("%03d",tc.m) + "x" + fmt.Sprintf("%03d",tc.n) + "x" + fmt.Sprintf("%03d",tc.k)
 		t.Run(name, func(t *testing.T) {
 			a := make([]float64, tc.m*tc.k)
 			b := make([]float64, tc.k*tc.n)
@@ -545,7 +543,7 @@ func TestBlockedMatMul(t *testing.T) {
 	sizes := []int{16, 32, 48, 64, 96, 128}
 
 	for _, size := range sizes {
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",size), func(t *testing.T) {
 			m, n, k := size, size, size
 
 			a := make([]float32, m*k)
@@ -587,7 +585,7 @@ func TestParallelMatMul(t *testing.T) {
 	sizes := []int{128, 256, 512}
 
 	for _, size := range sizes {
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",size), func(t *testing.T) {
 			m, n, k := size, size, size
 
 			a := make([]float32, m*k)

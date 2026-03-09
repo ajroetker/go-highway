@@ -8,6 +8,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
+var VecDotIQ4NLQ8_0 func(wdata []uint8, adata []uint8, nblocks int) float32
 var VecDotQ4_0Q8_0 func(wdata []uint8, adata []uint8, nblocks int) float32
 var VecDotQ8_0Q8_0 func(wdata []uint8, adata []uint8, nblocks int) float32
 
@@ -25,6 +26,7 @@ func initGgufvecdotAll() {
 }
 
 func initGgufvecdotFallback() {
+	VecDotIQ4NLQ8_0 = BaseVecDotIQ4NLQ8_0_fallback
 	VecDotQ4_0Q8_0 = BaseVecDotQ4_0Q8_0_fallback
 	VecDotQ8_0Q8_0 = BaseVecDotQ8_0Q8_0_fallback
 }

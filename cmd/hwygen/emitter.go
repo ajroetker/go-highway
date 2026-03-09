@@ -1409,12 +1409,15 @@ func getBaseFilename(path string) string {
 // - "func(T) T" (function with type params)
 func containsTypeParam(typeStr string, typeParams []TypeParam) bool {
 	for _, tp := range typeParams {
-		// Check if this is an element type parameter (not an interface constraint)
+		// Check if this is an element type parameter (not an interface constraint).
+		// Named constraints like Floats, Integers, etc. are element types.
+		// Concrete type unions like "int8 | uint8" are also element types.
 		if !strings.Contains(tp.Constraint, "Lanes") &&
 			!strings.Contains(tp.Constraint, "Floats") &&
 			!strings.Contains(tp.Constraint, "Integers") &&
 			!strings.Contains(tp.Constraint, "SignedInts") &&
-			!strings.Contains(tp.Constraint, "UnsignedInts") {
+			!strings.Contains(tp.Constraint, "UnsignedInts") &&
+			!isConcreteTypeUnion(tp.Constraint) {
 			continue // Skip interface type params
 		}
 

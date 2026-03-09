@@ -17,6 +17,7 @@
 package matvec
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -47,17 +48,13 @@ func matvecReference64(m []float64, rows, cols int, v, result []float64) {
 	}
 }
 
-func sizeStr(n int) string {
-	return string(rune('0'+n/100)) + string(rune('0'+(n/10)%10)) + string(rune('0'+n%10))
-}
-
 // TestGoatGeneratedMatVecF32 tests correctness of the goat-generated SME f32 implementation
 func TestGoatGeneratedMatVecF32(t *testing.T) {
 	sizes := []int{16, 32, 64, 128}
 
 	for _, size := range sizes {
 		rows, cols := size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", size), func(t *testing.T) {
 			m := make([]float32, rows*cols)
 			mt := make([]float32, cols*rows)
 			v := make([]float32, cols)
@@ -104,7 +101,7 @@ func TestGoatGeneratedMatVecF64(t *testing.T) {
 
 	for _, size := range sizes {
 		rows, cols := size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", size), func(t *testing.T) {
 			m := make([]float64, rows*cols)
 			mt := make([]float64, cols*rows)
 			v := make([]float64, cols)
@@ -167,7 +164,7 @@ func BenchmarkGoatVsHandwritten_MatVec_F32(b *testing.B) {
 		flops := float64(2*rows*cols) / 1e9
 
 		// Benchmark goat-generated assembly
-		b.Run(sizeStr(size)+"/GoatGenerated", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", size)+"/GoatGenerated", func(b *testing.B) {
 			b.SetBytes(int64((rows*cols + cols + rows) * 4))
 			b.ResetTimer()
 
@@ -182,7 +179,7 @@ func BenchmarkGoatVsHandwritten_MatVec_F32(b *testing.B) {
 		})
 
 		// Benchmark handwritten assembly (through public API)
-		b.Run(sizeStr(size)+"/Handwritten", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", size)+"/Handwritten", func(b *testing.B) {
 			b.SetBytes(int64((rows*cols + cols + rows) * 4))
 			b.ResetTimer()
 
@@ -197,7 +194,7 @@ func BenchmarkGoatVsHandwritten_MatVec_F32(b *testing.B) {
 		})
 
 		// Handwritten direct (calling internal function)
-		b.Run(sizeStr(size)+"/HandwrittenDirect", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", size)+"/HandwrittenDirect", func(b *testing.B) {
 			b.SetBytes(int64((rows*cols + cols + rows) * 4))
 			b.ResetTimer()
 
@@ -242,7 +239,7 @@ func BenchmarkGoatVsHandwritten_MatVec_F64(b *testing.B) {
 		flops := float64(2*rows*cols) / 1e9
 
 		// Benchmark goat-generated assembly
-		b.Run(sizeStr(size)+"/GoatGenerated", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", size)+"/GoatGenerated", func(b *testing.B) {
 			b.SetBytes(int64((rows*cols + cols + rows) * 8))
 			b.ResetTimer()
 
@@ -257,7 +254,7 @@ func BenchmarkGoatVsHandwritten_MatVec_F64(b *testing.B) {
 		})
 
 		// Benchmark handwritten assembly (through public API)
-		b.Run(sizeStr(size)+"/Handwritten", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", size)+"/Handwritten", func(b *testing.B) {
 			b.SetBytes(int64((rows*cols + cols + rows) * 8))
 			b.ResetTimer()
 
@@ -272,7 +269,7 @@ func BenchmarkGoatVsHandwritten_MatVec_F64(b *testing.B) {
 		})
 
 		// Handwritten direct
-		b.Run(sizeStr(size)+"/HandwrittenDirect", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", size)+"/HandwrittenDirect", func(b *testing.B) {
 			b.SetBytes(int64((rows*cols + cols + rows) * 8))
 			b.ResetTimer()
 

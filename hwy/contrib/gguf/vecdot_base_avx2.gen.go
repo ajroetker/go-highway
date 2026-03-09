@@ -9,6 +9,73 @@ import (
 	"unsafe"
 )
 
+func BaseVecDotIQ4NLQ8_0_avx2(wdata []uint8, adata []uint8, nblocks int) float32 {
+	var sumf float32
+	var lut [16]float32
+	lut[0] = -127
+	lut[1] = -104
+	lut[2] = -83
+	lut[3] = -65
+	lut[4] = -49
+	lut[5] = -35
+	lut[6] = -22
+	lut[7] = -10
+	lut[8] = 1
+	lut[9] = 13
+	lut[10] = 25
+	lut[11] = 38
+	lut[12] = 53
+	lut[13] = 69
+	lut[14] = 89
+	lut[15] = 113
+	lanes := 8
+	wbuf := [8]float32{}
+	abuf := [8]float32{}
+	for b := range nblocks {
+		wb := wdata[b*BlockSizeIQ4NL : (b+1)*BlockSizeIQ4NL]
+		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
+		wqs := wb[2:]
+		aqs := ab[2:]
+		accVec := archsimd.BroadcastFloat32x8(0)
+		i := 0
+		for ; i+lanes <= 16; i += lanes {
+			for j := range lanes {
+				wbuf[j] = lut[wqs[i+j]&0x0F]
+				abuf[j] = float32(int8(aqs[i+j]))
+			}
+			wVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&wbuf[0])))
+			aVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&abuf[0])))
+			accVec = wVec.MulAdd(aVec, accVec)
+		}
+		var tailSum float32
+		for ; i < 16; i++ {
+			tailSum += lut[wqs[i]&0x0F] * float32(int8(aqs[i]))
+		}
+		i = 0
+		for ; i+lanes <= 16; i += lanes {
+			for j := range lanes {
+				wbuf[j] = lut[(wqs[i+j]>>4)&0x0F]
+				abuf[j] = float32(int8(aqs[16+i+j]))
+			}
+			wVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&wbuf[0])))
+			aVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&abuf[0])))
+			accVec = wVec.MulAdd(aVec, accVec)
+		}
+		for ; i < 16; i++ {
+			tailSum += lut[(wqs[i]>>4)&0x0F] * float32(int8(aqs[16+i]))
+		}
+		accVec.Store((*[8]float32)(unsafe.Pointer(&wbuf[0])))
+		blockSum := tailSum
+		for j := range lanes {
+			blockSum += wbuf[j]
+		}
+		sumf += dw * da * blockSum
+	}
+	return sumf
+}
+
 func BaseVecDotQ4_0Q8_0_avx2(wdata []uint8, adata []uint8, nblocks int) float32 {
 	var sumf float32
 	lanes := 8

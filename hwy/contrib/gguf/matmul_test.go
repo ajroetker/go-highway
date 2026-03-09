@@ -103,6 +103,73 @@ func TestGGUFMatMulQ4_0(t *testing.T) {
 	}
 }
 
+func TestGGUFMatMulIQ4NL(t *testing.T) {
+	tests := []struct {
+		name    string
+		M, K, N int
+	}{
+		{"1x32x1", 1, 32, 1},
+		{"1x64x2", 1, 64, 2},
+		{"2x128x4", 2, 128, 4},
+		{"4x256x8", 4, 256, 8},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nblocks := tt.K / QK
+
+			// Create IQ4_NL weight blocks [N, K].
+			wdata := make([]uint8, tt.N*nblocks*BlockSizeIQ4NL)
+			for i := range wdata {
+				wdata[i] = uint8(i % 256)
+			}
+			for n := range tt.N {
+				for b := range nblocks {
+					off := n*nblocks*BlockSizeIQ4NL + b*BlockSizeIQ4NL
+					wdata[off] = fp16One[0]
+					wdata[off+1] = fp16One[1]
+				}
+			}
+
+			// Dequantize weights for reference [N, K].
+			wFloat := make([]float32, tt.N*tt.K)
+			for n := range tt.N {
+				wRow := wdata[n*nblocks*BlockSizeIQ4NL : (n+1)*nblocks*BlockSizeIQ4NL]
+				DequantizeIQ4NL(wRow, wFloat[n*tt.K:(n+1)*tt.K])
+			}
+
+			// Create float32 input [M, K].
+			input := make([]float32, tt.M*tt.K)
+			for i := range input {
+				input[i] = float32(i%64-32) * 0.01
+			}
+
+			// Reference: dequantize weights, then dense matmul.
+			want := make([]float32, tt.M*tt.N)
+			referenceMatMul(input, wFloat, want, tt.M, tt.K, tt.N)
+
+			// GGUF matmul on quantized data.
+			got := make([]float32, tt.M*tt.N)
+			GGUFMatMul(input, wdata, got, tt.M, tt.K, tt.N, TypeIQ4NL)
+
+			// IQ4_NL values range -127..113 (vs Q4_0's -8..7), so
+			// quantization noise from Q8_0 activations is proportionally
+			// larger. Use wider tolerance than Q4_0.
+			for i := range got {
+				absDiff := math.Abs(float64(got[i] - want[i]))
+				relErr := float64(0)
+				if want[i] != 0 {
+					relErr = absDiff / math.Abs(float64(want[i]))
+				}
+				if relErr > 0.10 && absDiff > 2.0 {
+					t.Errorf("output[%d]: got %f, want %f (relErr=%.4f, absDiff=%.4f)",
+						i, got[i], want[i], relErr, absDiff)
+				}
+			}
+		})
+	}
+}
+
 func TestGGUFMatMulQ8_0(t *testing.T) {
 	M, K, N := 2, 64, 4
 	nblocks := K / QK

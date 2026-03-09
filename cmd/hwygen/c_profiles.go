@@ -233,6 +233,7 @@ func init() {
 		neonUint32Profile(),
 		neonInt32Profile(),
 		neonInt64Profile(),
+		neonInt8DotProdProfile(),
 		sveDarwinF32Profile(),
 		sveDarwinF64Profile(),
 		sveLinuxF32Profile(),
@@ -1034,9 +1035,13 @@ func neonUint8Profile() *CIntrinsicProfile {
 		TableLookupBytesFn: map[string]string{"q": "vqtbl1q_u8"},
 		MaskType:           map[string]string{"q": "uint8x16_t"},
 
+		// Dot product: uint8×uint8 → uint32 (DOTPROD extension)
+		DotAccFn:   map[string]string{"q": "vdotq_u32"},
+		DotAccType: map[string]string{"q": "uint32x4_t"},
+
 		MathStrategy:   "native",
 		GoatTarget:     "arm64",
-		GoatExtraFlags: []string{"-march=armv8-a+simd+fp"},
+		GoatExtraFlags: []string{"-march=armv8.2-a+dotprod+simd+fp"},
 
 		InlineHelpers: []string{
 			`static inline unsigned int neon_bits_from_mask_u8(uint8x16_t v) {
@@ -1260,6 +1265,44 @@ func neonInt64Profile() *CIntrinsicProfile {
 		GoatExtraFlags:   []string{"-march=armv8-a+simd+fp"},
 
 		InlineHelpers: slices.Concat(neonS64MaskHelpers, neonS64MaxMinHelpers),
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NEON int8 with DOTPROD (ARMv8.2-A FEAT_DotProd)
+// ---------------------------------------------------------------------------
+// Profile for int8 dot product operations using vdotq_s32.
+// The primary element type is int8 (loads/stores), but the accumulator type
+// is int32 (DotAccType). The C translator uses accProfile (int32 profile)
+// for operations on accumulator variables (Add, ReduceSum, Zero, Store).
+
+func neonInt8DotProdProfile() *CIntrinsicProfile {
+	return &CIntrinsicProfile{
+		ElemType:   "int8",
+		TargetName: "NEON",
+		Include:    "#include <arm_neon.h>",
+		CType:      "signed char",
+		VecTypes: map[string]string{
+			"q": "int8x16_t",
+		},
+		Tiers: []CLoopTier{
+			{Name: "q", Lanes: 16, Unroll: 1, IsScalar: false},
+			{Name: "scalar", Lanes: 1, Unroll: 1, IsScalar: true},
+		},
+		LoadFn:  map[string]string{"q": "vld1q_s8"},
+		StoreFn: map[string]string{"q": "vst1q_s8"},
+		AddFn:   map[string]string{"q": "vaddq_s8"},
+		SubFn:   map[string]string{"q": "vsubq_s8"},
+		DupFn:   map[string]string{"q": "vdupq_n_s8"},
+
+		// Dot product: int8×int8 → int32 accumulation
+		DotAccFn:   map[string]string{"q": "vdotq_s32"},
+		DotAccType: map[string]string{"q": "int32x4_t"},
+
+		MathStrategy:     "native",
+		NativeArithmetic: true,
+		GoatTarget:       "arm64",
+		GoatExtraFlags:   []string{"-march=armv8.2-a+dotprod+simd+fp"},
 	}
 }
 

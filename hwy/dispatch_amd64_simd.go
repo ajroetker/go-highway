@@ -129,3 +129,8 @@ func HasARMFP16() bool {
 func HasARMBF16() bool {
 	return false
 }
+
+// HasARMDotProd returns false on x86 (ARM DOTPROD is ARM-specific).
+func HasARMDotProd() bool {
+	return false
+}

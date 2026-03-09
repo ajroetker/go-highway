@@ -5,6 +5,26 @@ package asm
 
 import "unsafe"
 
+// AttentionWeights_F16 calls the NEON SIMD assembly implementation.
+func AttentionWeights_F16(q unsafe.Pointer, k unsafe.Pointer, mask unsafe.Pointer, weights unsafe.Pointer, pseqLen unsafe.Pointer, pkvLen unsafe.Pointer, pheadDim unsafe.Pointer, pscale unsafe.Pointer, plen_q unsafe.Pointer, plen_k unsafe.Pointer, plen_mask unsafe.Pointer, plen_weights unsafe.Pointer) {
+	attentionweights_c_f16_neon(q, k, mask, weights, pseqLen, pkvLen, pheadDim, pscale, plen_q, plen_k, plen_mask, plen_weights)
+}
+
+// AttentionWeights_BF16 calls the NEON SIMD assembly implementation.
+func AttentionWeights_BF16(q unsafe.Pointer, k unsafe.Pointer, mask unsafe.Pointer, weights unsafe.Pointer, pseqLen unsafe.Pointer, pkvLen unsafe.Pointer, pheadDim unsafe.Pointer, pscale unsafe.Pointer, plen_q unsafe.Pointer, plen_k unsafe.Pointer, plen_mask unsafe.Pointer, plen_weights unsafe.Pointer) {
+	attentionweights_c_bf16_neon(q, k, mask, weights, pseqLen, pkvLen, pheadDim, pscale, plen_q, plen_k, plen_mask, plen_weights)
+}
+
+// AttentionWeights_F32 calls the NEON SIMD assembly implementation.
+func AttentionWeights_F32(q unsafe.Pointer, k unsafe.Pointer, mask unsafe.Pointer, weights unsafe.Pointer, pseqLen unsafe.Pointer, pkvLen unsafe.Pointer, pheadDim unsafe.Pointer, pscale unsafe.Pointer, plen_q unsafe.Pointer, plen_k unsafe.Pointer, plen_mask unsafe.Pointer, plen_weights unsafe.Pointer) {
+	attentionweights_c_f32_neon(q, k, mask, weights, pseqLen, pkvLen, pheadDim, pscale, plen_q, plen_k, plen_mask, plen_weights)
+}
+
+// AttentionWeights_F64 calls the NEON SIMD assembly implementation.
+func AttentionWeights_F64(q unsafe.Pointer, k unsafe.Pointer, mask unsafe.Pointer, weights unsafe.Pointer, pseqLen unsafe.Pointer, pkvLen unsafe.Pointer, pheadDim unsafe.Pointer, pscale unsafe.Pointer, plen_q unsafe.Pointer, plen_k unsafe.Pointer, plen_mask unsafe.Pointer, plen_weights unsafe.Pointer) {
+	attentionweights_c_f64_neon(q, k, mask, weights, pseqLen, pkvLen, pheadDim, pscale, plen_q, plen_k, plen_mask, plen_weights)
+}
+
 // SDPA_F16 calls the NEON SIMD assembly implementation.
 func SDPA_F16(q unsafe.Pointer, k unsafe.Pointer, v unsafe.Pointer, mask unsafe.Pointer, scores unsafe.Pointer, output unsafe.Pointer, pseqLen unsafe.Pointer, pkvLen unsafe.Pointer, pheadDim unsafe.Pointer, pscale unsafe.Pointer, plen_q unsafe.Pointer, plen_k unsafe.Pointer, plen_v unsafe.Pointer, plen_mask unsafe.Pointer, plen_scores unsafe.Pointer, plen_output unsafe.Pointer) {
 	sdpa_c_f16_neon(q, k, v, mask, scores, output, pseqLen, pkvLen, pheadDim, pscale, plen_q, plen_k, plen_v, plen_mask, plen_scores, plen_output)

@@ -17,6 +17,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -43,7 +44,7 @@ func BenchmarkMatMulKLastNEON(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + n*k + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -79,7 +80,7 @@ func BenchmarkMatMulKLastSME(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + n*k + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -115,7 +116,7 @@ func BenchmarkMatMulKLastDispatch(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + n*k + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

@@ -17,6 +17,7 @@
 package asm
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -73,7 +74,7 @@ func TestGoatGeneratedF32(t *testing.T) {
 
 	for _, size := range sizes {
 		m, n, k := size, size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", size), func(t *testing.T) {
 			a := make([]float32, m*k)
 			b := make([]float32, k*n)
 			at := make([]float32, k*m)
@@ -120,7 +121,7 @@ func TestGoatGeneratedF64(t *testing.T) {
 
 	for _, size := range sizes {
 		m, n, k := size, size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", size), func(t *testing.T) {
 			a := make([]float64, m*k)
 			b := make([]float64, k*n)
 			at := make([]float64, k*m)
@@ -158,18 +159,6 @@ func TestGoatGeneratedF64(t *testing.T) {
 			}
 		})
 	}
-}
-
-func sizeStr(n int) string {
-	s := ""
-	if n >= 100 {
-		s += string(rune('0' + n/100))
-	}
-	if n >= 10 {
-		s += string(rune('0' + (n/10)%10))
-	}
-	s += string(rune('0' + n%10))
-	return s
 }
 
 // transposeMatrixF16 transposes M×K matrix A into K×M matrix AT for Float16
@@ -223,7 +212,7 @@ func TestGoatGeneratedF16(t *testing.T) {
 
 	for _, size := range sizes {
 		m, n, k := size, size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", size), func(t *testing.T) {
 			a := make([]hwy.Float16, m*k)
 			b := make([]hwy.Float16, k*n)
 			at := make([]hwy.Float16, k*m)
@@ -271,7 +260,7 @@ func TestGoatGeneratedBF16(t *testing.T) {
 
 	for _, size := range sizes {
 		m, n, k := size, size, size
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", size), func(t *testing.T) {
 			a := make([]hwy.BFloat16, m*k)
 			b := make([]hwy.BFloat16, k*n)
 			at := make([]hwy.BFloat16, k*m)

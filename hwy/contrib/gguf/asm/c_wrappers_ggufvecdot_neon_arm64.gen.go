@@ -6,6 +6,31 @@ package asm
 import "unsafe"
 
 // Public wrapper functions
+// VecDotIQ4NLQ8_0CF32 computes VecDotIQ4NLQ8_0 using NEON SIMD assembly.
+func VecDotIQ4NLQ8_0CF32(wdata, adata []uint8, nblocks int) float32 {
+	var p_wdata unsafe.Pointer
+	if len(wdata) > 0 {
+		p_wdata = unsafe.Pointer(&wdata[0])
+	}
+	var p_adata unsafe.Pointer
+	if len(adata) > 0 {
+		p_adata = unsafe.Pointer(&adata[0])
+	}
+	nblocksVal := int64(nblocks)
+	len_wdataVal := int64(len(wdata))
+	len_adataVal := int64(len(adata))
+	var out_result int64
+	vecdotiq4nlq8_0_c_f32_neon(
+		p_wdata,
+		p_adata,
+		unsafe.Pointer(&nblocksVal),
+		unsafe.Pointer(&len_wdataVal),
+		unsafe.Pointer(&len_adataVal),
+		unsafe.Pointer(&out_result),
+	)
+	return float32(out_result)
+}
+
 // VecDotQ4_0Q8_0CF32 computes VecDotQ4_0Q8_0 using NEON SIMD assembly.
 func VecDotQ4_0Q8_0CF32(wdata, adata []uint8, nblocks int) float32 {
 	var p_wdata unsafe.Pointer

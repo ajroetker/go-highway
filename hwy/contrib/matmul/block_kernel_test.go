@@ -15,6 +15,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -60,7 +61,7 @@ func TestBlockMulAdd(t *testing.T) {
 	blockSizes := []int{8, 16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			// Create test matrices
@@ -117,7 +118,7 @@ func TestBlockMulAdd2(t *testing.T) {
 	blockSizes := []int{8, 16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			a := make([]float32, size)
@@ -164,7 +165,7 @@ func TestBlockMulAdd4(t *testing.T) {
 	blockSizes := []int{8, 16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			a := make([]float32, size)
@@ -226,7 +227,7 @@ func BenchmarkBlockMulAdd(b *testing.B) {
 
 		flops := float64(2*blockDim*blockDim*blockDim) / 1e9
 
-		b.Run(sizeStr(blockDim)+"/BlockMulAdd", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",blockDim)+"/BlockMulAdd", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				BlockMulAdd(aT, bMat, c, blockDim)
@@ -237,7 +238,7 @@ func BenchmarkBlockMulAdd(b *testing.B) {
 			b.ReportMetric(gflops, "GFLOPS")
 		})
 
-		b.Run(sizeStr(blockDim)+"/BlockMulAdd2", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",blockDim)+"/BlockMulAdd2", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				BlockMulAdd2(aT, bMat, c, blockDim)
@@ -248,7 +249,7 @@ func BenchmarkBlockMulAdd(b *testing.B) {
 			b.ReportMetric(gflops, "GFLOPS")
 		})
 
-		b.Run(sizeStr(blockDim)+"/BlockMulAdd4", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",blockDim)+"/BlockMulAdd4", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				BlockMulAdd4(aT, bMat, c, blockDim)

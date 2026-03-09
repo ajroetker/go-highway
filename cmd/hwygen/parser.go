@@ -1158,6 +1158,13 @@ func GetConcreteTypes(constraint string) []string {
 		addTypes([]string{"int32", "int64", "uint32", "uint64"})
 	}
 
+	// Check for int8/uint8 constraints (used by integer dot product functions)
+	if strings.Contains(constraint, "int8") && strings.Contains(constraint, "uint8") {
+		addTypes([]string{"int8", "uint8"})
+	} else if strings.Contains(constraint, "int8") && !strings.Contains(constraint, "uint8") {
+		addTypes([]string{"int8"})
+	}
+
 	// If no types were added, default to common types
 	if len(types) == 0 {
 		return []string{"float32", "float64"}

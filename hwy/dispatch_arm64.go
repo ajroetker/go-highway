@@ -34,6 +34,11 @@ var (
 	// Note: golang.org/x/sys/cpu doesn't have BF16 detection yet
 	// BF16 is available on Apple M2+ and recent ARM Cortex CPUs
 	hasARMBF16 bool
+
+	// hasARMDotProd indicates ARMv8.2-A DOTPROD extension support
+	// Provides integer dot product operations (vdotq_s32/vdotq_u32)
+	// Available on Apple A11+ and Cortex-A75+ CPUs
+	hasARMDotProd bool
 )
 
 func init() {
@@ -97,6 +102,13 @@ func detectARMFP16BF16Features() {
 	// BF16 (FEAT_BF16) was introduced in ARMv8.6-A
 	// On macOS/Apple Silicon, we detect via sysctl (see bf16_detect_darwin.go)
 	hasARMBF16 = hasBF16Darwin
+
+	// ARM DOTPROD detection (FEAT_DotProd, ARMv8.2-A optional extension)
+	// Provides vdotq_s32/vdotq_u32 for int8 dot product accumulation
+	hasARMDotProd = cpu.ARM64.HasASIMDDP
+	if !hasARMDotProd && hasDotProdDarwin {
+		hasARMDotProd = true
+	}
 }
 
 // HasARMFP16 returns true if the CPU supports ARM FP16 extension.
@@ -129,4 +141,12 @@ func HasAVX512FP16() bool {
 // Use HasARMBF16() for ARM bfloat16 support.
 func HasAVX512BF16() bool {
 	return false
+}
+
+// HasARMDotProd returns true if the CPU supports ARM DOTPROD extension.
+// ARM DOTPROD provides integer dot product operations (vdotq_s32/vdotq_u32)
+// for efficient int8 multiply-accumulate.
+// Present on ARMv8.2-A and later CPUs with FEAT_DotProd (Apple A11+, Cortex-A75+).
+func HasARMDotProd() bool {
+	return hasARMDotProd
 }

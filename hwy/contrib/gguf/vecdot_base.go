@@ -96,6 +96,95 @@ func BaseVecDotQ4_0Q8_0(wdata []uint8, adata []uint8, nblocks int) float32 {
 	return sumf
 }
 
+// BaseVecDotIQ4NLQ8_0 computes the dot product between IQ4_NL weight blocks and
+// Q8_0 activation blocks. Returns the scalar dot product.
+//
+// Identical to Q4_0 except nibbles are dequantized via the non-linear
+// kvaluesIQ4NL lookup table instead of (nibble - 8).
+func BaseVecDotIQ4NLQ8_0(wdata []uint8, adata []uint8, nblocks int) float32 {
+	var sumf float32
+
+	// Lookup table on stack for GoAT compatibility.
+	var lut [16]float32
+	lut[0] = -127
+	lut[1] = -104
+	lut[2] = -83
+	lut[3] = -65
+	lut[4] = -49
+	lut[5] = -35
+	lut[6] = -22
+	lut[7] = -10
+	lut[8] = 1
+	lut[9] = 13
+	lut[10] = 25
+	lut[11] = 38
+	lut[12] = 53
+	lut[13] = 69
+	lut[14] = 89
+	lut[15] = 113
+
+	lanes := hwy.NumLanes[float32]()
+	wbuf := make([]float32, lanes)
+	abuf := make([]float32, lanes)
+
+	for b := range nblocks {
+		wb := wdata[b*BlockSizeIQ4NL : (b+1)*BlockSizeIQ4NL]
+		ab := adata[b*BlockSizeQ8_0 : (b+1)*BlockSizeQ8_0]
+
+		// Extract fp16 scales.
+		dw := fp16LE(wb[0], wb[1])
+		da := fp16LE(ab[0], ab[1])
+
+		wqs := wb[2:]  // 16 nibble bytes
+		aqs := ab[2:]  // 32 int8 quants
+
+		// Vectorized dot product over 32 values.
+		accVec := hwy.Zero[float32]()
+
+		// Low nibbles: weight values 0..15 against activation values 0..15.
+		i := 0
+		for ; i+lanes <= 16; i += lanes {
+			for j := range lanes {
+				wbuf[j] = lut[wqs[i+j]&0x0F]
+				abuf[j] = float32(int8(aqs[i+j]))
+			}
+			wVec := hwy.Load(wbuf)
+			aVec := hwy.Load(abuf)
+			accVec = hwy.MulAdd(wVec, aVec, accVec)
+		}
+		// Scalar tail for low nibbles.
+		var tailSum float32
+		for ; i < 16; i++ {
+			tailSum += lut[wqs[i]&0x0F] * float32(int8(aqs[i]))
+		}
+
+		// High nibbles: weight values 16..31 against activation values 16..31.
+		i = 0
+		for ; i+lanes <= 16; i += lanes {
+			for j := range lanes {
+				wbuf[j] = lut[(wqs[i+j]>>4)&0x0F]
+				abuf[j] = float32(int8(aqs[16+i+j]))
+			}
+			wVec := hwy.Load(wbuf)
+			aVec := hwy.Load(abuf)
+			accVec = hwy.MulAdd(wVec, aVec, accVec)
+		}
+		for ; i < 16; i++ {
+			tailSum += lut[(wqs[i]>>4)&0x0F] * float32(int8(aqs[16+i]))
+		}
+
+		// Horizontal sum of accumulator vector.
+		hwy.Store(accVec, wbuf)
+		blockSum := tailSum
+		for j := range lanes {
+			blockSum += wbuf[j]
+		}
+
+		sumf += dw * da * blockSum
+	}
+	return sumf
+}
+
 // BaseVecDotQ8_0Q8_0 computes the dot product between Q8_0 weight blocks and
 // Q8_0 activation blocks. Returns the scalar dot product.
 //

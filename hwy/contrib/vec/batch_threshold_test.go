@@ -18,6 +18,7 @@ package vec
 
 import (
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/ajroetker/go-highway/hwy/contrib/matvec"
@@ -198,22 +199,6 @@ func BenchmarkBatchL2SMEStreamingThreshold(b *testing.B) {
 }
 
 func dimCountName(impl string, dim, count int) string {
-	return impl + "/" + itoa(dim) + "d_n" + itoa(count)
+	return impl + "/" + strconv.Itoa(dim) + "d_n" + strconv.Itoa(count)
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	if n < 0 {
-		return "-" + itoa(-n)
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[i:])
-}

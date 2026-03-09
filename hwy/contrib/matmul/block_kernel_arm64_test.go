@@ -17,6 +17,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -27,7 +28,7 @@ func TestBlockMulAddNEONF32(t *testing.T) {
 	blockSizes := []int{8, 16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			a := make([]float32, size)
@@ -73,7 +74,7 @@ func TestBlockMulAddNEONF64(t *testing.T) {
 	blockSizes := []int{8, 16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			a := make([]float64, size)
@@ -162,7 +163,7 @@ func BenchmarkBlockMulAddNEONF32(b *testing.B) {
 
 		flops := float64(2*blockDim*blockDim*blockDim) / 1e9
 
-		b.Run(sizeStr(blockDim)+"/NEON", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",blockDim)+"/NEON", func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				blockMulAddAsmF32(aT, bMat, c, blockDim)

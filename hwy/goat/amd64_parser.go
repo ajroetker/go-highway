@@ -30,8 +30,9 @@ type AMD64Parser struct{}
 
 // amd64 regex patterns
 var (
-	// Match labels like .LBB0_2: (Linux) or LBB0_2: (macOS)
-	amd64LabelLine  = regexp.MustCompile(`^\.?\w+_\d+:.*$`)
+	// Match compiler-generated labels like .LBB0_2: (Linux) or LBB0_2: (macOS).
+	// Labels always start with L (macOS) or .L (Linux), never with _ or lowercase.
+	amd64LabelLine  = regexp.MustCompile(`^\.?L\w*_\d+:.*$`)
 	amd64CodeLine = regexp.MustCompile(`^\s+\w+.+$`)
 
 	// Stack management patterns - these need to be removed since Go handles the frame

@@ -5,6 +5,11 @@ package asm
 
 import "unsafe"
 
+// VecDotIQ4NLQ8_0_F32 calls the NEON SIMD assembly implementation.
+func VecDotIQ4NLQ8_0_F32(wdata unsafe.Pointer, adata unsafe.Pointer, pnblocks unsafe.Pointer, plen_wdata unsafe.Pointer, plen_adata unsafe.Pointer, pout_result unsafe.Pointer) {
+	vecdotiq4nlq8_0_c_f32_neon(wdata, adata, pnblocks, plen_wdata, plen_adata, pout_result)
+}
+
 // VecDotQ4_0Q8_0_F32 calls the NEON SIMD assembly implementation.
 func VecDotQ4_0Q8_0_F32(wdata unsafe.Pointer, adata unsafe.Pointer, pnblocks unsafe.Pointer, plen_wdata unsafe.Pointer, plen_adata unsafe.Pointer, pout_result unsafe.Pointer) {
 	vecdotq4_0q8_0_c_f32_neon(wdata, adata, pnblocks, plen_wdata, plen_adata, pout_result)

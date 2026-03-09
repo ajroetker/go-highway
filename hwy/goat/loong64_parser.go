@@ -30,7 +30,7 @@ type Loong64Parser struct{}
 
 // loong64 regex patterns
 var (
-	loong64LabelLine = regexp.MustCompile(`^\.\w+_\d+:.*$`)
+	loong64LabelLine = regexp.MustCompile(`^\.L\w*_\d+:.*$`)
 	loong64CodeLine  = regexp.MustCompile(`^\s+\w+.+$`)
 
 	// Constant pool patterns
