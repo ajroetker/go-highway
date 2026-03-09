@@ -16,6 +16,7 @@ package varint
 
 import (
 	"math"
+	"slices"
 	"testing"
 )
 
@@ -910,105 +911,43 @@ func TestDecodeStreamVByte32Into_PartialGroupWithLargeValues(t *testing.T) {
 	})
 }
 
-// TestEncodeStreamVByte32Into_TightBuffer is a regression test for a bug where
-// EncodeStreamVByte32Into would panic when the last full group fell through to
-// the scalar fallback (dataPos+16 > len(dataBuf)) and wrote directly into a
-// dataBuf slice that had fewer than 16 bytes remaining.
+// TestEncodeStreamVByte32Into_TightBuffer is a regression test for two bugs in
+// EncodeStreamVByte32Into: (1) the scalar fallback wrote directly into dataBuf
+// which could have fewer than 16 bytes remaining, and (2) maxDataLen was
+// len(values)*4 which didn't account for zero-padded partial groups.
 func TestEncodeStreamVByte32Into_TightBuffer(t *testing.T) {
-	// 8 values that each encode to exactly 4 bytes.
-	// maxDataLen = 8*4 = 32.  After the first group writes 16 bytes,
-	// dataPos=16 and dataPos+16=32 == len(dataBuf), so the second group
-	// still takes the SIMD path.  To force the scalar fallback we need
-	// the condition dataPos+16 > len(dataBuf), which happens when the
-	// caller supplies a buffer with cap < maxDataLen (the function will
-	// reallocate to exactly maxDataLen, then for the last group the
-	// remaining space equals exactly the encoded size but < 16).
-	//
-	// More directly: use 12 values (3 groups).  First two groups write
-	// 16 bytes each (dataPos=32).  dataBuf len = 12*4 = 48.
-	// dataPos+16 = 48 <= 48 — still SIMD.  So we need mixed sizes:
-	// first groups compress well, leaving the last group near the end
-	// of a tight buffer.
-	//
-	// Simplest trigger: supply a pre-allocated dataBuf whose cap is
-	// smaller than len(values)*4 — the function will allocate exactly
-	// maxDataLen.  Then all 4-byte values mean every group uses the
-	// full 16 bytes and the last group has dataPos+16 == len(dataBuf),
-	// taking the SIMD path.  To actually hit the else branch, mix
-	// sizes so early groups compress, then the last group starts at a
-	// dataPos where dataPos+16 > len(dataBuf).
-
-	// 8 values: first 4 are 1-byte (encode to 4 bytes total for the
-	// group), last 4 are 4-byte (encode to 16 bytes total).
-	// maxDataLen = 8*4 = 32.  Group 0 writes 4 bytes (dataPos=4).
-	// Group 1: dataPos+16 = 20 <= 32, takes SIMD path.  Still fine.
-	//
-	// To really trigger it: make maxDataLen barely above actual data
-	// size but below dataPos+16 for the last group.  We can't control
-	// maxDataLen (it's len(values)*4), but we CAN test the round-trip
-	// correctness of the scratch-buffer path by verifying the output
-	// matches EncodeStreamVByte32 (which always uses a scratch buffer).
-
 	tests := []struct {
 		name   string
 		values []uint32
 	}{
-		{
-			"all_4byte_8vals",
-			[]uint32{0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10,
-				0x11121314, 0x15161718, 0x191A1B1C, 0x1D1E1F20},
-		},
-		{
-			"mixed_compress_then_large",
-			[]uint32{1, 2, 3, 4, 0xAABBCCDD, 0xEEFF0011, 0x22334455, 0x66778899},
-		},
-		{
-			"partial_last_group",
-			[]uint32{0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0x9ABCDEF0, 0xFFFFFFFF},
-		},
-		{
-			"single_group_4byte",
-			[]uint32{0x01000000, 0x02000000, 0x03000000, 0x04000000},
-		},
+		{"all_4byte", []uint32{
+			0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10,
+			0x11121314, 0x15161718, 0x191A1B1C, 0x1D1E1F20,
+		}},
+		{"mixed_sizes", []uint32{1, 2, 3, 4, 0xAABBCCDD, 0xEEFF0011, 0x22334455, 0x66778899}},
+		{"partial_group", []uint32{0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0x9ABCDEF0, 0xFFFFFFFF}},
+		{"single_group", []uint32{0x01000000, 0x02000000, 0x03000000, 0x04000000}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Encode with Into using an intentionally small pre-allocated
-			// buffer so the function allocates exactly maxDataLen.
-			controlBuf := make([]byte, 0, 1)
-			dataBuf := make([]byte, 0, 1)
-			control, data := EncodeStreamVByte32Into(tt.values, controlBuf, dataBuf)
-
-			// Encode with the non-Into version (always uses scratch buffer).
+			// Use tiny pre-allocated buffers to force internal reallocation.
+			control, data := EncodeStreamVByte32Into(tt.values, make([]byte, 0, 1), make([]byte, 0, 1))
 			wantCtrl, wantData := EncodeStreamVByte32(tt.values)
 
-			if len(control) != len(wantCtrl) {
-				t.Fatalf("control length: got %d, want %d", len(control), len(wantCtrl))
+			if !slices.Equal(control, wantCtrl) {
+				t.Fatalf("control mismatch: got %x, want %x", control, wantCtrl)
 			}
-			for i := range control {
-				if control[i] != wantCtrl[i] {
-					t.Errorf("control[%d]: got %02x, want %02x", i, control[i], wantCtrl[i])
-				}
-			}
-			if len(data) != len(wantData) {
-				t.Fatalf("data length: got %d, want %d", len(data), len(wantData))
-			}
-			for i := range data {
-				if data[i] != wantData[i] {
-					t.Errorf("data[%d]: got %02x, want %02x", i, data[i], wantData[i])
-				}
+			if !slices.Equal(data, wantData) {
+				t.Fatalf("data mismatch: got %x, want %x", data, wantData)
 			}
 
-			// Round-trip: decode and verify.
-			n := len(tt.values)
-			if n%4 != 0 {
-				n = ((n + 3) / 4) * 4
-			}
-			decoded := DecodeStreamVByte32(control, data, n)
+			// Round-trip decode (padded to multiple of 4).
+			nDecode := ((len(tt.values) + 3) / 4) * 4
+			decoded := DecodeStreamVByte32(control, data, nDecode)
 			for i, want := range tt.values {
 				if decoded[i] != want {
-					t.Errorf("round-trip value %d: got %08x, want %08x", i, decoded[i], want)
+					t.Errorf("round-trip[%d]: got %08x, want %08x", i, decoded[i], want)
 				}
 			}
 		})
