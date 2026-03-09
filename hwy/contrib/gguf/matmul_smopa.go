@@ -27,6 +27,11 @@ import (
 )
 
 // Buffer pools for SMOPA matmul to reduce allocations.
+// Block scales pool: M * nblocks floats, typically up to 4096 * 16 = 64K floats.
+var smopaScalesPool = sync.Pool{
+	New: func() any { return make([]float32, 0, 4096*16) },
+}
+
 // Accumulator pool: paddedM * 16, typically up to 4096 * 16 = 64K floats.
 var smopaAccPool = sync.Pool{
 	New: func() any { return make([]float32, 0, 4096*smeTileSize) },
@@ -76,6 +81,31 @@ func getPoolSliceI32(pool *sync.Pool, n int) []int32 {
 	return buf
 }
 
+// computeBlockScales fills dst[m*nblocks+kb] = absmax(input block) / 127.0
+// for all m in [0,M) and kb in [0,nblocks).
+func computeBlockScales(dst []float32, input []float32, M, K, nblocks int) {
+	for m := range M {
+		for kb := range nblocks {
+			off := m*K + kb*QK_K
+			amax := ggufAsm.ComputeAbsmax(unsafe.Pointer(&input[off]), int64(QK_K))
+			dst[m*nblocks+kb] = amax / 127.0
+		}
+	}
+}
+
+// fillInvScales fills dst[0:mRows] with 1/dAScales[(mTile+row)*nblocks+kb],
+// or 0 when the scale is non-positive.
+func fillInvScales(dst []float32, dAScales []float32, nblocks, mTile, kb, mRows int) {
+	for row := range mRows {
+		d := dAScales[(mTile+row)*nblocks+kb]
+		if d > 0 {
+			dst[row] = 1.0 / d
+		} else {
+			dst[row] = 0
+		}
+	}
+}
+
 // alignUp rounds m up to the nearest multiple of tileSize.
 func alignUp(m, tileSize int) int {
 	return (m + tileSize - 1) / tileSize * tileSize
@@ -104,14 +134,9 @@ func smeGGUFMatMul(input []float32, weights []uint8, output []float32,
 	wRowBytes := nblocks * wBlockBytes
 
 	// Precompute block scales, eliminating the intermediate Q8_K buffer.
-	dAScales := make([]float32, M*nblocks)
-	for m := range M {
-		for kb := range nblocks {
-			off := m*K + kb*QK_K
-			amax := ggufAsm.ComputeAbsmax(unsafe.Pointer(&input[off]), int64(QK_K))
-			dAScales[m*nblocks+kb] = amax / 127.0
-		}
-	}
+	dAScales := getPoolSliceF32(&smopaScalesPool, M*nblocks)
+	defer smopaScalesPool.Put(dAScales)
+	computeBlockScales(dAScales, input, M, K, nblocks)
 
 	// Pad M to tile boundary.
 	paddedM := alignUp(M, smeTileSize)
@@ -177,16 +202,7 @@ func smeGGUFMatMul(input []float32, weights []uint8, output []float32,
 					for mTile := 0; mTile < paddedM; mTile += smeTileSize {
 						mRows := min(smeTileSize, M-mTile)
 
-						// Compute inverse scales for fused quantize+pack.
-						for row := range mRows {
-							m := mTile + row
-							d := dAScales[m*nblocks+kb]
-							if d > 0 {
-								invScaleBuf[row] = 1.0 / d
-							} else {
-								invScaleBuf[row] = 0
-							}
-						}
+						fillInvScales(invScaleBuf[:], dAScales, nblocks, mTile, kb, mRows)
 
 						inputOff := mTile*K + kb*QK_K + j*subBlockSize
 						ggufAsm.FusedQuantizePack(
@@ -220,15 +236,7 @@ func smeGGUFMatMul(input []float32, weights []uint8, output []float32,
 					for mTile := 0; mTile < paddedM; mTile += smeTileSize {
 						mRows := min(smeTileSize, M-mTile)
 
-						for row := range mRows {
-							m := mTile + row
-							d := dAScales[m*nblocks+kb]
-							if d > 0 {
-								invScaleBuf[row] = 1.0 / d
-							} else {
-								invScaleBuf[row] = 0
-							}
-						}
+						fillInvScales(invScaleBuf[:], dAScales, nblocks, mTile, kb, mRows)
 
 						inputOff := mTile*K + kb*QK_K + j*subBlockSize
 						ggufAsm.FusedQuantizePackBsum(
@@ -436,14 +444,9 @@ func parallelSMEGGUFMatMul(pool workerpool.Executor, input []float32,
 	wRowBytes := nblocks * wBlockBytes
 
 	// Precompute block scales (shared across workers).
-	dAScales := make([]float32, M*nblocks)
-	for m := range M {
-		for kb := range nblocks {
-			off := m*K + kb*QK_K
-			amax := ggufAsm.ComputeAbsmax(unsafe.Pointer(&input[off]), int64(QK_K))
-			dAScales[m*nblocks+kb] = amax / 127.0
-		}
-	}
+	dAScales := getPoolSliceF32(&smopaScalesPool, M*nblocks)
+	defer smopaScalesPool.Put(dAScales)
+	computeBlockScales(dAScales, input, M, K, nblocks)
 
 	paddedM := alignUp(M, smeTileSize)
 	nTiles := alignUp(N, smeTileSize) / smeTileSize
@@ -504,15 +507,7 @@ func parallelSMEGGUFMatMul(pool workerpool.Executor, input []float32,
 						for mTile := 0; mTile < paddedM; mTile += smeTileSize {
 							mRows := min(smeTileSize, M-mTile)
 
-							for row := range mRows {
-								m := mTile + row
-								d := dAScales[m*nblocks+kb]
-								if d > 0 {
-									invScaleBuf[row] = 1.0 / d
-								} else {
-									invScaleBuf[row] = 0
-								}
-							}
+							fillInvScales(invScaleBuf[:], dAScales, nblocks, mTile, kb, mRows)
 
 							inputOff := mTile*K + kb*QK_K + j*subBlockSize
 							ggufAsm.FusedQuantizePack(
@@ -545,15 +540,7 @@ func parallelSMEGGUFMatMul(pool workerpool.Executor, input []float32,
 						for mTile := 0; mTile < paddedM; mTile += smeTileSize {
 							mRows := min(smeTileSize, M-mTile)
 
-							for row := range mRows {
-								m := mTile + row
-								d := dAScales[m*nblocks+kb]
-								if d > 0 {
-									invScaleBuf[row] = 1.0 / d
-								} else {
-									invScaleBuf[row] = 0
-								}
-							}
+							fillInvScales(invScaleBuf[:], dAScales, nblocks, mTile, kb, mRows)
 
 							inputOff := mTile*K + kb*QK_K + j*subBlockSize
 							ggufAsm.FusedQuantizePackBsum(

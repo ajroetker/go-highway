@@ -71,80 +71,20 @@ func smePreparedGGUFMatMul(input []float32, pw *PreparedWeights,
 	numSubBlocks := pw.NumSubBlocks
 
 	// Step 1: Precompute block scales (absmax/127 per block per row).
-	// This replaces the full Q8_K quantization, eliminating the M×nblocks×292
-	// byte intermediate buffer. dAScales uses only M×nblocks×4 bytes.
-	dAScales := make([]float32, M*nblocks)
-	for m := range M {
-		for kb := range nblocks {
-			off := m*K + kb*QK_K
-			amax := asm.ComputeAbsmax(unsafe.Pointer(&input[off]), int64(QK_K))
-			dAScales[m*nblocks+kb] = amax / 127.0
-		}
-	}
+	dAScales := getPoolSliceF32(&smopaScalesPool, M*nblocks)
+	defer smopaScalesPool.Put(dAScales)
+	computeBlockScales(dAScales, input, M, K, nblocks)
 
 	paddedM := alignUp(M, smeTileSize)
 	nMTiles := paddedM / smeTileSize
 
 	// Step 2: Fused quantize+pack activation panels directly from float32 input.
-	// For each (kb, j, mTile), quantize the sub-block values and pack into
-	// A-panel layout in a single pass, computing dA and dABsum as byproducts.
 	panelSize := pw.KGroups * 64
 	nEntries := nblocks * numSubBlocks * nMTiles
 	cachedPanels := make([]int8, nEntries*panelSize)
 	cachedScales := make([]tileScales, nEntries)
-
-	var invScaleBuf [smeTileSize]float32
-	var bsumBuf [smeTileSize]int64
-
-	for kb := range nblocks {
-		for j := range numSubBlocks {
-			for mt := range nMTiles {
-				mTile := mt * smeTileSize
-				mRows := min(smeTileSize, M-mTile)
-				idx := kb*numSubBlocks*nMTiles + j*nMTiles + mt
-
-				// Compute inverse scales for each row in this M-tile.
-				ts := &cachedScales[idx]
-				for row := range mRows {
-					m := mTile + row
-					d := dAScales[m*nblocks+kb]
-					ts.dA[row] = d
-					if d > 0 {
-						invScaleBuf[row] = 1.0 / d
-					} else {
-						invScaleBuf[row] = 0
-					}
-				}
-
-				// Fused quantize + pack into A-panel.
-				panel := cachedPanels[idx*panelSize : (idx+1)*panelSize]
-				inputOff := mTile*K + kb*QK_K + j*pw.SubBlockSize
-				if !pw.Signed {
-					asm.FusedQuantizePackBsum(
-						unsafe.Pointer(&input[inputOff]),
-						int64(K),
-						unsafe.Pointer(&invScaleBuf[0]),
-						int64(pw.SubBlockSize),
-						int64(mRows),
-						unsafe.Pointer(&panel[0]),
-						unsafe.Pointer(&bsumBuf[0]),
-					)
-					for row := range mRows {
-						ts.dABsum[row] = ts.dA[row] * float32(bsumBuf[row])
-					}
-				} else {
-					asm.FusedQuantizePack(
-						unsafe.Pointer(&input[inputOff]),
-						int64(K),
-						unsafe.Pointer(&invScaleBuf[0]),
-						int64(pw.SubBlockSize),
-						int64(mRows),
-						unsafe.Pointer(&panel[0]),
-					)
-				}
-			}
-		}
-	}
+	buildActivationCache(cachedPanels, cachedScales, input, dAScales,
+		M, K, nblocks, numSubBlocks, nMTiles, pw.SubBlockSize, panelSize, pw.Signed)
 
 	// 4-tile int32 output buffer.
 	tileI32 := getPoolSliceI32(&smopaTile4Pool, 1024)
@@ -218,75 +158,14 @@ func smePreparedGGUFMatMul(input []float32, pw *PreparedWeights,
 	}
 }
 
-// accumulatePreparedTilesV2 is the optimized accumulation function that takes
-// pre-computed dA and dABsum values, enabling the Go compiler to generate
-// optimal code for the inner float accumulation loops.
-func accumulatePreparedTilesV2(accTile []float32, tileI32 []int32,
-	scales []float32, scaleSubOff, minSubOff int,
-	dA *[smeTileSize]float32, dABsum *[smeTileSize]float32,
-	mTile, M, nCols int, signed bool) {
-
-	nRows := min(smeTileSize, M-mTile)
-	for row := range nRows {
-		m := mTile + row
-		d := dA[row]
-
-		for tile := range nTilesPerGroup {
-			tileNCols := min(smeTileSize, nCols-tile*smeTileSize)
-			if tileNCols <= 0 {
-				break
-			}
-
-			tileBase := tile * 256
-			scaleBase := scaleSubOff + tile*smeTileSize
-			accBase := m*nColsPerGroup + tile*smeTileSize
-
-			for col := range tileNCols {
-				raw := float32(tileI32[tileBase+row*smeTileSize+col])
-				accTile[accBase+col] += raw * scales[scaleBase+col] * d
-			}
-
-			if !signed {
-				bs := dABsum[row]
-				minBase := minSubOff + tile*smeTileSize
-				for col := range tileNCols {
-					accTile[accBase+col] -= scales[minBase+col] * bs
-				}
-			}
-		}
-	}
-}
-
-// parallelSMEPreparedGGUFMatMul distributes N-tile-groups across workers.
-// Activations are quantized once (shared); each worker processes its own
-// N-tile-group range using pre-packed B panels and pre-computed activation
-// scales from the shared caches.
-func parallelSMEPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
-	pw *PreparedWeights, output []float32, M int) {
-
-	K, N := pw.K, pw.N
-	nblocks := K / QK_K
-	numSubBlocks := pw.NumSubBlocks
-
-	// Precompute block scales (shared across workers).
-	dAScales := make([]float32, M*nblocks)
-	for m := range M {
-		for kb := range nblocks {
-			off := m*K + kb*QK_K
-			amax := asm.ComputeAbsmax(unsafe.Pointer(&input[off]), int64(QK_K))
-			dAScales[m*nblocks+kb] = amax / 127.0
-		}
-	}
-
-	paddedM := alignUp(M, smeTileSize)
-	nMTiles := paddedM / smeTileSize
-
-	// Fused quantize+pack activation panels (shared read-only).
-	panelSize := pw.KGroups * 64
-	nEntries := nblocks * numSubBlocks * nMTiles
-	cachedPanels := make([]int8, nEntries*panelSize)
-	cachedScales := make([]tileScales, nEntries)
-
+// buildActivationCache fills cachedPanels and cachedScales for all
+// (kb, j, mTile) entries by fusing quantize+pack from the float32 input.
+func buildActivationCache(
+	cachedPanels []int8, cachedScales []tileScales,
+	input []float32, dAScales []float32,
+	M, K, nblocks, numSubBlocks, nMTiles, subBlockSize, panelSize int,
+	signed bool,
+) {
 	var invScaleBuf [smeTileSize]float32
 	var bsumBuf [smeTileSize]int64
 
@@ -310,13 +189,13 @@ func parallelSMEPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
 				}
 
 				panel := cachedPanels[idx*panelSize : (idx+1)*panelSize]
-				inputOff := mTile*K + kb*QK_K + j*pw.SubBlockSize
-				if !pw.Signed {
+				inputOff := mTile*K + kb*QK_K + j*subBlockSize
+				if !signed {
 					asm.FusedQuantizePackBsum(
 						unsafe.Pointer(&input[inputOff]),
 						int64(K),
 						unsafe.Pointer(&invScaleBuf[0]),
-						int64(pw.SubBlockSize),
+						int64(subBlockSize),
 						int64(mRows),
 						unsafe.Pointer(&panel[0]),
 						unsafe.Pointer(&bsumBuf[0]),
@@ -329,7 +208,7 @@ func parallelSMEPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
 						unsafe.Pointer(&input[inputOff]),
 						int64(K),
 						unsafe.Pointer(&invScaleBuf[0]),
-						int64(pw.SubBlockSize),
+						int64(subBlockSize),
 						int64(mRows),
 						unsafe.Pointer(&panel[0]),
 					)
@@ -337,6 +216,34 @@ func parallelSMEPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
 			}
 		}
 	}
+}
+
+// parallelSMEPreparedGGUFMatMul distributes N-tile-groups across workers.
+// Activations are quantized once (shared); each worker processes its own
+// N-tile-group range using pre-packed B panels and pre-computed activation
+// scales from the shared caches.
+func parallelSMEPreparedGGUFMatMul(pool workerpool.Executor, input []float32,
+	pw *PreparedWeights, output []float32, M int) {
+
+	K, N := pw.K, pw.N
+	nblocks := K / QK_K
+	numSubBlocks := pw.NumSubBlocks
+
+	// Precompute block scales (shared across workers).
+	dAScales := getPoolSliceF32(&smopaScalesPool, M*nblocks)
+	defer smopaScalesPool.Put(dAScales)
+	computeBlockScales(dAScales, input, M, K, nblocks)
+
+	paddedM := alignUp(M, smeTileSize)
+	nMTiles := paddedM / smeTileSize
+
+	// Fused quantize+pack activation panels (shared read-only).
+	panelSize := pw.KGroups * 64
+	nEntries := nblocks * numSubBlocks * nMTiles
+	cachedPanels := make([]int8, nEntries*panelSize)
+	cachedScales := make([]tileScales, nEntries)
+	buildActivationCache(cachedPanels, cachedScales, input, dAScales,
+		M, K, nblocks, numSubBlocks, nMTiles, pw.SubBlockSize, panelSize, pw.Signed)
 
 	pool.ParallelFor(pw.NTileGroups, func(ngStart, ngEnd int) {
 		tileI32 := getPoolSliceI32(&smopaTile4Pool, 1024)
