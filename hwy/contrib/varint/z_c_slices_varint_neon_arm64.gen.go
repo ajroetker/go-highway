@@ -18,7 +18,9 @@ func initVarintNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	FindVarintEnds = findVarintEndsAsmU8
+	if hwy.HasARMDotProd() {
+		FindVarintEnds = findVarintEndsAsmU8
+	}
 }
 
 func findVarintEndsAsmU8(src []byte) uint32 {

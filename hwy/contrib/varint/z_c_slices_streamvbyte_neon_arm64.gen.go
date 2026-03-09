@@ -18,9 +18,11 @@ func initStreamvbyteNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	DecodeStreamVByte32GroupSIMD = decodeStreamVByte32GroupSIMDAsmU8
 	DecodeStreamVByte32Into = decodeStreamVByte32IntoAsmU32
 	EncodeStreamVByte32Group = encodeStreamVByte32GroupAsmU32
+	if hwy.HasARMDotProd() {
+		DecodeStreamVByte32GroupSIMD = decodeStreamVByte32GroupSIMDAsmU8
+	}
 }
 
 func decodeStreamVByte32GroupSIMDAsmU8(ctrl byte, data []uint8, dst []uint32) int {
