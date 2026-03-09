@@ -15,6 +15,7 @@
 package matvec
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -75,7 +76,7 @@ func TestTrsvLNRandom(t *testing.T) {
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128}
 
 	for _, n := range sizes {
-		t.Run(sizeStr(n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", n), func(t *testing.T) {
 			l := makeLowerTriangular(n)
 
 			// Generate random x, compute b = L*x
@@ -115,7 +116,7 @@ func TestTrsvLTRandom(t *testing.T) {
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128}
 
 	for _, n := range sizes {
-		t.Run(sizeStr(n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", n), func(t *testing.T) {
 			l := makeLowerTriangular(n)
 
 			// Generate random x, compute b = L^T * x

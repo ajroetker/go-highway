@@ -15,6 +15,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -92,7 +93,7 @@ func TestTrsmLNRandom(t *testing.T) {
 	}
 
 	for _, sz := range sizes {
-		name := sizeStr(sz.n) + "x" + sizeStr(sz.nrhs)
+		name := fmt.Sprintf("%03d",sz.n) + "x" + fmt.Sprintf("%03d",sz.nrhs)
 		t.Run(name, func(t *testing.T) {
 			l := makeLowerTriangular(sz.n)
 			b := make([]float32, sz.n*sz.nrhs)
@@ -133,7 +134,7 @@ func TestTrsmLTRandom(t *testing.T) {
 	}
 
 	for _, sz := range sizes {
-		name := sizeStr(sz.n) + "x" + sizeStr(sz.nrhs)
+		name := fmt.Sprintf("%03d",sz.n) + "x" + fmt.Sprintf("%03d",sz.nrhs)
 		t.Run(name, func(t *testing.T) {
 			l := makeLowerTriangular(sz.n)
 			b := make([]float32, sz.n*sz.nrhs)
@@ -217,7 +218,7 @@ func BenchmarkTrsmLN(b *testing.B) {
 	}
 
 	for _, sz := range sizes {
-		name := sizeStr(sz.n) + "x" + sizeStr(sz.nrhs)
+		name := fmt.Sprintf("%03d",sz.n) + "x" + fmt.Sprintf("%03d",sz.nrhs)
 		l := makeLowerTriangular(sz.n)
 		bMat := make([]float32, sz.n*sz.nrhs)
 		for i := range bMat {

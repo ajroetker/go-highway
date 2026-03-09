@@ -15,6 +15,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -65,7 +66,7 @@ func TestSyrkLNRandom(t *testing.T) {
 	}
 
 	for _, sz := range sizes {
-		name := sizeStr(sz.n) + "x" + sizeStr(sz.k)
+		name := fmt.Sprintf("%03d",sz.n) + "x" + fmt.Sprintf("%03d",sz.k)
 		t.Run(name, func(t *testing.T) {
 			a := make([]float32, sz.n*sz.k)
 			for i := range a {
@@ -148,7 +149,7 @@ func BenchmarkSyrkLN(b *testing.B) {
 	}
 
 	for _, sz := range sizes {
-		name := sizeStr(sz.n) + "x" + sizeStr(sz.k)
+		name := fmt.Sprintf("%03d",sz.n) + "x" + fmt.Sprintf("%03d",sz.k)
 		a := make([]float32, sz.n*sz.k)
 		for i := range a {
 			a[i] = rand.Float32()

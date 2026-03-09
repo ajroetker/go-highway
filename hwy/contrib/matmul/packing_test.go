@@ -15,6 +15,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -278,7 +279,7 @@ func TestPackedMatMul(t *testing.T) {
 	sizes := []int{16, 32, 48, 64, 96, 128, 256}
 
 	for _, size := range sizes {
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",size), func(t *testing.T) {
 			m, n, k := size, size, size
 
 			a := make([]float32, m*k)
@@ -325,7 +326,7 @@ func TestPackedMatMulNonSquare(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		name := sizeStr(tc.m) + "x" + sizeStr(tc.n) + "x" + sizeStr(tc.k)
+		name := fmt.Sprintf("%03d",tc.m) + "x" + fmt.Sprintf("%03d",tc.n) + "x" + fmt.Sprintf("%03d",tc.k)
 		t.Run(name, func(t *testing.T) {
 			a := make([]float32, tc.m*tc.k)
 			b := make([]float32, tc.k*tc.n)
@@ -366,7 +367,7 @@ func TestParallelPackedMatMul(t *testing.T) {
 	sizes := []int{256, 512}
 
 	for _, size := range sizes {
-		t.Run(sizeStr(size), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",size), func(t *testing.T) {
 			m, n, k := size, size, size
 
 			a := make([]float32, m*k)
@@ -422,7 +423,7 @@ func BenchmarkPackedMatMul(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 

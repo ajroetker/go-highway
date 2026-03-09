@@ -17,6 +17,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -30,7 +31,7 @@ func TestBlockMulAddFMOPAF32(t *testing.T) {
 	blockSizes := []int{16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			a := make([]float32, size)
@@ -77,7 +78,7 @@ func TestBlockMulAddFMOPAF64(t *testing.T) {
 	blockSizes := []int{8, 16, 32, 48, 64}
 
 	for _, blockDim := range blockSizes {
-		t.Run(sizeStr(blockDim), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d",blockDim), func(t *testing.T) {
 			size := blockDim * blockDim
 
 			a := make([]float64, size)
@@ -254,7 +255,7 @@ func BenchmarkBlockMulAddFMOPAF32(b *testing.B) {
 
 		// Only benchmark FMOPA for sizes that are multiples of 16
 		if blockDim%16 == 0 {
-			b.Run(sizeStr(blockDim)+"/FMOPA", func(b *testing.B) {
+			b.Run(fmt.Sprintf("%03d",blockDim)+"/FMOPA", func(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
 					asm.BlockMulAddFMOPAF32(aT, bMat, c, blockDim)

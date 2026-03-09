@@ -1,6 +1,7 @@
 package matmul
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -34,7 +35,7 @@ func BenchmarkMatMulNonAligned(b *testing.B) {
 		}
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(m)+"x"+sizeStr(n)+"x"+sizeStr(k), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",m)+"x"+fmt.Sprintf("%03d",n)+"x"+fmt.Sprintf("%03d",k), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

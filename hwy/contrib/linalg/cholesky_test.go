@@ -15,6 +15,7 @@
 package linalg
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -154,7 +155,7 @@ func TestCholeskyRandom(t *testing.T) {
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128}
 
 	for _, n := range sizes {
-		t.Run(sizeStr(n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", n), func(t *testing.T) {
 			a := makeSymPosDef(n)
 			orig := copySlice(a)
 
@@ -173,7 +174,7 @@ func TestCholesky64Random(t *testing.T) {
 	sizes := []int{1, 2, 4, 8, 16, 32, 64, 128}
 
 	for _, n := range sizes {
-		t.Run(sizeStr(n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", n), func(t *testing.T) {
 			a := makeSymPosDef64(n)
 			orig := copySlice(a)
 
@@ -239,7 +240,7 @@ func TestCholeskySolveRandom(t *testing.T) {
 	sizes := []int{2, 4, 8, 16, 32, 64}
 
 	for _, n := range sizes {
-		t.Run(sizeStr(n), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%03d", n), func(t *testing.T) {
 			a := makeSymPosDef(n)
 			origA := copySlice(a)
 
@@ -327,7 +328,7 @@ func BenchmarkCholesky(b *testing.B) {
 	for _, n := range sizes {
 		a := makeSymPosDef(n)
 
-		b.Run(sizeStr(n), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d", n), func(b *testing.B) {
 			b.SetBytes(int64(n * n * 4))
 			buf := make([]float32, n*n)
 			b.ResetTimer()
@@ -342,14 +343,3 @@ func BenchmarkCholesky(b *testing.B) {
 	}
 }
 
-func sizeStr(n int) string {
-	s := make([]byte, 0, 4)
-	if n >= 100 {
-		s = append(s, byte('0'+n/100))
-	}
-	if n >= 10 {
-		s = append(s, byte('0'+(n/10)%10))
-	}
-	s = append(s, byte('0'+n%10))
-	return string(s)
-}

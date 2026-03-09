@@ -46,7 +46,7 @@ func BenchmarkMatMulNEON(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -82,7 +82,7 @@ func BenchmarkMatMulSME(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -116,7 +116,7 @@ func BenchmarkMatMulDispatch(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -150,7 +150,7 @@ func BenchmarkBlockedMatMulNEON(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -186,7 +186,7 @@ func BenchmarkBlockedMatMulSME(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -198,7 +198,7 @@ func BenchmarkBlockedMatMulSME(b *testing.B) {
 			b.ReportMetric(gflops, "GFLOPS")
 		})
 
-		b.Run(sizeStr(size)+"/transpose", func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size)+"/transpose", func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -515,7 +515,7 @@ func BenchmarkBlockedMatMulDispatch(b *testing.B) {
 
 		flops := float64(2*m*n*k) / 1e9
 
-		b.Run(sizeStr(size), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%03d",size), func(b *testing.B) {
 			b.SetBytes(int64((m*k + k*n + m*n) * 4))
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
