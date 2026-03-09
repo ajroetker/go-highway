@@ -3,7 +3,7 @@
 // versions:
 // 	clang   22.1.0
 // 	objdump 2.46.0.20260210
-// flags: -march=armv8-a+simd+fp -fno-builtin-memset -O3
+// flags: -march=armv8.2-a+dotprod+simd+fp -fno-builtin-memset -O3
 // source: /Users/ajroetker/go/src/github.com/ajroetker/go-highway/hwy/contrib/varint/asm/basemaskedvbytedecodegroup_c_u8_neon_arm64.c
 
 #include "textflag.h"

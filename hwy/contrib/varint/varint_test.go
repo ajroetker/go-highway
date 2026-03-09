@@ -16,6 +16,7 @@ package varint
 
 import (
 	"math"
+	"slices"
 	"testing"
 )
 
@@ -908,6 +909,49 @@ func TestDecodeStreamVByte32Into_PartialGroupWithLargeValues(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestEncodeStreamVByte32Into_TightBuffer is a regression test for two bugs in
+// EncodeStreamVByte32Into: (1) the scalar fallback wrote directly into dataBuf
+// which could have fewer than 16 bytes remaining, and (2) maxDataLen was
+// len(values)*4 which didn't account for zero-padded partial groups.
+func TestEncodeStreamVByte32Into_TightBuffer(t *testing.T) {
+	tests := []struct {
+		name   string
+		values []uint32
+	}{
+		{"all_4byte", []uint32{
+			0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10,
+			0x11121314, 0x15161718, 0x191A1B1C, 0x1D1E1F20,
+		}},
+		{"mixed_sizes", []uint32{1, 2, 3, 4, 0xAABBCCDD, 0xEEFF0011, 0x22334455, 0x66778899}},
+		{"partial_group", []uint32{0xDEADBEEF, 0xCAFEBABE, 0x12345678, 0x9ABCDEF0, 0xFFFFFFFF}},
+		{"single_group", []uint32{0x01000000, 0x02000000, 0x03000000, 0x04000000}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Use tiny pre-allocated buffers to force internal reallocation.
+			control, data := EncodeStreamVByte32Into(tt.values, make([]byte, 0, 1), make([]byte, 0, 1))
+			wantCtrl, wantData := EncodeStreamVByte32(tt.values)
+
+			if !slices.Equal(control, wantCtrl) {
+				t.Fatalf("control mismatch: got %x, want %x", control, wantCtrl)
+			}
+			if !slices.Equal(data, wantData) {
+				t.Fatalf("data mismatch: got %x, want %x", data, wantData)
+			}
+
+			// Round-trip decode (padded to multiple of 4).
+			nDecode := ((len(tt.values) + 3) / 4) * 4
+			decoded := DecodeStreamVByte32(control, data, nDecode)
+			for i, want := range tt.values {
+				if decoded[i] != want {
+					t.Errorf("round-trip[%d]: got %08x, want %08x", i, decoded[i], want)
+				}
+			}
+		})
+	}
 }
 
 func TestStreamVByte32DataLen(t *testing.T) {

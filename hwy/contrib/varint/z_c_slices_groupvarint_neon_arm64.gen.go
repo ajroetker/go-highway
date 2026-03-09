@@ -18,7 +18,9 @@ func initGroupvarintNeonCAsm() {
 	if hwy.NoSimdEnv() {
 		return
 	}
-	DecodeGroupVarint32 = decodeGroupVarint32AsmU8
+	if hwy.HasARMDotProd() {
+		DecodeGroupVarint32 = decodeGroupVarint32AsmU8
+	}
 }
 
 func decodeGroupVarint32AsmU8(src []byte) ([4]uint32, int) {

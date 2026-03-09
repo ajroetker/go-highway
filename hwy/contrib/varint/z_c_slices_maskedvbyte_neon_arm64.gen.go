@@ -20,7 +20,9 @@ func initMaskedvbyteNeonCAsm() {
 	}
 	MaskedVByteDecodeBatch32 = maskedVByteDecodeBatch32AsmU32
 	MaskedVByteDecodeBatch64 = maskedVByteDecodeBatch64AsmU64
-	MaskedVByteDecodeGroup = maskedVByteDecodeGroupAsmU8
+	if hwy.HasARMDotProd() {
+		MaskedVByteDecodeGroup = maskedVByteDecodeGroupAsmU8
+	}
 }
 
 func maskedVByteDecodeBatch32AsmU32(src []byte, dst []uint32, n int) (int, int) {
