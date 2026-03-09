@@ -189,13 +189,16 @@ func EncodeStreamVByte32Into(values []uint32, controlBuf, dataBuf []byte) (contr
 		controlBuf = controlBuf[:numGroups]
 	}
 
-	maxDataLen := len(values) * 4
+	// Each group of 4 values encodes to at most 16 bytes. Partial groups
+	// are zero-padded to 4 values, so the last group can exceed len(values)*4.
+	maxDataLen := numGroups * 16
 	if cap(dataBuf) < maxDataLen {
 		dataBuf = make([]byte, maxDataLen)
 	} else {
 		dataBuf = dataBuf[:maxDataLen]
 	}
 
+	var buf [16]byte
 	dataPos := 0
 	for g := range numGroups {
 		baseIdx := g * 4
@@ -207,11 +210,14 @@ func EncodeStreamVByte32Into(values []uint32, controlBuf, dataBuf []byte) (contr
 			controlBuf[g] = ctrl
 			dataPos += n
 		} else {
-			// Partial group - scalar with padding
+			// Partial group or insufficient dst space - encode into scratch
+			// buffer then copy. dataBuf[dataPos:] may have fewer than 16
+			// bytes remaining, so we cannot write directly into it.
 			var group [4]uint32
 			copy(group[:], values[baseIdx:])
-			ctrl, n := encodeGroupScalarInto(group[:], dataBuf[dataPos:])
+			ctrl, n := encodeGroupScalarInto(group[:], buf[:])
 			controlBuf[g] = ctrl
+			copy(dataBuf[dataPos:], buf[:n])
 			dataPos += n
 		}
 	}
