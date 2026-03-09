@@ -29,6 +29,12 @@ import (
 //go:generate go tool goat c/multitile_sumopa_prepacked_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-i16i64" -o asm/
 //go:generate go tool goat c/multitile_smopa_prepacked_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-i16i64" -o asm/
 
+// GoAT compilation directive for SDOT/TBL vecdot kernels (Tier 1 types).
+//go:generate go tool goat c/vecdot_sdot_neon_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv8.2-a+dotprod+simd+fp" -o asm/
+
+// GoAT compilation directive for fused quantize+pack activation kernels.
+//go:generate go tool goat c/fused_quantize_pack_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv8.2-a+dotprod+simd+fp" -o asm/
+
 // Buffer pool for 4-tile int32 output: 4 x 16x16 = 1024 int32s.
 var smopaTile4Pool = sync.Pool{
 	New: func() any { return make([]int32, 1024) },

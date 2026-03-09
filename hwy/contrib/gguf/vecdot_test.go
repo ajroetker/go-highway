@@ -20,6 +20,18 @@ import (
 	"testing"
 )
 
+// assertRelErr fails t if the relative error between got and want exceeds tol.
+func assertRelErr(t *testing.T, got, want float32, tol float64) {
+	t.Helper()
+	relErr := float64(0)
+	if want != 0 {
+		relErr = math.Abs(float64(got-want)) / math.Abs(float64(want))
+	}
+	if relErr > tol {
+		t.Errorf("dispatch %f != fallback %f (relErr=%.2e)", got, want, relErr)
+	}
+}
+
 // referenceDot computes the float32 dot product of two vectors.
 func referenceDot(a, b []float32) float32 {
 	var sum float64
@@ -234,9 +246,9 @@ func TestVecDotQ4_0Q8_0_DispatchVsFallback(t *testing.T) {
 	got := VecDotQ4_0Q8_0(wdata, adata, nblocks)
 	want := BaseVecDotQ4_0Q8_0_fallback(wdata, adata, nblocks)
 
-	if got != want {
-		t.Errorf("dispatch %f != fallback %f", got, want)
-	}
+	// SDOT accumulates in int32 before float conversion (per-block),
+	// vs fallback's per-element float FMA, so allow small rounding diff.
+	assertRelErr(t, got, want, 1e-5)
 }
 
 func TestVecDotIQ4NLQ8_0_DispatchVsFallback(t *testing.T) {
@@ -286,9 +298,7 @@ func TestVecDotQ8_0Q8_0_DispatchVsFallback(t *testing.T) {
 	got := VecDotQ8_0Q8_0(wdata, adata, nblocks)
 	want := BaseVecDotQ8_0Q8_0_fallback(wdata, adata, nblocks)
 
-	if got != want {
-		t.Errorf("dispatch %f != fallback %f", got, want)
-	}
+	assertRelErr(t, got, want, 1e-5)
 }
 
 func BenchmarkVecDotQ4_0Q8_0(b *testing.B) {

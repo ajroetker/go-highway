@@ -135,9 +135,10 @@ func (t *TranslateUnit) parseSource() ([]Function, error) {
 	for tu := ast.TranslationUnit; tu != nil; tu = tu.TranslationUnit {
 		externalDeclaration := tu.ExternalDeclaration
 		if externalDeclaration.Position().Filename == t.Source && externalDeclaration.Case == cc.ExternalDeclarationFuncDef {
-			functionSpecifier := externalDeclaration.FunctionDefinition.DeclarationSpecifiers.FunctionSpecifier
-			if functionSpecifier != nil && functionSpecifier.Case == cc.FunctionSpecifierInline {
-				// ignore inline functions
+			ds := externalDeclaration.FunctionDefinition.DeclarationSpecifiers
+			if hasInlineSpecifier(ds) || hasStorageClass(ds) {
+				// Skip inline and static functions — they are internal
+				// helpers inlined by clang into exported functions.
 				continue
 			}
 			if function, err := t.convertFunction(externalDeclaration.FunctionDefinition); err != nil {
@@ -456,14 +457,51 @@ type Function struct {
 	SpillBase  int // Offset for overflow arg storage; 0 means use StackSize
 }
 
+// hasInlineSpecifier walks the DeclarationSpecifiers chain and returns true
+// if any node contains an inline function specifier.
+func hasInlineSpecifier(ds *cc.DeclarationSpecifiers) bool {
+	for ; ds != nil; ds = ds.DeclarationSpecifiers {
+		if ds.Case == cc.DeclarationSpecifiersFunc {
+			if ds.FunctionSpecifier != nil && ds.FunctionSpecifier.Case == cc.FunctionSpecifierInline {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// hasStorageClass walks the DeclarationSpecifiers chain and returns true
+// if any node contains a storage class specifier (static, extern, etc.).
+func hasStorageClass(ds *cc.DeclarationSpecifiers) bool {
+	for ; ds != nil; ds = ds.DeclarationSpecifiers {
+		if ds.Case == cc.DeclarationSpecifiersStorage {
+			return true
+		}
+	}
+	return false
+}
+
+// findTypeSpecifier walks the DeclarationSpecifiers chain and returns the
+// first TypeSpecifier found, skipping storage class specifiers, type
+// qualifiers, function specifiers, and alignment specifiers.
+func findTypeSpecifier(ds *cc.DeclarationSpecifiers) (*cc.TypeSpecifier, error) {
+	for ; ds != nil; ds = ds.DeclarationSpecifiers {
+		if ds.Case == cc.DeclarationSpecifiersTypeSpec {
+			return ds.TypeSpecifier, nil
+		}
+	}
+	return nil, fmt.Errorf("no type specifier found in declaration")
+}
+
 // convertFunction extracts the function definition from cc.DirectDeclarator.
 func (t *TranslateUnit) convertFunction(functionDefinition *cc.FunctionDefinition) (Function, error) {
 	// parse return type
 	declarationSpecifiers := functionDefinition.DeclarationSpecifiers
-	if declarationSpecifiers.Case != cc.DeclarationSpecifiersTypeSpec {
-		return Function{}, fmt.Errorf("invalid function return type: %v", declarationSpecifiers.Case)
+	typeSpec, err := findTypeSpecifier(declarationSpecifiers)
+	if err != nil {
+		return Function{}, fmt.Errorf("invalid function return type: %w", err)
 	}
-	returnType := declarationSpecifiers.TypeSpecifier.Token.SrcStr()
+	returnType := typeSpec.Token.SrcStr()
 	// parse parameters
 	directDeclarator := functionDefinition.Declarator.DirectDeclarator
 	if directDeclarator.Case != cc.DirectDeclaratorFuncParam {
@@ -485,12 +523,13 @@ func (t *TranslateUnit) convertFunction(functionDefinition *cc.FunctionDefinitio
 func (t *TranslateUnit) convertFunctionParameters(params *cc.ParameterList) ([]Parameter, error) {
 	declaration := params.ParameterDeclaration
 	paramName := declaration.Declarator.DirectDeclarator.Token.SrcStr()
-	var paramType string
-	if declaration.DeclarationSpecifiers.Case == cc.DeclarationSpecifiersTypeQual {
-		paramType = declaration.DeclarationSpecifiers.DeclarationSpecifiers.TypeSpecifier.Token.SrcStr()
-	} else {
-		paramType = declaration.DeclarationSpecifiers.TypeSpecifier.Token.SrcStr()
+	typeSpec, err := findTypeSpecifier(declaration.DeclarationSpecifiers)
+	if err != nil {
+		position := declaration.Position()
+		return nil, fmt.Errorf("%v:%v:%v: error: %w",
+			position.Filename, position.Line+t.Offset, position.Column, err)
 	}
+	paramType := typeSpec.Token.SrcStr()
 	isPointer := declaration.Declarator.Pointer != nil
 	// Accept scalar types, NEON vector types, x86 SIMD types, SVE types, or pointers
 	if _, ok := supportedTypes[paramType]; !ok && !IsNeonType(paramType) && !IsX86SIMDType(paramType) && !IsSVEType(paramType) && !isPointer {
