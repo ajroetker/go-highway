@@ -34,6 +34,7 @@ type ParsedFunc struct {
 	TypeCombinations []TypeCombination // Explicit type combinations from //hwy:gen directive
 	Params           []Param           // Function parameters
 	Returns          []Param           // Return values
+	SharedLenExpr    string            // Shared slice work-length expression (e.g. min(len(dst), len(src)))
 	Body             *ast.BlockStmt    // Function body
 	HwyCalls         []HwyCall         // Detected hwy.* and contrib.* calls
 	LoopInfo         *LoopInfo         // Main processing loop info
@@ -413,6 +414,7 @@ func Parse(filename string) (*ParseResult, error) {
 
 		// Detect main vectorized loop (with unroll directive support)
 		pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
+		pf.SharedLenExpr = inferSharedLenExpr(funcDecl.Body, pf.Params)
 
 		// Store ALL functions in AllFuncs for potential inlining
 		pfCopy := pf // Make a copy since pf is reused
@@ -1027,6 +1029,83 @@ func isAuxiliaryLoop(body *ast.BlockStmt) bool {
 	return hasStore && !hasLoad && !hasArithmetic
 }
 
+func inferSharedLenExpr(body *ast.BlockStmt, params []Param) string {
+	if body == nil {
+		return ""
+	}
+
+	sliceParams := make(map[string]bool)
+	for _, p := range params {
+		if strings.HasPrefix(p.Type, "[]") && p.Name != "" {
+			sliceParams[p.Name] = true
+		}
+	}
+	if len(sliceParams) == 0 {
+		return ""
+	}
+
+	bestExpr := ""
+	bestCount := 1
+	ast.Inspect(body, func(n ast.Node) bool {
+		expr, ok := n.(ast.Expr)
+		if !ok {
+			return true
+		}
+		count, ok := sharedLenExprCount(expr, sliceParams)
+		if !ok || count <= bestCount {
+			return true
+		}
+		bestExpr = exprToString(expr)
+		bestCount = count
+		return true
+	})
+	return bestExpr
+}
+
+func sharedLenExprCount(expr ast.Expr, sliceParams map[string]bool) (int, bool) {
+	seen := make(map[string]bool, len(sliceParams))
+	if !collectSharedLenParams(expr, sliceParams, seen) {
+		return 0, false
+	}
+	return len(seen), true
+}
+
+func collectSharedLenParams(expr ast.Expr, sliceParams map[string]bool, seen map[string]bool) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	fn, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return false
+	}
+
+	switch fn.Name {
+	case "len":
+		if len(call.Args) != 1 {
+			return false
+		}
+		arg, ok := call.Args[0].(*ast.Ident)
+		if !ok || !sliceParams[arg.Name] {
+			return false
+		}
+		seen[arg.Name] = true
+		return true
+	case "min":
+		if len(call.Args) < 2 {
+			return false
+		}
+		for _, arg := range call.Args {
+			if !collectSharedLenParams(arg, sliceParams, seen) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
 // exprToString converts an AST expression to a string representation.
 func exprToString(expr ast.Expr) string {
 	if expr == nil {
@@ -1506,6 +1585,7 @@ func scanPackageFuncs(filename string, result *ParseResult) {
 
 			// Find hwy calls
 			pf.HwyCalls = findHwyCalls(funcDecl.Body, result.Imports)
+			pf.SharedLenExpr = inferSharedLenExpr(funcDecl.Body, pf.Params)
 
 			result.AllFuncs[funcName] = &pf
 		}
@@ -1687,6 +1767,7 @@ func scanSpecializations(filename string, result *ParseResult) {
 
 			// Detect main vectorized loop
 			pf.LoopInfo = detectLoopWithUnroll(funcDecl.Body, fset, unrollDirectives)
+			pf.SharedLenExpr = inferSharedLenExpr(funcDecl.Body, pf.Params)
 
 			// Add to both AllFuncs and Funcs
 			pfCopy := pf

@@ -133,6 +133,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 
 	// Process each target
 	for _, target := range targets {
+		target.Mode = cMode
 		fmt.Printf("\nGenerating C for target: %s\n", target.Name)
 
 		// In asm mode, C/assembly files go to asm/ subdirectory
@@ -336,8 +337,14 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				}
 			}
 
+			allAsmDispatchFuncs := append([]ParsedFunc{}, structFuncs...)
+			allAsmDispatchFuncs = append(allAsmDispatchFuncs, allSliceDispatchFuncs...)
+			if err := g.emitAsmDispatchBridge(allAsmDispatchFuncs, target, compiledElemSuffixes); err != nil {
+				return nil, fmt.Errorf("emit asm dispatch bridge for %s: %w", target.Name, err)
+			}
+
 			// Collect adapter info for all ASM-eligible functions
-			for _, pf := range append(structFuncs, allSliceDispatchFuncs...) {
+			for _, pf := range allAsmDispatchFuncs {
 				for _, elemType := range getCElemTypes(&pf) {
 					profile := GetCProfile(target.Name, elemType)
 					if profile == nil {
@@ -1318,6 +1325,96 @@ func emitGuardedDispatchAssignments(buf *bytes.Buffer, funcs []ParsedFunc, targe
 	}
 }
 
+func needsHwyImportForDispatchAssignments(funcs []ParsedFunc, target Target, compiledElemSuffixes map[string]bool) bool {
+	for _, pf := range funcs {
+		for _, elemType := range getCElemTypes(&pf) {
+			profile := GetCProfile(target.Name, elemType)
+			if profile == nil {
+				continue
+			}
+			if shouldSkipPromotedType(&pf, profile) {
+				continue
+			}
+			if compiledElemSuffixes != nil && !compiledElemSuffixes[cTypeSuffix(elemType)] {
+				continue
+			}
+			if elemTypeFeatureGuard(elemType, profile) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (g *Generator) emitAsmDispatchBridge(funcs []ParsedFunc, target Target, compiledElemSuffixes map[string]bool) error {
+	if len(funcs) == 0 || !dispatcherOwnsAsmInit(target) {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	dispatchPrefix := g.DispatchPrefix
+	if dispatchPrefix == "" {
+		dispatchPrefix = deriveDispatchPrefixFromFile(g.InputFile)
+		if dispatchPrefix == "" {
+			dispatchPrefix = deriveDispatchPrefix(funcs)
+		}
+	}
+	buildTag := target.BuildTag
+	if buildTag == "" {
+		buildTag = "!noasm"
+	} else {
+		buildTag = "!noasm && " + buildTag
+	}
+	archSuffix := target.Arch()
+	targetSuffix := strings.ToLower(target.Name)
+	initFuncName := asmDispatchBridgeName(dispatchPrefix, target)
+	needsHwy := needsHwyImportForDispatchAssignments(funcs, target, compiledElemSuffixes)
+
+	fmt.Fprintf(&buf, HeaderNote)
+	fmt.Fprintf(&buf, "//go:build %s\n", buildTag)
+	fmt.Fprintf(&buf, "\npackage %s\n\n", g.PackageOut)
+	if needsHwy {
+		fmt.Fprintf(&buf, "import \"github.com/ajroetker/go-highway/hwy\"\n\n")
+	}
+	fmt.Fprintf(&buf, "func %s() {\n", initFuncName)
+	emitGuardedDispatchAssignments(&buf, funcs, target, compiledElemSuffixes)
+	fmt.Fprintf(&buf, "}\n")
+
+	dispPrefix := dispatchPrefix
+	filename := filepath.Join(g.OutputDir, fmt.Sprintf("z_asm_dispatch_%s_%s_%s.gen.go", dispPrefix, targetSuffix, archSuffix))
+	formatted, err := formatAndFixImports(filename, buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("format asm dispatch bridge: %w", err)
+	}
+	if err := os.WriteFile(filename, formatted, 0o644); err != nil {
+		return fmt.Errorf("write asm dispatch bridge: %w", err)
+	}
+	fmt.Printf("Generated: %s\n", filename)
+
+	var stub bytes.Buffer
+	stubTag := target.BuildTag
+	if stubTag == "" {
+		stubTag = "noasm"
+	} else {
+		stubTag = "noasm && " + stubTag
+	}
+	fmt.Fprintf(&stub, HeaderNote)
+	fmt.Fprintf(&stub, "//go:build %s\n", stubTag)
+	fmt.Fprintf(&stub, "\npackage %s\n\n", g.PackageOut)
+	fmt.Fprintf(&stub, "func %s() {}\n", initFuncName)
+
+	stubFilename := filepath.Join(g.OutputDir, fmt.Sprintf("z_asm_dispatch_%s_%s_%s_noasm.gen.go", dispPrefix, targetSuffix, archSuffix))
+	formattedStub, err := formatAndFixImports(stubFilename, stub.Bytes())
+	if err != nil {
+		return fmt.Errorf("format asm dispatch stub: %w", err)
+	}
+	if err := os.WriteFile(stubFilename, formattedStub, 0o644); err != nil {
+		return fmt.Errorf("write asm dispatch stub: %w", err)
+	}
+	fmt.Printf("Generated: %s\n", stubFilename)
+	return nil
+}
+
 // emitZCDispatch generates a z_c_*.gen.go file in the parent package that
 // overrides dispatch variables with assembly implementations. It creates adapter
 // functions that convert generic struct pointers (e.g., *Image[T]) to C-compatible
@@ -1340,11 +1437,12 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 		return fmt.Errorf("resolve asm import path: %w", err)
 	}
 
+	emitDispatchInit := !dispatcherOwnsAsmInit(target) && !isSVEStreamingTarget(target)
+
 	// Determine if hwy import is needed:
-	// - NEON targets need hwy for the NoSimdEnv() guard
-	// - Non-streaming SVE targets (Linux) need hwy for HasSVE() guard
-	// - Half-precision types need hwy for HasARMFP16()/HasARMBF16() guards
-	needsHwy := isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target))
+	// - Dispatch init wrappers use hwy runtime guards
+	// - Half-precision adapter signatures use hwy.Float16 / hwy.BFloat16
+	needsHwy := emitDispatchInit && (isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target)))
 	if !needsHwy {
 		// Check if we need the hwy import for half-precision types
 		for _, pf := range funcs {
@@ -1375,13 +1473,10 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 	fmt.Fprintf(&buf, "\t\"%s\"\n", asmImport)
 	fmt.Fprintf(&buf, ")\n\n")
 
-	// init() to override dispatch variables.
-	// SVE streaming targets (Darwin) do NOT override scalar dispatch vars
-	// because per-function smstart/smstop overhead (~50ns) makes SVE slower
-	// than NEON for scalar calls. The adapter functions are still generated
-	// for use from batch wrappers (e.g., sme_wrappers.go).
-	// Non-streaming SVE targets (Linux) override dispatch normally.
-	if !isSVEStreamingTarget(target) {
+	// For targets where the main arch dispatcher owns asm init, this file only
+	// provides adapter functions. Targets that can safely override dispatch vars
+	// locally still self-register here.
+	if emitDispatchInit {
 		capPrefix := cases.Title(language.English).String(g.DispatchPrefix)
 		capTarget := cases.Title(language.English).String(strings.ToLower(target.Name))
 		initFn := "init" + capPrefix + capTarget + "CAsm"
@@ -1599,11 +1694,12 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target, c
 		return fmt.Errorf("resolve asm import path: %w", err)
 	}
 
+	emitDispatchInit := !dispatcherOwnsAsmInit(target) && !isSVEStreamingTarget(target)
+
 	// Determine if hwy import is needed:
-	// - NEON targets need hwy for the NoSimdEnv() guard
-	// - Non-streaming SVE targets (Linux) need hwy for HasSVE() guard
-	// - Half-precision types need hwy for HasARMFP16()/HasARMBF16() guards
-	needsHwy := isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target))
+	// - Dispatch init wrappers use hwy runtime guards
+	// - Half-precision adapter signatures use hwy.Float16 / hwy.BFloat16
+	needsHwy := emitDispatchInit && (isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target)))
 	if !needsHwy {
 		// Check if we need the hwy import for half-precision types
 		for _, pf := range funcs {
@@ -1634,13 +1730,10 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target, c
 	fmt.Fprintf(&buf, "\t\"%s\"\n", asmImport)
 	fmt.Fprintf(&buf, ")\n\n")
 
-	// init() to override dispatch variables.
-	// SVE streaming targets (Darwin) do NOT override scalar dispatch vars
-	// because per-function smstart/smstop overhead (~50ns) makes SVE slower
-	// than NEON for scalar calls. The adapter functions are still generated
-	// for use from batch wrappers (e.g., sme_wrappers.go).
-	// Non-streaming SVE targets (Linux) override dispatch normally.
-	if !isSVEStreamingTarget(target) {
+	// For targets where the main arch dispatcher owns asm init, this file only
+	// provides adapter functions. Targets that can safely override dispatch vars
+	// locally still self-register here.
+	if emitDispatchInit {
 		capPrefix := cases.Title(language.English).String(g.DispatchPrefix)
 		capTarget := cases.Title(language.English).String(strings.ToLower(target.Name))
 		initFn := "init" + capPrefix + capTarget + "CAsm"
@@ -1814,91 +1907,6 @@ func referencesIdent(expr ast.Expr, name string) bool {
 	return found
 }
 
-func sharedSliceLenExpr(pf *ParsedFunc, sliceParams []string) string {
-	if len(sliceParams) == 0 {
-		return "0"
-	}
-
-	defaultExpr := fmt.Sprintf("len(%s)", sliceParams[0])
-	if pf == nil || pf.Body == nil {
-		return defaultExpr
-	}
-
-	allowed := make(map[string]bool, len(sliceParams))
-	for _, sp := range sliceParams {
-		allowed[sp] = true
-	}
-
-	bestExpr := ""
-	bestCount := 1
-	ast.Inspect(pf.Body, func(n ast.Node) bool {
-		expr, ok := n.(ast.Expr)
-		if !ok {
-			return true
-		}
-		count, ok := sharedSliceLenExprCount(expr, allowed)
-		if !ok || count <= bestCount {
-			return true
-		}
-		bestExpr = exprString(expr)
-		bestCount = count
-		return true
-	})
-	if bestExpr != "" {
-		return bestExpr
-	}
-	return defaultExpr
-}
-
-func sharedSliceLenExprCount(expr ast.Expr, allowed map[string]bool) (int, bool) {
-	seen := make(map[string]bool, len(allowed))
-	if !collectSharedSliceLenParams(expr, allowed, seen) {
-		return 0, false
-	}
-	return len(seen), true
-}
-
-func collectSharedSliceLenParams(expr ast.Expr, allowed map[string]bool, seen map[string]bool) bool {
-	call, ok := expr.(*ast.CallExpr)
-	if !ok {
-		return false
-	}
-	fn, ok := call.Fun.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	switch fn.Name {
-	case "len":
-		if len(call.Args) != 1 {
-			return false
-		}
-		arg, ok := call.Args[0].(*ast.Ident)
-		if !ok || !allowed[arg.Name] {
-			return false
-		}
-		seen[arg.Name] = true
-		return true
-	case "min":
-		if len(call.Args) < 2 {
-			return false
-		}
-		for _, arg := range call.Args {
-			if !collectSharedSliceLenParams(arg, allowed, seen) {
-				return false
-			}
-		}
-		return true
-	default:
-		return false
-	}
-}
-
-func exprString(expr ast.Expr) string {
-	var buf bytes.Buffer
-	_ = printer.Fprint(&buf, token.NewFileSet(), expr)
-	return buf.String()
-}
-
 // emitSliceZCAdapterFunc generates an adapter function for a non-struct
 // AST-translated function. The adapter converts Go slice/int/scalar params
 // to the unsafe.Pointer calling convention expected by the asm passthrough.
@@ -1937,7 +1945,10 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	needsPerSliceLen := (hasScalarParams || mixedSlices) && len(sliceParams) > 0
 	sharedLenExpr := ""
 	if needsSharedLen {
-		sharedLenExpr = sharedSliceLenExpr(pf, sliceParams)
+		sharedLenExpr = pf.SharedLenExpr
+		if sharedLenExpr == "" {
+			sharedLenExpr = fmt.Sprintf("len(%s)", sliceParams[0])
+		}
 	}
 
 	// Determine if we have return values
@@ -2557,7 +2568,10 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	needsPerSliceLen := (hasScalarParams || mixedSlices) && len(sliceParams) > 0
 	sharedLenExpr := ""
 	if needsSharedLen {
-		sharedLenExpr = sharedSliceLenExpr(pf, sliceParams)
+		sharedLenExpr = pf.SharedLenExpr
+		if sharedLenExpr == "" {
+			sharedLenExpr = fmt.Sprintf("len(%s)", sliceParams[0])
+		}
 	}
 
 	// Determine if we have return values

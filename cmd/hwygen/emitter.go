@@ -67,6 +67,33 @@ func targetPriority(name string) int {
 	}
 }
 
+func dispatcherOwnsAsmInit(target Target) bool {
+	return target.Mode == TargetModeAsm && (isNeonTarget(target) || (isSVETarget(target) && !isSVEStreamingTarget(target)))
+}
+
+func hasAsmAdaptersForTarget(adapters []AsmAdapterInfo, target Target) bool {
+	for _, adapter := range adapters {
+		if adapter.TargetName == target.Name && adapter.Arch == target.Arch() {
+			return true
+		}
+	}
+	return false
+}
+
+func asmDispatchBridgeName(prefix string, target Target) string {
+	capPrefix := cases.Title(language.English).String(prefix)
+	capTarget := cases.Title(language.English).String(strings.ToLower(target.Name))
+	return "init" + capPrefix + capTarget + "CAsm"
+}
+
+func targetInitFuncName(prefix string, target Target) string {
+	capPrefix := cases.Title(language.English).String(prefix)
+	if target.Mode == TargetModeAsm {
+		return "init" + capPrefix + target.Name + "Asm"
+	}
+	return "init" + capPrefix + target.Name
+}
+
 // ContribPackages tracks which contrib subpackages are needed for imports.
 type ContribPackages struct {
 	Math    bool // contrib/math (Exp, Log, Sin, etc.)
@@ -287,7 +314,7 @@ func comboAvailable(targetComboMap map[string]map[string]bool, targetName, dispa
 // or falls back to function names.
 // targetComboMap maps target name -> set of dispatch variable names that have
 // implementations on that target. If nil, all combos are assumed available.
-func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName, inputFile string, _ []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
+func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, dispatchName, inputFile string, asmAdapters []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
 	// Use provided dispatch name or derive from input filename / function names
 	prefix := dispatchName
 	useCustomPrefix := false
@@ -322,14 +349,14 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 
 	// Generate amd64 dispatch if we have amd64 targets
 	if len(amd64Targets) > 0 {
-		if err := emitArchDispatcher(funcs, amd64Targets, hasFallback, pkgName, outPath, "amd64", prefix, useCustomPrefix, targetComboMap); err != nil {
+		if err := emitArchDispatcher(funcs, amd64Targets, hasFallback, pkgName, outPath, "amd64", prefix, useCustomPrefix, asmAdapters, targetComboMap); err != nil {
 			return err
 		}
 	}
 
 	// Generate arm64 dispatch if we have arm64 targets
 	if len(arm64Targets) > 0 {
-		if err := emitArchDispatcher(funcs, arm64Targets, hasFallback, pkgName, outPath, "arm64", prefix, useCustomPrefix, targetComboMap); err != nil {
+		if err := emitArchDispatcher(funcs, arm64Targets, hasFallback, pkgName, outPath, "arm64", prefix, useCustomPrefix, asmAdapters, targetComboMap); err != nil {
 			return err
 		}
 	}
@@ -403,7 +430,7 @@ func filterDispatchableFuncs(funcs []ParsedFunc) []ParsedFunc {
 
 // emitArchDispatcher generates an architecture-specific dispatch file.
 // targetComboMap restricts which combos are wired in per-target init functions.
-func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bool, pkgName, outPath, arch, prefix string, useCustomPrefix bool, targetComboMap map[string]map[string]bool) error {
+func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bool, pkgName, outPath, arch, prefix string, useCustomPrefix bool, asmAdapters []AsmAdapterInfo, targetComboMap map[string]map[string]bool) error {
 	// Filter out Vec→Vec functions - they don't need dispatch
 	dispatchableFuncs := filterDispatchableFuncs(funcs)
 	if len(dispatchableFuncs) == 0 {
@@ -491,18 +518,21 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 			fmt.Fprintf(&buf, "\t\treturn\n")
 			fmt.Fprintf(&buf, "\t}\n")
 		case "SVE_DARWIN", "SVE_LINUX":
-			// SVE dispatch is handled entirely by z_c_*.gen.go init() functions
-			// which override dispatch vars when SVE/SME is detected at runtime.
-			// No GoSimd init function is generated for SVE targets.
+			if dispatcherOwnsAsmInit(target) && hasAsmAdaptersForTarget(asmAdapters, target) {
+				fmt.Fprintf(&buf, "\tif %s {\n", sveRuntimeGuard(target))
+				fmt.Fprintf(&buf, "\t\t%s()\n", targetInitFuncName(prefix, target))
+				fmt.Fprintf(&buf, "\t\treturn\n")
+				fmt.Fprintf(&buf, "\t}\n")
+				continue
+			}
+			// Streaming SVE targets never override scalar dispatch vars.
 			continue
 		case "NEON":
-			if target.Mode == TargetModeAsm {
-				// NEON:asm — use fallback as the base layer.
-				// The z_c_slices init() will override with C assembly implementations.
-				fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
+			if dispatcherOwnsAsmInit(target) && hasAsmAdaptersForTarget(asmAdapters, target) {
+				fmt.Fprintf(&buf, "\t%s()\n", targetInitFuncName(prefix, target))
 			} else {
 				// NEON GoSimd — use Go SIMD NEON implementation
-				fmt.Fprintf(&buf, "\tinit%sNEON()\n", capPrefix)
+				fmt.Fprintf(&buf, "\t%s()\n", targetInitFuncName(prefix, target))
 			}
 			fmt.Fprintf(&buf, "\treturn\n")
 		}
@@ -515,16 +545,24 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 	}
 	fmt.Fprintf(&buf, "}\n\n")
 
-	// Generate init functions for each target
-	// SVE targets are skipped — their dispatch is handled by z_c_*.gen.go init() functions.
-	// ASM targets are also skipped — their dispatch is handled by z_c_slices init(),
-	// with fallback as the base layer (set by the dispatcher init above).
+	// Generate init functions for each target.
 	for _, target := range archTargets {
-		if isSVETarget(target) || target.Mode == TargetModeAsm {
+		if isSVETarget(target) && !dispatcherOwnsAsmInit(target) {
 			continue
 		}
-		initFuncName := "init" + capPrefix + target.Name
+		if target.Mode == TargetModeAsm && !hasAsmAdaptersForTarget(asmAdapters, target) {
+			continue
+		}
+		initFuncName := targetInitFuncName(prefix, target)
 		fmt.Fprintf(&buf, "func %s() {\n", initFuncName)
+		if target.Mode == TargetModeAsm {
+			if hasFallback {
+				fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
+			}
+			fmt.Fprintf(&buf, "\t%s()\n", asmDispatchBridgeName(prefix, target))
+			fmt.Fprintf(&buf, "}\n\n")
+			continue
+		}
 
 		for _, pf := range dispatchableFuncs {
 			for _, dc := range getDispatchCombos(pf) {
@@ -1356,10 +1394,10 @@ func buildFuncSignatureWithMap(pf ParsedFunc, elemType string, typeMap map[strin
 // dispatchComboInfo contains the information needed to wire one type combination
 // in a dispatch init function.
 type dispatchComboInfo struct {
-	DispatchName string            // e.g., "DotGeneralFloat16Float32"
-	ElemType     string            // primary element type, e.g., "hwy.Float16"
-	TypeSuffix   string            // e.g., "Float16Float32" or "Float64"
-	Combo        TypeCombination   // the full combination
+	DispatchName string          // e.g., "DotGeneralFloat16Float32"
+	ElemType     string          // primary element type, e.g., "hwy.Float16"
+	TypeSuffix   string          // e.g., "Float16Float32" or "Float64"
+	Combo        TypeCombination // the full combination
 }
 
 // getDispatchCombos returns dispatch info for all type combinations of a function.
@@ -1399,7 +1437,6 @@ func getBaseFilename(path string) string {
 	ext := filepath.Ext(base)
 	return base[:len(base)-len(ext)]
 }
-
 
 // containsTypeParam checks if a type string contains any of the element type parameters.
 // This includes patterns like:

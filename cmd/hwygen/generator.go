@@ -239,6 +239,10 @@ func validateSignatureCompatibility(primary, spec *ParsedFunc) error {
 		return fmt.Errorf("return count mismatch: primary has %d, specialization has %d",
 			len(primary.Returns), len(spec.Returns))
 	}
+	if primary.SharedLenExpr != "" && spec.SharedLenExpr != "" && primary.SharedLenExpr != spec.SharedLenExpr {
+		return fmt.Errorf("shared length expression mismatch: primary uses %q, specialization uses %q",
+			primary.SharedLenExpr, spec.SharedLenExpr)
+	}
 	return nil
 }
 
@@ -756,5 +760,3 @@ func inferTypesFromParams(params []Param) []string {
 	// Default to float32 if no slice parameter found
 	return []string{"float32"}
 }
-
-

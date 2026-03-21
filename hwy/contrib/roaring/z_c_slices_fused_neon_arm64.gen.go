@@ -6,23 +6,8 @@ package roaring
 import (
 	"unsafe"
 
-	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/contrib/roaring/asm"
 )
-
-func init() {
-	initFusedNeonCAsm()
-}
-
-func initFusedNeonCAsm() {
-	if hwy.NoSimdEnv() {
-		return
-	}
-	AndNotPopcntSlice = andNotPopcntSliceAsmU64
-	AndPopcntSlice = andPopcntSliceAsmU64
-	OrPopcntSlice = orPopcntSliceAsmU64
-	XorPopcntSlice = xorPopcntSliceAsmU64
-}
 
 func andNotPopcntSliceAsmU64(dst, a, b []uint64) uint64 {
 	var p_dst unsafe.Pointer

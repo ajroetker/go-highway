@@ -7632,6 +7632,7 @@ func TestTypeParamScalarDoesNotChangeLengthStrategy(t *testing.T) {
 			{Name: "output", Type: "[]T"},
 			{Name: "alpha", Type: "T"},
 		},
+		SharedLenExpr: "min(len(input), len(output))",
 	}
 
 	// Test emitASTCWrapperFunc — should use shared lenVal, not per-slice lengths
@@ -7704,6 +7705,7 @@ func TestSharedLengthAdaptersPreserveMinSliceExpr(t *testing.T) {
 			{Name: "a", Type: "[]T"},
 			{Name: "b", Type: "[]T"},
 		},
+		SharedLenExpr: "min(len(dst), min(len(a), len(b)))",
 		Body: mustParseBody(t, `{
 			n := min(len(dst), min(len(a), len(b)))
 			if n == 0 {
@@ -7744,5 +7746,206 @@ func TestSharedLengthAdaptersPreserveMinSliceExpr(t *testing.T) {
 		if strings.Contains(code, "if len(dst) == 0") {
 			t.Errorf("emitASTCWrapperFunc: should not guard on only the first slice:\n%s", code)
 		}
+	}
+}
+
+func TestParseInfersSharedLenExpr(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "shared_len_base.go")
+	src := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseAndSlice[T hwy.Integers](dst, a, b []T) {
+	n := min(len(dst), min(len(a), len(b)))
+	if n == 0 {
+		return
+	}
+	for i := 0; i < n; i++ {
+		dst[i] = a[i] & b[i]
+	}
+}`
+	if err := os.WriteFile(inputFile, []byte(src), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	result, err := Parse(inputFile)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(result.Funcs) != 1 {
+		t.Fatalf("got %d funcs, want 1", len(result.Funcs))
+	}
+	if got := result.Funcs[0].SharedLenExpr; got != "min(len(dst), min(len(a), len(b)))" {
+		t.Fatalf("SharedLenExpr = %q, want %q", got, "min(len(dst), min(len(a), len(b)))")
+	}
+}
+
+func TestEmitDispatcherUsesAsmBridgeForArm64(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "roaring_base.go")
+
+	pf := ParsedFunc{
+		Name:       "BaseAndSlice",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Integers"}},
+		Params: []Param{
+			{Name: "dst", Type: "[]T"},
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+		},
+	}
+
+	neon := NEONTarget()
+	neon.Mode = TargetModeAsm
+
+	if err := EmitDispatcher(
+		[]ParsedFunc{pf},
+		[]Target{neon, FallbackTarget()},
+		"testpkg",
+		tmpDir,
+		"",
+		inputFile,
+		[]AsmAdapterInfo{{TargetName: neon.Name, Arch: neon.Arch()}},
+		nil,
+	); err != nil {
+		t.Fatalf("EmitDispatcher: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpDir, "dispatch_roaring_arm64.gen.go"))
+	if err != nil {
+		t.Fatalf("read dispatcher: %v", err)
+	}
+	code := string(data)
+
+	if !strings.Contains(code, "func initRoaringNEONAsm() {") {
+		t.Fatalf("dispatcher missing NEON asm init:\n%s", code)
+	}
+	if !strings.Contains(code, "\tinitRoaringFallback()\n\tinitRoaringNeonCAsm()\n") {
+		t.Fatalf("dispatcher missing fallback+bridge wiring:\n%s", code)
+	}
+	if !strings.Contains(code, "\tinitRoaringNEONAsm()\n\treturn\n") {
+		t.Fatalf("dispatcher initAll missing NEON asm path:\n%s", code)
+	}
+}
+
+func TestEmitAsmDispatchBridgeCreatesBridgeAndStub(t *testing.T) {
+	tmpRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmpRoot, "go.mod"), []byte("module example.com/test\n\ngo 1.26\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	outDir := filepath.Join(tmpRoot, "roaring")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatalf("mkdir output: %v", err)
+	}
+
+	pf := ParsedFunc{
+		Name:       "BaseAndSlice",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Integers"}},
+		Params: []Param{
+			{Name: "dst", Type: "[]T"},
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+		},
+	}
+
+	neon := NEONTarget()
+	neon.Mode = TargetModeAsm
+
+	g := &Generator{
+		OutputDir:      outDir,
+		PackageOut:     "roaring",
+		DispatchPrefix: "roaring",
+	}
+	compiled := map[string]bool{cTypeSuffix("uint64"): true}
+
+	if err := g.emitAsmDispatchBridge([]ParsedFunc{pf}, neon, compiled); err != nil {
+		t.Fatalf("emitAsmDispatchBridge: %v", err)
+	}
+
+	bridgePath := filepath.Join(outDir, "z_asm_dispatch_roaring_neon_arm64.gen.go")
+	bridgeBytes, err := os.ReadFile(bridgePath)
+	if err != nil {
+		t.Fatalf("read bridge: %v", err)
+	}
+	bridge := string(bridgeBytes)
+
+	if strings.Contains(bridge, "func init()") {
+		t.Fatalf("bridge should not self-register:\n%s", bridge)
+	}
+	if !strings.Contains(bridge, "func initRoaringNeonCAsm() {") {
+		t.Fatalf("bridge missing helper init function:\n%s", bridge)
+	}
+	wantAssign := buildDispatchVarName(pf.Name, "uint64", true) + " = " + buildAdapterFuncName(pf.Name, "uint64")
+	if !strings.Contains(bridge, wantAssign) {
+		t.Fatalf("bridge missing dispatch assignment %q:\n%s", wantAssign, bridge)
+	}
+
+	stubPath := filepath.Join(outDir, "z_asm_dispatch_roaring_neon_arm64_noasm.gen.go")
+	stubBytes, err := os.ReadFile(stubPath)
+	if err != nil {
+		t.Fatalf("read stub: %v", err)
+	}
+	stub := string(stubBytes)
+
+	if !strings.Contains(stub, "//go:build noasm && arm64") {
+		t.Fatalf("stub missing noasm build tag:\n%s", stub)
+	}
+	if !strings.Contains(stub, "func initRoaringNeonCAsm() {}") {
+		t.Fatalf("stub missing empty helper:\n%s", stub)
+	}
+}
+
+func TestEmitZCDispatchForSlicesOmitsDispatcherOwnedInit(t *testing.T) {
+	tmpRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmpRoot, "go.mod"), []byte("module example.com/test\n\ngo 1.26\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	outDir := filepath.Join(tmpRoot, "roaring")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatalf("mkdir output: %v", err)
+	}
+
+	pf := ParsedFunc{
+		Name:       "BaseAndSlice",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Integers"}},
+		Params: []Param{
+			{Name: "dst", Type: "[]T"},
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+		},
+		SharedLenExpr: "min(len(dst), min(len(a), len(b)))",
+	}
+
+	neon := NEONTarget()
+	neon.Mode = TargetModeAsm
+
+	g := &Generator{
+		OutputDir:      outDir,
+		PackageOut:     "roaring",
+		DispatchPrefix: "roaring",
+	}
+	compiled := map[string]bool{cTypeSuffix("uint64"): true}
+
+	if err := g.emitZCDispatchForSlices([]ParsedFunc{pf}, neon, compiled); err != nil {
+		t.Fatalf("emitZCDispatchForSlices: %v", err)
+	}
+
+	path := filepath.Join(outDir, "z_c_slices_roaring_neon_arm64.gen.go")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read z_c_slices: %v", err)
+	}
+	code := string(data)
+
+	if strings.Contains(code, "func init()") || strings.Contains(code, "func initRoaringNeonCAsm()") {
+		t.Fatalf("dispatcher-owned NEON asm file should not self-register:\n%s", code)
+	}
+	if strings.Contains(code, "\"github.com/ajroetker/go-highway/hwy\"") {
+		t.Fatalf("uint64 adapter-only file should not import hwy:\n%s", code)
+	}
+	if !strings.Contains(code, "func "+buildAdapterFuncName(pf.Name, "uint64")+"(") {
+		t.Fatalf("missing uint64 adapter function:\n%s", code)
 	}
 }
