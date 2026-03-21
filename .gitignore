@@ -3,6 +3,7 @@ cmd/hwygen/hwygen
 /hwygen
 examples/basic/basic
 examples/contrib_test/contrib_test
+.DS_Store
 
 # Go workspace files (local dev only)
 go.work

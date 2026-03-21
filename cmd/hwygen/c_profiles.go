@@ -54,9 +54,10 @@ type CIntrinsicProfile struct {
 	TableLookupBytesFn map[string]string // vqtbl1q_u8, _mm256_shuffle_epi8
 
 	// Bitwise
-	AndFn map[string]string // vandq_u64, _mm256_and_si256
-	OrFn  map[string]string // vorrq_u64, _mm256_or_si256
-	XorFn map[string]string // veorq_u64, _mm256_xor_si256
+	AndFn    map[string]string // vandq_u64, _mm256_and_si256
+	OrFn     map[string]string // vorrq_u64, _mm256_or_si256
+	XorFn    map[string]string // veorq_u64, _mm256_xor_si256
+	AndNotFn map[string]string // vbicq_u64 (~a & b); note: NEON vbic(a,b)=a&~b so args are swapped
 
 	// PopCount - complex on NEON (vcntq_u8 + pairwise adds)
 	PopCountFn map[string]string
@@ -946,6 +947,7 @@ func neonUint64Profile() *CIntrinsicProfile {
 		AndFn:        map[string]string{"q": "vandq_u64"},
 		OrFn:         map[string]string{"q": "vorrq_u64"},
 		XorFn:        map[string]string{"q": "veorq_u64"},
+		AndNotFn:     map[string]string{"q": "vbicq_u64"},
 		PopCountFn:   map[string]string{"q": "neon_popcnt_u64"},
 		GetLaneFn:    map[string]string{"q": "vgetq_lane_u64"},
 
@@ -1090,6 +1092,7 @@ func neonUint32Profile() *CIntrinsicProfile {
 		AndFn:        map[string]string{"q": "vandq_u32"},
 		OrFn:         map[string]string{"q": "vorrq_u32"},
 		XorFn:        map[string]string{"q": "veorq_u32"},
+		AndNotFn:     map[string]string{"q": "vbicq_u32"},
 
 		MinFn:   map[string]string{"q": "vminq_u32"},
 		MaxFn:   map[string]string{"q": "vmaxq_u32"},
@@ -1159,9 +1162,10 @@ func neonInt32Profile() *CIntrinsicProfile {
 		MaxFn:   map[string]string{"q": "vmaxq_s32"},
 		DupFn:   map[string]string{"q": "vdupq_n_s32"},
 
-		AndFn: map[string]string{"q": "vandq_s32"},
-		OrFn:  map[string]string{"q": "vorrq_s32"},
-		XorFn: map[string]string{"q": "veorq_s32"},
+		AndFn:    map[string]string{"q": "vandq_s32"},
+		OrFn:     map[string]string{"q": "vorrq_s32"},
+		XorFn:    map[string]string{"q": "veorq_s32"},
+		AndNotFn: map[string]string{"q": "vbicq_s32"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_s32"},
 		ReduceMinFn: map[string]string{"q": "vminvq_s32"},
@@ -1227,9 +1231,10 @@ func neonInt64Profile() *CIntrinsicProfile {
 		MaxFn:   map[string]string{"q": "hwy_max_s64"},
 		DupFn:   map[string]string{"q": "vdupq_n_s64"},
 
-		AndFn: map[string]string{"q": "vandq_s64"},
-		OrFn:  map[string]string{"q": "vorrq_s64"},
-		XorFn: map[string]string{"q": "veorq_s64"},
+		AndFn:    map[string]string{"q": "vandq_s64"},
+		OrFn:     map[string]string{"q": "vorrq_s64"},
+		XorFn:    map[string]string{"q": "veorq_s64"},
+		AndNotFn: map[string]string{"q": "vbicq_s64"},
 
 		ReduceSumFn: map[string]string{"q": "vaddvq_s64"},
 		ReduceMinFn: map[string]string{"q": "hwy_reducemin_s64"},

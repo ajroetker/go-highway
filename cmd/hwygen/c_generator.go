@@ -1814,6 +1814,91 @@ func referencesIdent(expr ast.Expr, name string) bool {
 	return found
 }
 
+func sharedSliceLenExpr(pf *ParsedFunc, sliceParams []string) string {
+	if len(sliceParams) == 0 {
+		return "0"
+	}
+
+	defaultExpr := fmt.Sprintf("len(%s)", sliceParams[0])
+	if pf == nil || pf.Body == nil {
+		return defaultExpr
+	}
+
+	allowed := make(map[string]bool, len(sliceParams))
+	for _, sp := range sliceParams {
+		allowed[sp] = true
+	}
+
+	bestExpr := ""
+	bestCount := 1
+	ast.Inspect(pf.Body, func(n ast.Node) bool {
+		expr, ok := n.(ast.Expr)
+		if !ok {
+			return true
+		}
+		count, ok := sharedSliceLenExprCount(expr, allowed)
+		if !ok || count <= bestCount {
+			return true
+		}
+		bestExpr = exprString(expr)
+		bestCount = count
+		return true
+	})
+	if bestExpr != "" {
+		return bestExpr
+	}
+	return defaultExpr
+}
+
+func sharedSliceLenExprCount(expr ast.Expr, allowed map[string]bool) (int, bool) {
+	seen := make(map[string]bool, len(allowed))
+	if !collectSharedSliceLenParams(expr, allowed, seen) {
+		return 0, false
+	}
+	return len(seen), true
+}
+
+func collectSharedSliceLenParams(expr ast.Expr, allowed map[string]bool, seen map[string]bool) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	fn, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	switch fn.Name {
+	case "len":
+		if len(call.Args) != 1 {
+			return false
+		}
+		arg, ok := call.Args[0].(*ast.Ident)
+		if !ok || !allowed[arg.Name] {
+			return false
+		}
+		seen[arg.Name] = true
+		return true
+	case "min":
+		if len(call.Args) < 2 {
+			return false
+		}
+		for _, arg := range call.Args {
+			if !collectSharedSliceLenParams(arg, allowed, seen) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func exprString(expr ast.Expr) string {
+	var buf bytes.Buffer
+	_ = printer.Fprint(&buf, token.NewFileSet(), expr)
+	return buf.String()
+}
+
 // emitSliceZCAdapterFunc generates an adapter function for a non-struct
 // AST-translated function. The adapter converts Go slice/int/scalar params
 // to the unsafe.Pointer calling convention expected by the asm passthrough.
@@ -1850,6 +1935,10 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 	mixedSlices := hasMixedSliceTypes(pf)
 	needsSharedLen := !hasScalarParams && !mixedSlices && len(sliceParams) > 0
 	needsPerSliceLen := (hasScalarParams || mixedSlices) && len(sliceParams) > 0
+	sharedLenExpr := ""
+	if needsSharedLen {
+		sharedLenExpr = sharedSliceLenExpr(pf, sliceParams)
+	}
 
 	// Determine if we have return values
 	hasReturns := len(pf.Returns) > 0
@@ -1916,7 +2005,18 @@ func emitSliceZCAdapterFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType string) 
 
 	// Hidden length params
 	if needsSharedLen {
-		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", sliceParams[0])
+		fmt.Fprintf(buf, "\tlenVal := int64(%s)\n", sharedLenExpr)
+		fmt.Fprintf(buf, "\tif lenVal == 0 {\n")
+		if hasReturns {
+			var zeros []string
+			for _, ret := range pf.Returns {
+				zeros = append(zeros, goReturnZeroValue(ret.Type, elemType))
+			}
+			fmt.Fprintf(buf, "\t\treturn %s\n", strings.Join(zeros, ", "))
+		} else {
+			fmt.Fprintf(buf, "\t\treturn\n")
+		}
+		fmt.Fprintf(buf, "\t}\n")
 	} else if needsPerSliceLen {
 		for _, sp := range sliceParams {
 			fmt.Fprintf(buf, "\tlen_%sVal := int64(len(%s))\n", sp, sp)
@@ -2455,9 +2555,9 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 	mixedSlices := hasMixedSliceTypes(pf)
 	needsSharedLen := !hasScalarParams && !mixedSlices && len(sliceParams) > 0
 	needsPerSliceLen := (hasScalarParams || mixedSlices) && len(sliceParams) > 0
-	firstSlice := ""
-	if needsSharedLen && len(sliceParams) > 0 {
-		firstSlice = sliceParams[0]
+	sharedLenExpr := ""
+	if needsSharedLen {
+		sharedLenExpr = sharedSliceLenExpr(pf, sliceParams)
 	}
 
 	// Determine if we have return values
@@ -2491,7 +2591,8 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 
 	// Zero-length guard for slice-only functions
 	if needsSharedLen {
-		fmt.Fprintf(buf, "\tif len(%s) == 0 {\n", firstSlice)
+		fmt.Fprintf(buf, "\tlenVal := int64(%s)\n", sharedLenExpr)
+		fmt.Fprintf(buf, "\tif lenVal == 0 {\n")
 		if hasReturns {
 			// Return zero values
 			var zeros []string
@@ -2563,7 +2664,6 @@ func emitASTCWrapperFunc(buf *bytes.Buffer, pf *ParsedFunc, elemType, targetSuff
 
 	// Hidden length params
 	if needsSharedLen {
-		fmt.Fprintf(buf, "\tlenVal := int64(len(%s))\n", firstSlice)
 	} else if needsPerSliceLen {
 		for _, sp := range sliceParams {
 			fmt.Fprintf(buf, "\tlen_%sVal := int64(len(%s))\n", sp, sp)

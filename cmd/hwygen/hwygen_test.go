@@ -4959,7 +4959,7 @@ func TestBF16ProfileMaps(t *testing.T) {
 			"avx512_bf16_fma",
 			"avx512_bf16_zero",
 			"avx512_bf16_lt",
-			"_mm512_cvtneps_pbh",  // hardware BF16 demote intrinsic
+			"_mm512_cvtneps_pbh",    // hardware BF16 demote intrinsic
 			"_mm512_cvtepu16_epi32", // promote via zero extend
 		} {
 			if !strings.Contains(helpers, expect) {
@@ -5219,11 +5219,11 @@ func TestParseGenDirective(t *testing.T) {
 
 func TestParseGenDirectiveIntegration(t *testing.T) {
 	tests := []struct {
-		name    string
-		src     string
-		want    int    // expected number of TypeCombinations on first func
-		wantT1  string // expected T1 value of first combo
-		wantT2  string // expected T2 value of first combo
+		name   string
+		src    string
+		want   int    // expected number of TypeCombinations on first func
+		wantT1 string // expected T1 value of first combo
+		wantT2 string // expected T2 value of first combo
 	}{
 		{
 			name: "single combo bare values",
@@ -5573,9 +5573,9 @@ func TestComboPrimaryType(t *testing.T) {
 
 func TestGetCElemTypes(t *testing.T) {
 	tests := []struct {
-		name   string
-		pf     ParsedFunc
-		want   []string
+		name string
+		pf   ParsedFunc
+		want []string
 	}{
 		{
 			name: "generic function uses constraint",
@@ -6922,10 +6922,10 @@ func BaseMatMulHalf[T hwy.Floats](a, b, c []T, m, n, k int) {
 
 	// Impls should use Primary's name (BaseMatMul), not the specialization's name
 	for _, expected := range []string{
-		"func BaseMatMul_avx2(",           // float32 (default suffix)
-		"func BaseMatMul_avx2_Float64(",   // float64
-		"func BaseMatMul_avx2_Float16(",   // from BaseMatMulHalf body, named as Primary
-		"func BaseMatMul_avx2_BFloat16(",  // from BaseMatMulHalf body, named as Primary
+		"func BaseMatMul_avx2(",          // float32 (default suffix)
+		"func BaseMatMul_avx2_Float64(",  // float64
+		"func BaseMatMul_avx2_Float16(",  // from BaseMatMulHalf body, named as Primary
+		"func BaseMatMul_avx2_BFloat16(", // from BaseMatMulHalf body, named as Primary
 	} {
 		if !strings.Contains(avx2Str, expected) {
 			t.Errorf("AVX2 file missing %q", expected)
@@ -7691,6 +7691,58 @@ func TestTypeParamScalarDoesNotChangeLengthStrategy(t *testing.T) {
 		// Should have per-slice lengths (len_aVal, len_bVal, etc.)
 		if !strings.Contains(code, "len_aVal") {
 			t.Errorf("emitASTCWrapperFunc: explicit int params should trigger per-slice lengths:\n%s", code)
+		}
+	}
+}
+
+func TestSharedLengthAdaptersPreserveMinSliceExpr(t *testing.T) {
+	pf := &ParsedFunc{
+		Name:       "BaseAndSlice",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Integers"}},
+		Params: []Param{
+			{Name: "dst", Type: "[]T"},
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+		},
+		Body: mustParseBody(t, `{
+			n := min(len(dst), min(len(a), len(b)))
+			if n == 0 {
+				return
+			}
+		}`),
+	}
+
+	wantLen := "lenVal := int64(min(len(dst), min(len(a), len(b))))"
+
+	{
+		var buf bytes.Buffer
+		buf.WriteString("package test\n\nimport \"unsafe\"\n\n")
+		emitSliceZCAdapterFunc(&buf, pf, "uint64")
+		code := buf.String()
+		if !strings.Contains(code, wantLen) {
+			t.Errorf("emitSliceZCAdapterFunc: expected min-based shared length:\n%s", code)
+		}
+		if !strings.Contains(code, "if lenVal == 0") {
+			t.Errorf("emitSliceZCAdapterFunc: expected lenVal zero guard:\n%s", code)
+		}
+		if strings.Contains(code, "lenVal := int64(len(dst))") {
+			t.Errorf("emitSliceZCAdapterFunc: should not fall back to first-slice length:\n%s", code)
+		}
+	}
+
+	{
+		var buf bytes.Buffer
+		buf.WriteString("package test\n\nimport \"unsafe\"\n\n")
+		emitASTCWrapperFunc(&buf, pf, "uint64", "neon")
+		code := buf.String()
+		if !strings.Contains(code, wantLen) {
+			t.Errorf("emitASTCWrapperFunc: expected min-based shared length:\n%s", code)
+		}
+		if !strings.Contains(code, "if lenVal == 0") {
+			t.Errorf("emitASTCWrapperFunc: expected lenVal zero guard:\n%s", code)
+		}
+		if strings.Contains(code, "if len(dst) == 0") {
+			t.Errorf("emitASTCWrapperFunc: should not guard on only the first slice:\n%s", code)
 		}
 	}
 }

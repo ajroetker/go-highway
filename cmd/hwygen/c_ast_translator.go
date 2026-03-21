@@ -2819,6 +2819,12 @@ func (t *CASTTranslator) translateBinaryExpr(e *ast.BinaryExpr) string {
 		}
 	}
 
+	// Go's &^ (AND NOT / bit clear) has no C equivalent operator.
+	// Translate a &^ b to a & ~(b).
+	if e.Op == token.AND_NOT {
+		return left + " & ~(" + right + ")"
+	}
+
 	return left + " " + e.Op.String() + " " + right
 }
 
@@ -3221,6 +3227,9 @@ func (t *CASTTranslator) translatePromotedExpr(expr ast.Expr) string {
 	case *ast.BinaryExpr:
 		left := t.translatePromotedExpr(e.X)
 		right := t.translatePromotedExpr(e.Y)
+		if e.Op == token.AND_NOT {
+			return left + " & ~(" + right + ")"
+		}
 		return left + " " + e.Op.String() + " " + right
 	case *ast.IndexExpr:
 		x := t.translateExpr(e.X)
@@ -3403,6 +3412,8 @@ func (t *CASTTranslator) translateHwyCall(funcName string, args []ast.Expr, type
 		return t.emitHwyBinaryOp(t.profile.OrFn, "|", args)
 	case "Xor":
 		return t.emitHwyBinaryOp(t.profile.XorFn, "^", args)
+	case "AndNot":
+		return t.emitHwyAndNot(args)
 	case "PopCount":
 		return t.emitHwyUnaryOp(t.profile.PopCountFn, args)
 	case "LessThan":
@@ -4308,6 +4319,25 @@ func (t *CASTTranslator) emitHwyFirstN(args []ast.Expr) string {
 	return fmt.Sprintf("%s(%s)", fn, n)
 }
 
+// emitHwyAndNot: hwy.AndNot(a, b) → vbicq_u64(b, a)
+// hwy.AndNot(a, b) = ~a & b. NEON vbic(a, b) = a & ~b.
+// So: vbic(b, a) to get ~a & b.
+func (t *CASTTranslator) emitHwyAndNot(args []ast.Expr) string {
+	if len(args) < 2 {
+		return "/* AndNot: missing args */"
+	}
+	fn := t.profile.AndNotFn[t.tier]
+	if fn == "" {
+		// Fallback to scalar expression if no intrinsic available.
+		a := t.translateExpr(args[0])
+		b := t.translateExpr(args[1])
+		return "~(" + a + ") & " + b
+	}
+	a := t.translateExpr(args[0])
+	b := t.translateExpr(args[1])
+	return fmt.Sprintf("%s(%s, %s)", fn, b, a)
+}
+
 // emitHwyMaskAndNot: hwy.MaskAndNot(a, b) → vbicq_u32(b, a)
 // Note: hwy.MaskAndNot(mask, notMask) returns mask AND (NOT notMask),
 // but NEON vbic(a, b) = a AND (NOT b), so args are swapped.
@@ -5048,7 +5078,7 @@ func (t *CASTTranslator) inferCallType(e *ast.CallExpr) cVarInfo {
 			case "Load", "Load4", "Zero", "Set", "Const", "MulAdd", "FMA", "Sub", "Mul", "Div",
 				"Min", "Max", "Neg", "Abs", "Sqrt", "RSqrt", "InvSqrt", "ShiftRight",
 				"LoadSlice", "InterleaveLower", "InterleaveUpper",
-				"And", "Or", "Xor", "PopCount",
+				"And", "Or", "Xor", "AndNot", "PopCount",
 				"IfThenElse", "Merge", "SlideUpLanes", "Pow",
 				"Iota", "Round", "Clamp", "ConvertToFloat32":
 				return cVarInfo{cType: vecType, isVector: true}
