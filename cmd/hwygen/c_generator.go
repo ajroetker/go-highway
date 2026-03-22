@@ -1123,11 +1123,9 @@ func (g *Generator) emitCWrappers(funcs []ParsedFunc, target Target, outputDir s
 		wrapperDispPrefix = "dispatch"
 	}
 	filename := filepath.Join(outputDir, fmt.Sprintf("c_wrappers_%s_%s_%s.gen.go", wrapperDispPrefix, targetSuffix, archSuffix))
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("write wrappers: %w", err)
+	if err := writeFormattedGeneratedGoFile(filename, buf.Bytes(), "wrappers"); err != nil {
+		return err
 	}
-
-	fmt.Printf("Generated: %s\n", filename)
 	return nil
 }
 
@@ -1198,10 +1196,9 @@ func (g *Generator) emitStructAsmPassthrough(funcs []ParsedFunc, target Target, 
 		dispPrefix = "dispatch"
 	}
 	filename := filepath.Join(asmDir, fmt.Sprintf("c_struct_wrappers_%s_%s_%s.gen.go", dispPrefix, targetSuffix, archSuffix))
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("write struct asm passthrough: %w", err)
+	if err := writeFormattedGeneratedGoFile(filename, buf.Bytes(), "struct asm passthrough"); err != nil {
+		return err
 	}
-	fmt.Printf("Generated: %s\n", filename)
 	return nil
 }
 
@@ -1346,6 +1343,18 @@ func needsHwyImportForDispatchAssignments(funcs []ParsedFunc, target Target, com
 	return false
 }
 
+func writeFormattedGeneratedGoFile(filename string, src []byte, description string) error {
+	formatted, err := formatAndFixImports(filename, src)
+	if err != nil {
+		return fmt.Errorf("format %s: %w", description, err)
+	}
+	if err := os.WriteFile(filename, formatted, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", description, err)
+	}
+	fmt.Printf("Generated: %s\n", filename)
+	return nil
+}
+
 func (g *Generator) emitAsmDispatchBridge(funcs []ParsedFunc, target Target, compiledElemSuffixes map[string]bool) error {
 	if len(funcs) == 0 || !dispatcherOwnsAsmInit(target) {
 		return nil
@@ -1382,14 +1391,9 @@ func (g *Generator) emitAsmDispatchBridge(funcs []ParsedFunc, target Target, com
 
 	dispPrefix := dispatchPrefix
 	filename := filepath.Join(g.OutputDir, fmt.Sprintf("z_asm_dispatch_%s_%s_%s.gen.go", dispPrefix, targetSuffix, archSuffix))
-	formatted, err := formatAndFixImports(filename, buf.Bytes())
-	if err != nil {
-		return fmt.Errorf("format asm dispatch bridge: %w", err)
+	if err := writeFormattedGeneratedGoFile(filename, buf.Bytes(), "asm dispatch bridge"); err != nil {
+		return err
 	}
-	if err := os.WriteFile(filename, formatted, 0o644); err != nil {
-		return fmt.Errorf("write asm dispatch bridge: %w", err)
-	}
-	fmt.Printf("Generated: %s\n", filename)
 
 	var stub bytes.Buffer
 	stubTag := target.BuildTag
@@ -1404,14 +1408,9 @@ func (g *Generator) emitAsmDispatchBridge(funcs []ParsedFunc, target Target, com
 	fmt.Fprintf(&stub, "func %s() {}\n", initFuncName)
 
 	stubFilename := filepath.Join(g.OutputDir, fmt.Sprintf("z_asm_dispatch_%s_%s_%s_noasm.gen.go", dispPrefix, targetSuffix, archSuffix))
-	formattedStub, err := formatAndFixImports(stubFilename, stub.Bytes())
-	if err != nil {
-		return fmt.Errorf("format asm dispatch stub: %w", err)
+	if err := writeFormattedGeneratedGoFile(stubFilename, stub.Bytes(), "asm dispatch stub"); err != nil {
+		return err
 	}
-	if err := os.WriteFile(stubFilename, formattedStub, 0o644); err != nil {
-		return fmt.Errorf("write asm dispatch stub: %w", err)
-	}
-	fmt.Printf("Generated: %s\n", stubFilename)
 	return nil
 }
 
@@ -1518,10 +1517,9 @@ func (g *Generator) emitZCDispatch(funcs []ParsedFunc, target Target) error {
 		dispPrefix = "dispatch"
 	}
 	filename := filepath.Join(g.OutputDir, fmt.Sprintf("z_c_%s_%s_%s.gen.go", dispPrefix, targetSuffix, archSuffix))
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("write z_c dispatch: %w", err)
+	if err := writeFormattedGeneratedGoFile(filename, buf.Bytes(), "z_c dispatch"); err != nil {
+		return err
 	}
-	fmt.Printf("Generated: %s\n", filename)
 	return nil
 }
 
@@ -1648,10 +1646,9 @@ func (g *Generator) emitSliceAsmPassthrough(funcs []ParsedFunc, target Target, a
 		ptDispPrefix = "dispatch"
 	}
 	filename := filepath.Join(asmDir, fmt.Sprintf("c_slice_passthrough_%s_%s_%s.gen.go", ptDispPrefix, targetSuffix, archSuffix))
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("write slice asm passthrough: %w", err)
+	if err := writeFormattedGeneratedGoFile(filename, buf.Bytes(), "slice asm passthrough"); err != nil {
+		return err
 	}
-	fmt.Printf("Generated: %s\n", filename)
 	return nil
 }
 
@@ -1779,10 +1776,9 @@ func (g *Generator) emitZCDispatchForSlices(funcs []ParsedFunc, target Target, c
 		dispPrefix2 = "dispatch"
 	}
 	filename := filepath.Join(g.OutputDir, fmt.Sprintf("z_c_slices_%s_%s_%s.gen.go", dispPrefix2, targetSuffix, archSuffix))
-	if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
-		return fmt.Errorf("write z_c slice dispatch: %w", err)
+	if err := writeFormattedGeneratedGoFile(filename, buf.Bytes(), "z_c slice dispatch"); err != nil {
+		return err
 	}
-	fmt.Printf("Generated: %s\n", filename)
 	return nil
 }
 
