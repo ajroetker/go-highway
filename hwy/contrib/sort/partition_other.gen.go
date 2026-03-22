@@ -73,7 +73,6 @@ func init() {
 }
 
 func initPartitionAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPartitionFallback()
 }
 

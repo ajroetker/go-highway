@@ -76,7 +76,6 @@ func init() {
 }
 
 func initCompress_partitionAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initCompress_partitionFallback()
 }
 

@@ -24,8 +24,14 @@ func initBitpackAll() {
 		initBitpackFallback()
 		return
 	}
-	initBitpackFallback()
+	initBitpackNEONAsm()
 	return
+	initBitpackFallback()
+}
+
+func initBitpackNEONAsm() {
+	initBitpackFallback()
+	initBitpackNeonCAsm()
 }
 
 func initBitpackFallback() {

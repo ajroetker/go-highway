@@ -75,6 +75,7 @@ func initNetworkAll() {
 	}
 	initNetworkNEON()
 	return
+	initNetworkFallback()
 }
 
 func initNetworkNEON() {

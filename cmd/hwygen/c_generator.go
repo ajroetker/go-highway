@@ -116,7 +116,7 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 		for _, spec := range group.Specializations {
 			fmt.Printf("    specialization: %s", spec.Name)
 			if len(spec.AllowedTargets) > 0 {
-				fmt.Printf(" [targets: %s]", strings.Join(spec.AllowedTargets, ","))
+				fmt.Printf(" [targets: %s]", formatTargetSelectors(spec.AllowedTargets))
 			}
 			fmt.Println()
 		}

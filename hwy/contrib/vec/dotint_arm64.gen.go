@@ -47,8 +47,14 @@ func initDotintAll() {
 		initDotintFallback()
 		return
 	}
-	initDotintFallback()
+	initDotintNEONAsm()
 	return
+	initDotintFallback()
+}
+
+func initDotintNEONAsm() {
+	initDotintFallback()
+	initDotintNeonCAsm()
 }
 
 func initDotintFallback() {

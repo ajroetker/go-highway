@@ -52,8 +52,14 @@ func initQkvdenseAll() {
 		initQkvdenseFallback()
 		return
 	}
-	initQkvdenseFallback()
+	initQkvdenseNEONAsm()
 	return
+	initQkvdenseFallback()
+}
+
+func initQkvdenseNEONAsm() {
+	initQkvdenseFallback()
+	initQkvdenseNeonCAsm()
 }
 
 func initQkvdenseFallback() {

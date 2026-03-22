@@ -19,8 +19,14 @@ func initGgufquantAll() {
 		initGgufquantFallback()
 		return
 	}
-	initGgufquantFallback()
+	initGgufquantNEONAsm()
 	return
+	initGgufquantFallback()
+}
+
+func initGgufquantNEONAsm() {
+	initGgufquantFallback()
+	initGgufquantNeonCAsm()
 }
 
 func initGgufquantFallback() {

@@ -4,10 +4,6 @@
 
 package matmul
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var FusedInt8MatMul func(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 
 func init() {
@@ -15,7 +11,6 @@ func init() {
 }
 
 func initFusedint8matmulAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initFusedint8matmulFallback()
 }
 

@@ -48,7 +48,7 @@ type ParsedFunc struct {
 
 	// AllowedTargets restricts which targets this function can be used for.
 	// Set from //hwy:targets directive. Empty slice means all targets.
-	AllowedTargets []string
+	AllowedTargets []TargetSelector
 
 	// ElemTypeOverride overrides the SIMD element type inferred from slice params.
 	// Set from //hwy:elemtype directive. Empty string means use default inference.
@@ -87,8 +87,8 @@ type ElemTypeDirective struct {
 
 // TargetsDirective represents a parsed //hwy:targets directive.
 type TargetsDirective struct {
-	Line    int      // Line number of the directive
-	Targets []string // Allowed target names, lowercased (e.g., ["neon", "avx512"])
+	Line    int              // Line number of the directive
+	Targets []TargetSelector // Allowed targets (e.g., neon, neon:asm, avx512)
 }
 
 // hasHwyLanesConstraint checks if any type parameter has an hwy.Lanes-related constraint.
@@ -288,7 +288,10 @@ func Parse(filename string) (*ParseResult, error) {
 	specializesDirectives := parseSpecializesDirectives(file, fset)
 
 	// Parse //hwy:targets directives from comments
-	targetsDirectives := parseTargetsDirectives(file, fset)
+	targetsDirectives, err := parseTargetsDirectives(file, fset)
+	if err != nil {
+		return nil, err
+	}
 
 	// Parse //hwy:elemtype directives from comments
 	elemTypeDirectives := parseElemTypeDirectives(file, fset)
@@ -364,6 +367,10 @@ func Parse(filename string) (*ParseResult, error) {
 			funcLine := fset.Position(funcDecl.Pos()).Line
 			for _, sd := range specializesDirectives {
 				if sd.Line >= funcLine-5 && sd.Line < funcLine {
+					if !hasBasePrefix(name) {
+						return nil, fmt.Errorf("%s: //hwy:specializes applies only to top-level Base... or base... functions; rename %s to something like Base%s",
+							fset.Position(funcDecl.Pos()), name, sd.GroupName)
+					}
 					pf.SpecializesGroup = sd.GroupName
 				}
 			}
@@ -439,7 +446,9 @@ func Parse(filename string) (*ParseResult, error) {
 	// Scan sibling *_base.go files for //hwy:specializes directives.
 	// Functions that specialize a dispatch group are fully parsed and added
 	// to result.Funcs so the generator can select them for specific (target, combo) pairs.
-	scanSpecializations(filename, result)
+	if err := scanSpecializations(filename, result); err != nil {
+		return nil, err
+	}
 
 	// Scan sibling .go files for package-level struct types (needed before globals)
 	result.PackageStructs = scanPackageStructs(filename)
@@ -698,7 +707,7 @@ func parseSpecializesDirectives(file *ast.File, fset *token.FileSet) []Specializ
 
 // parseTargetsDirectives scans all comments in the file for //hwy:targets directives.
 // Syntax: //hwy:targets neon,avx512
-func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirective {
+func parseTargetsDirectives(file *ast.File, fset *token.FileSet) ([]TargetsDirective, error) {
 	var directives []TargetsDirective
 
 	for _, cg := range file.Comments {
@@ -714,11 +723,15 @@ func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirect
 			if after == "" {
 				continue
 			}
-			var targets []string
+			var targets []TargetSelector
 			for t := range strings.SplitSeq(after, ",") {
 				t = strings.TrimSpace(t)
 				if t != "" {
-					targets = append(targets, strings.ToLower(t))
+					target, err := parseTargetSelector(t)
+					if err != nil {
+						return nil, fmt.Errorf("line %d: invalid //hwy:targets entry %q: %w", line, t, err)
+					}
+					targets = append(targets, target)
 				}
 			}
 			if len(targets) > 0 {
@@ -730,7 +743,7 @@ func parseTargetsDirectives(file *ast.File, fset *token.FileSet) []TargetsDirect
 		}
 	}
 
-	return directives
+	return directives, nil
 }
 
 // parseElemTypeDirectives scans all comments in the file for //hwy:elemtype directives.
@@ -1596,13 +1609,13 @@ func scanPackageFuncs(filename string, result *ParseResult) {
 // //hwy:specializes directives. These functions are fully parsed (including
 // //hwy:gen and //hwy:targets directives) and appended to result.Funcs so the
 // generator can select them for specific (target, combo) pairs.
-func scanSpecializations(filename string, result *ParseResult) {
+func scanSpecializations(filename string, result *ParseResult) error {
 	dir := filepath.Dir(filename)
 	base := filepath.Base(filename)
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return
+		return nil
 	}
 
 	for _, entry := range entries {
@@ -1630,7 +1643,10 @@ func scanSpecializations(filename string, result *ParseResult) {
 			continue // no specializations in this file
 		}
 		genDirectives := parseGenDirectives(file, fset)
-		targetsDirectives := parseTargetsDirectives(file, fset)
+		targetsDirectives, err := parseTargetsDirectives(file, fset)
+		if err != nil {
+			return fmt.Errorf("parse sibling specializations in %s: %w", path, err)
+		}
 		elemTypeDirectivesSib := parseElemTypeDirectives(file, fset)
 		unrollDirectives := parseUnrollDirectives(file, fset)
 
@@ -1640,13 +1656,18 @@ func scanSpecializations(filename string, result *ParseResult) {
 				continue
 			}
 			funcName := funcDecl.Name.Name
+			funcLine := fset.Position(funcDecl.Pos()).Line
+			for _, sd := range specDirectives {
+				if sd.Line >= funcLine-5 && sd.Line < funcLine && !hasBasePrefix(funcName) {
+					return fmt.Errorf("%s: //hwy:specializes applies only to top-level Base... or base... functions; rename %s to something like Base%s",
+						fset.Position(funcDecl.Pos()), funcName, sd.GroupName)
+				}
+			}
 			isExportedBase := strings.HasPrefix(funcName, "Base")
 			isPrivateBase := !isExportedBase && strings.HasPrefix(funcName, "base")
 			if !isExportedBase && !isPrivateBase {
 				continue
 			}
-
-			funcLine := fset.Position(funcDecl.Pos()).Line
 
 			// Check if this function has a //hwy:specializes directive
 			var specializesGroup string
@@ -1775,6 +1796,8 @@ func scanSpecializations(filename string, result *ParseResult) {
 			result.Funcs = append(result.Funcs, pf)
 		}
 	}
+
+	return nil
 }
 
 // scanPackageGlobals scans all .go files in the same directory as filename

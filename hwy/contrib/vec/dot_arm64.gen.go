@@ -52,8 +52,14 @@ func initDotAll() {
 		initDotFallback()
 		return
 	}
-	initDotFallback()
+	initDotNEONAsm()
 	return
+	initDotFallback()
+}
+
+func initDotNEONAsm() {
+	initDotFallback()
+	initDotNeonCAsm()
 }
 
 func initDotFallback() {

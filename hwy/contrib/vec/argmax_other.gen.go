@@ -78,7 +78,6 @@ func init() {
 }
 
 func initArgmaxAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initArgmaxFallback()
 }
 

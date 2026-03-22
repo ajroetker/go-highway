@@ -4,10 +4,6 @@
 
 package vec
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var DotIntInt8 func(a []int8, b []int8) int32
 var DotIntUint8 func(a []uint8, b []uint8) int32
 
@@ -43,7 +39,6 @@ func init() {
 }
 
 func initDotintAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initDotintFallback()
 }
 

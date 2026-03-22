@@ -21,8 +21,14 @@ func initStreamvbyteAll() {
 		initStreamvbyteFallback()
 		return
 	}
-	initStreamvbyteFallback()
+	initStreamvbyteNEONAsm()
 	return
+	initStreamvbyteFallback()
+}
+
+func initStreamvbyteNEONAsm() {
+	initStreamvbyteFallback()
+	initStreamvbyteNeonCAsm()
 }
 
 func initStreamvbyteFallback() {

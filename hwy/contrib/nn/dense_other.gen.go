@@ -42,7 +42,6 @@ func init() {
 }
 
 func initDenseAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initDenseFallback()
 }
 

@@ -22,8 +22,14 @@ func initEncodeAll() {
 		initEncodeFallback()
 		return
 	}
-	initEncodeFallback()
+	initEncodeNEONAsm()
 	return
+	initEncodeFallback()
+}
+
+func initEncodeNEONAsm() {
+	initEncodeFallback()
+	initEncodeNeonCAsm()
 }
 
 func initEncodeFallback() {

@@ -84,8 +84,14 @@ func initNormAll() {
 		initNormFallback()
 		return
 	}
-	initNormFallback()
+	initNormNEONAsm()
 	return
+	initNormFallback()
+}
+
+func initNormNEONAsm() {
+	initNormFallback()
+	initNormNeonCAsm()
 }
 
 func initNormFallback() {

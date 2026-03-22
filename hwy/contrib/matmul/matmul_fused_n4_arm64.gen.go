@@ -20,8 +20,14 @@ func initMatmul_fused_n4All() {
 		initMatmul_fused_n4Fallback()
 		return
 	}
-	initMatmul_fused_n4Fallback()
+	initMatmul_fused_n4NEONAsm()
 	return
+	initMatmul_fused_n4Fallback()
+}
+
+func initMatmul_fused_n4NEONAsm() {
+	initMatmul_fused_n4Fallback()
+	initMatmul_fused_n4NeonCAsm()
 }
 
 func initMatmul_fused_n4Fallback() {

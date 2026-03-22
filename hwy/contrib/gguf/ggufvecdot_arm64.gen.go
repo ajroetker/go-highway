@@ -21,8 +21,14 @@ func initGgufvecdotAll() {
 		initGgufvecdotFallback()
 		return
 	}
-	initGgufvecdotFallback()
+	initGgufvecdotNEONAsm()
 	return
+	initGgufvecdotFallback()
+}
+
+func initGgufvecdotNEONAsm() {
+	initGgufvecdotFallback()
+	initGgufvecdotNeonCAsm()
 }
 
 func initGgufvecdotFallback() {

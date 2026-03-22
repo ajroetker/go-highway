@@ -166,7 +166,6 @@ func init() {
 }
 
 func initSoftmaxAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initSoftmaxFallback()
 }
 

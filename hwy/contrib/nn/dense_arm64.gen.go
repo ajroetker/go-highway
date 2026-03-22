@@ -46,8 +46,14 @@ func initDenseAll() {
 		initDenseFallback()
 		return
 	}
-	initDenseFallback()
+	initDenseNEONAsm()
 	return
+	initDenseFallback()
+}
+
+func initDenseNEONAsm() {
+	initDenseFallback()
+	initDenseNeonCAsm()
 }
 
 func initDenseFallback() {

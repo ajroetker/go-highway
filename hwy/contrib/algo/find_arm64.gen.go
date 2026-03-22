@@ -102,8 +102,14 @@ func initFindAll() {
 		initFindFallback()
 		return
 	}
-	initFindFallback()
+	initFindNEONAsm()
 	return
+	initFindFallback()
+}
+
+func initFindNEONAsm() {
+	initFindFallback()
+	initFindNeonCAsm()
 }
 
 func initFindFallback() {

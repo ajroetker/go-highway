@@ -24,8 +24,8 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// -march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16 enables SME with f32/f64/f16/bf16 support
-//go:generate go tool goat ../c/matvec_sme_arm64.c -O3 --target arm64 --target-os darwin -e="-march=armv9-a+sme+sme-f64f64+sme-f16f16+bf16"
+// The checked-in GoAT SME outputs are retained here, but the originating C
+// source is not in this repo, so there is no local regeneration directive.
 
 // ============================================================================
 // SME FMOPA Matrix-Vector Multiplication

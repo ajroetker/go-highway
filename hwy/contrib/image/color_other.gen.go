@@ -110,7 +110,6 @@ func init() {
 }
 
 func initColorAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initColorFallback()
 }
 

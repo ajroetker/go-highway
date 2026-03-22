@@ -76,7 +76,6 @@ func init() {
 }
 
 func initRadixAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initRadixFallback()
 }
 

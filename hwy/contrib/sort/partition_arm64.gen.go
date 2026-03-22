@@ -79,6 +79,7 @@ func initPartitionAll() {
 	}
 	initPartitionNEON()
 	return
+	initPartitionFallback()
 }
 
 func initPartitionNEON() {

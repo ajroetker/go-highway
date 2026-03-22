@@ -165,8 +165,14 @@ func initReduceAll() {
 		initReduceFallback()
 		return
 	}
-	initReduceFallback()
+	initReduceNEONAsm()
 	return
+	initReduceFallback()
+}
+
+func initReduceNEONAsm() {
+	initReduceFallback()
+	initReduceNeonCAsm()
 }
 
 func initReduceFallback() {

@@ -63,8 +63,14 @@ func initMatvecAll() {
 		initMatvecFallback()
 		return
 	}
-	initMatvecFallback()
+	initMatvecNEONAsm()
 	return
+	initMatvecFallback()
+}
+
+func initMatvecNEONAsm() {
+	initMatvecFallback()
+	initMatvecNeonCAsm()
 }
 
 func initMatvecFallback() {

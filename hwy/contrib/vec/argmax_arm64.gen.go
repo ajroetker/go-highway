@@ -82,8 +82,14 @@ func initArgmaxAll() {
 		initArgmaxFallback()
 		return
 	}
-	initArgmaxFallback()
+	initArgmaxNEONAsm()
 	return
+	initArgmaxFallback()
+}
+
+func initArgmaxNEONAsm() {
+	initArgmaxFallback()
+	initArgmaxNeonCAsm()
 }
 
 func initArgmaxFallback() {

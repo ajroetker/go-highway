@@ -20,7 +20,8 @@ package asm
 
 import "unsafe"
 
-//go:generate go tool goat ../c/varint_neon_arm64.c -O3 --target arm64 -e=-march=armv8-a+simd+fp
+// The checked-in GoAT NEON outputs are retained here, but the originating C
+// source is not in this repo, so there is no local regeneration directive.
 
 // ============================================================================
 // SIMD Varint Boundary Detection

@@ -155,7 +155,6 @@ func init() {
 }
 
 func initExptransformAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initExptransformFallback()
 }
 

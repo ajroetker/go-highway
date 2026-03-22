@@ -301,6 +301,50 @@ func TestSpecializeType(t *testing.T) {
 	}
 }
 
+func TestFallbackOnlyDispatcherOmitsUnusedHwyHack(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "copy.go")
+	content := `package testcopy
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseCopy(src, dst []uint32) {
+	size := min(len(src), len(dst))
+	for i := 0; i < size; i += hwy.MaxLanes[uint32]() {
+		v := hwy.Load(src[i:])
+		hwy.Store(v, dst[i:])
+	}
+}
+`
+
+	if err := os.WriteFile(inputFile, []byte(content), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	gen := &Generator{
+		InputFile:   inputFile,
+		OutputDir:   tmpDir,
+		TargetSpecs: makeTestSpecs(TargetModeGoSimd, "fallback"),
+	}
+	if err := gen.Run(); err != nil {
+		t.Fatalf("Generator.Run() failed: %v", err)
+	}
+
+	dispatchPath := filepath.Join(tmpDir, "dispatch_copy.gen.go")
+	data, err := os.ReadFile(dispatchPath)
+	if err != nil {
+		t.Fatalf("read dispatcher: %v", err)
+	}
+	code := string(data)
+
+	if strings.Contains(code, "_ = hwy.NoSimdEnv") {
+		t.Fatalf("fallback-only dispatcher should not include unused hwy hack:\n%s", code)
+	}
+	if strings.Contains(code, "\"github.com/ajroetker/go-highway/hwy\"") {
+		t.Fatalf("fallback-only dispatcher should not import hwy when signatures do not need it:\n%s", code)
+	}
+}
+
 func TestBuildDispatchFuncName(t *testing.T) {
 	tests := []struct {
 		baseName  string
@@ -6415,6 +6459,15 @@ func TestCASTTranslatorResolveTypeParam(t *testing.T) {
 
 // ---- Tests for //hwy:specializes and //hwy:targets directives ----
 
+func mustTargetSelector(t *testing.T, spec string) TargetSelector {
+	t.Helper()
+	selector, err := parseTargetSelector(spec)
+	if err != nil {
+		t.Fatalf("parseTargetSelector(%q): %v", spec, err)
+	}
+	return selector
+}
+
 func TestParseSpecializesDirective(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test_base.go")
@@ -6481,9 +6534,176 @@ func BaseMatMulHalf[T hwy.Floats](a, b, c []T, m, n, k int) {
 	if len(pf.AllowedTargets) != 2 {
 		t.Fatalf("got %d targets, want 2", len(pf.AllowedTargets))
 	}
-	if pf.AllowedTargets[0] != "neon" || pf.AllowedTargets[1] != "avx512" {
-		t.Errorf("AllowedTargets = %v, want [neon avx512]", pf.AllowedTargets)
+	if got := formatTargetSelectors(pf.AllowedTargets); got != "neon,avx512" {
+		t.Errorf("AllowedTargets = %s, want neon,avx512", got)
 	}
+}
+
+func TestParseTargetsDirectiveRejectsInvalidTarget(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_base.go")
+	content := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:targets neon:weird
+func BaseOp[T hwy.Floats](a []T) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	_, err := Parse(testFile)
+	if err == nil {
+		t.Fatal("expected Parse to fail for invalid //hwy:targets")
+	}
+	if !strings.Contains(err.Error(), "invalid //hwy:targets entry") {
+		t.Fatalf("error = %q, want invalid //hwy:targets entry", err)
+	}
+	if !strings.Contains(err.Error(), "valid suffixes: :asm, :c") {
+		t.Fatalf("error = %q, want valid suffix guidance", err)
+	}
+}
+
+func TestParseRejectsSpecializesOnNonBaseFunction(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.go")
+	content := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+//hwy:specializes Op
+func helper[T hwy.Floats](a []T) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	_, err := Parse(testFile)
+	if err == nil {
+		t.Fatal("expected Parse to fail for non-Base specialization")
+	}
+	if !strings.Contains(err.Error(), "//hwy:specializes applies only to top-level Base... or base... functions") {
+		t.Fatalf("error = %q, want Base/base guidance", err)
+	}
+}
+
+func TestParseTargetsCLI(t *testing.T) {
+	t.Run("all inherits global mode for fallback", func(t *testing.T) {
+		specs, err := parseTargets("all", true, false)
+		if err != nil {
+			t.Fatalf("parseTargets(all): %v", err)
+		}
+		var fallbackMode TargetMode
+		foundFallback := false
+		for _, spec := range specs {
+			if spec.Target.IsFallback() {
+				foundFallback = true
+				fallbackMode = spec.Mode
+			}
+		}
+		if !foundFallback {
+			t.Fatal("fallback target missing from all")
+		}
+		if fallbackMode != TargetModeC {
+			t.Fatalf("fallback mode = %v, want TargetModeC", fallbackMode)
+		}
+	})
+
+	t.Run("bare fallback inherits global mode", func(t *testing.T) {
+		specs, err := parseTargets("fallback", false, true)
+		if err != nil {
+			t.Fatalf("parseTargets(fallback): %v", err)
+		}
+		if len(specs) != 1 {
+			t.Fatalf("got %d specs, want 1", len(specs))
+		}
+		if specs[0].Mode != TargetModeAsm {
+			t.Fatalf("fallback mode = %v, want TargetModeAsm", specs[0].Mode)
+		}
+	})
+
+	t.Run("rejects invalid mode suffix", func(t *testing.T) {
+		_, err := parseTargets("neon:weird", false, false)
+		if err == nil {
+			t.Fatal("expected parseTargets to fail")
+		}
+		if !strings.Contains(err.Error(), "valid suffixes: :asm, :c") {
+			t.Fatalf("error = %q, want valid suffix guidance", err)
+		}
+	})
+}
+
+func TestGeneratorValidate(t *testing.T) {
+	t.Run("passes for valid input", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		testFile := filepath.Join(tmpDir, "op_base.go")
+		content := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func BaseOp[T hwy.Floats](a, b []T) {
+	n := min(len(a), len(b))
+	for i := 0; i < n; i += hwy.Lanes[T]() {
+		va := hwy.Load(a[i:])
+		vb := hwy.Load(b[i:])
+		hwy.Store(hwy.Add(va, vb), a[i:])
+	}
+}
+`
+		if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+			t.Fatalf("write test file: %v", err)
+		}
+
+		gen := &Generator{
+			InputFile:   testFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "avx2", "fallback"),
+		}
+		validation, err := gen.Validate()
+		if err != nil {
+			t.Fatalf("Validate() failed: %v", err)
+		}
+		if validation == nil || validation.Result == nil {
+			t.Fatal("Validate() returned nil result")
+		}
+		if len(validation.Groups) != 1 {
+			t.Fatalf("got %d groups, want 1", len(validation.Groups))
+		}
+	})
+
+	t.Run("reports missing Base functions with guidance", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		testFile := filepath.Join(tmpDir, "op.go")
+		content := `package test
+
+import "github.com/ajroetker/go-highway/hwy"
+
+func helper[T hwy.Floats](a []T) {
+	_ = hwy.Add(hwy.Vec[T]{}, hwy.Vec[T]{})
+}
+`
+		if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+			t.Fatalf("write test file: %v", err)
+		}
+
+		gen := &Generator{
+			InputFile:   testFile,
+			OutputDir:   tmpDir,
+			TargetSpecs: makeTestSpecs(TargetModeGoSimd, "fallback"),
+		}
+		_, err := gen.Validate()
+		if err == nil {
+			t.Fatal("expected Validate() to fail")
+		}
+		if !strings.Contains(err.Error(), "top-level Base... or base... functions") {
+			t.Fatalf("error = %q, want Base/base guidance", err)
+		}
+	})
 }
 
 func TestBuildDispatchGroups(t *testing.T) {
@@ -6638,7 +6858,7 @@ func TestSelectSourceFunc(t *testing.T) {
 		Name:             "BaseMatMulNEONHalf",
 		TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
 		SpecializesGroup: "MatMul",
-		AllowedTargets:   []string{"neon"},
+		AllowedTargets:   []TargetSelector{mustTargetSelector(t, "neon")},
 		TypeCombinations: []TypeCombination{
 			{Types: map[string]string{"T": "hwy.Float16"}},
 			{Types: map[string]string{"T": "hwy.BFloat16"}},
@@ -6772,7 +6992,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			Name:             "BaseMatMulHalfAsm",
 			TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
 			SpecializesGroup: "MatMul",
-			AllowedTargets:   []string{"neon:asm"},
+			AllowedTargets:   []TargetSelector{mustTargetSelector(t, "neon:asm")},
 			TypeCombinations: []TypeCombination{
 				{Types: map[string]string{"T": "hwy.Float16"}},
 			},
@@ -6803,7 +7023,7 @@ func TestSelectSourceFunc(t *testing.T) {
 			Name:             "BaseMatMulHalfAsm",
 			TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.HalfFloats"}},
 			SpecializesGroup: "MatMul",
-			AllowedTargets:   []string{"neon:asm"},
+			AllowedTargets:   []TargetSelector{mustTargetSelector(t, "neon:asm")},
 			TypeCombinations: []TypeCombination{
 				{Types: map[string]string{"T": "hwy.Float16"}},
 			},
@@ -7091,8 +7311,8 @@ func BaseMainHalf[T hwy.Floats](a []T) {
 	if specFunc.Name != "BaseMainHalf" {
 		t.Errorf("spec name = %q, want %q", specFunc.Name, "BaseMainHalf")
 	}
-	if len(specFunc.AllowedTargets) != 1 || specFunc.AllowedTargets[0] != "neon" {
-		t.Errorf("AllowedTargets = %v, want [neon]", specFunc.AllowedTargets)
+	if got := formatTargetSelectors(specFunc.AllowedTargets); got != "neon" {
+		t.Errorf("AllowedTargets = %s, want neon", got)
 	}
 	if len(specFunc.TypeCombinations) != 2 {
 		t.Errorf("got %d combos, want 2", len(specFunc.TypeCombinations))
@@ -7390,7 +7610,7 @@ func TestTargetComboMapIntegration(t *testing.T) {
 		TypeParams:       []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
 		Params:           []Param{{Name: "x", Type: "[]T"}, {Name: "y", Type: "[]T"}, {Name: "out", Type: "[]T"}},
 		SpecializesGroup: "MulAdd",
-		AllowedTargets:   []string{"neon:asm"},
+		AllowedTargets:   []TargetSelector{mustTargetSelector(t, "neon:asm")},
 		TypeCombinations: []TypeCombination{
 			{Types: map[string]string{"T": "hwy.Float16"}},
 			{Types: map[string]string{"T": "hwy.BFloat16"}},
@@ -7825,6 +8045,53 @@ func TestEmitDispatcherUsesAsmBridgeForArm64(t *testing.T) {
 	}
 	if !strings.Contains(code, "\tinitRoaringNEONAsm()\n\treturn\n") {
 		t.Fatalf("dispatcher initAll missing NEON asm path:\n%s", code)
+	}
+}
+
+func TestEmitDispatcherSkipsArm64AsmTargetWithoutAdapters(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "packedmatmul_base.go")
+
+	pf := ParsedFunc{
+		Name:       "BasePackedMatMul",
+		TypeParams: []TypeParam{{Name: "T", Constraint: "hwy.Floats"}},
+		Params: []Param{
+			{Name: "a", Type: "[]T"},
+			{Name: "b", Type: "[]T"},
+			{Name: "c", Type: "[]T"},
+			{Name: "m", Type: "int"},
+			{Name: "n", Type: "int"},
+			{Name: "k", Type: "int"},
+		},
+	}
+
+	neon := NEONTarget()
+	neon.Mode = TargetModeAsm
+
+	if err := EmitDispatcher(
+		[]ParsedFunc{pf},
+		[]Target{neon, FallbackTarget()},
+		"testpkg",
+		tmpDir,
+		"",
+		inputFile,
+		nil,
+		nil,
+	); err != nil {
+		t.Fatalf("EmitDispatcher: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpDir, "dispatch_packedmatmul_arm64.gen.go"))
+	if err != nil {
+		t.Fatalf("read dispatcher: %v", err)
+	}
+	code := string(data)
+
+	if strings.Contains(code, "initPackedmatmulNEONAsm") {
+		t.Fatalf("dispatcher should not reference missing NEON asm init:\n%s", code)
+	}
+	if !strings.Contains(code, "\tinitPackedmatmulFallback()\n") {
+		t.Fatalf("dispatcher missing fallback init:\n%s", code)
 	}
 }
 

@@ -4,10 +4,6 @@
 
 package gguf
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var VecDotQ2_KQ8_K func(wdata []uint8, adata []uint8, nblocks int) float32
 var VecDotQ3_KQ8_K func(wdata []uint8, adata []uint8, nblocks int) float32
 var VecDotQ4_KQ8_K func(wdata []uint8, adata []uint8, nblocks int) float32
@@ -19,7 +15,6 @@ func init() {
 }
 
 func initGgufkqvecdotAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initGgufkqvecdotFallback()
 }
 

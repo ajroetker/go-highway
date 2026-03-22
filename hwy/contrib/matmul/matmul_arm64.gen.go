@@ -54,8 +54,14 @@ func initMatmulAll() {
 		initMatmulFallback()
 		return
 	}
-	initMatmulFallback()
+	initMatmulNEONAsm()
 	return
+	initMatmulFallback()
+}
+
+func initMatmulNEONAsm() {
+	initMatmulFallback()
+	initMatmulNeonCAsm()
 }
 
 func initMatmulFallback() {

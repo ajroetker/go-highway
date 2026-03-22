@@ -136,8 +136,14 @@ func initPackingAll() {
 		initPackingFallback()
 		return
 	}
-	initPackingFallback()
+	initPackingNEONAsm()
 	return
+	initPackingFallback()
+}
+
+func initPackingNEONAsm() {
+	initPackingFallback()
+	initPackingNeonCAsm()
 }
 
 func initPackingFallback() {

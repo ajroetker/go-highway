@@ -48,7 +48,6 @@ func init() {
 }
 
 func initDotAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initDotFallback()
 }
 

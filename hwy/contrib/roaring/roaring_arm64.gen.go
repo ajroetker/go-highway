@@ -25,6 +25,7 @@ func initRoaringAll() {
 	}
 	initRoaringNEONAsm()
 	return
+	initRoaringFallback()
 }
 
 func initRoaringNEONAsm() {

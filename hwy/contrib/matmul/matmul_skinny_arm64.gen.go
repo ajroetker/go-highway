@@ -52,8 +52,14 @@ func initMatmul_skinnyAll() {
 		initMatmul_skinnyFallback()
 		return
 	}
-	initMatmul_skinnyFallback()
+	initMatmul_skinnyNEONAsm()
 	return
+	initMatmul_skinnyFallback()
+}
+
+func initMatmul_skinnyNEONAsm() {
+	initMatmul_skinnyFallback()
+	initMatmul_skinnyNeonCAsm()
 }
 
 func initMatmul_skinnyFallback() {

@@ -82,6 +82,7 @@ func initRadixAll() {
 	}
 	initRadixNEON()
 	return
+	initRadixFallback()
 }
 
 func initRadixNEON() {

@@ -82,7 +82,6 @@ func init() {
 }
 
 func initDistanceAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initDistanceFallback()
 }
 

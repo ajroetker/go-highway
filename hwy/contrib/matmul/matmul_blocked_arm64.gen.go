@@ -50,8 +50,14 @@ func initMatmul_blockedAll() {
 		initMatmul_blockedFallback()
 		return
 	}
-	initMatmul_blockedFallback()
+	initMatmul_blockedNEONAsm()
 	return
+	initMatmul_blockedFallback()
+}
+
+func initMatmul_blockedNEONAsm() {
+	initMatmul_blockedFallback()
+	initMatmul_blockedNeonCAsm()
 }
 
 func initMatmul_blockedFallback() {

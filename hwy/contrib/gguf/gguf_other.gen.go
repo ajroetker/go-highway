@@ -4,10 +4,6 @@
 
 package gguf
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var DequantizeIQ4NL func(data []uint8, output []float32)
 var DequantizeQ2K func(data []uint8, output []float32)
 var DequantizeQ3K func(data []uint8, output []float32)
@@ -22,7 +18,6 @@ func init() {
 }
 
 func initGgufAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initGgufFallback()
 }
 

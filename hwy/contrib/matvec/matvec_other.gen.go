@@ -59,7 +59,6 @@ func init() {
 }
 
 func initMatvecAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initMatvecFallback()
 }
 

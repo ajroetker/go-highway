@@ -61,6 +61,7 @@ func initRadix_floatAll() {
 	}
 	initRadix_floatNEON()
 	return
+	initRadix_floatFallback()
 }
 
 func initRadix_floatNEON() {

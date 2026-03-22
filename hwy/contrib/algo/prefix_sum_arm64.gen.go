@@ -94,8 +94,14 @@ func initPrefix_sumAll() {
 		initPrefix_sumFallback()
 		return
 	}
-	initPrefix_sumFallback()
+	initPrefix_sumNEONAsm()
 	return
+	initPrefix_sumFallback()
+}
+
+func initPrefix_sumNEONAsm() {
+	initPrefix_sumFallback()
+	initPrefix_sumNeonCAsm()
 }
 
 func initPrefix_sumFallback() {

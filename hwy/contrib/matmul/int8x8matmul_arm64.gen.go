@@ -19,8 +19,14 @@ func initInt8x8matmulAll() {
 		initInt8x8matmulFallback()
 		return
 	}
-	initInt8x8matmulFallback()
+	initInt8x8matmulNEONAsm()
 	return
+	initInt8x8matmulFallback()
+}
+
+func initInt8x8matmulNEONAsm() {
+	initInt8x8matmulFallback()
+	initInt8x8matmulNeonCAsm()
 }
 
 func initInt8x8matmulFallback() {

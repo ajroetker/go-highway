@@ -94,6 +94,115 @@ func targetInitFuncName(prefix string, target Target) string {
 	return "init" + capPrefix + target.Name
 }
 
+func dispatcherBuildTag(arch string) string {
+	if arch == "amd64" {
+		return amd64SimdBuildTag
+	}
+	return arch
+}
+
+func negateBuildTag(buildTag string) string {
+	if buildTag == "" {
+		return ""
+	}
+	if !strings.ContainsAny(buildTag, " &|()") {
+		return "!" + buildTag
+	}
+	return "!(" + buildTag + ")"
+}
+
+func dispatchImplName(pf ParsedFunc, dc dispatchComboInfo, target Target) string {
+	baseName := pf.Name
+	if pf.Private {
+		baseName = makeUnexported(baseName)
+	}
+
+	implName := baseName + target.Suffix()
+	if target.IsFallback() {
+		implName = baseName + "_fallback"
+	}
+	if dc.TypeSuffix != "" && dc.TypeSuffix != "Float32" && len(pf.TypeParams) > 0 {
+		implName += "_" + dc.TypeSuffix
+	}
+	return implName
+}
+
+func dispatcherNeedsHwyImport(funcs []ParsedFunc) bool {
+	for _, pf := range funcs {
+		if len(pf.TypeParams) > 0 {
+			return true
+		}
+		for _, dc := range getDispatchCombos(pf) {
+			typeMap := dc.Combo.Types
+			if len(typeMap) <= 1 {
+				typeMap = nil
+			}
+			if strings.Contains(buildFuncSignatureWithMap(pf, dc.ElemType, typeMap), "hwy.") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func appendUniqueImport(imports []string, imp string) []string {
+	for _, existing := range imports {
+		if existing == imp {
+			return imports
+		}
+	}
+	return append(imports, imp)
+}
+
+func appendContribImports(imports []string, contribPkgs ContribPackages) []string {
+	if contribPkgs.Math {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/math"`)
+	}
+	if contribPkgs.Vec {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/vec"`)
+	}
+	if contribPkgs.MatVec {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
+	}
+	if contribPkgs.Matmul {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matmul"`)
+	}
+	if contribPkgs.Algo {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/algo"`)
+	}
+	if contribPkgs.Image {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/image"`)
+	}
+	if contribPkgs.Bitpack {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/bitpack"`)
+	}
+	if contribPkgs.Sort {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/contrib/sort"`)
+	}
+	return imports
+}
+
+func appendPreservedSourceImports(imports []string, sourceImports map[string]string, usedPkgs map[string]bool) []string {
+	transformedImports := map[string]bool{
+		"github.com/ajroetker/go-highway/hwy":              true,
+		"github.com/ajroetker/go-highway/hwy/asm":          true,
+		"github.com/ajroetker/go-highway/hwy/contrib/algo": true,
+		"github.com/ajroetker/go-highway/hwy/contrib/math": true,
+	}
+
+	for localName, importPath := range sourceImports {
+		if transformedImports[importPath] || !usedPkgs[localName] {
+			continue
+		}
+		if localName == importPath || localName == "" || localName == filepath.Base(importPath) {
+			imports = appendUniqueImport(imports, fmt.Sprintf(`"%s"`, importPath))
+		} else {
+			imports = appendUniqueImport(imports, fmt.Sprintf(`%s "%s"`, localName, importPath))
+		}
+	}
+	return imports
+}
+
 // ContribPackages tracks which contrib subpackages are needed for imports.
 type ContribPackages struct {
 	Math    bool // contrib/math (Exp, Log, Sin, etc.)
@@ -367,11 +476,10 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 	if hasFallback {
 		var constraints []string
 		if len(arm64Targets) > 0 {
-			constraints = append(constraints, "!arm64")
+			constraints = append(constraints, negateBuildTag(dispatcherBuildTag("arm64")))
 		}
-		// Note: amd64 dispatch requires goexperiment.simd, so fallback handles !(amd64 && simd)
 		if len(amd64Targets) > 0 {
-			constraints = append(constraints, "!(amd64 && goexperiment.simd)")
+			constraints = append(constraints, negateBuildTag(dispatcherBuildTag("amd64")))
 		}
 
 		buildTag := strings.Join(constraints, " && ")
@@ -440,15 +548,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 	var buf bytes.Buffer
 
-	// Determine build tag based on architecture
-	// amd64 requires goexperiment.simd for archsimd
-	// arm64 uses our asm package which doesn't require the SIMD experiment
-	var buildTag string
-	if arch == "amd64" {
-		buildTag = arch + " && goexperiment.simd"
-	} else {
-		buildTag = arch
-	}
+	buildTag := dispatcherBuildTag(arch)
 
 	// File header with build tag
 	fmt.Fprintf(&buf, HeaderNote)
@@ -528,19 +628,16 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 			// Streaming SVE targets never override scalar dispatch vars.
 			continue
 		case "NEON":
-			if dispatcherOwnsAsmInit(target) && hasAsmAdaptersForTarget(asmAdapters, target) {
-				fmt.Fprintf(&buf, "\t%s()\n", targetInitFuncName(prefix, target))
-			} else {
-				// NEON GoSimd — use Go SIMD NEON implementation
-				fmt.Fprintf(&buf, "\t%s()\n", targetInitFuncName(prefix, target))
+			if target.Mode == TargetModeAsm && !hasAsmAdaptersForTarget(asmAdapters, target) {
+				continue
 			}
+			fmt.Fprintf(&buf, "\t%s()\n", targetInitFuncName(prefix, target))
 			fmt.Fprintf(&buf, "\treturn\n")
 		}
 	}
 
-	// Add fallback at end for x86 (in case no SIMD detected)
-	// ARM64 always uses NEON (mandatory on ARMv8) so doesn't need fallback here
-	if arch != "arm64" && hasFallback {
+	// Add fallback at end in case no SIMD target was selected or available.
+	if hasFallback {
 		fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	}
 	fmt.Fprintf(&buf, "}\n\n")
@@ -569,16 +666,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 				if !comboAvailable(targetComboMap, target.Name, dc.DispatchName) {
 					continue
 				}
-				baseName := pf.Name
-				if pf.Private {
-					baseName = makeUnexported(baseName)
-				}
-				implName := baseName + target.Suffix()
-				suffix := dc.TypeSuffix
-				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
-					implName = implName + "_" + suffix
-				}
-				fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, implName)
+				fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, dispatchImplName(pf, dc, target))
 			}
 		}
 
@@ -593,16 +681,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 				if !comboAvailable(targetComboMap, "Fallback", dc.DispatchName) {
 					continue
 				}
-				baseName := pf.Name
-				if pf.Private {
-					baseName = makeUnexported(baseName)
-				}
-				implName := baseName + "_fallback"
-				suffix := dc.TypeSuffix
-				if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
-					implName = implName + "_" + suffix
-				}
-				fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, implName)
+				fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, dispatchImplName(pf, dc, FallbackTarget()))
 			}
 		}
 		fmt.Fprintf(&buf, "}\n")
@@ -646,9 +725,11 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	}
 	fmt.Fprintf(&buf, "\npackage %s\n\n", pkgName)
 
-	fmt.Fprintf(&buf, "import (\n")
-	fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy\"\n")
-	fmt.Fprintf(&buf, ")\n\n")
+	if dispatcherNeedsHwyImport(dispatchableFuncs) {
+		fmt.Fprintf(&buf, "import (\n")
+		fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy\"\n")
+		fmt.Fprintf(&buf, ")\n\n")
+	}
 
 	// Declare function variables
 	for _, pf := range dispatchableFuncs {
@@ -677,7 +758,6 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	initGenFn := "init" + capPrefix + "All"
 	fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initGenFn)
 	fmt.Fprintf(&buf, "func %s() {\n", initGenFn)
-	fmt.Fprintf(&buf, "\t_ = hwy.NoSimdEnv // silence unused import\n")
 	fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	fmt.Fprintf(&buf, "}\n\n")
 
@@ -687,16 +767,7 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 			if !comboAvailable(targetComboMap, "Fallback", dc.DispatchName) {
 				continue
 			}
-			baseName := pf.Name
-			if pf.Private {
-				baseName = makeUnexported(baseName)
-			}
-			implName := baseName + "_fallback"
-			suffix := dc.TypeSuffix
-			if suffix != "" && suffix != "Float32" && len(pf.TypeParams) > 0 {
-				implName = implName + "_" + suffix
-			}
-			fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, implName)
+			fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, dispatchImplName(pf, dc, FallbackTarget()))
 		}
 	}
 	fmt.Fprintf(&buf, "}\n")
@@ -735,136 +806,36 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	}
 	fmt.Fprintf(&buf, "\npackage %s\n\n", pkgName)
 
-	// Build import list
+	usedPkgs := collectUsedPackages(funcs)
 	imports := []string{}
-
 	if !target.IsFallback() {
-		// Import the appropriate vector package only if core hwy ops are used
 		if contribPkgs.HwyCore {
 			switch target.VecPackage {
 			case "archsimd":
-				imports = append(imports, `"simd/archsimd"`)
+				imports = appendUniqueImport(imports, `"simd/archsimd"`)
 			case "asm":
-				imports = append(imports, `"github.com/ajroetker/go-highway/hwy/asm"`)
+				imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/asm"`)
 			}
 		}
-		// Import asm package for AVX targets that use half-precision promoted types
 		if contribPkgs.AsmPkg && target.VecPackage == "archsimd" {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/asm"`)
+			imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/asm"`)
 		}
-		// Add sync import for AVX-512 lazy initialization of hoisted constants
 		if target.Name == "AVX512" && len(hoistedConsts) > 0 {
-			imports = append(imports, `"sync"`)
+			imports = appendUniqueImport(imports, `"sync"`)
 		}
-		// Add hwy package import if hwy functions are used (e.g., Pow2)
 		if contribPkgs.HwyPkg {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy"`)
+			imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy"`)
 		}
-		// Add contrib subpackage imports for SIMD targets
-		if contribPkgs.Math {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/math"`)
-		}
-		if contribPkgs.Vec {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/vec"`)
-		}
-		if contribPkgs.MatVec {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
-		}
-		if contribPkgs.Matmul {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matmul"`)
-		}
-		if contribPkgs.Algo {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/algo"`)
-		}
-		if contribPkgs.Image {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/image"`)
-		}
-		if contribPkgs.Bitpack {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/bitpack"`)
-		}
-		if contribPkgs.Sort {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/sort"`)
-		}
-		// stdmath only if explicitly needed (math.Inf, math.NaN, etc. were found)
-		if contribPkgs.StdMath {
-			imports = append(imports, `stdmath "math"`)
-		}
-	} else {
-		// Fallback uses the hwy package directly for core ops only if core ops are used
-		if contribPkgs.HwyCore {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy"`)
-		}
-		// Fallback also uses contrib subpackages for their portable generic implementations
-		if contribPkgs.Math {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/math"`)
-		}
-		if contribPkgs.Vec {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/vec"`)
-		}
-		if contribPkgs.MatVec {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matvec"`)
-		}
-		if contribPkgs.Matmul {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/matmul"`)
-		}
-		if contribPkgs.Algo {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/algo"`)
-		}
-		if contribPkgs.Image {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/image"`)
-		}
-		if contribPkgs.Bitpack {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/bitpack"`)
-		}
-		if contribPkgs.Sort {
-			imports = append(imports, `"github.com/ajroetker/go-highway/hwy/contrib/sort"`)
-		}
-		// Include stdmath if the source file uses stdlib math functions
-		if contribPkgs.StdMath {
-			imports = append(imports, `stdmath "math"`)
-		}
+	} else if contribPkgs.HwyCore {
+		imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy"`)
 	}
-
-	// Add source imports that are still used after transformation
-	// Walk the AST to find which packages are actually referenced
-	usedPkgs := collectUsedPackages(funcs)
-
-	// Use blacklist approach: preserve all imports EXCEPT hwy-related ones that get transformed.
-	// This allows users to use any stdlib or third-party package without needing to whitelist it.
-	transformedImports := map[string]bool{
-		"github.com/ajroetker/go-highway/hwy":              true,
-		"github.com/ajroetker/go-highway/hwy/asm":          true,
-		"github.com/ajroetker/go-highway/hwy/contrib/algo": true,
-		"github.com/ajroetker/go-highway/hwy/contrib/math": true,
+	imports = appendContribImports(imports, contribPkgs)
+	if contribPkgs.StdMath {
+		imports = appendUniqueImport(imports, `stdmath "math"`)
 	}
-
-	// Preserve imports that are used and not transformed by hwygen
-	for localName, importPath := range sourceImports {
-		if transformedImports[importPath] {
-			continue // Skip hwy-related imports that get transformed
-		}
-		if usedPkgs[localName] {
-			if localName == importPath || localName == "" || localName == filepath.Base(importPath) {
-				imports = append(imports, fmt.Sprintf(`"%s"`, importPath))
-			} else {
-				imports = append(imports, fmt.Sprintf(`%s "%s"`, localName, importPath))
-			}
-		}
-	}
-
-	// Always add "unsafe" if it's used in the generated code (e.g. by Load),
-	// even if it wasn't in the source file.
+	imports = appendPreservedSourceImports(imports, sourceImports, usedPkgs)
 	if usedPkgs["unsafe"] {
-		alreadyImported := false
-		for _, imp := range imports {
-			if strings.Contains(imp, `"unsafe"`) {
-				alreadyImported = true
-				break
-			}
-		}
-		if !alreadyImported {
-			imports = append(imports, `"unsafe"`)
-		}
+		imports = appendUniqueImport(imports, `"unsafe"`)
 	}
 
 	// Sort imports for consistency

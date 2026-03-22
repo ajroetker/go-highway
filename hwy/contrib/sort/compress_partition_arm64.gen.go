@@ -82,6 +82,7 @@ func initCompress_partitionAll() {
 	}
 	initCompress_partitionNEON()
 	return
+	initCompress_partitionFallback()
 }
 
 func initCompress_partitionNEON() {

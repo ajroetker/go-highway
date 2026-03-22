@@ -60,7 +60,6 @@ func init() {
 }
 
 func initTransposeAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initTransposeFallback()
 }
 

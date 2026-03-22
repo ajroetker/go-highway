@@ -20,8 +20,14 @@ func initAccumulatetilesAll() {
 		initAccumulatetilesFallback()
 		return
 	}
-	initAccumulatetilesFallback()
+	initAccumulatetilesNEONAsm()
 	return
+	initAccumulatetilesFallback()
+}
+
+func initAccumulatetilesNEONAsm() {
+	initAccumulatetilesFallback()
+	initAccumulatetilesNeonCAsm()
 }
 
 func initAccumulatetilesFallback() {

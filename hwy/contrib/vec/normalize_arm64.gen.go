@@ -84,8 +84,14 @@ func initNormalizeAll() {
 		initNormalizeFallback()
 		return
 	}
-	initNormalizeFallback()
+	initNormalizeNEONAsm()
 	return
+	initNormalizeFallback()
+}
+
+func initNormalizeNEONAsm() {
+	initNormalizeFallback()
+	initNormalizeNeonCAsm()
 }
 
 func initNormalizeFallback() {

@@ -161,7 +161,6 @@ func init() {
 }
 
 func initReduceAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initReduceFallback()
 }
 

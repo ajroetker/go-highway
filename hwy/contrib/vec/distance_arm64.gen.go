@@ -86,8 +86,14 @@ func initDistanceAll() {
 		initDistanceFallback()
 		return
 	}
-	initDistanceFallback()
+	initDistanceNEONAsm()
 	return
+	initDistanceFallback()
+}
+
+func initDistanceNEONAsm() {
+	initDistanceFallback()
+	initDistanceNeonCAsm()
 }
 
 func initDistanceFallback() {

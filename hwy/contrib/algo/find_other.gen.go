@@ -98,7 +98,6 @@ func init() {
 }
 
 func initFindAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initFindFallback()
 }
 

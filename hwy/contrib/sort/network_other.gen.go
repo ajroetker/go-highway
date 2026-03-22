@@ -69,7 +69,6 @@ func init() {
 }
 
 func initNetworkAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initNetworkFallback()
 }
 
