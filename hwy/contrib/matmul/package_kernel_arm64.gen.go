@@ -112,7 +112,6 @@ func initPackage_kernelAll() {
 	}
 	initPackage_kernelNEONAsm()
 	return
-	initPackage_kernelFallback()
 }
 
 func initPackage_kernelNEONAsm() {

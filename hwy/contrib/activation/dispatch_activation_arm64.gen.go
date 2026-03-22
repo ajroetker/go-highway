@@ -242,7 +242,6 @@ func initActivationAll() {
 	}
 	initActivationNEONAsm()
 	return
-	initActivationFallback()
 }
 
 func initActivationNEONAsm() {

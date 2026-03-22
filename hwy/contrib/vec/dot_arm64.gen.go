@@ -30,17 +30,19 @@ var DotFloat64 func(a []float64, b []float64) float64
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Dot[T hwy.Floats](a []T, b []T) T {
-	switch any(a).(type) {
-	case []hwy.Float16:
+	if _, ok := any(a).([]hwy.Float16); ok {
 		return any(DotFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(a).([]hwy.BFloat16); ok {
 		return any(DotBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(a).([]float32); ok {
 		return any(DotFloat32(any(a).([]float32), any(b).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(a).([]float64); ok {
 		return any(DotFloat64(any(a).([]float64), any(b).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
@@ -54,7 +56,6 @@ func initDotAll() {
 	}
 	initDotNEONAsm()
 	return
-	initDotFallback()
 }
 
 func initDotNEONAsm() {

@@ -82,7 +82,6 @@ func initTrsmAll() {
 	}
 	initTrsmNEONAsm()
 	return
-	initTrsmFallback()
 }
 
 func initTrsmNEONAsm() {

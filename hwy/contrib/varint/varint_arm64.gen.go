@@ -25,7 +25,6 @@ func initVarintAll() {
 	}
 	initVarintNEONAsm()
 	return
-	initVarintFallback()
 }
 
 func initVarintNEONAsm() {

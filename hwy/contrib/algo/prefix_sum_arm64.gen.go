@@ -96,7 +96,6 @@ func initPrefix_sumAll() {
 	}
 	initPrefix_sumNEONAsm()
 	return
-	initPrefix_sumFallback()
 }
 
 func initPrefix_sumNEONAsm() {

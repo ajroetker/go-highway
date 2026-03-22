@@ -224,7 +224,6 @@ func initPointopsAll() {
 	}
 	initPointopsNEONAsm()
 	return
-	initPointopsFallback()
 }
 
 func initPointopsNEONAsm() {

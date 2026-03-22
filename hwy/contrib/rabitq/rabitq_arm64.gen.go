@@ -22,7 +22,6 @@ func initRabitqAll() {
 	}
 	initRabitqNEONAsm()
 	return
-	initRabitqFallback()
 }
 
 func initRabitqNEONAsm() {

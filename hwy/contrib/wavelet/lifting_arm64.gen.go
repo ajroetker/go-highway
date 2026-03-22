@@ -187,7 +187,6 @@ func initLiftingAll() {
 	}
 	initLiftingNEONAsm()
 	return
-	initLiftingFallback()
 }
 
 func initLiftingNEONAsm() {

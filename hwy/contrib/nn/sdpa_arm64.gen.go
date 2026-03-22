@@ -104,7 +104,6 @@ func initSdpaAll() {
 	}
 	initSdpaNEONAsm()
 	return
-	initSdpaFallback()
 }
 
 func initSdpaNEONAsm() {

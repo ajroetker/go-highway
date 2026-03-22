@@ -46,7 +46,6 @@ func initSpecializeAll() {
 	}
 	initSpecializeNEONAsm()
 	return
-	initSpecializeFallback()
 }
 
 func initSpecializeNEONAsm() {

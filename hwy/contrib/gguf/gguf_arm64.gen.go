@@ -28,7 +28,6 @@ func initGgufAll() {
 	}
 	initGgufNEONAsm()
 	return
-	initGgufFallback()
 }
 
 func initGgufNEONAsm() {

@@ -402,7 +402,6 @@ func initArithmeticAll() {
 	}
 	initArithmeticNEONAsm()
 	return
-	initArithmeticFallback()
 }
 
 func initArithmeticNEONAsm() {

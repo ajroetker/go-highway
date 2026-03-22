@@ -51,17 +51,19 @@ var PackRHSVecFloat64 func(b []float64, packed []float64, n int, rowStart int, c
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func PackLHS[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	switch any(a).(type) {
-	case []hwy.Float16:
+	if _, ok := any(a).([]hwy.Float16); ok {
 		return PackLHSFloat16(any(a).([]hwy.Float16), any(packed).([]hwy.Float16), m, k, rowStart, colStart, panelRows, panelK, mr)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(a).([]hwy.BFloat16); ok {
 		return PackLHSBFloat16(any(a).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), m, k, rowStart, colStart, panelRows, panelK, mr)
-	case []float32:
+	}
+	if _, ok := any(a).([]float32); ok {
 		return PackLHSFloat32(any(a).([]float32), any(packed).([]float32), m, k, rowStart, colStart, panelRows, panelK, mr)
-	case []float64:
+	}
+	if _, ok := any(a).([]float64); ok {
 		return PackLHSFloat64(any(a).([]float64), any(packed).([]float64), m, k, rowStart, colStart, panelRows, panelK, mr)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // PackLHSVec packs LHS using SIMD butterfly transpose for mr=4.
@@ -74,17 +76,19 @@ func PackLHS[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colSta
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func PackLHSVec[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, colStart int, panelRows int, panelK int, mr int) int {
-	switch any(a).(type) {
-	case []hwy.Float16:
+	if _, ok := any(a).([]hwy.Float16); ok {
 		return PackLHSVecFloat16(any(a).([]hwy.Float16), any(packed).([]hwy.Float16), m, k, rowStart, colStart, panelRows, panelK, mr)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(a).([]hwy.BFloat16); ok {
 		return PackLHSVecBFloat16(any(a).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), m, k, rowStart, colStart, panelRows, panelK, mr)
-	case []float32:
+	}
+	if _, ok := any(a).([]float32); ok {
 		return PackLHSVecFloat32(any(a).([]float32), any(packed).([]float32), m, k, rowStart, colStart, panelRows, panelK, mr)
-	case []float64:
+	}
+	if _, ok := any(a).([]float64); ok {
 		return PackLHSVecFloat64(any(a).([]float64), any(packed).([]float64), m, k, rowStart, colStart, panelRows, panelK, mr)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // PackRHSVec packs a panel of the RHS matrix (B) into a cache-friendly layout
@@ -114,17 +118,19 @@ func PackLHSVec[T hwy.Floats](a []T, packed []T, m int, k int, rowStart int, col
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func PackRHSVec[T hwy.Floats](b []T, packed []T, n int, rowStart int, colStart int, panelK int, panelCols int, nr int) int {
-	switch any(b).(type) {
-	case []hwy.Float16:
+	if _, ok := any(b).([]hwy.Float16); ok {
 		return PackRHSVecFloat16(any(b).([]hwy.Float16), any(packed).([]hwy.Float16), n, rowStart, colStart, panelK, panelCols, nr)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(b).([]hwy.BFloat16); ok {
 		return PackRHSVecBFloat16(any(b).([]hwy.BFloat16), any(packed).([]hwy.BFloat16), n, rowStart, colStart, panelK, panelCols, nr)
-	case []float32:
+	}
+	if _, ok := any(b).([]float32); ok {
 		return PackRHSVecFloat32(any(b).([]float32), any(packed).([]float32), n, rowStart, colStart, panelK, panelCols, nr)
-	case []float64:
+	}
+	if _, ok := any(b).([]float64); ok {
 		return PackRHSVecFloat64(any(b).([]float64), any(packed).([]float64), n, rowStart, colStart, panelK, panelCols, nr)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
@@ -138,7 +144,6 @@ func initPackingAll() {
 	}
 	initPackingNEONAsm()
 	return
-	initPackingFallback()
 }
 
 func initPackingNEONAsm() {

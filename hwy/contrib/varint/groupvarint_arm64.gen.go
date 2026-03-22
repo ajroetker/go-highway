@@ -22,7 +22,6 @@ func initGroupvarintAll() {
 	}
 	initGroupvarintNEONAsm()
 	return
-	initGroupvarintFallback()
 }
 
 func initGroupvarintNEONAsm() {

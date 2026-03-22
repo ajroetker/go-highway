@@ -25,7 +25,6 @@ func initMaskedvbyteAll() {
 	}
 	initMaskedvbyteNEONAsm()
 	return
-	initMaskedvbyteFallback()
 }
 
 func initMaskedvbyteNEONAsm() {

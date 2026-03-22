@@ -21,7 +21,6 @@ func initGgufquantAll() {
 	}
 	initGgufquantNEONAsm()
 	return
-	initGgufquantFallback()
 }
 
 func initGgufquantNEONAsm() {

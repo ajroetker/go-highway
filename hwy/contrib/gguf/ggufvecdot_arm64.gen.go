@@ -23,7 +23,6 @@ func initGgufvecdotAll() {
 	}
 	initGgufvecdotNEONAsm()
 	return
-	initGgufvecdotFallback()
 }
 
 func initGgufvecdotNEONAsm() {

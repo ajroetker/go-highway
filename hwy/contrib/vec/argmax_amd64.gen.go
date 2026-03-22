@@ -34,17 +34,19 @@ var ArgminFloat64 func(v []float64) int
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Argmax[T hwy.Floats](v []T) int {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		return ArgmaxFloat16(any(v).([]hwy.Float16))
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		return ArgmaxBFloat16(any(v).([]hwy.BFloat16))
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		return ArgmaxFloat32(any(v).([]float32))
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return ArgmaxFloat64(any(v).([]float64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // Argmin returns the index of the minimum value in a slice.
@@ -62,17 +64,19 @@ func Argmax[T hwy.Floats](v []T) int {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Argmin[T hwy.Floats](v []T) int {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		return ArgminFloat16(any(v).([]hwy.Float16))
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		return ArgminBFloat16(any(v).([]hwy.BFloat16))
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		return ArgminFloat32(any(v).([]float32))
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return ArgminFloat64(any(v).([]float64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {

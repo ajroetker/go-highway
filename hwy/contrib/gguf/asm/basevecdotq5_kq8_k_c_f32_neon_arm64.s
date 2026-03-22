@@ -9,11 +9,6 @@
 #include "textflag.h"
 
 // Constant pool data
-DATA CPI0_6<>+0(SB)/4, $0x0f0b0307
-DATA CPI0_6<>+4(SB)/4, $0x1f1b1713
-DATA CPI0_6<>+8(SB)/4, $0xffffffff
-DATA CPI0_6<>+12(SB)/4, $0xffffffff
-GLOBL CPI0_6<>(SB), (RODATA|NOPTR), $16
 DATA CPI0_0<>+0(SB)/4, $0x03020001
 DATA CPI0_0<>+4(SB)/4, $0x03020100
 GLOBL CPI0_0<>(SB), (RODATA|NOPTR), $8
@@ -40,6 +35,11 @@ DATA CPI0_5<>+4(SB)/4, $0x1e1a1612
 DATA CPI0_5<>+8(SB)/4, $0xffffffff
 DATA CPI0_5<>+12(SB)/4, $0xffffffff
 GLOBL CPI0_5<>(SB), (RODATA|NOPTR), $16
+DATA CPI0_6<>+0(SB)/4, $0x0f0b0307
+DATA CPI0_6<>+4(SB)/4, $0x1f1b1713
+DATA CPI0_6<>+8(SB)/4, $0xffffffff
+DATA CPI0_6<>+12(SB)/4, $0xffffffff
+GLOBL CPI0_6<>(SB), (RODATA|NOPTR), $16
 
 TEXT ·vecdotq5_kq8_k_c_f32_neon(SB), $160-48
 	MOVD wdata+0(FP), R0

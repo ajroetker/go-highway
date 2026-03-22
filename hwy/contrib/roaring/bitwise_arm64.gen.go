@@ -24,7 +24,6 @@ func initBitwiseAll() {
 	}
 	initBitwiseNEONAsm()
 	return
-	initBitwiseFallback()
 }
 
 func initBitwiseNEONAsm() {

@@ -22,7 +22,6 @@ func initAccumulatetilesAll() {
 	}
 	initAccumulatetilesNEONAsm()
 	return
-	initAccumulatetilesFallback()
 }
 
 func initAccumulatetilesNEONAsm() {

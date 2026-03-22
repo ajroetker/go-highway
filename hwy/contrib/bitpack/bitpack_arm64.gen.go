@@ -26,7 +26,6 @@ func initBitpackAll() {
 	}
 	initBitpackNEONAsm()
 	return
-	initBitpackFallback()
 }
 
 func initBitpackNEONAsm() {

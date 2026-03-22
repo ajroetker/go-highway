@@ -52,7 +52,6 @@ func initMatmul_blockedAll() {
 	}
 	initMatmul_blockedNEONAsm()
 	return
-	initMatmul_blockedFallback()
 }
 
 func initMatmul_blockedNEONAsm() {

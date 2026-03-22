@@ -82,7 +82,6 @@ func initPacked_kernel_v2All() {
 	}
 	initPacked_kernel_v2NEONAsm()
 	return
-	initPacked_kernel_v2Fallback()
 }
 
 func initPacked_kernel_v2NEONAsm() {

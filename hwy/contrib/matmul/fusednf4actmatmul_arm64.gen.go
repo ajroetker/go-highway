@@ -30,7 +30,6 @@ func initFusednf4actmatmulAll() {
 	}
 	initFusednf4actmatmulNEONAsm()
 	return
-	initFusednf4actmatmulFallback()
 }
 
 func initFusednf4actmatmulNEONAsm() {

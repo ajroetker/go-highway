@@ -65,7 +65,6 @@ func initMatvecAll() {
 	}
 	initMatvecNEONAsm()
 	return
-	initMatvecFallback()
 }
 
 func initMatvecNEONAsm() {

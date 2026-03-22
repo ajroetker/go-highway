@@ -56,7 +56,6 @@ func initMatmulAll() {
 	}
 	initMatmulNEONAsm()
 	return
-	initMatmulFallback()
 }
 
 func initMatmulNEONAsm() {

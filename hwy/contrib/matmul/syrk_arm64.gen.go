@@ -54,7 +54,6 @@ func initSyrkAll() {
 	}
 	initSyrkNEONAsm()
 	return
-	initSyrkFallback()
 }
 
 func initSyrkNEONAsm() {

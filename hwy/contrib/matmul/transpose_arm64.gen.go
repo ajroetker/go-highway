@@ -66,7 +66,6 @@ func initTransposeAll() {
 	}
 	initTransposeNEONAsm()
 	return
-	initTransposeFallback()
 }
 
 func initTransposeNEONAsm() {

@@ -29,13 +29,13 @@ var DotIntUint8 func(a []uint8, b []uint8) int32
 //
 //hwy:gen T={int8, uint8}
 func DotInt[T int8 | uint8](a []T, b []T) int32 {
-	switch any(a).(type) {
-	case []int8:
+	if _, ok := any(a).([]int8); ok {
 		return DotIntInt8(any(a).([]int8), any(b).([]int8))
-	case []uint8:
+	}
+	if _, ok := any(a).([]uint8); ok {
 		return DotIntUint8(any(a).([]uint8), any(b).([]uint8))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
@@ -49,7 +49,6 @@ func initDotintAll() {
 	}
 	initDotintNEONAsm()
 	return
-	initDotintFallback()
 }
 
 func initDotintNEONAsm() {

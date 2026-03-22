@@ -23,7 +23,6 @@ func initStreamvbyteAll() {
 	}
 	initStreamvbyteNEONAsm()
 	return
-	initStreamvbyteFallback()
 }
 
 func initStreamvbyteNEONAsm() {

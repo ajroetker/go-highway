@@ -51,7 +51,6 @@ func initSymvAll() {
 	}
 	initSymvNEONAsm()
 	return
-	initSymvFallback()
 }
 
 func initSymvNEONAsm() {

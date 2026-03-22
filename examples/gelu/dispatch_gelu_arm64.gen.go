@@ -71,7 +71,6 @@ func initGeluAll() {
 	}
 	initGeluNEONAsm()
 	return
-	initGeluFallback()
 }
 
 func initGeluNEONAsm() {

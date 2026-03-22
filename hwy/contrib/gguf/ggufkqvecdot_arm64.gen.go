@@ -25,7 +25,6 @@ func initGgufkqvecdotAll() {
 	}
 	initGgufkqvecdotNEONAsm()
 	return
-	initGgufkqvecdotFallback()
 }
 
 func initGgufkqvecdotNEONAsm() {

@@ -126,7 +126,6 @@ func initBatchAll() {
 	}
 	initBatchNEONAsm()
 	return
-	initBatchFallback()
 }
 
 func initBatchNEONAsm() {

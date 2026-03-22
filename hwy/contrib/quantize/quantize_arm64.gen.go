@@ -22,7 +22,6 @@ func initQuantizeAll() {
 	}
 	initQuantizeNEONAsm()
 	return
-	initQuantizeFallback()
 }
 
 func initQuantizeNEONAsm() {

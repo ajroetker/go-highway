@@ -48,7 +48,6 @@ func initLayernormAll() {
 	}
 	initLayernormNEONAsm()
 	return
-	initLayernormFallback()
 }
 
 func initLayernormNEONAsm() {

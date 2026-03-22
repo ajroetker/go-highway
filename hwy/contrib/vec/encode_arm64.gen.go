@@ -24,7 +24,6 @@ func initEncodeAll() {
 	}
 	initEncodeNEONAsm()
 	return
-	initEncodeFallback()
 }
 
 func initEncodeNEONAsm() {

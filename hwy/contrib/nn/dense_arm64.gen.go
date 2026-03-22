@@ -48,7 +48,6 @@ func initDenseAll() {
 	}
 	initDenseNEONAsm()
 	return
-	initDenseFallback()
 }
 
 func initDenseNEONAsm() {

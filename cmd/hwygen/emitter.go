@@ -636,8 +636,20 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 		}
 	}
 
-	// Add fallback at end in case no SIMD target was selected or available.
-	if hasFallback {
+	// Add fallback at end only if no always-available target was emitted.
+	// NEON is mandatory on arm64, so when present this fallback would be dead code.
+	hasAlwaysAvailableTarget := false
+	for _, target := range sortedTargets {
+		if target.Name != "NEON" {
+			continue
+		}
+		if target.Mode == TargetModeAsm && !hasAsmAdaptersForTarget(asmAdapters, target) {
+			continue
+		}
+		hasAlwaysAvailableTarget = true
+		break
+	}
+	if hasFallback && !hasAlwaysAvailableTarget {
 		fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
 	}
 	fmt.Fprintf(&buf, "}\n\n")
@@ -1040,15 +1052,18 @@ func emitGenericDispatcher(buf *bytes.Buffer, pf ParsedFunc) {
 	if isMultiType {
 		// Multi-type dispatch: nested type switches.
 		// Group combos by first type param value for the outer switch.
-		emitMultiTypeDispatch(buf, pf, combos)
+		if len(pf.Returns) > 0 {
+			emitMultiTypeDispatchWithAssertions(buf, pf, combos)
+		} else {
+			emitMultiTypeDispatch(buf, pf, combos)
+		}
 	} else {
 		// Single-type dispatch: simple type switch on first generic param
-		emitSingleTypeDispatch(buf, pf, combos)
-	}
-
-	// Add default return if function has return values
-	if len(pf.Returns) > 0 {
-		fmt.Fprintf(buf, "\tpanic(\"unreachable\")\n")
+		if len(pf.Returns) > 0 {
+			emitSingleTypeDispatchWithAssertions(buf, pf, combos)
+		} else {
+			emitSingleTypeDispatch(buf, pf, combos)
+		}
 	}
 
 	fmt.Fprintf(buf, "}\n\n")
@@ -1084,6 +1099,39 @@ func emitSingleTypeDispatch(buf *bytes.Buffer, pf ParsedFunc, combos []TypeCombi
 	}
 
 	fmt.Fprintf(buf, "\t}\n")
+}
+
+// emitSingleTypeDispatchWithAssertions generates sequential type assertions for
+// returning generic functions. This avoids go vet false positives for
+// exhaustive generic type switches that end with a panic.
+func emitSingleTypeDispatchWithAssertions(buf *bytes.Buffer, pf ParsedFunc, combos []TypeCombination) {
+	// Find the first parameter with a generic type to use for type dispatch.
+	var switchParam string
+	var switchParamType string
+	for _, param := range pf.Params {
+		if containsTypeParam(param.Type, pf.TypeParams) {
+			switchParam = param.Name
+			switchParamType = param.Type
+			break
+		}
+	}
+
+	if switchParam == "" {
+		switchParam = pf.Params[0].Name
+		switchParamType = pf.Params[0].Type
+	}
+
+	for _, combo := range combos {
+		elemType := comboPrimaryType(combo, pf.TypeParams)
+		dispatchName := buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
+		caseType := specializeType(switchParamType, pf.TypeParams, elemType)
+
+		fmt.Fprintf(buf, "\tif _, ok := any(%s).(%s); ok {\n", switchParam, caseType)
+		emitDispatchCall(buf, pf, dispatchName, elemType, nil, "\t\t")
+		fmt.Fprintf(buf, "\t}\n")
+	}
+
+	fmt.Fprintf(buf, "\tpanic(\"unsupported type\")\n")
 }
 
 // emitMultiTypeDispatch generates nested type switches for multi-type-param functions.
@@ -1170,6 +1218,86 @@ func emitMultiTypeDispatch(buf *bytes.Buffer, pf ParsedFunc, combos []TypeCombin
 	}
 
 	fmt.Fprintf(buf, "\t}\n")
+}
+
+// emitMultiTypeDispatchWithAssertions generates nested type assertions for
+// returning generic functions to avoid unreachable-code vet failures.
+func emitMultiTypeDispatchWithAssertions(buf *bytes.Buffer, pf ParsedFunc, combos []TypeCombination) {
+	if len(pf.TypeParams) < 2 {
+		emitSingleTypeDispatchWithAssertions(buf, pf, combos)
+		return
+	}
+
+	firstTP := pf.TypeParams[0]
+	secondTP := pf.TypeParams[1]
+
+	var outerSwitchParam, innerSwitchParam string
+	for _, param := range pf.Params {
+		if outerSwitchParam == "" && containsSpecificTypeParam(param.Type, firstTP.Name) {
+			outerSwitchParam = param.Name
+		}
+		if innerSwitchParam == "" && containsSpecificTypeParam(param.Type, secondTP.Name) {
+			innerSwitchParam = param.Name
+		}
+	}
+	if outerSwitchParam == "" {
+		outerSwitchParam = pf.Params[0].Name
+	}
+	if innerSwitchParam == "" {
+		for _, param := range pf.Params {
+			if param.Name != outerSwitchParam {
+				innerSwitchParam = param.Name
+				break
+			}
+		}
+		if innerSwitchParam == "" {
+			innerSwitchParam = outerSwitchParam
+		}
+	}
+
+	type comboGroup struct {
+		outerType string
+		combos    []TypeCombination
+	}
+	var groups []comboGroup
+	groupIdx := make(map[string]int)
+	for _, combo := range combos {
+		outerType := combo.Types[firstTP.Name]
+		if idx, ok := groupIdx[outerType]; ok {
+			groups[idx].combos = append(groups[idx].combos, combo)
+		} else {
+			groupIdx[outerType] = len(groups)
+			groups = append(groups, comboGroup{outerType: outerType, combos: []TypeCombination{combo}})
+		}
+	}
+
+	for _, group := range groups {
+		outerCaseType := specializeType("[]"+firstTP.Name, pf.TypeParams, group.outerType)
+		fmt.Fprintf(buf, "\tif _, ok := any(%s).(%s); ok {\n", outerSwitchParam, outerCaseType)
+
+		if len(group.combos) == 1 {
+			combo := group.combos[0]
+			dispatchName := buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
+			elemType := comboPrimaryType(combo, pf.TypeParams)
+			emitDispatchCall(buf, pf, dispatchName, elemType, combo.Types, "\t\t")
+		} else {
+			for _, combo := range group.combos {
+				innerType := combo.Types[secondTP.Name]
+				innerCaseType := specializeType("[]"+secondTP.Name, pf.TypeParams, innerType)
+				fmt.Fprintf(buf, "\t\tif _, ok := any(%s).(%s); ok {\n", innerSwitchParam, innerCaseType)
+
+				dispatchName := buildDispatchFuncNameCombo(pf.Name, combo, pf.TypeParams, pf.Private)
+				elemType := comboPrimaryType(combo, pf.TypeParams)
+				emitDispatchCall(buf, pf, dispatchName, elemType, combo.Types, "\t\t\t")
+				fmt.Fprintf(buf, "\t\t}\n")
+			}
+			fmt.Fprintf(buf, "\t\tpanic(\"unsupported type\")\n")
+		}
+
+		fmt.Fprintf(buf, "\t}\n")
+	}
+
+	fmt.Fprintf(buf, "\tpanic(\"unsupported type\")\n")
 }
 
 // emitDispatchCall emits the function call + return for one dispatch case.

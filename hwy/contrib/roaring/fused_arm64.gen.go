@@ -24,7 +24,6 @@ func initFusedAll() {
 	}
 	initFusedNEONAsm()
 	return
-	initFusedFallback()
 }
 
 func initFusedNEONAsm() {

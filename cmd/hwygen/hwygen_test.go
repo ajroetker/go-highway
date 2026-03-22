@@ -5970,6 +5970,45 @@ func TestEmitSingleTypeDispatch(t *testing.T) {
 	}
 }
 
+func TestEmitSingleTypeDispatchWithAssertions(t *testing.T) {
+	pf := ParsedFunc{
+		Name: "BaseArgmax",
+		TypeParams: []TypeParam{
+			{Name: "T", Constraint: "hwy.Floats"},
+		},
+		Params: []Param{
+			{Name: "v", Type: "[]T"},
+		},
+		Returns: []Param{
+			{Type: "int"},
+		},
+	}
+	combos := []TypeCombination{
+		{Types: map[string]string{"T": "float32"}},
+		{Types: map[string]string{"T": "float64"}},
+	}
+
+	var buf bytes.Buffer
+	emitSingleTypeDispatchWithAssertions(&buf, pf, combos)
+	output := buf.String()
+
+	if strings.Contains(output, "switch any(") {
+		t.Errorf("expected type assertions instead of type switch, got:\n%s", output)
+	}
+	if !strings.Contains(output, "if _, ok := any(v).([]float32); ok {") {
+		t.Errorf("expected float32 assertion, got:\n%s", output)
+	}
+	if !strings.Contains(output, "if _, ok := any(v).([]float64); ok {") {
+		t.Errorf("expected float64 assertion, got:\n%s", output)
+	}
+	if !strings.Contains(output, "panic(\"unsupported type\")") {
+		t.Errorf("expected unsupported-type panic, got:\n%s", output)
+	}
+	if strings.Contains(output, "panic(\"unreachable\")") {
+		t.Errorf("unexpected unreachable panic, got:\n%s", output)
+	}
+}
+
 func TestEmitMultiTypeDispatch(t *testing.T) {
 	t.Run("nested switches for shared outer type", func(t *testing.T) {
 		pf := ParsedFunc{
@@ -6084,6 +6123,47 @@ func TestEmitMultiTypeDispatch(t *testing.T) {
 			t.Errorf("expected fallback to single dispatch, got:\n%s", output)
 		}
 	})
+}
+
+func TestEmitMultiTypeDispatchWithAssertions(t *testing.T) {
+	pf := ParsedFunc{
+		Name: "BaseDotGeneral",
+		TypeParams: []TypeParam{
+			{Name: "T1", Constraint: "hwy.Lanes"},
+			{Name: "T2", Constraint: "hwy.Lanes"},
+		},
+		Params: []Param{
+			{Name: "a", Type: "[]T1"},
+			{Name: "acc", Type: "[]T2"},
+		},
+		Returns: []Param{
+			{Type: "T2"},
+		},
+		TypeCombinations: []TypeCombination{
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float32"}},
+			{Types: map[string]string{"T1": "hwy.Float16", "T2": "float64"}},
+		},
+	}
+
+	var buf bytes.Buffer
+	emitMultiTypeDispatchWithAssertions(&buf, pf, pf.TypeCombinations)
+	output := buf.String()
+
+	if strings.Contains(output, "switch any(") {
+		t.Errorf("expected type assertions instead of nested switches, got:\n%s", output)
+	}
+	if !strings.Contains(output, "if _, ok := any(a).([]hwy.Float16); ok {") {
+		t.Errorf("expected outer type assertion, got:\n%s", output)
+	}
+	if !strings.Contains(output, "if _, ok := any(acc).([]float32); ok {") {
+		t.Errorf("expected inner float32 assertion, got:\n%s", output)
+	}
+	if !strings.Contains(output, "if _, ok := any(acc).([]float64); ok {") {
+		t.Errorf("expected inner float64 assertion, got:\n%s", output)
+	}
+	if strings.Contains(output, "panic(\"unreachable\")") {
+		t.Errorf("unexpected unreachable panic, got:\n%s", output)
+	}
 }
 
 func TestEmitDispatchCall(t *testing.T) {
@@ -8045,6 +8125,9 @@ func TestEmitDispatcherUsesAsmBridgeForArm64(t *testing.T) {
 	}
 	if !strings.Contains(code, "\tinitRoaringNEONAsm()\n\treturn\n") {
 		t.Fatalf("dispatcher initAll missing NEON asm path:\n%s", code)
+	}
+	if strings.Contains(code, "\tinitRoaringNEONAsm()\n\treturn\n\tinitRoaringFallback()\n") {
+		t.Fatalf("dispatcher should not emit dead fallback after NEON return:\n%s", code)
 	}
 }
 

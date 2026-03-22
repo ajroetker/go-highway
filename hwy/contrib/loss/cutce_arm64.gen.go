@@ -23,7 +23,6 @@ func initCutceAll() {
 	}
 	initCutceNEONAsm()
 	return
-	initCutceFallback()
 }
 
 func initCutceNEONAsm() {

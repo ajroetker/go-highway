@@ -86,7 +86,6 @@ func initNormalizeAll() {
 	}
 	initNormalizeNEONAsm()
 	return
-	initNormalizeFallback()
 }
 
 func initNormalizeNEONAsm() {

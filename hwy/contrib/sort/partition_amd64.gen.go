@@ -28,21 +28,25 @@ var Partition3WayUint64 func(data []uint64, pivot uint64) (int, int)
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Partition[T hwy.Lanes](data []T, pivot T) int {
-	switch any(data).(type) {
-	case []float32:
+	if _, ok := any(data).([]float32); ok {
 		return PartitionFloat32(any(data).([]float32), any(pivot).(float32))
-	case []float64:
+	}
+	if _, ok := any(data).([]float64); ok {
 		return PartitionFloat64(any(data).([]float64), any(pivot).(float64))
-	case []int32:
+	}
+	if _, ok := any(data).([]int32); ok {
 		return PartitionInt32(any(data).([]int32), any(pivot).(int32))
-	case []int64:
+	}
+	if _, ok := any(data).([]int64); ok {
 		return PartitionInt64(any(data).([]int64), any(pivot).(int64))
-	case []uint32:
+	}
+	if _, ok := any(data).([]uint32); ok {
 		return PartitionUint32(any(data).([]uint32), any(pivot).(uint32))
-	case []uint64:
+	}
+	if _, ok := any(data).([]uint64); ok {
 		return PartitionUint64(any(data).([]uint64), any(pivot).(uint64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // Partition3Way performs 3-way partitioning around a pivot.
@@ -53,21 +57,25 @@ func Partition[T hwy.Lanes](data []T, pivot T) int {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Partition3Way[T hwy.Lanes](data []T, pivot T) (int, int) {
-	switch any(data).(type) {
-	case []float32:
+	if _, ok := any(data).([]float32); ok {
 		return Partition3WayFloat32(any(data).([]float32), any(pivot).(float32))
-	case []float64:
+	}
+	if _, ok := any(data).([]float64); ok {
 		return Partition3WayFloat64(any(data).([]float64), any(pivot).(float64))
-	case []int32:
+	}
+	if _, ok := any(data).([]int32); ok {
 		return Partition3WayInt32(any(data).([]int32), any(pivot).(int32))
-	case []int64:
+	}
+	if _, ok := any(data).([]int64); ok {
 		return Partition3WayInt64(any(data).([]int64), any(pivot).(int64))
-	case []uint32:
+	}
+	if _, ok := any(data).([]uint32); ok {
 		return Partition3WayUint32(any(data).([]uint32), any(pivot).(uint32))
-	case []uint64:
+	}
+	if _, ok := any(data).([]uint64); ok {
 		return Partition3WayUint64(any(data).([]uint64), any(pivot).(uint64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
