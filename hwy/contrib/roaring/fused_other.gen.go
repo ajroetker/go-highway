@@ -4,10 +4,6 @@
 
 package roaring
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var AndNotPopcntSlice func(dst []uint64, a []uint64, b []uint64) uint64
 var AndPopcntSlice func(dst []uint64, a []uint64, b []uint64) uint64
 var OrPopcntSlice func(dst []uint64, a []uint64, b []uint64) uint64
@@ -18,7 +14,6 @@ func init() {
 }
 
 func initFusedAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initFusedFallback()
 }
 

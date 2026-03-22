@@ -159,8 +159,13 @@ func initExptransformAll() {
 		initExptransformFallback()
 		return
 	}
-	initExptransformFallback()
+	initExptransformNEONAsm()
 	return
+}
+
+func initExptransformNEONAsm() {
+	initExptransformFallback()
+	initExptransformNeonCAsm()
 }
 
 func initExptransformFallback() {

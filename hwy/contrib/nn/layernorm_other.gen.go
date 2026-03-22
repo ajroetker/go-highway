@@ -42,7 +42,6 @@ func init() {
 }
 
 func initLayernormAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initLayernormFallback()
 }
 

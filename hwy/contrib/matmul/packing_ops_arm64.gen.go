@@ -104,8 +104,13 @@ func initPacking_opsAll() {
 		initPacking_opsFallback()
 		return
 	}
-	initPacking_opsFallback()
+	initPacking_opsNEONAsm()
 	return
+}
+
+func initPacking_opsNEONAsm() {
+	initPacking_opsFallback()
+	initPacking_opsNeonCAsm()
 }
 
 func initPacking_opsFallback() {

@@ -86,8 +86,13 @@ func initMatmul_klastAll() {
 		initMatmul_klastFallback()
 		return
 	}
-	initMatmul_klastFallback()
+	initMatmul_klastNEONAsm()
 	return
+}
+
+func initMatmul_klastNEONAsm() {
+	initMatmul_klastFallback()
+	initMatmul_klastNeonCAsm()
 }
 
 func initMatmul_klastFallback() {

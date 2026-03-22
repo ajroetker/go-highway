@@ -4,10 +4,6 @@
 
 package quantize
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var DequantizeUint8 func(input []uint8, output []float32, min float32, scale float32)
 var QuantizeFloat32 func(input []float32, output []uint8, min float32, scale float32)
 
@@ -16,7 +12,6 @@ func init() {
 }
 
 func initQuantizeAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initQuantizeFallback()
 }
 

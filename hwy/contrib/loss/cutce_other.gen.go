@@ -4,10 +4,6 @@
 
 package loss
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var CutCrossEntropy func(hiddenStates []float32, embeddings []float32, labels []int32, numPositions int, hiddenDim int, vocabSize int) float32
 var CutCrossEntropyGrad func(hiddenStates []float32, embeddings []float32, labels []int32, gradOutput []float32, numPositions int, hiddenDim int, vocabSize int)
 var CutCrossEntropyWithLogits func(hiddenStates []float32, embeddings []float32, labels []int32, perPositionLoss []float32, correctLogits []float32, numPositions int, hiddenDim int, vocabSize int) float32
@@ -17,7 +13,6 @@ func init() {
 }
 
 func initCutceAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initCutceFallback()
 }
 

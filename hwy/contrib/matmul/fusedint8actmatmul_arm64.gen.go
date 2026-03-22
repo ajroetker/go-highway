@@ -22,8 +22,13 @@ func initFusedint8actmatmulAll() {
 		initFusedint8actmatmulFallback()
 		return
 	}
-	initFusedint8actmatmulFallback()
+	initFusedint8actmatmulNEONAsm()
 	return
+}
+
+func initFusedint8actmatmulNEONAsm() {
+	initFusedint8actmatmulFallback()
+	initFusedint8actmatmulNeonCAsm()
 }
 
 func initFusedint8actmatmulFallback() {

@@ -20,8 +20,13 @@ func initGroupvarintAll() {
 		initGroupvarintFallback()
 		return
 	}
-	initGroupvarintFallback()
+	initGroupvarintNEONAsm()
 	return
+}
+
+func initGroupvarintNEONAsm() {
+	initGroupvarintFallback()
+	initGroupvarintNeonCAsm()
 }
 
 func initGroupvarintFallback() {

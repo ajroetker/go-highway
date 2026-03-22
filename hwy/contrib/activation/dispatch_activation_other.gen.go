@@ -236,7 +236,6 @@ func init() {
 }
 
 func initActivationAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initActivationFallback()
 }
 

@@ -23,8 +23,13 @@ func initMaskedvbyteAll() {
 		initMaskedvbyteFallback()
 		return
 	}
-	initMaskedvbyteFallback()
+	initMaskedvbyteNEONAsm()
 	return
+}
+
+func initMaskedvbyteNEONAsm() {
+	initMaskedvbyteFallback()
+	initMaskedvbyteNeonCAsm()
 }
 
 func initMaskedvbyteFallback() {

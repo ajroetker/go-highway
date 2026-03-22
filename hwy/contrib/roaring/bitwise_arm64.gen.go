@@ -22,8 +22,13 @@ func initBitwiseAll() {
 		initBitwiseFallback()
 		return
 	}
-	initBitwiseFallback()
+	initBitwiseNEONAsm()
 	return
+}
+
+func initBitwiseNEONAsm() {
+	initBitwiseFallback()
+	initBitwiseNeonCAsm()
 }
 
 func initBitwiseFallback() {

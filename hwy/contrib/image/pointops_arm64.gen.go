@@ -222,8 +222,13 @@ func initPointopsAll() {
 		initPointopsFallback()
 		return
 	}
-	initPointopsFallback()
+	initPointopsNEONAsm()
 	return
+}
+
+func initPointopsNEONAsm() {
+	initPointopsFallback()
+	initPointopsNeonCAsm()
 }
 
 func initPointopsFallback() {

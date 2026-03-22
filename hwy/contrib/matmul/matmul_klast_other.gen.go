@@ -82,7 +82,6 @@ func init() {
 }
 
 func initMatmul_klastAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initMatmul_klastFallback()
 }
 

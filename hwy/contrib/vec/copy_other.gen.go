@@ -40,7 +40,6 @@ func init() {
 }
 
 func initCopyAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initCopyFallback()
 }
 

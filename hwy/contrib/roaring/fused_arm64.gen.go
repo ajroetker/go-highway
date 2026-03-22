@@ -22,8 +22,13 @@ func initFusedAll() {
 		initFusedFallback()
 		return
 	}
-	initFusedFallback()
+	initFusedNEONAsm()
 	return
+}
+
+func initFusedNEONAsm() {
+	initFusedFallback()
+	initFusedNeonCAsm()
 }
 
 func initFusedFallback() {

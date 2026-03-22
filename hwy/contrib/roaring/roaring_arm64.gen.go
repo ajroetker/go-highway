@@ -23,8 +23,13 @@ func initRoaringAll() {
 		initRoaringFallback()
 		return
 	}
-	initRoaringFallback()
+	initRoaringNEONAsm()
 	return
+}
+
+func initRoaringNEONAsm() {
+	initRoaringFallback()
+	initRoaringNeonCAsm()
 }
 
 func initRoaringFallback() {

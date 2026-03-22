@@ -23,8 +23,13 @@ func initVarintAll() {
 		initVarintFallback()
 		return
 	}
-	initVarintFallback()
+	initVarintNEONAsm()
 	return
+}
+
+func initVarintNEONAsm() {
+	initVarintFallback()
+	initVarintNeonCAsm()
 }
 
 func initVarintFallback() {

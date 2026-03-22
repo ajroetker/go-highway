@@ -113,7 +113,6 @@ func initPackedmatmulAll() {
 		return
 	}
 	initPackedmatmulFallback()
-	return
 }
 
 func initPackedmatmulFallback() {

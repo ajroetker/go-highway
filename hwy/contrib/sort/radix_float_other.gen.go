@@ -55,7 +55,6 @@ func init() {
 }
 
 func initRadix_floatAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initRadix_floatFallback()
 }
 

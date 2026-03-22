@@ -30,23 +30,120 @@ const (
 	TargetModeC                        // C only (inspection)
 )
 
+const amd64SimdBuildTag = "amd64 && goexperiment.simd"
+
 // TargetSpec pairs a Target with its generation mode.
 type TargetSpec struct {
 	Target Target
 	Mode   TargetMode
 }
 
-// parseTargetSpec parses a target spec string like "neon:asm" into its name and mode.
-func parseTargetSpec(spec string) (name string, mode TargetMode) {
-	if idx := strings.Index(spec, ":"); idx > 0 {
-		switch spec[idx+1:] {
-		case "asm":
-			return spec[:idx], TargetModeAsm
-		case "c":
-			return spec[:idx], TargetModeC
-		}
+// TargetSelector describes a target restriction from user input or directives.
+// If HasExplicitMode is false, the selector matches the target regardless of generation mode.
+type TargetSelector struct {
+	Target          Target
+	Mode            TargetMode
+	HasExplicitMode bool
+	Raw             string
+}
+
+// String returns the canonical user-facing form of the selector.
+func (ts TargetSelector) String() string {
+	name := strings.ToLower(ts.Target.Name)
+	if !ts.HasExplicitMode {
+		return name
 	}
-	return spec, TargetModeGoSimd
+	return name + ":" + ts.Mode.String()
+}
+
+// Matches reports whether the selector applies to the given target and mode.
+func (ts TargetSelector) Matches(target Target, mode TargetMode) bool {
+	if ts.Target.Name != target.Name {
+		return false
+	}
+	return !ts.HasExplicitMode || ts.Mode == mode
+}
+
+// String returns the CLI/directive suffix for a target mode.
+func (m TargetMode) String() string {
+	switch m {
+	case TargetModeAsm:
+		return "asm"
+	case TargetModeC:
+		return "c"
+	default:
+		return "gosimd"
+	}
+}
+
+// parseTargetSelector parses a target selector like "neon" or "neon:asm".
+func parseTargetSelector(spec string) (TargetSelector, error) {
+	raw := strings.TrimSpace(strings.ToLower(spec))
+	if raw == "" {
+		return TargetSelector{}, fmt.Errorf("empty target selector")
+	}
+
+	name, modePart, hasMode := strings.Cut(raw, ":")
+	if name == "" {
+		return TargetSelector{}, fmt.Errorf("invalid target selector %q", spec)
+	}
+	if hasMode && (modePart == "" || strings.Contains(modePart, ":")) {
+		return TargetSelector{}, fmt.Errorf("invalid target selector %q", spec)
+	}
+
+	target, err := GetTarget(name)
+	if err != nil {
+		return TargetSelector{}, err
+	}
+
+	selector := TargetSelector{
+		Target: target,
+		Mode:   TargetModeGoSimd,
+		Raw:    raw,
+	}
+	if !hasMode {
+		return selector, nil
+	}
+
+	switch modePart {
+	case "asm":
+		selector.Mode = TargetModeAsm
+	case "c":
+		selector.Mode = TargetModeC
+	default:
+		return TargetSelector{}, fmt.Errorf("invalid target mode %q in %q (valid suffixes: :asm, :c)", modePart, spec)
+	}
+	selector.HasExplicitMode = true
+
+	if target.IsFallback() {
+		return TargetSelector{}, fmt.Errorf("fallback does not support mode suffixes; write %q without :%s", name, modePart)
+	}
+
+	return selector, nil
+}
+
+func formatTargetSelectors(selectors []TargetSelector) string {
+	parts := make([]string, 0, len(selectors))
+	for _, sel := range selectors {
+		parts = append(parts, sel.String())
+	}
+	return strings.Join(parts, ",")
+}
+
+func formatTargetSpec(ts TargetSpec) string {
+	name := strings.ToLower(ts.Target.Name)
+	if ts.Mode == TargetModeGoSimd {
+		return name
+	}
+	return name + ":" + ts.Mode.String()
+}
+
+func formatTargetSpecs(specs []TargetSpec) string {
+	parts := make([]string, 0, len(specs))
+	for _, ts := range specs {
+		parts = append(parts, formatTargetSpec(ts))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // Target represents an architecture-specific code generation target.
@@ -463,7 +560,7 @@ func AVX2Target() Target {
 
 	return Target{
 		Name:       "AVX2",
-		BuildTag:   "amd64 && goexperiment.simd",
+		BuildTag:   amd64SimdBuildTag,
 		VecWidth:   32,
 		VecPackage: "archsimd",
 		TypeMap: map[string]string{
@@ -493,7 +590,7 @@ func AVX512Target() Target {
 
 	return Target{
 		Name:       "AVX512",
-		BuildTag:   "amd64 && goexperiment.simd",
+		BuildTag:   amd64SimdBuildTag,
 		VecWidth:   64,
 		VecPackage: "archsimd",
 		TypeMap: map[string]string{

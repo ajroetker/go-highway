@@ -88,6 +88,17 @@ jobs:
       - name: Build hwygen
         run: go build -o bin/hwygen ./cmd/hwygen
 
+      - name: Regenerate roaring package
+        if: runner.arch == 'ARM64'
+        run: |
+          export PATH=$PWD/bin:$PATH
+          go generate ./hwy/contrib/roaring
+          git diff --exit-code -- hwy/contrib/roaring
+
+      - name: Test regenerated roaring package
+        if: runner.arch == 'ARM64'
+        run: go test -v ./hwy/contrib/roaring
+
       - name: Generate examples
         run: |
           export PATH=$PWD/bin:$PATH

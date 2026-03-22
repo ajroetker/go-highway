@@ -181,7 +181,6 @@ func init() {
 }
 
 func initLiftingAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initLiftingFallback()
 }
 

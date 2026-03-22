@@ -24,8 +24,8 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// AVX2 with F16C and FMA for f16/bf16 support
-//go:generate go tool goat ../c/matvec_avx2_amd64.c -O3 --target amd64 -m avx2 -m fma -m f16c
+// The checked-in GoAT AVX2 outputs are retained here, but the originating C
+// source is not in this repo, so there is no local regeneration directive.
 
 // ============================================================================
 // AVX2 Matrix-Vector Multiplication

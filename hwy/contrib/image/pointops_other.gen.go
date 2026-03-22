@@ -218,7 +218,6 @@ func init() {
 }
 
 func initPointopsAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPointopsFallback()
 }
 

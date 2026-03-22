@@ -400,8 +400,13 @@ func initArithmeticAll() {
 		initArithmeticFallback()
 		return
 	}
-	initArithmeticFallback()
+	initArithmeticNEONAsm()
 	return
+}
+
+func initArithmeticNEONAsm() {
+	initArithmeticFallback()
+	initArithmeticNeonCAsm()
 }
 
 func initArithmeticFallback() {

@@ -24,8 +24,6 @@ import (
 	"strings"
 )
 
-
-
 // TransformResult contains the transformed function and any hoisted constants.
 type TransformResult struct {
 	FuncDecl      *ast.FuncDecl
@@ -270,10 +268,10 @@ type transformContext struct {
 	target                  Target
 	elemType                string
 	typeParams              []TypeParam
-	typeMap                 map[string]string             // Per-type-param concrete types (from //hwy:gen); nil for single-type functions
-	lanesVars               map[string]bool               // Variables assigned from NumLanes()
-	localVars               map[string]bool               // Variables defined locally in the function
-	stackArrayVars          map[string]bool               // Variables that are stack arrays (need [:] when used as slice)
+	typeMap                 map[string]string // Per-type-param concrete types (from //hwy:gen); nil for single-type functions
+	lanesVars               map[string]bool   // Variables assigned from NumLanes()
+	localVars               map[string]bool   // Variables defined locally in the function
+	stackArrayVars          map[string]bool   // Variables that are stack arrays (need [:] when used as slice)
 	loopInfo                *LoopInfo
 	hoistedConsts           map[string]HoistedConst       // Hoisted constants (key is local var name)
 	funcName                string                        // Current function name for generating unique hoisted names
@@ -880,7 +878,7 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 			case "ConvertExponentToFloat":
 				if ctx.isAVXPromoted {
 					// For AVX promoted: asm.Float16x8AVX2FromFloat32x8(e.ConvertToFloat32())
-					wrapFunc := fmt.Sprintf("%sFromFloat32x%d", ctx.target.TypeMap[ctx.elemType], ctx.target.LanesFor("float32"))
+					wrapFunc := avxPromotedWrapFromFloat32Func(ctx.target, ctx.elemType)
 					call.Fun = &ast.SelectorExpr{
 						X:   ast.NewIdent("asm"),
 						Sel: ast.NewIdent(wrapFunc),
@@ -1252,8 +1250,6 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 		Fun: funcLit,
 	}
 }
-
-
 
 // transformGenDecl transforms variable declarations with generic types.
 func transformGenDecl(decl *ast.GenDecl, ctx *transformContext) {
@@ -1781,4 +1777,3 @@ func extractConstantValueRaw(expr ast.Expr, ctx *transformContext) string {
 	}
 	return ""
 }
-

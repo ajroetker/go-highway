@@ -129,6 +129,13 @@ type DispatchGroup struct {
 	Private bool
 }
 
+// ValidationResult is the parsed and validated input state shared by generation
+// and check-only mode.
+type ValidationResult struct {
+	Result *ParseResult
+	Groups []DispatchGroup
+}
+
 // buildDispatchGroups partitions a list of parsed functions into dispatch groups.
 // Functions without //hwy:specializes each form their own single-member group.
 // Functions with //hwy:specializes join the group of the referenced primary function.
@@ -146,9 +153,12 @@ func buildDispatchGroups(funcs []ParsedFunc) ([]DispatchGroup, error) {
 		if pf.SpecializesGroup != "" {
 			specFuncs = append(specFuncs, pf)
 		} else {
-			groupName := deriveFuncGroupName(pf.Name)
+			groupName, err := deriveFuncGroupName(pf.Name)
+			if err != nil {
+				return nil, err
+			}
 			if existing, ok := primaryByGroup[groupName]; ok {
-				return nil, fmt.Errorf("duplicate primary function for group %q: %s and %s",
+				return nil, fmt.Errorf("duplicate primary function for group %q: %s and %s; dispatch group names come from Base/base naming (for example, BaseMatMul -> MatMul)",
 					groupName, existing.pf.Name, pf.Name)
 			}
 			primaryByGroup[groupName] = &primaryEntry{idx: i, pf: pf}
@@ -159,7 +169,7 @@ func buildDispatchGroups(funcs []ParsedFunc) ([]DispatchGroup, error) {
 	specsByGroup := make(map[string][]*ParsedFunc)
 	for _, pf := range specFuncs {
 		if _, ok := primaryByGroup[pf.SpecializesGroup]; !ok {
-			return nil, fmt.Errorf("specialization %s references unknown group %q (available: %v)",
+			return nil, fmt.Errorf("specialization %s references unknown group %q; primary group names come from Base/base naming (for example, BaseMatMul -> MatMul). Available groups: %v",
 				pf.Name, pf.SpecializesGroup, groupNames(primaryByGroup))
 		}
 		specsByGroup[pf.SpecializesGroup] = append(specsByGroup[pf.SpecializesGroup], pf)
@@ -209,13 +219,20 @@ func buildDispatchGroups(funcs []ParsedFunc) ([]DispatchGroup, error) {
 
 // deriveFuncGroupName extracts the dispatch group name from a function name.
 // "BaseMatMul" → "MatMul", "baseSigmoid" → "Sigmoid"
-func deriveFuncGroupName(name string) string {
+func deriveFuncGroupName(name string) (string, error) {
+	if !hasBasePrefix(name) {
+		return "", fmt.Errorf("dispatch function %q must start with Base or base", name)
+	}
+	orig := name
 	name = stripBasePrefix(name)
+	if name == "" {
+		return "", fmt.Errorf("dispatch function %q must include a group name after Base/base, for example BaseMatMul", orig)
+	}
 	// Ensure first letter is uppercase for consistent group names
 	if len(name) > 0 {
 		name = strings.ToUpper(name[:1]) + name[1:]
 	}
-	return name
+	return name, nil
 }
 
 // groupNames extracts sorted group names from a map for error messages.
@@ -238,6 +255,10 @@ func validateSignatureCompatibility(primary, spec *ParsedFunc) error {
 	if len(primary.Returns) != len(spec.Returns) {
 		return fmt.Errorf("return count mismatch: primary has %d, specialization has %d",
 			len(primary.Returns), len(spec.Returns))
+	}
+	if primary.SharedLenExpr != "" && spec.SharedLenExpr != "" && primary.SharedLenExpr != spec.SharedLenExpr {
+		return fmt.Errorf("shared length expression mismatch: primary uses %q, specialization uses %q",
+			primary.SharedLenExpr, spec.SharedLenExpr)
 	}
 	return nil
 }
@@ -373,7 +394,7 @@ func selectSourceFunc(group *DispatchGroup, target Target, mode TargetMode, comb
 	if len(candidates) > 1 && candidates[0].score == candidates[1].score &&
 		candidates[0].score > 0 {
 		return nil, fmt.Errorf("ambiguous specialization for (%s, %v) in group %s: "+
-			"both %s and %s match with equal specificity",
+			"both %s and %s match with equal specificity; narrow one with //hwy:targets or //hwy:gen",
 			target.Name, combo.Types, group.GroupName,
 			candidates[0].pf.Name, candidates[1].pf.Name)
 	}
@@ -400,21 +421,55 @@ func targetAllowed(pf *ParsedFunc, target Target, mode TargetMode) bool {
 	if len(pf.AllowedTargets) == 0 {
 		return true
 	}
-	targetLower := strings.ToLower(target.Name)
 	for _, allowed := range pf.AllowedTargets {
-		name, allowedMode := parseTargetSpec(allowed)
-		if name == targetLower {
-			// No mode suffix (GoSimd is the default from parseTargetSpec) → matches any mode
-			if allowedMode == TargetModeGoSimd {
-				return true
-			}
-			// Mode suffix → must match exactly
-			if allowedMode == mode {
-				return true
-			}
+		if allowed.Matches(target, mode) {
+			return true
 		}
 	}
 	return false
+}
+
+func noEligibleFuncsError(inputFile string) error {
+	return fmt.Errorf("no eligible hwygen functions found in %s; write top-level Base... or base... functions that use hwy.* ops or hwy.* type constraints, then run hwygen -check for fast validation", inputFile)
+}
+
+func validateDispatchSelections(groups []DispatchGroup, targetSpecs []TargetSpec) error {
+	for _, ts := range targetSpecs {
+		for i := range groups {
+			group := &groups[i]
+			for _, combo := range group.AllCombos {
+				if _, err := selectSourceFunc(group, ts.Target, ts.Mode, combo); err != nil {
+					return fmt.Errorf("validate dispatch group %s for target %s: %w", group.GroupName, formatTargetSpec(ts), err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// Validate parses and validates hwygen input without writing generated files.
+func (g *Generator) Validate() (*ValidationResult, error) {
+	result, err := Parse(g.InputFile)
+	if err != nil {
+		return nil, fmt.Errorf("parse input: %w", err)
+	}
+
+	if len(result.Funcs) == 0 {
+		return nil, noEligibleFuncsError(g.InputFile)
+	}
+
+	groups, err := buildDispatchGroups(result.Funcs)
+	if err != nil {
+		return nil, fmt.Errorf("build dispatch groups: %w", err)
+	}
+	if err := validateDispatchSelections(groups, g.TargetSpecs); err != nil {
+		return nil, err
+	}
+
+	return &ValidationResult{
+		Result: result,
+		Groups: groups,
+	}, nil
 }
 
 // synthPrimaryForDispatch creates a synthetic ParsedFunc from a DispatchGroup
@@ -471,15 +526,11 @@ func (g *Generator) AsmMode() bool {
 
 // Run executes the code generation pipeline.
 func (g *Generator) Run() error {
-	// 1. Parse the input file
-	result, err := Parse(g.InputFile)
+	validation, err := g.Validate()
 	if err != nil {
-		return fmt.Errorf("parse input: %w", err)
+		return err
 	}
-
-	if len(result.Funcs) == 0 {
-		return fmt.Errorf("no functions with hwy operations found in %s", g.InputFile)
-	}
+	result := validation.Result
 
 	// Use input package name if output package not specified
 	if g.PackageOut == "" {
@@ -526,10 +577,7 @@ func (g *Generator) Run() error {
 	// 2. Build dispatch groups from parsed functions.
 	// Functions with //hwy:specializes join the referenced group;
 	// all others form their own single-member groups.
-	groups, err := buildDispatchGroups(result.Funcs)
-	if err != nil {
-		return fmt.Errorf("build dispatch groups: %w", err)
-	}
+	groups := validation.Groups
 
 	// Go SIMD path: transform + emit for each Go SIMD target
 	var goSimdTargets []Target
@@ -756,5 +804,3 @@ func inferTypesFromParams(params []Param) []string {
 	// Default to float32 if no slice parameter found
 	return []string{"float32"}
 }
-
-

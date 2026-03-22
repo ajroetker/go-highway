@@ -98,7 +98,6 @@ func init() {
 }
 
 func initSdpaAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initSdpaFallback()
 }
 

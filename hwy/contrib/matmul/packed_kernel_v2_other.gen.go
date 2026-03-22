@@ -76,7 +76,6 @@ func init() {
 }
 
 func initPacked_kernel_v2All() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPacked_kernel_v2Fallback()
 }
 

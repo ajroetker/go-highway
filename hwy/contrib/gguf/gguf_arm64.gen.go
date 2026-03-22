@@ -26,8 +26,13 @@ func initGgufAll() {
 		initGgufFallback()
 		return
 	}
-	initGgufFallback()
+	initGgufNEONAsm()
 	return
+}
+
+func initGgufNEONAsm() {
+	initGgufFallback()
+	initGgufNeonCAsm()
 }
 
 func initGgufFallback() {

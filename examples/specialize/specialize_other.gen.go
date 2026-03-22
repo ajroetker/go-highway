@@ -40,7 +40,6 @@ func init() {
 }
 
 func initSpecializeAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initSpecializeFallback()
 }
 

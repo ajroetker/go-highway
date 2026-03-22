@@ -50,7 +50,6 @@ func init() {
 }
 
 func initMatmulAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initMatmulFallback()
 }
 
