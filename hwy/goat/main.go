@@ -268,15 +268,18 @@ func (t *TranslateUnit) compile(args ...string) error {
 		}
 	}
 
-	// Assemble .s → .o for objdump. When cross-compiling to a different OS
-	// (e.g. darwin from linux), use the host OS target triple for the object
-	// file so that the system objdump can read it. The instructions are
-	// identical — only the container format (ELF vs Mach-O) changes.
-	objTarget := target
+	// Assemble to .o for objdump binary extraction. When cross-compiling to
+	// a different OS (e.g. darwin from linux), compile from the C source
+	// using the host OS triple so objdump can read the resulting object.
+	// The .s uses target-specific syntax (Mach-O vs ELF directives) that
+	// the host assembler may not understand, but the C source is portable
+	// and produces identical instructions regardless of OS.
 	if t.TargetOS != runtime.GOOS && t.Target == runtime.GOARCH {
-		objTarget = t.parser.BuildTarget(runtime.GOOS)
+		objTarget := t.parser.BuildTarget(runtime.GOOS)
+		_, err = runCommand("clang", append([]string{"-target", objTarget, "-c", t.Source, "-o", t.Object}, args...)...)
+	} else {
+		_, err = runCommand("clang", append([]string{"-target", target, "-c", t.Assembly, "-o", t.Object}, args...)...)
 	}
-	_, err = runCommand("clang", append([]string{"-target", objTarget, "-c", t.Assembly, "-o", t.Object}, args...)...)
 	return err
 }
 
