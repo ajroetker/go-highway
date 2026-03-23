@@ -596,14 +596,20 @@ func (p *ARM64Parser) TranslateAssembly(t *TranslateUnit, functions []Function) 
 		return err
 	}
 
-	// Run objdump
-	dump, err := runCommand("objdump", "-d", t.Object)
+	// Run objdump, falling back to llvm-objdump for cross-compilation
+	// (e.g. objdump can't read Mach-O on Linux).
+	dump, err := runObjdump("-d", t.Object)
 	if err != nil {
 		return err
 	}
 
-	// Parse object dump
-	if err := p.parseObjectDump(dump, assembly, t.TargetOS); err != nil {
+	// Parse object dump. Pass function names in order for fallback matching
+	// when llvm-objdump emits synthetic symbols instead of real names.
+	orderedNames := make([]string, len(functions))
+	for i, fn := range functions {
+		orderedNames[i] = fn.Name
+	}
+	if err := p.parseObjectDump(dump, assembly, t.TargetOS, orderedNames); err != nil {
 		return err
 	}
 
@@ -968,15 +974,24 @@ func goRegisterName(armReg string) string {
 	return strings.ToUpper(armReg)
 }
 
-func (p *ARM64Parser) parseObjectDump(dump string, functions map[string][]*arm64Line, targetOS string) error {
+func (p *ARM64Parser) parseObjectDump(dump string, functions map[string][]*arm64Line, targetOS string, orderedNames []string) error {
 	var (
 		functionName string
 		lineNumber   int
+		symbolIndex  int
 	)
 	for i, line := range strings.Split(dump, "\n") {
 		line = strings.TrimSpace(line)
 		if symbolLine.MatchString(line) {
-			functionName = extractObjDumpFunctionName(line, targetOS)
+			name := extractObjDumpFunctionName(line, targetOS)
+			if _, ok := functions[name]; ok {
+				functionName = name
+			} else if symbolIndex < len(orderedNames) {
+				// llvm-objdump emits synthetic symbols (e.g. "ltmp0") for
+				// Mach-O files. Fall back to matching by encounter order.
+				functionName = orderedNames[symbolIndex]
+			}
+			symbolIndex++
 			lineNumber = 0
 		} else if dataLine.MatchString(line) {
 			binaryTokens, _ := parseObjDumpDataLine(line)
