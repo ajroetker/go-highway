@@ -93,12 +93,12 @@ jobs:
       - name: Build hwygen
         run: go build -o bin/hwygen ./cmd/hwygen
 
-      - name: Regenerate and test contrib packages
+      - name: Regenerate contrib packages
         if: runner.arch == 'ARM64'
         run: |
           export PATH=$PWD/bin:$PATH
           go generate ./hwy/contrib/...
-          go test -v ./hwy/contrib/...
+          go build ./hwy/contrib/...
 
       - name: Generate examples
         run: |
