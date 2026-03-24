@@ -1,6 +1,7 @@
 # go-highway
 
 [![Go](https://github.com/ajroetker/go-highway/actions/workflows/go.yml/badge.svg)](https://github.com/ajroetker/go-highway/actions/workflows/go.yml)
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/go-highway)
 
 A portable SIMD abstraction library for Go, inspired by Google's [Highway](https://github.com/google/highway) C++ library.
 
