@@ -4,10 +4,6 @@
 
 package matmul
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var FusedInt4MatMulGELU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulGELUApprox func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
 var FusedInt4MatMulReLU func(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int)
@@ -24,7 +20,6 @@ func init() {
 }
 
 func initFusednf4actmatmulAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initFusednf4actmatmulFallback()
 }
 

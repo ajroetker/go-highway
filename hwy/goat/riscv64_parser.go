@@ -127,8 +127,8 @@ func (p *RISCV64Parser) TranslateAssembly(t *TranslateUnit, functions []Function
 		return err
 	}
 
-	// Run objdump
-	dump, err := runCommand("objdump", "-d", t.Object)
+	// Run objdump, falling back to llvm-objdump for cross-compilation
+	dump, err := runObjdump("-d", t.Object)
 	if err != nil {
 		return err
 	}

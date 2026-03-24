@@ -90,7 +90,6 @@ func init() {
 }
 
 func initPrefix_sumAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPrefix_sumFallback()
 }
 

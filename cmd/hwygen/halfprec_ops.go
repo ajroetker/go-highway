@@ -15,7 +15,6 @@
 package main
 
 import (
-	"fmt"
 	"go/ast"
 	"strconv"
 )
@@ -313,11 +312,11 @@ func transformHalfPrecPow(call *ast.CallExpr, funcName string, ctx *transformCon
 	}
 	if ctx.isAVXPromoted && len(call.Args) >= 2 {
 		// For AVX promoted: inline scalar Pow via float32 buffers
-		lanes := ctx.target.LanesFor("float32")
+		lanes := avxPromotedFloat32Lanes(ctx.target)
 		asmType := ctx.target.TypeMap[ctx.elemType]
-		wrapFunc := fmt.Sprintf("%sFromFloat32x%d", asmType, lanes)
-		loadFunc := fmt.Sprintf("LoadFloat32x%dSlice", lanes)
-		asF32Method := fmt.Sprintf("AsFloat32x%d", lanes)
+		wrapFunc := avxPromotedWrapFromFloat32Func(ctx.target, ctx.elemType)
+		loadFunc := avxPromotedLoadFloat32SliceFunc(ctx.target)
+		asF32Method := avxPromotedAsFloat32Method(ctx.target)
 		vecPkg := ctx.vecPkgName
 		lanesStr := strconv.Itoa(lanes)
 		baseArg := call.Args[0]
@@ -485,8 +484,8 @@ func transformHalfPrecPow2(call *ast.CallExpr, funcName string, ctx *transformCo
 	}
 	// For AVX promoted types: Pow2 operates on float32 internally
 	if ctx.isAVXPromoted && len(call.Args) >= 1 {
-		pow2Func := fmt.Sprintf("Pow2_%s_F32x%d", ctx.target.Name, ctx.target.LanesFor("float32"))
-		wrapFunc := ctx.target.TypeMap[ctx.elemType] + "FromFloat32x" + fmt.Sprintf("%d", ctx.target.LanesFor("float32"))
+		pow2Func := avxPromotedPow2Func(ctx.target)
+		wrapFunc := avxPromotedWrapFromFloat32Func(ctx.target, ctx.elemType)
 		call.Fun = &ast.SelectorExpr{
 			X:   ast.NewIdent("asm"),
 			Sel: ast.NewIdent(wrapFunc),
@@ -736,7 +735,7 @@ func transformHalfPrecLoadPtr(call *ast.CallExpr, ctx *transformContext, setHwyF
 		return true
 	}
 	if ctx.isAVXPromoted {
-		loadFuncName := "Load" + ctx.target.TypeMap[ctx.elemType] + "Ptr"
+		loadFuncName := avxPromotedLoadPtrFunc(ctx.target, ctx.elemType)
 		sliceArg := call.Args[0]
 		call.Fun = &ast.SelectorExpr{
 			X:   ast.NewIdent("asm"),
@@ -792,8 +791,7 @@ func transformHalfPrecLoad4(call *ast.CallExpr, funcName string, ctx *transformC
 	}
 	// For AVX promoted types
 	if ctx.isAVXPromoted && len(call.Args) >= 1 {
-		asmType := ctx.target.TypeMap[ctx.elemType]
-		load4Func := fmt.Sprintf("Load4%sSlice", asmType)
+		load4Func := avxPromotedLoad4SliceFunc(ctx.target, ctx.elemType)
 		call.Fun = &ast.SelectorExpr{
 			X:   ast.NewIdent("asm"),
 			Sel: ast.NewIdent(load4Func),

@@ -21,8 +21,13 @@ func initCutceAll() {
 		initCutceFallback()
 		return
 	}
-	initCutceFallback()
+	initCutceNEONAsm()
 	return
+}
+
+func initCutceNEONAsm() {
+	initCutceFallback()
+	initCutceNeonCAsm()
 }
 
 func initCutceFallback() {

@@ -33,17 +33,19 @@ var SquaredNormFloat64 func(v []float64) float64
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Norm[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		return any(NormFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		return any(NormBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		return any(NormFloat32(any(v).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return any(NormFloat64(any(v).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // SquaredNorm computes the squared L2 norm (sum of squares) of a vector
@@ -62,17 +64,19 @@ func Norm[T hwy.Floats](v []T) T {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func SquaredNorm[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		return any(SquaredNormFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		return any(SquaredNormBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		return any(SquaredNormFloat32(any(v).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return any(SquaredNormFloat64(any(v).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
@@ -80,7 +84,6 @@ func init() {
 }
 
 func initNormAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initNormFallback()
 }
 

@@ -48,7 +48,6 @@ func init() {
 }
 
 func initQkvdenseAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initQkvdenseFallback()
 }
 

@@ -120,7 +120,6 @@ func init() {
 }
 
 func initBatchAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initBatchFallback()
 }
 

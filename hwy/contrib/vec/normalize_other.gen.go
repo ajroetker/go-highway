@@ -80,7 +80,6 @@ func init() {
 }
 
 func initNormalizeAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initNormalizeFallback()
 }
 

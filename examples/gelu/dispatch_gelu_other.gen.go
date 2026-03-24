@@ -65,7 +65,6 @@ func init() {
 }
 
 func initGeluAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initGeluFallback()
 }
 

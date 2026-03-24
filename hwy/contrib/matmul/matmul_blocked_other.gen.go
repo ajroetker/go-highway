@@ -46,7 +46,6 @@ func init() {
 }
 
 func initMatmul_blockedAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initMatmul_blockedFallback()
 }
 

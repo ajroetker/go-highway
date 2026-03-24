@@ -48,7 +48,6 @@ func init() {
 }
 
 func initMatmul_skinnyAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initMatmul_skinnyFallback()
 }
 

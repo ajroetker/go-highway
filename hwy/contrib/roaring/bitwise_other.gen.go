@@ -4,10 +4,6 @@
 
 package roaring
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var AndNotSlice func(dst []uint64, a []uint64, b []uint64)
 var AndSlice func(dst []uint64, a []uint64, b []uint64)
 var OrSlice func(dst []uint64, a []uint64, b []uint64)
@@ -18,7 +14,6 @@ func init() {
 }
 
 func initBitwiseAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initBitwiseFallback()
 }
 

@@ -20,8 +20,13 @@ func initRabitqAll() {
 		initRabitqFallback()
 		return
 	}
-	initRabitqFallback()
+	initRabitqNEONAsm()
 	return
+}
+
+func initRabitqNEONAsm() {
+	initRabitqFallback()
+	initRabitqNeonCAsm()
 }
 
 func initRabitqFallback() {

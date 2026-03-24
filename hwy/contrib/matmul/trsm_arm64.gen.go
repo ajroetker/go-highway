@@ -80,8 +80,13 @@ func initTrsmAll() {
 		initTrsmFallback()
 		return
 	}
-	initTrsmFallback()
+	initTrsmNEONAsm()
 	return
+}
+
+func initTrsmNEONAsm() {
+	initTrsmFallback()
+	initTrsmNeonCAsm()
 }
 
 func initTrsmFallback() {

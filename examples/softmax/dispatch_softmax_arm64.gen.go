@@ -65,8 +65,13 @@ func initSoftmaxAll() {
 		initSoftmaxFallback()
 		return
 	}
-	initSoftmaxFallback()
+	initSoftmaxNEONAsm()
 	return
+}
+
+func initSoftmaxNEONAsm() {
+	initSoftmaxFallback()
+	initSoftmaxNeonCAsm()
 }
 
 func initSoftmaxFallback() {

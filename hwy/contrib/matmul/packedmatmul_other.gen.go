@@ -108,7 +108,6 @@ func init() {
 }
 
 func initPackedmatmulAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPackedmatmulFallback()
 }
 

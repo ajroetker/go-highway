@@ -44,8 +44,13 @@ func initCopyAll() {
 		initCopyFallback()
 		return
 	}
-	initCopyFallback()
+	initCopyNEONAsm()
 	return
+}
+
+func initCopyNEONAsm() {
+	initCopyFallback()
+	initCopyNeonCAsm()
 }
 
 func initCopyFallback() {

@@ -45,21 +45,25 @@ var SumFloat64 func(v []float64) float64
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Max[T hwy.Lanes](v []T) T {
-	switch any(v).(type) {
-	case []float32:
+	if _, ok := any(v).([]float32); ok {
 		return any(MaxFloat32(any(v).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return any(MaxFloat64(any(v).([]float64))).(T)
-	case []int32:
+	}
+	if _, ok := any(v).([]int32); ok {
 		return any(MaxInt32(any(v).([]int32))).(T)
-	case []int64:
+	}
+	if _, ok := any(v).([]int64); ok {
 		return any(MaxInt64(any(v).([]int64))).(T)
-	case []uint32:
+	}
+	if _, ok := any(v).([]uint32); ok {
 		return any(MaxUint32(any(v).([]uint32))).(T)
-	case []uint64:
+	}
+	if _, ok := any(v).([]uint64); ok {
 		return any(MaxUint64(any(v).([]uint64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // Min returns the minimum value in a slice using hwy primitives.
@@ -79,17 +83,19 @@ func Max[T hwy.Lanes](v []T) T {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Min[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		return any(MinFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		return any(MinBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		return any(MinFloat32(any(v).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return any(MinFloat64(any(v).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // MinMax returns both the minimum and maximum values in a slice using hwy primitives.
@@ -112,21 +118,23 @@ func Min[T hwy.Floats](v []T) T {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func MinMax[T hwy.Floats](v []T) (minVal T, maxVal T) {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		_r0, _r1 := MinMaxFloat16(any(v).([]hwy.Float16))
 		return any(_r0).(T), any(_r1).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		_r0, _r1 := MinMaxBFloat16(any(v).([]hwy.BFloat16))
 		return any(_r0).(T), any(_r1).(T)
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		_r0, _r1 := MinMaxFloat32(any(v).([]float32))
 		return any(_r0).(T), any(_r1).(T)
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		_r0, _r1 := MinMaxFloat64(any(v).([]float64))
 		return any(_r0).(T), any(_r1).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // Sum computes the sum of all elements in a slice using hwy primitives.
@@ -143,17 +151,19 @@ func MinMax[T hwy.Floats](v []T) (minVal T, maxVal T) {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Sum[T hwy.Floats](v []T) T {
-	switch any(v).(type) {
-	case []hwy.Float16:
+	if _, ok := any(v).([]hwy.Float16); ok {
 		return any(SumFloat16(any(v).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(v).([]hwy.BFloat16); ok {
 		return any(SumBFloat16(any(v).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(v).([]float32); ok {
 		return any(SumFloat32(any(v).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(v).([]float64); ok {
 		return any(SumFloat64(any(v).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
@@ -161,7 +171,6 @@ func init() {
 }
 
 func initReduceAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initReduceFallback()
 }
 

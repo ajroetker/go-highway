@@ -45,7 +45,6 @@ func init() {
 }
 
 func initSymvAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initSymvFallback()
 }
 

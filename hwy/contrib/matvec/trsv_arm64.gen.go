@@ -80,8 +80,13 @@ func initTrsvAll() {
 		initTrsvFallback()
 		return
 	}
-	initTrsvFallback()
+	initTrsvNEONAsm()
 	return
+}
+
+func initTrsvNEONAsm() {
+	initTrsvFallback()
+	initTrsvNeonCAsm()
 }
 
 func initTrsvFallback() {

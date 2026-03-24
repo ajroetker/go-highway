@@ -106,7 +106,6 @@ func init() {
 }
 
 func initPackage_kernelAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPackage_kernelFallback()
 }
 

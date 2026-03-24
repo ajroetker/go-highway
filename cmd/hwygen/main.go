@@ -47,6 +47,7 @@ var (
 	targets        = flag.String("targets", "avx2,fallback", "Comma-separated targets ("+strings.Join(AvailableTargets(), ",")+") or 'all'")
 	packageOut     = flag.String("pkg", "", "Output package name (default: same as input)")
 	dispatchPrefix = flag.String("dispatch", "", "Dispatch file prefix (default: derived from function name)")
+	checkMode      = flag.Bool("check", false, "Validate hwygen input and target selection without generating files")
 	cMode          = flag.Bool("c", false, "Generate C code only (supports neon, sve_darwin, sve_linux, avx2, avx512 targets)")
 	asmMode        = flag.Bool("asm", false, "Generate C code and compile to Go assembly via GOAT (supports neon, sve_darwin, sve_linux, avx2, avx512 targets)")
 	fusionMode     = flag.Bool("fusion", false, "Enable IR-based fusion optimization for cross-package function inlining and loop fusion")
@@ -87,24 +88,21 @@ func main() {
 		KeepCFiles:     *keepCMode,
 	}
 
+	if *checkMode {
+		if _, err := gen.Validate(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("hwygen check passed for targets: %s\n", formatTargetSpecs(targetSpecs))
+		return
+	}
+
 	if err := gen.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Build display string
-	var names []string
-	for _, ts := range targetSpecs {
-		name := strings.ToLower(ts.Target.Name)
-		switch ts.Mode {
-		case TargetModeAsm:
-			name += ":asm"
-		case TargetModeC:
-			name += ":c"
-		}
-		names = append(names, name)
-	}
-	fmt.Printf("Successfully generated code for targets: %s\n", strings.Join(names, ", "))
+	fmt.Printf("Successfully generated code for targets: %s\n", formatTargetSpecs(targetSpecs))
 }
 
 // globalMode returns the TargetMode implied by the global -c and -asm flags.
@@ -130,21 +128,25 @@ func parseTargets(s string, globalC, globalAsm bool) ([]TargetSpec, error) {
 		}
 		if p == "all" {
 			for _, name := range AvailableTargets() {
-				t, _ := GetTarget(name)
-				result = append(result, TargetSpec{Target: t, Mode: globalMode(globalC, globalAsm)})
+				selector, err := parseTargetSelector(name)
+				if err != nil {
+					return nil, err
+				}
+				mode := globalMode(globalC, globalAsm)
+				result = append(result, TargetSpec{Target: selector.Target, Mode: mode})
 			}
 			return result, nil
 		}
-		name, mode := parseTargetSpec(p)
-		// Global flags apply when no per-target mode and target isn't fallback
-		if mode == TargetModeGoSimd && name != "fallback" {
-			mode = globalMode(globalC, globalAsm)
-		}
-		t, err := GetTarget(name)
+		selector, err := parseTargetSelector(p)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, TargetSpec{Target: t, Mode: mode})
+
+		mode := selector.Mode
+		if !selector.HasExplicitMode {
+			mode = globalMode(globalC, globalAsm)
+		}
+		result = append(result, TargetSpec{Target: selector.Target, Mode: mode})
 	}
 	return result, nil
 }

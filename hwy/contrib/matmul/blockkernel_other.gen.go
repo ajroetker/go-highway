@@ -125,7 +125,6 @@ func init() {
 }
 
 func initBlockkernelAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initBlockkernelFallback()
 }
 

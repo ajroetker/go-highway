@@ -4,10 +4,6 @@
 
 package varint
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var Decode2Uvarint64 func(src []byte) (v1 uint64, v2 uint64, consumed int)
 var Decode5Uvarint64 func(src []byte) (values [5]uint64, consumed int)
 var DecodeUvarint64Batch func(src []byte, dst []uint64, n int) (decoded int, consumed int)
@@ -19,7 +15,6 @@ func init() {
 }
 
 func initVarintAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initVarintFallback()
 }
 

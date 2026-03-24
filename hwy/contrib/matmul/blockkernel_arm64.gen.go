@@ -129,8 +129,13 @@ func initBlockkernelAll() {
 		initBlockkernelFallback()
 		return
 	}
-	initBlockkernelFallback()
+	initBlockkernelNEONAsm()
 	return
+}
+
+func initBlockkernelNEONAsm() {
+	initBlockkernelFallback()
+	initBlockkernelNeonCAsm()
 }
 
 func initBlockkernelFallback() {

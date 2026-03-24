@@ -629,7 +629,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 
 			// For AVX promoted half-precision, wrap the Float32x8 result back in the asm type
 			if ctx.isAVXPromoted {
-				wrapFunc := fmt.Sprintf("%sFromFloat32x%d", ctx.target.TypeMap[ctx.elemType], ctx.target.LanesFor("float32"))
+				wrapFunc := avxPromotedWrapFromFloat32Func(ctx.target, ctx.elemType)
 				expr = &ast.CallExpr{
 					Fun: &ast.SelectorExpr{
 						X:   ast.NewIdent("asm"),
@@ -1200,7 +1200,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			}
 			// AVX2/AVX512: use asm load functions with pointer-based access (no bounds check)
 			if isAVXPromotedHalfPrec(ctx.target, effectiveElemType) && len(call.Args) >= 1 {
-				loadFuncName := "Load" + ctx.target.TypeMap[effectiveElemType] + "Ptr"
+				loadFuncName := avxPromotedLoadPtrFunc(ctx.target, effectiveElemType)
 				sliceArg := call.Args[0]
 				call.Fun = &ast.SelectorExpr{
 					X:   ast.NewIdent("asm"),
@@ -1258,8 +1258,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			}
 			if isAVXPromotedHalfPrec(ctx.target, effectiveElemType) {
 				// AVX promoted half-precision: use asm.Load4Float16x8AVX2Slice etc.
-				asmType := ctx.target.TypeMap[effectiveElemType]
-				load4Func := fmt.Sprintf("Load4%sSlice", asmType)
+				load4Func := avxPromotedLoad4SliceFunc(ctx.target, effectiveElemType)
 				call.Fun = &ast.SelectorExpr{
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(load4Func),
@@ -1457,7 +1456,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			}
 			// AVX2/AVX512: use asm.IotaFloat16x8AVX2() etc.
 			if isAVXPromotedHalfPrec(ctx.target, effectiveElemType) {
-				iotaFunc := "Iota" + ctx.target.TypeMap[effectiveElemType]
+				iotaFunc := avxPromotedIotaFunc(ctx.target, effectiveElemType)
 				call.Fun = &ast.SelectorExpr{
 					X:   ast.NewIdent("asm"),
 					Sel: ast.NewIdent(iotaFunc),
@@ -1586,4 +1585,3 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		call.Fun = selExpr
 	}
 }
-

@@ -28,8 +28,13 @@ func initFusednf4actmatmulAll() {
 		initFusednf4actmatmulFallback()
 		return
 	}
-	initFusednf4actmatmulFallback()
+	initFusednf4actmatmulNEONAsm()
 	return
+}
+
+func initFusednf4actmatmulNEONAsm() {
+	initFusednf4actmatmulFallback()
+	initFusednf4actmatmulNeonCAsm()
 }
 
 func initFusednf4actmatmulFallback() {

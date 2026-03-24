@@ -124,8 +124,13 @@ func initBatchAll() {
 		initBatchFallback()
 		return
 	}
-	initBatchFallback()
+	initBatchNEONAsm()
 	return
+}
+
+func initBatchNEONAsm() {
+	initBatchFallback()
+	initBatchNeonCAsm()
 }
 
 func initBatchFallback() {

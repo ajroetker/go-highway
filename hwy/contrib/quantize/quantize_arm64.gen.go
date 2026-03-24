@@ -20,8 +20,13 @@ func initQuantizeAll() {
 		initQuantizeFallback()
 		return
 	}
-	initQuantizeFallback()
+	initQuantizeNEONAsm()
 	return
+}
+
+func initQuantizeNEONAsm() {
+	initQuantizeFallback()
+	initQuantizeNeonCAsm()
 }
 
 func initQuantizeFallback() {

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"slices"
@@ -40,6 +41,38 @@ func isHalfPrecisionType(elemType string) bool {
 // for half-precision types (AVX2 with Float16x8AVX2, AVX512 with Float16x16AVX512).
 func isAVXPromotedHalfPrec(target Target, elemType string) bool {
 	return isHalfPrecisionType(elemType) && (target.Name == "AVX2" || target.Name == "AVX512")
+}
+
+func avxPromotedFloat32Lanes(target Target) int {
+	return target.LanesFor("float32")
+}
+
+func avxPromotedWrapFromFloat32Func(target Target, elemType string) string {
+	return fmt.Sprintf("%sFromFloat32x%d", target.TypeMap[elemType], avxPromotedFloat32Lanes(target))
+}
+
+func avxPromotedLoadFloat32SliceFunc(target Target) string {
+	return fmt.Sprintf("LoadFloat32x%dSlice", avxPromotedFloat32Lanes(target))
+}
+
+func avxPromotedAsFloat32Method(target Target) string {
+	return fmt.Sprintf("AsFloat32x%d", avxPromotedFloat32Lanes(target))
+}
+
+func avxPromotedLoadPtrFunc(target Target, elemType string) string {
+	return "Load" + target.TypeMap[elemType] + "Ptr"
+}
+
+func avxPromotedLoad4SliceFunc(target Target, elemType string) string {
+	return "Load4" + target.TypeMap[elemType] + "Slice"
+}
+
+func avxPromotedIotaFunc(target Target, elemType string) string {
+	return "Iota" + target.TypeMap[elemType]
+}
+
+func avxPromotedPow2Func(target Target) string {
+	return fmt.Sprintf("Pow2_%s_F32x%d", target.Name, avxPromotedFloat32Lanes(target))
 }
 
 // halfPrecSliceToUint16 wraps a half-precision slice expression with an unsafe
@@ -328,7 +361,7 @@ func transformHalfPrecisionFallback(body *ast.BlockStmt, ctx *transformContext) 
 						if isHalfPrecisionConv {
 							if varName != "" && assign.Tok == token.DEFINE {
 								conversionAssignVars[varName] = true
-							halfPrecisionScalarVars[varName] = true
+								halfPrecisionScalarVars[varName] = true
 							}
 						}
 					}

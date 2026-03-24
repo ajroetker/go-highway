@@ -27,21 +27,25 @@ var SortSmallUint64 func(data []uint64)
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func IsSorted[T hwy.Lanes](data []T) bool {
-	switch any(data).(type) {
-	case []float32:
+	if _, ok := any(data).([]float32); ok {
 		return IsSortedFloat32(any(data).([]float32))
-	case []float64:
+	}
+	if _, ok := any(data).([]float64); ok {
 		return IsSortedFloat64(any(data).([]float64))
-	case []int32:
+	}
+	if _, ok := any(data).([]int32); ok {
 		return IsSortedInt32(any(data).([]int32))
-	case []int64:
+	}
+	if _, ok := any(data).([]int64); ok {
 		return IsSortedInt64(any(data).([]int64))
-	case []uint32:
+	}
+	if _, ok := any(data).([]uint32); ok {
 		return IsSortedUint32(any(data).([]uint32))
-	case []uint64:
+	}
+	if _, ok := any(data).([]uint64); ok {
 		return IsSortedUint64(any(data).([]uint64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // SortSmall sorts a small slice in-place using sorting networks.

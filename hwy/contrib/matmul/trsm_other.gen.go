@@ -76,7 +76,6 @@ func init() {
 }
 
 func initTrsmAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initTrsmFallback()
 }
 

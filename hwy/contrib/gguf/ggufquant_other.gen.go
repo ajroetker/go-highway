@@ -4,10 +4,6 @@
 
 package gguf
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var QuantizeQ8_0 func(input []float32, output []uint8)
 
 func init() {
@@ -15,7 +11,6 @@ func init() {
 }
 
 func initGgufquantAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initGgufquantFallback()
 }
 

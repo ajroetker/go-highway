@@ -4,10 +4,6 @@
 
 package matmul
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var Int8x8MatMulPerAxis func(output []int32, a []uint8, b []uint8, aZP []uint8, bZP []uint8, M int, K int, N int)
 
 func init() {
@@ -15,7 +11,6 @@ func init() {
 }
 
 func initInt8x8matmulperaxisAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initInt8x8matmulperaxisFallback()
 }
 

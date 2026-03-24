@@ -396,7 +396,6 @@ func init() {
 }
 
 func initArithmeticAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initArithmeticFallback()
 }
 

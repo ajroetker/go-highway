@@ -36,17 +36,19 @@ var L2SquaredDistanceFloat64 func(a []float64, b []float64) float64
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func L2Distance[T hwy.Floats](a []T, b []T) T {
-	switch any(a).(type) {
-	case []hwy.Float16:
+	if _, ok := any(a).([]hwy.Float16); ok {
 		return any(L2DistanceFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(a).([]hwy.BFloat16); ok {
 		return any(L2DistanceBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(a).([]float32); ok {
 		return any(L2DistanceFloat32(any(a).([]float32), any(b).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(a).([]float64); ok {
 		return any(L2DistanceFloat64(any(a).([]float64), any(b).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // L2SquaredDistance computes the squared Euclidean distance between two slices.
@@ -66,17 +68,19 @@ func L2Distance[T hwy.Floats](a []T, b []T) T {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func L2SquaredDistance[T hwy.Floats](a []T, b []T) T {
-	switch any(a).(type) {
-	case []hwy.Float16:
+	if _, ok := any(a).([]hwy.Float16); ok {
 		return any(L2SquaredDistanceFloat16(any(a).([]hwy.Float16), any(b).([]hwy.Float16))).(T)
-	case []hwy.BFloat16:
+	}
+	if _, ok := any(a).([]hwy.BFloat16); ok {
 		return any(L2SquaredDistanceBFloat16(any(a).([]hwy.BFloat16), any(b).([]hwy.BFloat16))).(T)
-	case []float32:
+	}
+	if _, ok := any(a).([]float32); ok {
 		return any(L2SquaredDistanceFloat32(any(a).([]float32), any(b).([]float32))).(T)
-	case []float64:
+	}
+	if _, ok := any(a).([]float64); ok {
 		return any(L2SquaredDistanceFloat64(any(a).([]float64), any(b).([]float64))).(T)
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {

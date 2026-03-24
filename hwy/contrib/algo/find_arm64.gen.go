@@ -32,21 +32,25 @@ var FindUint64 func(slice []uint64, value uint64) int
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Contains[T hwy.Lanes](slice []T, value T) bool {
-	switch any(slice).(type) {
-	case []float32:
+	if _, ok := any(slice).([]float32); ok {
 		return ContainsFloat32(any(slice).([]float32), any(value).(float32))
-	case []float64:
+	}
+	if _, ok := any(slice).([]float64); ok {
 		return ContainsFloat64(any(slice).([]float64), any(value).(float64))
-	case []int32:
+	}
+	if _, ok := any(slice).([]int32); ok {
 		return ContainsInt32(any(slice).([]int32), any(value).(int32))
-	case []int64:
+	}
+	if _, ok := any(slice).([]int64); ok {
 		return ContainsInt64(any(slice).([]int64), any(value).(int64))
-	case []uint32:
+	}
+	if _, ok := any(slice).([]uint32); ok {
 		return ContainsUint32(any(slice).([]uint32), any(value).(uint32))
-	case []uint64:
+	}
+	if _, ok := any(slice).([]uint64); ok {
 		return ContainsUint64(any(slice).([]uint64), any(value).(uint64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // Count returns the number of elements equal to target.
@@ -54,21 +58,25 @@ func Contains[T hwy.Lanes](slice []T, value T) bool {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Count[T hwy.Lanes](slice []T, value T) int {
-	switch any(slice).(type) {
-	case []float32:
+	if _, ok := any(slice).([]float32); ok {
 		return CountFloat32(any(slice).([]float32), any(value).(float32))
-	case []float64:
+	}
+	if _, ok := any(slice).([]float64); ok {
 		return CountFloat64(any(slice).([]float64), any(value).(float64))
-	case []int32:
+	}
+	if _, ok := any(slice).([]int32); ok {
 		return CountInt32(any(slice).([]int32), any(value).(int32))
-	case []int64:
+	}
+	if _, ok := any(slice).([]int64); ok {
 		return CountInt64(any(slice).([]int64), any(value).(int64))
-	case []uint32:
+	}
+	if _, ok := any(slice).([]uint32); ok {
 		return CountUint32(any(slice).([]uint32), any(value).(uint32))
-	case []uint64:
+	}
+	if _, ok := any(slice).([]uint64); ok {
 		return CountUint64(any(slice).([]uint64), any(value).(uint64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 // Find returns the index of the first element equal to value, or -1 if not found.
@@ -76,21 +84,25 @@ func Count[T hwy.Lanes](slice []T, value T) int {
 //
 // This function dispatches to the appropriate SIMD implementation at runtime.
 func Find[T hwy.Lanes](slice []T, value T) int {
-	switch any(slice).(type) {
-	case []float32:
+	if _, ok := any(slice).([]float32); ok {
 		return FindFloat32(any(slice).([]float32), any(value).(float32))
-	case []float64:
+	}
+	if _, ok := any(slice).([]float64); ok {
 		return FindFloat64(any(slice).([]float64), any(value).(float64))
-	case []int32:
+	}
+	if _, ok := any(slice).([]int32); ok {
 		return FindInt32(any(slice).([]int32), any(value).(int32))
-	case []int64:
+	}
+	if _, ok := any(slice).([]int64); ok {
 		return FindInt64(any(slice).([]int64), any(value).(int64))
-	case []uint32:
+	}
+	if _, ok := any(slice).([]uint32); ok {
 		return FindUint32(any(slice).([]uint32), any(value).(uint32))
-	case []uint64:
+	}
+	if _, ok := any(slice).([]uint64); ok {
 		return FindUint64(any(slice).([]uint64), any(value).(uint64))
 	}
-	panic("unreachable")
+	panic("unsupported type")
 }
 
 func init() {
@@ -102,8 +114,13 @@ func initFindAll() {
 		initFindFallback()
 		return
 	}
-	initFindFallback()
+	initFindNEONAsm()
 	return
+}
+
+func initFindNEONAsm() {
+	initFindFallback()
+	initFindNeonCAsm()
 }
 
 func initFindFallback() {

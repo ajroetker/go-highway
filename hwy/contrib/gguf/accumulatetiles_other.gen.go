@@ -4,10 +4,6 @@
 
 package gguf
 
-import (
-	"github.com/ajroetker/go-highway/hwy"
-)
-
 var AccumulateTilesSigned func(acc []float32, tiles []int32, sc []float32, dA []float32, mTile int, nRows int)
 var AccumulateTilesUnsigned func(acc []float32, tiles []int32, sc []float32, mn []float32, dA []float32, dABsum []float32, mTile int, nRows int)
 
@@ -16,7 +12,6 @@ func init() {
 }
 
 func initAccumulatetilesAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initAccumulatetilesFallback()
 }
 

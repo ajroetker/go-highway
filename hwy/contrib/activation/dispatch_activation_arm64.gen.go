@@ -240,8 +240,13 @@ func initActivationAll() {
 		initActivationFallback()
 		return
 	}
-	initActivationFallback()
+	initActivationNEONAsm()
 	return
+}
+
+func initActivationNEONAsm() {
+	initActivationFallback()
+	initActivationNeonCAsm()
 }
 
 func initActivationFallback() {

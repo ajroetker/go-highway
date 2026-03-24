@@ -114,8 +114,13 @@ func initColorAll() {
 		initColorFallback()
 		return
 	}
-	initColorFallback()
+	initColorNEONAsm()
 	return
+}
+
+func initColorNEONAsm() {
+	initColorFallback()
+	initColorNeonCAsm()
 }
 
 func initColorFallback() {

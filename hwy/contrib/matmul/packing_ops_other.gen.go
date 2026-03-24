@@ -100,7 +100,6 @@ func init() {
 }
 
 func initPacking_opsAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initPacking_opsFallback()
 }
 

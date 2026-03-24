@@ -48,7 +48,6 @@ func init() {
 }
 
 func initSyrkAll() {
-	_ = hwy.NoSimdEnv // silence unused import
 	initSyrkFallback()
 }
 
