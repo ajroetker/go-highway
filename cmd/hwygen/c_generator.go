@@ -240,8 +240,11 @@ func (g *Generator) runCModeInternal(result *ParseResult, targets []Target, asmM
 				profile := getCProfileForFile(cFile, target)
 				if err := runGOAT(cFile, profile); err != nil {
 					fmt.Printf("  WARNING: skipping %s: %v\n", filepath.Base(cFile), err)
+					base := strings.TrimSuffix(cFile, ".c")
 					os.Remove(cFile)
-					os.Remove(strings.TrimSuffix(cFile, ".c") + ".o")
+					os.Remove(base + ".o")
+					os.Remove(base + ".go") // GoAT may generate stub before clang fails
+					os.Remove(base + ".s")
 					continue
 				}
 				compiledFiles = append(compiledFiles, cFile)
@@ -489,8 +492,11 @@ func (g *Generator) runFusionCMode(result *ParseResult, sliceFuncs []ParsedFunc,
 				profile := getCProfileForFile(cFile, target)
 				if err := runGOAT(cFile, profile); err != nil {
 					fmt.Printf("  WARNING: skipping %s: %v\n", filepath.Base(cFile), err)
+					base := strings.TrimSuffix(cFile, ".c")
 					os.Remove(cFile)
-					os.Remove(strings.TrimSuffix(cFile, ".c") + ".o")
+					os.Remove(base + ".o")
+					os.Remove(base + ".go") // GoAT may generate stub before clang fails
+					os.Remove(base + ".s")
 					continue
 				}
 				compiledFiles = append(compiledFiles, cFile)
