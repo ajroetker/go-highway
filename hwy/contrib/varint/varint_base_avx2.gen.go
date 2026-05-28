@@ -6,16 +6,25 @@ package varint
 
 import (
 	"simd/archsimd"
+	"sync"
 
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseFindVarintEnds_AVX2_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
+	BaseFindVarintEnds_AVX2_threshold_f32 archsimd.Uint8x16
+	_varintBaseAVX2HoistOnce              sync.Once
 )
 
+func _varintBaseAVX2InitHoistedConstants() {
+	_varintBaseAVX2HoistOnce.Do(func() {
+		BaseFindVarintEnds_AVX2_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
+	})
+}
+
 func BaseDecode2Uvarint64_avx2(src []byte) (v1 uint64, v2 uint64, consumed int) {
+	_varintBaseAVX2InitHoistedConstants()
 	if len(src) == 0 {
 		return 0, 0, 0
 	}
@@ -34,6 +43,7 @@ func BaseDecode2Uvarint64_avx2(src []byte) (v1 uint64, v2 uint64, consumed int) 
 }
 
 func BaseDecode5Uvarint64_avx2(src []byte) (values [5]uint64, consumed int) {
+	_varintBaseAVX2InitHoistedConstants()
 	if len(src) == 0 {
 		return [5]uint64{}, 0
 	}
@@ -53,6 +63,7 @@ func BaseDecode5Uvarint64_avx2(src []byte) (values [5]uint64, consumed int) {
 }
 
 func BaseDecodeUvarint64Batch_avx2(src []byte, dst []uint64, n int) (decoded int, consumed int) {
+	_varintBaseAVX2InitHoistedConstants()
 	if len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
 	}
@@ -71,6 +82,7 @@ func BaseDecodeUvarint64Batch_avx2(src []byte, dst []uint64, n int) (decoded int
 }
 
 func BaseDecodeUvarint64BatchWithMask_avx2(src []byte, dst []uint64, mask uint32, n int) (decoded int, consumed int) {
+	_varintBaseAVX2InitHoistedConstants()
 	if mask == 0 || len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
 	}
@@ -96,6 +108,7 @@ func BaseDecodeUvarint64BatchWithMask_avx2(src []byte, dst []uint64, mask uint32
 }
 
 func BaseFindVarintEnds_avx2(src []byte) uint32 {
+	_varintBaseAVX2InitHoistedConstants()
 	if len(src) == 0 {
 		return 0
 	}

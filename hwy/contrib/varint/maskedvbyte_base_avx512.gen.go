@@ -14,17 +14,17 @@ import (
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
 	BaseMaskedVByteDecodeGroup_AVX512_threshold_f32 archsimd.Uint8x16
-	_maskedvbyteBaseHoistOnce                       sync.Once
+	_maskedvbyteBaseAVX512HoistOnce                 sync.Once
 )
 
-func _maskedvbyteBaseInitHoistedConstants() {
-	_maskedvbyteBaseHoistOnce.Do(func() {
+func _maskedvbyteBaseAVX512InitHoistedConstants() {
+	_maskedvbyteBaseAVX512HoistOnce.Do(func() {
 		BaseMaskedVByteDecodeGroup_AVX512_threshold_f32 = archsimd.BroadcastUint8x16(0x80)
 	})
 }
 
 func BaseMaskedVByteDecodeBatch32_avx512(src []byte, dst []uint32, n int) (decoded int, consumed int) {
-	_maskedvbyteBaseInitHoistedConstants()
+	_maskedvbyteBaseAVX512InitHoistedConstants()
 	if len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
 	}
@@ -51,7 +51,7 @@ func BaseMaskedVByteDecodeBatch32_avx512(src []byte, dst []uint32, n int) (decod
 }
 
 func BaseMaskedVByteDecodeBatch64_avx512(src []byte, dst []uint64, n int) (decoded int, consumed int) {
-	_maskedvbyteBaseInitHoistedConstants()
+	_maskedvbyteBaseAVX512InitHoistedConstants()
 	if len(src) == 0 || n == 0 || len(dst) == 0 {
 		return 0, 0
 	}
@@ -70,7 +70,7 @@ func BaseMaskedVByteDecodeBatch64_avx512(src []byte, dst []uint64, n int) (decod
 }
 
 func BaseMaskedVByteDecodeGroup_avx512(src []byte, dst []uint32) (decoded int, consumed int) {
-	_maskedvbyteBaseInitHoistedConstants()
+	_maskedvbyteBaseAVX512InitHoistedConstants()
 	if len(src) < 16 || len(dst) < 4 {
 		return 0, 0
 	}
@@ -98,7 +98,7 @@ func BaseMaskedVByteDecodeGroup_avx512(src []byte, dst []uint32) (decoded int, c
 }
 
 func baseMaskedVByteDecodeOne32_avx512(src []byte) (uint32, int) {
-	_maskedvbyteBaseInitHoistedConstants()
+	_maskedvbyteBaseAVX512InitHoistedConstants()
 	var x uint32
 	var s uint
 	for i, b := range src {
@@ -118,7 +118,7 @@ func baseMaskedVByteDecodeOne32_avx512(src []byte) (uint32, int) {
 }
 
 func baseMaskedVByteDecodeOne64_avx512(src []byte) (uint64, int) {
-	_maskedvbyteBaseInitHoistedConstants()
+	_maskedvbyteBaseAVX512InitHoistedConstants()
 	var x uint64
 	var s uint
 	for i, b := range src {

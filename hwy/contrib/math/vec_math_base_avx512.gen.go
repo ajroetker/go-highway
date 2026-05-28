@@ -201,11 +201,11 @@ var (
 	BaseTanhVec_AVX512_threshold_f64   archsimd.Float64x8
 	BaseTanhVec_AVX512_two_f32         archsimd.Float32x16
 	BaseTanhVec_AVX512_two_f64         archsimd.Float64x8
-	_vecMathBaseHoistOnce              sync.Once
+	_vecMathBaseAVX512HoistOnce        sync.Once
 )
 
-func _vecMathBaseInitHoistedConstants() {
-	_vecMathBaseHoistOnce.Do(func() {
+func _vecMathBaseAVX512InitHoistedConstants() {
+	_vecMathBaseAVX512HoistOnce.Do(func() {
 		BaseAcoshVec_AVX512_one_f32 = archsimd.BroadcastFloat32x16(1.0)
 		BaseAcoshVec_AVX512_one_f64 = archsimd.BroadcastFloat64x8(1.0)
 		BaseAcoshVec_AVX512_zero_f32 = archsimd.BroadcastFloat32x16(0.0)
@@ -396,7 +396,7 @@ func _vecMathBaseInitHoistedConstants() {
 }
 
 func BaseAcoshVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(1.0))))
 	zero := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.0))))
 	x2 := x.Mul(x)
@@ -410,7 +410,7 @@ func BaseAcoshVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseAcoshVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(1.0))))
 	zero := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.0))))
 	x2 := x.Mul(x)
@@ -424,7 +424,7 @@ func BaseAcoshVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512
 }
 
 func BaseAcoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseAcoshVec_AVX512_one_f32
 	zero := BaseAcoshVec_AVX512_zero_f32
 	x2 := x.Mul(x)
@@ -438,7 +438,7 @@ func BaseAcoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseAcoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseAcoshVec_AVX512_one_f64
 	zero := BaseAcoshVec_AVX512_zero_f64
 	x2 := x.Mul(x)
@@ -452,7 +452,7 @@ func BaseAcoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseAsinhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(1.0))))
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
@@ -462,7 +462,7 @@ func BaseAsinhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseAsinhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(1.0))))
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
@@ -472,7 +472,7 @@ func BaseAsinhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512
 }
 
 func BaseAsinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseAsinhVec_AVX512_one_f32
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
@@ -482,7 +482,7 @@ func BaseAsinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseAsinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseAsinhVec_AVX512_one_f64
 	x2 := x.Mul(x)
 	x2Plus1 := x2.Add(one)
@@ -492,7 +492,7 @@ func BaseAsinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseAtanhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(1.0))))
 	half := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.5))))
 	zero := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.0))))
@@ -507,7 +507,7 @@ func BaseAtanhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseAtanhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(1.0))))
 	half := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.5))))
 	zero := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.0))))
@@ -522,7 +522,7 @@ func BaseAtanhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512
 }
 
 func BaseAtanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseAtanhVec_AVX512_one_f32
 	half := BaseAtanhVec_AVX512_half_f32
 	zero := BaseAtanhVec_AVX512_zero_f32
@@ -537,7 +537,7 @@ func BaseAtanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseAtanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseAtanhVec_AVX512_one_f64
 	half := BaseAtanhVec_AVX512_half_f64
 	zero := BaseAtanhVec_AVX512_zero_f64
@@ -552,7 +552,7 @@ func BaseAtanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseCosVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := asm.BroadcastFloat16x16AVX512(uint16(trig2OverPi_f16))
 	piOver2Hi := asm.BroadcastFloat16x16AVX512(uint16(trigPiOver2Hi_f16))
 	piOver2Lo := asm.BroadcastFloat16x16AVX512(uint16(trigPiOver2Lo_f16))
@@ -633,7 +633,7 @@ func BaseCosVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseCosVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := asm.BroadcastBFloat16x16AVX512(uint16(trig2OverPi_bf16))
 	piOver2Hi := asm.BroadcastBFloat16x16AVX512(uint16(trigPiOver2Hi_bf16))
 	piOver2Lo := asm.BroadcastBFloat16x16AVX512(uint16(trigPiOver2Lo_bf16))
@@ -714,7 +714,7 @@ func BaseCosVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 }
 
 func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := BaseCosVec_AVX512_twoOverPi_f32
 	piOver2Hi := BaseCosVec_AVX512_piOver2Hi_f32
 	piOver2Lo := BaseCosVec_AVX512_piOver2Lo_f32
@@ -795,7 +795,7 @@ func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := BaseCosVec_AVX512_twoOverPi_f64
 	piOver2Hi := BaseCosVec_AVX512_piOver2Hi_f64
 	piOver2Lo := BaseCosVec_AVX512_piOver2Lo_f64
@@ -876,7 +876,7 @@ func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseCoshVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(1.0))))
 	c2 := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.5))))
 	c4 := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.041666666666666664))))
@@ -888,7 +888,7 @@ func BaseCoshVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseCoshVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(1.0))))
 	c2 := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.5))))
 	c4 := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.041666666666666664))))
@@ -900,7 +900,7 @@ func BaseCoshVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 
 }
 
 func BaseCoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseCoshVec_AVX512_one_f32
 	c2 := BaseCoshVec_AVX512_c2_f32
 	c4 := BaseCoshVec_AVX512_c4_f32
@@ -912,7 +912,7 @@ func BaseCoshVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseCoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseCoshVec_AVX512_one_f64
 	c2 := BaseCoshVec_AVX512_c2_f64
 	c4 := BaseCoshVec_AVX512_c4_f64
@@ -924,7 +924,7 @@ func BaseCoshVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseErfVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	a1 := asm.BroadcastFloat16x16AVX512(uint16(erfA1_f16))
 	a2 := asm.BroadcastFloat16x16AVX512(uint16(erfA2_f16))
 	a3 := asm.BroadcastFloat16x16AVX512(uint16(erfA3_f16))
@@ -952,7 +952,7 @@ func BaseErfVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseErfVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	a1 := asm.BroadcastBFloat16x16AVX512(uint16(erfA1_bf16))
 	a2 := asm.BroadcastBFloat16x16AVX512(uint16(erfA2_bf16))
 	a3 := asm.BroadcastBFloat16x16AVX512(uint16(erfA3_bf16))
@@ -980,7 +980,7 @@ func BaseErfVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 }
 
 func BaseErfVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	a1 := BaseErfVec_AVX512_a1_f32
 	a2 := BaseErfVec_AVX512_a2_f32
 	a3 := BaseErfVec_AVX512_a3_f32
@@ -1008,7 +1008,7 @@ func BaseErfVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseErfVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	a1 := BaseErfVec_AVX512_a1_f64
 	a2 := BaseErfVec_AVX512_a2_f64
 	a3 := BaseErfVec_AVX512_a3_f64
@@ -1036,35 +1036,35 @@ func BaseErfVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseExp2Vec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	ln2 := asm.BroadcastFloat16x16AVX512(uint16(ln2_f16))
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_avx512_Float16(xLn2)
 }
 
 func BaseExp2Vec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	ln2 := asm.BroadcastBFloat16x16AVX512(uint16(ln2_bf16))
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_avx512_BFloat16(xLn2)
 }
 
 func BaseExp2Vec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	ln2 := BaseExp2Vec_AVX512_ln2_f32
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_avx512(xLn2)
 }
 
 func BaseExp2Vec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	ln2 := BaseExp2Vec_AVX512_ln2_f64
 	xLn2 := x.Mul(ln2)
 	return BaseExpVec_avx512_Float64(xLn2)
 }
 
 func BaseExpVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	overflow := asm.BroadcastFloat16x16AVX512(uint16(expOverflow_f16))
 	underflow := asm.BroadcastFloat16x16AVX512(uint16(expUnderflow_f16))
 	one := asm.BroadcastFloat16x16AVX512(uint16(expOne_f16))
@@ -1099,7 +1099,7 @@ func BaseExpVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseExpVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	overflow := asm.BroadcastBFloat16x16AVX512(uint16(expOverflow_bf16))
 	underflow := asm.BroadcastBFloat16x16AVX512(uint16(expUnderflow_bf16))
 	one := asm.BroadcastBFloat16x16AVX512(uint16(expOne_bf16))
@@ -1134,7 +1134,7 @@ func BaseExpVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 }
 
 func BaseExpVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	overflow := BaseExpVec_AVX512_overflow_f32
 	underflow := BaseExpVec_AVX512_underflow_f32
 	one := BaseExpVec_AVX512_one_f32
@@ -1169,7 +1169,7 @@ func BaseExpVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseExpVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	overflow := BaseExpVec_AVX512_overflow_f64
 	underflow := BaseExpVec_AVX512_underflow_f64
 	one := BaseExpVec_AVX512_one_f64
@@ -1204,63 +1204,63 @@ func BaseExpVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseLog10Vec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log10E := asm.BroadcastFloat16x16AVX512(uint16(log10E_f16))
 	lnX := BaseLogVec_avx512_Float16(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseLog10Vec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log10E := asm.BroadcastBFloat16x16AVX512(uint16(log10E_bf16))
 	lnX := BaseLogVec_avx512_BFloat16(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseLog10Vec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log10E := BaseLog10Vec_AVX512_log10E_f32
 	lnX := BaseLogVec_avx512(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseLog10Vec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log10E := BaseLog10Vec_AVX512_log10E_f64
 	lnX := BaseLogVec_avx512_Float64(x)
 	return lnX.Mul(log10E)
 }
 
 func BaseLog2Vec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log2E := asm.BroadcastFloat16x16AVX512(uint16(log2E_f16))
 	lnX := BaseLogVec_avx512_Float16(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLog2Vec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log2E := asm.BroadcastBFloat16x16AVX512(uint16(log2E_bf16))
 	lnX := BaseLogVec_avx512_BFloat16(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLog2Vec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log2E := BaseLog2Vec_AVX512_log2E_f32
 	lnX := BaseLogVec_avx512(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLog2Vec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	log2E := BaseLog2Vec_AVX512_log2E_f64
 	lnX := BaseLogVec_avx512_Float64(x)
 	return lnX.Mul(log2E)
 }
 
 func BaseLogVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(logOne_f16))
 	two := asm.BroadcastFloat16x16AVX512(uint16(logTwo_f16))
 	zero := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.0))))
@@ -1301,7 +1301,7 @@ func BaseLogVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseLogVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(logOne_bf16))
 	two := asm.BroadcastBFloat16x16AVX512(uint16(logTwo_bf16))
 	zero := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.0))))
@@ -1342,7 +1342,7 @@ func BaseLogVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 }
 
 func BaseLogVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseLogVec_AVX512_one_f32
 	two := BaseLogVec_AVX512_two_f32
 	zero := BaseLogVec_AVX512_zero_f32
@@ -1383,7 +1383,7 @@ func BaseLogVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseLogVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseLogVec_AVX512_one_f64
 	two := BaseLogVec_AVX512_two_f64
 	zero := BaseLogVec_AVX512_zero_f64
@@ -1424,7 +1424,7 @@ func BaseLogVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BasePowVec_avx512_Float16(base asm.Float16x16AVX512, exp asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(1.0))))
 	zero := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(0.0))))
 	logBase := BaseLogVec_avx512_Float16(base)
@@ -1442,7 +1442,7 @@ func BasePowVec_avx512_Float16(base asm.Float16x16AVX512, exp asm.Float16x16AVX5
 }
 
 func BasePowVec_avx512_BFloat16(base asm.BFloat16x16AVX512, exp asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(1.0))))
 	zero := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(0.0))))
 	logBase := BaseLogVec_avx512_BFloat16(base)
@@ -1460,7 +1460,7 @@ func BasePowVec_avx512_BFloat16(base asm.BFloat16x16AVX512, exp asm.BFloat16x16A
 }
 
 func BasePowVec_avx512(base archsimd.Float32x16, exp archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BasePowVec_AVX512_one_f32
 	zero := BasePowVec_AVX512_zero_f32
 	logBase := BaseLogVec_avx512(base)
@@ -1478,7 +1478,7 @@ func BasePowVec_avx512(base archsimd.Float32x16, exp archsimd.Float32x16) archsi
 }
 
 func BasePowVec_avx512_Float64(base archsimd.Float64x8, exp archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BasePowVec_AVX512_one_f64
 	zero := BasePowVec_AVX512_zero_f64
 	logBase := BaseLogVec_avx512_Float64(base)
@@ -1496,7 +1496,7 @@ func BasePowVec_avx512_Float64(base archsimd.Float64x8, exp archsimd.Float64x8) 
 }
 
 func BaseSigmoidVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(sigmoidOne_f16))
 	zero := asm.BroadcastFloat16x16AVX512(uint16(sigmoidZero_f16))
 	satHi := asm.BroadcastFloat16x16AVX512(uint16(sigmoidSatHi_f16))
@@ -1511,7 +1511,7 @@ func BaseSigmoidVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 
 }
 
 func BaseSigmoidVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(sigmoidOne_bf16))
 	zero := asm.BroadcastBFloat16x16AVX512(uint16(sigmoidZero_bf16))
 	satHi := asm.BroadcastBFloat16x16AVX512(uint16(sigmoidSatHi_bf16))
@@ -1526,7 +1526,7 @@ func BaseSigmoidVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX5
 }
 
 func BaseSigmoidVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseSigmoidVec_AVX512_one_f32
 	zero := BaseSigmoidVec_AVX512_zero_f32
 	satHi := BaseSigmoidVec_AVX512_satHi_f32
@@ -1541,7 +1541,7 @@ func BaseSigmoidVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseSigmoidVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseSigmoidVec_AVX512_one_f64
 	zero := BaseSigmoidVec_AVX512_zero_f64
 	satHi := BaseSigmoidVec_AVX512_satHi_f64
@@ -1556,7 +1556,7 @@ func BaseSigmoidVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseSinVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := asm.BroadcastFloat16x16AVX512(uint16(trig2OverPi_f16))
 	piOver2Hi := asm.BroadcastFloat16x16AVX512(uint16(trigPiOver2Hi_f16))
 	piOver2Lo := asm.BroadcastFloat16x16AVX512(uint16(trigPiOver2Lo_f16))
@@ -1637,7 +1637,7 @@ func BaseSinVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseSinVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := asm.BroadcastBFloat16x16AVX512(uint16(trig2OverPi_bf16))
 	piOver2Hi := asm.BroadcastBFloat16x16AVX512(uint16(trigPiOver2Hi_bf16))
 	piOver2Lo := asm.BroadcastBFloat16x16AVX512(uint16(trigPiOver2Lo_bf16))
@@ -1718,7 +1718,7 @@ func BaseSinVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 }
 
 func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := BaseSinVec_AVX512_twoOverPi_f32
 	piOver2Hi := BaseSinVec_AVX512_piOver2Hi_f32
 	piOver2Lo := BaseSinVec_AVX512_piOver2Lo_f32
@@ -1799,7 +1799,7 @@ func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	twoOverPi := BaseSinVec_AVX512_twoOverPi_f64
 	piOver2Hi := BaseSinVec_AVX512_piOver2Hi_f64
 	piOver2Lo := BaseSinVec_AVX512_piOver2Lo_f64
@@ -1880,7 +1880,7 @@ func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseSinhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastFloat16x16AVX512(uint16(sinhOne_f16))
 	c3 := asm.BroadcastFloat16x16AVX512(uint16(sinhC3_f16))
 	c5 := asm.BroadcastFloat16x16AVX512(uint16(sinhC5_f16))
@@ -1893,7 +1893,7 @@ func BaseSinhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseSinhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := asm.BroadcastBFloat16x16AVX512(uint16(sinhOne_bf16))
 	c3 := asm.BroadcastBFloat16x16AVX512(uint16(sinhC3_bf16))
 	c5 := asm.BroadcastBFloat16x16AVX512(uint16(sinhC5_bf16))
@@ -1906,7 +1906,7 @@ func BaseSinhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 
 }
 
 func BaseSinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseSinhVec_AVX512_one_f32
 	c3 := BaseSinhVec_AVX512_c3_f32
 	c5 := BaseSinhVec_AVX512_c5_f32
@@ -1919,7 +1919,7 @@ func BaseSinhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseSinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	one := BaseSinhVec_AVX512_one_f64
 	c3 := BaseSinhVec_AVX512_c3_f64
 	c5 := BaseSinhVec_AVX512_c5_f64
@@ -1932,7 +1932,7 @@ func BaseSinhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 }
 
 func BaseTanhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	two := asm.BroadcastFloat16x16AVX512(uint16(hwy.Float32ToFloat16(float32(2.0))))
 	one := asm.BroadcastFloat16x16AVX512(uint16(tanhOne_f16))
 	negOne := asm.BroadcastFloat16x16AVX512(uint16(tanhNegOne_f16))
@@ -1947,7 +1947,7 @@ func BaseTanhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 }
 
 func BaseTanhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	two := asm.BroadcastBFloat16x16AVX512(uint16(hwy.Float32ToBFloat16(float32(2.0))))
 	one := asm.BroadcastBFloat16x16AVX512(uint16(tanhOne_bf16))
 	negOne := asm.BroadcastBFloat16x16AVX512(uint16(tanhNegOne_bf16))
@@ -1962,7 +1962,7 @@ func BaseTanhVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 
 }
 
 func BaseTanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	two := BaseTanhVec_AVX512_two_f32
 	one := BaseTanhVec_AVX512_one_f32
 	negOne := BaseTanhVec_AVX512_negOne_f32
@@ -1977,7 +1977,7 @@ func BaseTanhVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 }
 
 func BaseTanhVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
-	_vecMathBaseInitHoistedConstants()
+	_vecMathBaseAVX512InitHoistedConstants()
 	two := BaseTanhVec_AVX512_two_f64
 	one := BaseTanhVec_AVX512_one_f64
 	negOne := BaseTanhVec_AVX512_negOne_f64

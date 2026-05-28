@@ -19,11 +19,11 @@ var (
 	BaseFusedInt8MatMulGELU_AVX512_half_f32        archsimd.Float32x16
 	BaseFusedInt8MatMulGELU_AVX512_invSqrt2_f32    archsimd.Float32x16
 	BaseFusedInt8MatMulGELU_AVX512_one_f32         archsimd.Float32x16
-	_matmulFusedInt8ActHoistOnce                   sync.Once
+	_matmulFusedInt8ActAVX512HoistOnce             sync.Once
 )
 
-func _matmulFusedInt8ActInitHoistedConstants() {
-	_matmulFusedInt8ActHoistOnce.Do(func() {
+func _matmulFusedInt8ActAVX512InitHoistedConstants() {
+	_matmulFusedInt8ActAVX512HoistOnce.Do(func() {
 		BaseFusedInt8MatMulGELUApprox_AVX512_coeff_f32 = archsimd.BroadcastFloat32x16(float32(1.702))
 		BaseFusedInt8MatMulGELU_AVX512_half_f32 = archsimd.BroadcastFloat32x16(float32(0.5))
 		BaseFusedInt8MatMulGELU_AVX512_invSqrt2_f32 = archsimd.BroadcastFloat32x16(float32(0.7071067811865476))
@@ -32,7 +32,7 @@ func _matmulFusedInt8ActInitHoistedConstants() {
 }
 
 func BaseFusedInt8MatMulGELU_avx512(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedInt8ActInitHoistedConstants()
+	_matmulFusedInt8ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -126,7 +126,7 @@ func BaseFusedInt8MatMulGELU_avx512(input []float32, weights []int8, scales []fl
 }
 
 func BaseFusedInt8MatMulGELUApprox_avx512(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedInt8ActInitHoistedConstants()
+	_matmulFusedInt8ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -218,7 +218,7 @@ func BaseFusedInt8MatMulGELUApprox_avx512(input []float32, weights []int8, scale
 }
 
 func BaseFusedInt8MatMulReLU_avx512(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedInt8ActInitHoistedConstants()
+	_matmulFusedInt8ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -307,7 +307,7 @@ func BaseFusedInt8MatMulReLU_avx512(input []float32, weights []int8, scales []fl
 }
 
 func BaseFusedInt8MatMulSiLU_avx512(input []float32, weights []int8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedInt8ActInitHoistedConstants()
+	_matmulFusedInt8ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}

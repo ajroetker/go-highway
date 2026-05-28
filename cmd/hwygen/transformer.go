@@ -917,6 +917,56 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 			case "ConvertExponentToFloat":
 				// Transform to method call: e.ConvertToFloat32() or e.ConvertToFloat64()
 				if len(call.Args) >= 1 {
+					// Signed int64->float64 conversion (Int64xN.ConvertToFloat64 ->
+					// VCVTQQ2PD) is AVX-512-only and SIGILLs on AVX2 CPUs. The exponent
+					// always fits in [-2^51, 2^51), so use the classic magic-number trick,
+					// which needs only AVX2 instructions (VPADDQ, reinterpret, VSUBPD):
+					//   reinterpret_f64(e + bits(2^52+2^51)) - (2^52+2^51)
+					if ctx.elemType == "float64" && ctx.target.IsAVX2() {
+						lanes := ctx.target.LanesFor("float64")
+						pkgName := ctx.vecPkgName
+						intType := fmt.Sprintf("Int64x%d", lanes)
+						floatType := fmt.Sprintf("Float64x%d", lanes)
+
+						// e.Add(archsimd.BroadcastInt64xN(4843621399236968448))
+						expr := &ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   call.Args[0],
+								Sel: ast.NewIdent("Add"),
+							},
+							Args: []ast.Expr{&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(pkgName),
+									Sel: ast.NewIdent("Broadcast" + intType),
+								},
+								Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "4843621399236968448"}},
+							}},
+						}
+						// .AsFloat64xN()
+						expr = &ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   expr,
+								Sel: ast.NewIdent("As" + floatType),
+							},
+						}
+						// .Sub(archsimd.BroadcastFloat64xN(6755399441055744.0))
+						expr = &ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   expr,
+								Sel: ast.NewIdent("Sub"),
+							},
+							Args: []ast.Expr{&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   ast.NewIdent(pkgName),
+									Sel: ast.NewIdent("Broadcast" + floatType),
+								},
+								Args: []ast.Expr{&ast.BasicLit{Kind: token.FLOAT, Value: "6755399441055744.0"}},
+							}},
+						}
+						*call = *expr
+						return
+					}
+
 					var methodName string
 					if ctx.elemType == "float64" {
 						methodName = "ConvertToFloat64"

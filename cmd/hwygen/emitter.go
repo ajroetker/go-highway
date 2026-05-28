@@ -868,9 +868,9 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	// Print each function
 	fset := token.NewFileSet()
 	for _, funcDecl := range funcs {
-		// For AVX-512 with hoisted constants, inject lazy init call at function start
-		if target.Name == "AVX512" && len(hoistedConsts) > 0 && funcDecl.Body != nil {
-			injectHoistedConstInit(funcDecl, baseName)
+		// For AVX targets with hoisted constants, inject lazy init call at function start
+		if (target.IsAVX2() || target.IsAVX512()) && len(hoistedConsts) > 0 && funcDecl.Body != nil {
+			injectHoistedConstInit(funcDecl, baseName, target)
 		}
 		if err := printer.Fprint(&buf, fset, funcDecl); err != nil {
 			return fmt.Errorf("print function: %w", err)
@@ -902,13 +902,18 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 // The baseName parameter is used to generate unique names for _hoistOnce and _initHoistedConstants
 // to avoid conflicts when multiple source files have hoisted constants.
 func emitHoistedConstants(buf *bytes.Buffer, consts []HoistedConst, target Target, baseName string) {
-	if target.Name == "AVX512" {
-		// Generate unique prefix from baseName (e.g., "varint_base" -> "_varintBase")
-		prefix := "_" + toCamelCase(baseName)
+	if target.IsAVX2() || target.IsAVX512() {
+		// Generate a unique prefix from baseName and target (e.g., "varint_base" +
+		// "AVX2" -> "_varintBaseAVX2"). The target must be part of the name because
+		// the AVX2 and AVX512 files share a build tag and package, so their lazy-init
+		// helpers would otherwise collide.
+		prefix := "_" + toCamelCase(baseName) + target.Name
 		onceName := prefix + "HoistOnce"
 		initName := prefix + "InitHoistedConstants"
 
-		// AVX-512: Use lazy initialization to avoid init-time crashes on non-AVX512 machines
+		// AVX targets: use lazy initialization so the broadcast instructions don't run
+		// at package-init time, which would crash before CPU-feature dispatch on
+		// machines lacking AVX2/AVX512 (package-level vars initialize before init()).
 		fmt.Fprintf(buf, "// Hoisted constants - lazily initialized on first use to avoid init-time crashes\n")
 		fmt.Fprintf(buf, "var (\n")
 		for _, c := range consts {
@@ -940,15 +945,15 @@ func emitHoistedConstants(buf *bytes.Buffer, consts []HoistedConst, target Targe
 }
 
 // injectHoistedConstInit prepends a call to the init function at the start of a function.
-// This is used for AVX-512 to ensure lazy initialization of hoisted constants.
-// The baseName parameter determines the unique init function name.
-func injectHoistedConstInit(funcDecl *ast.FuncDecl, baseName string) {
+// This is used for AVX targets to ensure lazy initialization of hoisted constants.
+// The baseName and target parameters determine the unique init function name.
+func injectHoistedConstInit(funcDecl *ast.FuncDecl, baseName string, target Target) {
 	if funcDecl.Body == nil {
 		return
 	}
 
 	// Generate the same init function name used by emitHoistedConstants
-	prefix := "_" + toCamelCase(baseName)
+	prefix := "_" + toCamelCase(baseName) + target.Name
 	initName := prefix + "InitHoistedConstants"
 
 	// Create the call expression

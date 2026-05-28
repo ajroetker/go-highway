@@ -59,6 +59,26 @@ func TestLogTransform(t *testing.T) {
 	}
 }
 
+// TestLogTransformFloat64 guards the float64 Log path against AVX2 codegen
+// emitting AVX-512-only instructions (issues #67 and #68). The float32 path uses
+// VPSRAD/VCVTDQ2PS (available on AVX2), so only float64 exercised the
+// AVX-512-only VPSRAQ/VCVTQQ2PD that previously crashed on AVX2-only CPUs.
+// The wide input range spans many exponents to stress exponent extraction.
+func TestLogTransformFloat64(t *testing.T) {
+	input := []float64{0.1, 0.5, 1.0, 2.0, math.E, 5.0, 10.0, 100.0, 0.01, 0.25, 3.0, 4.0, 6.0, 7.0, 8.0, 9.0, 1e-20, 1e20, 1234567.0}
+	output := make([]float64, len(input))
+
+	LogTransform(input, output)
+
+	for i := range input {
+		expected := math.Log(input[i])
+		relErr := math.Abs(output[i]-expected) / math.Max(math.Abs(expected), 1e-10)
+		if relErr > 1e-4 {
+			t.Errorf("LogTransform[%d] input=%v: got %v, want %v (relErr %g)", i, input[i], output[i], expected, relErr)
+		}
+	}
+}
+
 func TestSinTransform(t *testing.T) {
 	// Use values in [-2π, 2π] range
 	input := []float32{0, 0.5, 1.0, 1.57, 2.0, 3.14, 4.0, 5.0, -0.5, -1.0, -1.57, -2.0, -3.14, -4.0, 6.0, 6.28}

@@ -45,11 +45,11 @@ var (
 	BaseSoftplus_AVX512_vThreshold_f64 archsimd.Float64x8
 	BaseSoftplus_AVX512_vZero_f32      archsimd.Float32x16
 	BaseSoftplus_AVX512_vZero_f64      archsimd.Float64x8
-	_activationBaseHoistOnce           sync.Once
+	_activationBaseAVX512HoistOnce     sync.Once
 )
 
-func _activationBaseInitHoistedConstants() {
-	_activationBaseHoistOnce.Do(func() {
+func _activationBaseAVX512InitHoistedConstants() {
+	_activationBaseAVX512HoistOnce.Do(func() {
 		BaseELU_AVX512_vOne_f32 = archsimd.BroadcastFloat32x16(float32(actOne_f32))
 		BaseELU_AVX512_vOne_f64 = archsimd.BroadcastFloat64x8(float64(actOne_f64))
 		BaseELU_AVX512_vZero_f32 = archsimd.BroadcastFloat32x16(float32(actZero_f32))
@@ -82,7 +82,7 @@ func _activationBaseInitHoistedConstants() {
 }
 
 func BaseELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -128,7 +128,7 @@ func BaseELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy
 }
 
 func BaseELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -174,7 +174,7 @@ func BaseELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha 
 }
 
 func BaseELU_avx512(input []float32, output []float32, alpha float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -220,7 +220,7 @@ func BaseELU_avx512(input []float32, output []float32, alpha float32) {
 }
 
 func BaseELU_avx512_Float64(input []float64, output []float64, alpha float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -266,7 +266,7 @@ func BaseELU_avx512_Float64(input []float64, output []float64, alpha float64) {
 }
 
 func BaseGELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -308,7 +308,7 @@ func BaseGELU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseGELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -350,7 +350,7 @@ func BaseGELU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseGELU_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -392,7 +392,7 @@ func BaseGELU_avx512(input []float32, output []float32) {
 }
 
 func BaseGELU_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -434,7 +434,7 @@ func BaseGELU_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseGELUApprox_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -469,7 +469,7 @@ func BaseGELUApprox_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseGELUApprox_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -504,7 +504,7 @@ func BaseGELUApprox_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16)
 }
 
 func BaseGELUApprox_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -539,7 +539,7 @@ func BaseGELUApprox_avx512(input []float32, output []float32) {
 }
 
 func BaseGELUApprox_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -574,7 +574,7 @@ func BaseGELUApprox_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseHardSwish_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -626,7 +626,7 @@ func BaseHardSwish_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseHardSwish_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -678,7 +678,7 @@ func BaseHardSwish_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) 
 }
 
 func BaseHardSwish_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -730,7 +730,7 @@ func BaseHardSwish_avx512(input []float32, output []float32) {
 }
 
 func BaseHardSwish_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -782,7 +782,7 @@ func BaseHardSwish_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseLeakyReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -824,7 +824,7 @@ func BaseLeakyReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16, alp
 }
 
 func BaseLeakyReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -866,7 +866,7 @@ func BaseLeakyReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, 
 }
 
 func BaseLeakyReLU_avx512(input []float32, output []float32, alpha float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -908,7 +908,7 @@ func BaseLeakyReLU_avx512(input []float32, output []float32, alpha float32) {
 }
 
 func BaseLeakyReLU_avx512_Float64(input []float64, output []float64, alpha float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -950,7 +950,7 @@ func BaseLeakyReLU_avx512_Float64(input []float64, output []float64, alpha float
 }
 
 func BaseReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -984,7 +984,7 @@ func BaseReLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1018,7 +1018,7 @@ func BaseReLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseReLU_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1052,7 +1052,7 @@ func BaseReLU_avx512(input []float32, output []float32) {
 }
 
 func BaseReLU_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1086,7 +1086,7 @@ func BaseReLU_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseSiLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1117,7 +1117,7 @@ func BaseSiLU_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseSiLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1148,7 +1148,7 @@ func BaseSiLU_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseSiLU_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1179,7 +1179,7 @@ func BaseSiLU_avx512(input []float32, output []float32) {
 }
 
 func BaseSiLU_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1210,7 +1210,7 @@ func BaseSiLU_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseSoftplus_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1256,7 +1256,7 @@ func BaseSoftplus_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseSoftplus_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1302,7 +1302,7 @@ func BaseSoftplus_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseSoftplus_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1348,7 +1348,7 @@ func BaseSoftplus_avx512(input []float32, output []float32) {
 }
 
 func BaseSoftplus_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1394,7 +1394,7 @@ func BaseSoftplus_avx512_Float64(input []float64, output []float64) {
 }
 
 func BaseTanh_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1421,7 +1421,7 @@ func BaseTanh_avx512_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseTanh_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1448,7 +1448,7 @@ func BaseTanh_avx512_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseTanh_avx512(input []float32, output []float32) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1475,7 +1475,7 @@ func BaseTanh_avx512(input []float32, output []float32) {
 }
 
 func BaseTanh_avx512_Float64(input []float64, output []float64) {
-	_activationBaseInitHoistedConstants()
+	_activationBaseAVX512InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return

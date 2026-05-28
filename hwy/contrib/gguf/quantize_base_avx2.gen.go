@@ -7,18 +7,28 @@ package gguf
 import (
 	stdmath "math"
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseQuantizeQ8_0_AVX2_maxVec_f32 = archsimd.BroadcastFloat32x8(127.0)
-	BaseQuantizeQ8_0_AVX2_minVec_f32 = archsimd.BroadcastFloat32x8(-128.0)
+	BaseQuantizeQ8_0_AVX2_maxVec_f32 archsimd.Float32x8
+	BaseQuantizeQ8_0_AVX2_minVec_f32 archsimd.Float32x8
+	_quantizeBaseAVX2HoistOnce       sync.Once
 )
 
+func _quantizeBaseAVX2InitHoistedConstants() {
+	_quantizeBaseAVX2HoistOnce.Do(func() {
+		BaseQuantizeQ8_0_AVX2_maxVec_f32 = archsimd.BroadcastFloat32x8(127.0)
+		BaseQuantizeQ8_0_AVX2_minVec_f32 = archsimd.BroadcastFloat32x8(-128.0)
+	})
+}
+
 func BaseQuantizeQ8_0_avx2(input []float32, output []uint8) {
+	_quantizeBaseAVX2InitHoistedConstants()
 	if len(input) == 0 {
 		return
 	}

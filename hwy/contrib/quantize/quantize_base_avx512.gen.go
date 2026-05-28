@@ -15,17 +15,17 @@ import (
 // Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
 	BaseQuantizeFloat32_AVX512_max255Vec_f32 archsimd.Float32x16
-	_quantizeBaseHoistOnce                   sync.Once
+	_quantizeBaseAVX512HoistOnce             sync.Once
 )
 
-func _quantizeBaseInitHoistedConstants() {
-	_quantizeBaseHoistOnce.Do(func() {
+func _quantizeBaseAVX512InitHoistedConstants() {
+	_quantizeBaseAVX512HoistOnce.Do(func() {
 		BaseQuantizeFloat32_AVX512_max255Vec_f32 = archsimd.BroadcastFloat32x16(255.0)
 	})
 }
 
 func BaseDequantizeUint8_avx512(input []uint8, output []float32, min float32, scale float32) {
-	_quantizeBaseInitHoistedConstants()
+	_quantizeBaseAVX512InitHoistedConstants()
 	if len(input) == 0 {
 		return
 	}
@@ -64,7 +64,7 @@ func BaseDequantizeUint8_avx512(input []uint8, output []float32, min float32, sc
 }
 
 func BaseQuantizeFloat32_avx512(input []float32, output []uint8, min float32, scale float32) {
-	_quantizeBaseInitHoistedConstants()
+	_quantizeBaseAVX512InitHoistedConstants()
 	if len(input) == 0 {
 		return
 	}

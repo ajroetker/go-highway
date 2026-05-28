@@ -17,18 +17,18 @@ import (
 var (
 	BaseQuantizeQ8_0_AVX512_maxVec_f32 archsimd.Float32x16
 	BaseQuantizeQ8_0_AVX512_minVec_f32 archsimd.Float32x16
-	_quantizeBaseHoistOnce             sync.Once
+	_quantizeBaseAVX512HoistOnce       sync.Once
 )
 
-func _quantizeBaseInitHoistedConstants() {
-	_quantizeBaseHoistOnce.Do(func() {
+func _quantizeBaseAVX512InitHoistedConstants() {
+	_quantizeBaseAVX512HoistOnce.Do(func() {
 		BaseQuantizeQ8_0_AVX512_maxVec_f32 = archsimd.BroadcastFloat32x16(127.0)
 		BaseQuantizeQ8_0_AVX512_minVec_f32 = archsimd.BroadcastFloat32x16(-128.0)
 	})
 }
 
 func BaseQuantizeQ8_0_avx512(input []float32, output []uint8) {
-	_quantizeBaseInitHoistedConstants()
+	_quantizeBaseAVX512InitHoistedConstants()
 	if len(input) == 0 {
 		return
 	}
