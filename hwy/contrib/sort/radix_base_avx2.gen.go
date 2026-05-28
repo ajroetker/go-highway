@@ -7,6 +7,8 @@ package sort
 import (
 	"simd/archsimd"
 	"unsafe"
+
+	"github.com/ajroetker/go-highway/hwy"
 )
 
 func BaseRadixPass_avx2_Int32(src []int32, dst []int32, shift int) {
@@ -60,7 +62,7 @@ func BaseRadixPass_avx2_Int64(src []int64, dst []int64, shift int) {
 	i := 0
 	for i+lanes <= n {
 		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&src[i])))
-		shifted := v.ShiftAllRight(uint64(shift))
+		shifted := hwy.ShiftAllRight_AVX2_Int64x4(v, uint64(shift))
 		digits := shifted.And(maskVec)
 		var buf [16]int64
 		digits.StoreSlice(buf[:])
@@ -249,7 +251,7 @@ func BaseRadixPassSigned_avx2_Int64(src []int64, dst []int64, shift int) {
 	i := 0
 	for i+lanes <= n {
 		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&src[i])))
-		shifted := v.ShiftAllRight(uint64(shift))
+		shifted := hwy.ShiftAllRight_AVX2_Int64x4(v, uint64(shift))
 		digits := shifted.And(maskVec)
 		var buf [16]int64
 		digits.StoreSlice(buf[:])

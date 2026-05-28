@@ -306,8 +306,9 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		}
 	}
 
-	// For 64-bit integer types on AVX2, use wrapper functions for Max and Min.
-	// AVX2 doesn't have VPMAXSQ/VPMINUQ/VPMAXUQ/VPMINSQ instructions (only AVX-512 has them).
+	// For 64-bit integer types on AVX2, use wrapper functions for ops that only
+	// exist on AVX-512: Max/Min (VPMAXSQ/VPMINUQ/VPMAXUQ/VPMINSQ) and Mul
+	// (VPMULLQ). Emitting these directly would SIGILL on AVX2-only CPUs.
 	if is64BitIntType(ctx.elemType) && ctx.target.IsAVX2() {
 		switch funcName {
 		case "Max":
@@ -318,6 +319,11 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		case "Min":
 			if len(call.Args) >= 2 {
 				redirectToHwyWrapper(call, "Min", ctx)
+				return
+			}
+		case "Mul":
+			if len(call.Args) >= 2 {
+				redirectToHwyWrapper(call, "Mul", ctx)
 				return
 			}
 		}
@@ -886,10 +892,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		// hwy.ShiftRight(v, shift) -> v.ShiftAllRight(uint64(shift))
 		// archsimd's ShiftAllRight/ShiftAllLeft expect uint64, but hwy uses int
 		if len(call.Args) >= 2 {
-			call.Fun = &ast.SelectorExpr{
-				X:   call.Args[0],
-				Sel: ast.NewIdent(opInfo.Name),
-			}
+			vec := call.Args[0]
 			shiftArg := call.Args[1]
 			// Wrap shift in uint64() cast for archsimd targets
 			if ctx.target.VecPackage == "archsimd" {
@@ -898,7 +901,23 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 					Args: []ast.Expr{shiftArg},
 				}
 			}
-			call.Args = []ast.Expr{shiftArg}
+			// Arithmetic (signed) right shift of 64-bit lanes is VPSRAQ, which only
+			// exists on AVX-512 and SIGILLs on AVX2-only CPUs. Logical shifts
+			// (unsigned, VPSRLQ) and left shifts (VPSLLQ) are fine on AVX2, so only
+			// signed int64 right shifts are redirected to a hwy emulation wrapper.
+			if opInfo.Name == "ShiftAllRight" && ctx.elemType == "int64" && ctx.target.IsAVX2() {
+				call.Fun = &ast.SelectorExpr{
+					X:   ast.NewIdent("hwy"),
+					Sel: ast.NewIdent("ShiftAllRight_" + ctx.target.Name + "_" + ctx.vecTypeName),
+				}
+				call.Args = []ast.Expr{vec, shiftArg}
+			} else {
+				call.Fun = &ast.SelectorExpr{
+					X:   vec,
+					Sel: ast.NewIdent(opInfo.Name),
+				}
+				call.Args = []ast.Expr{shiftArg}
+			}
 		}
 
 	case "And", "Xor":

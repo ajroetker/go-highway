@@ -72,6 +72,19 @@ jobs:
       - name: Run tests (SIMD enabled)
         run: go test -v -race ./...
 
+      - name: EVEX guard (no AVX-512 ops in AVX2 functions)
+        run: |
+          out=$(go test -v -tags evexguard -run TestNoEVEXInAVX2ReachableFunctions ./internal/evexguard/ 2>&1)
+          echo "$out"
+          # Require positive confirmation that the guard actually ran and passed.
+          # A skip (missing llvm-objdump / failed cross-build) or a -run that
+          # matches nothing (tag or test-name drift -> "no tests to run") would
+          # otherwise let the step go green while scanning nothing.
+          if ! echo "$out" | grep -q -- '--- PASS: TestNoEVEXInAVX2ReachableFunctions'; then
+            echo "::error::EVEX guard did not run to a PASS (skipped, or -run/build tag matched no test); it must execute in CI"
+            exit 1
+          fi
+
       - name: Debug ARM64 CPU features
         if: runner.arch == 'ARM64'
         run: |

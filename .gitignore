@@ -9,6 +9,9 @@ examples/contrib_test/contrib_test
 go.work
 go.work.sum
 
+# Temp dirs from the EVEX guard integration test (internal/evexguard)
+evexguard-scan-*/
+
 # GOAT build artifacts
 /goat
 hwy/goat/goat
