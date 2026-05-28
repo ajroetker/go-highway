@@ -329,6 +329,47 @@ func Min_AVX2_Int64x4(a, b archsimd.Int64x4) archsimd.Int64x4 {
 	return archsimd.LoadInt64x4Slice(result[:])
 }
 
+// Mul_AVX2_Int64x4 multiplies two Int64x4 vectors element-wise (low 64 bits).
+// AVX2 has no VPMULLQ (64-bit packed multiply); only AVX-512DQ does, so we use
+// scalar multiplication to avoid a SIGILL on AVX2-only CPUs.
+func Mul_AVX2_Int64x4(a, b archsimd.Int64x4) archsimd.Int64x4 {
+	var result [4]int64
+	aLo, aHi := a.GetLo(), a.GetHi()
+	bLo, bHi := b.GetLo(), b.GetHi()
+	result[0] = aLo.GetElem(0) * bLo.GetElem(0)
+	result[1] = aLo.GetElem(1) * bLo.GetElem(1)
+	result[2] = aHi.GetElem(0) * bHi.GetElem(0)
+	result[3] = aHi.GetElem(1) * bHi.GetElem(1)
+	return archsimd.LoadInt64x4Slice(result[:])
+}
+
+// Mul_AVX2_Uint64x4 multiplies two Uint64x4 vectors element-wise (low 64 bits).
+// AVX2 has no VPMULLQ; only AVX-512DQ does, so we use scalar multiplication.
+func Mul_AVX2_Uint64x4(a, b archsimd.Uint64x4) archsimd.Uint64x4 {
+	var result [4]uint64
+	aLo, aHi := a.GetLo(), a.GetHi()
+	bLo, bHi := b.GetLo(), b.GetHi()
+	result[0] = aLo.GetElem(0) * bLo.GetElem(0)
+	result[1] = aLo.GetElem(1) * bLo.GetElem(1)
+	result[2] = aHi.GetElem(0) * bHi.GetElem(0)
+	result[3] = aHi.GetElem(1) * bHi.GetElem(1)
+	return archsimd.LoadUint64x4Slice(result[:])
+}
+
+// ShiftAllRight_AVX2_Int64x4 performs an arithmetic (sign-extending) right shift
+// on each lane by n bits. AVX2 has no VPSRAQ (signed 64-bit shift); only AVX-512
+// does, so we use scalar shifts (Go's >> on a signed value is arithmetic) to
+// avoid a SIGILL on AVX2-only CPUs.
+func ShiftAllRight_AVX2_Int64x4(v archsimd.Int64x4, n uint64) archsimd.Int64x4 {
+	var result [4]int64
+	lo, hi := v.GetLo(), v.GetHi()
+	result[0] = lo.GetElem(0) >> n
+	result[1] = lo.GetElem(1) >> n
+	result[2] = hi.GetElem(0) >> n
+	result[3] = hi.GetElem(1) >> n
+	return archsimd.LoadInt64x4Slice(result[:])
+}
+
 // GetLane_AVX2_Uint32x8 extracts the element at the given lane index.
 func GetLane_AVX2_Uint32x8(v archsimd.Uint32x8, lane int) uint32 {
 	if lane < 4 {

@@ -422,7 +422,7 @@ func BaseLiftPredict53_avx2_Int64(target []int64, tLen int, neighbor []int64, nL
 			n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i-1])))
 			n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i])))
 		}
-		update := n1.Add(n2).ShiftAllRight(uint64(1))
+		update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
 		t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i])))
 		t.Add(update).Store((*[4]int64)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Int64x4
@@ -433,7 +433,7 @@ func BaseLiftPredict53_avx2_Int64(target []int64, tLen int, neighbor []int64, nL
 			n11 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i-1+4])))
 			n21 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
 		}
-		update1 := n11.Add(n21).ShiftAllRight(uint64(1))
+		update1 := hwy.ShiftAllRight_AVX2_Int64x4(n11.Add(n21), uint64(1))
 		t1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i+4])))
 		t1.Add(update1).Store((*[4]int64)(unsafe.Pointer(&target[i+4])))
 	}
@@ -1016,7 +1016,7 @@ func BaseLiftUpdate53_avx2_Int64(target []int64, tLen int, neighbor []int64, nLe
 			n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+1])))
 		}
 		sum := n1.Add(n2).Add(twoVec)
-		update := sum.ShiftAllRight(uint64(2))
+		update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
 		t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i])))
 		t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Int64x4
@@ -1028,7 +1028,7 @@ func BaseLiftUpdate53_avx2_Int64(target []int64, tLen int, neighbor []int64, nLe
 			n21 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+1+4])))
 		}
 		sum1 := n11.Add(n21).Add(twoVec)
-		update1 := sum1.ShiftAllRight(uint64(2))
+		update1 := hwy.ShiftAllRight_AVX2_Int64x4(sum1, uint64(2))
 		t1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i+4])))
 		t1.Sub(update1).Store((*[4]int64)(unsafe.Pointer(&target[i+4])))
 	}
@@ -1379,7 +1379,7 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i+1])))
 			}
 			sum := n1.Add(n2).Add(twoVec)
-			update := sum.ShiftAllRight(uint64(2))
+			update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
 			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i])))
 			t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&low[i])))
 		}
@@ -1441,7 +1441,7 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i-1])))
 				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i])))
 			}
-			update := n1.Add(n2).ShiftAllRight(uint64(1))
+			update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
 			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i])))
 			t.Add(update).Store((*[4]int64)(unsafe.Pointer(&high[i])))
 		}
@@ -1675,7 +1675,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 		if phase == 0 {
 			h0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[0])))
 			l0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
-			l0.Sub(h0.Add(h0).Add(twoVec).ShiftAllRight(uint64(2))).Store((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
+			l0.Sub(hwy.ShiftAllRight_AVX2_Int64x4(h0.Add(h0).Add(twoVec), uint64(2))).Store((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
 			start = 1
 		}
 		safeEnd := sn
@@ -1698,7 +1698,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
 			}
 			sum := n1.Add(n2).Add(twoVec)
-			update := sum.ShiftAllRight(uint64(2))
+			update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
 			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 			t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 		}
@@ -1720,7 +1720,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 			n1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
 			n2 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
 			sum := n1.Add(n2).Add(twoVec)
-			update := sum.ShiftAllRight(uint64(2))
+			update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
 			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 			t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 		}
@@ -1731,7 +1731,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 		if phase == 1 {
 			l0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
 			h0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[0])))
-			h0.Add(l0.Add(l0).ShiftAllRight(uint64(1))).Store((*[4]int64)(unsafe.Pointer(&highBuf[0])))
+			h0.Add(hwy.ShiftAllRight_AVX2_Int64x4(l0.Add(l0), uint64(1))).Store((*[4]int64)(unsafe.Pointer(&highBuf[0])))
 			start = 1
 		}
 		safeEnd := dn
@@ -1753,7 +1753,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
 				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 			}
-			update := n1.Add(n2).ShiftAllRight(uint64(1))
+			update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
 			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 			t.Add(update).Store((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 		}
@@ -1777,7 +1777,7 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 			}
 			n1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
 			n2 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
-			update := n1.Add(n2).ShiftAllRight(uint64(1))
+			update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
 			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 			t.Add(update).Store((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 		}

@@ -325,6 +325,22 @@ func detectContribPackagesForTarget(funcs []ParsedFunc, target Target) ContribPa
 				if call.Package == "hwy" {
 					pkgs.HwyCore = true
 				}
+				// On AVX2, 64-bit integer Max/Min/Mul (VPMAXSQ/VPMINSQ/VPMULLQ) and
+				// signed 64-bit arithmetic right shift (VPSRAQ) are AVX-512-only, so
+				// hwygen redirects them to hwy AVX2 emulation wrappers. Ensure the hwy
+				// import is present; goimports prunes it if the concrete specialization
+				// doesn't actually emit a wrapper.
+				if target.IsAVX2() {
+					switch call.FuncName {
+					case "Max", "Min", "Mul", "ShiftRight", "ShiftAllRight":
+						for _, combo := range getTypeCombinations(&pf) {
+							if ct := comboPrimaryType(combo, pf.TypeParams); ct == "int64" || ct == "uint64" {
+								pkgs.HwyPkg = true
+								break
+							}
+						}
+					}
+				}
 			} else if call.Package == "algo" && strings.HasPrefix(call.FuncName, "Base") {
 				// This is a contrib algo function reference (like algo.BaseApply)
 				pkgs.Algo = true
