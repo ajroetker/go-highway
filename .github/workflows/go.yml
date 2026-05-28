@@ -76,8 +76,12 @@ jobs:
         run: |
           out=$(go test -v -tags evexguard -run TestNoEVEXInAVX2ReachableFunctions ./internal/evexguard/ 2>&1)
           echo "$out"
-          if echo "$out" | grep -q -- '--- SKIP'; then
-            echo "::error::EVEX guard skipped instead of running (missing llvm-objdump or cross-build failed); it must execute in CI"
+          # Require positive confirmation that the guard actually ran and passed.
+          # A skip (missing llvm-objdump / failed cross-build) or a -run that
+          # matches nothing (tag or test-name drift -> "no tests to run") would
+          # otherwise let the step go green while scanning nothing.
+          if ! echo "$out" | grep -q -- '--- PASS: TestNoEVEXInAVX2ReachableFunctions'; then
+            echo "::error::EVEX guard did not run to a PASS (skipped, or -run/build tag matched no test); it must execute in CI"
             exit 1
           fi
 
