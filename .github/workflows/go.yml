@@ -72,6 +72,15 @@ jobs:
       - name: Run tests (SIMD enabled)
         run: go test -v -race ./...
 
+      - name: EVEX guard (no AVX-512 ops in AVX2 functions)
+        run: |
+          out=$(go test -v -run TestNoEVEXInAVX2ReachableFunctions ./internal/evexguard/ 2>&1)
+          echo "$out"
+          if echo "$out" | grep -q -- '--- SKIP'; then
+            echo "::error::EVEX guard skipped instead of running (missing llvm-objdump or cross-build failed); it must execute in CI"
+            exit 1
+          fi
+
       - name: Debug ARM64 CPU features
         if: runner.arch == 'ARM64'
         run: |
