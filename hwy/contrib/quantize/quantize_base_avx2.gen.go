@@ -6,17 +6,26 @@ package quantize
 
 import (
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseQuantizeFloat32_AVX2_max255Vec_f32 = archsimd.BroadcastFloat32x8(255.0)
+	BaseQuantizeFloat32_AVX2_max255Vec_f32 archsimd.Float32x8
+	_quantizeBaseAVX2HoistOnce             sync.Once
 )
 
+func _quantizeBaseAVX2InitHoistedConstants() {
+	_quantizeBaseAVX2HoistOnce.Do(func() {
+		BaseQuantizeFloat32_AVX2_max255Vec_f32 = archsimd.BroadcastFloat32x8(255.0)
+	})
+}
+
 func BaseDequantizeUint8_avx2(input []uint8, output []float32, min float32, scale float32) {
+	_quantizeBaseAVX2InitHoistedConstants()
 	if len(input) == 0 {
 		return
 	}
@@ -49,6 +58,7 @@ func BaseDequantizeUint8_avx2(input []uint8, output []float32, min float32, scal
 }
 
 func BaseQuantizeFloat32_avx2(input []float32, output []uint8, min float32, scale float32) {
+	_quantizeBaseAVX2InitHoistedConstants()
 	if len(input) == 0 {
 		return
 	}

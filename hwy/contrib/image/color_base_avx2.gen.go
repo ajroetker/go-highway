@@ -6,19 +6,29 @@ package image
 
 import (
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseForwardRCT_AVX2_twoVec_f32     = archsimd.BroadcastInt64x4(int64(2))
-	BaseForwardRCT_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
+	BaseForwardRCT_AVX2_twoVec_f32     archsimd.Int64x4
+	BaseForwardRCT_AVX2_twoVec_i32_f32 archsimd.Int32x8
+	_colorBaseAVX2HoistOnce            sync.Once
 )
 
+func _colorBaseAVX2InitHoistedConstants() {
+	_colorBaseAVX2HoistOnce.Do(func() {
+		BaseForwardRCT_AVX2_twoVec_f32 = archsimd.BroadcastInt64x4(int64(2))
+		BaseForwardRCT_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
+	})
+}
+
 func BaseForwardICT_avx2_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b *Image[hwy.Float16], outY *Image[hwy.Float16], outCb *Image[hwy.Float16], outCr *Image[hwy.Float16]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -84,6 +94,7 @@ func BaseForwardICT_avx2_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b
 }
 
 func BaseForwardICT_avx2_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat16], b *Image[hwy.BFloat16], outY *Image[hwy.BFloat16], outCb *Image[hwy.BFloat16], outCr *Image[hwy.BFloat16]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -149,6 +160,7 @@ func BaseForwardICT_avx2_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat16]
 }
 
 func BaseForwardICT_avx2(r *Image[float32], g *Image[float32], b *Image[float32], outY *Image[float32], outCb *Image[float32], outCr *Image[float32]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -214,6 +226,7 @@ func BaseForwardICT_avx2(r *Image[float32], g *Image[float32], b *Image[float32]
 }
 
 func BaseForwardICT_avx2_Float64(r *Image[float64], g *Image[float64], b *Image[float64], outY *Image[float64], outCb *Image[float64], outCr *Image[float64]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -279,6 +292,7 @@ func BaseForwardICT_avx2_Float64(r *Image[float64], g *Image[float64], b *Image[
 }
 
 func BaseForwardRCT_avx2_Int32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -339,6 +353,7 @@ func BaseForwardRCT_avx2_Int32(r *Image[int32], g *Image[int32], b *Image[int32]
 }
 
 func BaseForwardRCT_avx2_Int64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -399,6 +414,7 @@ func BaseForwardRCT_avx2_Int64(r *Image[int64], g *Image[int64], b *Image[int64]
 }
 
 func BaseInverseICT_avx2_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], cr *Image[hwy.Float16], outR *Image[hwy.Float16], outG *Image[hwy.Float16], outB *Image[hwy.Float16]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -459,6 +475,7 @@ func BaseInverseICT_avx2_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], 
 }
 
 func BaseInverseICT_avx2_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat16], cr *Image[hwy.BFloat16], outR *Image[hwy.BFloat16], outG *Image[hwy.BFloat16], outB *Image[hwy.BFloat16]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -519,6 +536,7 @@ func BaseInverseICT_avx2_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat16
 }
 
 func BaseInverseICT_avx2(y *Image[float32], cb *Image[float32], cr *Image[float32], outR *Image[float32], outG *Image[float32], outB *Image[float32]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -579,6 +597,7 @@ func BaseInverseICT_avx2(y *Image[float32], cb *Image[float32], cr *Image[float3
 }
 
 func BaseInverseICT_avx2_Float64(y *Image[float64], cb *Image[float64], cr *Image[float64], outR *Image[float64], outG *Image[float64], outB *Image[float64]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -639,6 +658,7 @@ func BaseInverseICT_avx2_Float64(y *Image[float64], cb *Image[float64], cr *Imag
 }
 
 func BaseInverseRCT_avx2_Int32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -698,6 +718,7 @@ func BaseInverseRCT_avx2_Int32(y *Image[int32], cb *Image[int32], cr *Image[int3
 }
 
 func BaseInverseRCT_avx2_Int64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
+	_colorBaseAVX2InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}

@@ -6,23 +6,37 @@ package wavelet
 
 import (
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
 	"github.com/ajroetker/go-highway/hwy/asm"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseLiftUpdate53_AVX2_twoVec_f32             = archsimd.BroadcastInt64x4(int64(2))
-	BaseLiftUpdate53_AVX2_twoVec_i32_f32         = archsimd.BroadcastInt32x8(int32(2))
-	BaseSynthesize53CoreCols_AVX2_twoVec_f32     = archsimd.BroadcastInt64x4(int64(2))
-	BaseSynthesize53CoreCols_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
-	BaseSynthesize53Core_AVX2_twoVec_f32         = archsimd.BroadcastInt64x4(int64(2))
-	BaseSynthesize53Core_AVX2_twoVec_i32_f32     = archsimd.BroadcastInt32x8(int32(2))
+	BaseLiftUpdate53_AVX2_twoVec_f32             archsimd.Int64x4
+	BaseLiftUpdate53_AVX2_twoVec_i32_f32         archsimd.Int32x8
+	BaseSynthesize53CoreCols_AVX2_twoVec_f32     archsimd.Int64x4
+	BaseSynthesize53CoreCols_AVX2_twoVec_i32_f32 archsimd.Int32x8
+	BaseSynthesize53Core_AVX2_twoVec_f32         archsimd.Int64x4
+	BaseSynthesize53Core_AVX2_twoVec_i32_f32     archsimd.Int32x8
+	_liftingBaseAVX2HoistOnce                    sync.Once
 )
 
+func _liftingBaseAVX2InitHoistedConstants() {
+	_liftingBaseAVX2HoistOnce.Do(func() {
+		BaseLiftUpdate53_AVX2_twoVec_f32 = archsimd.BroadcastInt64x4(int64(2))
+		BaseLiftUpdate53_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
+		BaseSynthesize53CoreCols_AVX2_twoVec_f32 = archsimd.BroadcastInt64x4(int64(2))
+		BaseSynthesize53CoreCols_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
+		BaseSynthesize53Core_AVX2_twoVec_f32 = archsimd.BroadcastInt64x4(int64(2))
+		BaseSynthesize53Core_AVX2_twoVec_i32_f32 = archsimd.BroadcastInt32x8(int32(2))
+	})
+}
+
 func BaseDeinterleave_avx2(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -41,6 +55,7 @@ func BaseDeinterleave_avx2(src []float32, low []float32, sn int, high []float32,
 }
 
 func BaseDeinterleave_avx2_Float64(src []float64, low []float64, sn int, high []float64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -59,6 +74,7 @@ func BaseDeinterleave_avx2_Float64(src []float64, low []float64, sn int, high []
 }
 
 func BaseDeinterleave_avx2_Int32(src []int32, low []int32, sn int, high []int32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -77,6 +93,7 @@ func BaseDeinterleave_avx2_Int32(src []int32, low []int32, sn int, high []int32,
 }
 
 func BaseDeinterleave_avx2_Int64(src []int64, low []int64, sn int, high []int64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -95,6 +112,7 @@ func BaseDeinterleave_avx2_Int64(src []int64, low []int64, sn int, high []int64,
 }
 
 func BaseDeinterleave_avx2_Uint32(src []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -113,6 +131,7 @@ func BaseDeinterleave_avx2_Uint32(src []uint32, low []uint32, sn int, high []uin
 }
 
 func BaseDeinterleave_avx2_Uint64(src []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -131,6 +150,7 @@ func BaseDeinterleave_avx2_Uint64(src []uint64, low []uint64, sn int, high []uin
 }
 
 func BaseInterleave_avx2(dst []float32, low []float32, sn int, high []float32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -157,6 +177,7 @@ func BaseInterleave_avx2(dst []float32, low []float32, sn int, high []float32, d
 }
 
 func BaseInterleave_avx2_Float64(dst []float64, low []float64, sn int, high []float64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -183,6 +204,7 @@ func BaseInterleave_avx2_Float64(dst []float64, low []float64, sn int, high []fl
 }
 
 func BaseInterleave_avx2_Int32(dst []int32, low []int32, sn int, high []int32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -209,6 +231,7 @@ func BaseInterleave_avx2_Int32(dst []int32, low []int32, sn int, high []int32, d
 }
 
 func BaseInterleave_avx2_Int64(dst []int64, low []int64, sn int, high []int64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -235,6 +258,7 @@ func BaseInterleave_avx2_Int64(dst []int64, low []int64, sn int, high []int64, d
 }
 
 func BaseInterleave_avx2_Uint32(dst []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -261,6 +285,7 @@ func BaseInterleave_avx2_Uint32(dst []uint32, low []uint32, sn int, high []uint3
 }
 
 func BaseInterleave_avx2_Uint64(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -287,6 +312,7 @@ func BaseInterleave_avx2_Uint64(dst []uint64, low []uint64, sn int, high []uint6
 }
 
 func BaseLiftPredict53_avx2_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -366,6 +392,7 @@ func BaseLiftPredict53_avx2_Int32(target []int32, tLen int, neighbor []int32, nL
 }
 
 func BaseLiftPredict53_avx2_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -445,6 +472,7 @@ func BaseLiftPredict53_avx2_Int64(target []int64, tLen int, neighbor []int64, nL
 }
 
 func BaseLiftStep97_avx2_Float16(target []hwy.Float16, tLen int, neighbor []hwy.Float16, nLen int, coeff hwy.Float16, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -552,6 +580,7 @@ func BaseLiftStep97_avx2_Float16(target []hwy.Float16, tLen int, neighbor []hwy.
 }
 
 func BaseLiftStep97_avx2_BFloat16(target []hwy.BFloat16, tLen int, neighbor []hwy.BFloat16, nLen int, coeff hwy.BFloat16, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -659,6 +688,7 @@ func BaseLiftStep97_avx2_BFloat16(target []hwy.BFloat16, tLen int, neighbor []hw
 }
 
 func BaseLiftStep97_avx2(target []float32, tLen int, neighbor []float32, nLen int, coeff float32, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -766,6 +796,7 @@ func BaseLiftStep97_avx2(target []float32, tLen int, neighbor []float32, nLen in
 }
 
 func BaseLiftStep97_avx2_Float64(target []float64, tLen int, neighbor []float64, nLen int, coeff float64, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -873,6 +904,7 @@ func BaseLiftStep97_avx2_Float64(target []float64, tLen int, neighbor []float64,
 }
 
 func BaseLiftUpdate53_avx2_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -952,6 +984,7 @@ func BaseLiftUpdate53_avx2_Int32(target []int32, tLen int, neighbor []int32, nLe
 }
 
 func BaseLiftUpdate53_avx2_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -1031,6 +1064,7 @@ func BaseLiftUpdate53_avx2_Int64(target []int64, tLen int, neighbor []int64, nLe
 }
 
 func BaseScaleSlice_avx2_Float16(data []hwy.Float16, n int, scale hwy.Float16) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1057,6 +1091,7 @@ func BaseScaleSlice_avx2_Float16(data []hwy.Float16, n int, scale hwy.Float16) {
 }
 
 func BaseScaleSlice_avx2_BFloat16(data []hwy.BFloat16, n int, scale hwy.BFloat16) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1083,6 +1118,7 @@ func BaseScaleSlice_avx2_BFloat16(data []hwy.BFloat16, n int, scale hwy.BFloat16
 }
 
 func BaseScaleSlice_avx2(data []float32, n int, scale float32) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1109,6 +1145,7 @@ func BaseScaleSlice_avx2(data []float32, n int, scale float32) {
 }
 
 func BaseScaleSlice_avx2_Float64(data []float64, n int, scale float64) {
+	_liftingBaseAVX2InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1135,6 +1172,7 @@ func BaseScaleSlice_avx2_Float64(data []float64, n int, scale float64) {
 }
 
 func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, high []int32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	for ci := range sn {
 		low[ci] = data[ci]
 	}
@@ -1305,6 +1343,7 @@ func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, h
 }
 
 func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, high []int64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	for ci := range sn {
 		low[ci] = data[ci]
 	}
@@ -1475,6 +1514,7 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 }
 
 func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	lanes := 8
 	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
@@ -1621,6 +1661,7 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 }
 
 func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn int, phase int) {
+	_liftingBaseAVX2InitHoistedConstants()
 	lanes := 4
 	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])

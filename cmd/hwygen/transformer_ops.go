@@ -473,21 +473,59 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 				bias = "1023"
 			}
 
-			// x.AsInt32()
-			expr := &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   cloneExpr(x),
-					Sel: ast.NewIdent(asIntMethod),
-				},
-			}
+			// Reinterpret the float bits as integer and shift right to isolate
+			// the exponent bits.
+			var expr *ast.CallExpr
+			if effectiveElem == "float64" && ctx.target.IsAVX2() {
+				// On AVX2, a signed arithmetic shift of 64-bit lanes
+				// (archsimd Int64x4.ShiftAllRight) compiles to VPSRAQ, which is
+				// AVX-512-only and SIGILLs on AVX2 CPUs. The shifted value is masked
+				// immediately below, so a logical (unsigned) shift is equivalent:
+				// reinterpret as unsigned, shift with VPSRLQ (available on AVX2), then
+				// reinterpret back to signed. NEON has a native signed 64-bit shift, and
+				// AVX-512 only runs where VPSRAQ exists, so both keep the signed path.
+				lanes := ctx.target.LanesFor(effectiveElem)
+				asUintMethod := fmt.Sprintf("AsUint64x%d", lanes)
 
-			// .ShiftAllRight(shift)
-			expr = &ast.CallExpr{
-				Fun: &ast.SelectorExpr{
-					X:   expr,
-					Sel: ast.NewIdent("ShiftAllRight"),
-				},
-				Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(shift)}},
+				// x.AsUint64xN()
+				expr = &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   cloneExpr(x),
+						Sel: ast.NewIdent(asUintMethod),
+					},
+				}
+				// .ShiftAllRight(shift)
+				expr = &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   expr,
+						Sel: ast.NewIdent("ShiftAllRight"),
+					},
+					Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(shift)}},
+				}
+				// .AsInt64xN()
+				expr = &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   expr,
+						Sel: ast.NewIdent(asIntMethod),
+					},
+				}
+			} else {
+				// Signed arithmetic shift: VPSRAD (32-bit, AVX), NEON SSHR, or VPSRAQ
+				// on AVX-512 where it is available.
+				expr = &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   cloneExpr(x),
+						Sel: ast.NewIdent(asIntMethod),
+					},
+				}
+				// .ShiftAllRight(shift)
+				expr = &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   expr,
+						Sel: ast.NewIdent("ShiftAllRight"),
+					},
+					Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(shift)}},
+				}
 			}
 
 			// .And(Broadcast(mask))

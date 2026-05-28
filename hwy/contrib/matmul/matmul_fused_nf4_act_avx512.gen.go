@@ -23,11 +23,11 @@ var (
 	BaseFusedNF4MatMulGELU_AVX512_half_f32         archsimd.Float32x16
 	BaseFusedNF4MatMulGELU_AVX512_invSqrt2_f32     archsimd.Float32x16
 	BaseFusedNF4MatMulGELU_AVX512_one_f32          archsimd.Float32x16
-	_matmulFusedNf4ActHoistOnce                    sync.Once
+	_matmulFusedNf4ActAVX512HoistOnce              sync.Once
 )
 
-func _matmulFusedNf4ActInitHoistedConstants() {
-	_matmulFusedNf4ActHoistOnce.Do(func() {
+func _matmulFusedNf4ActAVX512InitHoistedConstants() {
+	_matmulFusedNf4ActAVX512HoistOnce.Do(func() {
 		BaseFusedInt4MatMulGELUApprox_AVX512_coeff_f32 = archsimd.BroadcastFloat32x16(float32(1.702))
 		BaseFusedInt4MatMulGELU_AVX512_half_f32 = archsimd.BroadcastFloat32x16(float32(0.5))
 		BaseFusedInt4MatMulGELU_AVX512_invSqrt2_f32 = archsimd.BroadcastFloat32x16(float32(0.7071067811865476))
@@ -40,7 +40,7 @@ func _matmulFusedNf4ActInitHoistedConstants() {
 }
 
 func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -152,7 +152,7 @@ func BaseFusedInt4MatMulGELU_avx512(input []float32, packed []uint8, scales []fl
 }
 
 func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -262,7 +262,7 @@ func BaseFusedInt4MatMulGELUApprox_avx512(input []float32, packed []uint8, scale
 }
 
 func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -369,7 +369,7 @@ func BaseFusedInt4MatMulReLU_avx512(input []float32, packed []uint8, scales []fl
 }
 
 func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -477,7 +477,7 @@ func BaseFusedInt4MatMulSiLU_avx512(input []float32, packed []uint8, scales []fl
 }
 
 func BaseFusedInt4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -628,7 +628,7 @@ func BaseFusedInt4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateS
 }
 
 func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -740,7 +740,7 @@ func BaseFusedNF4MatMulGELU_avx512(input []float32, packed []uint8, scales []flo
 }
 
 func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -850,7 +850,7 @@ func BaseFusedNF4MatMulGELUApprox_avx512(input []float32, packed []uint8, scales
 }
 
 func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -957,7 +957,7 @@ func BaseFusedNF4MatMulReLU_avx512(input []float32, packed []uint8, scales []flo
 }
 
 func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -1065,7 +1065,7 @@ func BaseFusedNF4MatMulSiLU_avx512(input []float32, packed []uint8, scales []flo
 }
 
 func BaseFusedNF4MatMulSwiGLU_avx512(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int) {
-	_matmulFusedNf4ActInitHoistedConstants()
+	_matmulFusedNf4ActAVX512InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}

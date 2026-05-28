@@ -21,11 +21,11 @@ var (
 	BaseSynthesize53CoreCols_AVX512_twoVec_i32_f32 archsimd.Int32x16
 	BaseSynthesize53Core_AVX512_twoVec_f32         archsimd.Int64x8
 	BaseSynthesize53Core_AVX512_twoVec_i32_f32     archsimd.Int32x16
-	_liftingBaseHoistOnce                          sync.Once
+	_liftingBaseAVX512HoistOnce                    sync.Once
 )
 
-func _liftingBaseInitHoistedConstants() {
-	_liftingBaseHoistOnce.Do(func() {
+func _liftingBaseAVX512InitHoistedConstants() {
+	_liftingBaseAVX512HoistOnce.Do(func() {
 		BaseLiftUpdate53_AVX512_twoVec_f32 = archsimd.BroadcastInt64x8(int64(2))
 		BaseLiftUpdate53_AVX512_twoVec_i32_f32 = archsimd.BroadcastInt32x16(int32(2))
 		BaseSynthesize53CoreCols_AVX512_twoVec_f32 = archsimd.BroadcastInt64x8(int64(2))
@@ -36,7 +36,7 @@ func _liftingBaseInitHoistedConstants() {
 }
 
 func BaseDeinterleave_avx512(src []float32, low []float32, sn int, high []float32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -55,7 +55,7 @@ func BaseDeinterleave_avx512(src []float32, low []float32, sn int, high []float3
 }
 
 func BaseDeinterleave_avx512_Float64(src []float64, low []float64, sn int, high []float64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -74,7 +74,7 @@ func BaseDeinterleave_avx512_Float64(src []float64, low []float64, sn int, high 
 }
 
 func BaseDeinterleave_avx512_Int32(src []int32, low []int32, sn int, high []int32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -93,7 +93,7 @@ func BaseDeinterleave_avx512_Int32(src []int32, low []int32, sn int, high []int3
 }
 
 func BaseDeinterleave_avx512_Int64(src []int64, low []int64, sn int, high []int64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -112,7 +112,7 @@ func BaseDeinterleave_avx512_Int64(src []int64, low []int64, sn int, high []int6
 }
 
 func BaseDeinterleave_avx512_Uint32(src []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -131,7 +131,7 @@ func BaseDeinterleave_avx512_Uint32(src []uint32, low []uint32, sn int, high []u
 }
 
 func BaseDeinterleave_avx512_Uint64(src []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := range sn {
 			low[i] = src[2*i]
@@ -150,7 +150,7 @@ func BaseDeinterleave_avx512_Uint64(src []uint64, low []uint64, sn int, high []u
 }
 
 func BaseInterleave_avx512(dst []float32, low []float32, sn int, high []float32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -177,7 +177,7 @@ func BaseInterleave_avx512(dst []float32, low []float32, sn int, high []float32,
 }
 
 func BaseInterleave_avx512_Float64(dst []float64, low []float64, sn int, high []float64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -204,7 +204,7 @@ func BaseInterleave_avx512_Float64(dst []float64, low []float64, sn int, high []
 }
 
 func BaseInterleave_avx512_Int32(dst []int32, low []int32, sn int, high []int32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -231,7 +231,7 @@ func BaseInterleave_avx512_Int32(dst []int32, low []int32, sn int, high []int32,
 }
 
 func BaseInterleave_avx512_Int64(dst []int64, low []int64, sn int, high []int64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -258,7 +258,7 @@ func BaseInterleave_avx512_Int64(dst []int64, low []int64, sn int, high []int64,
 }
 
 func BaseInterleave_avx512_Uint32(dst []uint32, low []uint32, sn int, high []uint32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -285,7 +285,7 @@ func BaseInterleave_avx512_Uint32(dst []uint32, low []uint32, sn int, high []uin
 }
 
 func BaseInterleave_avx512_Uint64(dst []uint64, low []uint64, sn int, high []uint64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if phase == 0 {
 		for i := 0; i < sn && i < dn; i++ {
 			dst[2*i] = low[i]
@@ -312,7 +312,7 @@ func BaseInterleave_avx512_Uint64(dst []uint64, low []uint64, sn int, high []uin
 }
 
 func BaseLiftPredict53_avx512_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -403,7 +403,7 @@ func BaseLiftPredict53_avx512_Int32(target []int32, tLen int, neighbor []int32, 
 }
 
 func BaseLiftPredict53_avx512_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -494,7 +494,7 @@ func BaseLiftPredict53_avx512_Int64(target []int64, tLen int, neighbor []int64, 
 }
 
 func BaseLiftStep97_avx512_Float16(target []hwy.Float16, tLen int, neighbor []hwy.Float16, nLen int, coeff hwy.Float16, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -602,7 +602,7 @@ func BaseLiftStep97_avx512_Float16(target []hwy.Float16, tLen int, neighbor []hw
 }
 
 func BaseLiftStep97_avx512_BFloat16(target []hwy.BFloat16, tLen int, neighbor []hwy.BFloat16, nLen int, coeff hwy.BFloat16, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -710,7 +710,7 @@ func BaseLiftStep97_avx512_BFloat16(target []hwy.BFloat16, tLen int, neighbor []
 }
 
 func BaseLiftStep97_avx512(target []float32, tLen int, neighbor []float32, nLen int, coeff float32, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -818,7 +818,7 @@ func BaseLiftStep97_avx512(target []float32, tLen int, neighbor []float32, nLen 
 }
 
 func BaseLiftStep97_avx512_Float64(target []float64, tLen int, neighbor []float64, nLen int, coeff float64, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -926,7 +926,7 @@ func BaseLiftStep97_avx512_Float64(target []float64, tLen int, neighbor []float6
 }
 
 func BaseLiftUpdate53_avx512_Int32(target []int32, tLen int, neighbor []int32, nLen int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -1018,7 +1018,7 @@ func BaseLiftUpdate53_avx512_Int32(target []int32, tLen int, neighbor []int32, n
 }
 
 func BaseLiftUpdate53_avx512_Int64(target []int64, tLen int, neighbor []int64, nLen int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if tLen == 0 || nLen == 0 {
 		return
 	}
@@ -1110,7 +1110,7 @@ func BaseLiftUpdate53_avx512_Int64(target []int64, tLen int, neighbor []int64, n
 }
 
 func BaseScaleSlice_avx512_Float16(data []hwy.Float16, n int, scale hwy.Float16) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1137,7 +1137,7 @@ func BaseScaleSlice_avx512_Float16(data []hwy.Float16, n int, scale hwy.Float16)
 }
 
 func BaseScaleSlice_avx512_BFloat16(data []hwy.BFloat16, n int, scale hwy.BFloat16) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1164,7 +1164,7 @@ func BaseScaleSlice_avx512_BFloat16(data []hwy.BFloat16, n int, scale hwy.BFloat
 }
 
 func BaseScaleSlice_avx512(data []float32, n int, scale float32) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1191,7 +1191,7 @@ func BaseScaleSlice_avx512(data []float32, n int, scale float32) {
 }
 
 func BaseScaleSlice_avx512_Float64(data []float64, n int, scale float64) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	if n == 0 || data == nil {
 		return
 	}
@@ -1218,7 +1218,7 @@ func BaseScaleSlice_avx512_Float64(data []float64, n int, scale float64) {
 }
 
 func BaseSynthesize53Core_avx512_Int32(data []int32, n int, low []int32, sn int, high []int32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	for ci := range sn {
 		low[ci] = data[ci]
 	}
@@ -1389,7 +1389,7 @@ func BaseSynthesize53Core_avx512_Int32(data []int32, n int, low []int32, sn int,
 }
 
 func BaseSynthesize53Core_avx512_Int64(data []int64, n int, low []int64, sn int, high []int64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	for ci := range sn {
 		low[ci] = data[ci]
 	}
@@ -1560,7 +1560,7 @@ func BaseSynthesize53Core_avx512_Int64(data []int64, n int, low []int64, sn int,
 }
 
 func BaseSynthesize53CoreCols_avx512_Int32(colBuf []int32, height int, lowBuf []int32, sn int, highBuf []int32, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	lanes := 16
 	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])
@@ -1707,7 +1707,7 @@ func BaseSynthesize53CoreCols_avx512_Int32(colBuf []int32, height int, lowBuf []
 }
 
 func BaseSynthesize53CoreCols_avx512_Int64(colBuf []int64, height int, lowBuf []int64, sn int, highBuf []int64, dn int, phase int) {
-	_liftingBaseInitHoistedConstants()
+	_liftingBaseAVX512InitHoistedConstants()
 	lanes := 8
 	for y := range sn {
 		copy(lowBuf[y*lanes:y*lanes+lanes], colBuf[y*lanes:y*lanes+lanes])

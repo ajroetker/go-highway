@@ -17,18 +17,18 @@ import (
 var (
 	BaseForwardRCT_AVX512_twoVec_f32     archsimd.Int64x8
 	BaseForwardRCT_AVX512_twoVec_i32_f32 archsimd.Int32x16
-	_colorBaseHoistOnce                  sync.Once
+	_colorBaseAVX512HoistOnce            sync.Once
 )
 
-func _colorBaseInitHoistedConstants() {
-	_colorBaseHoistOnce.Do(func() {
+func _colorBaseAVX512InitHoistedConstants() {
+	_colorBaseAVX512HoistOnce.Do(func() {
 		BaseForwardRCT_AVX512_twoVec_f32 = archsimd.BroadcastInt64x8(int64(2))
 		BaseForwardRCT_AVX512_twoVec_i32_f32 = archsimd.BroadcastInt32x16(int32(2))
 	})
 }
 
 func BaseForwardICT_avx512_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16], b *Image[hwy.Float16], outY *Image[hwy.Float16], outCb *Image[hwy.Float16], outCr *Image[hwy.Float16]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -94,7 +94,7 @@ func BaseForwardICT_avx512_Float16(r *Image[hwy.Float16], g *Image[hwy.Float16],
 }
 
 func BaseForwardICT_avx512_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat16], b *Image[hwy.BFloat16], outY *Image[hwy.BFloat16], outCb *Image[hwy.BFloat16], outCr *Image[hwy.BFloat16]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -160,7 +160,7 @@ func BaseForwardICT_avx512_BFloat16(r *Image[hwy.BFloat16], g *Image[hwy.BFloat1
 }
 
 func BaseForwardICT_avx512(r *Image[float32], g *Image[float32], b *Image[float32], outY *Image[float32], outCb *Image[float32], outCr *Image[float32]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -226,7 +226,7 @@ func BaseForwardICT_avx512(r *Image[float32], g *Image[float32], b *Image[float3
 }
 
 func BaseForwardICT_avx512_Float64(r *Image[float64], g *Image[float64], b *Image[float64], outY *Image[float64], outCb *Image[float64], outCr *Image[float64]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -292,7 +292,7 @@ func BaseForwardICT_avx512_Float64(r *Image[float64], g *Image[float64], b *Imag
 }
 
 func BaseForwardRCT_avx512_Int32(r *Image[int32], g *Image[int32], b *Image[int32], outY *Image[int32], outCb *Image[int32], outCr *Image[int32]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -353,7 +353,7 @@ func BaseForwardRCT_avx512_Int32(r *Image[int32], g *Image[int32], b *Image[int3
 }
 
 func BaseForwardRCT_avx512_Int64(r *Image[int64], g *Image[int64], b *Image[int64], outY *Image[int64], outCb *Image[int64], outCr *Image[int64]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if r == nil || g == nil || b == nil || outY == nil || outCb == nil || outCr == nil {
 		return
 	}
@@ -414,7 +414,7 @@ func BaseForwardRCT_avx512_Int64(r *Image[int64], g *Image[int64], b *Image[int6
 }
 
 func BaseInverseICT_avx512_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16], cr *Image[hwy.Float16], outR *Image[hwy.Float16], outG *Image[hwy.Float16], outB *Image[hwy.Float16]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -475,7 +475,7 @@ func BaseInverseICT_avx512_Float16(y *Image[hwy.Float16], cb *Image[hwy.Float16]
 }
 
 func BaseInverseICT_avx512_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat16], cr *Image[hwy.BFloat16], outR *Image[hwy.BFloat16], outG *Image[hwy.BFloat16], outB *Image[hwy.BFloat16]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -536,7 +536,7 @@ func BaseInverseICT_avx512_BFloat16(y *Image[hwy.BFloat16], cb *Image[hwy.BFloat
 }
 
 func BaseInverseICT_avx512(y *Image[float32], cb *Image[float32], cr *Image[float32], outR *Image[float32], outG *Image[float32], outB *Image[float32]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -597,7 +597,7 @@ func BaseInverseICT_avx512(y *Image[float32], cb *Image[float32], cr *Image[floa
 }
 
 func BaseInverseICT_avx512_Float64(y *Image[float64], cb *Image[float64], cr *Image[float64], outR *Image[float64], outG *Image[float64], outB *Image[float64]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -658,7 +658,7 @@ func BaseInverseICT_avx512_Float64(y *Image[float64], cb *Image[float64], cr *Im
 }
 
 func BaseInverseRCT_avx512_Int32(y *Image[int32], cb *Image[int32], cr *Image[int32], outR *Image[int32], outG *Image[int32], outB *Image[int32]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}
@@ -718,7 +718,7 @@ func BaseInverseRCT_avx512_Int32(y *Image[int32], cb *Image[int32], cr *Image[in
 }
 
 func BaseInverseRCT_avx512_Int64(y *Image[int64], cb *Image[int64], cr *Image[int64], outR *Image[int64], outG *Image[int64], outB *Image[int64]) {
-	_colorBaseInitHoistedConstants()
+	_colorBaseAVX512InitHoistedConstants()
 	if y == nil || cb == nil || cr == nil || outR == nil || outG == nil || outB == nil {
 		return
 	}

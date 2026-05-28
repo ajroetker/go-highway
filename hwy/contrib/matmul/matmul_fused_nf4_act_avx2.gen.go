@@ -7,24 +7,40 @@ package matmul
 import (
 	stdmath "math"
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseFusedInt4MatMulGELUApprox_AVX2_coeff_f32 = archsimd.BroadcastFloat32x8(float32(1.702))
-	BaseFusedInt4MatMulGELU_AVX2_half_f32        = archsimd.BroadcastFloat32x8(float32(0.5))
-	BaseFusedInt4MatMulGELU_AVX2_invSqrt2_f32    = archsimd.BroadcastFloat32x8(float32(0.7071067811865476))
-	BaseFusedInt4MatMulGELU_AVX2_one_f32         = archsimd.BroadcastFloat32x8(float32(1.0))
-	BaseFusedNF4MatMulGELUApprox_AVX2_coeff_f32  = archsimd.BroadcastFloat32x8(float32(1.702))
-	BaseFusedNF4MatMulGELU_AVX2_half_f32         = archsimd.BroadcastFloat32x8(float32(0.5))
-	BaseFusedNF4MatMulGELU_AVX2_invSqrt2_f32     = archsimd.BroadcastFloat32x8(float32(0.7071067811865476))
-	BaseFusedNF4MatMulGELU_AVX2_one_f32          = archsimd.BroadcastFloat32x8(float32(1.0))
+	BaseFusedInt4MatMulGELUApprox_AVX2_coeff_f32 archsimd.Float32x8
+	BaseFusedInt4MatMulGELU_AVX2_half_f32        archsimd.Float32x8
+	BaseFusedInt4MatMulGELU_AVX2_invSqrt2_f32    archsimd.Float32x8
+	BaseFusedInt4MatMulGELU_AVX2_one_f32         archsimd.Float32x8
+	BaseFusedNF4MatMulGELUApprox_AVX2_coeff_f32  archsimd.Float32x8
+	BaseFusedNF4MatMulGELU_AVX2_half_f32         archsimd.Float32x8
+	BaseFusedNF4MatMulGELU_AVX2_invSqrt2_f32     archsimd.Float32x8
+	BaseFusedNF4MatMulGELU_AVX2_one_f32          archsimd.Float32x8
+	_matmulFusedNf4ActAVX2HoistOnce              sync.Once
 )
 
+func _matmulFusedNf4ActAVX2InitHoistedConstants() {
+	_matmulFusedNf4ActAVX2HoistOnce.Do(func() {
+		BaseFusedInt4MatMulGELUApprox_AVX2_coeff_f32 = archsimd.BroadcastFloat32x8(float32(1.702))
+		BaseFusedInt4MatMulGELU_AVX2_half_f32 = archsimd.BroadcastFloat32x8(float32(0.5))
+		BaseFusedInt4MatMulGELU_AVX2_invSqrt2_f32 = archsimd.BroadcastFloat32x8(float32(0.7071067811865476))
+		BaseFusedInt4MatMulGELU_AVX2_one_f32 = archsimd.BroadcastFloat32x8(float32(1.0))
+		BaseFusedNF4MatMulGELUApprox_AVX2_coeff_f32 = archsimd.BroadcastFloat32x8(float32(1.702))
+		BaseFusedNF4MatMulGELU_AVX2_half_f32 = archsimd.BroadcastFloat32x8(float32(0.5))
+		BaseFusedNF4MatMulGELU_AVX2_invSqrt2_f32 = archsimd.BroadcastFloat32x8(float32(0.7071067811865476))
+		BaseFusedNF4MatMulGELU_AVX2_one_f32 = archsimd.BroadcastFloat32x8(float32(1.0))
+	})
+}
+
 func BaseFusedInt4MatMulGELU_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -136,6 +152,7 @@ func BaseFusedInt4MatMulGELU_avx2(input []float32, packed []uint8, scales []floa
 }
 
 func BaseFusedInt4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -245,6 +262,7 @@ func BaseFusedInt4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales 
 }
 
 func BaseFusedInt4MatMulReLU_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -351,6 +369,7 @@ func BaseFusedInt4MatMulReLU_avx2(input []float32, packed []uint8, scales []floa
 }
 
 func BaseFusedInt4MatMulSiLU_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -458,6 +477,7 @@ func BaseFusedInt4MatMulSiLU_avx2(input []float32, packed []uint8, scales []floa
 }
 
 func BaseFusedInt4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -608,6 +628,7 @@ func BaseFusedInt4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateSca
 }
 
 func BaseFusedNF4MatMulGELU_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -719,6 +740,7 @@ func BaseFusedNF4MatMulGELU_avx2(input []float32, packed []uint8, scales []float
 }
 
 func BaseFusedNF4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -828,6 +850,7 @@ func BaseFusedNF4MatMulGELUApprox_avx2(input []float32, packed []uint8, scales [
 }
 
 func BaseFusedNF4MatMulReLU_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -934,6 +957,7 @@ func BaseFusedNF4MatMulReLU_avx2(input []float32, packed []uint8, scales []float
 }
 
 func BaseFusedNF4MatMulSiLU_avx2(input []float32, packed []uint8, scales []float32, bias []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}
@@ -1041,6 +1065,7 @@ func BaseFusedNF4MatMulSiLU_avx2(input []float32, packed []uint8, scales []float
 }
 
 func BaseFusedNF4MatMulSwiGLU_avx2(input []float32, gatePacked []uint8, gateScales []float32, upPacked []uint8, upScales []float32, output []float32, M int, K int, N int, groupSize int) {
+	_matmulFusedNf4ActAVX2InitHoistedConstants()
 	if M == 0 || K == 0 || N == 0 {
 		return
 	}

@@ -7,6 +7,7 @@ package activation
 import (
 	stdmath "math"
 	"simd/archsimd"
+	"sync"
 	"unsafe"
 
 	"github.com/ajroetker/go-highway/hwy"
@@ -14,39 +15,74 @@ import (
 	"github.com/ajroetker/go-highway/hwy/contrib/math"
 )
 
-// Hoisted constants - pre-broadcasted at package init time
+// Hoisted constants - lazily initialized on first use to avoid init-time crashes
 var (
-	BaseELU_AVX2_vOne_f32            = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseELU_AVX2_vOne_f64            = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseELU_AVX2_vZero_f32           = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseELU_AVX2_vZero_f64           = archsimd.BroadcastFloat64x4(float64(actZero_f64))
-	BaseGELUApprox_AVX2_vCoeff_f32   = archsimd.BroadcastFloat32x8(float32(actGeluApproxCoeff_f32))
-	BaseGELUApprox_AVX2_vCoeff_f64   = archsimd.BroadcastFloat64x4(float64(actGeluApproxCoeff_f64))
-	BaseGELU_AVX2_vHalf_f32          = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
-	BaseGELU_AVX2_vHalf_f64          = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
-	BaseGELU_AVX2_vInvSqrt2_f32      = archsimd.BroadcastFloat32x8(float32(actInvSqrt2_f32))
-	BaseGELU_AVX2_vInvSqrt2_f64      = archsimd.BroadcastFloat64x4(float64(actInvSqrt2_f64))
-	BaseGELU_AVX2_vOne_f32           = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseGELU_AVX2_vOne_f64           = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseHardSwish_AVX2_vBias_f32     = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
-	BaseHardSwish_AVX2_vBias_f64     = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
-	BaseHardSwish_AVX2_vOne_f32      = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseHardSwish_AVX2_vOne_f64      = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseHardSwish_AVX2_vScale_f32    = archsimd.BroadcastFloat32x8(float32(actHardSwishScale_f32))
-	BaseHardSwish_AVX2_vScale_f64    = archsimd.BroadcastFloat64x4(float64(actHardSwishScale_f64))
-	BaseHardSwish_AVX2_vZero_f32     = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseHardSwish_AVX2_vZero_f64     = archsimd.BroadcastFloat64x4(float64(actZero_f64))
-	BaseReLU_AVX2_vZero_f32          = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseReLU_AVX2_vZero_f64          = archsimd.BroadcastFloat64x4(float64(actZero_f64))
-	BaseSoftplus_AVX2_vOne_f32       = archsimd.BroadcastFloat32x8(float32(actOne_f32))
-	BaseSoftplus_AVX2_vOne_f64       = archsimd.BroadcastFloat64x4(float64(actOne_f64))
-	BaseSoftplus_AVX2_vThreshold_f32 = archsimd.BroadcastFloat32x8(float32(actSoftplusThreshold_f32))
-	BaseSoftplus_AVX2_vThreshold_f64 = archsimd.BroadcastFloat64x4(float64(actSoftplusThreshold_f64))
-	BaseSoftplus_AVX2_vZero_f32      = archsimd.BroadcastFloat32x8(float32(actZero_f32))
-	BaseSoftplus_AVX2_vZero_f64      = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	BaseELU_AVX2_vOne_f32            archsimd.Float32x8
+	BaseELU_AVX2_vOne_f64            archsimd.Float64x4
+	BaseELU_AVX2_vZero_f32           archsimd.Float32x8
+	BaseELU_AVX2_vZero_f64           archsimd.Float64x4
+	BaseGELUApprox_AVX2_vCoeff_f32   archsimd.Float32x8
+	BaseGELUApprox_AVX2_vCoeff_f64   archsimd.Float64x4
+	BaseGELU_AVX2_vHalf_f32          archsimd.Float32x8
+	BaseGELU_AVX2_vHalf_f64          archsimd.Float64x4
+	BaseGELU_AVX2_vInvSqrt2_f32      archsimd.Float32x8
+	BaseGELU_AVX2_vInvSqrt2_f64      archsimd.Float64x4
+	BaseGELU_AVX2_vOne_f32           archsimd.Float32x8
+	BaseGELU_AVX2_vOne_f64           archsimd.Float64x4
+	BaseHardSwish_AVX2_vBias_f32     archsimd.Float32x8
+	BaseHardSwish_AVX2_vBias_f64     archsimd.Float64x4
+	BaseHardSwish_AVX2_vOne_f32      archsimd.Float32x8
+	BaseHardSwish_AVX2_vOne_f64      archsimd.Float64x4
+	BaseHardSwish_AVX2_vScale_f32    archsimd.Float32x8
+	BaseHardSwish_AVX2_vScale_f64    archsimd.Float64x4
+	BaseHardSwish_AVX2_vZero_f32     archsimd.Float32x8
+	BaseHardSwish_AVX2_vZero_f64     archsimd.Float64x4
+	BaseReLU_AVX2_vZero_f32          archsimd.Float32x8
+	BaseReLU_AVX2_vZero_f64          archsimd.Float64x4
+	BaseSoftplus_AVX2_vOne_f32       archsimd.Float32x8
+	BaseSoftplus_AVX2_vOne_f64       archsimd.Float64x4
+	BaseSoftplus_AVX2_vThreshold_f32 archsimd.Float32x8
+	BaseSoftplus_AVX2_vThreshold_f64 archsimd.Float64x4
+	BaseSoftplus_AVX2_vZero_f32      archsimd.Float32x8
+	BaseSoftplus_AVX2_vZero_f64      archsimd.Float64x4
+	_activationBaseAVX2HoistOnce     sync.Once
 )
 
+func _activationBaseAVX2InitHoistedConstants() {
+	_activationBaseAVX2HoistOnce.Do(func() {
+		BaseELU_AVX2_vOne_f32 = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+		BaseELU_AVX2_vOne_f64 = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+		BaseELU_AVX2_vZero_f32 = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+		BaseELU_AVX2_vZero_f64 = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+		BaseGELUApprox_AVX2_vCoeff_f32 = archsimd.BroadcastFloat32x8(float32(actGeluApproxCoeff_f32))
+		BaseGELUApprox_AVX2_vCoeff_f64 = archsimd.BroadcastFloat64x4(float64(actGeluApproxCoeff_f64))
+		BaseGELU_AVX2_vHalf_f32 = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
+		BaseGELU_AVX2_vHalf_f64 = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
+		BaseGELU_AVX2_vInvSqrt2_f32 = archsimd.BroadcastFloat32x8(float32(actInvSqrt2_f32))
+		BaseGELU_AVX2_vInvSqrt2_f64 = archsimd.BroadcastFloat64x4(float64(actInvSqrt2_f64))
+		BaseGELU_AVX2_vOne_f32 = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+		BaseGELU_AVX2_vOne_f64 = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+		BaseHardSwish_AVX2_vBias_f32 = archsimd.BroadcastFloat32x8(float32(actHalf_f32))
+		BaseHardSwish_AVX2_vBias_f64 = archsimd.BroadcastFloat64x4(float64(actHalf_f64))
+		BaseHardSwish_AVX2_vOne_f32 = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+		BaseHardSwish_AVX2_vOne_f64 = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+		BaseHardSwish_AVX2_vScale_f32 = archsimd.BroadcastFloat32x8(float32(actHardSwishScale_f32))
+		BaseHardSwish_AVX2_vScale_f64 = archsimd.BroadcastFloat64x4(float64(actHardSwishScale_f64))
+		BaseHardSwish_AVX2_vZero_f32 = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+		BaseHardSwish_AVX2_vZero_f64 = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+		BaseReLU_AVX2_vZero_f32 = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+		BaseReLU_AVX2_vZero_f64 = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+		BaseSoftplus_AVX2_vOne_f32 = archsimd.BroadcastFloat32x8(float32(actOne_f32))
+		BaseSoftplus_AVX2_vOne_f64 = archsimd.BroadcastFloat64x4(float64(actOne_f64))
+		BaseSoftplus_AVX2_vThreshold_f32 = archsimd.BroadcastFloat32x8(float32(actSoftplusThreshold_f32))
+		BaseSoftplus_AVX2_vThreshold_f64 = archsimd.BroadcastFloat64x4(float64(actSoftplusThreshold_f64))
+		BaseSoftplus_AVX2_vZero_f32 = archsimd.BroadcastFloat32x8(float32(actZero_f32))
+		BaseSoftplus_AVX2_vZero_f64 = archsimd.BroadcastFloat64x4(float64(actZero_f64))
+	})
+}
+
 func BaseELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -92,6 +128,7 @@ func BaseELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.F
 }
 
 func BaseELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -137,6 +174,7 @@ func BaseELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hw
 }
 
 func BaseELU_avx2(input []float32, output []float32, alpha float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -182,6 +220,7 @@ func BaseELU_avx2(input []float32, output []float32, alpha float32) {
 }
 
 func BaseELU_avx2_Float64(input []float64, output []float64, alpha float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -227,6 +266,7 @@ func BaseELU_avx2_Float64(input []float64, output []float64, alpha float64) {
 }
 
 func BaseGELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -268,6 +308,7 @@ func BaseGELU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseGELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -309,6 +350,7 @@ func BaseGELU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseGELU_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -350,6 +392,7 @@ func BaseGELU_avx2(input []float32, output []float32) {
 }
 
 func BaseGELU_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -391,6 +434,7 @@ func BaseGELU_avx2_Float64(input []float64, output []float64) {
 }
 
 func BaseGELUApprox_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -425,6 +469,7 @@ func BaseGELUApprox_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseGELUApprox_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -459,6 +504,7 @@ func BaseGELUApprox_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseGELUApprox_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -493,6 +539,7 @@ func BaseGELUApprox_avx2(input []float32, output []float32) {
 }
 
 func BaseGELUApprox_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -527,6 +574,7 @@ func BaseGELUApprox_avx2_Float64(input []float64, output []float64) {
 }
 
 func BaseHardSwish_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -572,6 +620,7 @@ func BaseHardSwish_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseHardSwish_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -617,6 +666,7 @@ func BaseHardSwish_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseHardSwish_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -662,6 +712,7 @@ func BaseHardSwish_avx2(input []float32, output []float32) {
 }
 
 func BaseHardSwish_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -707,6 +758,7 @@ func BaseHardSwish_avx2_Float64(input []float64, output []float64) {
 }
 
 func BaseLeakyReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -748,6 +800,7 @@ func BaseLeakyReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16, alpha
 }
 
 func BaseLeakyReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, alpha hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -789,6 +842,7 @@ func BaseLeakyReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16, al
 }
 
 func BaseLeakyReLU_avx2(input []float32, output []float32, alpha float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -830,6 +884,7 @@ func BaseLeakyReLU_avx2(input []float32, output []float32, alpha float32) {
 }
 
 func BaseLeakyReLU_avx2_Float64(input []float64, output []float64, alpha float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -871,6 +926,7 @@ func BaseLeakyReLU_avx2_Float64(input []float64, output []float64, alpha float64
 }
 
 func BaseReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -901,6 +957,7 @@ func BaseReLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -931,6 +988,7 @@ func BaseReLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseReLU_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -961,6 +1019,7 @@ func BaseReLU_avx2(input []float32, output []float32) {
 }
 
 func BaseReLU_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -991,6 +1050,7 @@ func BaseReLU_avx2_Float64(input []float64, output []float64) {
 }
 
 func BaseSiLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1021,6 +1081,7 @@ func BaseSiLU_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseSiLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1051,6 +1112,7 @@ func BaseSiLU_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseSiLU_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1081,6 +1143,7 @@ func BaseSiLU_avx2(input []float32, output []float32) {
 }
 
 func BaseSiLU_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1111,6 +1174,7 @@ func BaseSiLU_avx2_Float64(input []float64, output []float64) {
 }
 
 func BaseSoftplus_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1156,6 +1220,7 @@ func BaseSoftplus_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseSoftplus_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1201,6 +1266,7 @@ func BaseSoftplus_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseSoftplus_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1246,6 +1312,7 @@ func BaseSoftplus_avx2(input []float32, output []float32) {
 }
 
 func BaseSoftplus_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1291,6 +1358,7 @@ func BaseSoftplus_avx2_Float64(input []float64, output []float64) {
 }
 
 func BaseTanh_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1317,6 +1385,7 @@ func BaseTanh_avx2_Float16(input []hwy.Float16, output []hwy.Float16) {
 }
 
 func BaseTanh_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1343,6 +1412,7 @@ func BaseTanh_avx2_BFloat16(input []hwy.BFloat16, output []hwy.BFloat16) {
 }
 
 func BaseTanh_avx2(input []float32, output []float32) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
@@ -1369,6 +1439,7 @@ func BaseTanh_avx2(input []float32, output []float32) {
 }
 
 func BaseTanh_avx2_Float64(input []float64, output []float64) {
+	_activationBaseAVX2InitHoistedConstants()
 	size := min(len(input), len(output))
 	if size == 0 {
 		return
