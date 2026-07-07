@@ -1003,14 +1003,17 @@ func BaseCopy[T hwy.FloatsNative](src, dst []T) {
 		t.Error("Generated code missing unsafe import")
 	}
 
-	// Verify archsimd.LoadFloat32x8 is called (not LoadFloat32x8Slice)
-	if !strings.Contains(contentStr, "archsimd.LoadFloat32x8(") {
-		t.Error("Generated code should use archsimd.LoadFloat32x8 (pointer-based), not LoadFloat32x8Slice")
+	// Verify archsimd.LoadFloat32x8Array is called (Go 1.27 pointer-based form)
+	if !strings.Contains(contentStr, "archsimd.LoadFloat32x8Array(") {
+		t.Error("Generated code should use archsimd.LoadFloat32x8Array (pointer-based), not the slice form")
 	}
 
-	// Verify v.Store is called with the cast (not StoreSlice)
+	// Verify v.StoreArray is called with the cast (Go 1.27 pointer-based form)
+	if !strings.Contains(contentStr, "StoreArray(") {
+		t.Error("Generated code should use v.StoreArray (pointer-based)")
+	}
 	if strings.Contains(contentStr, "StoreSlice") {
-		t.Error("Generated code should use v.Store (pointer-based), not StoreSlice")
+		t.Error("Generated code should not use StoreSlice on archsimd targets (renamed to Store in Go 1.27)")
 	}
 
 	// Verify the slice-to-pointer optimization is applied:

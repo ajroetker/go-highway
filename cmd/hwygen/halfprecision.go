@@ -52,7 +52,8 @@ func avxPromotedWrapFromFloat32Func(target Target, elemType string) string {
 }
 
 func avxPromotedLoadFloat32SliceFunc(target Target) string {
-	return fmt.Sprintf("LoadFloat32x%dSlice", avxPromotedFloat32Lanes(target))
+	// Go 1.27 archsimd: slice loads dropped the Slice suffix
+	return fmt.Sprintf("LoadFloat32x%d", avxPromotedFloat32Lanes(target))
 }
 
 func avxPromotedAsFloat32Method(target Target) string {

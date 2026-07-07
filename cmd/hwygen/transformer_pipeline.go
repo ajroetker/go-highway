@@ -912,7 +912,7 @@ func postProcessSIMD(node ast.Node, ctx *transformContext) {
 					if call, ok := rhs.(*ast.CallExpr); ok {
 						if isReduceSumCall(call) {
 							// Transform to store + sum pattern
-							stmt.Rhs[i] = createReduceSumExpr(call, defaultLanes, ctx.elemType)
+							stmt.Rhs[i] = createReduceSumExpr(call, defaultLanes, ctx.elemType, ctx.target)
 						}
 					}
 				}
@@ -984,7 +984,7 @@ func isReduceSumCall(call *ast.CallExpr) bool {
 // Actually, archsimd vectors don't have a built-in ReduceSum, so we need to
 // generate inline code that stores to temp and sums.
 // Since we can't inject statements here, we'll generate a compound expression.
-func createReduceSumExpr(call *ast.CallExpr, lanes int, elemType string) ast.Expr {
+func createReduceSumExpr(call *ast.CallExpr, lanes int, elemType string, target Target) ast.Expr {
 	// Get the vector argument
 	var vecExpr ast.Expr
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
@@ -1064,12 +1064,12 @@ func createReduceSumExpr(call *ast.CallExpr, lanes int, elemType string) ast.Exp
 						},
 					},
 				},
-				// vec.StoreSlice(_simd_temp[:])
+				// vec.StoreSlice(_simd_temp[:]) (vec.Store on archsimd)
 				&ast.ExprStmt{
 					X: &ast.CallExpr{
 						Fun: &ast.SelectorExpr{
 							X:   vecExpr,
-							Sel: ast.NewIdent("StoreSlice"),
+							Sel: ast.NewIdent(target.StoreSliceMethod()),
 						},
 						Args: []ast.Expr{
 							&ast.SliceExpr{

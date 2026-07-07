@@ -406,7 +406,7 @@ func avxBaseOps(targetName string, f32Lanes, f64Lanes string) map[string]OpInfo 
 		"LoadSlice":  {Name: "LoadSlice", IsMethod: false},
 		"Load4":      {Package: "hwy", Name: "Load4", IsMethod: false},
 		"Store":      {Name: "Store", IsMethod: true},
-		"StoreSlice": {Name: "StoreSlice", IsMethod: true},
+		"StoreSlice": {Name: "Store", IsMethod: true}, // Go 1.27: StoreSlice -> Store
 		"Set":        {Name: "Broadcast", IsMethod: false},
 		"Const":      {Name: "Broadcast", IsMethod: false},
 		"Zero":       {Package: "special", Name: "Zero", IsMethod: false},
@@ -555,8 +555,8 @@ func avxBaseOps(targetName string, f32Lanes, f64Lanes string) map[string]OpInfo 
 func AVX2Target() Target {
 	ops := avxBaseOps("AVX2", "8", "4")
 
-	// AVX2: RoundToEven is a method on archsimd types
-	ops["RoundToEven"] = OpInfo{Name: "RoundToEven", IsMethod: true}
+	// AVX2: RoundToEven is a method on archsimd types (Go 1.27: renamed to Round)
+	ops["RoundToEven"] = OpInfo{Name: "Round", IsMethod: true}
 
 	return Target{
 		Name:       "AVX2",
@@ -912,6 +912,50 @@ func (t Target) Suffix() string {
 	default:
 		return ""
 	}
+}
+
+// UsesArchsimd reports whether this target's vectors come from Go's
+// simd/archsimd package (as opposed to hwy/asm or the pure-Go fallback).
+func (t Target) UsesArchsimd() bool {
+	return t.VecPackage == "archsimd"
+}
+
+// StoreSliceMethod returns the method name for storing a vector to a slice.
+// Go 1.27 archsimd renamed StoreSlice to Store; hwy/asm keeps StoreSlice.
+func (t Target) StoreSliceMethod() string {
+	if t.UsesArchsimd() {
+		return "Store"
+	}
+	return "StoreSlice"
+}
+
+// StoreArrayMethod returns the method name for storing a vector through a
+// pointer-to-array. Go 1.27 archsimd renamed this form to StoreArray;
+// hwy/asm keeps Store.
+func (t Target) StoreArrayMethod() string {
+	if t.UsesArchsimd() {
+		return "StoreArray"
+	}
+	return "Store"
+}
+
+// LoadSliceFunc returns the package function name for loading vecType from a
+// slice. Go 1.27 archsimd dropped the Slice suffix; hwy/asm keeps it.
+func (t Target) LoadSliceFunc(vecType string) string {
+	if t.UsesArchsimd() {
+		return "Load" + vecType
+	}
+	return "Load" + vecType + "Slice"
+}
+
+// LoadArrayFunc returns the package function name for loading vecType from a
+// pointer-to-array. Go 1.27 archsimd renamed this form to Load<T>Array;
+// hwy/asm keeps Load<T>.
+func (t Target) LoadArrayFunc(vecType string) string {
+	if t.UsesArchsimd() {
+		return "Load" + vecType + "Array"
+	}
+	return "Load" + vecType
 }
 
 // Arch returns the architecture for this target.

@@ -730,10 +730,15 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 						}
 					}
 					if !isPointerArg {
-						sel.Sel.Name = "StoreSlice"
-						// Cast []hwy.Float16/[]hwy.BFloat16 -> []uint16 for half-precision
-						if ctx.isHalfPrec && len(call.Args) == 1 {
-							call.Args[0] = halfPrecSliceToUint16(call.Args[0])
+						if ctx.isHalfPrec {
+							// asm half-precision types keep the StoreSlice name
+							sel.Sel.Name = "StoreSlice"
+							// Cast []hwy.Float16/[]hwy.BFloat16 -> []uint16 for half-precision
+							if len(call.Args) == 1 {
+								call.Args[0] = halfPrecSliceToUint16(call.Args[0])
+							}
+						} else {
+							sel.Sel.Name = ctx.target.StoreSliceMethod()
 						}
 					}
 				case "Data":
@@ -1105,11 +1110,11 @@ func transformDataMethod(call *ast.CallExpr, ctx *transformContext) {
 			},
 		}
 	} else {
-		// v.StoreSlice(tmp[:]) for native SIMD types
+		// v.StoreSlice(tmp[:]) for native SIMD types (v.Store on archsimd)
 		storeCall = &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   cloneExpr(vecExpr),
-				Sel: ast.NewIdent("StoreSlice"),
+				Sel: ast.NewIdent(ctx.target.StoreSliceMethod()),
 			},
 			Args: []ast.Expr{
 				&ast.SliceExpr{
@@ -1249,11 +1254,11 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 		},
 	}
 
-	// 5. vMasked.StoreSlice(tmp[:])
+	// 5. vMasked.StoreSlice(tmp[:]) (vMasked.Store on archsimd)
 	storeCall := &ast.CallExpr{
 		Fun: &ast.SelectorExpr{
 			X:   ast.NewIdent("_vMasked"),
-			Sel: ast.NewIdent("StoreSlice"),
+			Sel: ast.NewIdent(ctx.target.StoreSliceMethod()),
 		},
 		Args: []ast.Expr{
 			&ast.SliceExpr{

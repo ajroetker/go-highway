@@ -16,9 +16,9 @@ name: Go
 
 on:
   push:
-    branches: [main]
+    branches: [main, go1.27-simd]
   pull_request:
-    branches: [main]
+    branches: [main, go1.27-simd]
 
 jobs:
   test:
@@ -34,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26"
+          go-version: "1.27.0-rc.2"
 
       - name: Set GOEXPERIMENT
         run: echo "GOEXPERIMENT=simd" >> $GITHUB_ENV
@@ -48,9 +48,9 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: ${{ matrix.os }}-go-1.26-${{ hashFiles('**/go.sum') }}
+          key: ${{ matrix.os }}-go-1.27rc2-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ matrix.os }}-go-1.26-
+            ${{ matrix.os }}-go-1.27rc2-
 
       - name: Install cross-compilation tools
         run: |
@@ -71,6 +71,12 @@ jobs:
 
       - name: Run tests (SIMD enabled)
         run: go test -v -race ./...
+
+      - name: Run tests (arm64 without GOEXPERIMENT, GoAT path)
+        if: runner.arch == 'ARM64'
+        env:
+          GOEXPERIMENT: ""
+        run: go test -race ./...
 
       - name: EVEX guard (no AVX-512 ops in AVX2 functions)
         run: |

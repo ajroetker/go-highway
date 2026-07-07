@@ -844,25 +844,26 @@ func cloneStmt(stmt ast.Stmt) ast.Stmt {
 }
 
 // genPowIIFE generates an IIFE that computes element-wise Pow for AVX promoted half-precision types.
-// It generates: func() asm.Type { var _powBase, _powExp [N]float32; base.AsFloat32xN().StoreSlice(_powBase[:]); ...; return asm.TypeFromFloat32xN(archsimd.LoadFloat32xNSlice(_powBase[:])) }
+// It generates: func() asm.Type { var _powBase, _powExp [N]float32; base.AsFloat32xN().Store(_powBase[:]); ...; return asm.TypeFromFloat32xN(archsimd.LoadFloat32xN(_powBase[:])) }
+// The receivers of Store here are archsimd Float32xN vectors (Go 1.27 slice-store name).
 func genPowIIFE(asmType, wrapFunc, loadFunc, asF32Method, vecPkg, lanesStr string, baseArg, expArg ast.Expr) *ast.FuncLit {
-	// base.AsFloat32xN().StoreSlice(_powBase[:])
+	// base.AsFloat32xN().Store(_powBase[:])
 	storeBase := &ast.ExprStmt{X: &ast.CallExpr{
 		Fun: &ast.SelectorExpr{
 			X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{X: cloneExpr(baseArg), Sel: ast.NewIdent(asF32Method)},
 			},
-			Sel: ast.NewIdent("StoreSlice"),
+			Sel: ast.NewIdent("Store"),
 		},
 		Args: []ast.Expr{&ast.SliceExpr{X: ast.NewIdent("_powBase")}},
 	}}
-	// exp.AsFloat32xN().StoreSlice(_powExp[:])
+	// exp.AsFloat32xN().Store(_powExp[:])
 	storeExp := &ast.ExprStmt{X: &ast.CallExpr{
 		Fun: &ast.SelectorExpr{
 			X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{X: cloneExpr(expArg), Sel: ast.NewIdent(asF32Method)},
 			},
-			Sel: ast.NewIdent("StoreSlice"),
+			Sel: ast.NewIdent("Store"),
 		},
 		Args: []ast.Expr{&ast.SliceExpr{X: ast.NewIdent("_powExp")}},
 	}}

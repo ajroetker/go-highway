@@ -337,11 +337,17 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		if ctx.isHalfPrec && ctx.skipHalfPrecNEON {
 			return
 		}
-		// hwy.StoreSlice(v, dst) -> v.StoreSlice(dst)
+		// hwy.StoreSlice(v, dst) -> v.StoreSlice(dst) (v.Store(dst) on archsimd)
 		if len(call.Args) >= 2 {
+			// asm half-precision wrapper types keep the StoreSlice name even
+			// on archsimd targets (AVX promoted f16/bf16)
+			methodName := ctx.target.StoreSliceMethod()
+			if ctx.isHalfPrec {
+				methodName = "StoreSlice"
+			}
 			call.Fun = &ast.SelectorExpr{
 				X:   call.Args[0],
-				Sel: ast.NewIdent("StoreSlice"),
+				Sel: ast.NewIdent(methodName),
 			}
 			sliceArg := call.Args[1]
 			// For NEON and AVX promoted half-precision: cast []hwy.Float16/[]hwy.BFloat16 -> []uint16
@@ -372,6 +378,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		}
 
 		// hwy.StoreSlice(v, dst) -> v.Store((*[8]float32)(unsafe.Pointer(&dst[0])))
+		// (v.StoreArray(...) on Go 1.27 archsimd)
 		if len(call.Args) >= 2 {
 			lanes := ctx.target.LanesFor(ctx.elemType)
 			dst := call.Args[1]
@@ -379,7 +386,7 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 
 			call.Fun = &ast.SelectorExpr{
 				X:   call.Args[0],
-				Sel: ast.NewIdent("Store"),
+				Sel: ast.NewIdent(ctx.target.StoreArrayMethod()),
 			}
 			call.Args = []ast.Expr{cast}
 		}
@@ -1235,7 +1242,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 				loadVecTypeName = getVectorTypeNameForLanes(effectiveElemType, ctx.inferredFuncLanes)
 			}
 		}
-		fullName = fmt.Sprintf("Load%sSlice", loadVecTypeName)
+		fullName = ctx.target.LoadSliceFunc(loadVecTypeName)
 		selExpr.X = ast.NewIdent(pkgName)
 	case "Load":
 		// hwy.LoadSlice(src) -> pointer-based load for performance (no bounds check)
@@ -1274,9 +1281,9 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 
 		if ctx.target.IsAVX() || ctx.target.IsNEON() {
 			// For SIMD targets, use unsafe pointer cast to avoid bounds checks
-			// pkg.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[idx])))
+			// pkg.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[idx])))
 			lanes := ctx.target.LanesFor(effectiveElemType)
-			fullName = fmt.Sprintf("Load%s", vecTypeName)
+			fullName = ctx.target.LoadArrayFunc(vecTypeName)
 			selExpr.X = ast.NewIdent(pkgName)
 
 			// Transform argument to pointer cast
