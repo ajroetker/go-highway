@@ -826,8 +826,12 @@ func NEONSimdTarget() Target {
 		TypeMap: map[string]string{
 			"float32":      "Float32x4",
 			"float64":      "Float64x2",
+			"int8":         "Int8x16",
+			"int16":        "Int16x8",
 			"int32":        "Int32x4",
 			"int64":        "Int64x2",
+			"uint8":        "Uint8x16",
+			"uint16":       "Uint16x8",
 			"uint32":       "Uint32x4",
 			"uint64":       "Uint64x2",
 			"hwy.Float16":  "Float16x8",

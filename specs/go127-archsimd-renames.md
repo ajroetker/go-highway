@@ -70,3 +70,21 @@ FIRST, before the Slice-suffix drop, to avoid conflating the two forms.
 Generated files: fix `cmd/hwygen/targets.go` OpMaps (`avxBaseOps`,
 `AVX512Target` overrides) + any hardcoded names in `transformer_ops.go`,
 then `go generate ./...`.
+
+## Phase 3 gate decision: int8/quantized NEON kernels stay on GoAT (`neon:asm`)
+
+Measured on go1.27rc2, Apple M4 Max (2026-07): the GoAT C kernels show no
+regression under the 1.27 toolchain (geomean ~7% faster than the 1.26
+baseline; `Int8x8MatMul/64x256x512` 586µs → 498µs).
+
+An archsimd rewrite was evaluated and rejected for now because rc2's arm64
+archsimd exposes:
+- no SDOT/UDOT or i8mm bindings,
+- only low-half widening (`ExtendLo8To*`, `MulWidenLo`) — no high-half
+  variants without an extra `HiToLo()` shuffle,
+- and hwy's base-op vocabulary has no widening ops, so the base kernels
+  cannot express a competitive dequant+widen+accumulate pipeline portably.
+
+Revisit when archsimd grows dot-product bindings (track golang/go#73787).
+The NEONSimd TypeMap already carries int8/int16/uint8/uint16 entries so
+base code using those element types generates as soon as the ops exist.
