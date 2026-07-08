@@ -808,21 +808,20 @@ func NEONTarget() Target {
 	}
 }
 
-// NEONSimdTarget returns the archsimd-backed NEON variant (Go 1.27+ native
-// arm64 support in simd/archsimd). It shares Name and symbol suffix with
-// NEONTarget so the two variants define identical symbols under mutually
-// exclusive build tags; dispatch entries come from the sibling (goat) variant.
+// NEONSimdTarget returns the archsimd-backed NEON target (Go 1.27+ native
+// arm64 support in simd/archsimd). This is what plain "neon" selects; it is
+// active only under goexperiment.simd builds. Non-experiment arm64 builds
+// fall back to scalar dispatch (matching amd64). The hwy/asm-backed variant
+// remains available via the "neon:goat" selector.
 func NEONSimdTarget() Target {
 	ops := neonArchsimdOps("NEON_SIMD")
 
 	return Target{
-		Name:               "NEON",
-		BuildTag:           "arm64 && goexperiment.simd",
-		VecWidth:           16,
-		VecPackage:         "archsimd",
-		FileSuffixOverride: "_neon_simd",
-		HwyWrapperTag:      "NEON_SIMD",
-		DispatchAlias:      true,
+		Name:          "NEON",
+		BuildTag:      "arm64 && goexperiment.simd",
+		VecWidth:      16,
+		VecPackage:    "archsimd",
+		HwyWrapperTag: "NEON_SIMD",
 		TypeMap: map[string]string{
 			"float32":      "Float32x4",
 			"float64":      "Float64x2",

@@ -88,3 +88,11 @@ archsimd exposes:
 Revisit when archsimd grows dot-product bindings (track golang/go#73787).
 The NEONSimd TypeMap already carries int8/int16/uint8/uint16 entries so
 base code using those element types generates as soon as the ops exist.
+
+## Selector semantics (final)
+
+Plain `neon` = the native archsimd target only (`arm64 && goexperiment.simd`);
+non-experiment arm64 builds get scalar fallback dispatch, matching amd64.
+`neon:goat` = legacy hwy/asm-backed GoSimd on plain `arm64` (sort uses this).
+`neon:asm` = GoAT kernels, tag-independent. The earlier dual-variant
+expansion of `neon` was dropped: one selector, one implementation.

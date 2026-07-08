@@ -99,12 +99,12 @@ hwygen supports these generation modes, selected with a colon suffix on the targ
 
 | Suffix | Mode | What it generates |
 |--------|------|-------------------|
-| *(none)* | GoSimd | TWO variants: archsimd intrinsics under `arm64 && goexperiment.simd`, plus `hwy/asm`-backed Go under `arm64 && !goexperiment.simd` |
-| `:asm` | Assembly | C source → GoAT → Go assembly + wrappers |
-| `:goat` | GoSimd (legacy) | `hwy/asm`-backed Go only, plain `arm64` tag (for ops with no archsimd arm64 mapping yet, e.g. Compress) |
+| *(none)* | GoSimd | Native Go archsimd intrinsics, tag `arm64 && goexperiment.simd`; non-experiment arm64 builds dispatch to scalar fallback (same semantics as amd64) |
+| `:asm` | Assembly | C source → GoAT → Go assembly + wrappers (tag-independent, works with and without the experiment) |
+| `:goat` | GoSimd (legacy) | `hwy/asm`-backed Go on plain `arm64` (for ops with no archsimd arm64 mapping yet, e.g. Compress) |
 | `:c` | C only | C source for inspection (not compiled) |
 
-**Use plain `neon`** (GoSimd mode) when the ops map to Go 1.27's native arm64 archsimd support (arithmetic, comparisons, conversions, FMA — see `neonArchsimdOps` in cmd/hwygen/targets.go). Both variants define identical symbols under mutually exclusive build tags, so dispatch files need no changes. The archsimd variant inlines as compiler intrinsics and is ~20x faster than the per-op-call asm path on math kernels. Ops without archsimd arm64 equivalents route to `hwy.X_NEON_SIMD_*` wrappers in `hwy/ops_neon_simd.go` — a missing wrapper is a compile error flagging the package for `neon:goat`.
+**Use plain `neon`** (GoSimd mode) when the ops map to Go 1.27's native arm64 archsimd support (arithmetic, comparisons, conversions, FMA — see `neonArchsimdOps` in cmd/hwygen/targets.go). It inlines as compiler intrinsics and is ~20x faster than the per-op-call asm path on math kernels. Ops without archsimd arm64 equivalents route to `hwy.X_NEON_SIMD_*` wrappers in `hwy/ops_neon_simd.go` — a missing wrapper is a compile error flagging the package for `neon:goat`. Do not combine `neon` and `neon:goat` in one target list (their symbols collide under `goexperiment.simd`).
 
 **Use `neon:asm`** when you need bulk assembly — the entire function is compiled from C to Go assembly via GoAT, eliminating per-vector call overhead. This is best for:
 - Compute-heavy kernels (matmul, cross-entropy loss, fused quantized ops)

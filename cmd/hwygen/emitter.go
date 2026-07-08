@@ -101,6 +101,25 @@ func dispatcherBuildTag(arch string) string {
 	return arch
 }
 
+// archDispatchTag returns the build tag for an architecture's dispatch file
+// given the targets it will wire. On arm64, if every target is an
+// archsimd-backed GoSimd target (the native Go 1.27 NEON path), the
+// dispatcher itself is gated on goexperiment.simd; non-experiment builds
+// are covered by the fallback dispatcher. Packages with GoAT asm or
+// hwy/asm-backed (goat) targets keep the plain arm64 tag since those
+// implementations work regardless of the experiment.
+func archDispatchTag(arch string, archTargets []Target) string {
+	if arch != "arm64" || len(archTargets) == 0 {
+		return dispatcherBuildTag(arch)
+	}
+	for _, t := range archTargets {
+		if !(t.Mode == TargetModeGoSimd && t.UsesArchsimd()) {
+			return dispatcherBuildTag(arch)
+		}
+	}
+	return "arm64 && goexperiment.simd"
+}
+
 func negateBuildTag(buildTag string) string {
 	if buildTag == "" {
 		return ""
@@ -506,7 +525,7 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 	if hasFallback {
 		var constraints []string
 		if len(arm64Targets) > 0 {
-			constraints = append(constraints, negateBuildTag(dispatcherBuildTag("arm64")))
+			constraints = append(constraints, negateBuildTag(archDispatchTag("arm64", arm64Targets)))
 		}
 		if len(amd64Targets) > 0 {
 			constraints = append(constraints, negateBuildTag(dispatcherBuildTag("amd64")))
@@ -581,7 +600,7 @@ func emitArchDispatcher(funcs []ParsedFunc, archTargets []Target, hasFallback bo
 
 	var buf bytes.Buffer
 
-	buildTag := dispatcherBuildTag(arch)
+	buildTag := archDispatchTag(arch, archTargets)
 
 	// File header with build tag
 	fmt.Fprintf(&buf, HeaderNote)
