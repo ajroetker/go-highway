@@ -491,6 +491,13 @@ func getMaskTypeName(elemType string, target Target) string {
 
 // getVectorTypeName returns the vector type name for archsimd functions.
 func getVectorTypeName(elemType string, target Target) string {
+	// Size-agnostic targets (portable simd) name vectors without a lane
+	// count; their TypeMap is authoritative.
+	if target.VecPackage == "simd" {
+		if name, ok := target.TypeMap[elemType]; ok {
+			return name
+		}
+	}
 	lanes := target.LanesFor(elemType)
 	return getVectorTypeNameForLanes(elemType, lanes)
 }

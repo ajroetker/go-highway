@@ -459,6 +459,7 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 	arm64Targets := []Target{}
 	hasFallback := false
 
+	var portableTarget *Target
 	for _, target := range targets {
 		switch target.Arch() {
 		case "amd64":
@@ -468,6 +469,10 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 		default:
 			if target.IsFallback() {
 				hasFallback = true
+			}
+			if target.Name == "Portable" {
+				t := target
+				portableTarget = &t
 			}
 		}
 	}
@@ -489,6 +494,15 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 	// Generate universal fallback dispatch if Fallback target is present
 	// This covers architectures not handled above (e.g. 386, riscv64)
 	// AND amd64/arm64 builds where SIMD is disabled or not supported by build tags
+	// Generate the portable-simd dispatch tier: covers goexperiment.simd
+	// builds on architectures without their own SIMD dispatcher (e.g. wasm).
+	const portableDispatchTag = "goexperiment.simd && !amd64 && !arm64"
+	if portableTarget != nil {
+		if err := emitPortableDispatcher(funcs, *portableTarget, hasFallback, pkgName, outPath, prefix, portableDispatchTag, useCustomPrefix, targetComboMap); err != nil {
+			return err
+		}
+	}
+
 	if hasFallback {
 		var constraints []string
 		if len(arm64Targets) > 0 {
@@ -496,6 +510,9 @@ func EmitDispatcher(funcs []ParsedFunc, targets []Target, pkgName, outPath, disp
 		}
 		if len(amd64Targets) > 0 {
 			constraints = append(constraints, negateBuildTag(dispatcherBuildTag("amd64")))
+		}
+		if portableTarget != nil {
+			constraints = append(constraints, negateBuildTag(portableDispatchTag))
 		}
 
 		buildTag := strings.Join(constraints, " && ")
@@ -821,6 +838,95 @@ func emitFallbackOnlyDispatcher(funcs []ParsedFunc, pkgName, outPath, prefix, su
 	return nil
 }
 
+// emitPortableDispatcher generates the dispatch file for the portable simd
+// tier. Portable implementations are generated for the 128-bit minimum
+// vector width, so they are only wired when the runtime vector width is
+// exactly 128 bits; otherwise the scalar fallback is used.
+func emitPortableDispatcher(funcs []ParsedFunc, target Target, hasFallback bool, pkgName, outPath, prefix, buildTag string, useCustomPrefix bool, targetComboMap map[string]map[string]bool) error {
+	dispatchableFuncs := filterDispatchableFuncs(funcs)
+	if len(dispatchableFuncs) == 0 {
+		return nil
+	}
+
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, HeaderNote)
+	fmt.Fprintf(&buf, "//go:build %s\n", buildTag)
+	fmt.Fprintf(&buf, "\npackage %s\n\n", pkgName)
+
+	fmt.Fprintf(&buf, "import (\n")
+	fmt.Fprintf(&buf, "\t\"simd\"\n\n")
+	fmt.Fprintf(&buf, "\t\"github.com/ajroetker/go-highway/hwy\"\n")
+	fmt.Fprintf(&buf, ")\n\n")
+
+	for _, pf := range dispatchableFuncs {
+		for _, dc := range getDispatchCombos(pf) {
+			typeMap := dc.Combo.Types
+			if len(typeMap) <= 1 {
+				typeMap = nil
+			}
+			signature := buildFuncSignatureWithMap(pf, dc.ElemType, typeMap)
+			fmt.Fprintf(&buf, "var %s func%s\n", dc.DispatchName, signature)
+		}
+	}
+	fmt.Fprintf(&buf, "\n")
+
+	for _, pf := range dispatchableFuncs {
+		if len(pf.TypeParams) > 0 {
+			emitGenericDispatcher(&buf, pf)
+		}
+	}
+
+	capPrefix := cases.Title(language.English).String(prefix)
+
+	initGenFn := "init" + capPrefix + "All"
+	fmt.Fprintf(&buf, "func init() {\n\t%s()\n}\n\n", initGenFn)
+	fmt.Fprintf(&buf, "func %s() {\n", initGenFn)
+	fmt.Fprintf(&buf, "\tif hwy.NoSimdEnv() || simd.VectorBitSize() != 128 {\n")
+	fmt.Fprintf(&buf, "\t\tinit%sFallback()\n", capPrefix)
+	fmt.Fprintf(&buf, "\t\treturn\n")
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "\tinit%sFallback()\n", capPrefix)
+	fmt.Fprintf(&buf, "\tinit%sPortable()\n", capPrefix)
+	fmt.Fprintf(&buf, "}\n\n")
+
+	fmt.Fprintf(&buf, "func init%sPortable() {\n", capPrefix)
+	for _, pf := range dispatchableFuncs {
+		for _, dc := range getDispatchCombos(pf) {
+			if !comboAvailable(targetComboMap, target.Name, dc.DispatchName) {
+				continue
+			}
+			fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, dispatchImplName(pf, dc, target))
+		}
+	}
+	fmt.Fprintf(&buf, "}\n\n")
+
+	fmt.Fprintf(&buf, "func init%sFallback() {\n", capPrefix)
+	for _, pf := range dispatchableFuncs {
+		for _, dc := range getDispatchCombos(pf) {
+			if !comboAvailable(targetComboMap, "Fallback", dc.DispatchName) {
+				continue
+			}
+			fmt.Fprintf(&buf, "\t%s = %s\n", dc.DispatchName, dispatchImplName(pf, dc, FallbackTarget()))
+		}
+	}
+	fmt.Fprintf(&buf, "}\n")
+
+	filePrefix := "dispatch_"
+	if useCustomPrefix {
+		filePrefix = ""
+	}
+	filename := filepath.Join(outPath, fmt.Sprintf("%s%s_portable.gen.go", filePrefix, prefix))
+
+	formatted, err := formatAndFixImports(filename, buf.Bytes())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: formatting failed: %v\n", err)
+		formatted = buf.Bytes()
+	}
+
+	return os.WriteFile(filename, formatted, 0644)
+}
+
 // EmitTarget generates a target-specific implementation file.
 // sourceImports contains the imports from the original source file that should be preserved
 // if they're still used after transformation (e.g., "unsafe", "math/bits").
@@ -843,6 +949,8 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 				imports = appendUniqueImport(imports, `"simd/archsimd"`)
 			case "asm":
 				imports = appendUniqueImport(imports, `"github.com/ajroetker/go-highway/hwy/asm"`)
+			case "simd":
+				imports = appendUniqueImport(imports, `"simd"`)
 			}
 		}
 		if contribPkgs.AsmPkg && target.VecPackage == "archsimd" {

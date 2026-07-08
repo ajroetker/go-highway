@@ -841,6 +841,104 @@ func NEONSimdTarget() Target {
 	}
 }
 
+// PortableTarget returns the target configuration for Go 1.27's portable
+// `simd` package (size-agnostic vectors, available on every GOARCH under
+// GOEXPERIMENT=simd). Code is generated assuming the 128-bit minimum vector
+// width; dispatchers must guard with simd.VectorBitSize() == 128 before
+// wiring these implementations (true on wasm and all emulated targets).
+func PortableTarget() Target {
+	ops := map[string]OpInfo{
+		// Load/Store (slice-based; the portable package has no
+		// pointer-to-array forms)
+		"Load":       {Name: "Load", IsMethod: false},
+		"LoadSlice":  {Name: "LoadSlice", IsMethod: false},
+		"Store":      {Name: "Store", IsMethod: true},
+		"StoreSlice": {Name: "Store", IsMethod: true},
+		"Set":        {Name: "Broadcast", IsMethod: false},
+		"Const":      {Name: "Broadcast", IsMethod: false},
+		"Zero":       {Package: "special", Name: "Zero", IsMethod: false},
+
+		// Arithmetic
+		"Add": {Name: "Add", IsMethod: true},
+		"Sub": {Name: "Sub", IsMethod: true},
+		"Mul": {Name: "Mul", IsMethod: true},
+		"Div": {Name: "Div", IsMethod: true},
+		"Neg": {Name: "Neg", IsMethod: true},
+		"Abs": {Name: "Abs", IsMethod: true},
+		"Min": {Name: "Min", IsMethod: true},
+		"Max": {Name: "Max", IsMethod: true},
+
+		// Logical (integer vectors only in the portable package)
+		"And":    {Name: "And", IsMethod: true},
+		"Or":     {Name: "Or", IsMethod: true},
+		"Xor":    {Name: "Xor", IsMethod: true},
+		"AndNot": {Name: "AndNot", IsMethod: true},
+		"Not":    {Name: "Not", IsMethod: true},
+
+		// Core math
+		"Sqrt":   {Name: "Sqrt", IsMethod: true},
+		"FMA":    {Name: "MulAdd", IsMethod: true},
+		"MulAdd": {Name: "MulAdd", IsMethod: true},
+
+		// Comparisons
+		"Equal":        {Name: "Equal", IsMethod: true},
+		"NotEqual":     {Name: "NotEqual", IsMethod: true},
+		"Less":         {Name: "Less", IsMethod: true},
+		"LessThan":     {Name: "Less", IsMethod: true},
+		"Greater":      {Name: "Greater", IsMethod: true},
+		"GreaterThan":  {Name: "Greater", IsMethod: true},
+		"LessEqual":    {Name: "LessEqual", IsMethod: true},
+		"GreaterEqual": {Name: "GreaterEqual", IsMethod: true},
+
+		// Mask ops
+		"MaskAnd": {Name: "And", IsMethod: true},
+		"MaskOr":  {Name: "Or", IsMethod: true},
+
+		// Conditional/Blend (hwy wrappers swap to IfElse argument order)
+		"Merge":      {Package: "hwy", Name: "Merge", IsMethod: false},
+		"IfThenElse": {Package: "hwy", Name: "IfThenElse", IsMethod: false},
+
+		// Integer shifts
+		"ShiftAllLeft":  {Name: "ShiftAllLeft", IsMethod: true},
+		"ShiftAllRight": {Name: "ShiftAllRight", IsMethod: true},
+		"ShiftLeft":     {Name: "ShiftAllLeft", IsMethod: true},
+		"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true},
+
+		// Reductions (absent from the portable package; hwy wrappers do a
+		// store + scalar loop)
+		"ReduceSum": {Package: "hwy", Name: "ReduceSum", IsMethod: false},
+		"ReduceMin": {Package: "hwy", Name: "ReduceMin", IsMethod: false},
+		"ReduceMax": {Package: "hwy", Name: "ReduceMax", IsMethod: false},
+
+		// Conversions
+		"ConvertToInt32":   {Name: "ConvertToInt32", IsMethod: true},
+		"ConvertToFloat32": {Name: "ConvertToFloat32", IsMethod: true},
+	}
+	maps.Copy(ops, contribMathOps())
+	maps.Copy(ops, specialOps())
+
+	return Target{
+		Name:          "Portable",
+		BuildTag:      "goexperiment.simd",
+		VecWidth:      16, // portable minimum (exact width on wasm)
+		VecPackage:    "simd",
+		HwyWrapperTag: "PORTABLE",
+		TypeMap: map[string]string{
+			"float32": "Float32s",
+			"float64": "Float64s",
+			"int8":    "Int8s",
+			"int16":   "Int16s",
+			"int32":   "Int32s",
+			"int64":   "Int64s",
+			"uint8":   "Uint8s",
+			"uint16":  "Uint16s",
+			"uint32":  "Uint32s",
+			"uint64":  "Uint64s",
+		},
+		OpMap: ops,
+	}
+}
+
 // SVEDarwinTarget returns the target configuration for SVE on macOS (Apple M4+).
 // Uses SME streaming mode with fixed SVL=512.
 func SVEDarwinTarget() Target {
@@ -1080,6 +1178,7 @@ var targetRegistry = map[string]func() Target{
 	"avx2":       AVX2Target,
 	"avx512":     AVX512Target,
 	"neon":       NEONTarget,
+	"portable":   PortableTarget,
 	"sve_darwin": SVEDarwinTarget,
 	"sve_linux":  SVELinuxTarget,
 	"fallback":   FallbackTarget,
@@ -1117,6 +1216,8 @@ func (t Target) Suffix() string {
 		return "_sve_darwin"
 	case "SVE_LINUX":
 		return "_sve_linux"
+	case "Portable":
+		return "_portable"
 	case "Fallback":
 		return "_fallback"
 	default:
@@ -1170,7 +1271,7 @@ func (t Target) StoreArrayMethod() string {
 // LoadSliceFunc returns the package function name for loading vecType from a
 // slice. Go 1.27 archsimd dropped the Slice suffix; hwy/asm keeps it.
 func (t Target) LoadSliceFunc(vecType string) string {
-	if t.UsesArchsimd() {
+	if t.UsesArchsimd() || t.VecPackage == "simd" {
 		return "Load" + vecType
 	}
 	return "Load" + vecType + "Slice"

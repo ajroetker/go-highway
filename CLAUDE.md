@@ -128,6 +128,20 @@ The `:asm` suffix generates:
 
 SVE targets (`sve_darwin`, `sve_linux`) are always assembly-only — they have no GoSimd mode since Go's simd package does not support SVE.
 
+### Portable target (`portable`)
+
+The `portable` target emits Go 1.27's size-agnostic `simd` package
+(`simd.Float32s`, `v.Len()`, slice-based loads/stores) under a plain
+`goexperiment.simd` build tag, giving wasm and other non-amd64/arm64
+architectures a vectorized tier. Code is generated for the 128-bit minimum
+width; the generated dispatcher (`*_portable.gen.go`, tag
+`goexperiment.simd && !amd64 && !arm64`) wires it only when
+`simd.VectorBitSize() == 128` at runtime (true on wasm) and falls back to
+scalar otherwise. Add it to element-wise packages as
+`-targets avx2,avx512,neon:asm,portable,fallback`. The portable package has
+no reductions, gathers, or shuffles — packages needing those stay off this
+target for now.
+
 ## Supported Architectures
 
 | Architecture | SIMD Width | Backend | Status |

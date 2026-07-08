@@ -378,8 +378,17 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 		}
 
 		// hwy.StoreSlice(v, dst) -> v.Store((*[8]float32)(unsafe.Pointer(&dst[0])))
-		// (v.StoreArray(...) on Go 1.27 archsimd)
+		// (v.StoreArray(...) on Go 1.27 archsimd; slice-based v.Store(dst)
+		// on the portable simd package)
 		if len(call.Args) >= 2 {
+			if ctx.target.VecPackage == "simd" {
+				call.Fun = &ast.SelectorExpr{
+					X:   call.Args[0],
+					Sel: ast.NewIdent("Store"),
+				}
+				call.Args = []ast.Expr{call.Args[1]}
+				return
+			}
 			lanes := ctx.target.LanesFor(ctx.elemType)
 			dst := call.Args[1]
 			cast := arrayPointerCast(lanes, ctx.elemType, unsafeSlicePointer(dst))
@@ -1303,7 +1312,11 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			return
 		}
 
-		if ctx.target.IsAVX() || ctx.target.IsNEON() {
+		if ctx.target.VecPackage == "simd" {
+			// Portable simd: slice-based load, no pointer-to-array form
+			fullName = "Load" + vecTypeName
+			selExpr.X = ast.NewIdent(pkgName)
+		} else if ctx.target.IsAVX() || ctx.target.IsNEON() {
 			// For SIMD targets, use unsafe pointer cast to avoid bounds checks
 			// pkg.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[idx])))
 			lanes := ctx.target.LanesFor(effectiveElemType)

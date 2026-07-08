@@ -158,6 +158,9 @@ func computeUnrollFactor(loopInfo *LoopInfo, hwyCalls []HwyCall, target Target) 
 	case "Fallback":
 		// No unrolling for fallback - it's scalar anyway
 		return 1
+	case "Portable":
+		// Size-agnostic vectors; keep the loop simple
+		return 1
 	}
 
 	return baseFactor

@@ -109,6 +109,11 @@ jobs:
       - name: Run benchmarks
         run: go test -bench=. -benchmem -run=^$ ./hwy/contrib/...
 
+      - name: Test portable simd tier (wasm)
+        run: |
+          GOOS=wasip1 GOARCH=wasm go build ./hwy/... ./hwy/contrib/vec/
+          GOOS=wasip1 GOARCH=wasm go test -exec "$(go env GOROOT)/lib/wasm/go_wasip1_wasm_exec" -count=1 ./hwy/contrib/vec/
+
       - name: Build hwygen
         run: go build -o bin/hwygen ./cmd/hwygen
 
