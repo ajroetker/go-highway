@@ -101,8 +101,8 @@ func BaseBatchDot_avx512(query []float32, data []float32, dots []float32, count 
 		sum = archsimd.BroadcastFloat32x16(0)
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&query[j])))
-			vd := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dataVec[j])))
+			vq := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&query[j])))
+			vd := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&dataVec[j])))
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
@@ -135,8 +135,8 @@ func BaseBatchDot_avx512_Float64(query []float64, data []float64, dots []float64
 		sum = archsimd.BroadcastFloat64x8(0)
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&query[j])))
-			vd := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&dataVec[j])))
+			vq := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&query[j])))
+			vd := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&dataVec[j])))
 			prod := vq.Mul(vd)
 			sum = sum.Add(prod)
 		}
@@ -241,8 +241,8 @@ func BaseBatchL2SquaredDistance_avx512(query []float32, data []float32, distance
 		sum = archsimd.BroadcastFloat32x16(0)
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&query[j])))
-			vd := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dataVec[j])))
+			vq := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&query[j])))
+			vd := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&dataVec[j])))
 			diff := vq.Sub(vd)
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)
@@ -277,8 +277,8 @@ func BaseBatchL2SquaredDistance_avx512_Float64(query []float64, data []float64, 
 		sum = archsimd.BroadcastFloat64x8(0)
 		var j int
 		for j = 0; j+lanes <= dims; j += lanes {
-			vq := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&query[j])))
-			vd := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&dataVec[j])))
+			vq := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&query[j])))
+			vd := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&dataVec[j])))
 			diff := vq.Sub(vd)
 			diffSq := diff.Mul(diff)
 			sum = sum.Add(diffSq)

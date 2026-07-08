@@ -46,11 +46,11 @@ func BaseVecDotQ2_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[k] = float32((wqs[qBase+lBase+i+k] >> shift) & 3)
 					abuf[k] = float32(int8(aqs[aOff+i+k]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			var subSum float32
 			for k := range lanes {
 				subSum += wbuf[k]
@@ -106,11 +106,11 @@ func BaseVecDotQ3_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[k] = float32(low2 + high1*4 - 4)
 					abuf[k] = float32(int8(aqs[aOff+i+k]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			var subSum float32
 			for k := range lanes {
 				subSum += wbuf[k]
@@ -171,11 +171,11 @@ func BaseVecDotQ4_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[j] = float32(wqs[qOff+i+j] & 0xF)
 					abuf[j] = float32(int8(aqs[aOff+i+j]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			var subSum float32
 			for j := range lanes {
 				subSum += wbuf[j]
@@ -191,11 +191,11 @@ func BaseVecDotQ4_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[j] = float32(wqs[qOff+i+j] >> 4)
 					abuf[j] = float32(int8(aqs[aOff+32+i+j]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			subSum = 0
 			for j := range lanes {
 				subSum += wbuf[j]
@@ -260,11 +260,11 @@ func BaseVecDotQ5_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[k] = float32(q)
 					abuf[k] = float32(int8(aqs[aOff+i+k]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			var subSum float32
 			for k := range lanes {
 				subSum += wbuf[k]
@@ -283,11 +283,11 @@ func BaseVecDotQ5_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[k] = float32(q)
 					abuf[k] = float32(int8(aqs[aOff+32+i+k]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			subSum = 0
 			for k := range lanes {
 				subSum += wbuf[k]
@@ -340,11 +340,11 @@ func BaseVecDotQ6_KQ8_K_avx512(wdata []uint8, adata []uint8, nblocks int) float3
 					wbuf[k] = float32((low4 | (high2 << 4)) - 32)
 					abuf[k] = float32(int8(aqs[aOff+i+k]))
 				}
-				wVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&wbuf[0])))
-				aVec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&abuf[0])))
+				wVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+				aVec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&abuf[0])))
 				accVec = wVec.MulAdd(aVec, accVec)
 			}
-			accVec.Store((*[16]float32)(unsafe.Pointer(&wbuf[0])))
+			accVec.StoreArray((*[16]float32)(unsafe.Pointer(&wbuf[0])))
 			var subSum float32
 			for k := range lanes {
 				subSum += wbuf[k]

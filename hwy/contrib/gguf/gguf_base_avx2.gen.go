@@ -45,9 +45,9 @@ func BaseDequantizeIQ4NL_avx2(data []uint8, output []float32) {
 				lo := qs[i+j] & 0x0F
 				buf[j] = lut[lo]
 			}
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float32)(unsafe.Pointer(&output[outOff+i])))
+			result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outOff+i])))
 		}
 		for ; i < 16; i++ {
 			lo := qs[i] & 0x0F
@@ -59,9 +59,9 @@ func BaseDequantizeIQ4NL_avx2(data []uint8, output []float32) {
 				hi := (qs[i+j] >> 4) & 0x0F
 				buf[j] = lut[hi]
 			}
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float32)(unsafe.Pointer(&output[outOff+16+i])))
+			result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outOff+16+i])))
 		}
 		for ; i < 16; i++ {
 			hi := (qs[i] >> 4) & 0x0F
@@ -102,10 +102,10 @@ func BaseDequantizeQ2K_avx2(data []uint8, output []float32) {
 				for k := range lanes {
 					buf[k] = float32((qs[qBase+lBase+i+k] >> shift) & 3)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				scaled := v.Mul(dscVec)
 				result := scaled.Sub(dmmVec)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[baseOut+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[baseOut+i])))
 			}
 			for ; i < 16; i++ {
 				output[baseOut+i] = dsc*float32((qs[qBase+lBase+i]>>shift)&3) - dmm
@@ -153,9 +153,9 @@ func BaseDequantizeQ3K_avx2(data []uint8, output []float32) {
 					high1 := int((hmask[l] >> hmBit) & 1)
 					buf[k] = float32(low2 + high1*4 - 4)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				result := v.Mul(scaleVec)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[baseOut+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[baseOut+i])))
 			}
 			for ; i < 16; i++ {
 				l := lBase + i
@@ -208,10 +208,10 @@ func BaseDequantizeQ4K_avx2(data []uint8, output []float32) {
 				for k := range lanes {
 					buf[k] = float32(qs[qOff+i+k] & 0xF)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				scaled := v.Mul(dscVec0)
 				result := scaled.Sub(dmmVec0)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[outIdx+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outIdx+i])))
 			}
 			for ; i < 32; i++ {
 				output[outIdx+i] = dsc0*float32(qs[qOff+i]&0xF) - dmm0
@@ -221,10 +221,10 @@ func BaseDequantizeQ4K_avx2(data []uint8, output []float32) {
 				for k := range lanes {
 					buf[k] = float32(qs[qOff+i+k] >> 4)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				scaled := v.Mul(dscVec1)
 				result := scaled.Sub(dmmVec1)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[outIdx+32+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outIdx+32+i])))
 			}
 			for ; i < 32; i++ {
 				output[outIdx+32+i] = dsc1*float32(qs[qOff+i]>>4) - dmm1
@@ -254,9 +254,9 @@ func BaseDequantizeQ4_0_avx2(data []uint8, output []float32) {
 				lo := int(qs[i+j] & 0x0F)
 				buf[j] = float32(lo - 8)
 			}
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float32)(unsafe.Pointer(&output[outOff+i])))
+			result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outOff+i])))
 		}
 		for ; i < 16; i++ {
 			lo := int(qs[i] & 0x0F)
@@ -268,9 +268,9 @@ func BaseDequantizeQ4_0_avx2(data []uint8, output []float32) {
 				hi := int((qs[i+j] >> 4) & 0x0F)
 				buf[j] = float32(hi - 8)
 			}
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float32)(unsafe.Pointer(&output[outOff+16+i])))
+			result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outOff+16+i])))
 		}
 		for ; i < 16; i++ {
 			hi := int((qs[i] >> 4) & 0x0F)
@@ -325,10 +325,10 @@ func BaseDequantizeQ5K_avx2(data []uint8, output []float32) {
 					q := int(ql[qlOff+l]&0xF) + int((qh[l]>>hbShift0)&1)*16
 					buf[k] = float32(q)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				scaled := v.Mul(dscVec0)
 				result := scaled.Sub(dmmVec0)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[outIdx+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outIdx+i])))
 			}
 			for ; i < 32; i++ {
 				q := int(ql[qlOff+i]&0xF) + int((qh[i]>>hbShift0)&1)*16
@@ -341,10 +341,10 @@ func BaseDequantizeQ5K_avx2(data []uint8, output []float32) {
 					q := int(ql[qlOff+l]>>4) + int((qh[l]>>hbShift1)&1)*16
 					buf[k] = float32(q)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				scaled := v.Mul(dscVec1)
 				result := scaled.Sub(dmmVec1)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[outIdx+32+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outIdx+32+i])))
 			}
 			for ; i < 32; i++ {
 				q := int(ql[qlOff+i]>>4) + int((qh[i]>>hbShift1)&1)*16
@@ -389,9 +389,9 @@ func BaseDequantizeQ6K_avx2(data []uint8, output []float32) {
 					high2 := int((qh[qhOff+l] >> qhShift) & 3)
 					buf[k] = float32((low4 | (high2 << 4)) - 32)
 				}
-				v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+				v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 				result := v.Mul(scaleVec)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[baseOut+i])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[baseOut+i])))
 			}
 			for ; i < 16; i++ {
 				l := lBase + i
@@ -421,9 +421,9 @@ func BaseDequantizeQ8_0_avx2(data []uint8, output []float32) {
 			for j := range lanes {
 				buf[j] = float32(int8(qs[i+j]))
 			}
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float32)(unsafe.Pointer(&output[outOff+i])))
+			result.StoreArray((*[8]float32)(unsafe.Pointer(&output[outOff+i])))
 		}
 		for ; i < QK; i++ {
 			output[outOff+i] = d * float32(int8(qs[i]))

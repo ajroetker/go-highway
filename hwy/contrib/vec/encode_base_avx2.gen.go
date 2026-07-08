@@ -21,8 +21,8 @@ func BaseDecodeFloat32s_avx2(dst []float32, src []byte) {
 	lanes := 32
 	i := 0
 	for ; i+lanes <= totalBytes; i += lanes {
-		v := archsimd.LoadUint8x32((*[32]uint8)(unsafe.Pointer(&src[i])))
-		v.StoreSlice(dstBytes[i:])
+		v := archsimd.LoadUint8x32Array((*[32]uint8)(unsafe.Pointer(&src[i])))
+		v.Store(dstBytes[i:])
 	}
 	for ; i < totalBytes; i++ {
 		dstBytes[i] = src[i]
@@ -41,8 +41,8 @@ func BaseDecodeFloat64s_avx2(dst []float64, src []byte) {
 	lanes := 32
 	i := 0
 	for ; i+lanes <= totalBytes; i += lanes {
-		v := archsimd.LoadUint8x32((*[32]uint8)(unsafe.Pointer(&src[i])))
-		v.StoreSlice(dstBytes[i:])
+		v := archsimd.LoadUint8x32Array((*[32]uint8)(unsafe.Pointer(&src[i])))
+		v.Store(dstBytes[i:])
 	}
 	for ; i < totalBytes; i++ {
 		dstBytes[i] = src[i]
@@ -61,8 +61,8 @@ func BaseEncodeFloat32s_avx2(dst []byte, src []float32) {
 	lanes := 32
 	i := 0
 	for ; i+lanes <= totalBytes; i += lanes {
-		v := archsimd.LoadUint8x32((*[32]uint8)(unsafe.Pointer(&srcBytes[i])))
-		v.StoreSlice(dst[i:])
+		v := archsimd.LoadUint8x32Array((*[32]uint8)(unsafe.Pointer(&srcBytes[i])))
+		v.Store(dst[i:])
 	}
 	for ; i < totalBytes; i++ {
 		dst[i] = srcBytes[i]
@@ -81,8 +81,8 @@ func BaseEncodeFloat64s_avx2(dst []byte, src []float64) {
 	lanes := 32
 	i := 0
 	for ; i+lanes <= totalBytes; i += lanes {
-		v := archsimd.LoadUint8x32((*[32]uint8)(unsafe.Pointer(&srcBytes[i])))
-		v.StoreSlice(dst[i:])
+		v := archsimd.LoadUint8x32Array((*[32]uint8)(unsafe.Pointer(&srcBytes[i])))
+		v.Store(dst[i:])
 	}
 	for ; i < totalBytes; i++ {
 		dst[i] = srcBytes[i]

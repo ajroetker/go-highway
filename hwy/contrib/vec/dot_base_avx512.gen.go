@@ -105,8 +105,8 @@ func BaseDot_avx512(a []float32, b []float32) float32 {
 		sum3 = va3.MulAdd(vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[i])))
+		va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[i])))
 		sum0 = va.MulAdd(vb, sum0)
 		i += lanes
 	}
@@ -141,8 +141,8 @@ func BaseDot_avx512_Float64(a []float64, b []float64) float64 {
 		sum3 = va3.MulAdd(vb3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[i])))
+		va := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[i])))
 		sum0 = va.MulAdd(vb, sum0)
 		i += lanes
 	}

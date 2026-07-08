@@ -44,22 +44,22 @@ func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32,
 					scale := scales[scaleBase+groupIdx]
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
-				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
-				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
-				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
-				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
-				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
-				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
-				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
-				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				w0 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
 				acc0 = inputVal.MulAdd(w0, acc0)
 				acc1 = inputVal.MulAdd(w1, acc1)
 				acc2 = inputVal.MulAdd(w2, acc2)
 				acc3 = inputVal.MulAdd(w3, acc3)
-				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
-				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
-				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
-				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
 			}
 			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
@@ -76,10 +76,10 @@ func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32,
 					scale := scales[scaleBase+groupIdx]
 					dequantBuf[lane] = float32(unsignedVal-8) * scale
 				}
-				weights := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
-				acc := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				weights := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
-				acc.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 			}
 			for ; n < N; n++ {
 				weightIdx := baseIdx + n
@@ -98,12 +98,12 @@ func BaseFusedInt4MatMul_avx2(input []float32, packed []uint8, scales []float32,
 		}
 		var n int
 		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+			acc := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 			if bias != nil {
-				biasVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bias[n])))
+				biasVec := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&bias[n])))
 				acc = acc.Add(biasVec)
 			}
-			acc.Store((*[8]float32)(unsafe.Pointer(&outputRow[n])))
+			acc.StoreArray((*[8]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
 			val := accBuf[n]
@@ -150,22 +150,22 @@ func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, 
 					scale := scales[scaleBase+groupIdx]
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
-				w0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
-				w1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
-				w2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
-				w3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
-				acc0 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
-				acc1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
-				acc2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
-				acc3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				w0 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				w1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[lanes])))
+				w2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[2*lanes])))
+				w3 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[3*lanes])))
+				acc0 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
 				acc0 = inputVal.MulAdd(w0, acc0)
 				acc1 = inputVal.MulAdd(w1, acc1)
 				acc2 = inputVal.MulAdd(w2, acc2)
 				acc3 = inputVal.MulAdd(w3, acc3)
-				acc0.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
-				acc1.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
-				acc2.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
-				acc3.Store((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
+				acc0.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc1.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n+lanes])))
+				acc2.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n+2*lanes])))
+				acc3.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n+3*lanes])))
 			}
 			for ; n+lanes <= N; n += lanes {
 				for lane := range lanes {
@@ -182,10 +182,10 @@ func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, 
 					scale := scales[scaleBase+groupIdx]
 					dequantBuf[lane] = nf4LookupTable[quantIdx] * scale
 				}
-				weights := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
-				acc := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				weights := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 				acc = inputVal.MulAdd(weights, acc)
-				acc.Store((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+				acc.StoreArray((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 			}
 			for ; n < N; n++ {
 				weightIdx := baseIdx + n
@@ -204,12 +204,12 @@ func BaseFusedNF4MatMul_avx2(input []float32, packed []uint8, scales []float32, 
 		}
 		var n int
 		for n = 0; n+lanes <= N; n += lanes {
-			acc := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&accBuf[n])))
+			acc := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&accBuf[n])))
 			if bias != nil {
-				biasVec := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&bias[n])))
+				biasVec := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&bias[n])))
 				acc = acc.Add(biasVec)
 			}
-			acc.Store((*[8]float32)(unsafe.Pointer(&outputRow[n])))
+			acc.StoreArray((*[8]float32)(unsafe.Pointer(&outputRow[n])))
 		}
 		for ; n < N; n++ {
 			val := accBuf[n]

@@ -245,8 +245,8 @@ func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, outpu
 	_ = packedB[panelK*nr-1]
 	p := 0
 	for ; p+3 < panelK; p += 4 {
-		bVec0_0 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx])))
-		bVec1_0 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+lanes])))
+		bVec0_0 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1_0 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		a0_0 := archsimd.BroadcastFloat32x16(packedA[aIdx])
 		a1_0 := archsimd.BroadcastFloat32x16(packedA[aIdx+1])
 		a2_0 := archsimd.BroadcastFloat32x16(packedA[aIdx+2])
@@ -259,8 +259,8 @@ func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, outpu
 		acc21 = a2_0.MulAdd(bVec1_0, acc21)
 		acc30 = a3_0.MulAdd(bVec0_0, acc30)
 		acc31 = a3_0.MulAdd(bVec1_0, acc31)
-		bVec0_1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+nr])))
-		bVec1_1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+nr+lanes])))
+		bVec0_1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+nr])))
+		bVec1_1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+nr+lanes])))
 		a0_1 := archsimd.BroadcastFloat32x16(packedA[aIdx+mr])
 		a1_1 := archsimd.BroadcastFloat32x16(packedA[aIdx+mr+1])
 		a2_1 := archsimd.BroadcastFloat32x16(packedA[aIdx+mr+2])
@@ -273,8 +273,8 @@ func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, outpu
 		acc21 = a2_1.MulAdd(bVec1_1, acc21)
 		acc30 = a3_1.MulAdd(bVec0_1, acc30)
 		acc31 = a3_1.MulAdd(bVec1_1, acc31)
-		bVec0_2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+2*nr])))
-		bVec1_2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+2*nr+lanes])))
+		bVec0_2 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+2*nr])))
+		bVec1_2 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+2*nr+lanes])))
 		a0_2 := archsimd.BroadcastFloat32x16(packedA[aIdx+2*mr])
 		a1_2 := archsimd.BroadcastFloat32x16(packedA[aIdx+2*mr+1])
 		a2_2 := archsimd.BroadcastFloat32x16(packedA[aIdx+2*mr+2])
@@ -287,8 +287,8 @@ func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, outpu
 		acc21 = a2_2.MulAdd(bVec1_2, acc21)
 		acc30 = a3_2.MulAdd(bVec0_2, acc30)
 		acc31 = a3_2.MulAdd(bVec1_2, acc31)
-		bVec0_3 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+3*nr])))
-		bVec1_3 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+3*nr+lanes])))
+		bVec0_3 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+3*nr])))
+		bVec1_3 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+3*nr+lanes])))
 		a0_3 := archsimd.BroadcastFloat32x16(packedA[aIdx+3*mr])
 		a1_3 := archsimd.BroadcastFloat32x16(packedA[aIdx+3*mr+1])
 		a2_3 := archsimd.BroadcastFloat32x16(packedA[aIdx+3*mr+2])
@@ -305,8 +305,8 @@ func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, outpu
 		bIdx += 4 * nr
 	}
 	for ; p < panelK; p++ {
-		bVec0 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx])))
-		bVec1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedB[bIdx+lanes])))
+		bVec0 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		bIdx += nr
 		a0 := archsimd.BroadcastFloat32x16(packedA[aIdx])
 		a1 := archsimd.BroadcastFloat32x16(packedA[aIdx+1])
@@ -326,14 +326,14 @@ func BasePackedMicroKernel4x2_avx512(packedA []float32, packedB []float32, outpu
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.Store((*[16]float32)(unsafe.Pointer(&output[outIdx0])))
-	acc01.Store((*[16]float32)(unsafe.Pointer(&output[outIdx0+lanes])))
-	acc10.Store((*[16]float32)(unsafe.Pointer(&output[outIdx1])))
-	acc11.Store((*[16]float32)(unsafe.Pointer(&output[outIdx1+lanes])))
-	acc20.Store((*[16]float32)(unsafe.Pointer(&output[outIdx2])))
-	acc21.Store((*[16]float32)(unsafe.Pointer(&output[outIdx2+lanes])))
-	acc30.Store((*[16]float32)(unsafe.Pointer(&output[outIdx3])))
-	acc31.Store((*[16]float32)(unsafe.Pointer(&output[outIdx3+lanes])))
+	acc00.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx0])))
+	acc01.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx0+lanes])))
+	acc10.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx1])))
+	acc11.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx1+lanes])))
+	acc20.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx2])))
+	acc21.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx2+lanes])))
+	acc30.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx3])))
+	acc31.StoreArray((*[16]float32)(unsafe.Pointer(&output[outIdx3+lanes])))
 }
 
 func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float64, output []float64, outputStride int, outRowStart int, outColStart int, panelK int, lanes int) {
@@ -353,8 +353,8 @@ func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float6
 	_ = packedB[panelK*nr-1]
 	p := 0
 	for ; p+3 < panelK; p += 4 {
-		bVec0_0 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx])))
-		bVec1_0 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+lanes])))
+		bVec0_0 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1_0 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		a0_0 := archsimd.BroadcastFloat64x8(packedA[aIdx])
 		a1_0 := archsimd.BroadcastFloat64x8(packedA[aIdx+1])
 		a2_0 := archsimd.BroadcastFloat64x8(packedA[aIdx+2])
@@ -367,8 +367,8 @@ func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float6
 		acc21 = a2_0.MulAdd(bVec1_0, acc21)
 		acc30 = a3_0.MulAdd(bVec0_0, acc30)
 		acc31 = a3_0.MulAdd(bVec1_0, acc31)
-		bVec0_1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+nr])))
-		bVec1_1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+nr+lanes])))
+		bVec0_1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+nr])))
+		bVec1_1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+nr+lanes])))
 		a0_1 := archsimd.BroadcastFloat64x8(packedA[aIdx+mr])
 		a1_1 := archsimd.BroadcastFloat64x8(packedA[aIdx+mr+1])
 		a2_1 := archsimd.BroadcastFloat64x8(packedA[aIdx+mr+2])
@@ -381,8 +381,8 @@ func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float6
 		acc21 = a2_1.MulAdd(bVec1_1, acc21)
 		acc30 = a3_1.MulAdd(bVec0_1, acc30)
 		acc31 = a3_1.MulAdd(bVec1_1, acc31)
-		bVec0_2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+2*nr])))
-		bVec1_2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+2*nr+lanes])))
+		bVec0_2 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+2*nr])))
+		bVec1_2 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+2*nr+lanes])))
 		a0_2 := archsimd.BroadcastFloat64x8(packedA[aIdx+2*mr])
 		a1_2 := archsimd.BroadcastFloat64x8(packedA[aIdx+2*mr+1])
 		a2_2 := archsimd.BroadcastFloat64x8(packedA[aIdx+2*mr+2])
@@ -395,8 +395,8 @@ func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float6
 		acc21 = a2_2.MulAdd(bVec1_2, acc21)
 		acc30 = a3_2.MulAdd(bVec0_2, acc30)
 		acc31 = a3_2.MulAdd(bVec1_2, acc31)
-		bVec0_3 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+3*nr])))
-		bVec1_3 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+3*nr+lanes])))
+		bVec0_3 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+3*nr])))
+		bVec1_3 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+3*nr+lanes])))
 		a0_3 := archsimd.BroadcastFloat64x8(packedA[aIdx+3*mr])
 		a1_3 := archsimd.BroadcastFloat64x8(packedA[aIdx+3*mr+1])
 		a2_3 := archsimd.BroadcastFloat64x8(packedA[aIdx+3*mr+2])
@@ -413,8 +413,8 @@ func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float6
 		bIdx += 4 * nr
 	}
 	for ; p < panelK; p++ {
-		bVec0 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx])))
-		bVec1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedB[bIdx+lanes])))
+		bVec0 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx])))
+		bVec1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedB[bIdx+lanes])))
 		bIdx += nr
 		a0 := archsimd.BroadcastFloat64x8(packedA[aIdx])
 		a1 := archsimd.BroadcastFloat64x8(packedA[aIdx+1])
@@ -434,14 +434,14 @@ func BasePackedMicroKernel4x2_avx512_Float64(packedA []float64, packedB []float6
 	outIdx1 := outIdx0 + outputStride
 	outIdx2 := outIdx1 + outputStride
 	outIdx3 := outIdx2 + outputStride
-	acc00.Store((*[8]float64)(unsafe.Pointer(&output[outIdx0])))
-	acc01.Store((*[8]float64)(unsafe.Pointer(&output[outIdx0+lanes])))
-	acc10.Store((*[8]float64)(unsafe.Pointer(&output[outIdx1])))
-	acc11.Store((*[8]float64)(unsafe.Pointer(&output[outIdx1+lanes])))
-	acc20.Store((*[8]float64)(unsafe.Pointer(&output[outIdx2])))
-	acc21.Store((*[8]float64)(unsafe.Pointer(&output[outIdx2+lanes])))
-	acc30.Store((*[8]float64)(unsafe.Pointer(&output[outIdx3])))
-	acc31.Store((*[8]float64)(unsafe.Pointer(&output[outIdx3+lanes])))
+	acc00.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx0])))
+	acc01.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx0+lanes])))
+	acc10.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx1])))
+	acc11.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx1+lanes])))
+	acc20.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx2])))
+	acc21.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx2+lanes])))
+	acc30.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx3])))
+	acc31.StoreArray((*[8]float64)(unsafe.Pointer(&output[outIdx3+lanes])))
 }
 
 func BaseZeroSlice_avx512_Float16(s []hwy.Float16, n int) {
@@ -473,7 +473,7 @@ func BaseZeroSlice_avx512(s []float32, n int) {
 	lanes := 16
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.Store((*[16]float32)(unsafe.Pointer(&s[idx])))
+		vZero.StoreArray((*[16]float32)(unsafe.Pointer(&s[idx])))
 	}
 	for ; idx < n; idx++ {
 		s[idx] = 0
@@ -485,7 +485,7 @@ func BaseZeroSlice_avx512_Float64(s []float64, n int) {
 	lanes := 8
 	var idx int
 	for idx = 0; idx+lanes <= n; idx += lanes {
-		vZero.Store((*[8]float64)(unsafe.Pointer(&s[idx])))
+		vZero.StoreArray((*[8]float64)(unsafe.Pointer(&s[idx])))
 	}
 	for ; idx < n; idx++ {
 		s[idx] = 0

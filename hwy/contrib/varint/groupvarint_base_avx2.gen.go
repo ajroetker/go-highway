@@ -20,12 +20,12 @@ func BaseDecodeGroupVarint32_avx2(src []byte) (values [4]uint32, consumed int) {
 		return [4]uint32{}, 0
 	}
 	if len(src) >= 17 {
-		dataVec := archsimd.LoadUint8x16Slice(src[1:17])
+		dataVec := archsimd.LoadUint8x16(src[1:17])
 		maskSlice := groupVarint32ShuffleMasks[control][:]
-		maskVec := archsimd.LoadUint8x16Slice(maskSlice)
+		maskVec := archsimd.LoadUint8x16(maskSlice)
 		shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(dataVec, maskVec)
 		var result [16]uint8
-		shuffled.StoreSlice(result[:])
+		shuffled.Store(result[:])
 		values[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
 		values[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
 		values[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24

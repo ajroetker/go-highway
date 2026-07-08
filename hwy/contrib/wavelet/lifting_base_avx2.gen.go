@@ -336,26 +336,26 @@ func BaseLiftPredict53_avx2_Int32(target []int32, tLen int, neighbor []int32, nL
 	for ; i+lanes*2 <= safeEnd; i += lanes * 2 {
 		var n1, n2 archsimd.Int32x8
 		if phase == 0 {
-			n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+1])))
+			n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+1])))
 		} else {
-			n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i])))
+			n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i])))
 		}
 		update := n1.Add(n2).ShiftAllRight(uint64(1))
-		t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&target[i])))
-		t.Add(update).Store((*[8]int32)(unsafe.Pointer(&target[i])))
+		t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&target[i])))
+		t.Add(update).StoreArray((*[8]int32)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Int32x8
 		if phase == 0 {
-			n11 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
-			n21 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+1+8])))
+			n11 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
+			n21 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+1+8])))
 		} else {
-			n11 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i-1+8])))
-			n21 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
+			n11 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i-1+8])))
+			n21 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
 		}
 		update1 := n11.Add(n21).ShiftAllRight(uint64(1))
-		t1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&target[i+8])))
-		t1.Add(update1).Store((*[8]int32)(unsafe.Pointer(&target[i+8])))
+		t1 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&target[i+8])))
+		t1.Add(update1).StoreArray((*[8]int32)(unsafe.Pointer(&target[i+8])))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -416,26 +416,26 @@ func BaseLiftPredict53_avx2_Int64(target []int64, tLen int, neighbor []int64, nL
 	for ; i+lanes*2 <= safeEnd; i += lanes * 2 {
 		var n1, n2 archsimd.Int64x4
 		if phase == 0 {
-			n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+1])))
+			n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+1])))
 		} else {
-			n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i])))
+			n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i])))
 		}
 		update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
-		t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i])))
-		t.Add(update).Store((*[4]int64)(unsafe.Pointer(&target[i])))
+		t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&target[i])))
+		t.Add(update).StoreArray((*[4]int64)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Int64x4
 		if phase == 0 {
-			n11 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
-			n21 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+1+4])))
+			n11 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
+			n21 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+1+4])))
 		} else {
-			n11 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i-1+4])))
-			n21 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
+			n11 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i-1+4])))
+			n21 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
 		}
 		update1 := hwy.ShiftAllRight_AVX2_Int64x4(n11.Add(n21), uint64(1))
-		t1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i+4])))
-		t1.Add(update1).Store((*[4]int64)(unsafe.Pointer(&target[i+4])))
+		t1 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&target[i+4])))
+		t1.Add(update1).StoreArray((*[4]int64)(unsafe.Pointer(&target[i+4])))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -713,52 +713,52 @@ func BaseLiftStep97_avx2(target []float32, tLen int, neighbor []float32, nLen in
 	for ; i+lanes*4 <= safeEnd; i += lanes * 4 {
 		var n1, n2 archsimd.Float32x8
 		if phase == 0 {
-			n1 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+1])))
+			n1 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+1])))
 		} else {
-			n1 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i])))
+			n1 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i])))
 		}
 		sum := n1.Add(n2)
 		update := coeffVec.Mul(sum)
-		t := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&target[i])))
-		t.Sub(update).Store((*[8]float32)(unsafe.Pointer(&target[i])))
+		t := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&target[i])))
+		t.Sub(update).StoreArray((*[8]float32)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Float32x8
 		if phase == 0 {
-			n11 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+8])))
-			n21 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+1+8])))
+			n11 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+8])))
+			n21 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+1+8])))
 		} else {
-			n11 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i-1+8])))
-			n21 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+8])))
+			n11 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i-1+8])))
+			n21 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+8])))
 		}
 		sum1 := n11.Add(n21)
 		update1 := coeffVec.Mul(sum1)
-		t1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&target[i+8])))
-		t1.Sub(update1).Store((*[8]float32)(unsafe.Pointer(&target[i+8])))
+		t1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&target[i+8])))
+		t1.Sub(update1).StoreArray((*[8]float32)(unsafe.Pointer(&target[i+8])))
 		var n12, n22 archsimd.Float32x8
 		if phase == 0 {
-			n12 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+16])))
-			n22 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+1+16])))
+			n12 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+16])))
+			n22 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+1+16])))
 		} else {
-			n12 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i-1+16])))
-			n22 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+16])))
+			n12 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i-1+16])))
+			n22 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+16])))
 		}
 		sum2 := n12.Add(n22)
 		update2 := coeffVec.Mul(sum2)
-		t2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&target[i+16])))
-		t2.Sub(update2).Store((*[8]float32)(unsafe.Pointer(&target[i+16])))
+		t2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&target[i+16])))
+		t2.Sub(update2).StoreArray((*[8]float32)(unsafe.Pointer(&target[i+16])))
 		var n13, n23 archsimd.Float32x8
 		if phase == 0 {
-			n13 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+24])))
-			n23 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+1+24])))
+			n13 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+24])))
+			n23 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+1+24])))
 		} else {
-			n13 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i-1+24])))
-			n23 = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&neighbor[i+24])))
+			n13 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i-1+24])))
+			n23 = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&neighbor[i+24])))
 		}
 		sum3 := n13.Add(n23)
 		update3 := coeffVec.Mul(sum3)
-		t3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&target[i+24])))
-		t3.Sub(update3).Store((*[8]float32)(unsafe.Pointer(&target[i+24])))
+		t3 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&target[i+24])))
+		t3.Sub(update3).StoreArray((*[8]float32)(unsafe.Pointer(&target[i+24])))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -821,52 +821,52 @@ func BaseLiftStep97_avx2_Float64(target []float64, tLen int, neighbor []float64,
 	for ; i+lanes*4 <= safeEnd; i += lanes * 4 {
 		var n1, n2 archsimd.Float64x4
 		if phase == 0 {
-			n1 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+1])))
+			n1 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+1])))
 		} else {
-			n1 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i])))
+			n1 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i])))
 		}
 		sum := n1.Add(n2)
 		update := coeffVec.Mul(sum)
-		t := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&target[i])))
-		t.Sub(update).Store((*[4]float64)(unsafe.Pointer(&target[i])))
+		t := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&target[i])))
+		t.Sub(update).StoreArray((*[4]float64)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Float64x4
 		if phase == 0 {
-			n11 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+4])))
-			n21 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+1+4])))
+			n11 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+4])))
+			n21 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+1+4])))
 		} else {
-			n11 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i-1+4])))
-			n21 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+4])))
+			n11 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i-1+4])))
+			n21 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+4])))
 		}
 		sum1 := n11.Add(n21)
 		update1 := coeffVec.Mul(sum1)
-		t1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&target[i+4])))
-		t1.Sub(update1).Store((*[4]float64)(unsafe.Pointer(&target[i+4])))
+		t1 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&target[i+4])))
+		t1.Sub(update1).StoreArray((*[4]float64)(unsafe.Pointer(&target[i+4])))
 		var n12, n22 archsimd.Float64x4
 		if phase == 0 {
-			n12 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+8])))
-			n22 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+1+8])))
+			n12 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+8])))
+			n22 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+1+8])))
 		} else {
-			n12 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i-1+8])))
-			n22 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+8])))
+			n12 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i-1+8])))
+			n22 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+8])))
 		}
 		sum2 := n12.Add(n22)
 		update2 := coeffVec.Mul(sum2)
-		t2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&target[i+8])))
-		t2.Sub(update2).Store((*[4]float64)(unsafe.Pointer(&target[i+8])))
+		t2 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&target[i+8])))
+		t2.Sub(update2).StoreArray((*[4]float64)(unsafe.Pointer(&target[i+8])))
 		var n13, n23 archsimd.Float64x4
 		if phase == 0 {
-			n13 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+12])))
-			n23 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+1+12])))
+			n13 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+12])))
+			n23 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+1+12])))
 		} else {
-			n13 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i-1+12])))
-			n23 = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&neighbor[i+12])))
+			n13 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i-1+12])))
+			n23 = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&neighbor[i+12])))
 		}
 		sum3 := n13.Add(n23)
 		update3 := coeffVec.Mul(sum3)
-		t3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&target[i+12])))
-		t3.Sub(update3).Store((*[4]float64)(unsafe.Pointer(&target[i+12])))
+		t3 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&target[i+12])))
+		t3.Sub(update3).StoreArray((*[4]float64)(unsafe.Pointer(&target[i+12])))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -929,28 +929,28 @@ func BaseLiftUpdate53_avx2_Int32(target []int32, tLen int, neighbor []int32, nLe
 	for ; i+lanes*2 <= safeEnd; i += lanes * 2 {
 		var n1, n2 archsimd.Int32x8
 		if phase == 0 {
-			n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i])))
+			n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i])))
 		} else {
-			n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+1])))
+			n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+1])))
 		}
 		sum := n1.Add(n2).Add(twoVec)
 		update := sum.ShiftAllRight(uint64(2))
-		t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&target[i])))
-		t.Sub(update).Store((*[8]int32)(unsafe.Pointer(&target[i])))
+		t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&target[i])))
+		t.Sub(update).StoreArray((*[8]int32)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Int32x8
 		if phase == 0 {
-			n11 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i-1+8])))
-			n21 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
+			n11 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i-1+8])))
+			n21 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
 		} else {
-			n11 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
-			n21 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&neighbor[i+1+8])))
+			n11 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+8])))
+			n21 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&neighbor[i+1+8])))
 		}
 		sum1 := n11.Add(n21).Add(twoVec)
 		update1 := sum1.ShiftAllRight(uint64(2))
-		t1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&target[i+8])))
-		t1.Sub(update1).Store((*[8]int32)(unsafe.Pointer(&target[i+8])))
+		t1 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&target[i+8])))
+		t1.Sub(update1).StoreArray((*[8]int32)(unsafe.Pointer(&target[i+8])))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -1009,28 +1009,28 @@ func BaseLiftUpdate53_avx2_Int64(target []int64, tLen int, neighbor []int64, nLe
 	for ; i+lanes*2 <= safeEnd; i += lanes * 2 {
 		var n1, n2 archsimd.Int64x4
 		if phase == 0 {
-			n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i-1])))
-			n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i])))
+			n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i-1])))
+			n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i])))
 		} else {
-			n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i])))
-			n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+1])))
+			n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i])))
+			n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+1])))
 		}
 		sum := n1.Add(n2).Add(twoVec)
 		update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
-		t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i])))
-		t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&target[i])))
+		t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&target[i])))
+		t.Sub(update).StoreArray((*[4]int64)(unsafe.Pointer(&target[i])))
 		var n11, n21 archsimd.Int64x4
 		if phase == 0 {
-			n11 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i-1+4])))
-			n21 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
+			n11 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i-1+4])))
+			n21 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
 		} else {
-			n11 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
-			n21 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&neighbor[i+1+4])))
+			n11 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+4])))
+			n21 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&neighbor[i+1+4])))
 		}
 		sum1 := n11.Add(n21).Add(twoVec)
 		update1 := hwy.ShiftAllRight_AVX2_Int64x4(sum1, uint64(2))
-		t1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&target[i+4])))
-		t1.Sub(update1).Store((*[4]int64)(unsafe.Pointer(&target[i+4])))
+		t1 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&target[i+4])))
+		t1.Sub(update1).StoreArray((*[4]int64)(unsafe.Pointer(&target[i+4])))
 	}
 	for ; i < safeEnd; i++ {
 		var n1Idx, n2Idx int
@@ -1126,18 +1126,18 @@ func BaseScaleSlice_avx2(data []float32, n int, scale float32) {
 	lanes := 8
 	i := 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i])))
+		v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i])))
 		result := v.Mul(scaleVec)
-		result.Store((*[8]float32)(unsafe.Pointer(&data[i])))
-		v1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i+8])))
+		result.StoreArray((*[8]float32)(unsafe.Pointer(&data[i])))
+		v1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i+8])))
 		result1 := v1.Mul(scaleVec)
-		result1.Store((*[8]float32)(unsafe.Pointer(&data[i+8])))
-		v2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i+16])))
+		result1.StoreArray((*[8]float32)(unsafe.Pointer(&data[i+8])))
+		v2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i+16])))
 		result2 := v2.Mul(scaleVec)
-		result2.Store((*[8]float32)(unsafe.Pointer(&data[i+16])))
-		v3 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i+24])))
+		result2.StoreArray((*[8]float32)(unsafe.Pointer(&data[i+16])))
+		v3 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i+24])))
 		result3 := v3.Mul(scaleVec)
-		result3.Store((*[8]float32)(unsafe.Pointer(&data[i+24])))
+		result3.StoreArray((*[8]float32)(unsafe.Pointer(&data[i+24])))
 	}
 	for ; i < n; i++ {
 		data[i] *= scale
@@ -1153,18 +1153,18 @@ func BaseScaleSlice_avx2_Float64(data []float64, n int, scale float64) {
 	lanes := 4
 	i := 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i])))
+		v := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i])))
 		result := v.Mul(scaleVec)
-		result.Store((*[4]float64)(unsafe.Pointer(&data[i])))
-		v1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i+4])))
+		result.StoreArray((*[4]float64)(unsafe.Pointer(&data[i])))
+		v1 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i+4])))
 		result1 := v1.Mul(scaleVec)
-		result1.Store((*[4]float64)(unsafe.Pointer(&data[i+4])))
-		v2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i+8])))
+		result1.StoreArray((*[4]float64)(unsafe.Pointer(&data[i+4])))
+		v2 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i+8])))
 		result2 := v2.Mul(scaleVec)
-		result2.Store((*[4]float64)(unsafe.Pointer(&data[i+8])))
-		v3 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i+12])))
+		result2.StoreArray((*[4]float64)(unsafe.Pointer(&data[i+8])))
+		v3 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i+12])))
 		result3 := v3.Mul(scaleVec)
-		result3.Store((*[4]float64)(unsafe.Pointer(&data[i+12])))
+		result3.StoreArray((*[4]float64)(unsafe.Pointer(&data[i+12])))
 	}
 	for ; i < n; i++ {
 		data[i] *= scale
@@ -1201,16 +1201,16 @@ func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, h
 		for ; i+lanes <= safeEnd; i += lanes {
 			var n1, n2 archsimd.Int32x8
 			if phase == 0 {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&high[i-1])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&high[i])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&high[i-1])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&high[i])))
 			} else {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&high[i])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&high[i+1])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&high[i])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&high[i+1])))
 			}
 			sum := n1.Add(n2).Add(twoVec)
 			update := sum.ShiftAllRight(uint64(2))
-			t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&low[i])))
-			t.Sub(update).Store((*[8]int32)(unsafe.Pointer(&low[i])))
+			t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&low[i])))
+			t.Sub(update).StoreArray((*[8]int32)(unsafe.Pointer(&low[i])))
 		}
 		for ; i < safeEnd; i++ {
 			var n1Idx, n2Idx int
@@ -1264,15 +1264,15 @@ func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, h
 		for ; i+lanes <= safeEnd; i += lanes {
 			var n1, n2 archsimd.Int32x8
 			if phase == 0 {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&low[i])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&low[i+1])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&low[i])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&low[i+1])))
 			} else {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&low[i-1])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&low[i])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&low[i-1])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&low[i])))
 			}
 			update := n1.Add(n2).ShiftAllRight(uint64(1))
-			t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&high[i])))
-			t.Add(update).Store((*[8]int32)(unsafe.Pointer(&high[i])))
+			t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&high[i])))
+			t.Add(update).StoreArray((*[8]int32)(unsafe.Pointer(&high[i])))
 		}
 		for ; i < safeEnd; i++ {
 			var n1Idx, n2Idx int
@@ -1312,12 +1312,12 @@ func BaseSynthesize53Core_avx2_Int32(data []int32, n int, low []int32, sn int, h
 		minN := min(sn, dn)
 		i := 0
 		for ; i+lanes <= minN; i += lanes {
-			lo := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&low[i])))
-			hi := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&high[i])))
+			lo := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&low[i])))
+			hi := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&high[i])))
 			z0 := hwy.InterleaveLower_AVX2_I32x8(lo, hi)
 			z1 := hwy.InterleaveUpper_AVX2_I32x8(lo, hi)
-			z0.Store((*[8]int32)(unsafe.Pointer(&data[2*i])))
-			z1.Store((*[8]int32)(unsafe.Pointer(&data[2*i+lanes])))
+			z0.StoreArray((*[8]int32)(unsafe.Pointer(&data[2*i])))
+			z1.StoreArray((*[8]int32)(unsafe.Pointer(&data[2*i+lanes])))
 		}
 		for ; i < minN; i++ {
 			data[2*i] = low[i]
@@ -1372,16 +1372,16 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 		for ; i+lanes <= safeEnd; i += lanes {
 			var n1, n2 archsimd.Int64x4
 			if phase == 0 {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i-1])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&high[i-1])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&high[i])))
 			} else {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i+1])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&high[i])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&high[i+1])))
 			}
 			sum := n1.Add(n2).Add(twoVec)
 			update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
-			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i])))
-			t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&low[i])))
+			t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&low[i])))
+			t.Sub(update).StoreArray((*[4]int64)(unsafe.Pointer(&low[i])))
 		}
 		for ; i < safeEnd; i++ {
 			var n1Idx, n2Idx int
@@ -1435,15 +1435,15 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 		for ; i+lanes <= safeEnd; i += lanes {
 			var n1, n2 archsimd.Int64x4
 			if phase == 0 {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i+1])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&low[i])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&low[i+1])))
 			} else {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i-1])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&low[i-1])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&low[i])))
 			}
 			update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
-			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i])))
-			t.Add(update).Store((*[4]int64)(unsafe.Pointer(&high[i])))
+			t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&high[i])))
+			t.Add(update).StoreArray((*[4]int64)(unsafe.Pointer(&high[i])))
 		}
 		for ; i < safeEnd; i++ {
 			var n1Idx, n2Idx int
@@ -1483,12 +1483,12 @@ func BaseSynthesize53Core_avx2_Int64(data []int64, n int, low []int64, sn int, h
 		minN := min(sn, dn)
 		i := 0
 		for ; i+lanes <= minN; i += lanes {
-			lo := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&low[i])))
-			hi := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&high[i])))
+			lo := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&low[i])))
+			hi := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&high[i])))
 			z0 := hwy.InterleaveLower_AVX2_I64x4(lo, hi)
 			z1 := hwy.InterleaveUpper_AVX2_I64x4(lo, hi)
-			z0.Store((*[4]int64)(unsafe.Pointer(&data[2*i])))
-			z1.Store((*[4]int64)(unsafe.Pointer(&data[2*i+lanes])))
+			z0.StoreArray((*[4]int64)(unsafe.Pointer(&data[2*i])))
+			z1.StoreArray((*[4]int64)(unsafe.Pointer(&data[2*i+lanes])))
 		}
 		for ; i < minN; i++ {
 			data[2*i] = low[i]
@@ -1526,9 +1526,9 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 		twoVec := BaseSynthesize53CoreCols_AVX2_twoVec_i32_f32
 		start := 0
 		if phase == 0 {
-			h0 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[0])))
-			l0 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[0])))
-			l0.Sub(h0.Add(h0).Add(twoVec).ShiftAllRight(uint64(2))).Store((*[8]int32)(unsafe.Pointer(&lowBuf[0])))
+			h0 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[0])))
+			l0 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[0])))
+			l0.Sub(h0.Add(h0).Add(twoVec).ShiftAllRight(uint64(2))).StoreArray((*[8]int32)(unsafe.Pointer(&lowBuf[0])))
 			start = 1
 		}
 		safeEnd := sn
@@ -1544,16 +1544,16 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 		for y := start; y < safeEnd; y++ {
 			var n1, n2 archsimd.Int32x8
 			if phase == 0 {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[(y-1)*lanes])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[(y-1)*lanes])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
 			} else {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
 			}
 			sum := n1.Add(n2).Add(twoVec)
 			update := sum.ShiftAllRight(uint64(2))
-			t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
-			t.Sub(update).Store((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).StoreArray((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
 		}
 		for y := safeEnd; y < sn; y++ {
 			var n1Idx, n2Idx int
@@ -1570,21 +1570,21 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 			if n2Idx >= dn {
 				n2Idx = dn - 1
 			}
-			n1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
-			n2 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
+			n1 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
+			n2 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
 			sum := n1.Add(n2).Add(twoVec)
 			update := sum.ShiftAllRight(uint64(2))
-			t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
-			t.Sub(update).Store((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).StoreArray((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
 		}
 		_ = twoVec
 	}
 	{
 		start := 0
 		if phase == 1 {
-			l0 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[0])))
-			h0 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[0])))
-			h0.Add(l0.Add(l0).ShiftAllRight(uint64(1))).Store((*[8]int32)(unsafe.Pointer(&highBuf[0])))
+			l0 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[0])))
+			h0 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[0])))
+			h0.Add(l0.Add(l0).ShiftAllRight(uint64(1))).StoreArray((*[8]int32)(unsafe.Pointer(&highBuf[0])))
 			start = 1
 		}
 		safeEnd := dn
@@ -1600,15 +1600,15 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 		for y := start; y < safeEnd; y++ {
 			var n1, n2 archsimd.Int32x8
 			if phase == 0 {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[(y+1)*lanes])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[(y+1)*lanes])))
 			} else {
-				n1 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
-				n2 = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
+				n1 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
+				n2 = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[y*lanes])))
 			}
 			update := n1.Add(n2).ShiftAllRight(uint64(1))
-			t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
-			t.Add(update).Store((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).StoreArray((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
 		}
 		for y := safeEnd; y < dn; y++ {
 			var n1Idx, n2Idx int
@@ -1628,11 +1628,11 @@ func BaseSynthesize53CoreCols_avx2_Int32(colBuf []int32, height int, lowBuf []in
 			if n2Idx >= sn {
 				n2Idx = sn - 1
 			}
-			n1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
-			n2 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
+			n1 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
+			n2 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
 			update := n1.Add(n2).ShiftAllRight(uint64(1))
-			t := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
-			t.Add(update).Store((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			t := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).StoreArray((*[8]int32)(unsafe.Pointer(&highBuf[y*lanes])))
 		}
 	}
 	if phase == 0 {
@@ -1673,9 +1673,9 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 		twoVec := BaseSynthesize53CoreCols_AVX2_twoVec_f32
 		start := 0
 		if phase == 0 {
-			h0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[0])))
-			l0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
-			l0.Sub(hwy.ShiftAllRight_AVX2_Int64x4(h0.Add(h0).Add(twoVec), uint64(2))).Store((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
+			h0 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[0])))
+			l0 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
+			l0.Sub(hwy.ShiftAllRight_AVX2_Int64x4(h0.Add(h0).Add(twoVec), uint64(2))).StoreArray((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
 			start = 1
 		}
 		safeEnd := sn
@@ -1691,16 +1691,16 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 		for y := start; y < safeEnd; y++ {
 			var n1, n2 archsimd.Int64x4
 			if phase == 0 {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[(y-1)*lanes])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[(y-1)*lanes])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 			} else {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[(y+1)*lanes])))
 			}
 			sum := n1.Add(n2).Add(twoVec)
 			update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
-			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
-			t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).StoreArray((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 		}
 		for y := safeEnd; y < sn; y++ {
 			var n1Idx, n2Idx int
@@ -1717,21 +1717,21 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 			if n2Idx >= dn {
 				n2Idx = dn - 1
 			}
-			n1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
-			n2 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
+			n1 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[n1Idx*lanes])))
+			n2 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[n2Idx*lanes])))
 			sum := n1.Add(n2).Add(twoVec)
 			update := hwy.ShiftAllRight_AVX2_Int64x4(sum, uint64(2))
-			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
-			t.Sub(update).Store((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+			t.Sub(update).StoreArray((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 		}
 		_ = twoVec
 	}
 	{
 		start := 0
 		if phase == 1 {
-			l0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
-			h0 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[0])))
-			h0.Add(hwy.ShiftAllRight_AVX2_Int64x4(l0.Add(l0), uint64(1))).Store((*[4]int64)(unsafe.Pointer(&highBuf[0])))
+			l0 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[0])))
+			h0 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[0])))
+			h0.Add(hwy.ShiftAllRight_AVX2_Int64x4(l0.Add(l0), uint64(1))).StoreArray((*[4]int64)(unsafe.Pointer(&highBuf[0])))
 			start = 1
 		}
 		safeEnd := dn
@@ -1747,15 +1747,15 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 		for y := start; y < safeEnd; y++ {
 			var n1, n2 archsimd.Int64x4
 			if phase == 0 {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[(y+1)*lanes])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[(y+1)*lanes])))
 			} else {
-				n1 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
-				n2 = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
+				n1 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[(y-1)*lanes])))
+				n2 = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[y*lanes])))
 			}
 			update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
-			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
-			t.Add(update).Store((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).StoreArray((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 		}
 		for y := safeEnd; y < dn; y++ {
 			var n1Idx, n2Idx int
@@ -1775,11 +1775,11 @@ func BaseSynthesize53CoreCols_avx2_Int64(colBuf []int64, height int, lowBuf []in
 			if n2Idx >= sn {
 				n2Idx = sn - 1
 			}
-			n1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
-			n2 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
+			n1 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[n1Idx*lanes])))
+			n2 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&lowBuf[n2Idx*lanes])))
 			update := hwy.ShiftAllRight_AVX2_Int64x4(n1.Add(n2), uint64(1))
-			t := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
-			t.Add(update).Store((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			t := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
+			t.Add(update).StoreArray((*[4]int64)(unsafe.Pointer(&highBuf[y*lanes])))
 		}
 	}
 	if phase == 0 {

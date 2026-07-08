@@ -59,10 +59,10 @@ func BaseCopy_avx2(dst []float32, src []float32) {
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[i]))).Store((*[8]float32)(unsafe.Pointer(&dst[i])))
-		archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[i+8]))).Store((*[8]float32)(unsafe.Pointer(&dst[i+8])))
-		archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[i+16]))).Store((*[8]float32)(unsafe.Pointer(&dst[i+16])))
-		archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[i+24]))).Store((*[8]float32)(unsafe.Pointer(&dst[i+24])))
+		archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[i]))).StoreArray((*[8]float32)(unsafe.Pointer(&dst[i])))
+		archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[i+8]))).StoreArray((*[8]float32)(unsafe.Pointer(&dst[i+8])))
+		archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[i+16]))).StoreArray((*[8]float32)(unsafe.Pointer(&dst[i+16])))
+		archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[i+24]))).StoreArray((*[8]float32)(unsafe.Pointer(&dst[i+24])))
 	}
 	if i < n {
 		BaseCopy_fallback(dst[i:n], src[i:n])
@@ -78,10 +78,10 @@ func BaseCopy_avx2_Float64(dst []float64, src []float64) {
 	var i int
 	i = 0
 	for ; i+lanes*4 <= n; i += lanes * 4 {
-		archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[i]))).Store((*[4]float64)(unsafe.Pointer(&dst[i])))
-		archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[i+4]))).Store((*[4]float64)(unsafe.Pointer(&dst[i+4])))
-		archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[i+8]))).Store((*[4]float64)(unsafe.Pointer(&dst[i+8])))
-		archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[i+12]))).Store((*[4]float64)(unsafe.Pointer(&dst[i+12])))
+		archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[i]))).StoreArray((*[4]float64)(unsafe.Pointer(&dst[i])))
+		archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[i+4]))).StoreArray((*[4]float64)(unsafe.Pointer(&dst[i+4])))
+		archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[i+8]))).StoreArray((*[4]float64)(unsafe.Pointer(&dst[i+8])))
+		archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[i+12]))).StoreArray((*[4]float64)(unsafe.Pointer(&dst[i+12])))
 	}
 	if i < n {
 		BaseCopy_fallback_Float64(dst[i:n], src[i:n])

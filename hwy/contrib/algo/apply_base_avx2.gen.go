@@ -63,20 +63,20 @@ func BaseApply_avx2(in []float32, out []float32, fn func(archsimd.Float32x8) arc
 	lanes := 8
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&in[i])))
-		fn(x).Store((*[8]float32)(unsafe.Pointer(&out[i])))
-		x1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&in[i+8])))
-		fn(x1).Store((*[8]float32)(unsafe.Pointer(&out[i+8])))
+		x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&in[i])))
+		fn(x).StoreArray((*[8]float32)(unsafe.Pointer(&out[i])))
+		x1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&in[i+8])))
+		fn(x1).StoreArray((*[8]float32)(unsafe.Pointer(&out[i+8])))
 	}
 	for ; i+lanes <= n; i += lanes {
-		x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&in[i])))
-		fn(x).Store((*[8]float32)(unsafe.Pointer(&out[i])))
+		x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&in[i])))
+		fn(x).StoreArray((*[8]float32)(unsafe.Pointer(&out[i])))
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := [8]float32{}
 		copy(buf[:], in[i:i+remaining])
-		x := archsimd.LoadFloat32x8Slice(buf[:])
-		fn(x).StoreSlice(buf[:])
+		x := archsimd.LoadFloat32x8(buf[:])
+		fn(x).Store(buf[:])
 		copy(out[i:i+remaining], buf[:remaining])
 	}
 }
@@ -86,20 +86,20 @@ func BaseApply_avx2_Float64(in []float64, out []float64, fn func(archsimd.Float6
 	lanes := 4
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&in[i])))
-		fn(x).Store((*[4]float64)(unsafe.Pointer(&out[i])))
-		x1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&in[i+4])))
-		fn(x1).Store((*[4]float64)(unsafe.Pointer(&out[i+4])))
+		x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&in[i])))
+		fn(x).StoreArray((*[4]float64)(unsafe.Pointer(&out[i])))
+		x1 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&in[i+4])))
+		fn(x1).StoreArray((*[4]float64)(unsafe.Pointer(&out[i+4])))
 	}
 	for ; i+lanes <= n; i += lanes {
-		x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&in[i])))
-		fn(x).Store((*[4]float64)(unsafe.Pointer(&out[i])))
+		x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&in[i])))
+		fn(x).StoreArray((*[4]float64)(unsafe.Pointer(&out[i])))
 	}
 	if remaining := n - i; remaining > 0 {
 		buf := [4]float64{}
 		copy(buf[:], in[i:i+remaining])
-		x := archsimd.LoadFloat64x4Slice(buf[:])
-		fn(x).StoreSlice(buf[:])
+		x := archsimd.LoadFloat64x4(buf[:])
+		fn(x).Store(buf[:])
 		copy(out[i:i+remaining], buf[:remaining])
 	}
 }

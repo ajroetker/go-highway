@@ -115,10 +115,10 @@ func BaseFindVarintEnds_avx512(src []byte) uint32 {
 	n := min(len(src), 32)
 	if n == 32 {
 		threshold := BaseFindVarintEnds_AVX512_threshold_f32
-		v0 := archsimd.LoadUint8x16Slice(src[:16])
+		v0 := archsimd.LoadUint8x16(src[:16])
 		isTerminator0 := v0.Less(threshold)
 		mask0 := uint32(hwy.BitsFromMask_AVX512_Uint8x16(isTerminator0))
-		v1 := archsimd.LoadUint8x16Slice(src[16:32])
+		v1 := archsimd.LoadUint8x16(src[16:32])
 		isTerminator1 := v1.Less(threshold)
 		mask1 := uint32(hwy.BitsFromMask_AVX512_Uint8x16(isTerminator1))
 		return mask0 | (mask1 << 16)

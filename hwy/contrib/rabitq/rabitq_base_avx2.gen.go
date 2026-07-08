@@ -44,11 +44,11 @@ func BaseBitProduct_avx2(code []uint64, q1 []uint64, q2 []uint64, q3 []uint64, q
 		sum8 += uint64(hwy.ReduceSum_AVX2_Uint64x4(hwy.PopCount_AVX2_Uint64x4(codeVec3.And(q4Vec3))))
 	}
 	for i+lanes <= n {
-		codeVec := archsimd.LoadUint64x4Slice(code[i:])
-		q1Vec := archsimd.LoadUint64x4Slice(q1[i:])
-		q2Vec := archsimd.LoadUint64x4Slice(q2[i:])
-		q3Vec := archsimd.LoadUint64x4Slice(q3[i:])
-		q4Vec := archsimd.LoadUint64x4Slice(q4[i:])
+		codeVec := archsimd.LoadUint64x4(code[i:])
+		q1Vec := archsimd.LoadUint64x4(q1[i:])
+		q2Vec := archsimd.LoadUint64x4(q2[i:])
+		q3Vec := archsimd.LoadUint64x4(q3[i:])
+		q4Vec := archsimd.LoadUint64x4(q4[i:])
 		sum1 += uint64(hwy.ReduceSum_AVX2_Uint64x4(hwy.PopCount_AVX2_Uint64x4(codeVec.And(q1Vec))))
 		sum2 += uint64(hwy.ReduceSum_AVX2_Uint64x4(hwy.PopCount_AVX2_Uint64x4(codeVec.And(q2Vec))))
 		sum4 += uint64(hwy.ReduceSum_AVX2_Uint64x4(hwy.PopCount_AVX2_Uint64x4(codeVec.And(q3Vec))))
@@ -77,7 +77,7 @@ func BaseQuantizeVectors_avx2(unitVectors []float32, codes []uint64, dotProducts
 		lanes := 8
 		dim := 0
 		for dim+lanes <= dims {
-			vecData := archsimd.LoadFloat32x8Slice(vec[dim:])
+			vecData := archsimd.LoadFloat32x8(vec[dim:])
 			zeroVec := archsimd.BroadcastFloat32x8(0)
 			negMask := vecData.Less(zeroVec)
 			posMultVec := archsimd.BroadcastFloat32x8(sqrtDimsInv)

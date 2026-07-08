@@ -77,16 +77,16 @@ func BaseAbs_avx512(img *Image[float32], out *Image[float32]) {
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := v.Max(archsimd.BroadcastFloat32x16(0).Sub(v))
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Max(archsimd.BroadcastFloat32x16(0).Sub(v))
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -103,16 +103,16 @@ func BaseAbs_avx512_Float64(img *Image[float64], out *Image[float64]) {
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := v.Max(archsimd.BroadcastFloat64x8(0).Sub(v))
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := v.Max(archsimd.BroadcastFloat64x8(0).Sub(v))
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -187,16 +187,16 @@ func BaseBrightnessContrast_avx512(img *Image[float32], out *Image[float32], sca
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -215,16 +215,16 @@ func BaseBrightnessContrast_avx512_Float64(img *Image[float64], out *Image[float
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := v.MulAdd(scaleVec, offsetVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -299,16 +299,16 @@ func BaseClampImage_avx512(img *Image[float32], out *Image[float32], minVal floa
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := v.Min(maxVec).Max(minVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Min(maxVec).Max(minVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -327,16 +327,16 @@ func BaseClampImage_avx512_Float64(img *Image[float64], out *Image[float64], min
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := v.Min(maxVec).Max(minVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := v.Min(maxVec).Max(minVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -357,12 +357,12 @@ func BaseGamma_avx512_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], 
 			v := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&inRow[i]))
 			result := func() asm.Float16x16AVX512 {
 				var _powBase, _powExp [16]float32
-				v.AsFloat32x16().StoreSlice(_powBase[:])
-				gammaVec.AsFloat32x16().StoreSlice(_powExp[:])
+				v.AsFloat32x16().Store(_powBase[:])
+				gammaVec.AsFloat32x16().Store(_powExp[:])
 				for _powI := range _powBase {
 					_powBase[_powI] = float32(stdmath.Pow(float64(_powBase[_powI]), float64(_powExp[_powI])))
 				}
-				return asm.Float16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16Slice(_powBase[:]))
+				return asm.Float16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16(_powBase[:]))
 			}()
 			result.StorePtr(unsafe.Pointer(&outRow[i]))
 		}
@@ -372,12 +372,12 @@ func BaseGamma_avx512_Float16(img *Image[hwy.Float16], out *Image[hwy.Float16], 
 			v := asm.LoadFloat16x16AVX512Ptr(unsafe.Pointer(&buf[0]))
 			result := func() asm.Float16x16AVX512 {
 				var _powBase, _powExp [16]float32
-				v.AsFloat32x16().StoreSlice(_powBase[:])
-				gammaVec.AsFloat32x16().StoreSlice(_powExp[:])
+				v.AsFloat32x16().Store(_powBase[:])
+				gammaVec.AsFloat32x16().Store(_powExp[:])
 				for _powI := range _powBase {
 					_powBase[_powI] = float32(stdmath.Pow(float64(_powBase[_powI]), float64(_powExp[_powI])))
 				}
-				return asm.Float16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16Slice(_powBase[:]))
+				return asm.Float16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16(_powBase[:]))
 			}()
 			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
@@ -400,12 +400,12 @@ func BaseGamma_avx512_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16
 			v := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&inRow[i]))
 			result := func() asm.BFloat16x16AVX512 {
 				var _powBase, _powExp [16]float32
-				v.AsFloat32x16().StoreSlice(_powBase[:])
-				gammaVec.AsFloat32x16().StoreSlice(_powExp[:])
+				v.AsFloat32x16().Store(_powBase[:])
+				gammaVec.AsFloat32x16().Store(_powExp[:])
 				for _powI := range _powBase {
 					_powBase[_powI] = float32(stdmath.Pow(float64(_powBase[_powI]), float64(_powExp[_powI])))
 				}
-				return asm.BFloat16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16Slice(_powBase[:]))
+				return asm.BFloat16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16(_powBase[:]))
 			}()
 			result.StorePtr(unsafe.Pointer(&outRow[i]))
 		}
@@ -415,12 +415,12 @@ func BaseGamma_avx512_BFloat16(img *Image[hwy.BFloat16], out *Image[hwy.BFloat16
 			v := asm.LoadBFloat16x16AVX512Ptr(unsafe.Pointer(&buf[0]))
 			result := func() asm.BFloat16x16AVX512 {
 				var _powBase, _powExp [16]float32
-				v.AsFloat32x16().StoreSlice(_powBase[:])
-				gammaVec.AsFloat32x16().StoreSlice(_powExp[:])
+				v.AsFloat32x16().Store(_powBase[:])
+				gammaVec.AsFloat32x16().Store(_powExp[:])
 				for _powI := range _powBase {
 					_powBase[_powI] = float32(stdmath.Pow(float64(_powBase[_powI]), float64(_powExp[_powI])))
 				}
-				return asm.BFloat16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16Slice(_powBase[:]))
+				return asm.BFloat16x16AVX512FromFloat32x16(archsimd.LoadFloat32x16(_powBase[:]))
 			}()
 			result.StorePtr(unsafe.Pointer(&buf[0]))
 			copy(outRow[i:i+remaining], buf[:remaining])
@@ -440,16 +440,16 @@ func BaseGamma_avx512(img *Image[float32], out *Image[float32], gamma float32) {
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := math.BasePowVec_avx512(v, gammaVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := math.BasePowVec_avx512(v, gammaVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -467,16 +467,16 @@ func BaseGamma_avx512_Float64(img *Image[float64], out *Image[float64], gamma fl
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := math.BasePowVec_avx512_Float64(v, gammaVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := math.BasePowVec_avx512_Float64(v, gammaVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -548,16 +548,16 @@ func BaseInvert_avx512(img *Image[float32], out *Image[float32], maxVal float32)
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := maxVec.Sub(v)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := maxVec.Sub(v)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -575,16 +575,16 @@ func BaseInvert_avx512_Float64(img *Image[float64], out *Image[float64], maxVal 
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := maxVec.Sub(v)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := maxVec.Sub(v)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -669,10 +669,10 @@ func BaseMaxImage_avx512(a *Image[float32], b *Image[float32], out *Image[float3
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&aRow[i])))
-			vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bRow[i])))
+			va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&aRow[i])))
+			vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bRow[i])))
 			result := va.Max(vb)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [16]float32{}
@@ -680,10 +680,10 @@ func BaseMaxImage_avx512(a *Image[float32], b *Image[float32], out *Image[float3
 			bufOut := [16]float32{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bufA[0])))
-			vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bufB[0])))
+			va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bufA[0])))
+			vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bufB[0])))
 			result := va.Max(vb)
-			result.Store((*[16]float32)(unsafe.Pointer(&bufOut[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&bufOut[0])))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -702,10 +702,10 @@ func BaseMaxImage_avx512_Float64(a *Image[float64], b *Image[float64], out *Imag
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&aRow[i])))
-			vb := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bRow[i])))
+			va := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&aRow[i])))
+			vb := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bRow[i])))
 			result := va.Max(vb)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]float64{}
@@ -713,10 +713,10 @@ func BaseMaxImage_avx512_Float64(a *Image[float64], b *Image[float64], out *Imag
 			bufOut := [8]float64{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bufA[0])))
-			vb := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bufB[0])))
+			va := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bufA[0])))
+			vb := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bufB[0])))
 			result := va.Max(vb)
-			result.Store((*[8]float64)(unsafe.Pointer(&bufOut[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&bufOut[0])))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -801,10 +801,10 @@ func BaseMinImage_avx512(a *Image[float32], b *Image[float32], out *Image[float3
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&aRow[i])))
-			vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bRow[i])))
+			va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&aRow[i])))
+			vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bRow[i])))
 			result := va.Min(vb)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [16]float32{}
@@ -812,10 +812,10 @@ func BaseMinImage_avx512(a *Image[float32], b *Image[float32], out *Image[float3
 			bufOut := [16]float32{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bufA[0])))
-			vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bufB[0])))
+			va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bufA[0])))
+			vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bufB[0])))
 			result := va.Min(vb)
-			result.Store((*[16]float32)(unsafe.Pointer(&bufOut[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&bufOut[0])))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -834,10 +834,10 @@ func BaseMinImage_avx512_Float64(a *Image[float64], b *Image[float64], out *Imag
 		width := min(a.width, b.width)
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&aRow[i])))
-			vb := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bRow[i])))
+			va := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&aRow[i])))
+			vb := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bRow[i])))
 			result := va.Min(vb)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			bufA := [8]float64{}
@@ -845,10 +845,10 @@ func BaseMinImage_avx512_Float64(a *Image[float64], b *Image[float64], out *Imag
 			bufOut := [8]float64{}
 			copy(bufA[:], aRow[i:i+remaining])
 			copy(bufB[:], bRow[i:i+remaining])
-			va := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bufA[0])))
-			vb := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bufB[0])))
+			va := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bufA[0])))
+			vb := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bufB[0])))
 			result := va.Min(vb)
-			result.Store((*[8]float64)(unsafe.Pointer(&bufOut[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&bufOut[0])))
 			copy(outRow[i:i+remaining], bufOut[:remaining])
 		}
 	}
@@ -920,16 +920,16 @@ func BaseOffset_avx512(img *Image[float32], out *Image[float32], offset float32)
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := v.Add(offsetVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Add(offsetVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -947,16 +947,16 @@ func BaseOffset_avx512_Float64(img *Image[float64], out *Image[float64], offset 
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := v.Add(offsetVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := v.Add(offsetVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -1028,16 +1028,16 @@ func BaseScale_avx512(img *Image[float32], out *Image[float32], scale float32) {
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			result := v.Mul(scaleVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -1055,16 +1055,16 @@ func BaseScale_avx512_Float64(img *Image[float64], out *Image[float64], scale fl
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			result := v.Mul(scaleVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -1146,18 +1146,18 @@ func BaseThreshold_avx512(img *Image[float32], out *Image[float32], threshold fl
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&inRow[i])))
 			mask := v.GreaterEqual(threshVec)
 			result := hwy.IfThenElse_AVX512_F32x16(mask, aboveVec, belowVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [16]float32{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&buf[0])))
 			mask := v.GreaterEqual(threshVec)
 			result := hwy.IfThenElse_AVX512_F32x16(mask, aboveVec, belowVec)
-			result.Store((*[16]float32)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[16]float32)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}
@@ -1177,18 +1177,18 @@ func BaseThreshold_avx512_Float64(img *Image[float64], out *Image[float64], thre
 		width := img.width
 		i := 0
 		for ; i+lanes <= width; i += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&inRow[i])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&inRow[i])))
 			mask := v.GreaterEqual(threshVec)
 			result := hwy.IfThenElse_AVX512_F64x8(mask, aboveVec, belowVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&outRow[i])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&outRow[i])))
 		}
 		if remaining := width - i; remaining > 0 {
 			buf := [8]float64{}
 			copy(buf[:], inRow[i:i+remaining])
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&buf[0])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&buf[0])))
 			mask := v.GreaterEqual(threshVec)
 			result := hwy.IfThenElse_AVX512_F64x8(mask, aboveVec, belowVec)
-			result.Store((*[8]float64)(unsafe.Pointer(&buf[0])))
+			result.StoreArray((*[8]float64)(unsafe.Pointer(&buf[0])))
 			copy(outRow[i:i+remaining], buf[:remaining])
 		}
 	}

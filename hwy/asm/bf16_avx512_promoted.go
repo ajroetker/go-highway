@@ -39,7 +39,7 @@ func LoadBFloat16x16AVX512Slice(s []uint16) BFloat16x16AVX512 {
 	for i := 0; i < 16; i++ {
 		buf[i] = bfloat16BitsToFloat32(s[i])
 	}
-	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16Slice(buf[:])}
+	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16(buf[:])}
 }
 
 // LoadBFloat16x16AVX512Ptr loads 16 bfloat16 values from an unsafe.Pointer, promoting to float32.
@@ -51,7 +51,7 @@ func LoadBFloat16x16AVX512Ptr(ptr unsafe.Pointer) BFloat16x16AVX512 {
 // StoreSlice demotes float32 back to bfloat16 and stores 16 values to a uint16 slice.
 func (v BFloat16x16AVX512) StoreSlice(s []uint16) {
 	var buf [16]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	for i := 0; i < 16; i++ {
 		s[i] = float32ToBFloat16Bits(buf[i])
 	}
@@ -162,7 +162,7 @@ func (v BFloat16x16AVX512) GreaterEqual(other BFloat16x16AVX512) archsimd.Mask32
 // ============================================================================
 
 func (v BFloat16x16AVX512) RoundToEven() BFloat16x16AVX512 {
-	return BFloat16x16AVX512{data: v.data.RoundToEvenScaled(0)}
+	return BFloat16x16AVX512{data: v.data.RoundScaled(0)}
 }
 
 func (v BFloat16x16AVX512) ConvertToInt32() archsimd.Int32x16 {
@@ -225,7 +225,7 @@ func (v BFloat16x16AVX512) Merge(other BFloat16x16AVX512, mask archsimd.Mask32x1
 
 func (v BFloat16x16AVX512) ReduceSum() float32 {
 	var buf [16]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	var sum float32
 	for i := 0; i < 16; i++ {
 		sum += buf[i]
@@ -235,7 +235,7 @@ func (v BFloat16x16AVX512) ReduceSum() float32 {
 
 func (v BFloat16x16AVX512) ReduceMax() float32 {
 	var buf [16]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	m := buf[0]
 	for i := 1; i < 16; i++ {
 		if buf[i] > m {
@@ -247,7 +247,7 @@ func (v BFloat16x16AVX512) ReduceMax() float32 {
 
 func (v BFloat16x16AVX512) ReduceMin() float32 {
 	var buf [16]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	m := buf[0]
 	for i := 1; i < 16; i++ {
 		if buf[i] < m {
@@ -263,7 +263,7 @@ func (v BFloat16x16AVX512) ReduceMin() float32 {
 
 func IotaBFloat16x16AVX512() BFloat16x16AVX512 {
 	buf := [16]float32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16Slice(buf[:])}
+	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16(buf[:])}
 }
 
 func SignBitBFloat16x16AVX512() BFloat16x16AVX512 {
@@ -284,26 +284,26 @@ func (v BFloat16x16AVX512) Data() archsimd.Float32x16 {
 
 func (v BFloat16x16AVX512) InterleaveLower(other BFloat16x16AVX512) BFloat16x16AVX512 {
 	var a, b [16]float32
-	v.data.StoreSlice(a[:])
-	other.data.StoreSlice(b[:])
+	v.data.Store(a[:])
+	other.data.Store(b[:])
 	var result [16]float32
 	for i := 0; i < 8; i++ {
 		result[2*i] = a[i]
 		result[2*i+1] = b[i]
 	}
-	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16Slice(result[:])}
+	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16(result[:])}
 }
 
 func (v BFloat16x16AVX512) InterleaveUpper(other BFloat16x16AVX512) BFloat16x16AVX512 {
 	var a, b [16]float32
-	v.data.StoreSlice(a[:])
-	other.data.StoreSlice(b[:])
+	v.data.Store(a[:])
+	other.data.Store(b[:])
 	var result [16]float32
 	for i := 0; i < 8; i++ {
 		result[2*i] = a[8+i]
 		result[2*i+1] = b[8+i]
 	}
-	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16Slice(result[:])}
+	return BFloat16x16AVX512{data: archsimd.LoadFloat32x16(result[:])}
 }
 
 // ============================================================================

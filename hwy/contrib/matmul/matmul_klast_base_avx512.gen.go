@@ -283,11 +283,11 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 			acc3 := archsimd.BroadcastFloat32x16(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
-				acc0 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow0+p]))), acc0)
-				acc1 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow1+p]))), acc1)
-				acc2 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow2+p]))), acc2)
-				acc3 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow3+p]))), acc3)
+				vA := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
+				acc0 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow0+p]))), acc0)
+				acc1 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow1+p]))), acc1)
+				acc2 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow2+p]))), acc2)
+				acc3 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow3+p]))), acc3)
 			}
 			s0 := hwy.ReduceSum_AVX512_F32x16(acc0)
 			s1 := hwy.ReduceSum_AVX512_F32x16(acc1)
@@ -310,7 +310,7 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 			acc := archsimd.BroadcastFloat32x16(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				acc = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p]))), acc)
+				acc = archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow+p]))), acc)
 			}
 			sum := hwy.ReduceSum_AVX512_F32x16(acc)
 			for ; p < k; p++ {
@@ -338,11 +338,11 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 			acc3 := archsimd.BroadcastFloat32x16(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
-				acc0 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
-				acc1 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
-				acc2 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
-				acc3 = archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
+				vB := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
+				acc0 = archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
+				acc1 = archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
+				acc2 = archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
+				acc3 = archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
 			}
 			s0 := hwy.ReduceSum_AVX512_F32x16(acc0)
 			s1 := hwy.ReduceSum_AVX512_F32x16(acc1)
@@ -368,8 +368,8 @@ func BaseMatMulKLast_avx512(a []float32, b []float32, c []float32, m int, n int,
 			acc := archsimd.BroadcastFloat32x16(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
-				vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
+				vA := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
+				vB := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
 				acc = vA.MulAdd(vB, acc)
 			}
 			sum := hwy.ReduceSum_AVX512_F32x16(acc)
@@ -406,11 +406,11 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 			acc3 := archsimd.BroadcastFloat64x8(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
-				acc0 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow0+p]))), acc0)
-				acc1 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow1+p]))), acc1)
-				acc2 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow2+p]))), acc2)
-				acc3 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow3+p]))), acc3)
+				vA := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
+				acc0 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow0+p]))), acc0)
+				acc1 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow1+p]))), acc1)
+				acc2 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow2+p]))), acc2)
+				acc3 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow3+p]))), acc3)
 			}
 			s0 := hwy.ReduceSum_AVX512_F64x8(acc0)
 			s1 := hwy.ReduceSum_AVX512_F64x8(acc1)
@@ -433,7 +433,7 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 			acc := archsimd.BroadcastFloat64x8(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				acc = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p]))), acc)
+				acc = archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow+p]))).MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow+p]))), acc)
 			}
 			sum := hwy.ReduceSum_AVX512_F64x8(acc)
 			for ; p < k; p++ {
@@ -461,11 +461,11 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 			acc3 := archsimd.BroadcastFloat64x8(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
-				acc0 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
-				acc1 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
-				acc2 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
-				acc3 = archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
+				vB := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
+				acc0 = archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow0+p]))).MulAdd(vB, acc0)
+				acc1 = archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow1+p]))).MulAdd(vB, acc1)
+				acc2 = archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow2+p]))).MulAdd(vB, acc2)
+				acc3 = archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow3+p]))).MulAdd(vB, acc3)
 			}
 			s0 := hwy.ReduceSum_AVX512_F64x8(acc0)
 			s1 := hwy.ReduceSum_AVX512_F64x8(acc1)
@@ -491,8 +491,8 @@ func BaseMatMulKLast_avx512_Float64(a []float64, b []float64, c []float64, m int
 			acc := archsimd.BroadcastFloat64x8(0)
 			var p int
 			for p = 0; p+lanes <= k; p += lanes {
-				vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
-				vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
+				vA := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
+				vB := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
 				acc = vA.MulAdd(vB, acc)
 			}
 			sum := hwy.ReduceSum_AVX512_F64x8(acc)
@@ -629,8 +629,8 @@ func BaseMatMulKLastBlocked_avx512(a []float32, b []float32, c []float32, m int,
 						acc := archsimd.BroadcastFloat32x16(0)
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
-							vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
+							vA := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[aRow+p])))
+							vB := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRow+p])))
 							acc = vA.MulAdd(vB, acc)
 						}
 						sum := hwy.ReduceSum_AVX512_F32x16(acc)
@@ -676,8 +676,8 @@ func BaseMatMulKLastBlocked_avx512_Float64(a []float64, b []float64, c []float64
 						acc := archsimd.BroadcastFloat64x8(0)
 						var p int
 						for p = kk; p+lanes <= kEnd; p += lanes {
-							vA := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
-							vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
+							vA := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[aRow+p])))
+							vB := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRow+p])))
 							acc = vA.MulAdd(vB, acc)
 						}
 						sum := hwy.ReduceSum_AVX512_F64x8(acc)

@@ -22,21 +22,21 @@ func BaseAndNotSlice_avx2(dst []uint64, a []uint64, b []uint64) {
 	for i = 0; i+stride*2 <= n; i += stride * 2 {
 		a0, a1, a2, a3 := hwy.Load4_AVX2_Uint64x4(a[i:])
 		b0, b1, b2, b3 := hwy.Load4_AVX2_Uint64x4(b[i:])
-		b0.AndNot(a0).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
-		b1.AndNot(a1).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
-		b2.AndNot(a2).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
-		b3.AndNot(a3).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
+		b0.AndNot(a0).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		b1.AndNot(a1).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
+		b2.AndNot(a2).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
+		b3.AndNot(a3).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
 		a01, a11, a21, a31 := hwy.Load4_AVX2_Uint64x4(a[i+4:])
 		b01, b11, b21, b31 := hwy.Load4_AVX2_Uint64x4(b[i+4:])
-		b01.AndNot(a01).Store((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
-		b11.AndNot(a11).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
-		b21.AndNot(a21).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
-		b31.AndNot(a31).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
+		b01.AndNot(a01).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
+		b11.AndNot(a11).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
+		b21.AndNot(a21).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
+		b31.AndNot(a31).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
 	}
 	for ; i+lanes <= n; i += lanes {
-		va := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&b[i])))
-		vb.AndNot(va).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		va := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&b[i])))
+		vb.AndNot(va).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
 	}
 	for ; i < n; i++ {
 		dst[i] = a[i] &^ b[i]
@@ -54,21 +54,21 @@ func BaseAndSlice_avx2(dst []uint64, a []uint64, b []uint64) {
 	for i = 0; i+stride*2 <= n; i += stride * 2 {
 		a0, a1, a2, a3 := hwy.Load4_AVX2_Uint64x4(a[i:])
 		b0, b1, b2, b3 := hwy.Load4_AVX2_Uint64x4(b[i:])
-		a0.And(b0).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
-		a1.And(b1).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
-		a2.And(b2).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
-		a3.And(b3).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
+		a0.And(b0).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		a1.And(b1).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
+		a2.And(b2).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
+		a3.And(b3).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
 		a01, a11, a21, a31 := hwy.Load4_AVX2_Uint64x4(a[i+4:])
 		b01, b11, b21, b31 := hwy.Load4_AVX2_Uint64x4(b[i+4:])
-		a01.And(b01).Store((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
-		a11.And(b11).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
-		a21.And(b21).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
-		a31.And(b31).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
+		a01.And(b01).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
+		a11.And(b11).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
+		a21.And(b21).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
+		a31.And(b31).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
 	}
 	for ; i+lanes <= n; i += lanes {
-		va := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&b[i])))
-		va.And(vb).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		va := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&b[i])))
+		va.And(vb).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
 	}
 	for ; i < n; i++ {
 		dst[i] = a[i] & b[i]
@@ -86,21 +86,21 @@ func BaseOrSlice_avx2(dst []uint64, a []uint64, b []uint64) {
 	for i = 0; i+stride*2 <= n; i += stride * 2 {
 		a0, a1, a2, a3 := hwy.Load4_AVX2_Uint64x4(a[i:])
 		b0, b1, b2, b3 := hwy.Load4_AVX2_Uint64x4(b[i:])
-		a0.Or(b0).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
-		a1.Or(b1).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
-		a2.Or(b2).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
-		a3.Or(b3).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
+		a0.Or(b0).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		a1.Or(b1).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
+		a2.Or(b2).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
+		a3.Or(b3).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
 		a01, a11, a21, a31 := hwy.Load4_AVX2_Uint64x4(a[i+4:])
 		b01, b11, b21, b31 := hwy.Load4_AVX2_Uint64x4(b[i+4:])
-		a01.Or(b01).Store((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
-		a11.Or(b11).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
-		a21.Or(b21).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
-		a31.Or(b31).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
+		a01.Or(b01).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
+		a11.Or(b11).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
+		a21.Or(b21).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
+		a31.Or(b31).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
 	}
 	for ; i+lanes <= n; i += lanes {
-		va := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&b[i])))
-		va.Or(vb).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		va := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&b[i])))
+		va.Or(vb).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
 	}
 	for ; i < n; i++ {
 		dst[i] = a[i] | b[i]
@@ -118,21 +118,21 @@ func BaseXorSlice_avx2(dst []uint64, a []uint64, b []uint64) {
 	for i = 0; i+stride*2 <= n; i += stride * 2 {
 		a0, a1, a2, a3 := hwy.Load4_AVX2_Uint64x4(a[i:])
 		b0, b1, b2, b3 := hwy.Load4_AVX2_Uint64x4(b[i:])
-		a0.Xor(b0).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
-		a1.Xor(b1).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
-		a2.Xor(b2).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
-		a3.Xor(b3).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
+		a0.Xor(b0).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		a1.Xor(b1).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes])))
+		a2.Xor(b2).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2])))
+		a3.Xor(b3).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3])))
 		a01, a11, a21, a31 := hwy.Load4_AVX2_Uint64x4(a[i+4:])
 		b01, b11, b21, b31 := hwy.Load4_AVX2_Uint64x4(b[i+4:])
-		a01.Xor(b01).Store((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
-		a11.Xor(b11).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
-		a21.Xor(b21).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
-		a31.Xor(b31).Store((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
+		a01.Xor(b01).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+4])))
+		a11.Xor(b11).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes+4])))
+		a21.Xor(b21).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*2+4])))
+		a31.Xor(b31).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i+lanes*3+4])))
 	}
 	for ; i+lanes <= n; i += lanes {
-		va := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&b[i])))
-		va.Xor(vb).Store((*[4]uint64)(unsafe.Pointer(&dst[i])))
+		va := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&b[i])))
+		va.Xor(vb).StoreArray((*[4]uint64)(unsafe.Pointer(&dst[i])))
 	}
 	for ; i < n; i++ {
 		dst[i] = a[i] ^ b[i]

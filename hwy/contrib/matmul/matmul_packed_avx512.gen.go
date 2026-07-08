@@ -180,7 +180,7 @@ func BasePackedMatMul_avx512(a []float32, b []float32, c []float32, m int, n int
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.Store((*[16]float32)(unsafe.Pointer(&c[idx_1])))
+			vZero_1.StoreArray((*[16]float32)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -253,7 +253,7 @@ func BasePackedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m in
 		lanes_1 := 8
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.Store((*[8]float64)(unsafe.Pointer(&c[idx_1])))
+			vZero_1.StoreArray((*[8]float64)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -433,7 +433,7 @@ func BasePackedMatMulStrip_avx512(a []float32, b []float32, c []float32, m int, 
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			vZero_1.Store((*[16]float32)(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1])))
+			vZero_1.StoreArray((*[16]float32)(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1])))
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0
@@ -493,7 +493,7 @@ func BasePackedMatMulStrip_avx512_Float64(a []float64, b []float64, c []float64,
 		lanes_1 := 8
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= stripM*n; idx_1 += lanes_1 {
-			vZero_1.Store((*[8]float64)(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1])))
+			vZero_1.StoreArray((*[8]float64)(unsafe.Pointer(&c[rowStart*n : rowEnd*n][idx_1])))
 		}
 		for ; idx_1 < stripM*n; idx_1++ {
 			c[rowStart*n : rowEnd*n][idx_1] = 0
@@ -697,7 +697,7 @@ func BasePackedMatMulWithBuffers_avx512(a []float32, b []float32, c []float32, m
 		lanes_1 := 16
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.Store((*[16]float32)(unsafe.Pointer(&c[idx_1])))
+			vZero_1.StoreArray((*[16]float32)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0
@@ -765,7 +765,7 @@ func BasePackedMatMulWithBuffers_avx512_Float64(a []float64, b []float64, c []fl
 		lanes_1 := 8
 		var idx_1 int
 		for idx_1 = 0; idx_1+lanes_1 <= m*n; idx_1 += lanes_1 {
-			vZero_1.Store((*[8]float64)(unsafe.Pointer(&c[idx_1])))
+			vZero_1.StoreArray((*[8]float64)(unsafe.Pointer(&c[idx_1])))
 		}
 		for ; idx_1 < m*n; idx_1++ {
 			c[idx_1] = 0

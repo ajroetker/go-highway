@@ -65,11 +65,11 @@ func BaseApplyPackedOutput_avx512(packedOutput []float32, output []float32, alph
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
-			outputVal := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
+			packedVal := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
 			scaledOutput := outputVal.Mul(betaVec)
 			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
-			newVal.Store((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
+			newVal.StoreArray((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -87,11 +87,11 @@ func BaseApplyPackedOutput_avx512_Float64(packedOutput []float64, output []float
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
-			outputVal := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
+			packedVal := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
 			scaledOutput := outputVal.Mul(betaVec)
 			newVal := packedVal.MulAdd(alphaVec, scaledOutput)
-			newVal.Store((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
+			newVal.StoreArray((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			val := packedOutput[packedIdx+c]
@@ -143,10 +143,10 @@ func BaseApplyPackedOutputAccum_avx512(packedOutput []float32, output []float32,
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
-			outputVal := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
+			packedVal := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
 			newVal := outputVal.Add(packedVal)
-			newVal.Store((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
+			newVal.StoreArray((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] += packedOutput[packedIdx+c]
@@ -161,10 +161,10 @@ func BaseApplyPackedOutputAccum_avx512_Float64(packedOutput []float64, output []
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			packedVal := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
-			outputVal := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
+			packedVal := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			outputVal := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
 			newVal := outputVal.Add(packedVal)
-			newVal.Store((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
+			newVal.StoreArray((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] += packedOutput[packedIdx+c]
@@ -211,8 +211,8 @@ func BaseApplyPackedOutputSimple_avx512(packedOutput []float32, output []float32
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
-			v.Store((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
+			v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			v.StoreArray((*[16]float32)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = packedOutput[packedIdx+c]
@@ -227,8 +227,8 @@ func BaseApplyPackedOutputSimple_avx512_Float64(packedOutput []float64, output [
 		outputIdx := (outputRowOffset+r)*outputStride + outputColOffset
 		c := 0
 		for ; c+lanes <= width; c += lanes {
-			v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
-			v.Store((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
+			v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&packedOutput[packedIdx+c])))
+			v.StoreArray((*[8]float64)(unsafe.Pointer(&output[outputIdx+c])))
 		}
 		for ; c < width; c++ {
 			output[outputIdx+c] = packedOutput[packedIdx+c]

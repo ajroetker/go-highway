@@ -44,9 +44,9 @@ func BaseQuantizeQ8_0_avx2(input []float32, output []uint8) {
 		amax := float32(0)
 		i := 0
 		for ; i+lanes <= QK; i += lanes {
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[inOff+i])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[inOff+i])))
 			absV := v.Max(archsimd.BroadcastFloat32x8(0).Sub(v))
-			absV.Store((*[8]float32)(unsafe.Pointer(&buf[0])))
+			absV.StoreArray((*[8]float32)(unsafe.Pointer(&buf[0])))
 			for j := range lanes {
 				if buf[j] > amax {
 					amax = buf[j]
@@ -87,10 +87,10 @@ func BaseQuantizeQ8_0_avx2(input []float32, output []uint8) {
 		i = 0
 		idVec := archsimd.BroadcastFloat32x8(id)
 		for ; i+lanes <= QK; i += lanes {
-			v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[inOff+i])))
+			v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[inOff+i])))
 			scaled := v.Mul(idVec)
 			clamped := hwy.Round_AVX2_F32x8(scaled).Max(minVec).Min(maxVec)
-			clamped.Store((*[8]float32)(unsafe.Pointer(&buf[0])))
+			clamped.StoreArray((*[8]float32)(unsafe.Pointer(&buf[0])))
 			for j := range lanes {
 				qs[i+j] = uint8(int8(buf[j]))
 			}

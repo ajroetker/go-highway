@@ -304,11 +304,11 @@ func BaseQKVDense_avx2(x []float32, wQKV []float32, biasQ []float32, biasK []flo
 			acc3 := archsimd.BroadcastFloat32x8(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := archsimd.LoadFloat32x8Slice(wQKV[wRow+p:])
-				vX0 := archsimd.LoadFloat32x8Slice(x[xRow0+p:])
-				vX1 := archsimd.LoadFloat32x8Slice(x[xRow1+p:])
-				vX2 := archsimd.LoadFloat32x8Slice(x[xRow2+p:])
-				vX3 := archsimd.LoadFloat32x8Slice(x[xRow3+p:])
+				vW := archsimd.LoadFloat32x8(wQKV[wRow+p:])
+				vX0 := archsimd.LoadFloat32x8(x[xRow0+p:])
+				vX1 := archsimd.LoadFloat32x8(x[xRow1+p:])
+				vX2 := archsimd.LoadFloat32x8(x[xRow2+p:])
+				vX3 := archsimd.LoadFloat32x8(x[xRow3+p:])
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
@@ -372,8 +372,8 @@ func BaseQKVDense_avx2(x []float32, wQKV []float32, biasQ []float32, biasK []flo
 			acc := archsimd.BroadcastFloat32x8(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := archsimd.LoadFloat32x8Slice(x[xRow+p:])
-				vW := archsimd.LoadFloat32x8Slice(wQKV[wRow+p:])
+				vX := archsimd.LoadFloat32x8(x[xRow+p:])
+				vW := archsimd.LoadFloat32x8(wQKV[wRow+p:])
 				acc = vX.MulAdd(vW, acc)
 			}
 			sum := hwy.ReduceSum_AVX2_F32x8(acc)
@@ -434,11 +434,11 @@ func BaseQKVDense_avx2_Float64(x []float64, wQKV []float64, biasQ []float64, bia
 			acc3 := archsimd.BroadcastFloat64x4(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := archsimd.LoadFloat64x4Slice(wQKV[wRow+p:])
-				vX0 := archsimd.LoadFloat64x4Slice(x[xRow0+p:])
-				vX1 := archsimd.LoadFloat64x4Slice(x[xRow1+p:])
-				vX2 := archsimd.LoadFloat64x4Slice(x[xRow2+p:])
-				vX3 := archsimd.LoadFloat64x4Slice(x[xRow3+p:])
+				vW := archsimd.LoadFloat64x4(wQKV[wRow+p:])
+				vX0 := archsimd.LoadFloat64x4(x[xRow0+p:])
+				vX1 := archsimd.LoadFloat64x4(x[xRow1+p:])
+				vX2 := archsimd.LoadFloat64x4(x[xRow2+p:])
+				vX3 := archsimd.LoadFloat64x4(x[xRow3+p:])
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
@@ -502,8 +502,8 @@ func BaseQKVDense_avx2_Float64(x []float64, wQKV []float64, biasQ []float64, bia
 			acc := archsimd.BroadcastFloat64x4(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := archsimd.LoadFloat64x4Slice(x[xRow+p:])
-				vW := archsimd.LoadFloat64x4Slice(wQKV[wRow+p:])
+				vX := archsimd.LoadFloat64x4(x[xRow+p:])
+				vW := archsimd.LoadFloat64x4(wQKV[wRow+p:])
 				acc = vX.MulAdd(vW, acc)
 			}
 			sum := hwy.ReduceSum_AVX2_F64x4(acc)

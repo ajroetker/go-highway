@@ -108,7 +108,7 @@ func BaseSymvLN_avx2(a []float32, x []float32, y []float32, n int) {
 	vZero := archsimd.BroadcastFloat32x8(0)
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vZero.Store((*[8]float32)(unsafe.Pointer(&y[i])))
+		vZero.StoreArray((*[8]float32)(unsafe.Pointer(&y[i])))
 	}
 	for ; i < n; i++ {
 		y[i] = 0
@@ -121,11 +121,11 @@ func BaseSymvLN_avx2(a []float32, x []float32, y []float32, n int) {
 		acc := archsimd.BroadcastFloat32x8(0)
 		var j int
 		for j = 0; j+lanes <= i; j += lanes {
-			va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&aRow[j])))
-			vx := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&x[j])))
+			va := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&aRow[j])))
+			vx := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&x[j])))
 			acc = va.MulAdd(vx, acc)
-			vy := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&y[j])))
-			vxi.MulAdd(va, vy).Store((*[8]float32)(unsafe.Pointer(&y[j])))
+			vy := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&y[j])))
+			vxi.MulAdd(va, vy).StoreArray((*[8]float32)(unsafe.Pointer(&y[j])))
 		}
 		y[i] += hwy.ReduceSum_AVX2_F32x8(acc)
 		for ; j < i; j++ {
@@ -149,7 +149,7 @@ func BaseSymvLN_avx2_Float64(a []float64, x []float64, y []float64, n int) {
 	vZero := archsimd.BroadcastFloat64x4(0)
 	var i int
 	for i = 0; i+lanes <= n; i += lanes {
-		vZero.Store((*[4]float64)(unsafe.Pointer(&y[i])))
+		vZero.StoreArray((*[4]float64)(unsafe.Pointer(&y[i])))
 	}
 	for ; i < n; i++ {
 		y[i] = 0
@@ -162,11 +162,11 @@ func BaseSymvLN_avx2_Float64(a []float64, x []float64, y []float64, n int) {
 		acc := archsimd.BroadcastFloat64x4(0)
 		var j int
 		for j = 0; j+lanes <= i; j += lanes {
-			va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&aRow[j])))
-			vx := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&x[j])))
+			va := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&aRow[j])))
+			vx := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&x[j])))
 			acc = va.MulAdd(vx, acc)
-			vy := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&y[j])))
-			vxi.MulAdd(va, vy).Store((*[4]float64)(unsafe.Pointer(&y[j])))
+			vy := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&y[j])))
+			vxi.MulAdd(va, vy).StoreArray((*[4]float64)(unsafe.Pointer(&y[j])))
 		}
 		y[i] += hwy.ReduceSum_AVX2_F64x4(acc)
 		for ; j < i; j++ {

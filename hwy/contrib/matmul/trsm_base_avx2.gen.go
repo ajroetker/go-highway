@@ -103,9 +103,9 @@ func BaseTrsmLN_avx2(l []float32, b []float32, n int, nrhs int) {
 			negLij := archsimd.BroadcastFloat32x8(-lij)
 			var k int
 			for k = 0; k+lanes <= nrhs; k += lanes {
-				vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
-				vx := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[j*nrhs+k])))
-				negLij.MulAdd(vx, vb).Store((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
+				vb := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
+				vx := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[j*nrhs+k])))
+				negLij.MulAdd(vx, vb).StoreArray((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
 			}
 			for ; k < nrhs; k++ {
 				b[i*nrhs+k] -= lij * b[j*nrhs+k]
@@ -114,7 +114,7 @@ func BaseTrsmLN_avx2(l []float32, b []float32, n int, nrhs int) {
 		invLii := archsimd.BroadcastFloat32x8(float32(1) / l[i*n+i])
 		var k int
 		for k = 0; k+lanes <= nrhs; k += lanes {
-			archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).Store((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
+			archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).StoreArray((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
 		}
 		s := float32(1) / l[i*n+i]
 		for ; k < nrhs; k++ {
@@ -140,9 +140,9 @@ func BaseTrsmLN_avx2_Float64(l []float64, b []float64, n int, nrhs int) {
 			negLij := archsimd.BroadcastFloat64x4(-lij)
 			var k int
 			for k = 0; k+lanes <= nrhs; k += lanes {
-				vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
-				vx := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[j*nrhs+k])))
-				negLij.MulAdd(vx, vb).Store((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
+				vb := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
+				vx := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[j*nrhs+k])))
+				negLij.MulAdd(vx, vb).StoreArray((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
 			}
 			for ; k < nrhs; k++ {
 				b[i*nrhs+k] -= lij * b[j*nrhs+k]
@@ -151,7 +151,7 @@ func BaseTrsmLN_avx2_Float64(l []float64, b []float64, n int, nrhs int) {
 		invLii := archsimd.BroadcastFloat64x4(float64(1) / l[i*n+i])
 		var k int
 		for k = 0; k+lanes <= nrhs; k += lanes {
-			archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).Store((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
+			archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).StoreArray((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
 		}
 		s := float64(1) / l[i*n+i]
 		for ; k < nrhs; k++ {
@@ -251,9 +251,9 @@ func BaseTrsmLT_avx2(l []float32, b []float32, n int, nrhs int) {
 			negLji := archsimd.BroadcastFloat32x8(-lji)
 			var k int
 			for k = 0; k+lanes <= nrhs; k += lanes {
-				vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
-				vx := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[j*nrhs+k])))
-				negLji.MulAdd(vx, vb).Store((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
+				vb := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
+				vx := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[j*nrhs+k])))
+				negLji.MulAdd(vx, vb).StoreArray((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
 			}
 			for ; k < nrhs; k++ {
 				b[i*nrhs+k] -= lji * b[j*nrhs+k]
@@ -262,7 +262,7 @@ func BaseTrsmLT_avx2(l []float32, b []float32, n int, nrhs int) {
 		invLii := archsimd.BroadcastFloat32x8(float32(1) / l[i*n+i])
 		var k int
 		for k = 0; k+lanes <= nrhs; k += lanes {
-			archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).Store((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
+			archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).StoreArray((*[8]float32)(unsafe.Pointer(&b[i*nrhs+k])))
 		}
 		s := float32(1) / l[i*n+i]
 		for ; k < nrhs; k++ {
@@ -288,9 +288,9 @@ func BaseTrsmLT_avx2_Float64(l []float64, b []float64, n int, nrhs int) {
 			negLji := archsimd.BroadcastFloat64x4(-lji)
 			var k int
 			for k = 0; k+lanes <= nrhs; k += lanes {
-				vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
-				vx := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[j*nrhs+k])))
-				negLji.MulAdd(vx, vb).Store((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
+				vb := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
+				vx := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[j*nrhs+k])))
+				negLji.MulAdd(vx, vb).StoreArray((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
 			}
 			for ; k < nrhs; k++ {
 				b[i*nrhs+k] -= lji * b[j*nrhs+k]
@@ -299,7 +299,7 @@ func BaseTrsmLT_avx2_Float64(l []float64, b []float64, n int, nrhs int) {
 		invLii := archsimd.BroadcastFloat64x4(float64(1) / l[i*n+i])
 		var k int
 		for k = 0; k+lanes <= nrhs; k += lanes {
-			archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).Store((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
+			archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k]))).Mul(invLii).StoreArray((*[4]float64)(unsafe.Pointer(&b[i*nrhs+k])))
 		}
 		s := float64(1) / l[i*n+i]
 		for ; k < nrhs; k++ {

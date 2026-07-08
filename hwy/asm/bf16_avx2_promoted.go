@@ -39,7 +39,7 @@ func LoadBFloat16x8AVX2Slice(s []uint16) BFloat16x8AVX2 {
 	for i := 0; i < 8; i++ {
 		buf[i] = bfloat16BitsToFloat32(s[i])
 	}
-	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8Slice(buf[:])}
+	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8(buf[:])}
 }
 
 // LoadBFloat16x8AVX2Ptr loads 8 bfloat16 values from an unsafe.Pointer, promoting to float32.
@@ -51,7 +51,7 @@ func LoadBFloat16x8AVX2Ptr(ptr unsafe.Pointer) BFloat16x8AVX2 {
 // StoreSlice demotes float32 back to bfloat16 and stores 8 values to a uint16 slice.
 func (v BFloat16x8AVX2) StoreSlice(s []uint16) {
 	var buf [8]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	for i := 0; i < 8; i++ {
 		s[i] = float32ToBFloat16Bits(buf[i])
 	}
@@ -162,7 +162,7 @@ func (v BFloat16x8AVX2) GreaterEqual(other BFloat16x8AVX2) archsimd.Mask32x8 {
 // ============================================================================
 
 func (v BFloat16x8AVX2) RoundToEven() BFloat16x8AVX2 {
-	return BFloat16x8AVX2{data: v.data.RoundToEven()}
+	return BFloat16x8AVX2{data: v.data.Round()}
 }
 
 func (v BFloat16x8AVX2) ConvertToInt32() archsimd.Int32x8 {
@@ -225,13 +225,13 @@ func (v BFloat16x8AVX2) Merge(other BFloat16x8AVX2, mask archsimd.Mask32x8) BFlo
 
 func (v BFloat16x8AVX2) ReduceSum() float32 {
 	var buf [8]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	return buf[0] + buf[1] + buf[2] + buf[3] + buf[4] + buf[5] + buf[6] + buf[7]
 }
 
 func (v BFloat16x8AVX2) ReduceMax() float32 {
 	var buf [8]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	m := buf[0]
 	for i := 1; i < 8; i++ {
 		if buf[i] > m {
@@ -243,7 +243,7 @@ func (v BFloat16x8AVX2) ReduceMax() float32 {
 
 func (v BFloat16x8AVX2) ReduceMin() float32 {
 	var buf [8]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	m := buf[0]
 	for i := 1; i < 8; i++ {
 		if buf[i] < m {
@@ -260,7 +260,7 @@ func (v BFloat16x8AVX2) ReduceMin() float32 {
 // IotaBFloat16x8AVX2 returns a vector with lane indices [0, 1, 2, ..., 7] as promoted float32.
 func IotaBFloat16x8AVX2() BFloat16x8AVX2 {
 	buf := [8]float32{0, 1, 2, 3, 4, 5, 6, 7}
-	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8Slice(buf[:])}
+	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8(buf[:])}
 }
 
 // SignBitBFloat16x8AVX2 returns a vector with the sign bit set in each float32 lane.
@@ -282,18 +282,18 @@ func (v BFloat16x8AVX2) Data() archsimd.Float32x8 {
 
 func (v BFloat16x8AVX2) InterleaveLower(other BFloat16x8AVX2) BFloat16x8AVX2 {
 	var a, b [8]float32
-	v.data.StoreSlice(a[:])
-	other.data.StoreSlice(b[:])
+	v.data.Store(a[:])
+	other.data.Store(b[:])
 	result := [8]float32{a[0], b[0], a[1], b[1], a[2], b[2], a[3], b[3]}
-	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8Slice(result[:])}
+	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8(result[:])}
 }
 
 func (v BFloat16x8AVX2) InterleaveUpper(other BFloat16x8AVX2) BFloat16x8AVX2 {
 	var a, b [8]float32
-	v.data.StoreSlice(a[:])
-	other.data.StoreSlice(b[:])
+	v.data.Store(a[:])
+	other.data.Store(b[:])
 	result := [8]float32{a[4], b[4], a[5], b[5], a[6], b[6], a[7], b[7]}
-	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8Slice(result[:])}
+	return BFloat16x8AVX2{data: archsimd.LoadFloat32x8(result[:])}
 }
 
 // ============================================================================

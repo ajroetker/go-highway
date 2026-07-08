@@ -137,23 +137,23 @@ func BaseMatMul_avx512(a []float32, b []float32, c []float32, m int, n int, k in
 			for p := range k {
 				vA := archsimd.BroadcastFloat32x16(a[i*k+p])
 				bRow := b[p*n:]
-				acc0 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bRow[j]))), acc0)
-				acc1 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
-				acc2 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
-				acc3 = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
+				acc0 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bRow[j]))), acc0)
+				acc1 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
+				acc2 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
+				acc3 = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
 			}
-			acc0.Store((*[16]float32)(unsafe.Pointer(&cRow[j])))
-			acc1.Store((*[16]float32)(unsafe.Pointer(&cRow[j+lanes])))
-			acc2.Store((*[16]float32)(unsafe.Pointer(&cRow[j+2*lanes])))
-			acc3.Store((*[16]float32)(unsafe.Pointer(&cRow[j+3*lanes])))
+			acc0.StoreArray((*[16]float32)(unsafe.Pointer(&cRow[j])))
+			acc1.StoreArray((*[16]float32)(unsafe.Pointer(&cRow[j+lanes])))
+			acc2.StoreArray((*[16]float32)(unsafe.Pointer(&cRow[j+2*lanes])))
+			acc3.StoreArray((*[16]float32)(unsafe.Pointer(&cRow[j+3*lanes])))
 		}
 		for ; j+lanes <= n; j += lanes {
 			acc := archsimd.BroadcastFloat32x16(0)
 			for p := range k {
 				vA := archsimd.BroadcastFloat32x16(a[i*k+p])
-				acc = vA.MulAdd(archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[p*n+j]))), acc)
+				acc = vA.MulAdd(archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[p*n+j]))), acc)
 			}
-			acc.Store((*[16]float32)(unsafe.Pointer(&cRow[j])))
+			acc.StoreArray((*[16]float32)(unsafe.Pointer(&cRow[j])))
 		}
 		for ; j < n; j++ {
 			var sum float32
@@ -188,23 +188,23 @@ func BaseMatMul_avx512_Float64(a []float64, b []float64, c []float64, m int, n i
 			for p := range k {
 				vA := archsimd.BroadcastFloat64x8(a[i*k+p])
 				bRow := b[p*n:]
-				acc0 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bRow[j]))), acc0)
-				acc1 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
-				acc2 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
-				acc3 = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
+				acc0 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bRow[j]))), acc0)
+				acc1 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bRow[j+lanes]))), acc1)
+				acc2 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bRow[j+2*lanes]))), acc2)
+				acc3 = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&bRow[j+3*lanes]))), acc3)
 			}
-			acc0.Store((*[8]float64)(unsafe.Pointer(&cRow[j])))
-			acc1.Store((*[8]float64)(unsafe.Pointer(&cRow[j+lanes])))
-			acc2.Store((*[8]float64)(unsafe.Pointer(&cRow[j+2*lanes])))
-			acc3.Store((*[8]float64)(unsafe.Pointer(&cRow[j+3*lanes])))
+			acc0.StoreArray((*[8]float64)(unsafe.Pointer(&cRow[j])))
+			acc1.StoreArray((*[8]float64)(unsafe.Pointer(&cRow[j+lanes])))
+			acc2.StoreArray((*[8]float64)(unsafe.Pointer(&cRow[j+2*lanes])))
+			acc3.StoreArray((*[8]float64)(unsafe.Pointer(&cRow[j+3*lanes])))
 		}
 		for ; j+lanes <= n; j += lanes {
 			acc := archsimd.BroadcastFloat64x8(0)
 			for p := range k {
 				vA := archsimd.BroadcastFloat64x8(a[i*k+p])
-				acc = vA.MulAdd(archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[p*n+j]))), acc)
+				acc = vA.MulAdd(archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[p*n+j]))), acc)
 			}
-			acc.Store((*[8]float64)(unsafe.Pointer(&cRow[j])))
+			acc.StoreArray((*[8]float64)(unsafe.Pointer(&cRow[j])))
 		}
 		for ; j < n; j++ {
 			var sum float64

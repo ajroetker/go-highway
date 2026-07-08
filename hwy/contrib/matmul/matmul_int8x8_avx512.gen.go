@@ -31,10 +31,10 @@ func BaseInt8x8MatMul_avx512(output []int32, a []uint8, b []uint8, aZP uint8, bZ
 				for lane := range lanes {
 					dequantBuf[lane] = int32(b[baseIdx+n+lane]) - bzp
 				}
-				bVec := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&dequantBuf[0])))
-				acc := archsimd.LoadInt32x16((*[16]int32)(unsafe.Pointer(&accBuf[n])))
+				bVec := archsimd.LoadInt32x16Array((*[16]int32)(unsafe.Pointer(&dequantBuf[0])))
+				acc := archsimd.LoadInt32x16Array((*[16]int32)(unsafe.Pointer(&accBuf[n])))
 				acc = aVec.Mul(bVec).Add(acc)
-				acc.Store((*[16]int32)(unsafe.Pointer(&accBuf[n])))
+				acc.StoreArray((*[16]int32)(unsafe.Pointer(&accBuf[n])))
 			}
 			for ; n < N; n++ {
 				accBuf[n] += aVal * (int32(b[baseIdx+n]) - bzp)

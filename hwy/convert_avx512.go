@@ -68,101 +68,101 @@ func BitCastI64ToF64_AVX512(v archsimd.Int64x8) archsimd.Float64x8 {
 // Round_AVX512_F32x16 rounds to nearest integer.
 func Round_AVX512_F32x16(v archsimd.Float32x16) archsimd.Float32x16 {
 	var data [16]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = float32(math.Round(float64(data[i])))
 	}
-	return archsimd.LoadFloat32x16Slice(data[:])
+	return archsimd.LoadFloat32x16(data[:])
 }
 
 // Round_AVX512_F64x8 rounds to nearest integer.
 func Round_AVX512_F64x8(v archsimd.Float64x8) archsimd.Float64x8 {
 	var data [8]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = math.Round(data[i])
 	}
-	return archsimd.LoadFloat64x8Slice(data[:])
+	return archsimd.LoadFloat64x8(data[:])
 }
 
 // Trunc_AVX512_F32x16 truncates toward zero.
 func Trunc_AVX512_F32x16(v archsimd.Float32x16) archsimd.Float32x16 {
 	var data [16]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = float32(math.Trunc(float64(data[i])))
 	}
-	return archsimd.LoadFloat32x16Slice(data[:])
+	return archsimd.LoadFloat32x16(data[:])
 }
 
 // Trunc_AVX512_F64x8 truncates toward zero.
 func Trunc_AVX512_F64x8(v archsimd.Float64x8) archsimd.Float64x8 {
 	var data [8]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = math.Trunc(data[i])
 	}
-	return archsimd.LoadFloat64x8Slice(data[:])
+	return archsimd.LoadFloat64x8(data[:])
 }
 
 // Ceil_AVX512_F32x16 rounds up toward positive infinity.
 func Ceil_AVX512_F32x16(v archsimd.Float32x16) archsimd.Float32x16 {
 	var data [16]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = float32(math.Ceil(float64(data[i])))
 	}
-	return archsimd.LoadFloat32x16Slice(data[:])
+	return archsimd.LoadFloat32x16(data[:])
 }
 
 // Ceil_AVX512_F64x8 rounds up toward positive infinity.
 func Ceil_AVX512_F64x8(v archsimd.Float64x8) archsimd.Float64x8 {
 	var data [8]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = math.Ceil(data[i])
 	}
-	return archsimd.LoadFloat64x8Slice(data[:])
+	return archsimd.LoadFloat64x8(data[:])
 }
 
 // Floor_AVX512_F32x16 rounds down toward negative infinity.
 func Floor_AVX512_F32x16(v archsimd.Float32x16) archsimd.Float32x16 {
 	var data [16]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = float32(math.Floor(float64(data[i])))
 	}
-	return archsimd.LoadFloat32x16Slice(data[:])
+	return archsimd.LoadFloat32x16(data[:])
 }
 
 // Floor_AVX512_F64x8 rounds down toward negative infinity.
 func Floor_AVX512_F64x8(v archsimd.Float64x8) archsimd.Float64x8 {
 	var data [8]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = math.Floor(data[i])
 	}
-	return archsimd.LoadFloat64x8Slice(data[:])
+	return archsimd.LoadFloat64x8(data[:])
 }
 
 // NearestInt_AVX512_F32x16 rounds to nearest even integer.
 func NearestInt_AVX512_F32x16(v archsimd.Float32x16) archsimd.Float32x16 {
 	var data [16]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = float32(math.RoundToEven(float64(data[i])))
 	}
-	return archsimd.LoadFloat32x16Slice(data[:])
+	return archsimd.LoadFloat32x16(data[:])
 }
 
 // NearestInt_AVX512_F64x8 rounds to nearest even integer.
 func NearestInt_AVX512_F64x8(v archsimd.Float64x8) archsimd.Float64x8 {
 	var data [8]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = math.RoundToEven(data[i])
 	}
-	return archsimd.LoadFloat64x8Slice(data[:])
+	return archsimd.LoadFloat64x8(data[:])
 }
 
 // RoundToEven_AVX512_F32x16 rounds to nearest even integer using SIMD conversion.
@@ -197,7 +197,7 @@ func Pow2_AVX512_F64x8(k archsimd.Int32x8) archsimd.Float64x8 {
 	// Use scalar fallback for now as AVX-512 Int64x8 shift may need verification
 	var kData [8]int32
 	var result [8]float64
-	k.Store(&kData)
+	k.StoreArray(&kData)
 	for i := 0; i < 8; i++ {
 		ki := kData[i]
 		if ki < -1022 {
@@ -209,5 +209,5 @@ func Pow2_AVX512_F64x8(k archsimd.Int32x8) archsimd.Float64x8 {
 			result[i] = math.Float64frombits(bits)
 		}
 	}
-	return archsimd.LoadFloat64x8Slice(result[:])
+	return archsimd.LoadFloat64x8(result[:])
 }

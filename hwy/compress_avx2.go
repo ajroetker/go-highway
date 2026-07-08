@@ -34,7 +34,7 @@ func mask32x8ToBits(mask archsimd.Mask32x8) uint8 {
 	// Convert mask to int32x8 (true lanes = -1 = 0xFFFFFFFF, false = 0)
 	v := mask.ToInt32x8()
 	var data [8]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	var bits uint8
 	for i := 0; i < 8; i++ {
@@ -49,7 +49,7 @@ func mask32x8ToBits(mask archsimd.Mask32x8) uint8 {
 func mask64x4ToBits(mask archsimd.Mask64x4) uint8 {
 	v := mask.ToInt64x4()
 	var data [4]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	var bits uint8
 	for i := 0; i < 4; i++ {
@@ -66,7 +66,7 @@ func mask64x4ToBits(mask archsimd.Mask64x4) uint8 {
 // Returns compressed vector and count of valid elements.
 func Compress_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8) (archsimd.Float32x8, int) {
 	var data [8]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]float32
@@ -79,14 +79,14 @@ func Compress_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8) (archsimd
 		}
 	}
 
-	return archsimd.LoadFloat32x8(&result), count
+	return archsimd.LoadFloat32x8Array(&result), count
 }
 
 // Compress_AVX2_F64x4 compresses elements where mask is true to the front.
 // Returns compressed vector and count of valid elements.
 func Compress_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4) (archsimd.Float64x4, int) {
 	var data [4]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]float64
@@ -99,13 +99,13 @@ func Compress_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4) (archsimd
 		}
 	}
 
-	return archsimd.LoadFloat64x4(&result), count
+	return archsimd.LoadFloat64x4Array(&result), count
 }
 
 // Expand_AVX2_F32x8 expands elements into positions where mask is true.
 func Expand_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8) archsimd.Float32x8 {
 	var data [8]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]float32
@@ -118,13 +118,13 @@ func Expand_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8) archsimd.Fl
 		}
 	}
 
-	return archsimd.LoadFloat32x8(&result)
+	return archsimd.LoadFloat32x8Array(&result)
 }
 
 // Expand_AVX2_F64x4 expands elements into positions where mask is true.
 func Expand_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4) archsimd.Float64x4 {
 	var data [4]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]float64
@@ -137,14 +137,14 @@ func Expand_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4) archsimd.Fl
 		}
 	}
 
-	return archsimd.LoadFloat64x4(&result)
+	return archsimd.LoadFloat64x4Array(&result)
 }
 
 // CompressStore_AVX2_F32x8 compresses and stores directly to slice.
 // Returns number of elements stored.
 func CompressStore_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8, dst []float32) int {
 	var data [8]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	count := 0
@@ -163,7 +163,7 @@ func CompressStore_AVX2_F32x8(v archsimd.Float32x8, mask archsimd.Mask32x8, dst 
 // Returns number of elements stored.
 func CompressStore_AVX2_F64x4(v archsimd.Float64x4, mask archsimd.Mask64x4, dst []float64) int {
 	var data [4]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	count := 0
@@ -269,7 +269,7 @@ func FindLastTrue_AVX2_F64x4(mask archsimd.Mask64x4) int {
 // FirstN_AVX2_F32x8 creates a mask with the first n lanes set to true.
 func FirstN_AVX2_F32x8(n int) archsimd.Mask32x8 {
 	indexArray := [8]int32{0, 1, 2, 3, 4, 5, 6, 7}
-	indices := archsimd.LoadInt32x8(&indexArray)
+	indices := archsimd.LoadInt32x8Array(&indexArray)
 	threshold := archsimd.BroadcastInt32x8(int32(n))
 	return indices.Less(threshold)
 }
@@ -277,7 +277,7 @@ func FirstN_AVX2_F32x8(n int) archsimd.Mask32x8 {
 // FirstN_AVX2_F64x4 creates a mask with the first n lanes set to true.
 func FirstN_AVX2_F64x4(n int) archsimd.Mask64x4 {
 	indexArray := [4]int64{0, 1, 2, 3}
-	indices := archsimd.LoadInt64x4(&indexArray)
+	indices := archsimd.LoadInt64x4Array(&indexArray)
 	threshold := archsimd.BroadcastInt64x4(int64(n))
 	return indices.Less(threshold)
 }
@@ -316,7 +316,7 @@ func MaskFromBits_AVX2_F32x8(bits uint64) archsimd.Mask32x8 {
 			vals[i] = 1
 		}
 	}
-	vec := archsimd.LoadInt32x8(&vals)
+	vec := archsimd.LoadInt32x8Array(&vals)
 	zero := archsimd.BroadcastInt32x8(0)
 	return vec.Greater(zero)
 }
@@ -329,7 +329,7 @@ func MaskFromBits_AVX2_F64x4(bits uint64) archsimd.Mask64x4 {
 			vals[i] = 1
 		}
 	}
-	vec := archsimd.LoadInt64x4(&vals)
+	vec := archsimd.LoadInt64x4Array(&vals)
 	zero := archsimd.BroadcastInt64x4(0)
 	return vec.Greater(zero)
 }
@@ -363,7 +363,7 @@ func BitsFromMask_AVX2_Uint8x32(mask archsimd.Mask8x32) uint64 {
 // Compress_AVX2_I32x8 compresses elements where mask is true to the front.
 func Compress_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8) (archsimd.Int32x8, int) {
 	var data [8]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]int32
@@ -376,13 +376,13 @@ func Compress_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8) (archsimd.I
 		}
 	}
 
-	return archsimd.LoadInt32x8(&result), count
+	return archsimd.LoadInt32x8Array(&result), count
 }
 
 // Compress_AVX2_I64x4 compresses elements where mask is true to the front.
 func Compress_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4) (archsimd.Int64x4, int) {
 	var data [4]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]int64
@@ -395,13 +395,13 @@ func Compress_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4) (archsimd.I
 		}
 	}
 
-	return archsimd.LoadInt64x4(&result), count
+	return archsimd.LoadInt64x4Array(&result), count
 }
 
 // Expand_AVX2_I32x8 expands elements into positions where mask is true.
 func Expand_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8) archsimd.Int32x8 {
 	var data [8]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]int32
@@ -414,13 +414,13 @@ func Expand_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8) archsimd.Int3
 		}
 	}
 
-	return archsimd.LoadInt32x8(&result)
+	return archsimd.LoadInt32x8Array(&result)
 }
 
 // Expand_AVX2_I64x4 expands elements into positions where mask is true.
 func Expand_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4) archsimd.Int64x4 {
 	var data [4]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]int64
@@ -433,13 +433,13 @@ func Expand_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4) archsimd.Int6
 		}
 	}
 
-	return archsimd.LoadInt64x4(&result)
+	return archsimd.LoadInt64x4Array(&result)
 }
 
 // CompressStore_AVX2_I32x8 compresses and stores directly to slice.
 func CompressStore_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8, dst []int32) int {
 	var data [8]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	count := 0
@@ -457,7 +457,7 @@ func CompressStore_AVX2_I32x8(v archsimd.Int32x8, mask archsimd.Mask32x8, dst []
 // CompressStore_AVX2_I64x4 compresses and stores directly to slice.
 func CompressStore_AVX2_I64x4(v archsimd.Int64x4, mask archsimd.Mask64x4, dst []int64) int {
 	var data [4]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	count := 0
@@ -549,7 +549,7 @@ func FindLastTrue_AVX2_I64x4(mask archsimd.Mask64x4) int {
 // Compress_AVX2_Uint32x8 compresses elements where mask is true to the front.
 func Compress_AVX2_Uint32x8(v archsimd.Uint32x8, mask archsimd.Mask32x8) (archsimd.Uint32x8, int) {
 	var data [8]uint32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]uint32
@@ -562,13 +562,13 @@ func Compress_AVX2_Uint32x8(v archsimd.Uint32x8, mask archsimd.Mask32x8) (archsi
 		}
 	}
 
-	return archsimd.LoadUint32x8(&result), count
+	return archsimd.LoadUint32x8Array(&result), count
 }
 
 // Compress_AVX2_Uint64x4 compresses elements where mask is true to the front.
 func Compress_AVX2_Uint64x4(v archsimd.Uint64x4, mask archsimd.Mask64x4) (archsimd.Uint64x4, int) {
 	var data [4]uint64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]uint64
@@ -581,13 +581,13 @@ func Compress_AVX2_Uint64x4(v archsimd.Uint64x4, mask archsimd.Mask64x4) (archsi
 		}
 	}
 
-	return archsimd.LoadUint64x4(&result), count
+	return archsimd.LoadUint64x4Array(&result), count
 }
 
 // CompressStore_AVX2_Uint32x8 compresses and stores directly to slice.
 func CompressStore_AVX2_Uint32x8(v archsimd.Uint32x8, mask archsimd.Mask32x8, dst []uint32) int {
 	var data [8]uint32
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask32x8ToBits(mask)
 	count := 0
@@ -605,7 +605,7 @@ func CompressStore_AVX2_Uint32x8(v archsimd.Uint32x8, mask archsimd.Mask32x8, ds
 // CompressStore_AVX2_Uint64x4 compresses and stores directly to slice.
 func CompressStore_AVX2_Uint64x4(v archsimd.Uint64x4, mask archsimd.Mask64x4, dst []uint64) int {
 	var data [4]uint64
-	v.Store(&data)
+	v.StoreArray(&data)
 
 	bits := mask64x4ToBits(mask)
 	count := 0
@@ -697,8 +697,8 @@ func FindLastTrue_AVX2_Uint64x4(mask archsimd.Mask64x4) int {
 // IfThenElse_AVX2_F32x8 selects elements from a where mask is true, else from b.
 func IfThenElse_AVX2_F32x8(mask archsimd.Mask32x8, a, b archsimd.Float32x8) archsimd.Float32x8 {
 	var aBuf, bBuf [8]float32
-	a.Store(&aBuf)
-	b.Store(&bBuf)
+	a.StoreArray(&aBuf)
+	b.StoreArray(&bBuf)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]float32
@@ -709,14 +709,14 @@ func IfThenElse_AVX2_F32x8(mask archsimd.Mask32x8, a, b archsimd.Float32x8) arch
 			result[i] = bBuf[i]
 		}
 	}
-	return archsimd.LoadFloat32x8(&result)
+	return archsimd.LoadFloat32x8Array(&result)
 }
 
 // IfThenElse_AVX2_F64x4 selects elements from a where mask is true, else from b.
 func IfThenElse_AVX2_F64x4(mask archsimd.Mask64x4, a, b archsimd.Float64x4) archsimd.Float64x4 {
 	var aBuf, bBuf [4]float64
-	a.Store(&aBuf)
-	b.Store(&bBuf)
+	a.StoreArray(&aBuf)
+	b.StoreArray(&bBuf)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]float64
@@ -727,14 +727,14 @@ func IfThenElse_AVX2_F64x4(mask archsimd.Mask64x4, a, b archsimd.Float64x4) arch
 			result[i] = bBuf[i]
 		}
 	}
-	return archsimd.LoadFloat64x4(&result)
+	return archsimd.LoadFloat64x4Array(&result)
 }
 
 // IfThenElse_AVX2_I32x8 selects elements from a where mask is true, else from b.
 func IfThenElse_AVX2_I32x8(mask archsimd.Mask32x8, a, b archsimd.Int32x8) archsimd.Int32x8 {
 	var aBuf, bBuf [8]int32
-	a.Store(&aBuf)
-	b.Store(&bBuf)
+	a.StoreArray(&aBuf)
+	b.StoreArray(&bBuf)
 
 	bits := mask32x8ToBits(mask)
 	var result [8]int32
@@ -745,14 +745,14 @@ func IfThenElse_AVX2_I32x8(mask archsimd.Mask32x8, a, b archsimd.Int32x8) archsi
 			result[i] = bBuf[i]
 		}
 	}
-	return archsimd.LoadInt32x8(&result)
+	return archsimd.LoadInt32x8Array(&result)
 }
 
 // IfThenElse_AVX2_I64x4 selects elements from a where mask is true, else from b.
 func IfThenElse_AVX2_I64x4(mask archsimd.Mask64x4, a, b archsimd.Int64x4) archsimd.Int64x4 {
 	var aBuf, bBuf [4]int64
-	a.Store(&aBuf)
-	b.Store(&bBuf)
+	a.StoreArray(&aBuf)
+	b.StoreArray(&bBuf)
 
 	bits := mask64x4ToBits(mask)
 	var result [4]int64
@@ -763,7 +763,7 @@ func IfThenElse_AVX2_I64x4(mask archsimd.Mask64x4, a, b archsimd.Int64x4) archsi
 			result[i] = bBuf[i]
 		}
 	}
-	return archsimd.LoadInt64x4(&result)
+	return archsimd.LoadInt64x4Array(&result)
 }
 
 // MaskAnd_AVX2_F32x8 combines two masks with AND operation.
@@ -846,7 +846,7 @@ func And_AVX2_F64x4(a, b archsimd.Float64x4) archsimd.Float64x4 {
 // ReduceMin_AVX2_F32x8 returns the minimum element of the vector.
 func ReduceMin_AVX2_F32x8(v archsimd.Float32x8) float32 {
 	var data [8]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	min := data[0]
 	for i := 1; i < 8; i++ {
 		if data[i] < min {
@@ -859,7 +859,7 @@ func ReduceMin_AVX2_F32x8(v archsimd.Float32x8) float32 {
 // ReduceMin_AVX2_F64x4 returns the minimum element of the vector.
 func ReduceMin_AVX2_F64x4(v archsimd.Float64x4) float64 {
 	var data [4]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	min := data[0]
 	for i := 1; i < 4; i++ {
 		if data[i] < min {
@@ -872,7 +872,7 @@ func ReduceMin_AVX2_F64x4(v archsimd.Float64x4) float64 {
 // ReduceMax_AVX2_F32x8 returns the maximum element of the vector.
 func ReduceMax_AVX2_F32x8(v archsimd.Float32x8) float32 {
 	var data [8]float32
-	v.Store(&data)
+	v.StoreArray(&data)
 	max := data[0]
 	for i := 1; i < 8; i++ {
 		if data[i] > max {
@@ -885,7 +885,7 @@ func ReduceMax_AVX2_F32x8(v archsimd.Float32x8) float32 {
 // ReduceMax_AVX2_F64x4 returns the maximum element of the vector.
 func ReduceMax_AVX2_F64x4(v archsimd.Float64x4) float64 {
 	var data [4]float64
-	v.Store(&data)
+	v.StoreArray(&data)
 	max := data[0]
 	for i := 1; i < 4; i++ {
 		if data[i] > max {
@@ -898,7 +898,7 @@ func ReduceMax_AVX2_F64x4(v archsimd.Float64x4) float64 {
 // ReduceMax_AVX2_I32x8 returns the maximum element of the vector.
 func ReduceMax_AVX2_I32x8(v archsimd.Int32x8) int32 {
 	var data [8]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	max := data[0]
 	for i := 1; i < 8; i++ {
 		if data[i] > max {
@@ -911,7 +911,7 @@ func ReduceMax_AVX2_I32x8(v archsimd.Int32x8) int32 {
 // ReduceMax_AVX2_I64x4 returns the maximum element of the vector.
 func ReduceMax_AVX2_I64x4(v archsimd.Int64x4) int64 {
 	var data [4]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	max := data[0]
 	for i := 1; i < 4; i++ {
 		if data[i] > max {

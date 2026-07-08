@@ -82,12 +82,12 @@ func BaseNormalize_avx512(dst []float32) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= len(dst); i += lanes * 2 {
-		vec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dst[i])))
+		vec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&dst[i])))
 		result := vec.Mul(scaleVec)
-		result.Store((*[16]float32)(unsafe.Pointer(&dst[i])))
-		vec1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&dst[i+16])))
+		result.StoreArray((*[16]float32)(unsafe.Pointer(&dst[i])))
+		vec1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&dst[i+16])))
 		result1 := vec1.Mul(scaleVec)
-		result1.Store((*[16]float32)(unsafe.Pointer(&dst[i+16])))
+		result1.StoreArray((*[16]float32)(unsafe.Pointer(&dst[i+16])))
 	}
 	for ; i < len(dst); i++ {
 		dst[i] *= scale
@@ -109,12 +109,12 @@ func BaseNormalize_avx512_Float64(dst []float64) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= len(dst); i += lanes * 2 {
-		vec := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&dst[i])))
+		vec := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&dst[i])))
 		result := vec.Mul(scaleVec)
-		result.Store((*[8]float64)(unsafe.Pointer(&dst[i])))
-		vec1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&dst[i+8])))
+		result.StoreArray((*[8]float64)(unsafe.Pointer(&dst[i])))
+		vec1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&dst[i+8])))
 		result1 := vec1.Mul(scaleVec)
-		result1.Store((*[8]float64)(unsafe.Pointer(&dst[i+8])))
+		result1.StoreArray((*[8]float64)(unsafe.Pointer(&dst[i+8])))
 	}
 	for ; i < len(dst); i++ {
 		dst[i] *= scale
@@ -196,12 +196,12 @@ func BaseNormalizeTo_avx512(dst []float32, src []float32) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		vec := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&src[i])))
+		vec := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&src[i])))
 		result := vec.Mul(scaleVec)
-		result.Store((*[16]float32)(unsafe.Pointer(&dst[i])))
-		vec1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&src[i+16])))
+		result.StoreArray((*[16]float32)(unsafe.Pointer(&dst[i])))
+		vec1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&src[i+16])))
 		result1 := vec1.Mul(scaleVec)
-		result1.Store((*[16]float32)(unsafe.Pointer(&dst[i+16])))
+		result1.StoreArray((*[16]float32)(unsafe.Pointer(&dst[i+16])))
 	}
 	for ; i < n; i++ {
 		dst[i] = src[i] * scale
@@ -225,12 +225,12 @@ func BaseNormalizeTo_avx512_Float64(dst []float64, src []float64) {
 	var i int
 	i = 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		vec := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&src[i])))
+		vec := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&src[i])))
 		result := vec.Mul(scaleVec)
-		result.Store((*[8]float64)(unsafe.Pointer(&dst[i])))
-		vec1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&src[i+8])))
+		result.StoreArray((*[8]float64)(unsafe.Pointer(&dst[i])))
+		vec1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&src[i+8])))
 		result1 := vec1.Mul(scaleVec)
-		result1.Store((*[8]float64)(unsafe.Pointer(&dst[i+8])))
+		result1.StoreArray((*[8]float64)(unsafe.Pointer(&dst[i+8])))
 	}
 	for ; i < n; i++ {
 		dst[i] = src[i] * scale

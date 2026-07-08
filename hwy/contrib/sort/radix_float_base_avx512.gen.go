@@ -56,12 +56,12 @@ func BaseFloatToSortable_avx512(data []float32) {
 	allOnesVec := hwy.Not_AVX512_F32x16(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat32x16Slice(data[i:])
+		v := archsimd.LoadFloat32x16(data[i:])
 		isNeg := v.Less(zeroVec)
 		negResult := hwy.Xor_AVX512_F32x16(v, allOnesVec)
 		posResult := hwy.Xor_AVX512_F32x16(v, signBitVec)
 		result := hwy.IfThenElse_AVX512_F32x16(isNeg, negResult, posResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }
@@ -74,12 +74,12 @@ func BaseFloatToSortable_avx512_Float64(data []float64) {
 	allOnesVec := hwy.Not_AVX512_F64x8(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat64x8Slice(data[i:])
+		v := archsimd.LoadFloat64x8(data[i:])
 		isNeg := v.Less(zeroVec)
 		negResult := hwy.Xor_AVX512_F64x8(v, allOnesVec)
 		posResult := hwy.Xor_AVX512_F64x8(v, signBitVec)
 		result := hwy.IfThenElse_AVX512_F64x8(isNeg, negResult, posResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }
@@ -130,13 +130,13 @@ func BaseSortableToFloat_avx512(data []float32) {
 	allOnesVec := hwy.Not_AVX512_F32x16(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat32x16Slice(data[i:])
+		v := archsimd.LoadFloat32x16(data[i:])
 		masked := hwy.And_AVX512_F32x16(v, signBitVec)
 		wasPositive := masked.NotEqual(zeroVec)
 		posResult := hwy.Xor_AVX512_F32x16(v, signBitVec)
 		negResult := hwy.Xor_AVX512_F32x16(v, allOnesVec)
 		result := hwy.IfThenElse_AVX512_F32x16(wasPositive, posResult, negResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }
@@ -149,13 +149,13 @@ func BaseSortableToFloat_avx512_Float64(data []float64) {
 	allOnesVec := hwy.Not_AVX512_F64x8(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat64x8Slice(data[i:])
+		v := archsimd.LoadFloat64x8(data[i:])
 		masked := hwy.And_AVX512_F64x8(v, signBitVec)
 		wasPositive := masked.NotEqual(zeroVec)
 		posResult := hwy.Xor_AVX512_F64x8(v, signBitVec)
 		negResult := hwy.Xor_AVX512_F64x8(v, allOnesVec)
 		result := hwy.IfThenElse_AVX512_F64x8(wasPositive, posResult, negResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }

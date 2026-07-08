@@ -37,7 +37,7 @@ type Float16x16AVX512 struct {
 func LoadFloat16x16AVX512Slice(s []uint16) Float16x16AVX512 {
 	var buf [16]float32
 	PromoteF16ToF32F16C(s[:16], buf[:])
-	return Float16x16AVX512{data: archsimd.LoadFloat32x16Slice(buf[:])}
+	return Float16x16AVX512{data: archsimd.LoadFloat32x16(buf[:])}
 }
 
 // LoadFloat16x16AVX512Ptr loads 16 float16 values from an unsafe.Pointer, promoting to float32.
@@ -49,7 +49,7 @@ func LoadFloat16x16AVX512Ptr(ptr unsafe.Pointer) Float16x16AVX512 {
 // StoreSlice demotes float32 back to float16 and stores 16 values to a uint16 slice.
 func (v Float16x16AVX512) StoreSlice(s []uint16) {
 	var buf [16]float32
-	v.data.StoreSlice(buf[:])
+	v.data.Store(buf[:])
 	DemoteF32ToF16F16C(buf[:], s[:16])
 }
 
@@ -158,7 +158,7 @@ func (v Float16x16AVX512) GreaterEqual(other Float16x16AVX512) archsimd.Mask32x1
 // ============================================================================
 
 func (v Float16x16AVX512) RoundToEven() Float16x16AVX512 {
-	return Float16x16AVX512{data: v.data.RoundToEvenScaled(0)}
+	return Float16x16AVX512{data: v.data.RoundScaled(0)}
 }
 
 func (v Float16x16AVX512) ConvertToInt32() archsimd.Int32x16 {
@@ -221,7 +221,7 @@ func (v Float16x16AVX512) Merge(other Float16x16AVX512, mask archsimd.Mask32x16)
 
 func (v Float16x16AVX512) ReduceSum() float32 {
 	var buf [16]float32
-	v.data.Store(&buf)
+	v.data.StoreArray(&buf)
 	var sum float32
 	for i := 0; i < 16; i++ {
 		sum += buf[i]
@@ -231,7 +231,7 @@ func (v Float16x16AVX512) ReduceSum() float32 {
 
 func (v Float16x16AVX512) ReduceMax() float32 {
 	var buf [16]float32
-	v.data.Store(&buf)
+	v.data.StoreArray(&buf)
 	m := buf[0]
 	for i := 1; i < 16; i++ {
 		if buf[i] > m {
@@ -243,7 +243,7 @@ func (v Float16x16AVX512) ReduceMax() float32 {
 
 func (v Float16x16AVX512) ReduceMin() float32 {
 	var buf [16]float32
-	v.data.Store(&buf)
+	v.data.StoreArray(&buf)
 	m := buf[0]
 	for i := 1; i < 16; i++ {
 		if buf[i] < m {
@@ -259,7 +259,7 @@ func (v Float16x16AVX512) ReduceMin() float32 {
 
 func IotaFloat16x16AVX512() Float16x16AVX512 {
 	buf := [16]float32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-	return Float16x16AVX512{data: archsimd.LoadFloat32x16Slice(buf[:])}
+	return Float16x16AVX512{data: archsimd.LoadFloat32x16(buf[:])}
 }
 
 func SignBitFloat16x16AVX512() Float16x16AVX512 {
@@ -280,26 +280,26 @@ func (v Float16x16AVX512) Data() archsimd.Float32x16 {
 
 func (v Float16x16AVX512) InterleaveLower(other Float16x16AVX512) Float16x16AVX512 {
 	var a, b [16]float32
-	v.data.Store(&a)
-	other.data.Store(&b)
+	v.data.StoreArray(&a)
+	other.data.StoreArray(&b)
 	var result [16]float32
 	for i := 0; i < 8; i++ {
 		result[2*i] = a[i]
 		result[2*i+1] = b[i]
 	}
-	return Float16x16AVX512{data: archsimd.LoadFloat32x16Slice(result[:])}
+	return Float16x16AVX512{data: archsimd.LoadFloat32x16(result[:])}
 }
 
 func (v Float16x16AVX512) InterleaveUpper(other Float16x16AVX512) Float16x16AVX512 {
 	var a, b [16]float32
-	v.data.Store(&a)
-	other.data.Store(&b)
+	v.data.StoreArray(&a)
+	other.data.StoreArray(&b)
 	var result [16]float32
 	for i := 0; i < 8; i++ {
 		result[2*i] = a[8+i]
 		result[2*i+1] = b[8+i]
 	}
-	return Float16x16AVX512{data: archsimd.LoadFloat32x16Slice(result[:])}
+	return Float16x16AVX512{data: archsimd.LoadFloat32x16(result[:])}
 }
 
 // ============================================================================

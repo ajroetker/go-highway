@@ -19,12 +19,12 @@ func BaseDecodeStreamVByte32GroupSIMD_avx2(ctrl byte, data []uint8, dst []uint32
 	if len(data) < 16 {
 		return decodeGroupScalarInto(ctrl, data, dst)
 	}
-	dataVec := archsimd.LoadUint8x16Slice(data[:16])
+	dataVec := archsimd.LoadUint8x16(data[:16])
 	maskSlice := streamVByte32ShuffleMasks[ctrl][:]
-	maskVec := archsimd.LoadUint8x16Slice(maskSlice)
+	maskVec := archsimd.LoadUint8x16(maskSlice)
 	shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(dataVec, maskVec)
 	var result [16]uint8
-	shuffled.StoreSlice(result[:])
+	shuffled.Store(result[:])
 	dst[0] = uint32(result[0]) | uint32(result[1])<<8 | uint32(result[2])<<16 | uint32(result[3])<<24
 	dst[1] = uint32(result[4]) | uint32(result[5])<<8 | uint32(result[6])<<16 | uint32(result[7])<<24
 	dst[2] = uint32(result[8]) | uint32(result[9])<<8 | uint32(result[10])<<16 | uint32(result[11])<<24
@@ -94,9 +94,9 @@ func BaseEncodeStreamVByte32Group_avx2(values []uint32, dst []uint8) (ctrl byte,
 	}
 	n = int(streamVByte32DataLen[ctrl])
 	inputBytes := unsafe.Slice((*uint8)(unsafe.Pointer(&values[0])), 16)
-	inputVec := archsimd.LoadUint8x16Slice(inputBytes[:16])
-	maskVec := archsimd.LoadUint8x16Slice(streamVByte32EncodeShuffleMasks[ctrl][:16])
+	inputVec := archsimd.LoadUint8x16(inputBytes[:16])
+	maskVec := archsimd.LoadUint8x16(streamVByte32EncodeShuffleMasks[ctrl][:16])
 	shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(inputVec, maskVec)
-	shuffled.StoreSlice(dst[:16])
+	shuffled.Store(dst[:16])
 	return ctrl, n
 }

@@ -86,8 +86,8 @@ func BaseMatVec_avx2(m []float32, rows int, cols int, v []float32, result []floa
 		lanes := 8
 		var j int
 		for j = 0; j+lanes <= cols; j += lanes {
-			va := archsimd.LoadFloat32x8Slice(row[j:])
-			vb := archsimd.LoadFloat32x8Slice(v[j:])
+			va := archsimd.LoadFloat32x8(row[j:])
+			vb := archsimd.LoadFloat32x8(v[j:])
 			prod := va.Mul(vb)
 			sum = sum.Add(prod)
 		}
@@ -115,8 +115,8 @@ func BaseMatVec_avx2_Float64(m []float64, rows int, cols int, v []float64, resul
 		lanes := 4
 		var j int
 		for j = 0; j+lanes <= cols; j += lanes {
-			va := archsimd.LoadFloat64x4Slice(row[j:])
-			vb := archsimd.LoadFloat64x4Slice(v[j:])
+			va := archsimd.LoadFloat64x4(row[j:])
+			vb := archsimd.LoadFloat64x4(v[j:])
 			prod := va.Mul(vb)
 			sum = sum.Add(prod)
 		}

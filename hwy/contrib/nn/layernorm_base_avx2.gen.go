@@ -188,7 +188,7 @@ func BaseLayerNorm_avx2(input []float32, output []float32, normSize int, gamma [
 		sumAcc := archsimd.BroadcastFloat32x8(0)
 		ii := 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[off+ii])))
+			x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[off+ii])))
 			sumAcc = sumAcc.Add(x)
 		}
 		mean := hwy.ReduceSum_AVX2_F32x8(sumAcc)
@@ -200,7 +200,7 @@ func BaseLayerNorm_avx2(input []float32, output []float32, normSize int, gamma [
 		varAcc := archsimd.BroadcastFloat32x8(0)
 		ii = 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[off+ii])))
+			x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[off+ii])))
 			diff := x.Sub(vMean)
 			varAcc = diff.MulAdd(diff, varAcc)
 		}
@@ -215,13 +215,13 @@ func BaseLayerNorm_avx2(input []float32, output []float32, normSize int, gamma [
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[off+ii])))
+				x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[off+ii])))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gamma[ii])))
-				b := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&beta[ii])))
+				g := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&gamma[ii])))
+				b := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&beta[ii])))
 				result := normed.MulAdd(g, b)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[off+ii])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[off+ii])))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i] - mean) * invStd
@@ -230,12 +230,12 @@ func BaseLayerNorm_avx2(input []float32, output []float32, normSize int, gamma [
 		} else if gamma != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[off+ii])))
+				x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[off+ii])))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&gamma[ii])))
+				g := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&gamma[ii])))
 				result := normed.Mul(g)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[off+ii])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[off+ii])))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i] - mean) * invStd
@@ -244,10 +244,10 @@ func BaseLayerNorm_avx2(input []float32, output []float32, normSize int, gamma [
 		} else {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[off+ii])))
+				x := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[off+ii])))
 				diff := x.Sub(vMean)
 				result := diff.Mul(vInvStd)
-				result.Store((*[8]float32)(unsafe.Pointer(&output[off+ii])))
+				result.StoreArray((*[8]float32)(unsafe.Pointer(&output[off+ii])))
 			}
 			for i := ii; i < normSize; i++ {
 				output[off+i] = (input[off+i] - mean) * invStd
@@ -269,7 +269,7 @@ func BaseLayerNorm_avx2_Float64(input []float64, output []float64, normSize int,
 		sumAcc := archsimd.BroadcastFloat64x4(0)
 		ii := 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[off+ii])))
+			x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&input[off+ii])))
 			sumAcc = sumAcc.Add(x)
 		}
 		mean := hwy.ReduceSum_AVX2_F64x4(sumAcc)
@@ -281,7 +281,7 @@ func BaseLayerNorm_avx2_Float64(input []float64, output []float64, normSize int,
 		varAcc := archsimd.BroadcastFloat64x4(0)
 		ii = 0
 		for ; ii+lanes <= normSize; ii += lanes {
-			x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[off+ii])))
+			x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&input[off+ii])))
 			diff := x.Sub(vMean)
 			varAcc = diff.MulAdd(diff, varAcc)
 		}
@@ -296,13 +296,13 @@ func BaseLayerNorm_avx2_Float64(input []float64, output []float64, normSize int,
 		if gamma != nil && beta != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[off+ii])))
+				x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&input[off+ii])))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&gamma[ii])))
-				b := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&beta[ii])))
+				g := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&gamma[ii])))
+				b := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&beta[ii])))
 				result := normed.MulAdd(g, b)
-				result.Store((*[4]float64)(unsafe.Pointer(&output[off+ii])))
+				result.StoreArray((*[4]float64)(unsafe.Pointer(&output[off+ii])))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i] - mean) * invStd
@@ -311,12 +311,12 @@ func BaseLayerNorm_avx2_Float64(input []float64, output []float64, normSize int,
 		} else if gamma != nil {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[off+ii])))
+				x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&input[off+ii])))
 				diff := x.Sub(vMean)
 				normed := diff.Mul(vInvStd)
-				g := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&gamma[ii])))
+				g := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&gamma[ii])))
 				result := normed.Mul(g)
-				result.Store((*[4]float64)(unsafe.Pointer(&output[off+ii])))
+				result.StoreArray((*[4]float64)(unsafe.Pointer(&output[off+ii])))
 			}
 			for i := ii; i < normSize; i++ {
 				normed := (input[off+i] - mean) * invStd
@@ -325,10 +325,10 @@ func BaseLayerNorm_avx2_Float64(input []float64, output []float64, normSize int,
 		} else {
 			ii = 0
 			for ; ii+lanes <= normSize; ii += lanes {
-				x := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&input[off+ii])))
+				x := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&input[off+ii])))
 				diff := x.Sub(vMean)
 				result := diff.Mul(vInvStd)
-				result.Store((*[4]float64)(unsafe.Pointer(&output[off+ii])))
+				result.StoreArray((*[4]float64)(unsafe.Pointer(&output[off+ii])))
 			}
 			for i := ii; i < normSize; i++ {
 				output[off+i] = (input[off+i] - mean) * invStd

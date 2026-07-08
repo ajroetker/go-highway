@@ -602,7 +602,7 @@ func BaseCosVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -623,7 +623,7 @@ func BaseCosVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
@@ -683,7 +683,7 @@ func BaseCosVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -704,7 +704,7 @@ func BaseCosVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
@@ -749,12 +749,12 @@ func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 	negateMask := cosOctant.And(intTwo).Equal(intTwo)
 	sinRData := func() []float32 {
 		var _simd_tmp [16]float32
-		sinR.StoreSlice(_simd_tmp[:])
+		sinR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	cosRData := func() []float32 {
 		var _simd_tmp [16]float32
-		cosR.StoreSlice(_simd_tmp[:])
+		cosR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	resultData := make([]float32, len(sinRData))
@@ -764,7 +764,7 @@ func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -772,11 +772,11 @@ func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 			resultData[i] = sinRData[i]
 		}
 	}
-	result := archsimd.LoadFloat32x16Slice(resultData)
+	result := archsimd.LoadFloat32x16(resultData)
 	negResult := archsimd.BroadcastFloat32x16(0).Sub(result)
 	negResultData := func() []float32 {
 		var _simd_tmp [16]float32
-		negResult.StoreSlice(_simd_tmp[:])
+		negResult.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	for i := range resultData {
@@ -785,13 +785,13 @@ func BaseCosVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
 		}
 	}
-	return archsimd.LoadFloat32x16Slice(resultData)
+	return archsimd.LoadFloat32x16(resultData)
 }
 
 func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
@@ -830,12 +830,12 @@ func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 	negateMask := cosOctant.And(intTwo).Equal(intTwo)
 	sinRData := func() []float64 {
 		var _simd_tmp [8]float64
-		sinR.StoreSlice(_simd_tmp[:])
+		sinR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	cosRData := func() []float64 {
 		var _simd_tmp [8]float64
-		cosR.StoreSlice(_simd_tmp[:])
+		cosR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	resultData := make([]float64, len(sinRData))
@@ -845,7 +845,7 @@ func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 			_vZero := archsimd.BroadcastInt32x8(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [8]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -853,11 +853,11 @@ func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 			resultData[i] = sinRData[i]
 		}
 	}
-	result := archsimd.LoadFloat64x8Slice(resultData)
+	result := archsimd.LoadFloat64x8(resultData)
 	negResult := archsimd.BroadcastFloat64x8(0).Sub(result)
 	negResultData := func() []float64 {
 		var _simd_tmp [8]float64
-		negResult.StoreSlice(_simd_tmp[:])
+		negResult.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	for i := range resultData {
@@ -866,13 +866,13 @@ func BaseCosVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 			_vZero := archsimd.BroadcastInt32x8(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [8]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
 		}
 	}
-	return archsimd.LoadFloat64x8Slice(resultData)
+	return archsimd.LoadFloat64x8(resultData)
 }
 
 func BaseCoshVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
@@ -1606,7 +1606,7 @@ func BaseSinVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -1627,7 +1627,7 @@ func BaseSinVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
@@ -1687,7 +1687,7 @@ func BaseSinVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -1708,7 +1708,7 @@ func BaseSinVec_avx512_BFloat16(x asm.BFloat16x16AVX512) asm.BFloat16x16AVX512 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
@@ -1753,12 +1753,12 @@ func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 	negateMask := octant.And(intTwo).Equal(intTwo)
 	sinRData := func() []float32 {
 		var _simd_tmp [16]float32
-		sinR.StoreSlice(_simd_tmp[:])
+		sinR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	cosRData := func() []float32 {
 		var _simd_tmp [16]float32
-		cosR.StoreSlice(_simd_tmp[:])
+		cosR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	resultData := make([]float32, len(sinRData))
@@ -1768,7 +1768,7 @@ func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -1776,11 +1776,11 @@ func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 			resultData[i] = sinRData[i]
 		}
 	}
-	result := archsimd.LoadFloat32x16Slice(resultData)
+	result := archsimd.LoadFloat32x16(resultData)
 	negResult := archsimd.BroadcastFloat32x16(0).Sub(result)
 	negResultData := func() []float32 {
 		var _simd_tmp [16]float32
-		negResult.StoreSlice(_simd_tmp[:])
+		negResult.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	for i := range resultData {
@@ -1789,13 +1789,13 @@ func BaseSinVec_avx512(x archsimd.Float32x16) archsimd.Float32x16 {
 			_vZero := archsimd.BroadcastInt32x16(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [16]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
 		}
 	}
-	return archsimd.LoadFloat32x16Slice(resultData)
+	return archsimd.LoadFloat32x16(resultData)
 }
 
 func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
@@ -1834,12 +1834,12 @@ func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 	negateMask := octant.And(intTwo).Equal(intTwo)
 	sinRData := func() []float64 {
 		var _simd_tmp [8]float64
-		sinR.StoreSlice(_simd_tmp[:])
+		sinR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	cosRData := func() []float64 {
 		var _simd_tmp [8]float64
-		cosR.StoreSlice(_simd_tmp[:])
+		cosR.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	resultData := make([]float64, len(sinRData))
@@ -1849,7 +1849,7 @@ func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 			_vZero := archsimd.BroadcastInt32x8(0)
 			_vMasked := _vOne.Merge(_vZero, useCosMask)
 			var _simd_mask_tmp [8]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = cosRData[i]
@@ -1857,11 +1857,11 @@ func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 			resultData[i] = sinRData[i]
 		}
 	}
-	result := archsimd.LoadFloat64x8Slice(resultData)
+	result := archsimd.LoadFloat64x8(resultData)
 	negResult := archsimd.BroadcastFloat64x8(0).Sub(result)
 	negResultData := func() []float64 {
 		var _simd_tmp [8]float64
-		negResult.StoreSlice(_simd_tmp[:])
+		negResult.Store(_simd_tmp[:])
 		return _simd_tmp[:]
 	}()
 	for i := range resultData {
@@ -1870,13 +1870,13 @@ func BaseSinVec_avx512_Float64(x archsimd.Float64x8) archsimd.Float64x8 {
 			_vZero := archsimd.BroadcastInt32x8(0)
 			_vMasked := _vOne.Merge(_vZero, negateMask)
 			var _simd_mask_tmp [8]int32
-			_vMasked.StoreSlice(_simd_mask_tmp[:])
+			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
 		}() {
 			resultData[i] = negResultData[i]
 		}
 	}
-	return archsimd.LoadFloat64x8Slice(resultData)
+	return archsimd.LoadFloat64x8(resultData)
 }
 
 func BaseSinhVec_avx512_Float16(x asm.Float16x16AVX512) asm.Float16x16AVX512 {

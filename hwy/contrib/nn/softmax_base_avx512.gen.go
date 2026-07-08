@@ -112,11 +112,11 @@ func BaseLogSoftmax_avx512(input []float32, output []float32) {
 	lanes := 16
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		x := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii])))
 		shifted := x.Sub(vMax)
 		expVal := math.BaseExpVec_avx512(shifted)
 		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+16])))
+		x1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii+16])))
 		shifted1 := x1.Sub(vMax)
 		expVal1 := math.BaseExpVec_avx512(shifted1)
 		vSum = vSum.Add(expVal1)
@@ -129,8 +129,8 @@ func BaseLogSoftmax_avx512(input []float32, output []float32) {
 	offset := maxVal + logSumExp
 	vOffset := archsimd.BroadcastFloat32x16(offset)
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
-		x.Sub(vOffset).Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		x := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii])))
+		x.Sub(vOffset).StoreArray((*[16]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for ; ii < size; ii++ {
 		output[ii] = input[ii] - offset
@@ -153,11 +153,11 @@ func BaseLogSoftmax_avx512_Float64(input []float64, output []float64) {
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		x := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii])))
 		shifted := x.Sub(vMax)
 		expVal := math.BaseExpVec_avx512_Float64(shifted)
 		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+8])))
+		x1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii+8])))
 		shifted1 := x1.Sub(vMax)
 		expVal1 := math.BaseExpVec_avx512_Float64(shifted1)
 		vSum = vSum.Add(expVal1)
@@ -170,8 +170,8 @@ func BaseLogSoftmax_avx512_Float64(input []float64, output []float64) {
 	offset := maxVal + logSumExp
 	vOffset := archsimd.BroadcastFloat64x8(offset)
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
-		x.Sub(vOffset).Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		x := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii])))
+		x.Sub(vOffset).StoreArray((*[8]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for ; ii < size; ii++ {
 		output[ii] = input[ii] - offset
@@ -298,15 +298,15 @@ func BaseSoftmax_avx512(input []float32, output []float32) {
 	lanes := 16
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		x := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii])))
 		shifted := x.Sub(vMax)
 		expVal := math.BaseExpVec_avx512(shifted)
-		expVal.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		expVal.StoreArray((*[16]float32)(unsafe.Pointer(&output[ii])))
 		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+16])))
+		x1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii+16])))
 		shifted1 := x1.Sub(vMax)
 		expVal1 := math.BaseExpVec_avx512(shifted1)
-		expVal1.Store((*[16]float32)(unsafe.Pointer(&output[ii+16])))
+		expVal1.StoreArray((*[16]float32)(unsafe.Pointer(&output[ii+16])))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := hwy.ReduceSum_AVX512_F32x16(vSum)
@@ -318,8 +318,8 @@ func BaseSoftmax_avx512(input []float32, output []float32) {
 	invSum := float32(1.0) / expSum
 	vInvSum := archsimd.BroadcastFloat32x16(invSum)
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&output[ii])))
-		v.Mul(vInvSum).Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).StoreArray((*[16]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for ; ii < size; ii++ {
 		output[ii] *= invSum
@@ -342,15 +342,15 @@ func BaseSoftmax_avx512_Float64(input []float64, output []float64) {
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		x := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii])))
 		shifted := x.Sub(vMax)
 		expVal := math.BaseExpVec_avx512_Float64(shifted)
-		expVal.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		expVal.StoreArray((*[8]float64)(unsafe.Pointer(&output[ii])))
 		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+8])))
+		x1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii+8])))
 		shifted1 := x1.Sub(vMax)
 		expVal1 := math.BaseExpVec_avx512_Float64(shifted1)
-		expVal1.Store((*[8]float64)(unsafe.Pointer(&output[ii+8])))
+		expVal1.StoreArray((*[8]float64)(unsafe.Pointer(&output[ii+8])))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := hwy.ReduceSum_AVX512_F64x8(vSum)
@@ -362,8 +362,8 @@ func BaseSoftmax_avx512_Float64(input []float64, output []float64) {
 	invSum := float64(1.0) / expSum
 	vInvSum := archsimd.BroadcastFloat64x8(invSum)
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&output[ii])))
-		v.Mul(vInvSum).Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).StoreArray((*[8]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for ; ii < size; ii++ {
 		output[ii] *= invSum
@@ -586,15 +586,15 @@ func BaseSoftmaxWithTemperature_avx512(input []float32, output []float32, temper
 	lanes := 16
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii])))
+		x := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii])))
 		shifted := x.Sub(vMax).Mul(vInvTemp)
 		expVal := math.BaseExpVec_avx512(shifted)
-		expVal.Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		expVal.StoreArray((*[16]float32)(unsafe.Pointer(&output[ii])))
 		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&input[ii+16])))
+		x1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&input[ii+16])))
 		shifted1 := x1.Sub(vMax).Mul(vInvTemp)
 		expVal1 := math.BaseExpVec_avx512(shifted1)
-		expVal1.Store((*[16]float32)(unsafe.Pointer(&output[ii+16])))
+		expVal1.StoreArray((*[16]float32)(unsafe.Pointer(&output[ii+16])))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := hwy.ReduceSum_AVX512_F32x16(vSum)
@@ -607,8 +607,8 @@ func BaseSoftmaxWithTemperature_avx512(input []float32, output []float32, temper
 	invSum := float32(1.0) / expSum
 	vInvSum := archsimd.BroadcastFloat32x16(invSum)
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&output[ii])))
-		v.Mul(vInvSum).Store((*[16]float32)(unsafe.Pointer(&output[ii])))
+		v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).StoreArray((*[16]float32)(unsafe.Pointer(&output[ii])))
 	}
 	for ; ii < size; ii++ {
 		output[ii] *= invSum
@@ -633,15 +633,15 @@ func BaseSoftmaxWithTemperature_avx512_Float64(input []float64, output []float64
 	lanes := 8
 	var ii int
 	for ii = 0; ii+lanes*2 <= size; ii += lanes * 2 {
-		x := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii])))
+		x := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii])))
 		shifted := x.Sub(vMax).Mul(vInvTemp)
 		expVal := math.BaseExpVec_avx512_Float64(shifted)
-		expVal.Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		expVal.StoreArray((*[8]float64)(unsafe.Pointer(&output[ii])))
 		vSum = vSum.Add(expVal)
-		x1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&input[ii+8])))
+		x1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&input[ii+8])))
 		shifted1 := x1.Sub(vMax).Mul(vInvTemp)
 		expVal1 := math.BaseExpVec_avx512_Float64(shifted1)
-		expVal1.Store((*[8]float64)(unsafe.Pointer(&output[ii+8])))
+		expVal1.StoreArray((*[8]float64)(unsafe.Pointer(&output[ii+8])))
 		vSum = vSum.Add(expVal1)
 	}
 	expSum := hwy.ReduceSum_AVX512_F64x8(vSum)
@@ -654,8 +654,8 @@ func BaseSoftmaxWithTemperature_avx512_Float64(input []float64, output []float64
 	invSum := float64(1.0) / expSum
 	vInvSum := archsimd.BroadcastFloat64x8(invSum)
 	for ii = 0; ii+lanes <= size; ii += lanes {
-		v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&output[ii])))
-		v.Mul(vInvSum).Store((*[8]float64)(unsafe.Pointer(&output[ii])))
+		v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&output[ii])))
+		v.Mul(vInvSum).StoreArray((*[8]float64)(unsafe.Pointer(&output[ii])))
 	}
 	for ; ii < size; ii++ {
 		output[ii] *= invSum

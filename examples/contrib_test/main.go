@@ -32,7 +32,7 @@ func main() {
 	result := math.BaseExpVec_avx2(input)
 
 	var values [8]float32
-	result.StoreSlice(values[:])
+	result.Store(values[:])
 
 	fmt.Printf("Exp(1.0) = %v\n", values[0])
 	fmt.Printf("Expected: ~2.71828\n")
@@ -42,7 +42,7 @@ func main() {
 	result64 := math.BaseExpVec_avx2_Float64(input64)
 
 	var values64 [4]float64
-	result64.StoreSlice(values64[:])
+	result64.Store(values64[:])
 
 	fmt.Printf("Exp(2.0) = %v\n", values64[0])
 	fmt.Printf("Expected: ~7.38906\n")

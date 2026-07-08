@@ -74,7 +74,7 @@ func BaseMaskedVByteDecodeGroup_avx2(src []byte, dst []uint32) (decoded int, con
 	if len(src) < 16 || len(dst) < 4 {
 		return 0, 0
 	}
-	srcVec := archsimd.LoadUint8x16Slice(src[:16])
+	srcVec := archsimd.LoadUint8x16(src[:16])
 	threshold := BaseMaskedVByteDecodeGroup_AVX2_threshold_f32
 	terminatorMask := srcVec.Less(threshold)
 	pattern := uint16(hwy.BitsFromMask_AVX2_Uint8x16(terminatorMask)) & 0x0FFF
@@ -86,10 +86,10 @@ func BaseMaskedVByteDecodeGroup_avx2(src []byte, dst []uint32) (decoded int, con
 		return 0, 0
 	}
 	shuffleMask := maskedVByte12ShuffleMasks[pattern][:]
-	maskVec := archsimd.LoadUint8x16Slice(shuffleMask)
+	maskVec := archsimd.LoadUint8x16(shuffleMask)
 	shuffled := hwy.TableLookupBytes_AVX2_Uint8x16(srcVec, maskVec)
 	var result [16]uint8
-	shuffled.StoreSlice(result[:])
+	shuffled.Store(result[:])
 	dst[0] = uint32(result[0]&0x7f) | uint32(result[1]&0x7f)<<7 | uint32(result[2]&0x7f)<<14 | uint32(result[3])<<21
 	dst[1] = uint32(result[4]&0x7f) | uint32(result[5]&0x7f)<<7 | uint32(result[6]&0x7f)<<14 | uint32(result[7])<<21
 	dst[2] = uint32(result[8]&0x7f) | uint32(result[9]&0x7f)<<7 | uint32(result[10]&0x7f)<<14 | uint32(result[11])<<21

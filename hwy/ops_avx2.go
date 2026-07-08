@@ -142,12 +142,12 @@ func RSqrtPrecise_AVX2_F64x4(x archsimd.Float64x4) archsimd.Float64x4 {
 
 // Iota_AVX2_F32x8 returns a vector with lane indices [0, 1, 2, 3, 4, 5, 6, 7].
 func Iota_AVX2_F32x8() archsimd.Float32x8 {
-	return archsimd.LoadFloat32x8Slice([]float32{0, 1, 2, 3, 4, 5, 6, 7})
+	return archsimd.LoadFloat32x8([]float32{0, 1, 2, 3, 4, 5, 6, 7})
 }
 
 // Iota_AVX2_F64x4 returns a vector with lane indices [0, 1, 2, 3].
 func Iota_AVX2_F64x4() archsimd.Float64x4 {
-	return archsimd.LoadFloat64x4Slice([]float64{0, 1, 2, 3})
+	return archsimd.LoadFloat64x4([]float64{0, 1, 2, 3})
 }
 
 // ReduceMax_AVX2_Uint32x8 returns the maximum element in the vector.
@@ -227,7 +227,7 @@ func Max_AVX2_Uint64x4(a, b archsimd.Uint64x4) archsimd.Uint64x4 {
 	} else {
 		result[3] = b3
 	}
-	return archsimd.LoadUint64x4Slice(result[:])
+	return archsimd.LoadUint64x4(result[:])
 }
 
 // Max_AVX2_Int64x4 returns the element-wise maximum of two Int64x4 vectors.
@@ -260,7 +260,7 @@ func Max_AVX2_Int64x4(a, b archsimd.Int64x4) archsimd.Int64x4 {
 	} else {
 		result[3] = b3
 	}
-	return archsimd.LoadInt64x4Slice(result[:])
+	return archsimd.LoadInt64x4(result[:])
 }
 
 // Min_AVX2_Uint64x4 returns the element-wise minimum of two Uint64x4 vectors.
@@ -293,7 +293,7 @@ func Min_AVX2_Uint64x4(a, b archsimd.Uint64x4) archsimd.Uint64x4 {
 	} else {
 		result[3] = b3
 	}
-	return archsimd.LoadUint64x4Slice(result[:])
+	return archsimd.LoadUint64x4(result[:])
 }
 
 // Min_AVX2_Int64x4 returns the element-wise minimum of two Int64x4 vectors.
@@ -326,7 +326,7 @@ func Min_AVX2_Int64x4(a, b archsimd.Int64x4) archsimd.Int64x4 {
 	} else {
 		result[3] = b3
 	}
-	return archsimd.LoadInt64x4Slice(result[:])
+	return archsimd.LoadInt64x4(result[:])
 }
 
 // Mul_AVX2_Int64x4 multiplies two Int64x4 vectors element-wise (low 64 bits).
@@ -340,7 +340,7 @@ func Mul_AVX2_Int64x4(a, b archsimd.Int64x4) archsimd.Int64x4 {
 	result[1] = aLo.GetElem(1) * bLo.GetElem(1)
 	result[2] = aHi.GetElem(0) * bHi.GetElem(0)
 	result[3] = aHi.GetElem(1) * bHi.GetElem(1)
-	return archsimd.LoadInt64x4Slice(result[:])
+	return archsimd.LoadInt64x4(result[:])
 }
 
 // Mul_AVX2_Uint64x4 multiplies two Uint64x4 vectors element-wise (low 64 bits).
@@ -353,7 +353,7 @@ func Mul_AVX2_Uint64x4(a, b archsimd.Uint64x4) archsimd.Uint64x4 {
 	result[1] = aLo.GetElem(1) * bLo.GetElem(1)
 	result[2] = aHi.GetElem(0) * bHi.GetElem(0)
 	result[3] = aHi.GetElem(1) * bHi.GetElem(1)
-	return archsimd.LoadUint64x4Slice(result[:])
+	return archsimd.LoadUint64x4(result[:])
 }
 
 // ShiftAllRight_AVX2_Int64x4 performs an arithmetic (sign-extending) right shift
@@ -367,7 +367,7 @@ func ShiftAllRight_AVX2_Int64x4(v archsimd.Int64x4, n uint64) archsimd.Int64x4 {
 	result[1] = lo.GetElem(1) >> n
 	result[2] = hi.GetElem(0) >> n
 	result[3] = hi.GetElem(1) >> n
-	return archsimd.LoadInt64x4Slice(result[:])
+	return archsimd.LoadInt64x4(result[:])
 }
 
 // GetLane_AVX2_Uint32x8 extracts the element at the given lane index.
@@ -424,55 +424,55 @@ func GetLane_AVX2_F64x4(v archsimd.Float64x4, lane int) float64 {
 
 // Load4_AVX2_F32x8 loads 4 consecutive Float32x8 vectors (32 floats = 128 bytes).
 func Load4_AVX2_F32x8(s []float32) (archsimd.Float32x8, archsimd.Float32x8, archsimd.Float32x8, archsimd.Float32x8) {
-	v0 := archsimd.LoadFloat32x8Slice(s)
-	v1 := archsimd.LoadFloat32x8Slice(s[8:])
-	v2 := archsimd.LoadFloat32x8Slice(s[16:])
-	v3 := archsimd.LoadFloat32x8Slice(s[24:])
+	v0 := archsimd.LoadFloat32x8(s)
+	v1 := archsimd.LoadFloat32x8(s[8:])
+	v2 := archsimd.LoadFloat32x8(s[16:])
+	v3 := archsimd.LoadFloat32x8(s[24:])
 	return v0, v1, v2, v3
 }
 
 // Load4_AVX2_F64x4 loads 4 consecutive Float64x4 vectors (16 doubles = 128 bytes).
 func Load4_AVX2_F64x4(s []float64) (archsimd.Float64x4, archsimd.Float64x4, archsimd.Float64x4, archsimd.Float64x4) {
-	v0 := archsimd.LoadFloat64x4Slice(s)
-	v1 := archsimd.LoadFloat64x4Slice(s[4:])
-	v2 := archsimd.LoadFloat64x4Slice(s[8:])
-	v3 := archsimd.LoadFloat64x4Slice(s[12:])
+	v0 := archsimd.LoadFloat64x4(s)
+	v1 := archsimd.LoadFloat64x4(s[4:])
+	v2 := archsimd.LoadFloat64x4(s[8:])
+	v3 := archsimd.LoadFloat64x4(s[12:])
 	return v0, v1, v2, v3
 }
 
 // Load4_AVX2_I32x8 loads 4 consecutive Int32x8 vectors (32 ints = 128 bytes).
 func Load4_AVX2_I32x8(s []int32) (archsimd.Int32x8, archsimd.Int32x8, archsimd.Int32x8, archsimd.Int32x8) {
-	v0 := archsimd.LoadInt32x8Slice(s)
-	v1 := archsimd.LoadInt32x8Slice(s[8:])
-	v2 := archsimd.LoadInt32x8Slice(s[16:])
-	v3 := archsimd.LoadInt32x8Slice(s[24:])
+	v0 := archsimd.LoadInt32x8(s)
+	v1 := archsimd.LoadInt32x8(s[8:])
+	v2 := archsimd.LoadInt32x8(s[16:])
+	v3 := archsimd.LoadInt32x8(s[24:])
 	return v0, v1, v2, v3
 }
 
 // Load4_AVX2_I64x4 loads 4 consecutive Int64x4 vectors (16 longs = 128 bytes).
 func Load4_AVX2_I64x4(s []int64) (archsimd.Int64x4, archsimd.Int64x4, archsimd.Int64x4, archsimd.Int64x4) {
-	v0 := archsimd.LoadInt64x4Slice(s)
-	v1 := archsimd.LoadInt64x4Slice(s[4:])
-	v2 := archsimd.LoadInt64x4Slice(s[8:])
-	v3 := archsimd.LoadInt64x4Slice(s[12:])
+	v0 := archsimd.LoadInt64x4(s)
+	v1 := archsimd.LoadInt64x4(s[4:])
+	v2 := archsimd.LoadInt64x4(s[8:])
+	v3 := archsimd.LoadInt64x4(s[12:])
 	return v0, v1, v2, v3
 }
 
 // Load4_AVX2_Uint32x8 loads 4 consecutive Uint32x8 vectors (32 uints = 128 bytes).
 func Load4_AVX2_Uint32x8(s []uint32) (archsimd.Uint32x8, archsimd.Uint32x8, archsimd.Uint32x8, archsimd.Uint32x8) {
-	v0 := archsimd.LoadUint32x8Slice(s)
-	v1 := archsimd.LoadUint32x8Slice(s[8:])
-	v2 := archsimd.LoadUint32x8Slice(s[16:])
-	v3 := archsimd.LoadUint32x8Slice(s[24:])
+	v0 := archsimd.LoadUint32x8(s)
+	v1 := archsimd.LoadUint32x8(s[8:])
+	v2 := archsimd.LoadUint32x8(s[16:])
+	v3 := archsimd.LoadUint32x8(s[24:])
 	return v0, v1, v2, v3
 }
 
 // Load4_AVX2_Uint64x4 loads 4 consecutive Uint64x4 vectors (16 ulongs = 128 bytes).
 func Load4_AVX2_Uint64x4(s []uint64) (archsimd.Uint64x4, archsimd.Uint64x4, archsimd.Uint64x4, archsimd.Uint64x4) {
-	v0 := archsimd.LoadUint64x4Slice(s)
-	v1 := archsimd.LoadUint64x4Slice(s[4:])
-	v2 := archsimd.LoadUint64x4Slice(s[8:])
-	v3 := archsimd.LoadUint64x4Slice(s[12:])
+	v0 := archsimd.LoadUint64x4(s)
+	v1 := archsimd.LoadUint64x4(s[4:])
+	v2 := archsimd.LoadUint64x4(s[8:])
+	v3 := archsimd.LoadUint64x4(s[12:])
 	return v0, v1, v2, v3
 }
 

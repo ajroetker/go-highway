@@ -42,15 +42,15 @@ func BaseDequantizeUint8_avx2(input []uint8, output []float32, min float32, scal
 		for j := range lanes {
 			buf[j] = float32(input[i+j])
 		}
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+		v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 		result := v.MulAdd(scaleVec, minVec)
-		result.Store((*[8]float32)(unsafe.Pointer(&output[i])))
+		result.StoreArray((*[8]float32)(unsafe.Pointer(&output[i])))
 		for j1 := range lanes {
 			buf[j1] = float32(input[i+j1+8])
 		}
-		v1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&buf[0])))
+		v1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&buf[0])))
 		result1 := v1.MulAdd(scaleVec, minVec)
-		result1.Store((*[8]float32)(unsafe.Pointer(&output[i+8])))
+		result1.StoreArray((*[8]float32)(unsafe.Pointer(&output[i+8])))
 	}
 	for ; i < n; i++ {
 		output[i] = min + float32(input[i])*scale
@@ -74,17 +74,17 @@ func BaseQuantizeFloat32_avx2(input []float32, output []uint8, min float32, scal
 	buf := [8]float32{}
 	i := 0
 	for ; i+lanes*2 <= n; i += lanes * 2 {
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[i])))
+		v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[i])))
 		diff := v.Sub(minVec).Mul(invScaleVec)
 		rounded := hwy.Round_AVX2_F32x8(diff).Max(zeroVec).Min(max255Vec)
-		rounded.Store((*[8]float32)(unsafe.Pointer(&buf[0])))
+		rounded.StoreArray((*[8]float32)(unsafe.Pointer(&buf[0])))
 		for j := range lanes {
 			output[i+j] = uint8(buf[j])
 		}
-		v1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&input[i+8])))
+		v1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&input[i+8])))
 		diff1 := v1.Sub(minVec).Mul(invScaleVec)
 		rounded1 := hwy.Round_AVX2_F32x8(diff1).Max(zeroVec).Min(max255Vec)
-		rounded1.Store((*[8]float32)(unsafe.Pointer(&buf[0])))
+		rounded1.StoreArray((*[8]float32)(unsafe.Pointer(&buf[0])))
 		for j1 := range lanes {
 			output[i+j1+8] = uint8(buf[j1])
 		}

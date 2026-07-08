@@ -80,7 +80,7 @@ func BaseTrsvLN_avx2(l []float32, b []float32, n int) {
 		lRow := l[i*n:]
 		var j int
 		for j = 0; j+lanes <= i; j += lanes {
-			acc = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&lRow[j]))).MulAdd(archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[j]))), acc)
+			acc = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&lRow[j]))).MulAdd(archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[j]))), acc)
 		}
 		s := float64(hwy.ReduceSum_AVX2_F32x8(acc))
 		for ; j < i; j++ {
@@ -106,7 +106,7 @@ func BaseTrsvLN_avx2_Float64(l []float64, b []float64, n int) {
 		lRow := l[i*n:]
 		var j int
 		for j = 0; j+lanes <= i; j += lanes {
-			acc = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&lRow[j]))).MulAdd(archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[j]))), acc)
+			acc = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&lRow[j]))).MulAdd(archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[j]))), acc)
 		}
 		s := float64(hwy.ReduceSum_AVX2_F64x4(acc))
 		for ; j < i; j++ {
@@ -190,9 +190,9 @@ func BaseTrsvLT_avx2(l []float32, b []float32, n int) {
 		lRow := l[i*n:]
 		var j int
 		for j = 0; j+lanes <= i; j += lanes {
-			vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[j])))
-			vl := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&lRow[j])))
-			negXi.MulAdd(vl, vb).Store((*[8]float32)(unsafe.Pointer(&b[j])))
+			vb := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[j])))
+			vl := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&lRow[j])))
+			negXi.MulAdd(vl, vb).StoreArray((*[8]float32)(unsafe.Pointer(&b[j])))
 		}
 		for ; j < i; j++ {
 			b[j] -= xi * lRow[j]
@@ -218,9 +218,9 @@ func BaseTrsvLT_avx2_Float64(l []float64, b []float64, n int) {
 		lRow := l[i*n:]
 		var j int
 		for j = 0; j+lanes <= i; j += lanes {
-			vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[j])))
-			vl := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&lRow[j])))
-			negXi.MulAdd(vl, vb).Store((*[4]float64)(unsafe.Pointer(&b[j])))
+			vb := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[j])))
+			vl := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&lRow[j])))
+			negXi.MulAdd(vl, vb).StoreArray((*[4]float64)(unsafe.Pointer(&b[j])))
 		}
 		for ; j < i; j++ {
 			b[j] -= xi * lRow[j]

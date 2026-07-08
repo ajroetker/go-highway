@@ -67,8 +67,8 @@ func BaseCutCrossEntropyGrad_avx512(hiddenStates []float32, embeddings []float32
 		firstDotAcc := archsimd.BroadcastFloat32x16(0)
 		var fi int
 		for fi = 0; fi+lanes <= hiddenDim; fi += lanes {
-			va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&hiddenStates[hsOffset+fi])))
-			vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&embeddings[fi])))
+			va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&hiddenStates[hsOffset+fi])))
+			vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&embeddings[fi])))
 			firstDotAcc = va.MulAdd(vb, firstDotAcc)
 		}
 		firstDotSum := hwy.ReduceSum_AVX512_F32x16(firstDotAcc)
@@ -82,8 +82,8 @@ func BaseCutCrossEntropyGrad_avx512(hiddenStates []float32, embeddings []float32
 			dotAcc := archsimd.BroadcastFloat32x16(0)
 			var di int
 			for di = 0; di+lanes <= hiddenDim; di += lanes {
-				va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&hiddenStates[hsOffset+di])))
-				vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&embeddings[embOff+di])))
+				va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&hiddenStates[hsOffset+di])))
+				vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&embeddings[embOff+di])))
 				dotAcc = va.MulAdd(vb, dotAcc)
 			}
 			dotSum := hwy.ReduceSum_AVX512_F32x16(dotAcc)
@@ -102,10 +102,10 @@ func BaseCutCrossEntropyGrad_avx512(hiddenStates []float32, embeddings []float32
 		labelEmbOffset := int(label) * hiddenDim
 		var d int
 		for d = 0; d+lanes <= hiddenDim; d += lanes {
-			e := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&embeddings[labelEmbOffset+d])))
+			e := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&embeddings[labelEmbOffset+d])))
 			neg := archsimd.BroadcastFloat32x16(0).Sub(e)
 			scaled := neg.Mul(archsimd.BroadcastFloat32x16(invN))
-			scaled.Store((*[16]float32)(unsafe.Pointer(&gradOutput[gradBase+d])))
+			scaled.StoreArray((*[16]float32)(unsafe.Pointer(&gradOutput[gradBase+d])))
 		}
 		for ; d < hiddenDim; d++ {
 			gradOutput[gradBase+d] = -embeddings[labelEmbOffset+d] * invN
@@ -115,8 +115,8 @@ func BaseCutCrossEntropyGrad_avx512(hiddenStates []float32, embeddings []float32
 			dotAcc := archsimd.BroadcastFloat32x16(0)
 			var di int
 			for di = 0; di+lanes <= hiddenDim; di += lanes {
-				va := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&hiddenStates[hsOffset+di])))
-				vb := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&embeddings[embOffset+di])))
+				va := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&hiddenStates[hsOffset+di])))
+				vb := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&embeddings[embOffset+di])))
 				dotAcc = va.MulAdd(vb, dotAcc)
 			}
 			dotSum := hwy.ReduceSum_AVX512_F32x16(dotAcc)
@@ -128,10 +128,10 @@ func BaseCutCrossEntropyGrad_avx512(hiddenStates []float32, embeddings []float32
 			vWeight := archsimd.BroadcastFloat32x16(softmaxWeight)
 			var dd int
 			for dd = 0; dd+lanes <= hiddenDim; dd += lanes {
-				g := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&gradOutput[gradBase+dd])))
-				e := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&embeddings[embOffset+dd])))
+				g := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&gradOutput[gradBase+dd])))
+				e := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&embeddings[embOffset+dd])))
 				g = vWeight.MulAdd(e, g)
-				g.Store((*[16]float32)(unsafe.Pointer(&gradOutput[gradBase+dd])))
+				g.StoreArray((*[16]float32)(unsafe.Pointer(&gradOutput[gradBase+dd])))
 			}
 			for ; dd < hiddenDim; dd++ {
 				gradOutput[gradBase+dd] += softmaxWeight * embeddings[embOffset+dd]

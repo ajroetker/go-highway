@@ -142,8 +142,8 @@ func BaseL2SquaredDistance_avx2(a []float32, b []float32) float32 {
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&b[i])))
+		va := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes
@@ -184,8 +184,8 @@ func BaseL2SquaredDistance_avx2_Float64(a []float64, b []float64) float64 {
 		sum3 = diff3.MulAdd(diff3, sum3)
 	}
 	for i+lanes <= n {
-		va := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&a[i])))
-		vb := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&b[i])))
+		va := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&a[i])))
+		vb := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&b[i])))
 		diff := va.Sub(vb)
 		sum0 = diff.MulAdd(diff, sum0)
 		i += lanes

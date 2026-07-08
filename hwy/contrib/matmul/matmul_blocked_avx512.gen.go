@@ -359,7 +359,7 @@ func BaseBlockedMatMul_avx512(a []float32, b []float32, c []float32, m int, n in
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		vZero.Store((*[16]float32)(unsafe.Pointer(&c[idx])))
+		vZero.StoreArray((*[16]float32)(unsafe.Pointer(&c[idx])))
 	}
 	for ; idx < total; idx++ {
 		c[idx] = 0
@@ -392,8 +392,8 @@ func BaseBlockedMatMul_avx512(a []float32, b []float32, c []float32, m int, n in
 						vA2 := archsimd.BroadcastFloat32x16(a2p)
 						vA3 := archsimd.BroadcastFloat32x16(a3p)
 						bRowStart := p * n
-						vB0 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRowStart+j])))
-						vB1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[bRowStart+j+lanes])))
+						vB0 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRowStart+j])))
+						vB1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[bRowStart+j+lanes])))
 						acc00 = vA0.MulAdd(vB0, acc00)
 						acc01 = vA0.MulAdd(vB1, acc01)
 						acc10 = vA1.MulAdd(vB0, acc10)
@@ -407,14 +407,14 @@ func BaseBlockedMatMul_avx512(a []float32, b []float32, c []float32, m int, n in
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					acc00.Store((*[16]float32)(unsafe.Pointer(&c[cRow0+j])))
-					acc01.Store((*[16]float32)(unsafe.Pointer(&c[cRow0+j+lanes])))
-					acc10.Store((*[16]float32)(unsafe.Pointer(&c[cRow1+j])))
-					acc11.Store((*[16]float32)(unsafe.Pointer(&c[cRow1+j+lanes])))
-					acc20.Store((*[16]float32)(unsafe.Pointer(&c[cRow2+j])))
-					acc21.Store((*[16]float32)(unsafe.Pointer(&c[cRow2+j+lanes])))
-					acc30.Store((*[16]float32)(unsafe.Pointer(&c[cRow3+j])))
-					acc31.Store((*[16]float32)(unsafe.Pointer(&c[cRow3+j+lanes])))
+					acc00.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow0+j])))
+					acc01.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow0+j+lanes])))
+					acc10.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow1+j])))
+					acc11.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow1+j+lanes])))
+					acc20.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow2+j])))
+					acc21.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow2+j+lanes])))
+					acc30.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow3+j])))
+					acc31.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow3+j+lanes])))
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
@@ -428,16 +428,16 @@ func BaseBlockedMatMul_avx512(a []float32, b []float32, c []float32, m int, n in
 							vA1 := archsimd.BroadcastFloat32x16(a[(i+1)*k+p])
 							vA2 := archsimd.BroadcastFloat32x16(a[(i+2)*k+p])
 							vA3 := archsimd.BroadcastFloat32x16(a[(i+3)*k+p])
-							vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[p*n+j])))
+							vB := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[p*n+j])))
 							acc0 = vA0.MulAdd(vB, acc0)
 							acc1 = vA1.MulAdd(vB, acc1)
 							acc2 = vA2.MulAdd(vB, acc2)
 							acc3 = vA3.MulAdd(vB, acc3)
 						}
-						acc0.Store((*[16]float32)(unsafe.Pointer(&c[i*n+j])))
-						acc1.Store((*[16]float32)(unsafe.Pointer(&c[(i+1)*n+j])))
-						acc2.Store((*[16]float32)(unsafe.Pointer(&c[(i+2)*n+j])))
-						acc3.Store((*[16]float32)(unsafe.Pointer(&c[(i+3)*n+j])))
+						acc0.StoreArray((*[16]float32)(unsafe.Pointer(&c[i*n+j])))
+						acc1.StoreArray((*[16]float32)(unsafe.Pointer(&c[(i+1)*n+j])))
+						acc2.StoreArray((*[16]float32)(unsafe.Pointer(&c[(i+2)*n+j])))
+						acc3.StoreArray((*[16]float32)(unsafe.Pointer(&c[(i+3)*n+j])))
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float32
@@ -467,12 +467,12 @@ func BaseBlockedMatMul_avx512(a []float32, b []float32, c []float32, m int, n in
 					for p := range k {
 						vA0 := archsimd.BroadcastFloat32x16(a[i*k+p])
 						vA1 := archsimd.BroadcastFloat32x16(a[(i+1)*k+p])
-						vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[p*n+j])))
+						vB := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[p*n+j])))
 						acc0 = vA0.MulAdd(vB, acc0)
 						acc1 = vA1.MulAdd(vB, acc1)
 					}
-					acc0.Store((*[16]float32)(unsafe.Pointer(&c[cRow0+j])))
-					acc1.Store((*[16]float32)(unsafe.Pointer(&c[cRow1+j])))
+					acc0.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow0+j])))
+					acc1.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRow1+j])))
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float32
@@ -493,10 +493,10 @@ func BaseBlockedMatMul_avx512(a []float32, b []float32, c []float32, m int, n in
 					acc := archsimd.BroadcastFloat32x16(0)
 					for p := range k {
 						vA := archsimd.BroadcastFloat32x16(a[i*k+p])
-						vB := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[p*n+j])))
+						vB := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[p*n+j])))
 						acc = vA.MulAdd(vB, acc)
 					}
-					acc.Store((*[16]float32)(unsafe.Pointer(&c[cRowStart+j])))
+					acc.StoreArray((*[16]float32)(unsafe.Pointer(&c[cRowStart+j])))
 				}
 				for ; j < jEnd; j++ {
 					var sum float32
@@ -525,7 +525,7 @@ func BaseBlockedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m i
 	total := m * n
 	var idx int
 	for idx = 0; idx+lanes <= total; idx += lanes {
-		vZero.Store((*[8]float64)(unsafe.Pointer(&c[idx])))
+		vZero.StoreArray((*[8]float64)(unsafe.Pointer(&c[idx])))
 	}
 	for ; idx < total; idx++ {
 		c[idx] = 0
@@ -558,8 +558,8 @@ func BaseBlockedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m i
 						vA2 := archsimd.BroadcastFloat64x8(a2p)
 						vA3 := archsimd.BroadcastFloat64x8(a3p)
 						bRowStart := p * n
-						vB0 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRowStart+j])))
-						vB1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[bRowStart+j+lanes])))
+						vB0 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRowStart+j])))
+						vB1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[bRowStart+j+lanes])))
 						acc00 = vA0.MulAdd(vB0, acc00)
 						acc01 = vA0.MulAdd(vB1, acc01)
 						acc10 = vA1.MulAdd(vB0, acc10)
@@ -573,14 +573,14 @@ func BaseBlockedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m i
 					cRow1 := (i + 1) * n
 					cRow2 := (i + 2) * n
 					cRow3 := (i + 3) * n
-					acc00.Store((*[8]float64)(unsafe.Pointer(&c[cRow0+j])))
-					acc01.Store((*[8]float64)(unsafe.Pointer(&c[cRow0+j+lanes])))
-					acc10.Store((*[8]float64)(unsafe.Pointer(&c[cRow1+j])))
-					acc11.Store((*[8]float64)(unsafe.Pointer(&c[cRow1+j+lanes])))
-					acc20.Store((*[8]float64)(unsafe.Pointer(&c[cRow2+j])))
-					acc21.Store((*[8]float64)(unsafe.Pointer(&c[cRow2+j+lanes])))
-					acc30.Store((*[8]float64)(unsafe.Pointer(&c[cRow3+j])))
-					acc31.Store((*[8]float64)(unsafe.Pointer(&c[cRow3+j+lanes])))
+					acc00.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow0+j])))
+					acc01.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow0+j+lanes])))
+					acc10.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow1+j])))
+					acc11.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow1+j+lanes])))
+					acc20.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow2+j])))
+					acc21.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow2+j+lanes])))
+					acc30.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow3+j])))
+					acc31.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow3+j+lanes])))
 				}
 				for ; j < jEnd; j += lanes {
 					remaining := jEnd - j
@@ -594,16 +594,16 @@ func BaseBlockedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m i
 							vA1 := archsimd.BroadcastFloat64x8(a[(i+1)*k+p])
 							vA2 := archsimd.BroadcastFloat64x8(a[(i+2)*k+p])
 							vA3 := archsimd.BroadcastFloat64x8(a[(i+3)*k+p])
-							vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[p*n+j])))
+							vB := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[p*n+j])))
 							acc0 = vA0.MulAdd(vB, acc0)
 							acc1 = vA1.MulAdd(vB, acc1)
 							acc2 = vA2.MulAdd(vB, acc2)
 							acc3 = vA3.MulAdd(vB, acc3)
 						}
-						acc0.Store((*[8]float64)(unsafe.Pointer(&c[i*n+j])))
-						acc1.Store((*[8]float64)(unsafe.Pointer(&c[(i+1)*n+j])))
-						acc2.Store((*[8]float64)(unsafe.Pointer(&c[(i+2)*n+j])))
-						acc3.Store((*[8]float64)(unsafe.Pointer(&c[(i+3)*n+j])))
+						acc0.StoreArray((*[8]float64)(unsafe.Pointer(&c[i*n+j])))
+						acc1.StoreArray((*[8]float64)(unsafe.Pointer(&c[(i+1)*n+j])))
+						acc2.StoreArray((*[8]float64)(unsafe.Pointer(&c[(i+2)*n+j])))
+						acc3.StoreArray((*[8]float64)(unsafe.Pointer(&c[(i+3)*n+j])))
 					} else {
 						for jj := j; jj < jEnd; jj++ {
 							var sum0, sum1, sum2, sum3 float64
@@ -633,12 +633,12 @@ func BaseBlockedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m i
 					for p := range k {
 						vA0 := archsimd.BroadcastFloat64x8(a[i*k+p])
 						vA1 := archsimd.BroadcastFloat64x8(a[(i+1)*k+p])
-						vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[p*n+j])))
+						vB := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[p*n+j])))
 						acc0 = vA0.MulAdd(vB, acc0)
 						acc1 = vA1.MulAdd(vB, acc1)
 					}
-					acc0.Store((*[8]float64)(unsafe.Pointer(&c[cRow0+j])))
-					acc1.Store((*[8]float64)(unsafe.Pointer(&c[cRow1+j])))
+					acc0.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow0+j])))
+					acc1.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRow1+j])))
 				}
 				for ; j < jEnd; j++ {
 					var sum0, sum1 float64
@@ -659,10 +659,10 @@ func BaseBlockedMatMul_avx512_Float64(a []float64, b []float64, c []float64, m i
 					acc := archsimd.BroadcastFloat64x8(0)
 					for p := range k {
 						vA := archsimd.BroadcastFloat64x8(a[i*k+p])
-						vB := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[p*n+j])))
+						vB := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[p*n+j])))
 						acc = vA.MulAdd(vB, acc)
 					}
-					acc.Store((*[8]float64)(unsafe.Pointer(&c[cRowStart+j])))
+					acc.StoreArray((*[8]float64)(unsafe.Pointer(&c[cRowStart+j])))
 				}
 				for ; j < jEnd; j++ {
 					var sum float64

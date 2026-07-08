@@ -56,12 +56,12 @@ func BaseFloatToSortable_avx2(data []float32) {
 	allOnesVec := hwy.Not_AVX2_F32x8(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat32x8Slice(data[i:])
+		v := archsimd.LoadFloat32x8(data[i:])
 		isNeg := v.Less(zeroVec)
 		negResult := hwy.Xor_AVX2_F32x8(v, allOnesVec)
 		posResult := hwy.Xor_AVX2_F32x8(v, signBitVec)
 		result := hwy.IfThenElse_AVX2_F32x8(isNeg, negResult, posResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }
@@ -74,12 +74,12 @@ func BaseFloatToSortable_avx2_Float64(data []float64) {
 	allOnesVec := hwy.Not_AVX2_F64x4(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat64x4Slice(data[i:])
+		v := archsimd.LoadFloat64x4(data[i:])
 		isNeg := v.Less(zeroVec)
 		negResult := hwy.Xor_AVX2_F64x4(v, allOnesVec)
 		posResult := hwy.Xor_AVX2_F64x4(v, signBitVec)
 		result := hwy.IfThenElse_AVX2_F64x4(isNeg, negResult, posResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }
@@ -130,13 +130,13 @@ func BaseSortableToFloat_avx2(data []float32) {
 	allOnesVec := hwy.Not_AVX2_F32x8(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat32x8Slice(data[i:])
+		v := archsimd.LoadFloat32x8(data[i:])
 		masked := hwy.And_AVX2_F32x8(v, signBitVec)
 		wasPositive := masked.NotEqual(zeroVec)
 		posResult := hwy.Xor_AVX2_F32x8(v, signBitVec)
 		negResult := hwy.Xor_AVX2_F32x8(v, allOnesVec)
 		result := hwy.IfThenElse_AVX2_F32x8(wasPositive, posResult, negResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }
@@ -149,13 +149,13 @@ func BaseSortableToFloat_avx2_Float64(data []float64) {
 	allOnesVec := hwy.Not_AVX2_F64x4(zeroVec)
 	i := 0
 	for i+lanes <= n {
-		v := archsimd.LoadFloat64x4Slice(data[i:])
+		v := archsimd.LoadFloat64x4(data[i:])
 		masked := hwy.And_AVX2_F64x4(v, signBitVec)
 		wasPositive := masked.NotEqual(zeroVec)
 		posResult := hwy.Xor_AVX2_F64x4(v, signBitVec)
 		negResult := hwy.Xor_AVX2_F64x4(v, allOnesVec)
 		result := hwy.IfThenElse_AVX2_F64x4(wasPositive, posResult, negResult)
-		result.StoreSlice(data[i:])
+		result.Store(data[i:])
 		i += lanes
 	}
 }

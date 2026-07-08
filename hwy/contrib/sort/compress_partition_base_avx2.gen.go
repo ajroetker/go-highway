@@ -40,57 +40,57 @@ func BaseCompressPartition_avx2(data []float32, pivot float32) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[readR])))
+			v = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[readR])))
 		} else {
-			v = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[readL])))
+			v = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[readL])))
 			readL += lanes
 		}
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]float32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]float32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	i := 0
 	for ; i+16 <= preloadSize; i += lanes * 2 {
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&preloadL[i])))
+		v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&preloadL[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]float32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]float32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
-		v1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&preloadL[i+8])))
+		v1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&preloadL[i+8])))
 		maskLess1 := v1.Less(pivotVec)
 		numLess1 := hwy.CountTrue_AVX2_F32x8(maskLess1)
 		compressed1, _ := hwy.Compress_AVX2_F32x8(v1, maskLess1)
 		remaining -= lanes
-		compressed1.Store((*[8]float32)(unsafe.Pointer(&data[writeL])))
-		compressed1.Store((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed1.StoreArray((*[8]float32)(unsafe.Pointer(&data[writeL])))
+		compressed1.StoreArray((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess1
 	}
 	for i := 0; i+8 <= preloadSize-2*lanes; i += lanes {
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]float32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]float32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]float32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	var buf [32]float32
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i+8 <= preloadSize; i += lanes {
-		v := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F32x8(v, maskLess)
-		compressed.StoreSlice(buf[bufL:])
+		compressed.Store(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
 		writeR -= numRight
@@ -129,57 +129,57 @@ func BaseCompressPartition_avx2_Float64(data []float64, pivot float64) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[readR])))
+			v = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[readR])))
 		} else {
-			v = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[readL])))
+			v = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[readL])))
 			readL += lanes
 		}
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]float64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]float64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	i := 0
 	for ; i+8 <= preloadSize; i += lanes * 2 {
-		v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&preloadL[i])))
+		v := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&preloadL[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]float64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]float64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
-		v1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&preloadL[i+4])))
+		v1 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&preloadL[i+4])))
 		maskLess1 := v1.Less(pivotVec)
 		numLess1 := hwy.CountTrue_AVX2_F64x4(maskLess1)
 		compressed1, _ := hwy.Compress_AVX2_F64x4(v1, maskLess1)
 		remaining -= lanes
-		compressed1.Store((*[4]float64)(unsafe.Pointer(&data[writeL])))
-		compressed1.Store((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed1.StoreArray((*[4]float64)(unsafe.Pointer(&data[writeL])))
+		compressed1.StoreArray((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess1
 	}
 	for i := 0; i+4 <= preloadSize-2*lanes; i += lanes {
-		v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]float64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]float64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]float64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	var buf [32]float64
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i+4 <= preloadSize; i += lanes {
-		v := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_F64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_F64x4(v, maskLess)
-		compressed.StoreSlice(buf[bufL:])
+		compressed.Store(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
 		writeR -= numRight
@@ -218,57 +218,57 @@ func BaseCompressPartition_avx2_Int32(data []int32, pivot int32) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[readR])))
+			v = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&data[readR])))
 		} else {
-			v = archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[readL])))
+			v = archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&data[readL])))
 			readL += lanes
 		}
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]int32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]int32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	i := 0
 	for ; i+16 <= preloadSize; i += lanes * 2 {
-		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&preloadL[i])))
+		v := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&preloadL[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]int32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]int32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
-		v1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&preloadL[i+8])))
+		v1 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&preloadL[i+8])))
 		maskLess1 := v1.Less(pivotVec)
 		numLess1 := hwy.CountTrue_AVX2_I32x8(maskLess1)
 		compressed1, _ := hwy.Compress_AVX2_I32x8(v1, maskLess1)
 		remaining -= lanes
-		compressed1.Store((*[8]int32)(unsafe.Pointer(&data[writeL])))
-		compressed1.Store((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed1.StoreArray((*[8]int32)(unsafe.Pointer(&data[writeL])))
+		compressed1.StoreArray((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess1
 	}
 	for i := 0; i+8 <= preloadSize-2*lanes; i += lanes {
-		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]int32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]int32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]int32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	var buf [32]int32
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i+8 <= preloadSize; i += lanes {
-		v := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I32x8(v, maskLess)
-		compressed.StoreSlice(buf[bufL:])
+		compressed.Store(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
 		writeR -= numRight
@@ -307,57 +307,57 @@ func BaseCompressPartition_avx2_Int64(data []int64, pivot int64) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[readR])))
+			v = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&data[readR])))
 		} else {
-			v = archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[readL])))
+			v = archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&data[readL])))
 			readL += lanes
 		}
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]int64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]int64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	i := 0
 	for ; i+8 <= preloadSize; i += lanes * 2 {
-		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&preloadL[i])))
+		v := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&preloadL[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]int64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]int64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
-		v1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&preloadL[i+4])))
+		v1 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&preloadL[i+4])))
 		maskLess1 := v1.Less(pivotVec)
 		numLess1 := hwy.CountTrue_AVX2_I64x4(maskLess1)
 		compressed1, _ := hwy.Compress_AVX2_I64x4(v1, maskLess1)
 		remaining -= lanes
-		compressed1.Store((*[4]int64)(unsafe.Pointer(&data[writeL])))
-		compressed1.Store((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed1.StoreArray((*[4]int64)(unsafe.Pointer(&data[writeL])))
+		compressed1.StoreArray((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess1
 	}
 	for i := 0; i+4 <= preloadSize-2*lanes; i += lanes {
-		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]int64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]int64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]int64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	var buf [32]int64
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i+4 <= preloadSize; i += lanes {
-		v := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_I64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_I64x4(v, maskLess)
-		compressed.StoreSlice(buf[bufL:])
+		compressed.Store(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
 		writeR -= numRight
@@ -396,57 +396,57 @@ func BaseCompressPartition_avx2_Uint32(data []uint32, pivot uint32) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[readR])))
+			v = archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&data[readR])))
 		} else {
-			v = archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[readL])))
+			v = archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&data[readL])))
 			readL += lanes
 		}
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]uint32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]uint32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	i := 0
 	for ; i+16 <= preloadSize; i += lanes * 2 {
-		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&preloadL[i])))
+		v := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&preloadL[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]uint32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]uint32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
-		v1 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&preloadL[i+8])))
+		v1 := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&preloadL[i+8])))
 		maskLess1 := v1.Less(pivotVec)
 		numLess1 := hwy.CountTrue_AVX2_Uint32x8(maskLess1)
 		compressed1, _ := hwy.Compress_AVX2_Uint32x8(v1, maskLess1)
 		remaining -= lanes
-		compressed1.Store((*[8]uint32)(unsafe.Pointer(&data[writeL])))
-		compressed1.Store((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed1.StoreArray((*[8]uint32)(unsafe.Pointer(&data[writeL])))
+		compressed1.StoreArray((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess1
 	}
 	for i := 0; i+8 <= preloadSize-2*lanes; i += lanes {
-		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint32x8(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[8]uint32)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[8]uint32)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[8]uint32)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	var buf [32]uint32
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i+8 <= preloadSize; i += lanes {
-		v := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint32x8(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint32x8(v, maskLess)
-		compressed.StoreSlice(buf[bufL:])
+		compressed.Store(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
 		writeR -= numRight
@@ -485,57 +485,57 @@ func BaseCompressPartition_avx2_Uint64(data []uint64, pivot uint64) int {
 		capacityL := readL - writeL
 		if capacityL > preloadSize {
 			readR -= lanes
-			v = archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[readR])))
+			v = archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&data[readR])))
 		} else {
-			v = archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[readL])))
+			v = archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&data[readL])))
 			readL += lanes
 		}
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]uint64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]uint64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	i := 0
 	for ; i+8 <= preloadSize; i += lanes * 2 {
-		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&preloadL[i])))
+		v := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&preloadL[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]uint64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]uint64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
-		v1 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&preloadL[i+4])))
+		v1 := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&preloadL[i+4])))
 		maskLess1 := v1.Less(pivotVec)
 		numLess1 := hwy.CountTrue_AVX2_Uint64x4(maskLess1)
 		compressed1, _ := hwy.Compress_AVX2_Uint64x4(v1, maskLess1)
 		remaining -= lanes
-		compressed1.Store((*[4]uint64)(unsafe.Pointer(&data[writeL])))
-		compressed1.Store((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed1.StoreArray((*[4]uint64)(unsafe.Pointer(&data[writeL])))
+		compressed1.StoreArray((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess1
 	}
 	for i := 0; i+4 <= preloadSize-2*lanes; i += lanes {
-		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint64x4(v, maskLess)
 		remaining -= lanes
-		compressed.Store((*[4]uint64)(unsafe.Pointer(&data[writeL])))
-		compressed.Store((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
+		compressed.StoreArray((*[4]uint64)(unsafe.Pointer(&data[writeL])))
+		compressed.StoreArray((*[4]uint64)(unsafe.Pointer(&data[remaining+writeL])))
 		writeL += numLess
 	}
 	var buf [32]uint64
 	bufL := 0
 	writeR := writeL + remaining
 	for i := preloadSize - 2*lanes; i+4 <= preloadSize; i += lanes {
-		v := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&preloadR[i])))
+		v := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&preloadR[i])))
 		maskLess := v.Less(pivotVec)
 		numLess := hwy.CountTrue_AVX2_Uint64x4(maskLess)
 		compressed, _ := hwy.Compress_AVX2_Uint64x4(v, maskLess)
-		compressed.StoreSlice(buf[bufL:])
+		compressed.Store(buf[bufL:])
 		bufL += numLess
 		numRight := lanes - numLess
 		writeR -= numRight

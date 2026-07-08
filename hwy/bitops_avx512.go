@@ -28,47 +28,47 @@ import (
 // PopCount_AVX512_I32x16 counts set bits in each lane.
 func PopCount_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 	var data [16]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = int32(bits.OnesCount32(uint32(data[i])))
 	}
-	return archsimd.LoadInt32x16(&data)
+	return archsimd.LoadInt32x16Array(&data)
 }
 
 // PopCount_AVX512_I64x8 counts set bits in each lane.
 func PopCount_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 	var data [8]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = int64(bits.OnesCount64(uint64(data[i])))
 	}
-	return archsimd.LoadInt64x8(&data)
+	return archsimd.LoadInt64x8Array(&data)
 }
 
 // LeadingZeroCount_AVX512_I32x16 counts leading zeros in each lane.
 func LeadingZeroCount_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 	var data [16]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = int32(bits.LeadingZeros32(uint32(data[i])))
 	}
-	return archsimd.LoadInt32x16(&data)
+	return archsimd.LoadInt32x16Array(&data)
 }
 
 // LeadingZeroCount_AVX512_I64x8 counts leading zeros in each lane.
 func LeadingZeroCount_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 	var data [8]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = int64(bits.LeadingZeros64(uint64(data[i])))
 	}
-	return archsimd.LoadInt64x8(&data)
+	return archsimd.LoadInt64x8Array(&data)
 }
 
 // TrailingZeroCount_AVX512_I32x16 counts trailing zeros in each lane.
 func TrailingZeroCount_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 	var data [16]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		if data[i] == 0 {
 			data[i] = 32
@@ -76,13 +76,13 @@ func TrailingZeroCount_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 			data[i] = int32(bits.TrailingZeros32(uint32(data[i])))
 		}
 	}
-	return archsimd.LoadInt32x16(&data)
+	return archsimd.LoadInt32x16Array(&data)
 }
 
 // TrailingZeroCount_AVX512_I64x8 counts trailing zeros in each lane.
 func TrailingZeroCount_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 	var data [8]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		if data[i] == 0 {
 			data[i] = 64
@@ -90,53 +90,53 @@ func TrailingZeroCount_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 			data[i] = int64(bits.TrailingZeros64(uint64(data[i])))
 		}
 	}
-	return archsimd.LoadInt64x8(&data)
+	return archsimd.LoadInt64x8Array(&data)
 }
 
 // RotateRight_AVX512_I32x16 rotates bits right in each lane.
 func RotateRight_AVX512_I32x16(v archsimd.Int32x16, count int) archsimd.Int32x16 {
 	var data [16]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = int32(bits.RotateLeft32(uint32(data[i]), -count))
 	}
-	return archsimd.LoadInt32x16(&data)
+	return archsimd.LoadInt32x16Array(&data)
 }
 
 // RotateRight_AVX512_I64x8 rotates bits right in each lane.
 func RotateRight_AVX512_I64x8(v archsimd.Int64x8, count int) archsimd.Int64x8 {
 	var data [8]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = int64(bits.RotateLeft64(uint64(data[i]), -count))
 	}
-	return archsimd.LoadInt64x8(&data)
+	return archsimd.LoadInt64x8Array(&data)
 }
 
 // ReverseBits_AVX512_I32x16 reverses bit order in each lane.
 func ReverseBits_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 	var data [16]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = int32(bits.Reverse32(uint32(data[i])))
 	}
-	return archsimd.LoadInt32x16(&data)
+	return archsimd.LoadInt32x16Array(&data)
 }
 
 // ReverseBits_AVX512_I64x8 reverses bit order in each lane.
 func ReverseBits_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 	var data [8]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = int64(bits.Reverse64(uint64(data[i])))
 	}
-	return archsimd.LoadInt64x8(&data)
+	return archsimd.LoadInt64x8Array(&data)
 }
 
 // HighestSetBitIndex_AVX512_I32x16 returns index of highest set bit (-1 if zero).
 func HighestSetBitIndex_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 	var data [16]int32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		if data[i] == 0 {
 			data[i] = -1
@@ -144,13 +144,13 @@ func HighestSetBitIndex_AVX512_I32x16(v archsimd.Int32x16) archsimd.Int32x16 {
 			data[i] = int32(bits.Len32(uint32(data[i])) - 1)
 		}
 	}
-	return archsimd.LoadInt32x16(&data)
+	return archsimd.LoadInt32x16Array(&data)
 }
 
 // HighestSetBitIndex_AVX512_I64x8 returns index of highest set bit (-1 if zero).
 func HighestSetBitIndex_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 	var data [8]int64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		if data[i] == 0 {
 			data[i] = -1
@@ -158,25 +158,25 @@ func HighestSetBitIndex_AVX512_I64x8(v archsimd.Int64x8) archsimd.Int64x8 {
 			data[i] = int64(bits.Len64(uint64(data[i])) - 1)
 		}
 	}
-	return archsimd.LoadInt64x8(&data)
+	return archsimd.LoadInt64x8Array(&data)
 }
 
 // PopCount_AVX512_Uint32x16 counts set bits in each lane (unsigned).
 func PopCount_AVX512_Uint32x16(v archsimd.Uint32x16) archsimd.Uint32x16 {
 	var data [16]uint32
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 16; i++ {
 		data[i] = uint32(bits.OnesCount32(data[i]))
 	}
-	return archsimd.LoadUint32x16(&data)
+	return archsimd.LoadUint32x16Array(&data)
 }
 
 // PopCount_AVX512_Uint64x8 counts set bits in each lane (unsigned).
 func PopCount_AVX512_Uint64x8(v archsimd.Uint64x8) archsimd.Uint64x8 {
 	var data [8]uint64
-	v.Store(&data)
+	v.StoreArray(&data)
 	for i := 0; i < 8; i++ {
 		data[i] = uint64(bits.OnesCount64(data[i]))
 	}
-	return archsimd.LoadUint64x8(&data)
+	return archsimd.LoadUint64x8Array(&data)
 }

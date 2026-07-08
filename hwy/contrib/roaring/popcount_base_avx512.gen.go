@@ -43,8 +43,8 @@ func BasePopcntAndNotSlice_avx512(s []uint64, m []uint64) uint64 {
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(m32.AndNot(s32)))
 	}
 	for ; i+lanes <= n; i += lanes {
-		vs := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&s[i])))
-		vm := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&m[i])))
+		vs := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&s[i])))
+		vm := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&m[i])))
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(vm.AndNot(vs)))
 	}
 	result = uint64(hwy.ReduceSum_AVX512_Uint64x8(acc))
@@ -85,8 +85,8 @@ func BasePopcntAndSlice_avx512(s []uint64, m []uint64) uint64 {
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(s32.And(m32)))
 	}
 	for ; i+lanes <= n; i += lanes {
-		vs := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&s[i])))
-		vm := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&m[i])))
+		vs := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&s[i])))
+		vm := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&m[i])))
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(vs.And(vm)))
 	}
 	result = uint64(hwy.ReduceSum_AVX512_Uint64x8(acc))
@@ -127,8 +127,8 @@ func BasePopcntOrSlice_avx512(s []uint64, m []uint64) uint64 {
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(s32.Or(m32)))
 	}
 	for ; i+lanes <= n; i += lanes {
-		vs := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&s[i])))
-		vm := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&m[i])))
+		vs := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&s[i])))
+		vm := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&m[i])))
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(vs.Or(vm)))
 	}
 	result = uint64(hwy.ReduceSum_AVX512_Uint64x8(acc))
@@ -165,7 +165,7 @@ func BasePopcntSlice_avx512(s []uint64) uint64 {
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(v32))
 	}
 	for ; i+lanes <= len(s); i += lanes {
-		v := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&s[i])))
+		v := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&s[i])))
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(v))
 	}
 	result = uint64(hwy.ReduceSum_AVX512_Uint64x8(acc))
@@ -206,8 +206,8 @@ func BasePopcntXorSlice_avx512(s []uint64, m []uint64) uint64 {
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(s32.Xor(m32)))
 	}
 	for ; i+lanes <= n; i += lanes {
-		vs := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&s[i])))
-		vm := archsimd.LoadUint64x8((*[8]uint64)(unsafe.Pointer(&m[i])))
+		vs := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&s[i])))
+		vm := archsimd.LoadUint64x8Array((*[8]uint64)(unsafe.Pointer(&m[i])))
 		acc = acc.Add(hwy.PopCount_AVX512_Uint64x8(vs.Xor(vm)))
 	}
 	result = uint64(hwy.ReduceSum_AVX512_Uint64x8(acc))

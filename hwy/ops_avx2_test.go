@@ -39,7 +39,7 @@ func TestMulAVX2Int64x4(t *testing.T) {
 	as := [4]int64{0, -1, 123456789, -987654321}
 	bs := [4]int64{1, 7, -98765, 0x7FFFFFFF}
 	got := extractInt64x4(Mul_AVX2_Int64x4(
-		archsimd.LoadInt64x4Slice(as[:]), archsimd.LoadInt64x4Slice(bs[:])))
+		archsimd.LoadInt64x4(as[:]), archsimd.LoadInt64x4(bs[:])))
 	for i := range as {
 		if want := as[i] * bs[i]; got[i] != want {
 			t.Errorf("Mul lane %d: %d*%d = %d, want %d", i, as[i], bs[i], got[i], want)
@@ -51,7 +51,7 @@ func TestMulAVX2Uint64x4(t *testing.T) {
 	as := [4]uint64{0, 0xFFFFFFFFFFFFFFFF, 123456789, 0x1_0000_0001}
 	bs := [4]uint64{1, 3, 98765, 0x1_0000_0001}
 	got := extractUint64x4(Mul_AVX2_Uint64x4(
-		archsimd.LoadUint64x4Slice(as[:]), archsimd.LoadUint64x4Slice(bs[:])))
+		archsimd.LoadUint64x4(as[:]), archsimd.LoadUint64x4(bs[:])))
 	for i := range as {
 		if want := as[i] * bs[i]; got[i] != want {
 			t.Errorf("Mul lane %d: %d*%d = %d, want %d", i, as[i], bs[i], got[i], want)
@@ -62,7 +62,7 @@ func TestMulAVX2Uint64x4(t *testing.T) {
 func TestShiftAllRightAVX2Int64x4(t *testing.T) {
 	vals := [4]int64{-8, 8, -1, 0x7FFFFFFFFFFFFFFF}
 	for _, n := range []uint64{0, 1, 2, 13, 31, 62, 63} {
-		got := extractInt64x4(ShiftAllRight_AVX2_Int64x4(archsimd.LoadInt64x4Slice(vals[:]), n))
+		got := extractInt64x4(ShiftAllRight_AVX2_Int64x4(archsimd.LoadInt64x4(vals[:]), n))
 		for i := range vals {
 			if want := vals[i] >> n; got[i] != want {
 				t.Errorf("ShiftAllRight n=%d lane %d: %d>>%d = %d, want %d (arithmetic)", n, i, vals[i], n, got[i], want)

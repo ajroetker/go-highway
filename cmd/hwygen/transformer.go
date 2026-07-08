@@ -729,8 +729,22 @@ func transformCallExpr(call *ast.CallExpr, ctx *transformContext) {
 							isPointerArg = true
 						}
 					}
+					// Generator-internal vectors (underscore-prefixed idents like
+					// _vMasked) and AsFloat32xN() promotions are native archsimd/asm
+					// vectors even inside half-precision functions - never apply the
+					// f16 cast or StoreSlice rename to them.
+					internalVec := false
+					if recv, ok := sel.X.(*ast.Ident); ok && strings.HasPrefix(recv.Name, "_") {
+						internalVec = true
+					}
+					if recvCall, ok := sel.X.(*ast.CallExpr); ok {
+						if recvSel, ok := recvCall.Fun.(*ast.SelectorExpr); ok &&
+							strings.HasPrefix(recvSel.Sel.Name, "AsFloat32x") {
+							internalVec = true
+						}
+					}
 					if !isPointerArg {
-						if ctx.isHalfPrec {
+						if ctx.isHalfPrec && !internalVec {
 							// asm half-precision types keep the StoreSlice name
 							sel.Sel.Name = "StoreSlice"
 							// Cast []hwy.Float16/[]hwy.BFloat16 -> []uint16 for half-precision

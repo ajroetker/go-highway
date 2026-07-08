@@ -288,10 +288,10 @@ func BasePackLHSVec_avx512(a []float32, packed []float32, m int, k int, rowStart
 		row3 := (baseRow+3)*k + colStart
 		var kk int
 		for kk = 0; kk+lanes <= panelK; kk += lanes {
-			r0 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[row0+kk])))
-			r1 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[row1+kk])))
-			r2 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[row2+kk])))
-			r3 := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&a[row3+kk])))
+			r0 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[row0+kk])))
+			r1 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[row1+kk])))
+			r2 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[row2+kk])))
+			r3 := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&a[row3+kk])))
 			t0 := hwy.InterleaveLower_AVX512_F32x16(r0, r2)
 			t2 := hwy.InterleaveUpper_AVX512_F32x16(r0, r2)
 			t1 := hwy.InterleaveLower_AVX512_F32x16(r1, r3)
@@ -300,10 +300,10 @@ func BasePackLHSVec_avx512(a []float32, packed []float32, m int, k int, rowStart
 			c1 := hwy.InterleaveUpper_AVX512_F32x16(t0, t1)
 			c2 := hwy.InterleaveLower_AVX512_F32x16(t2, t3)
 			c3 := hwy.InterleaveUpper_AVX512_F32x16(t2, t3)
-			c0.Store((*[16]float32)(unsafe.Pointer(&packed[packIdx])))
-			c1.Store((*[16]float32)(unsafe.Pointer(&packed[packIdx+lanes])))
-			c2.Store((*[16]float32)(unsafe.Pointer(&packed[packIdx+2*lanes])))
-			c3.Store((*[16]float32)(unsafe.Pointer(&packed[packIdx+3*lanes])))
+			c0.StoreArray((*[16]float32)(unsafe.Pointer(&packed[packIdx])))
+			c1.StoreArray((*[16]float32)(unsafe.Pointer(&packed[packIdx+lanes])))
+			c2.StoreArray((*[16]float32)(unsafe.Pointer(&packed[packIdx+2*lanes])))
+			c3.StoreArray((*[16]float32)(unsafe.Pointer(&packed[packIdx+3*lanes])))
 			packIdx += lanes * mr
 		}
 		for ; kk < panelK; kk++ {
@@ -350,10 +350,10 @@ func BasePackLHSVec_avx512_Float64(a []float64, packed []float64, m int, k int, 
 		row3 := (baseRow+3)*k + colStart
 		var kk int
 		for kk = 0; kk+lanes <= panelK; kk += lanes {
-			r0 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[row0+kk])))
-			r1 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[row1+kk])))
-			r2 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[row2+kk])))
-			r3 := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&a[row3+kk])))
+			r0 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[row0+kk])))
+			r1 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[row1+kk])))
+			r2 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[row2+kk])))
+			r3 := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&a[row3+kk])))
 			t0 := hwy.InterleaveLower_AVX512_F64x8(r0, r2)
 			t2 := hwy.InterleaveUpper_AVX512_F64x8(r0, r2)
 			t1 := hwy.InterleaveLower_AVX512_F64x8(r1, r3)
@@ -362,10 +362,10 @@ func BasePackLHSVec_avx512_Float64(a []float64, packed []float64, m int, k int, 
 			c1 := hwy.InterleaveUpper_AVX512_F64x8(t0, t1)
 			c2 := hwy.InterleaveLower_AVX512_F64x8(t2, t3)
 			c3 := hwy.InterleaveUpper_AVX512_F64x8(t2, t3)
-			c0.Store((*[8]float64)(unsafe.Pointer(&packed[packIdx])))
-			c1.Store((*[8]float64)(unsafe.Pointer(&packed[packIdx+lanes])))
-			c2.Store((*[8]float64)(unsafe.Pointer(&packed[packIdx+2*lanes])))
-			c3.Store((*[8]float64)(unsafe.Pointer(&packed[packIdx+3*lanes])))
+			c0.StoreArray((*[8]float64)(unsafe.Pointer(&packed[packIdx])))
+			c1.StoreArray((*[8]float64)(unsafe.Pointer(&packed[packIdx+lanes])))
+			c2.StoreArray((*[8]float64)(unsafe.Pointer(&packed[packIdx+2*lanes])))
+			c3.StoreArray((*[8]float64)(unsafe.Pointer(&packed[packIdx+3*lanes])))
 			packIdx += lanes * mr
 		}
 		for ; kk < panelK; kk++ {
@@ -474,8 +474,8 @@ func BasePackRHSVec_avx512(b []float32, packed []float32, n int, rowStart int, c
 			for kk := range panelK {
 				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := archsimd.LoadFloat32x16((*[16]float32)(unsafe.Pointer(&b[srcRow+baseCol+c])))
-					v.Store((*[16]float32)(unsafe.Pointer(&packed[dstIdx+c])))
+					v := archsimd.LoadFloat32x16Array((*[16]float32)(unsafe.Pointer(&b[srcRow+baseCol+c])))
+					v.StoreArray((*[16]float32)(unsafe.Pointer(&packed[dstIdx+c])))
 				}
 				dstIdx += nr
 			}
@@ -509,8 +509,8 @@ func BasePackRHSVec_avx512_Float64(b []float64, packed []float64, n int, rowStar
 			for kk := range panelK {
 				srcRow := (rowStart + kk) * n
 				for c := 0; c < nr; c += lanes {
-					v := archsimd.LoadFloat64x8((*[8]float64)(unsafe.Pointer(&b[srcRow+baseCol+c])))
-					v.Store((*[8]float64)(unsafe.Pointer(&packed[dstIdx+c])))
+					v := archsimd.LoadFloat64x8Array((*[8]float64)(unsafe.Pointer(&b[srcRow+baseCol+c])))
+					v.StoreArray((*[8]float64)(unsafe.Pointer(&packed[dstIdx+c])))
 				}
 				dstIdx += nr
 			}

@@ -19,14 +19,14 @@ func BaseIsSorted_avx2(data []float32) bool {
 	lanes := 8
 	i := 0
 	for ; i+lanes+16 <= n; i += lanes * 2 {
-		v1 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i])))
-		v2 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i+1])))
+		v1 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i])))
+		v2 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i+1])))
 		mask := v1.Greater(v2)
 		if hwy.FindFirstTrue_AVX2_F32x8(mask) >= 0 {
 			return false
 		}
-		v11 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i+8])))
-		v21 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&data[i+1+8])))
+		v11 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i+8])))
+		v21 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&data[i+1+8])))
 		mask1 := v11.Greater(v21)
 		if hwy.FindFirstTrue_AVX2_F32x8(mask1) >= 0 {
 			return false
@@ -48,14 +48,14 @@ func BaseIsSorted_avx2_Float64(data []float64) bool {
 	lanes := 4
 	i := 0
 	for ; i+lanes+8 <= n; i += lanes * 2 {
-		v1 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i])))
-		v2 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i+1])))
+		v1 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i])))
+		v2 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i+1])))
 		mask := v1.Greater(v2)
 		if hwy.FindFirstTrue_AVX2_F64x4(mask) >= 0 {
 			return false
 		}
-		v11 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i+4])))
-		v21 := archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&data[i+1+4])))
+		v11 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i+4])))
+		v21 := archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&data[i+1+4])))
 		mask1 := v11.Greater(v21)
 		if hwy.FindFirstTrue_AVX2_F64x4(mask1) >= 0 {
 			return false
@@ -77,14 +77,14 @@ func BaseIsSorted_avx2_Int32(data []int32) bool {
 	lanes := 8
 	i := 0
 	for ; i+lanes+16 <= n; i += lanes * 2 {
-		v1 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i])))
-		v2 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i+1])))
+		v1 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&data[i])))
+		v2 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&data[i+1])))
 		mask := v1.Greater(v2)
 		if hwy.FindFirstTrue_AVX2_I32x8(mask) >= 0 {
 			return false
 		}
-		v11 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i+8])))
-		v21 := archsimd.LoadInt32x8((*[8]int32)(unsafe.Pointer(&data[i+1+8])))
+		v11 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&data[i+8])))
+		v21 := archsimd.LoadInt32x8Array((*[8]int32)(unsafe.Pointer(&data[i+1+8])))
 		mask1 := v11.Greater(v21)
 		if hwy.FindFirstTrue_AVX2_I32x8(mask1) >= 0 {
 			return false
@@ -106,14 +106,14 @@ func BaseIsSorted_avx2_Int64(data []int64) bool {
 	lanes := 4
 	i := 0
 	for ; i+lanes+8 <= n; i += lanes * 2 {
-		v1 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i])))
-		v2 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i+1])))
+		v1 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&data[i])))
+		v2 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&data[i+1])))
 		mask := v1.Greater(v2)
 		if hwy.FindFirstTrue_AVX2_I64x4(mask) >= 0 {
 			return false
 		}
-		v11 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i+4])))
-		v21 := archsimd.LoadInt64x4((*[4]int64)(unsafe.Pointer(&data[i+1+4])))
+		v11 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&data[i+4])))
+		v21 := archsimd.LoadInt64x4Array((*[4]int64)(unsafe.Pointer(&data[i+1+4])))
 		mask1 := v11.Greater(v21)
 		if hwy.FindFirstTrue_AVX2_I64x4(mask1) >= 0 {
 			return false
@@ -135,14 +135,14 @@ func BaseIsSorted_avx2_Uint32(data []uint32) bool {
 	lanes := 8
 	i := 0
 	for ; i+lanes+16 <= n; i += lanes * 2 {
-		v1 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i])))
-		v2 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i+1])))
+		v1 := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&data[i])))
+		v2 := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&data[i+1])))
 		mask := v1.Greater(v2)
 		if hwy.FindFirstTrue_AVX2_Uint32x8(mask) >= 0 {
 			return false
 		}
-		v11 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i+8])))
-		v21 := archsimd.LoadUint32x8((*[8]uint32)(unsafe.Pointer(&data[i+1+8])))
+		v11 := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&data[i+8])))
+		v21 := archsimd.LoadUint32x8Array((*[8]uint32)(unsafe.Pointer(&data[i+1+8])))
 		mask1 := v11.Greater(v21)
 		if hwy.FindFirstTrue_AVX2_Uint32x8(mask1) >= 0 {
 			return false
@@ -164,14 +164,14 @@ func BaseIsSorted_avx2_Uint64(data []uint64) bool {
 	lanes := 4
 	i := 0
 	for ; i+lanes+8 <= n; i += lanes * 2 {
-		v1 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i])))
-		v2 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i+1])))
+		v1 := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&data[i])))
+		v2 := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&data[i+1])))
 		mask := v1.Greater(v2)
 		if hwy.FindFirstTrue_AVX2_Uint64x4(mask) >= 0 {
 			return false
 		}
-		v11 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i+4])))
-		v21 := archsimd.LoadUint64x4((*[4]uint64)(unsafe.Pointer(&data[i+1+4])))
+		v11 := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&data[i+4])))
+		v21 := archsimd.LoadUint64x4Array((*[4]uint64)(unsafe.Pointer(&data[i+1+4])))
 		mask1 := v11.Greater(v21)
 		if hwy.FindFirstTrue_AVX2_Uint64x4(mask1) >= 0 {
 			return false

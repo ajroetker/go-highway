@@ -222,11 +222,11 @@ func BaseDense_avx512(x []float32, weight []float32, bias []float32, output []fl
 			acc3 := archsimd.BroadcastFloat32x16(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := archsimd.LoadFloat32x16Slice(weight[wRow+p:])
-				vX0 := archsimd.LoadFloat32x16Slice(x[xRow0+p:])
-				vX1 := archsimd.LoadFloat32x16Slice(x[xRow1+p:])
-				vX2 := archsimd.LoadFloat32x16Slice(x[xRow2+p:])
-				vX3 := archsimd.LoadFloat32x16Slice(x[xRow3+p:])
+				vW := archsimd.LoadFloat32x16(weight[wRow+p:])
+				vX0 := archsimd.LoadFloat32x16(x[xRow0+p:])
+				vX1 := archsimd.LoadFloat32x16(x[xRow1+p:])
+				vX2 := archsimd.LoadFloat32x16(x[xRow2+p:])
+				vX3 := archsimd.LoadFloat32x16(x[xRow3+p:])
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
@@ -263,8 +263,8 @@ func BaseDense_avx512(x []float32, weight []float32, bias []float32, output []fl
 			acc := archsimd.BroadcastFloat32x16(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := archsimd.LoadFloat32x16Slice(x[xRow+p:])
-				vW := archsimd.LoadFloat32x16Slice(weight[wRow+p:])
+				vX := archsimd.LoadFloat32x16(x[xRow+p:])
+				vW := archsimd.LoadFloat32x16(weight[wRow+p:])
 				acc = vX.MulAdd(vW, acc)
 			}
 			sum := hwy.ReduceSum_AVX512_F32x16(acc)
@@ -311,11 +311,11 @@ func BaseDense_avx512_Float64(x []float64, weight []float64, bias []float64, out
 			acc3 := archsimd.BroadcastFloat64x8(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vW := archsimd.LoadFloat64x8Slice(weight[wRow+p:])
-				vX0 := archsimd.LoadFloat64x8Slice(x[xRow0+p:])
-				vX1 := archsimd.LoadFloat64x8Slice(x[xRow1+p:])
-				vX2 := archsimd.LoadFloat64x8Slice(x[xRow2+p:])
-				vX3 := archsimd.LoadFloat64x8Slice(x[xRow3+p:])
+				vW := archsimd.LoadFloat64x8(weight[wRow+p:])
+				vX0 := archsimd.LoadFloat64x8(x[xRow0+p:])
+				vX1 := archsimd.LoadFloat64x8(x[xRow1+p:])
+				vX2 := archsimd.LoadFloat64x8(x[xRow2+p:])
+				vX3 := archsimd.LoadFloat64x8(x[xRow3+p:])
 				acc0 = vX0.MulAdd(vW, acc0)
 				acc1 = vX1.MulAdd(vW, acc1)
 				acc2 = vX2.MulAdd(vW, acc2)
@@ -352,8 +352,8 @@ func BaseDense_avx512_Float64(x []float64, weight []float64, bias []float64, out
 			acc := archsimd.BroadcastFloat64x8(0)
 			var p int
 			for p = 0; p+lanes <= inFeatures; p += lanes {
-				vX := archsimd.LoadFloat64x8Slice(x[xRow+p:])
-				vW := archsimd.LoadFloat64x8Slice(weight[wRow+p:])
+				vX := archsimd.LoadFloat64x8(x[xRow+p:])
+				vW := archsimd.LoadFloat64x8(weight[wRow+p:])
 				acc = vX.MulAdd(vW, acc)
 			}
 			sum := hwy.ReduceSum_AVX512_F64x8(acc)

@@ -201,7 +201,7 @@ func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
 			{
 				rows_1 := [8]archsimd.Float32x8{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]archsimd.Float32x8{}
@@ -214,7 +214,7 @@ func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+					rows_1[c_1].StoreArray((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
 		}
@@ -222,7 +222,7 @@ func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
 			{
 				rows_11 := [8]archsimd.Float32x8{}
 				for r_11 := range lanes {
-					rows_11[r_11] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+					rows_11[r_11] = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [8]archsimd.Float32x8{}
@@ -235,7 +235,7 @@ func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
 					rows_11 = newRows_11
 				}
 				for c_11 := range lanes {
-					rows_11[c_11].Store((*[8]float32)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
+					rows_11[c_11].StoreArray((*[8]float32)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
 				}
 			}
 		}
@@ -245,7 +245,7 @@ func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
 			{
 				rows_1 := [8]archsimd.Float32x8{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]archsimd.Float32x8{}
@@ -258,7 +258,7 @@ func BaseTranspose2D_avx2(src []float32, m int, k int, dst []float32) {
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+					rows_1[c_1].StoreArray((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
 		}
@@ -290,7 +290,7 @@ func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
 			{
 				rows_1 := [4]archsimd.Float64x4{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [4]archsimd.Float64x4{}
@@ -303,7 +303,7 @@ func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+					rows_1[c_1].StoreArray((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
 		}
@@ -311,7 +311,7 @@ func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
 			{
 				rows_11 := [4]archsimd.Float64x4{}
 				for r_11 := range lanes {
-					rows_11[r_11] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+					rows_11[r_11] = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [4]archsimd.Float64x4{}
@@ -324,7 +324,7 @@ func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
 					rows_11 = newRows_11
 				}
 				for c_11 := range lanes {
-					rows_11[c_11].Store((*[4]float64)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
+					rows_11[c_11].StoreArray((*[4]float64)(unsafe.Pointer(&dst[(j1+c_11)*m+i])))
 				}
 			}
 		}
@@ -334,7 +334,7 @@ func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
 			{
 				rows_1 := [4]archsimd.Float64x4{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [4]archsimd.Float64x4{}
@@ -347,7 +347,7 @@ func BaseTranspose2D_avx2_Float64(src []float64, m int, k int, dst []float64) {
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
+					rows_1[c_1].StoreArray((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*m+i])))
 				}
 			}
 		}
@@ -574,7 +574,7 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 			{
 				rows_1 := [8]archsimd.Float32x8{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]archsimd.Float32x8{}
@@ -587,7 +587,7 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
+					rows_1[c_1].StoreArray((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
 		}
@@ -595,7 +595,7 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 			{
 				rows_11 := [8]archsimd.Float32x8{}
 				for r_11 := range lanes {
-					rows_11[r_11] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+					rows_11[r_11] = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [8]archsimd.Float32x8{}
@@ -608,7 +608,7 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 					rows_11 = newRows_11
 				}
 				for c_11 := range lanes {
-					rows_11[c_11].Store((*[8]float32)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
+					rows_11[c_11].StoreArray((*[8]float32)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
 				}
 			}
 		}
@@ -618,7 +618,7 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 			{
 				rows_1 := [8]archsimd.Float32x8{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [8]archsimd.Float32x8{}
@@ -631,7 +631,7 @@ func BaseTranspose2DStrided_avx2(src []float32, rowStart int, rowEnd int, k int,
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
+					rows_1[c_1].StoreArray((*[8]float32)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
 		}
@@ -671,7 +671,7 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 			{
 				rows_1 := [4]archsimd.Float64x4{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [4]archsimd.Float64x4{}
@@ -684,7 +684,7 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
+					rows_1[c_1].StoreArray((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
 		}
@@ -692,7 +692,7 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 			{
 				rows_11 := [4]archsimd.Float64x4{}
 				for r_11 := range lanes {
-					rows_11[r_11] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
+					rows_11[r_11] = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[(i+r_11)*k+j1])))
 				}
 				for stride_11 := lanes / 2; stride_11 >= 1; stride_11 /= 2 {
 					newRows_11 := [4]archsimd.Float64x4{}
@@ -705,7 +705,7 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 					rows_11 = newRows_11
 				}
 				for c_11 := range lanes {
-					rows_11[c_11].Store((*[4]float64)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
+					rows_11[c_11].StoreArray((*[4]float64)(unsafe.Pointer(&dst[(j1+c_11)*dstM+i])))
 				}
 			}
 		}
@@ -715,7 +715,7 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 			{
 				rows_1 := [4]archsimd.Float64x4{}
 				for r_1 := range lanes {
-					rows_1[r_1] = archsimd.LoadFloat64x4((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
+					rows_1[r_1] = archsimd.LoadFloat64x4Array((*[4]float64)(unsafe.Pointer(&src[(i+r_1)*k+j])))
 				}
 				for stride_1 := lanes / 2; stride_1 >= 1; stride_1 /= 2 {
 					newRows_1 := [4]archsimd.Float64x4{}
@@ -728,7 +728,7 @@ func BaseTranspose2DStrided_avx2_Float64(src []float64, rowStart int, rowEnd int
 					rows_1 = newRows_1
 				}
 				for c_1 := range lanes {
-					rows_1[c_1].Store((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
+					rows_1[c_1].StoreArray((*[4]float64)(unsafe.Pointer(&dst[(j+c_1)*dstM+i])))
 				}
 			}
 		}
