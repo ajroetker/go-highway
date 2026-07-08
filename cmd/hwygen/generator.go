@@ -674,7 +674,7 @@ func (g *Generator) Run() error {
 			}
 		}
 
-		targetFuncs[target.Name] = transformed
+		targetFuncs[target.Name+target.FileSuffix()] = transformed
 
 		var hoistedSlice []HoistedConst
 		hoistedKeys := make([]string, 0, len(hoistedMap))
@@ -685,7 +685,7 @@ func (g *Generator) Run() error {
 		for _, k := range hoistedKeys {
 			hoistedSlice = append(hoistedSlice, hoistedMap[k])
 		}
-		targetHoisted[target.Name] = hoistedSlice
+		targetHoisted[target.Name+target.FileSuffix()] = hoistedSlice
 	}
 
 	// 3. ASM path: generate C, compile via GOAT, collect adapter info
@@ -705,9 +705,17 @@ func (g *Generator) Run() error {
 		}
 	}
 
-	// 5. Build the full list of targets for dispatch (Go SIMD + ASM targets)
-	allTargets := make([]Target, len(goSimdTargets))
-	copy(allTargets, goSimdTargets)
+	// 5. Build the full list of targets for dispatch (Go SIMD + ASM targets).
+	// DispatchAlias targets contribute implementation files only; their
+	// symbols are dispatched via a sibling target that defines the same
+	// names under a complementary build tag (e.g. archsimd-backed NEON).
+	allTargets := make([]Target, 0, len(goSimdTargets))
+	for _, t := range goSimdTargets {
+		if t.DispatchAlias {
+			continue
+		}
+		allTargets = append(allTargets, t)
+	}
 	for _, ts := range asmSpecs {
 		// Only add if not already present as a Go SIMD target
 		found := false
@@ -766,13 +774,13 @@ func (g *Generator) Run() error {
 	}
 
 	for _, target := range goSimdTargets {
-		funcDecls := targetFuncs[target.Name]
+		funcDecls := targetFuncs[target.Name+target.FileSuffix()]
 		if len(funcDecls) == 0 {
 			continue
 		}
 
 		contribPkgs := detectContribPackagesForTarget(result.Funcs, target)
-		hoistedConsts := targetHoisted[target.Name]
+		hoistedConsts := targetHoisted[target.Name+target.FileSuffix()]
 		if err := EmitTarget(funcDecls, target, g.PackageOut, baseFilename, g.OutputDir, contribPkgs, hoistedConsts, result.Imports); err != nil {
 			return fmt.Errorf("emit target %s: %w", target.Name, err)
 		}

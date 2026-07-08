@@ -18,7 +18,7 @@ import (
 	"github.com/ajroetker/go-highway/hwy"
 )
 
-//go:generate go run ../../../cmd/hwygen -input radix_float_base.go -output . -targets avx2,avx512,neon,fallback -dispatch radix_float
+//go:generate go run ../../../cmd/hwygen -input radix_float_base.go -output . -targets avx2,avx512,neon:goat,fallback -dispatch radix_float
 
 // BaseFloatToSortable transforms float values to sortable order in-place.
 // Positive floats: flip sign bit. Negative floats: flip all bits.

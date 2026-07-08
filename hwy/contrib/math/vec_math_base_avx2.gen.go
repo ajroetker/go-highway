@@ -600,7 +600,7 @@ func BaseCosVec_avx2_Float16(x asm.Float16x8AVX2) asm.Float16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -621,7 +621,7 @@ func BaseCosVec_avx2_Float16(x asm.Float16x8AVX2) asm.Float16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -681,7 +681,7 @@ func BaseCosVec_avx2_BFloat16(x asm.BFloat16x8AVX2) asm.BFloat16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -702,7 +702,7 @@ func BaseCosVec_avx2_BFloat16(x asm.BFloat16x8AVX2) asm.BFloat16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -762,7 +762,7 @@ func BaseCosVec_avx2(x archsimd.Float32x8) archsimd.Float32x8 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -783,7 +783,7 @@ func BaseCosVec_avx2(x archsimd.Float32x8) archsimd.Float32x8 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -843,7 +843,7 @@ func BaseCosVec_avx2_Float64(x archsimd.Float64x4) archsimd.Float64x4 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x4(1)
 			_vZero := archsimd.BroadcastInt32x4(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [4]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -864,7 +864,7 @@ func BaseCosVec_avx2_Float64(x archsimd.Float64x4) archsimd.Float64x4 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x4(1)
 			_vZero := archsimd.BroadcastInt32x4(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [4]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1604,7 +1604,7 @@ func BaseSinVec_avx2_Float16(x asm.Float16x8AVX2) asm.Float16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1625,7 +1625,7 @@ func BaseSinVec_avx2_Float16(x asm.Float16x8AVX2) asm.Float16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1685,7 +1685,7 @@ func BaseSinVec_avx2_BFloat16(x asm.BFloat16x8AVX2) asm.BFloat16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1706,7 +1706,7 @@ func BaseSinVec_avx2_BFloat16(x asm.BFloat16x8AVX2) asm.BFloat16x8AVX2 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1766,7 +1766,7 @@ func BaseSinVec_avx2(x archsimd.Float32x8) archsimd.Float32x8 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1787,7 +1787,7 @@ func BaseSinVec_avx2(x archsimd.Float32x8) archsimd.Float32x8 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x8(1)
 			_vZero := archsimd.BroadcastInt32x8(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [8]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1847,7 +1847,7 @@ func BaseSinVec_avx2_Float64(x archsimd.Float64x4) archsimd.Float64x4 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x4(1)
 			_vZero := archsimd.BroadcastInt32x4(0)
-			_vMasked := _vOne.Merge(_vZero, useCosMask)
+			_vMasked := _vOne.IfElse(useCosMask, _vZero)
 			var _simd_mask_tmp [4]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0
@@ -1868,7 +1868,7 @@ func BaseSinVec_avx2_Float64(x archsimd.Float64x4) archsimd.Float64x4 {
 		if func() bool {
 			_vOne := archsimd.BroadcastInt32x4(1)
 			_vZero := archsimd.BroadcastInt32x4(0)
-			_vMasked := _vOne.Merge(_vZero, negateMask)
+			_vMasked := _vOne.IfElse(negateMask, _vZero)
 			var _simd_mask_tmp [4]int32
 			_vMasked.Store(_simd_mask_tmp[:])
 			return _simd_mask_tmp[i] != 0

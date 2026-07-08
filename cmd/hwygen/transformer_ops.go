@@ -150,7 +150,7 @@ func transformMaskNot(call *ast.CallExpr, pkgName, vecTypeName, elemType string)
 // hwyWrapperName returns the hwy wrapper function name for a given op, target, and element type.
 // This is the naming convention: OpName_TargetName_ShortTypeName (e.g., Compress_AVX2_F32x8).
 func hwyWrapperName(opName string, ctx *transformContext) string {
-	return fmt.Sprintf("%s_%s_%s", opName, ctx.target.Name, getShortTypeName(ctx.elemType, ctx.target))
+	return fmt.Sprintf("%s_%s_%s", opName, ctx.target.WrapperTag(), getShortTypeName(ctx.elemType, ctx.target))
 }
 
 // arrayPointerCast builds a (*[lanes]elemType)(ptr) type conversion expression.
@@ -174,7 +174,7 @@ func arrayPointerCast(lanes int, elemType string, ptr ast.Expr) *ast.CallExpr {
 // Arguments are preserved as-is.
 func redirectToHwyWrapper(call *ast.CallExpr, funcName string, ctx *transformContext) {
 	vecTypeName := ctx.vecTypeName
-	wrapperName := fmt.Sprintf("%s_%s_%s", funcName, ctx.target.Name, vecTypeName)
+	wrapperName := fmt.Sprintf("%s_%s_%s", funcName, ctx.target.WrapperTag(), vecTypeName)
 	call.Fun = &ast.SelectorExpr{
 		X:   ast.NewIdent("hwy"),
 		Sel: ast.NewIdent(wrapperName),
@@ -927,6 +927,22 @@ func transformToMethod(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx *
 			}
 		}
 
+	case "ConvertToInt32":
+		// archsimd arm64 Float64x2 has no ConvertToInt32 (there is no
+		// sub-128-bit Int32x2 result type); route float64 through a hwy
+		// wrapper that converts via Int64x2 and narrows to Int32x4.
+		// Redirect only when the int32 companion vector would be narrower
+		// than 128 bits (i.e. f64 lane count * 4 bytes < 16 — NEON's
+		// Float64x2, whose companion would be the nonexistent Int32x2).
+		if ctx.target.UsesArchsimd() && ctx.elemType == "float64" &&
+			ctx.target.LanesFor("float64")*4 < 16 && len(call.Args) >= 1 {
+			redirectToHwyWrapper(call, "ConvertToInt32", ctx)
+			return
+		}
+		if len(call.Args) >= 1 {
+			convertToUnaryMethodCall(call, opInfo.Name)
+		}
+
 	case "And", "Xor":
 		// archsimd float types don't have And/Xor methods, only int types do.
 		// For float types on archsimd, use hwy wrappers.
@@ -1184,6 +1200,14 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 
 	// Check if this op should be redirected to hwy wrappers (archsimd doesn't have it)
 	if opInfo.Package == "hwy" && opInfo.SubPackage == "" {
+		// Half-precision values on the generic hwy.Vec path use the plain
+		// generic hwy function, not a target-suffixed native wrapper.
+		if isHalfPrecisionType(effectiveElemType) && !ctx.isAVXPromoted {
+			selExpr.X = ast.NewIdent("hwy")
+			selExpr.Sel.Name = opInfo.Name
+			call.Fun = selExpr
+			return
+		}
 		// Use hwy wrapper instead of archsimd
 		// Try to infer lanes and element type from any argument (for operations like TableLookupBytes)
 		shortTypeName := getShortTypeName(effectiveElemType, ctx.target)
@@ -1213,7 +1237,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 			}
 			shortTypeName = getShortTypeNameForLanes(effectiveElemType, useLanes)
 		}
-		fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.Name, shortTypeName)
+		fullName = fmt.Sprintf("%s_%s_%s", opInfo.Name, ctx.target.WrapperTag(), shortTypeName)
 		selExpr.X = ast.NewIdent("hwy")
 		selExpr.Sel.Name = fullName
 		// Strip the IndexExpr if call.Fun was hwy.Func[T]() - the wrapper doesn't use type params
@@ -1361,7 +1385,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		// For AVX2/AVX512: hwy.Slide*Lanes(v, offset) -> hwy.Slide*Lanes_AVX2_F32x8(v, offset)
 		if ctx.target.IsAVX() {
 			shortTypeName := getShortTypeName(ctx.elemType, ctx.target)
-			fullName = fmt.Sprintf("%s_%s_%s", funcName, ctx.target.Name, shortTypeName)
+			fullName = fmt.Sprintf("%s_%s_%s", funcName, ctx.target.WrapperTag(), shortTypeName)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			fullName = fmt.Sprintf("%s%s", funcName, vecTypeName)
@@ -1555,7 +1579,7 @@ func transformToFunction(call *ast.CallExpr, funcName string, opInfo OpInfo, ctx
 		} else if ctx.target.VecPackage == "archsimd" {
 			// AVX2/AVX512: use hwy.Iota_{target}_{shortType}()
 			shortTypeName := getShortTypeName(effectiveElemType, ctx.target)
-			fullName = fmt.Sprintf("Iota_%s_%s", ctx.target.Name, shortTypeName)
+			fullName = fmt.Sprintf("Iota_%s_%s", ctx.target.WrapperTag(), shortTypeName)
 			selExpr.X = ast.NewIdent("hwy")
 		} else {
 			fullName = opInfo.Name

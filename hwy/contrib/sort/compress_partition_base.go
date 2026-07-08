@@ -16,7 +16,7 @@ package sort
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input compress_partition_base.go -output . -targets avx2,avx512,neon,fallback -dispatch compress_partition
+//go:generate go run ../../../cmd/hwygen -input compress_partition_base.go -output . -targets avx2,avx512,neon:goat,fallback -dispatch compress_partition
 
 // BaseCompressPartition3Way partitions data into three regions around pivot.
 // For 3-way partitioning, we use the scalar Dutch National Flag algorithm

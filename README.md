@@ -8,9 +8,9 @@ Write SIMD code once, run it on AVX2, AVX-512, ARM NEON, or pure Go fallback.
 
 ## Requirements
 
-- Go 1.26+
-- `GOEXPERIMENT=simd` for AMD64 hardware acceleration (uses native `simd/archsimd` package)
-- ARM64 uses `hwy/asm` with GoAT-generated assembly (no `GOEXPERIMENT` needed)
+- Go 1.27rc2+ (this branch)
+- `GOEXPERIMENT=simd` for AMD64 and ARM64 NEON hardware acceleration (uses native `simd/archsimd` package)
+- Without `GOEXPERIMENT`, ARM64 uses `hwy/asm` with GoAT-generated assembly; SVE/SME always use GoAT assembly
 
 ## Installation
 

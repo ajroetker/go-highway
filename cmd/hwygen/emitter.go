@@ -895,7 +895,7 @@ func EmitTarget(funcs []*ast.FuncDecl, target Target, pkgName, baseName, outPath
 	}
 
 	// Determine output filename
-	filename := filepath.Join(outPath, baseName+target.Suffix()+".gen.go")
+	filename := filepath.Join(outPath, baseName+target.FileSuffix()+".gen.go")
 
 	// Format the code and fix imports
 	formatted, err := formatAndFixImports(filename, buf.Bytes())

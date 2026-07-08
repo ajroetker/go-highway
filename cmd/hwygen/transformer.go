@@ -1195,6 +1195,15 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 	intVecTypeName := getVectorTypeNameForInt("int32", ctx.elemType, ctx.target)
 	pkgName := ctx.vecPkgName
 
+	// The tmp array must match the extraction vector's lane count, which may
+	// be wider than the element lane count on archsimd (no sub-128-bit
+	// vectors; see getVectorTypeNameForInt clamping).
+	if ctx.target.UsesArchsimd() {
+		if minLanes := 16 / elemTypeSize("int32"); lanes < minLanes {
+			lanes = minLanes
+		}
+	}
+
 	// func() bool {
 	//   vOne := pkg.BroadcastInt32x4(1)
 	//   vZero := pkg.BroadcastInt32x4(0)
@@ -1235,6 +1244,13 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 	}
 
 	// 3. vMasked := vOne.Merge(vZero, mask)
+	// (vOne.IfElse(mask, vZero) on archsimd — arm64 archsimd has no Merge)
+	mergeMethod := "Merge"
+	mergeArgs := []ast.Expr{ast.NewIdent("_vZero"), cloneExpr(maskExpr)}
+	if ctx.target.UsesArchsimd() {
+		mergeMethod = "IfElse"
+		mergeArgs = []ast.Expr{cloneExpr(maskExpr), ast.NewIdent("_vZero")}
+	}
 	vMaskedDecl := &ast.AssignStmt{
 		Lhs: []ast.Expr{ast.NewIdent("_vMasked")},
 		Tok: token.DEFINE,
@@ -1242,12 +1258,9 @@ func transformGetBitMethod(call *ast.CallExpr, ctx *transformContext) {
 			&ast.CallExpr{
 				Fun: &ast.SelectorExpr{
 					X:   ast.NewIdent("_vOne"),
-					Sel: ast.NewIdent("Merge"),
+					Sel: ast.NewIdent(mergeMethod),
 				},
-				Args: []ast.Expr{
-					ast.NewIdent("_vZero"),
-					cloneExpr(maskExpr),
-				},
+				Args: mergeArgs,
 			},
 		},
 	}
@@ -1762,6 +1775,14 @@ func tryHoistSetCall(stmt *ast.AssignStmt, rhsIndex int, rhs ast.Expr, ctx *tran
 		// Int32/int64 constants used in float functions should match the parent type's lane count
 		// e.g., int32 constants in float64 functions need 2 lanes on NEON, not 4
 		useLanes = ctx.target.LanesFor(ctx.elemType)
+		// archsimd has no sub-128-bit vectors; clamp to the 128-bit
+		// minimum (the extra upper lanes are harmless for lane-wise
+		// companion math)
+		if ctx.target.UsesArchsimd() {
+			if minLanes := 16 / elemTypeSize(actualElemType); useLanes < minLanes {
+				useLanes = minLanes
+			}
+		}
 	} else {
 		targetLanes := ctx.target.LanesFor(actualElemType)
 		useLanes = targetLanes

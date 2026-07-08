@@ -110,8 +110,16 @@ func parseTargetSelector(spec string) (TargetSelector, error) {
 		selector.Mode = TargetModeAsm
 	case "c":
 		selector.Mode = TargetModeC
+	case "goat":
+		// Legacy GoSimd behavior: hwy/asm-backed Go loops under plain arm64,
+		// with no archsimd variant. For packages whose ops have no archsimd
+		// arm64 mapping yet.
+		if target.Name != "NEON" {
+			return TargetSelector{}, fmt.Errorf("the :goat mode suffix is only valid for neon (got %q)", spec)
+		}
+		selector.Mode = TargetModeGoSimd
 	default:
-		return TargetSelector{}, fmt.Errorf("invalid target mode %q in %q (valid suffixes: :asm, :c)", modePart, spec)
+		return TargetSelector{}, fmt.Errorf("invalid target mode %q in %q (valid suffixes: :asm, :c, :goat)", modePart, spec)
 	}
 	selector.HasExplicitMode = true
 
@@ -155,6 +163,21 @@ type Target struct {
 	TypeMap    map[string]string // "float32" -> vector type name (without package prefix)
 	OpMap      map[string]OpInfo // "Add" -> operation info
 	Mode       TargetMode        // GoSimd, Asm, or C — controls dispatch generation
+
+	// FileSuffixOverride, when set, replaces Suffix() for output FILE names
+	// only; symbol names still use Suffix(). This lets two variants of the
+	// same target (e.g. NEON asm-backed vs archsimd-backed) define identical
+	// symbols in separate files selected by mutually exclusive build tags.
+	FileSuffixOverride string
+	// HwyWrapperTag, when set, replaces Name in generated hwy wrapper
+	// function names (e.g. Merge_NEON_SIMD_F32x4 instead of
+	// Merge_NEON_F32x4) to avoid collisions with wrappers for a sibling
+	// variant of the same target name.
+	HwyWrapperTag string
+	// DispatchAlias marks a target that only contributes implementation
+	// files; dispatch entries are provided by a sibling target that defines
+	// the same symbols under a complementary build tag.
+	DispatchAlias bool
 }
 
 // IsFallback returns true if this is the scalar fallback target.
@@ -396,6 +419,160 @@ func armBaseOps(targetName string, f32Lanes, f64Lanes string) map[string]OpInfo 
 	return m
 }
 
+// neonArchsimdOps returns the op-map for the archsimd-backed NEON variant
+// (Go 1.27+ native arm64 support in simd/archsimd, under goexperiment.simd).
+// Ops without native archsimd arm64 equivalents route to hwy wrapper
+// functions suffixed with the target's WrapperTag (NEON_SIMD), implemented in
+// hwy/ops_neon_simd.go.
+func neonArchsimdOps(targetName string) map[string]OpInfo {
+	m := map[string]OpInfo{
+		// Load/Store (Go 1.27 archsimd names emitted via Target helpers)
+		"Load":       {Name: "Load", IsMethod: false},
+		"LoadSlice":  {Name: "LoadSlice", IsMethod: false},
+		"Load4":      {Package: "hwy", Name: "Load4", IsMethod: false},
+		"Store":      {Name: "Store", IsMethod: true},
+		"StoreSlice": {Name: "Store", IsMethod: true},
+		"Set":        {Name: "Broadcast", IsMethod: false},
+		"Const":      {Name: "Broadcast", IsMethod: false},
+		"Zero":       {Package: "special", Name: "Zero", IsMethod: false},
+
+		// Arithmetic (all native archsimd arm64 methods)
+		"Add": {Name: "Add", IsMethod: true},
+		"Sub": {Name: "Sub", IsMethod: true},
+		"Mul": {Name: "Mul", IsMethod: true},
+		"Div": {Name: "Div", IsMethod: true},
+		"Neg": {Name: "Neg", IsMethod: true},
+		"Abs": {Name: "Abs", IsMethod: true},
+		"Min": {Name: "Min", IsMethod: true},
+		"Max": {Name: "Max", IsMethod: true},
+
+		// Logical (int types are native methods; float types are redirected
+		// to hwy wrappers by the transformer's archsimd float-bitwise logic)
+		"And":    {Name: "And", IsMethod: true},
+		"Or":     {Name: "Or", IsMethod: true},
+		"Xor":    {Name: "Xor", IsMethod: true},
+		"AndNot": {Name: "AndNot", IsMethod: true},
+		"Not":    {Name: "Not", IsMethod: true},
+
+		// Core math
+		"Sqrt":               {Name: "Sqrt", IsMethod: true},
+		"RSqrt":              {Package: "hwy", Name: "RSqrt", IsMethod: false},
+		"RSqrtNewtonRaphson": {Package: "hwy", Name: "RSqrtNewtonRaphson_" + targetName, IsMethod: false},
+		"RSqrtPrecise":       {Package: "hwy", Name: "RSqrtPrecise_" + targetName, IsMethod: false},
+		"FMA":                {Name: "MulAdd", IsMethod: true},
+		"MulAdd":             {Name: "MulAdd", IsMethod: true},
+
+		// Float decomposition (no native archsimd arm64 support)
+		"GetExponent": {Package: "hwy", Name: "GetExponent", IsMethod: false},
+		"GetMantissa": {Package: "hwy", Name: "GetMantissa", IsMethod: false},
+
+		// Type reinterpretation (archsimd arm64 has ToBits/BitsTo* only)
+		"AsInt32":   {Package: "hwy", Name: "AsInt32", IsMethod: false},
+		"AsFloat32": {Package: "hwy", Name: "AsFloat32", IsMethod: false},
+		"AsInt64":   {Package: "hwy", Name: "AsInt64", IsMethod: false},
+		"AsFloat64": {Package: "hwy", Name: "AsFloat64", IsMethod: false},
+
+		// Comparisons (return masks)
+		"Greater": {Name: "Greater", IsMethod: true},
+		"Less":    {Name: "Less", IsMethod: true},
+
+		// Mask ops (archsimd arm64 masks have And/Or/Not methods)
+		"MaskAnd":    {Name: "And", IsMethod: true},
+		"MaskOr":     {Name: "Or", IsMethod: true},
+		"MaskAndNot": {Package: "hwy", Name: "MaskAndNot", IsMethod: false},
+
+		// Conditional/Blend (archsimd arm64 has IfElse(mask, y) instead of
+		// Merge(y, mask); the hwy wrapper swaps arguments)
+		"Merge": {Package: "hwy", Name: "Merge", IsMethod: false},
+
+		// Integer shifts
+		"ShiftAllLeft":  {Name: "ShiftAllLeft", IsMethod: true},
+		"ShiftAllRight": {Name: "ShiftAllRight", IsMethod: true},
+		"ShiftLeft":     {Name: "ShiftAllLeft", IsMethod: true},
+		"ShiftRight":    {Name: "ShiftAllRight", IsMethod: true},
+
+		// Reductions (ints are native; floats lack ReduceSum — hwy wrappers
+		// keep the op type-agnostic)
+		"ReduceSum": {Package: "hwy", Name: "ReduceSum", IsMethod: false},
+		"ReduceMin": {Name: "ReduceMin", IsMethod: true},
+		"ReduceMax": {Name: "ReduceMax", IsMethod: true},
+
+		// Bit manipulation
+		"PopCount": {Package: "hwy", Name: "PopCount", IsMethod: false},
+
+		// Comparisons (archsimd uses Less/Greater, not LessThan/GreaterThan)
+		"Equal":        {Name: "Equal", IsMethod: true},
+		"NotEqual":     {Name: "NotEqual", IsMethod: true},
+		"LessThan":     {Name: "Less", IsMethod: true},
+		"GreaterThan":  {Name: "Greater", IsMethod: true},
+		"LessEqual":    {Name: "LessEqual", IsMethod: true},
+		"GreaterEqual": {Name: "GreaterEqual", IsMethod: true},
+
+		// Conditional
+		"IfThenElse": {Package: "hwy", Name: "IfThenElse", IsMethod: false},
+
+		// Initialization
+		"Iota":    {Package: "hwy", Name: "Iota", IsMethod: false},
+		"SignBit": {Package: "hwy", Name: "SignBit", IsMethod: false},
+
+		// Permutation/Shuffle (mostly absent from archsimd arm64; hwy
+		// wrappers exist only where a pilot package needs them — using an
+		// unimplemented one is a compile error, which flags the package to
+		// stay on neon:goat until a wrapper is added)
+		"TableLookupBytes":   {Package: "hwy", Name: "TableLookupBytes", IsMethod: false},
+		"Reverse":            {Package: "hwy", Name: "Reverse", IsMethod: false},
+		"Reverse2":           {Package: "hwy", Name: "Reverse2", IsMethod: false},
+		"Reverse4":           {Package: "hwy", Name: "Reverse4", IsMethod: false},
+		"Broadcast":          {Name: "Broadcast", IsMethod: true},
+		"GetLane":            {Package: "hwy", Name: "GetLane", IsMethod: false},
+		"InsertLane":         {Package: "hwy", Name: "InsertLane", IsMethod: false},
+		"InterleaveLower":    {Package: "hwy", Name: "InterleaveLower", IsMethod: false},
+		"InterleaveUpper":    {Package: "hwy", Name: "InterleaveUpper", IsMethod: false},
+		"ConcatLowerLower":   {Package: "hwy", Name: "ConcatLowerLower", IsMethod: false},
+		"ConcatUpperUpper":   {Package: "hwy", Name: "ConcatUpperUpper", IsMethod: false},
+		"ConcatLowerUpper":   {Package: "hwy", Name: "ConcatLowerUpper", IsMethod: false},
+		"ConcatUpperLower":   {Package: "hwy", Name: "ConcatUpperLower", IsMethod: false},
+		"OddEven":            {Package: "hwy", Name: "OddEven", IsMethod: false},
+		"DupEven":            {Package: "hwy", Name: "DupEven", IsMethod: false},
+		"DupOdd":             {Package: "hwy", Name: "DupOdd", IsMethod: false},
+		"SwapAdjacentBlocks": {Package: "hwy", Name: "SwapAdjacentBlocks", IsMethod: false},
+		"SlideUpLanes":       {Package: "hwy", Name: "SlideUpLanes", IsMethod: false},
+		"SlideDownLanes":     {Package: "hwy", Name: "SlideDownLanes", IsMethod: false},
+
+		// Type Conversions (native methods on archsimd arm64)
+		"ConvertToInt32":   {Name: "ConvertToInt32", IsMethod: true},
+		"ConvertToFloat32": {Name: "ConvertToFloat32", IsMethod: true},
+		"RoundToEven":      {Name: "Round", IsMethod: true},
+		"Round":            {Name: "Round", IsMethod: true},
+		"Trunc":            {Name: "Trunc", IsMethod: true},
+		"Ceil":             {Name: "Ceil", IsMethod: true},
+		"Floor":            {Name: "Floor", IsMethod: true},
+		"NearestInt":       {Package: "hwy", Name: "NearestInt", IsMethod: false},
+		"Clamp":            {Package: "hwy", Name: "Clamp", IsMethod: false},
+
+		// Compress/Expand and mask utilities (no native archsimd arm64
+		// support; wrappers are added on demand)
+		"Compress":      {Package: "hwy", Name: "Compress", IsMethod: false},
+		"Expand":        {Package: "hwy", Name: "Expand", IsMethod: false},
+		"CompressStore": {Package: "hwy", Name: "CompressStore", IsMethod: false},
+		"CountTrue":     {Package: "hwy", Name: "CountTrue", IsMethod: false},
+		"AllTrue":       {Package: "hwy", Name: "AllTrue", IsMethod: false},
+		"AllFalse":      {Package: "hwy", Name: "AllFalse", IsMethod: false},
+		"FindFirstTrue": {Package: "hwy", Name: "FindFirstTrue", IsMethod: false},
+		"FindLastTrue":  {Package: "hwy", Name: "FindLastTrue", IsMethod: false},
+		"FirstN":        {Package: "hwy", Name: "FirstN", IsMethod: false},
+		"LastN":         {Package: "hwy", Name: "LastN", IsMethod: false},
+		"BitsFromMask":  {Package: "hwy", Name: "BitsFromMask", IsMethod: false},
+
+		// IEEE 754 Operations
+		"Pow2": {Package: "hwy", Name: "Pow2", IsMethod: false},
+	}
+
+	maps.Copy(m, contribMathOps())
+	maps.Copy(m, specialOps())
+	return m
+}
+
 // avxBaseOps returns the base op-map for AVX targets (AVX2, AVX512). The
 // targetName is used for RSqrtNewtonRaphson/RSqrtPrecise suffixes, and
 // f32Lanes/f64Lanes set the lane counts for reinterpretation ops.
@@ -617,6 +794,35 @@ func NEONTarget() Target {
 		BuildTag:   "arm64",
 		VecWidth:   16,
 		VecPackage: "asm",
+		TypeMap: map[string]string{
+			"float32":      "Float32x4",
+			"float64":      "Float64x2",
+			"int32":        "Int32x4",
+			"int64":        "Int64x2",
+			"uint32":       "Uint32x4",
+			"uint64":       "Uint64x2",
+			"hwy.Float16":  "Float16x8",
+			"hwy.BFloat16": "BFloat16x8",
+		},
+		OpMap: ops,
+	}
+}
+
+// NEONSimdTarget returns the archsimd-backed NEON variant (Go 1.27+ native
+// arm64 support in simd/archsimd). It shares Name and symbol suffix with
+// NEONTarget so the two variants define identical symbols under mutually
+// exclusive build tags; dispatch entries come from the sibling (goat) variant.
+func NEONSimdTarget() Target {
+	ops := neonArchsimdOps("NEON_SIMD")
+
+	return Target{
+		Name:               "NEON",
+		BuildTag:           "arm64 && goexperiment.simd",
+		VecWidth:           16,
+		VecPackage:         "archsimd",
+		FileSuffixOverride: "_neon_simd",
+		HwyWrapperTag:      "NEON_SIMD",
+		DispatchAlias:      true,
 		TypeMap: map[string]string{
 			"float32":      "Float32x4",
 			"float64":      "Float64x2",
@@ -918,6 +1124,24 @@ func (t Target) Suffix() string {
 // simd/archsimd package (as opposed to hwy/asm or the pure-Go fallback).
 func (t Target) UsesArchsimd() bool {
 	return t.VecPackage == "archsimd"
+}
+
+// FileSuffix returns the suffix used for output file names. Unlike Suffix()
+// (which also names symbols), this can be overridden per target variant.
+func (t Target) FileSuffix() string {
+	if t.FileSuffixOverride != "" {
+		return t.FileSuffixOverride
+	}
+	return t.Suffix()
+}
+
+// WrapperTag returns the tag used in generated hwy wrapper function names
+// (e.g. the NEON_SIMD in Merge_NEON_SIMD_F32x4).
+func (t Target) WrapperTag() string {
+	if t.HwyWrapperTag != "" {
+		return t.HwyWrapperTag
+	}
+	return t.Name
 }
 
 // StoreSliceMethod returns the method name for storing a vector to a slice.

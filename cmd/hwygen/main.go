@@ -146,6 +146,22 @@ func parseTargets(s string, globalC, globalAsm bool) ([]TargetSpec, error) {
 		if !selector.HasExplicitMode {
 			mode = globalMode(globalC, globalAsm)
 		}
+
+		// Plain "neon" in GoSimd mode expands to two variants defining the
+		// same symbols under complementary build tags: the hwy/asm-backed
+		// implementation for !goexperiment.simd builds, and the archsimd-
+		// backed implementation (Go 1.27+) for goexperiment.simd builds.
+		// "neon:goat" keeps the legacy single-variant behavior (plain arm64).
+		if selector.Target.Name == "NEON" && mode == TargetModeGoSimd && !selector.HasExplicitMode {
+			goat := selector.Target
+			goat.BuildTag = "arm64 && !goexperiment.simd"
+			result = append(result,
+				TargetSpec{Target: goat, Mode: TargetModeGoSimd},
+				TargetSpec{Target: NEONSimdTarget(), Mode: TargetModeGoSimd},
+			)
+			continue
+		}
+
 		result = append(result, TargetSpec{Target: selector.Target, Mode: mode})
 	}
 	return result, nil

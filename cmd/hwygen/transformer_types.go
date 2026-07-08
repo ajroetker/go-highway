@@ -558,6 +558,16 @@ func getVectorTypeNameForInt(intType, parentElemType string, target Target) stri
 
 	// Match lanes to parent element type
 	lanes := target.LanesFor(parentElemType)
+
+	// archsimd has no sub-128-bit vectors (e.g. Int32x2 for NEON float64
+	// companions). Clamp to the full-width type; the extra upper lanes are
+	// harmless for lane-wise companion arithmetic and mask extraction.
+	if target.UsesArchsimd() {
+		if minLanes := 16 / elemTypeSize(intType); lanes < minLanes {
+			lanes = minLanes
+		}
+	}
+
 	switch intType {
 	case "int32":
 		return fmt.Sprintf("Int32x%d", lanes)

@@ -16,7 +16,7 @@ package sort
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input network_base.go -output . -targets avx2,avx512,neon,fallback -dispatch network
+//go:generate go run ../../../cmd/hwygen -input network_base.go -output . -targets avx2,avx512,neon:goat,fallback -dispatch network
 
 // BaseSortSmall sorts a small slice in-place using sorting networks.
 // For slices up to 2*lanes elements, uses optimized sorting.

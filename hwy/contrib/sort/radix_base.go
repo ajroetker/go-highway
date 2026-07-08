@@ -16,7 +16,7 @@ package sort
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input radix_base.go -output . -targets avx2,avx512,neon,fallback -dispatch radix
+//go:generate go run ../../../cmd/hwygen -input radix_base.go -output . -targets avx2,avx512,neon:goat,fallback -dispatch radix
 
 // BaseRadixPass performs one pass of LSD radix sort.
 // shift specifies which byte to use for bucketing (0, 8, 16, 24 for int32).

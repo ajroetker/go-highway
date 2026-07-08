@@ -93,17 +93,18 @@ Directive comments placed within 5 lines above a `Base*` function:
 
 Specializations are auto-discovered from sibling `*_base.go` files. See `specs/multi-dispatch.md` for details.
 
-### Target Modes: `neon` vs `neon:asm`
+### Target Modes: `neon` vs `neon:asm` vs `neon:goat`
 
-hwygen supports three generation modes, selected with a colon suffix on the target name:
+hwygen supports these generation modes, selected with a colon suffix on the target name:
 
 | Suffix | Mode | What it generates |
 |--------|------|-------------------|
-| *(none)* | GoSimd | Pure Go calling `asm` or `archsimd` methods |
+| *(none)* | GoSimd | TWO variants: archsimd intrinsics under `arm64 && goexperiment.simd`, plus `hwy/asm`-backed Go under `arm64 && !goexperiment.simd` |
 | `:asm` | Assembly | C source → GoAT → Go assembly + wrappers |
+| `:goat` | GoSimd (legacy) | `hwy/asm`-backed Go only, plain `arm64` tag (for ops with no archsimd arm64 mapping yet, e.g. Compress) |
 | `:c` | C only | C source for inspection (not compiled) |
 
-**Use plain `neon`** (GoSimd mode) for operations that the `hwy/asm` package already supports — arithmetic, loads/stores, reductions, etc. This is the default and produces portable Go code that calls NEON intrinsics through the asm package.
+**Use plain `neon`** (GoSimd mode) when the ops map to Go 1.27's native arm64 archsimd support (arithmetic, comparisons, conversions, FMA — see `neonArchsimdOps` in cmd/hwygen/targets.go). Both variants define identical symbols under mutually exclusive build tags, so dispatch files need no changes. The archsimd variant inlines as compiler intrinsics and is ~20x faster than the per-op-call asm path on math kernels. Ops without archsimd arm64 equivalents route to `hwy.X_NEON_SIMD_*` wrappers in `hwy/ops_neon_simd.go` — a missing wrapper is a compile error flagging the package for `neon:goat`.
 
 **Use `neon:asm`** when you need bulk assembly — the entire function is compiled from C to Go assembly via GoAT, eliminating per-vector call overhead. This is best for:
 - Compute-heavy kernels (matmul, cross-entropy loss, fused quantized ops)
@@ -133,12 +134,12 @@ SVE targets (`sve_darwin`, `sve_linux`) are always assembly-only — they have n
 |--------------|------------|---------|--------|
 | AMD64 AVX2 | 256-bit | Go 1.26 `simd/archsimd` | Supported |
 | AMD64 AVX-512 | 512-bit | Go 1.26 `simd/archsimd` | Supported |
-| ARM64 NEON | 128-bit | `hwy/asm` (GoAT assembly) | Supported |
+| ARM64 NEON | 128-bit | Go 1.27 `simd/archsimd` (+`hwy/asm` fallback) | Supported |
 | ARM64 SVE (Darwin) | 512-bit (fixed) | `hwy/asm` (GoAT assembly) | Supported |
 | ARM64 SVE (Linux) | Scalable | `hwy/asm` (GoAT assembly) | Supported |
 | Pure Go | Scalar | — | Supported (fallback) |
 
-ARM64 targets use the `hwy/asm` package because Go's `simd/archsimd` does not yet support NEON or SVE.
+ARM64 NEON uses native `simd/archsimd` (Go 1.27+) under `GOEXPERIMENT=simd`, with the `hwy/asm` GoAT path for non-experiment builds. SVE/SME remain GoAT-only (Go simd has no scalable-vector support).
 
 ## GoAT Transpiler (C to Go Assembly)
 

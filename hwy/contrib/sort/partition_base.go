@@ -16,7 +16,7 @@ package sort
 
 import "github.com/ajroetker/go-highway/hwy"
 
-//go:generate go run ../../../cmd/hwygen -input partition_base.go -output . -targets avx2,avx512,neon,fallback -dispatch partition
+//go:generate go run ../../../cmd/hwygen -input partition_base.go -output . -targets avx2,avx512,neon:goat,fallback -dispatch partition
 
 // BasePartition3Way performs 3-way partitioning around a pivot.
 // Returns (lt, gt) indices where:
