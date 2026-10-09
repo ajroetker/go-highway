@@ -9,7 +9,7 @@ require (
 )
 
 require (
-	github.com/ajroetker/go-highway/hwy/goat v0.0.0 // indirect
+	github.com/ajroetker/go-highway/hwy/goat v0.0.2-0.20260528204430-c3b5b59834b1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

@@ -52,6 +52,15 @@ jobs:
           restore-keys: |
             ${{ matrix.os }}-go-1.26-
 
+      - name: Verify module dependencies from a consumer
+        run: |
+          consumer_dir=$(mktemp -d)
+          cd "$consumer_dir"
+          go mod init example.com/go-highway-consumer
+          go mod edit -require=github.com/ajroetker/go-highway@v0.0.0
+          go mod edit -replace=github.com/ajroetker/go-highway="$GITHUB_WORKSPACE"
+          go mod download all
+
       - name: Install cross-compilation tools
         run: |
           sudo apt-get update
